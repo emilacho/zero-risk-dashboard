@@ -17,9 +17,9 @@ async function AgentsGrid() {
     )
   }
   return (
-    <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid auto-rows-fr gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {data.agents.map((a) => (
-        <Link key={a.id} href={`/agents/${a.name}`}>
+        <Link key={a.id} href={`/agents/${a.name}`} className="block">
           <CubiculoCard
             slug={a.name}
             displayName={a.display_name}
@@ -38,6 +38,7 @@ async function AgentsGrid() {
               avgDurationMs: 0,
               successRate: 100,
             }}
+            onOpen={() => {}}
           />
         </Link>
       ))}
@@ -49,16 +50,18 @@ export default function AgentsPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        <div className="mb-10">
-          <p className="font-mono text-xs uppercase tracking-[0.22em] text-muted-foreground">
-            Cubículos · agentes
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Plantilla · 30-day window
+      <main className="mx-auto max-w-7xl px-6 pb-16 pt-12">
+        <section className="mb-10 flex flex-col gap-3">
+          <span className="eyebrow-chip self-start">Cubículos · agentes</span>
+          <h1 className="font-display text-[40px] font-semibold leading-[1.05] tracking-tight md:text-[52px]">
+            <span className="text-gradient">Plantilla agéntica</span>
           </h1>
-        </div>
-        <Suspense fallback={<Skeleton lines={6} />}>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Cada agente activo en su cubículo · status · model tier · costo
+            últimos 30 días. Click para abrir el detail.
+          </p>
+        </section>
+        <Suspense fallback={<Skeleton kind="page" />}>
           <AgentsGrid />
         </Suspense>
       </main>

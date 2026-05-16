@@ -2,13 +2,15 @@
 /**
  * CubiculoCard · "cubículo del agente" · collapsed agent detail card.
  *
- * Inspired by an open-office cubicle as a metaphor for an agent's small
- * personal workspace: identity at the top, KPIs in the middle, recent
- * activity in the footer. Click to expand into a full agent detail page
- * (host wires `onOpen`).
+ * Lumen polish:
+ *  - 3D tilt on mouse-move (Framer useMotionValue · perspective transform)
+ *  - violet→cyan gradient hairline border revealed on hover
+ *  - shimmer chip-style model label
+ *  - status dot pulse-glow (active only)
+ *  - skill chips with cyan glow on hover
  */
-import { theme } from '../theme'
-import { cn } from '../utils/cn'
+import { useRef, useState, type MouseEvent } from 'react'
+import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion'
 import { formatCurrency, formatRelativeTime } from '../utils/format'
 import type { AgentInvocation } from '../types'
 
@@ -45,164 +47,163 @@ export function CubiculoCard({
   onOpen,
   className,
 }: CubiculoCardProps) {
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const [hover, setHover] = useState(false)
+
+  // 3D tilt math · max ±8 deg
+  const mx = useMotionValue(0.5)
+  const my = useMotionValue(0.5)
+  const rotateY = useSpring(useTransform(mx, [0, 1], [8, -8]), { stiffness: 220, damping: 18 })
+  const rotateX = useSpring(useTransform(my, [0, 1], [-6, 6]), { stiffness: 220, damping: 18 })
+
+  const onMove = (e: MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    mx.set((e.clientX - r.left) / r.width)
+    my.set((e.clientY - r.top) / r.height)
+    el.style.setProperty('--spotlight-x', `${e.clientX - r.left}px`)
+    el.style.setProperty('--spotlight-y', `${e.clientY - r.top}px`)
+  }
+  const onLeave = () => {
+    mx.set(0.5)
+    my.set(0.5)
+    setHover(false)
+  }
+
   const interactive = !!onOpen
-  const statusColor =
-    status === 'active' ? theme.colors.success : status === 'paused' ? theme.colors.warning : theme.colors.fg.muted
+  const statusTone =
+    status === 'active' ? { dot: 'bg-emerald-400', pulse: true }
+    : status === 'paused' ? { dot: 'bg-amber-400', pulse: false }
+    : { dot: 'bg-zinc-500', pulse: false }
 
   return (
-    <div
-      className={cn('cubiculo', className)}
+    <motion.div
+      ref={cardRef}
+      onMouseEnter={() => setHover(true)}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
       onClick={onOpen}
+      data-glow="violet"
+      data-spotlight="true"
+      data-pop="true"
+      className={['surface-card group p-5', interactive ? 'cursor-pointer' : '', className ?? ''].join(' ')}
       style={{
-        background: theme.colors.bg.surface,
-        border: `1px solid ${theme.colors.border.subtle}`,
-        borderRadius: theme.radius.lg,
-        padding: '1.25rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-        cursor: interactive ? 'pointer' : 'default',
-        transition: `transform ${theme.motion.fast}, border-color ${theme.motion.fast}, box-shadow ${theme.motion.fast}`,
-        position: 'relative',
-        overflow: 'hidden',
+        rotateX,
+        rotateY,
+        transformPerspective: 1200,
+        transformStyle: 'preserve-3d',
       }}
     >
-      {/* Top-edge violet accent · 2px */}
-      <div
+      {/* Top accent gradient hairline */}
+      <span
         aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
         style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          height: 2,
-          background: `linear-gradient(90deg, ${theme.colors.primary[500]}, ${theme.colors.accent[500]})`,
+          background: 'linear-gradient(90deg, transparent, hsl(263 80% 65%), hsl(187 85% 55%), transparent)',
         }}
       />
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: theme.radius.full,
-                background: statusColor,
-                boxShadow: `0 0 8px ${statusColor}`,
-              }}
-              aria-label={`status ${status}`}
-            />
-            <span style={{ color: theme.colors.fg.primary, fontSize: 15, fontWeight: 600 }}>{displayName}</span>
-          </div>
-          <code style={{ color: theme.colors.fg.muted, fontFamily: theme.font.mono, fontSize: 11 }}>{slug}</code>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          <span style={{ color: theme.colors.fg.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            {role}
-          </span>
-          <span
-            style={{
-              background: theme.colors.bg.surfaceActive,
-              color: theme.colors.fg.secondary,
-              borderRadius: theme.radius.sm,
-              padding: '2px 6px',
-              fontFamily: theme.font.mono,
-              fontSize: 10,
-            }}
-          >
-            {model}
-          </span>
-        </div>
-      </div>
-
-      {/* Description */}
-      {description ? (
-        <p style={{ color: theme.colors.fg.secondary, fontSize: 12, lineHeight: 1.5, margin: 0 }}>{description}</p>
-      ) : null}
-
-      {/* Metrics row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-          gap: 8,
-          padding: '10px 0',
-          borderTop: `1px solid ${theme.colors.border.subtle}`,
-          borderBottom: `1px solid ${theme.colors.border.subtle}`,
-        }}
-      >
-        <Stat label="invocaciones 30d" value={metrics.invocations30d.toLocaleString()} />
-        <Stat label="costo 30d" value={formatCurrency(metrics.costUsd30d)} />
-        <Stat label="latencia avg" value={`${(metrics.avgDurationMs / 1000).toFixed(1)}s`} />
-        <Stat label="success rate" value={`${metrics.successRate.toFixed(0)}%`} />
-      </div>
-
-      {/* Skills · chips */}
-      {skills.length > 0 ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {skills.slice(0, 4).map((s) => (
-            <span
-              key={s}
-              style={{
-                background: theme.colors.bg.surfaceActive,
-                color: theme.colors.accent[400],
-                fontSize: 10,
-                fontFamily: theme.font.mono,
-                padding: '2px 6px',
-                borderRadius: theme.radius.sm,
-              }}
-            >
-              {s}
-            </span>
-          ))}
-          {skills.length > 4 ? (
-            <span style={{ color: theme.colors.fg.muted, fontSize: 10, alignSelf: 'center' }}>
-              + {skills.length - 4}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* Recent invocations · 2 lines max */}
-      {recentInvocations.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {recentInvocations.slice(0, 2).map((inv) => (
-            <div
-              key={inv.id}
-              style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, gap: 8 }}
-            >
+      <div className="relative z-[2] flex flex-col gap-3.5" style={{ transform: 'translateZ(20px)' }}>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-2">
               <span
-                style={{
-                  color: theme.colors.fg.secondary,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                {inv.task}
-              </span>
-              <span style={{ color: theme.colors.fg.muted, fontVariantNumeric: 'tabular-nums' }}>
-                {formatRelativeTime(inv.at)}
+                aria-label={`status ${status}`}
+                className={[
+                  'inline-flex h-1.5 w-1.5 rounded-full',
+                  statusTone.dot,
+                  statusTone.pulse ? 'animate-pulse-glow' : '',
+                ].join(' ')}
+              />
+              <span className="font-display text-[15px] font-semibold leading-none tracking-tight">
+                {displayName}
               </span>
             </div>
-          ))}
+            <code className="font-mono text-[11px] text-muted-foreground">{slug}</code>
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground">
+              {role}
+            </span>
+            <span className="rounded-md border border-border bg-secondary/50 px-1.5 py-[2px] font-mono text-[10px] text-foreground/80">
+              {model}
+            </span>
+          </div>
         </div>
-      ) : null}
-    </div>
+
+        {/* Description */}
+        {description ? (
+          <p className="text-[12px] leading-relaxed text-muted-foreground line-clamp-2">{description}</p>
+        ) : null}
+
+        {/* Metrics row */}
+        <div className="grid grid-cols-4 gap-2 border-y border-border/60 py-2.5">
+          <Stat label="inv 30d" value={metrics.invocations30d.toLocaleString()} />
+          <Stat label="costo 30d" value={formatCurrency(metrics.costUsd30d)} />
+          <Stat label="latencia" value={`${(metrics.avgDurationMs / 1000).toFixed(1)}s`} />
+          <Stat label="success" value={`${metrics.successRate.toFixed(0)}%`} tone="good" />
+        </div>
+
+        {/* Skill chips */}
+        {skills.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {skills.slice(0, 4).map((s) => (
+              <span
+                key={s}
+                className="rounded-md border border-accent/20 bg-accent/8 px-1.5 py-[2px] font-mono text-[9.5px] text-accent/90 transition-colors hover:bg-accent/15 hover:text-accent"
+              >
+                {s}
+              </span>
+            ))}
+            {skills.length > 4 ? (
+              <span className="self-center text-[10px] text-muted-foreground">+ {skills.length - 4}</span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Recent invocations · 2 lines max */}
+        {recentInvocations.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {recentInvocations.slice(0, 2).map((inv) => (
+              <div key={inv.id} className="flex items-baseline justify-between gap-2 text-[11px]">
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">{inv.task}</span>
+                <span className="text-muted-foreground/70 tabular-nums">
+                  {formatRelativeTime(inv.at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {/* "Open" hint that appears on hover */}
+        {interactive ? (
+          <div
+            className="mt-1 flex items-center justify-end gap-1 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground transition-opacity"
+            style={{ opacity: hover ? 1 : 0.35 }}
+          >
+            <span>open</span>
+            <span aria-hidden>→</span>
+          </div>
+        ) : null}
+      </div>
+    </motion.div>
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: 'good' }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <span style={{ color: theme.colors.fg.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+    <div className="flex flex-col gap-0.5">
+      <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </span>
-      <span style={{ color: theme.colors.fg.primary, fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+      <span
+        className={[
+          'font-display text-[13px] font-semibold leading-none tabular-nums',
+          tone === 'good' ? 'text-emerald-300' : 'text-foreground',
+        ].join(' ')}
+      >
         {value}
       </span>
     </div>

@@ -10,27 +10,23 @@ export default async function GraphPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        <div className="mb-8">
-          <p className="font-mono text-xs uppercase tracking-[0.22em] text-muted-foreground">
-            Memory graph
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Cliente · agent · workflow · tool
+      <main className="mx-auto max-w-7xl px-6 pb-16 pt-12">
+        <section className="mb-8 flex flex-col gap-3">
+          <span className="eyebrow-chip self-start">Memory graph</span>
+          <h1 className="font-display text-[40px] font-semibold leading-[1.05] tracking-tight md:text-[52px]">
+            <span className="text-gradient">Cliente · agent · workflow · tool</span>
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Portfolio view · todos los clientes activos. Click un cliente para
-            ver agents que trabajaron en él.
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Portfolio view · todos los clientes activos. Hover un nodo para
+            expand · zoom + pan disponibles · cascade-flow edges animan.
           </p>
-        </div>
+        </section>
         {clients ? (
-          <div className="rounded-xl border border-border bg-card">
-            <MemoryGraph
-              data={clientsToMemoryGraph(clients.clients)}
-              height={640}
-              title={null}
-            />
-          </div>
+          <MemoryGraph
+            data={clientsToMemoryGraph(clients.clients)}
+            height={640}
+            title={null}
+          />
         ) : (
           <p className="text-sm text-destructive-foreground">
             Could not load graph data · platform endpoint unreachable.

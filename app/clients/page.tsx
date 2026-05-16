@@ -8,6 +8,22 @@ import { Skeleton } from "@/components/Skeleton"
 
 export const dynamic = "force-dynamic"
 
+/**
+ * Map a folder to a bento cell size based on importance:
+ *   - high health (≥75) → 2 cols wide (feature card)
+ *   - active onboarding → 2 cols wide
+ *   - paused/churned    → 1 col
+ *   - other              → 1 col
+ *
+ * Falls back to single-col on mobile / narrow viewports.
+ */
+function cellClassFor(folderStatus: string, healthScore: number): string {
+  const isFeature =
+    folderStatus === "active" && healthScore >= 75 ||
+    folderStatus === "onboarding"
+  return isFeature ? "lg:col-span-2" : "lg:col-span-1"
+}
+
 async function ClientsGrid() {
   const data = await api.clients(100).catch(() => null)
   if (!data) {
@@ -17,11 +33,16 @@ async function ClientsGrid() {
       </p>
     )
   }
+  const folders = data.clients.map(clientRowToFolder)
   return (
-    <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {data.clients.map((c) => (
-        <Link key={c.id} href={`/clients/${c.id}`}>
-          <ClienteCarpetaCard folder={clientRowToFolder(c)} />
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {folders.map((folder, i) => (
+        <Link
+          key={data.clients[i].id}
+          href={`/clients/${data.clients[i].id}`}
+          className={`block ${cellClassFor(folder.status, folder.healthScore)}`}
+        >
+          <ClienteCarpetaCard folder={folder} onOpen={() => {}} className="h-full" />
         </Link>
       ))}
     </div>
@@ -32,16 +53,19 @@ export default function ClientsPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        <div className="mb-10">
-          <p className="font-mono text-xs uppercase tracking-[0.22em] text-muted-foreground">
-            Carpetas · clientes
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Portfolio · onboarded · active · churned
+      <main className="mx-auto max-w-7xl px-6 pb-16 pt-12">
+        <section className="mb-10 flex flex-col gap-3">
+          <span className="eyebrow-chip self-start">Carpetas · clientes</span>
+          <h1 className="font-display text-[40px] font-semibold leading-[1.05] tracking-tight md:text-[52px]">
+            <span className="text-gradient">Portfolio</span>
           </h1>
-        </div>
-        <Suspense fallback={<Skeleton lines={6} />}>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Portfolio bento · cliente con health ≥ 75 + onboarding ocupan 2
+            celdas · churned / paused se compactan a 1. Click una carpeta
+            para ver memoria + cascadas.
+          </p>
+        </section>
+        <Suspense fallback={<Skeleton kind="page" />}>
           <ClientsGrid />
         </Suspense>
       </main>
