@@ -92,7 +92,8 @@ export function CubiculoCard({
       data-glow="violet"
       data-spotlight="true"
       data-pop="true"
-      className={['surface-card group p-5', interactive ? 'cursor-pointer' : '', className ?? ''].join(' ')}
+      data-rim="violet"
+      className={['surface-card rim-instr group p-5', interactive ? 'cursor-pointer' : '', className ?? ''].join(' ')}
       style={{
         rotateX,
         rotateY,

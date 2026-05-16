@@ -54,14 +54,20 @@
     --border: 264 30% 14%;             /* hairline border base */
     --input: 264 25% 18%;
 
-    /* Lumen v3 · brand tokens (exact-match spec) */
-    --primary: 264 49% 28%;            /* #3D2466 · deep violet */
+    /* Lumen v3 + Phase 2 · violet flagship (invert relación previa).
+       --primary-deep is the brand hex (#3D2466) for solid/deep fills
+       (sidebar, button base). --primary remains the brighter visible
+       value so violet *reads* as the flagship surface color, with
+       cyan reserved for "agent is doing something" state per ref
+       09 + 16. Cyan accent intensity reduced slightly. */
+    --primary-deep: 264 49% 28%;       /* #3D2466 · brand violet · deep */
+    --primary: 264 78% 60%;            /* visible flagship violet */
     --primary-foreground: 240 9% 96%;
-    --primary-glow: 264 78% 60%;       /* lighter glow halo derived */
-    --accent: 182 60% 57%;             /* #4DD4D8 · cyan */
+    --primary-glow: 264 88% 68%;       /* halo bloom · brighter still */
+    --accent: 182 60% 57%;             /* #4DD4D8 · cyan · secondary */
     --accent-foreground: 264 41% 5%;
     --accent-glow: 182 75% 65%;
-    --ring: 264 78% 60%;
+    --ring: 264 88% 68%;
 
     /* Status tokens · success + danger */
     --success: 154 100% 41%;           /* #00D084 */
@@ -259,6 +265,78 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────
+ * Phase 2 · Edge-as-instrumentation rim
+ *
+ * Per ref 02 (Cantina HUD bible) + ref 04 (Perception Avengers tri-up) ·
+ * cards carry corner ticks at the four corners + (optional) a hairline
+ * sector label. The rim reads as "this is a sensor pane", not chrome.
+ *
+ * Usage:   <div className="surface-card rim-instr" data-rim="violet">
+ * Sectors: add `data-rim-zone="N|S|E|W"` to surface a tiny cardinal
+ *          letter in the top-left for cardinal-sector layouts on
+ *          the home page.
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .rim-instr {
+    --rim-color: hsl(var(--primary-glow) / 0.7);
+  }
+  .rim-instr[data-rim="cyan"]   { --rim-color: hsl(var(--accent) / 0.8); }
+  .rim-instr[data-rim="violet"] { --rim-color: hsl(var(--primary-glow) / 0.8); }
+  .rim-instr[data-rim="amber"]  { --rim-color: hsl(var(--hue-amber) / 0.8); }
+  .rim-instr[data-rim="rose"]   { --rim-color: hsl(var(--danger) / 0.8); }
+
+  /* Four corner ticks · 8px L-shape · 0.5px hairline · sit ABOVE the
+     ::before gradient border so they remain visible on hover. */
+  .rim-instr::before { z-index: 2; }
+  .rim-instr {
+    background-image:
+      /* top-left ┌ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* top-right ┐ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* bottom-left └ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* bottom-right ┘ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* keep the surface-card linear-gradient background underneath */
+      linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--card) / 0.78));
+    background-size:
+      10px 0.5px, 0.5px 10px,
+      10px 0.5px, 0.5px 10px,
+      10px 0.5px, 0.5px 10px,
+      10px 0.5px, 0.5px 10px,
+      100% 100%;
+    background-position:
+      6px 6px, 6px 6px,
+      calc(100% - 6px) 6px, calc(100% - 6px) 6px,
+      6px calc(100% - 6px), 6px calc(100% - 6px),
+      calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) calc(100% - 6px),
+      0 0;
+    background-repeat: no-repeat;
+  }
+
+  /* Tiny cardinal sector glyph · top-left corner · monospace */
+  .rim-instr[data-rim-zone]::after {
+    content: attr(data-rim-zone);
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--rim-color);
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 2;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
  * Text gradients + display font helpers
  * ────────────────────────────────────────────────────────────────── */
 
@@ -313,11 +391,33 @@
 @keyframes sweep-bar     { 0% { width: 0%; } 100% { width: var(--sweep-target, 100%); } }
 @keyframes blur-fade     { 0% { filter: blur(8px); opacity: 0; transform: translateY(6px); } 100% { filter: blur(0); opacity: 1; transform: translateY(0); } }
 @keyframes spin-slow     { to { transform: rotate(360deg); } }
+@keyframes spin-reverse  { to { transform: rotate(-360deg); } }
 @keyframes flow-dash     { to { stroke-dashoffset: -32; } }
 @keyframes scan-line     { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
 @keyframes glow-pulse    { 0%,100% { filter: drop-shadow(0 0 6px hsl(var(--hue) / 0.6)); } 50% { filter: drop-shadow(0 0 14px hsl(var(--hue) / 0.95)); } }
 
+/* ──────────────────────────────────────────────────────────────────
+ * Phase 2 · Jarvis motion vocabulary · binary breathing/scanning
+ * Idle state = breathing 3.5s ease-in-out · Active state = scanning
+ * 0.8s linear sweep. These two keyframes drive every "system heartbeat"
+ * surface on the dashboard (sentinel, status dots, rim ticks).
+ * ────────────────────────────────────────────────────────────────── */
+@keyframes breathing     { 0%,100% { opacity: 0.45; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } }
+@keyframes scanning      { 0% { transform: rotate(0deg); opacity: 0; } 6% { opacity: 0.9; } 50% { opacity: 0.95; } 100% { transform: rotate(360deg); opacity: 0; } }
+@keyframes scan-sweep    { 0% { stroke-dashoffset: 760; opacity: 0.95; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes ring-rotate-slow    { to { transform: rotate(360deg); } }
+@keyframes ring-rotate-counter { to { transform: rotate(-360deg); } }
+@keyframes radial-pulse        { 0%,100% { opacity: 0.35; r: 4; } 50% { opacity: 1; r: 6; } }
+
 @layer utilities {
+  /* Jarvis vocabulary · binary heartbeat */
+  .animate-breathing       { animation: breathing 3.5s ease-in-out infinite; }
+  .animate-scanning        { animation: scanning  0.8s linear infinite; }
+  .animate-ring-slow       { animation: ring-rotate-slow 24s linear infinite; transform-origin: center; }
+  .animate-ring-mid        { animation: ring-rotate-slow 14s linear infinite; transform-origin: center; }
+  .animate-ring-counter    { animation: ring-rotate-counter 18s linear infinite; transform-origin: center; }
+  .animate-radial-pulse    { animation: radial-pulse 2.4s ease-in-out infinite; }
+
   .animate-shimmer {
     background-image: linear-gradient(
       110deg,
@@ -338,6 +438,26 @@
   /* Glow utilities · composable */
   .glow-violet   { box-shadow: 0 0 24px -2px hsl(var(--hue-violet) / 0.55); }
   .glow-cyan     { box-shadow: 0 0 24px -2px hsl(var(--hue-cyan) / 0.55); }
+
+  /* Phase 2 · Jarvis mono-numeral utility · forces JetBrains Mono +
+     tabular-nums on every digit. Apply with `.num` to any element
+     that should tick in place rather than reflow. */
+  .num {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "ss01" 1, "tnum" 1;
+    letter-spacing: 0.01em;
+  }
+
+  /* Phase 2 mandate · numerals are instrumentation. Any element
+     already marked `.tabular-nums` (already widespread in v1) now
+     also picks up the mono face automatically. This converts the
+     entire dashboard's digit set in one rule without touching 30+
+     component files. */
+  .tabular-nums {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
   .glow-amber    { box-shadow: 0 0 24px -2px hsl(var(--hue-amber) / 0.55); }
   .glow-emerald  { box-shadow: 0 0 24px -2px hsl(var(--hue-emerald) / 0.55); }
   .glow-rose     { box-shadow: 0 0 24px -2px hsl(var(--hue-rose) / 0.55); }

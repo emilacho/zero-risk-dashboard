@@ -94,8 +94,9 @@ export function KpiCard({
       data-glow={glow}
       data-spotlight="true"
       data-pop="true"
+      data-rim={glow}
       className={[
-        'surface-card group',
+        'surface-card rim-instr group',
         isFeature ? 'p-6' : 'p-5',
         className ?? '',
       ].join(' ')}

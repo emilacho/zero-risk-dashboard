@@ -7,6 +7,7 @@ import {
   buildAgencyMemoryGraph,
   buildStatsBarSnapshot,
 } from "@/lib/transforms"
+import { RadialSentinel } from "@/components/RadialSentinel"
 
 /**
  * HomeMemoryHero · the v3 home-page hero.
@@ -43,7 +44,21 @@ export async function HomeMemoryHero() {
   return (
     <div className="flex flex-col gap-6">
       <StatsBar snapshot={stats} />
-      <MemoryGraph data={graph} height={720} title={null} chrome="chrome" />
+      {/* Phase 2 · radial sentinel sits BEHIND the MemoryGraph, centred
+          in the canvas. The graph remains the primary affordance; the
+          sentinel adds the "system at rest, instrumentation alive"
+          read per refs 02/05/09. */}
+      <div className="relative">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
+        >
+          <RadialSentinel size={560} label="LUMEN · ZERO RISK" />
+        </div>
+        <div className="relative z-10">
+          <MemoryGraph data={graph} height={720} title={null} chrome="chrome" />
+        </div>
+      </div>
     </div>
   )
 }
