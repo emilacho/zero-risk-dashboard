@@ -39,32 +39,78 @@ export interface MemoryGraphProps {
   className?: string
 }
 
-// ── Orbit layout · angular band per kind ──────────────────────────────
-const ORBIT_CONFIG: Record<MemoryNodeKind, { radius: number; angleStart: number; angleEnd: number }> = {
-  // agency-root is rendered separately at center
-  'agency-root':   { radius: 0,   angleStart: 0, angleEnd: 0 },
-  // Right-band · agents (cyan) · the primary "team"
-  agent:           { radius: 320, angleStart: -0.45, angleEnd:  0.55 },
-  // Upper-right · workflows (amber)
-  workflow:        { radius: 360, angleStart: -1.15, angleEnd: -0.55 },
-  // Top · brand-voice (rose) + playbook (lime)
-  'brand-voice':   { radius: 280, angleStart: -1.65, angleEnd: -1.20 },
-  playbook:        { radius: 380, angleStart: -1.55, angleEnd: -1.05 },
-  // Upper-left · clients (emerald)
-  client:          { radius: 320, angleStart: -2.20, angleEnd: -1.65 },
-  // Left · icp-segments (purple)
-  'icp-segment':   { radius: 360, angleStart: -2.80, angleEnd: -2.25 },
-  // Bottom-left · team-members (sky)
-  'team-member':   { radius: 320, angleStart:  2.35, angleEnd:  2.85 },
-  // Bottom · content-assets (teal)
-  'content-asset': { radius: 360, angleStart:  1.65, angleEnd:  2.40 },
-  // Bottom-right · tools (orange)
-  tool:            { radius: 420, angleStart:  0.65, angleEnd:  1.65 },
-  // Bottom-right inner · revenue-stats (emerald variant)
-  'revenue-stat':  { radius: 260, angleStart:  0.65, angleEnd:  1.35 },
+// ── Cardinal-zone grid-pack layout · v3 Phase 3 ────────────────────────
+// Per CC#2 Jarvis research dispatch (refs 02 Cantina HUD bible, 04
+// Perception, 08 SHIELD tri-up) · the screen edge is a sensor rim with
+// fixed cardinal sectors. Each MemoryNodeKind owns a sector; within that
+// sector we pack instances as a deterministic grid so there are zero
+// overlaps regardless of count, and the graph reads as instrumentation
+// not soup.
+//
+// Coordinates: agency-root anchors at (CX, CY). Each zone has an anchor
+// (relative dx/dy) for its top-left grid origin and a preferred number
+// of columns. Min spacing is enforced by NODE_W/NODE_H (the actual node
+// renderer width inferred from MemoryNodes.tsx + 24px gutter).
+
+const CX = 720
+const CY = 480
+const NODE_W = 188 // approx renderer width incl. handles
+const NODE_H = 72  // approx renderer height
+const GUTTER_X = 24
+const GUTTER_Y = 36
+const CELL_W = NODE_W + GUTTER_X
+const CELL_H = NODE_H + GUTTER_Y
+
+// Cardinal sector definitions · anchor is the top-left of the cluster
+// grid's bounding box (relative to CX, CY). cols is the preferred column
+// count; rows auto-derived from items.length.
+interface SectorCfg {
+  anchor: { dx: number; dy: number }
+  cols: number
+  label: string
+  cardinal: string
 }
 
-function layoutNodes(data: MemoryGraphData): MemoryGraphNode[] {
+const SECTORS: Record<MemoryNodeKind, SectorCfg> = {
+  // L0 · center (special-cased below)
+  'agency-root':   { anchor: { dx: -100, dy: -40 }, cols: 1, label: 'Agency', cardinal: '·' },
+  // N · agents (the primary team) · 4 cols wide top center
+  agent:           { anchor: { dx: -2 * CELL_W,      dy: -3.2 * CELL_H }, cols: 4, label: 'Agents',           cardinal: 'N' },
+  // E · workflows (amber)
+  workflow:        { anchor: { dx:  CELL_W * 1.2,    dy: -1.2 * CELL_H }, cols: 2, label: 'Workflows',         cardinal: 'E' },
+  // W · clients (emerald)
+  client:          { anchor: { dx: -CELL_W * 3.4,    dy: -1.2 * CELL_H }, cols: 2, label: 'Clients',           cardinal: 'W' },
+  // S · tools (orange) · 4 cols wide bottom center
+  tool:            { anchor: { dx: -2 * CELL_W,      dy:  CELL_H * 1.6  }, cols: 4, label: 'Tools',             cardinal: 'S' },
+  // NE · brand-voice (rose)
+  'brand-voice':   { anchor: { dx:  CELL_W * 1.2,    dy: -CELL_H * 3.4 }, cols: 2, label: 'Brand voice',       cardinal: 'NE' },
+  // NW · playbooks (lime)
+  playbook:        { anchor: { dx: -CELL_W * 3.4,    dy: -CELL_H * 3.4 }, cols: 2, label: 'Playbooks',         cardinal: 'NW' },
+  // far-W (SW) · icp-segments (purple)
+  'icp-segment':   { anchor: { dx: -CELL_W * 3.4,    dy:  CELL_H * 1.4 }, cols: 2, label: 'ICP segments',      cardinal: 'SW' },
+  // SE · content-assets (teal)
+  'content-asset': { anchor: { dx:  CELL_W * 1.2,    dy:  CELL_H * 1.4 }, cols: 2, label: 'Content assets',    cardinal: 'SE' },
+  // bottom-center-left · team-members (sky) · between Clients and Tools
+  'team-member':   { anchor: { dx: -CELL_W * 1.8,    dy:  CELL_H * 0.3 }, cols: 2, label: 'Team',              cardinal: 'S·W' },
+  // bottom-center-right · revenue-stats (emerald variant) · between Tools and Workflows
+  'revenue-stat':  { anchor: { dx:  CELL_W * 0.2,    dy:  CELL_H * 0.3 }, cols: 2, label: 'Revenue stats',     cardinal: 'S·E' },
+}
+
+interface SectorPlacement {
+  kind: MemoryNodeKind
+  label: string
+  cardinal: string
+  /** Center of the cluster bounding box · for floating pill anchor */
+  centerX: number
+  centerY: number
+  /** Item count · drives pill badge */
+  count: number
+}
+
+function layoutWithSectors(data: MemoryGraphData): {
+  nodes: MemoryGraphNode[]
+  placements: SectorPlacement[]
+} {
   const byKind = new Map<MemoryNodeKind, MemoryNodeData[]>()
   for (const n of data.nodes) {
     const arr = byKind.get(n.kind) ?? []
@@ -73,41 +119,55 @@ function layoutNodes(data: MemoryGraphData): MemoryGraphNode[] {
   }
 
   const out: MemoryGraphNode[] = []
-  const CX = 540
-  const CY = 380
+  const placements: SectorPlacement[] = []
 
-  // agency-root at center
+  // L0 · agency-root at center
   const roots = byKind.get('agency-root') ?? []
   roots.forEach((n, i) => {
     out.push({
       id: n.id,
       type: 'agency-root',
       data: n,
-      position: { x: CX - 140, y: CY - 40 + i * 100 },
+      position: { x: CX - 100, y: CY - 40 + i * 100 },
     })
   })
 
-  // Each other kind into its angular band
-  for (const [kind, cfg] of Object.entries(ORBIT_CONFIG) as Array<[MemoryNodeKind, typeof ORBIT_CONFIG[MemoryNodeKind]]>) {
+  // L1-L2 · sector grid-pack
+  for (const [kindStr, cfg] of Object.entries(SECTORS) as Array<[MemoryNodeKind, SectorCfg]>) {
+    const kind = kindStr as MemoryNodeKind
     if (kind === 'agency-root') continue
     const items = byKind.get(kind) ?? []
     if (items.length === 0) continue
-    const span = cfg.angleEnd - cfg.angleStart
-    items.forEach((n, i) => {
-      const t = items.length === 1 ? 0.5 : i / (items.length - 1)
-      const angle = cfg.angleStart + t * span
-      const x = CX + Math.cos(angle) * cfg.radius
-      const y = CY + Math.sin(angle) * cfg.radius
+
+    const cols = Math.max(1, Math.min(cfg.cols, items.length))
+    const originX = CX + cfg.anchor.dx
+    const originY = CY + cfg.anchor.dy
+
+    items.forEach((n, idx) => {
+      const r = Math.floor(idx / cols)
+      const c = idx % cols
       out.push({
         id: n.id,
         type: kind,
         data: n,
-        position: { x, y },
+        position: {
+          x: originX + c * CELL_W,
+          y: originY + r * CELL_H,
+        },
       })
+    })
+
+    placements.push({
+      kind,
+      label: cfg.label,
+      cardinal: cfg.cardinal,
+      centerX: originX + ((cols - 1) * CELL_W) / 2 + NODE_W / 2,
+      centerY: originY - 28, // pill sits 28px above the cluster top edge
+      count: items.length,
     })
   }
 
-  return out
+  return { nodes: out, placements }
 }
 
 function buildEdges(data: MemoryGraphData): Edge[] {
@@ -150,8 +210,33 @@ export function MemoryGraph({
   chrome = 'chrome',
   className,
 }: MemoryGraphProps) {
-  const nodes = useMemo(() => layoutNodes(data), [data])
+  const { nodes: dataNodes, placements } = useMemo(
+    () => layoutWithSectors(data),
+    [data],
+  )
   const edges = useMemo(() => buildEdges(data), [data])
+
+  // Inject sector pills as decorative graph nodes · they pan/zoom with
+  // the canvas which is acceptable for a Lumen-style HUD layer. We cast
+  // to MemoryGraphNode[] because the pill's `data` shape is intentionally
+  // different from MemoryNodeData; the renderer registry in MemoryNodes
+  // knows how to dispatch on `type: 'sector-pill'`.
+  const nodes = useMemo<MemoryGraphNode[]>(() => {
+    const pillNodes = placements.map((p) => ({
+      id: `pill:${p.kind}`,
+      type: 'sector-pill',
+      data: {
+        label: p.label,
+        cardinal: p.cardinal,
+        count: p.count,
+      },
+      position: { x: p.centerX - 90, y: p.centerY },
+      draggable: false,
+      selectable: false,
+      zIndex: 1000,
+    })) as unknown as MemoryGraphNode[]
+    return [...dataNodes, ...pillNodes]
+  }, [dataNodes, placements])
 
   const canvas = (
     <div
