@@ -44,19 +44,20 @@ export async function HomeMemoryHero() {
   return (
     <div className="flex flex-col gap-6">
       <StatsBar snapshot={stats} />
-      {/* Phase 2 · radial sentinel sits BEHIND the MemoryGraph, centred
-          in the canvas. The graph remains the primary affordance; the
-          sentinel adds the "system at rest, instrumentation alive"
-          read per refs 02/05/09. */}
+      {/* Phase 2 · radial sentinel as foreground HUD overlay on top of
+          the MemoryGraph. The graph remains the primary affordance via
+          ReactFlow interactions (pan/zoom); the sentinel reads as a
+          translucent instrumentation rim around the centre, per refs
+          02 Cantina / 05 GMUNK / 09 Jayse · "system at rest, but
+          alive". Lower z-index of the sentinel rings is fine because
+          `pointer-events-none` keeps the graph fully interactive. */}
       <div className="relative">
+        <MemoryGraph data={graph} height={720} title={null} chrome="chrome" />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-70 mix-blend-screen"
         >
-          <RadialSentinel size={560} label="LUMEN · ZERO RISK" />
-        </div>
-        <div className="relative z-10">
-          <MemoryGraph data={graph} height={720} title={null} chrome="chrome" />
+          <RadialSentinel size={640} label="LUMEN · ZERO RISK" />
         </div>
       </div>
     </div>
