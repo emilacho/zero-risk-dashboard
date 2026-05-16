@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { api } from "@/lib/api"
+import { api, type ClientRow } from "@/lib/api"
 import { ClienteCarpetaCard } from "@/lib/dashboard-components"
 import { clientRowToFolder } from "@/lib/transforms"
 import { Header } from "@/components/Header"
@@ -9,18 +9,27 @@ import { Skeleton } from "@/components/Skeleton"
 export const dynamic = "force-dynamic"
 
 /**
- * Map a folder to a bento cell size based on importance:
- *   - high health (≥75) → 2 cols wide (feature card)
- *   - active onboarding → 2 cols wide
- *   - paused/churned    → 1 col
- *   - other              → 1 col
- *
- * Falls back to single-col on mobile / narrow viewports.
+ * Infer 3-5 chip pills for a client card · industry tag + tools we know
+ * the agency uses for that industry + status badge. Visual-only · the
+ * platform doesn't ship a `pills` field per cliente.
  */
+function inferPills(c: ClientRow): string[] {
+  const out: string[] = []
+  if (c.industry) {
+    // first token of industry as a short pill (e.g. "food-delivery LATAM" → "food-delivery")
+    out.push(c.industry.split(/[·\-,\s]/)[0]?.toLowerCase() || c.industry.toLowerCase())
+  }
+  // Tools we expect for almost every cliente
+  out.push("ghl", "supabase", "anthropic")
+  // Status-correlated tool · onboarding clients get figma
+  if (c.status === "onboarding") out.push("figma")
+  if (c.status === "active") out.push("posthog")
+  return out.slice(0, 5)
+}
+
 function cellClassFor(folderStatus: string, healthScore: number): string {
   const isFeature =
-    folderStatus === "active" && healthScore >= 75 ||
-    folderStatus === "onboarding"
+    (folderStatus === "active" && healthScore >= 75) || folderStatus === "onboarding"
   return isFeature ? "lg:col-span-2" : "lg:col-span-1"
 }
 
@@ -28,12 +37,15 @@ async function ClientsGrid() {
   const data = await api.clients(100).catch(() => null)
   if (!data) {
     return (
-      <p className="text-sm text-destructive-foreground">
+      <p className="text-sm text-rose-300">
         Could not load clients · platform endpoint unreachable.
       </p>
     )
   }
-  const folders = data.clients.map(clientRowToFolder)
+  const folders = data.clients.map((c) => ({
+    ...clientRowToFolder(c),
+    pills: inferPills(c),
+  }))
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {folders.map((folder, i) => (
@@ -53,7 +65,7 @@ export default function ClientsPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-7xl px-6 pb-16 pt-12">
+      <main className="mx-auto max-w-7xl px-6 pb-16 pt-10">
         <section className="mb-10 flex flex-col gap-3">
           <span className="eyebrow-chip self-start">Carpetas · clientes</span>
           <h1 className="font-display text-[40px] font-semibold leading-[1.05] tracking-tight md:text-[52px]">
@@ -61,8 +73,8 @@ export default function ClientsPage() {
           </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Portfolio bento · cliente con health ≥ 75 + onboarding ocupan 2
-            celdas · churned / paused se compactan a 1. Click una carpeta
-            para ver memoria + cascadas.
+            celdas · paused / churned se compactan a 1. Cada carpeta lleva
+            pills de industry, status y tools integradas.
           </p>
         </section>
         <Suspense fallback={<Skeleton kind="page" />}>
