@@ -178,17 +178,30 @@ export interface ClientDetailResponse {
     ended_at: string | null
     status: string
   }>
-  storage_files?: Array<{ path: string; size_bytes: number }>
+  invocations_count?: number
+  journeys?: Array<Record<string, unknown>>
+  /** Storage list · wrapper is `files` (NOT `storage_files`). */
+  files?: Array<{ path: string; size_bytes?: number; size?: number }>
+  files_bucket?: string
+  files_prefix?: string
 }
 
+/**
+ * Shape of `/api/dashboard/activity`:
+ *   - List wrapper key is `activity` (NOT `invocations`). Each row carries
+ *     `agent_name` and `session_id` on top of the base activity fields.
+ */
 export interface ActivityResponse {
   ok: boolean
   count: number
-  invocations: Array<{
+  activity: Array<{
     id: string
+    session_id: string | null
     agent_id: string
+    agent_name: string
     client_id: string | null
     started_at: string
+    ended_at: string | null
     duration_ms: number | null
     cost_usd: number | null
     status: string

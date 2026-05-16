@@ -221,20 +221,28 @@ function ClientDetailBody({ data }: { data: ClientDetailResponse }) {
         </div>
       </section>
 
-      {data.storage_files && data.storage_files.length > 0 ? (
+      {data.files && data.files.length > 0 ? (
         <section className="mt-10 rounded-xl border border-border bg-card p-5">
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Storage files
+            Storage files{" "}
+            {data.files_bucket ? (
+              <span className="ml-2 normal-case tracking-normal text-muted-foreground/70">
+                · {data.files_bucket}/{data.files_prefix ?? ""}
+              </span>
+            ) : null}
           </p>
           <ul className="mt-3 space-y-1 text-xs text-foreground/80">
-            {data.storage_files.map((f) => (
-              <li key={f.path}>
-                <code className="font-mono">{f.path}</code>{" "}
-                <span className="text-muted-foreground">
-                  ({Math.round(f.size_bytes / 1024)} KB)
-                </span>
-              </li>
-            ))}
+            {data.files.map((f) => {
+              const bytes = f.size_bytes ?? f.size ?? 0
+              return (
+                <li key={f.path}>
+                  <code className="font-mono">{f.path}</code>{" "}
+                  <span className="text-muted-foreground">
+                    ({Math.round(bytes / 1024)} KB)
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         </section>
       ) : null}
