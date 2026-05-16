@@ -130,7 +130,7 @@ export function clientDetailToMemoryGraph(
       id: agentNodeId,
       kind: "agent",
       label: a.agent_id,
-      meta: { runs24h: a.invocations },
+      meta: { runs24h: a.sessions },
     })
     edges.push({
       id: `edge:${clientNodeId}:${agentNodeId}`,
