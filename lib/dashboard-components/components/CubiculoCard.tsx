@@ -174,7 +174,8 @@ export function CubiculoCard({
             {recentInvocations.slice(0, 2).map((inv) => (
               <div key={inv.id} className="flex items-baseline justify-between gap-2 text-[11px]">
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">{inv.task}</span>
-                <span className="text-muted-foreground/70 tabular-nums">
+                {/* suppressHydrationWarning · see ActivityFeed for rationale */}
+                <span className="text-muted-foreground/70 tabular-nums" suppressHydrationWarning>
                   {formatRelativeTime(inv.at)}
                 </span>
               </div>

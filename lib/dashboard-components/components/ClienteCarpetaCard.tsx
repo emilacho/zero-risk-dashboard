@@ -96,7 +96,11 @@ export function ClienteCarpetaCard({
         {/* Footer · cascadas + last activity */}
         <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
           <span>{folder.cascadesShipped} cascadas enviadas</span>
-          <span>última · {formatRelativeTime(folder.lastActivity)}</span>
+          {/* suppressHydrationWarning · formatRelativeTime uses Date.now()
+              which differs by ms between server render and client hydration ·
+              the displayed string is intentionally approximate, hydration
+              mismatch on the seconds digit is harmless and silenced here. */}
+          <span suppressHydrationWarning>última · {formatRelativeTime(folder.lastActivity)}</span>
         </div>
       </div>
     </div>
