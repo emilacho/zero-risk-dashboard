@@ -21,7 +21,7 @@ import {
   Workflow,
   Users,
 } from "lucide-react"
-import { AnimatedNumber } from "@/components/AnimatedNumber"
+import { OpsKpiCell } from "@/components/OpsKpiCell"
 
 interface OpsExtras {
   invocations_24h: number | null
@@ -134,72 +134,10 @@ function fmtCompact(v: number | null | undefined): string {
   return v.toLocaleString("en-US")
 }
 
-interface CellProps {
-  label: string
-  cardinal?: string
-  icon: React.ReactNode
-  /** Numeric value · null means unwired */
-  value: number | null
-  /** "currency" | "number" | "percent" */
-  format?: "currency" | "number" | "percent"
-  sub?: string
-  /** "wire pending" when source unwired · "" when ok */
-  badge?: string
-}
-
-function Cell({ label, cardinal, icon, value, format = "number", sub, badge }: CellProps) {
-  const pending = value == null || badge === "wire pending"
-  const fmt =
-    format === "currency"
-      ? (v: number) => fmtUsd(v)
-      : format === "percent"
-      ? (v: number) => `${v.toFixed(1)}%`
-      : (v: number) => fmtCompact(v)
-
-  return (
-    <div
-      className="surface-card rim-instr p-4"
-      data-hue="violet"
-      data-rim="violet"
-      data-pop="true"
-      data-rim-zone={cardinal}
-    >
-      <div className="relative z-[2] flex flex-col gap-2.5">
-        <div className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]">
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.3)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary-glow))]">
-            {icon}
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em]">
-            {label}
-          </span>
-        </div>
-        <div className="flex items-end justify-between gap-3">
-          {pending ? (
-            <span className="font-display text-[28px] font-semibold leading-none tabular-nums text-[hsl(var(--muted-foreground))]">
-              —
-            </span>
-          ) : (
-            <AnimatedNumber
-              value={value}
-              format={fmt}
-              className="font-display text-[28px] font-semibold leading-none tabular-nums"
-            />
-          )}
-          {pending ? (
-            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[hsl(var(--danger))] opacity-80">
-              wire pending
-            </span>
-          ) : null}
-        </div>
-        {sub ? (
-          <p className="num text-[10px] tabular-nums text-[hsl(var(--muted-foreground))]">
-            {sub}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  )
-}
+// Cell rendering lives in OpsKpiCell (a client component). The parent
+// server component passes only serializable primitives + ReactNode
+// icon trees · no function callbacks cross the boundary.
+const Cell = OpsKpiCell
 
 export async function OpsKpiGrid() {
   const [metrics, extras] = await Promise.all([api.metrics().catch(() => null), loadExtras()])
