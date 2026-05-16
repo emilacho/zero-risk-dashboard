@@ -23,7 +23,9 @@ const routes = [
   {
     path: "/",
     label: "home",
-    expect: ["Operations overview", "Spend", "Brand"],
+    // v3 home is the agency memory graph hero + stats bar. The "Operations
+    // overview / Spend / Brand" v2 markers no longer apply.
+    expect: ["Memory Graph", "concepts", "relationships"],
   },
   {
     path: "/agents",
