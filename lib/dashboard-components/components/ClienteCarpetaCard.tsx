@@ -2,15 +2,20 @@
 /**
  * ClienteCarpetaCard · "carpeta del cliente" · folder-style client card.
  *
- * Lumen polish:
+ * v3 polish:
  *  - violet→cyan folder tab + faint glow halo
  *  - animated SVG arc gauge for health-score (svg dasharray draw)
  *  - status pill with subtle bg + matching text tone
  *  - hover-lift + gradient hairline border (via surface-card)
+ *  - **NEW v3** · optional `pills` array · color-coded pills below status
+ *    (industry · contract · tools · segment chips)
+ *  - **NEW v3** · `data-hue` follows the status (emerald active · cyan
+ *    onboarding · amber paused · rose churned) instead of always violet
  *  - tabular-nums everywhere
  */
 import { useEffect, useRef, useState } from 'react'
 import { formatCurrency, formatNumber, formatRelativeTime } from '../utils/format'
+import { Pill, ToolPill, TOOL_CATALOG } from './Pill'
 import type { ClientFolder, ClientStatus } from '../types'
 
 export interface ClienteCarpetaCardProps {
@@ -23,11 +28,17 @@ export interface ClienteCarpetaCardProps {
   className?: string
 }
 
-const STATUS_STYLES: Record<ClientStatus, { fg: string; bg: string; label: string }> = {
-  active:     { fg: 'text-emerald-300', bg: 'bg-emerald-500/14',  label: 'activo' },
-  onboarding: { fg: 'text-cyan-300',    bg: 'bg-cyan-500/14',     label: 'onboarding' },
-  paused:     { fg: 'text-amber-300',   bg: 'bg-amber-500/14',    label: 'pausado' },
-  churned:    { fg: 'text-rose-300',    bg: 'bg-rose-500/14',     label: 'churn' },
+const STATUS_HUE: Record<ClientStatus, 'emerald' | 'cyan' | 'amber' | 'rose'> = {
+  active:     'emerald',
+  onboarding: 'cyan',
+  paused:     'amber',
+  churned:    'rose',
+}
+const STATUS_LABEL: Record<ClientStatus, string> = {
+  active:     'activo',
+  onboarding: 'onboarding',
+  paused:     'pausado',
+  churned:    'churn',
 }
 
 export function ClienteCarpetaCard({
@@ -36,7 +47,8 @@ export function ClienteCarpetaCard({
   onOpen,
   className,
 }: ClienteCarpetaCardProps) {
-  const s = STATUS_STYLES[folder.status]
+  const statusHue = STATUS_HUE[folder.status]
+  const statusLabel = STATUS_LABEL[folder.status]
   const interactive = interactiveProp ?? !!onOpen
   const healthColor =
     folder.healthScore >= 75 ? 'hsl(160 84% 50%)'
@@ -46,7 +58,7 @@ export function ClienteCarpetaCard({
   return (
     <div
       onClick={onOpen}
-      data-glow="violet"
+      data-hue={statusHue}
       data-pop="true"
       className={[
         'surface-card relative',
@@ -73,15 +85,25 @@ export function ClienteCarpetaCard({
             </div>
             <div className="mt-1 text-[11px] text-muted-foreground">{folder.industry}</div>
           </div>
-          <span
-            className={[
-              'rounded-md px-1.5 py-[2px] font-mono text-[9.5px] font-bold uppercase tracking-[0.1em]',
-              s.bg, s.fg,
-            ].join(' ')}
-          >
-            {s.label}
-          </span>
+          <Pill hue={statusHue}>{statusLabel}</Pill>
         </div>
+
+        {/* v3 · color-coded pills row · tools / contract / segment */}
+        {folder.pills && folder.pills.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {folder.pills.slice(0, 6).map((p) => {
+              const slug = p.toLowerCase().trim()
+              if (TOOL_CATALOG[slug]) {
+                return <ToolPill key={p} tool={p} />
+              }
+              return (
+                <Pill key={p} hue="muted">
+                  {p}
+                </Pill>
+              )
+            })}
+          </div>
+        ) : null}
 
         {/* Body grid · KPI strip (2 cols) + health gauge */}
         <div className="grid grid-cols-[1fr_88px] gap-4 border-y border-border/60 py-3">

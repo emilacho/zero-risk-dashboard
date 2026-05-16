@@ -1,37 +1,47 @@
 import { api } from "@/lib/api"
 import { MemoryGraph } from "@/lib/dashboard-components"
-import { clientsToMemoryGraph } from "@/lib/transforms"
+import { buildAgencyMemoryGraph } from "@/lib/transforms"
 import { Header } from "@/components/Header"
 
 export const dynamic = "force-dynamic"
 
+/**
+ * /graph · fullscreen variant of the same agency memory graph that
+ * lives on the home page. Drops the chrome, expands the canvas to
+ * cover the viewport so operators can pan + zoom comfortably.
+ */
 export default async function GraphPage() {
-  const clients = await api.clients(100).catch(() => null)
+  const [agents, clients, metrics] = await Promise.all([
+    api.agents(100).catch(() => null),
+    api.clients(100).catch(() => null),
+    api.metrics().catch(() => null),
+  ])
+  const graph = buildAgencyMemoryGraph({
+    agents: agents?.agents ?? [],
+    clients: clients?.clients ?? [],
+    metrics,
+  })
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-7xl px-6 pb-16 pt-12">
-        <section className="mb-8 flex flex-col gap-3">
-          <span className="eyebrow-chip self-start">Memory graph</span>
-          <h1 className="font-display text-[40px] font-semibold leading-[1.05] tracking-tight md:text-[52px]">
-            <span className="text-gradient">Cliente · agent · workflow · tool</span>
-          </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Portfolio view · todos los clientes activos. Hover un nodo para
-            expand · zoom + pan disponibles · cascade-flow edges animan.
+      <main className="mx-auto max-w-[1600px] px-4 pb-8 pt-6">
+        <section className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="eyebrow-chip">Memory graph · fullscreen</span>
+            <h1 className="font-display text-2xl font-semibold tracking-tight">
+              <span className="text-gradient">The Brain</span>
+            </h1>
+          </div>
+          <p className="font-mono text-[11px] text-muted-foreground tabular-nums">
+            {graph.nodes.length} concepts · {graph.edges.length} relationships
           </p>
         </section>
-        {clients ? (
-          <MemoryGraph
-            data={clientsToMemoryGraph(clients.clients)}
-            height={640}
-            title={null}
-          />
-        ) : (
-          <p className="text-sm text-destructive-foreground">
-            Could not load graph data · platform endpoint unreachable.
-          </p>
-        )}
+        <MemoryGraph
+          data={graph}
+          height="calc(100vh - 160px)"
+          title={null}
+          chrome="fullscreen"
+        />
       </main>
     </>
   )

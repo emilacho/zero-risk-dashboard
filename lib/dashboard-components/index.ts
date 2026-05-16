@@ -20,11 +20,13 @@ export type {
   KpiMetric,
   KpiSnapshot,
   MemoryEdgeData,
+  MemoryEdgeKind,
   MemoryGraphData,
   MemoryNodeData,
   MemoryNodeKind,
   MemoryNodeMeta,
   SparklinePoint,
+  StatsBarSnapshot,
   WorkflowStatus,
   WorkflowSummary,
 } from './types'
@@ -53,8 +55,28 @@ export type { CubiculoCardProps } from './components/CubiculoCard'
 export { ClienteCarpetaCard } from './components/ClienteCarpetaCard'
 export type { ClienteCarpetaCardProps } from './components/ClienteCarpetaCard'
 
-// ── Memory graph (11 · 12) ─────────────────────────────────────────────
-export { MemoryGraph, memoryNodeTypes, ClientNode, AgentNode, WorkflowNode, ToolNode } from './memory-graph'
+// ── v3 primitives ──────────────────────────────────────────────────────
+export { StatsBar } from './components/StatsBar'
+export type { StatsBarProps } from './components/StatsBar'
+export { Pill, ToolPill, TOOL_CATALOG } from './components/Pill'
+export type { PillProps, PillHue, ToolPillProps } from './components/Pill'
+
+// ── Memory graph (v3 · 11 node kinds + multi-color edges) ─────────────
+export {
+  MemoryGraph,
+  memoryNodeTypes,
+  AgencyRootNode,
+  ClientNode,
+  AgentNode,
+  WorkflowNode,
+  ToolNode,
+  BrandVoiceNode,
+  PlaybookNode,
+  IcpSegmentNode,
+  ContentAssetNode,
+  TeamMemberNode,
+  RevenueStatNode,
+} from './memory-graph'
 export type { MemoryGraphProps } from './memory-graph'
 
 // ── Utils ──────────────────────────────────────────────────────────────

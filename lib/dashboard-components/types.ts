@@ -70,6 +70,8 @@ export interface ClientFolder {
   cascadesShipped: number
   /** 0-100 · derived from successRate · spend velocity · review escalations. */
   healthScore: number
+  /** Optional pills · tools / contract / segment that surface on the card. */
+  pills?: string[]
 }
 
 // ── Workflow summary (CubiculoCard cross-reference) ────────────────────
@@ -84,7 +86,23 @@ export interface WorkflowSummary {
 }
 
 // ── Memory graph (ReactFlow) ───────────────────────────────────────────
-export type MemoryNodeKind = 'client' | 'agent' | 'workflow' | 'tool'
+/**
+ * v3 expansion · the memory graph is the home-page hero. Node kinds:
+ * agency-root, client, agent, workflow, tool, brand-voice, playbook,
+ * icp-segment, content-asset, team-member, revenue-stat.
+ */
+export type MemoryNodeKind =
+  | 'agency-root'
+  | 'client'
+  | 'agent'
+  | 'workflow'
+  | 'tool'
+  | 'brand-voice'
+  | 'playbook'
+  | 'icp-segment'
+  | 'content-asset'
+  | 'team-member'
+  | 'revenue-stat'
 
 export interface MemoryNodeMeta {
   industry?: string
@@ -93,14 +111,22 @@ export interface MemoryNodeMeta {
   role?: string
   surface?: string
   runs24h?: number
+  /** For tool nodes · brand-mark icon glyph (single emoji / short text). */
+  icon?: string
+  /** For brand-voice nodes · "warm-direct", "authoritative-clinical", ... */
+  vibe?: string
+  /** For playbook nodes · "competitive-intel", "onboarding", ... */
+  category?: string
+  /** For icp-segment nodes · approximate count of accounts. */
+  count?: number
+  /** For revenue-stat nodes · a single number formatted by the renderer. */
+  value?: number | string
+  /** For content-asset nodes · type (article/video/carousel/landing). */
+  surface_kind?: string
+  /** Optional generic tag list rendered as mini-pills inside the node. */
+  tags?: string[]
 }
 
-/**
- * Intersected with `Record<string, unknown>` so it satisfies the
- * `@xyflow/react` v12 `Node<TData>` constraint without forcing the
- * graph data to be loose at the call site. Consumers still get
- * autocomplete for `id` / `kind` / `label` / `meta`.
- */
 export type MemoryNodeData = {
   id: string
   kind: MemoryNodeKind
@@ -108,14 +134,38 @@ export type MemoryNodeData = {
   meta?: MemoryNodeMeta
 } & Record<string, unknown>
 
+/** v3 · edges carry a `kind` so renderer can color + animate per category. */
+export type MemoryEdgeKind =
+  | 'invokes'
+  | 'uses'
+  | 'review'
+  | 'cascade'
+  | 'reads'
+  | 'produces'
+  | 'targets'
+  | 'reports'
+
 export interface MemoryEdgeData {
   id: string
   source: string
   target: string
   label?: string
+  /** v3 · edge category drives stroke color + animation. */
+  kind?: MemoryEdgeKind
 }
 
 export interface MemoryGraphData {
   nodes: MemoryNodeData[]
   edges: MemoryEdgeData[]
+}
+
+// ── Stats bar (home hero monitoring strip) ─────────────────────────────
+export interface StatsBarSnapshot {
+  concepts: number
+  relationships: number
+  sourcesIngested: number
+  /** ISO timestamp · the renderer turns it into a relative time string. */
+  lastSync: string
+  /** Bytes · the renderer formats compactly (KB/MB). */
+  memorySize: number
 }

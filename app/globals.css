@@ -1,13 +1,23 @@
 @import "tailwindcss";
 
 /**
- * Zero Risk dashboard · dark-mode default · violet/cyan accent theme.
- * Operator-tool aesthetic inspired by Lumen Studio:
- *  - dark base with subtle ambient grid + diagonal beams
- *  - violet #7c3aed primary + cyan #06b6d4 accent
- *  - neon glow on focus / hover / important affordances
- *  - tight tabular type for numbers · Space Grotesk for display
- *  - bento grids with varied cell sizes per importance
+ * Zero Risk dashboard · v3 Lumen-exact match.
+ *
+ * Aesthetic · 80s-cyberpunk-tech-poster · dark base · neon outlines ·
+ * multi-color category palette (one tone per memory-graph kind) ·
+ * mono-tech prominent · dot grid + radial glow zones.
+ *
+ * Anchor colors:
+ *   --primary    violet      #7c3aed   (brand + agency-root)
+ *   --accent     cyan        #06b6d4   (agents)
+ *   --hue-amber  amber       #f59e0b   (workflows)
+ *   --hue-emerald emerald    #10b981   (active, ok, health-good)
+ *   --hue-rose   rose/pink   #ec4899   (brand voice / contracts)
+ *   --hue-orange orange      #fb923c   (tools)
+ *   --hue-purple purple      #a855f7   (ICP segments)
+ *   --hue-teal   teal        #14b8a6   (content assets)
+ *   --hue-sky    sky         #38bdf8   (team members)
+ *   --hue-lime   lime        #84cc16   (revenue stats / playbooks)
  */
 
 @layer base {
@@ -32,34 +42,44 @@
   }
 
   .dark {
-    --background: 240 10% 4%;
+    --background: 240 14% 3%;
     --foreground: 0 0% 96%;
-    --card: 240 8% 8%;
+    --card: 240 10% 6%;
     --card-foreground: 0 0% 96%;
-    --primary: 263 80% 65%;          /* violet */
+    --primary: 263 80% 65%;
     --primary-foreground: 240 10% 5%;
-    --primary-glow: 263 90% 60%;     /* glow halo color */
-    --secondary: 240 6% 14%;
+    --primary-glow: 263 90% 60%;
+    --secondary: 240 8% 11%;
     --secondary-foreground: 0 0% 96%;
-    --muted: 240 6% 14%;
+    --muted: 240 8% 11%;
     --muted-foreground: 240 5% 64%;
-    --accent: 187 85% 55%;           /* cyan */
+    --accent: 187 85% 55%;
     --accent-foreground: 240 10% 5%;
     --accent-glow: 187 95% 50%;
-    --border: 240 6% 16%;
+    --border: 240 8% 14%;
     --input: 240 6% 18%;
     --ring: 263 80% 65%;
+
+    /* Category palette · v3 multi-color · ALL referenced as HSL triplets
+       so they compose with `hsl(var(--hue-x) / 0.4)` alpha tricks. */
+    --hue-violet:  263 80% 65%;
+    --hue-cyan:    187 85% 55%;
+    --hue-amber:    40 95% 60%;
+    --hue-emerald: 160 84% 50%;
+    --hue-rose:    330 80% 65%;
+    --hue-orange:   25 95% 60%;
+    --hue-purple:  280 80% 65%;
+    --hue-teal:    173 80% 50%;
+    --hue-sky:     205 90% 60%;
+    --hue-lime:     90 75% 55%;
   }
 
-  html {
-    color-scheme: dark;
-  }
+  html { color-scheme: dark; }
 
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
-    /* Tabular numerals everywhere by default · charts and KPI cards rely on it. */
     font-variant-numeric: tabular-nums;
   }
 
@@ -68,7 +88,6 @@
     color: hsl(var(--primary-foreground));
   }
 
-  /* Focus rings glow · matches the brand accent so it feels integral */
   :focus-visible {
     outline: 2px solid hsl(var(--primary) / 0.7);
     outline-offset: 2px;
@@ -77,46 +96,56 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * Ambient backdrop · pure CSS · no client JS
+ * Ambient backdrop · v3 amped up · 3 radial glow zones + heavier dot grid
  * ────────────────────────────────────────────────────────────────── */
 
 @layer base {
-  /* Subtle dot-grid · feels like a control surface */
   .ambient-grid {
     position: fixed;
     inset: 0;
     z-index: -2;
     background-image:
-      radial-gradient(hsl(var(--foreground) / 0.04) 1px, transparent 1px),
-      radial-gradient(hsl(var(--foreground) / 0.04) 1px, transparent 1px);
-    background-size: 36px 36px, 36px 36px;
-    background-position: 0 0, 18px 18px;
+      radial-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px),
+      radial-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    background-position: 0 0, 16px 16px;
     pointer-events: none;
-    mask-image: radial-gradient(ellipse at top, black, transparent 75%);
+    mask-image: radial-gradient(ellipse at center, black, transparent 80%);
   }
 
-  /* Two faint diagonal beams · one violet, one cyan */
+  /* Three diagonal radial glow zones · violet top-right, cyan bottom-left,
+     rose mid-left · pure CSS · no client JS */
   .ambient-beam-1,
-  .ambient-beam-2 {
+  .ambient-beam-2,
+  .ambient-beam-3 {
     position: fixed;
-    inset: -25% -10% auto auto;
-    width: 70vw;
-    height: 60vh;
     z-index: -1;
     pointer-events: none;
-    filter: blur(60px);
-    opacity: 0.35;
+    filter: blur(80px);
     mix-blend-mode: screen;
   }
   .ambient-beam-1 {
-    background: radial-gradient(ellipse at top right, hsl(var(--primary) / 0.55), transparent 60%);
+    inset: -25% -10% auto auto;
+    width: 70vw;
+    height: 60vh;
+    background: radial-gradient(ellipse at top right, hsl(var(--hue-violet) / 0.55), transparent 60%);
+    opacity: 0.4;
   }
   .ambient-beam-2 {
     inset: auto auto -25% -10%;
-    background: radial-gradient(ellipse at bottom left, hsl(var(--accent) / 0.45), transparent 60%);
+    width: 60vw;
+    height: 55vh;
+    background: radial-gradient(ellipse at bottom left, hsl(var(--hue-cyan) / 0.5), transparent 60%);
+    opacity: 0.35;
+  }
+  .ambient-beam-3 {
+    inset: 35% -10% auto auto;
+    width: 50vw;
+    height: 40vh;
+    background: radial-gradient(ellipse at center, hsl(var(--hue-rose) / 0.35), transparent 60%);
+    opacity: 0.25;
   }
 
-  /* Body film noise · barely-there texture · keeps cards from feeling printed-on-glass */
   .bg-noise {
     background-image:
       linear-gradient(to bottom, hsl(var(--background)) 0%, hsl(var(--background)) 100%),
@@ -132,19 +161,17 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * Premium card surfaces · Lumen-style polish
+ * Premium card surfaces · v3 · neon-outline by data-hue attribute
  *
- * `.surface-card` is the base layer used by every KPI / list / panel.
- * `.surface-card[data-glow="violet"|"cyan"]` adds a one-pixel gradient
- * border + soft halo on hover. `.surface-card[data-pop="true"]` lifts
- * the card on hover (used for the cubículos + cliente folder cards).
+ * Use:  <div className="surface-card" data-hue="violet|cyan|amber|...">
+ * The hue drives the hairline gradient border AND the hover glow color.
  * ────────────────────────────────────────────────────────────────── */
 
 @layer components {
   .surface-card {
     position: relative;
     background:
-      linear-gradient(180deg, hsl(var(--card) / 0.85), hsl(var(--card) / 0.7));
+      linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.72));
     border: 1px solid hsl(var(--border));
     border-radius: 1rem;
     backdrop-filter: blur(6px);
@@ -155,43 +182,61 @@
       background 220ms ease;
     overflow: hidden;
     isolation: isolate;
+    /* Default hue is violet. Components override with data-hue=... */
+    --hue: var(--hue-violet);
   }
+  .surface-card[data-hue="violet"]   { --hue: var(--hue-violet); }
+  .surface-card[data-hue="cyan"]     { --hue: var(--hue-cyan); }
+  .surface-card[data-hue="amber"]    { --hue: var(--hue-amber); }
+  .surface-card[data-hue="emerald"]  { --hue: var(--hue-emerald); }
+  .surface-card[data-hue="rose"]     { --hue: var(--hue-rose); }
+  .surface-card[data-hue="orange"]   { --hue: var(--hue-orange); }
+  .surface-card[data-hue="purple"]   { --hue: var(--hue-purple); }
+  .surface-card[data-hue="teal"]     { --hue: var(--hue-teal); }
+  .surface-card[data-hue="sky"]      { --hue: var(--hue-sky); }
+  .surface-card[data-hue="lime"]     { --hue: var(--hue-lime); }
+
+  /* Backwards-compat for v2 data-glow attribute */
+  .surface-card[data-glow="violet"] { --hue: var(--hue-violet); }
+  .surface-card[data-glow="cyan"]   { --hue: var(--hue-cyan); }
+
   .surface-card::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.45), hsl(var(--accent) / 0.35), transparent 60%);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--hue) / 0.7),
+      hsl(var(--hue) / 0.25),
+      transparent 60%
+    );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
             mask-composite: exclude;
-    opacity: 0;
+    opacity: 0.5;
     transition: opacity 240ms ease;
     pointer-events: none;
     z-index: 1;
   }
-  .surface-card:hover::before,
-  .surface-card[data-glow]::before {
+  .surface-card:hover::before {
     opacity: 1;
   }
   .surface-card[data-pop="true"]:hover {
     transform: translateY(-2px);
-  }
-  .surface-card[data-glow="violet"]:hover {
     box-shadow:
-      0 0 0 1px hsl(var(--primary) / 0.4),
-      0 20px 50px -20px hsl(var(--primary) / 0.45);
+      0 0 0 1px hsl(var(--hue) / 0.45),
+      0 20px 50px -20px hsl(var(--hue) / 0.5);
   }
-  .surface-card[data-glow="cyan"]:hover {
+  .surface-card:hover {
     box-shadow:
-      0 0 0 1px hsl(var(--accent) / 0.4),
-      0 20px 50px -20px hsl(var(--accent) / 0.45);
+      0 0 0 1px hsl(var(--hue) / 0.4),
+      0 0 24px -4px hsl(var(--hue) / 0.35);
   }
 
-  /* Inner "spotlight" that follows the mouse · enabled by data-spotlight */
   .surface-card[data-spotlight="true"]::after {
     content: "";
     position: absolute;
@@ -200,7 +245,7 @@
     background:
       radial-gradient(
         420px circle at var(--spotlight-x, 50%) var(--spotlight-y, 0%),
-        hsl(var(--primary) / 0.16),
+        hsl(var(--hue) / 0.18),
         transparent 65%
       );
     opacity: 0;
@@ -226,8 +271,8 @@
     background: linear-gradient(
       90deg,
       hsl(var(--foreground)) 0%,
-      hsl(var(--primary)) 50%,
-      hsl(var(--accent)) 100%
+      hsl(var(--hue-violet)) 50%,
+      hsl(var(--hue-cyan)) 100%
     );
     -webkit-background-clip: text;
             background-clip: text;
@@ -245,46 +290,32 @@
     -webkit-text-fill-color: transparent;
             color: transparent;
   }
+  .text-gradient-rose {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--hue-rose)) 0%,
+      hsl(var(--hue-orange)) 100%
+    );
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+            color: transparent;
+  }
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * Animations · Aceternity / Magic UI patterns inline
- *
- * - shimmer    · running highlight band across a button
- * - meteor     · diagonal streaks across the graph canvas
- * - pulse-glow · the status dot in headers
- * - sweep-bar  · violet→cyan animated bar fill
- * - blur-fade  · loading shimmer for skeletons
- * - text-reveal · word-by-word fade in
+ * Animations · cyberpunk-tech-poster · enhanced
  * ────────────────────────────────────────────────────────────────── */
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-@keyframes meteor {
-  0%   { transform: translate(0, 0) rotate(215deg); opacity: 0; }
-  10%  { opacity: 1; }
-  100% { transform: translate(-600px, 600px) rotate(215deg); opacity: 0; }
-}
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--accent) / 0.6); }
-  50%      { box-shadow: 0 0 0 8px hsl(var(--accent) / 0); }
-}
-@keyframes sweep-bar {
-  0%   { width: 0%; }
-  100% { width: var(--sweep-target, 100%); }
-}
-@keyframes blur-fade {
-  0%   { filter: blur(8px); opacity: 0; transform: translateY(6px); }
-  100% { filter: blur(0);   opacity: 1; transform: translateY(0); }
-}
-@keyframes spin-slow {
-  to { transform: rotate(360deg); }
-}
-@keyframes flow-dash {
-  to { stroke-dashoffset: -32; }
-}
+@keyframes shimmer       { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes pulse-glow    { 0%,100% { box-shadow: 0 0 0 0 hsl(var(--hue) / 0.6); } 50% { box-shadow: 0 0 0 8px hsl(var(--hue) / 0); } }
+@keyframes pulse-dot     { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } }
+@keyframes sweep-bar     { 0% { width: 0%; } 100% { width: var(--sweep-target, 100%); } }
+@keyframes blur-fade     { 0% { filter: blur(8px); opacity: 0; transform: translateY(6px); } 100% { filter: blur(0); opacity: 1; transform: translateY(0); } }
+@keyframes spin-slow     { to { transform: rotate(360deg); } }
+@keyframes flow-dash     { to { stroke-dashoffset: -32; } }
+@keyframes scan-line     { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+@keyframes glow-pulse    { 0%,100% { filter: drop-shadow(0 0 6px hsl(var(--hue) / 0.6)); } 50% { filter: drop-shadow(0 0 14px hsl(var(--hue) / 0.95)); } }
 
 @layer utilities {
   .animate-shimmer {
@@ -298,34 +329,79 @@
     animation: shimmer 2.4s linear infinite;
   }
   .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-  .animate-sweep-bar  { animation: sweep-bar 900ms cubic-bezier(.2,.8,.2,1) both; }
-  .animate-blur-fade  { animation: blur-fade 520ms cubic-bezier(.2,.8,.2,1) both; }
-  .animate-spin-slow  { animation: spin-slow 18s linear infinite; }
+  .animate-pulse-dot  { animation: pulse-dot  1.6s ease-in-out infinite; }
+  .animate-sweep-bar  { animation: sweep-bar  900ms cubic-bezier(.2,.8,.2,1) both; }
+  .animate-blur-fade  { animation: blur-fade  520ms cubic-bezier(.2,.8,.2,1) both; }
+  .animate-spin-slow  { animation: spin-slow  18s linear infinite; }
+  .animate-glow-pulse { animation: glow-pulse 2.4s ease-in-out infinite; }
 
-  /* Glow utilities (composable boxes) */
-  .glow-violet { box-shadow: 0 0 24px -2px hsl(var(--primary) / 0.55); }
-  .glow-cyan   { box-shadow: 0 0 24px -2px hsl(var(--accent) / 0.55); }
+  /* Glow utilities · composable */
+  .glow-violet   { box-shadow: 0 0 24px -2px hsl(var(--hue-violet) / 0.55); }
+  .glow-cyan     { box-shadow: 0 0 24px -2px hsl(var(--hue-cyan) / 0.55); }
+  .glow-amber    { box-shadow: 0 0 24px -2px hsl(var(--hue-amber) / 0.55); }
+  .glow-emerald  { box-shadow: 0 0 24px -2px hsl(var(--hue-emerald) / 0.55); }
+  .glow-rose     { box-shadow: 0 0 24px -2px hsl(var(--hue-rose) / 0.55); }
+  .glow-orange   { box-shadow: 0 0 24px -2px hsl(var(--hue-orange) / 0.55); }
 
-  /* Visually distinct chip used on numbered eyebrows ("PARTE 01") */
+  /* Eyebrow chip · cap-style mono "PARTE 01" */
   .eyebrow-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.18rem 0.55rem;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
     border-radius: 999px;
     font-family: var(--font-mono), ui-monospace, monospace;
     font-size: 0.65rem;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: hsl(var(--accent));
-    background: hsl(var(--accent) / 0.08);
-    border: 1px solid hsl(var(--accent) / 0.22);
+    color: hsl(var(--hue-cyan));
+    background: hsl(var(--hue-cyan) / 0.08);
+    border: 1px solid hsl(var(--hue-cyan) / 0.25);
+  }
+
+  /* Tool / category pill · data-hue drives the color */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
+    color: hsl(var(--hue, var(--hue-violet)));
+    background: hsl(var(--hue, var(--hue-violet)) / 0.1);
+    border: 1px solid hsl(var(--hue, var(--hue-violet)) / 0.3);
+    white-space: nowrap;
+    line-height: 1.1;
+    text-transform: lowercase;
+  }
+  .pill[data-hue="violet"]  { --hue: var(--hue-violet); }
+  .pill[data-hue="cyan"]    { --hue: var(--hue-cyan); }
+  .pill[data-hue="amber"]   { --hue: var(--hue-amber); }
+  .pill[data-hue="emerald"] { --hue: var(--hue-emerald); }
+  .pill[data-hue="rose"]    { --hue: var(--hue-rose); }
+  .pill[data-hue="orange"]  { --hue: var(--hue-orange); }
+  .pill[data-hue="purple"]  { --hue: var(--hue-purple); }
+  .pill[data-hue="teal"]    { --hue: var(--hue-teal); }
+  .pill[data-hue="sky"]     { --hue: var(--hue-sky); }
+  .pill[data-hue="lime"]    { --hue: var(--hue-lime); }
+  .pill[data-hue="muted"]   {
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--secondary) / 0.6);
+    border-color: hsl(var(--border));
+  }
+  .pill > .pill-icon {
+    display: inline-flex;
+    align-items: center;
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
   }
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * Shimmer button · used for primary CTAs on detail pages.
- * Mark up as <button class="shimmer-btn"><span>Label</span></button>
+ * Shimmer button · primary CTA on detail pages
  * ────────────────────────────────────────────────────────────────── */
 
 @layer components {
@@ -337,8 +413,8 @@
     gap: 0.4rem;
     padding: 0.7rem 1.2rem;
     border-radius: 999px;
-    border: 1px solid hsl(var(--primary) / 0.45);
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.95), hsl(var(--accent) / 0.85));
+    border: 1px solid hsl(var(--hue-violet) / 0.45);
+    background: linear-gradient(135deg, hsl(var(--hue-violet) / 0.95), hsl(var(--hue-cyan) / 0.85));
     color: hsl(var(--primary-foreground));
     font-weight: 600;
     font-size: 0.85rem;
@@ -346,7 +422,7 @@
     overflow: hidden;
     transition: transform 180ms ease, box-shadow 220ms ease;
     box-shadow:
-      0 4px 14px -6px hsl(var(--primary) / 0.6),
+      0 4px 14px -6px hsl(var(--hue-violet) / 0.6),
       inset 0 0 0 1px hsl(var(--primary-foreground) / 0.08);
   }
   .shimmer-btn::after {
@@ -366,13 +442,123 @@
   .shimmer-btn:hover {
     transform: translateY(-1px);
     box-shadow:
-      0 8px 22px -8px hsl(var(--primary) / 0.8),
+      0 8px 22px -8px hsl(var(--hue-violet) / 0.8),
       inset 0 0 0 1px hsl(var(--primary-foreground) / 0.1);
   }
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * BlurFade skeleton · used for Suspense fallbacks
+ * Stats bar · monitoring-panel aesthetic (Datadog-style)
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .stats-bar {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.875rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.85), hsl(var(--card) / 0.55));
+    backdrop-filter: blur(8px);
+    overflow: hidden;
+  }
+  .stats-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--hue-violet) / 0.4),
+      hsl(var(--hue-cyan) / 0.4),
+      hsl(var(--hue-rose) / 0.3),
+      transparent 80%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+  .stats-cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 1rem 1.25rem;
+    border-right: 1px solid hsl(var(--border));
+    min-width: 0;
+  }
+  .stats-cell:last-child { border-right: 0; }
+  .stats-cell .stats-label {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .stats-cell .stats-value {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1;
+    color: hsl(var(--foreground));
+    font-variant-numeric: tabular-nums;
+  }
+  .stats-cell .stats-sub {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.7rem;
+    color: hsl(var(--muted-foreground));
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Tree (hierarchy) layout helpers · used on /agents
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .tree-branch {
+    position: relative;
+    padding-left: 1.5rem;
+  }
+  .tree-branch::before {
+    content: "";
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--hue-violet) / 0.4) 0%,
+      hsl(var(--hue-cyan) / 0.3) 50%,
+      transparent 100%
+    );
+  }
+  .tree-leaf {
+    position: relative;
+  }
+  .tree-leaf::before {
+    content: "";
+    position: absolute;
+    left: -1rem;
+    top: 1.3rem;
+    width: 0.85rem;
+    height: 1px;
+    background: hsl(var(--hue-cyan) / 0.4);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * BlurFade skeletons
  * ────────────────────────────────────────────────────────────────── */
 
 @layer components {
@@ -398,29 +584,42 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * Nav indicator · animated pill behind the active route link
+ * Nav indicator
  * ────────────────────────────────────────────────────────────────── */
 
 @layer components {
   .nav-pill[data-active="true"] {
     color: hsl(var(--foreground));
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.18), hsl(var(--accent) / 0.18));
-    border-color: hsl(var(--primary) / 0.35);
+    background: linear-gradient(135deg, hsl(var(--hue-violet) / 0.18), hsl(var(--hue-cyan) / 0.18));
+    border-color: hsl(var(--hue-violet) / 0.35);
     box-shadow:
-      0 0 0 1px hsl(var(--primary) / 0.18),
-      0 6px 18px -10px hsl(var(--primary) / 0.6);
+      0 0 0 1px hsl(var(--hue-violet) / 0.18),
+      0 6px 18px -10px hsl(var(--hue-violet) / 0.6);
   }
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * ReactFlow theme overrides · neon edges + dot grid background
+ * ReactFlow theme overrides · v3 · curved beziers + multi-color
+ *
+ * Edge stroke is now driven by `data-edge-kind` set on each <g.react-flow__edge>
+ * via a className the renderer applies. ReactFlow's `default` edge type
+ * produces a curved bezier (much more "memory web" feeling than smoothstep).
  * ────────────────────────────────────────────────────────────────── */
 
 @layer components {
   .react-flow__edge-path {
-    stroke: hsl(var(--accent) / 0.6);
     stroke-width: 1.4;
-    filter: drop-shadow(0 0 4px hsl(var(--accent) / 0.5));
+  }
+  .react-flow__edge[data-edge-kind="invokes"]  .react-flow__edge-path { stroke: hsl(var(--hue-cyan) / 0.7);    filter: drop-shadow(0 0 4px hsl(var(--hue-cyan) / 0.55)); }
+  .react-flow__edge[data-edge-kind="uses"]     .react-flow__edge-path { stroke: hsl(var(--hue-orange) / 0.65); filter: drop-shadow(0 0 4px hsl(var(--hue-orange) / 0.5)); }
+  .react-flow__edge[data-edge-kind="review"]   .react-flow__edge-path { stroke: hsl(var(--hue-violet) / 0.75); filter: drop-shadow(0 0 4px hsl(var(--hue-violet) / 0.5)); }
+  .react-flow__edge[data-edge-kind="cascade"]  .react-flow__edge-path { stroke: hsl(var(--hue-violet) / 0.85); filter: drop-shadow(0 0 6px hsl(var(--hue-violet) / 0.65)); }
+  .react-flow__edge[data-edge-kind="reads"]    .react-flow__edge-path { stroke: hsl(var(--hue-teal) / 0.7);    filter: drop-shadow(0 0 4px hsl(var(--hue-teal) / 0.5)); }
+  .react-flow__edge[data-edge-kind="produces"] .react-flow__edge-path { stroke: hsl(var(--hue-emerald) / 0.7); filter: drop-shadow(0 0 4px hsl(var(--hue-emerald) / 0.5)); }
+  .react-flow__edge[data-edge-kind="targets"]  .react-flow__edge-path { stroke: hsl(var(--hue-rose) / 0.7);    filter: drop-shadow(0 0 4px hsl(var(--hue-rose) / 0.5)); }
+  .react-flow__edge[data-edge-kind="reports"]  .react-flow__edge-path { stroke: hsl(var(--hue-lime) / 0.7);    filter: drop-shadow(0 0 4px hsl(var(--hue-lime) / 0.5)); }
+  .react-flow__edge[data-edge-kind] .react-flow__edge-path {
+    stroke-width: 1.4;
   }
   .react-flow__edge.animated .react-flow__edge-path {
     stroke-dasharray: 6 6;
