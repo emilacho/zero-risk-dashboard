@@ -1,23 +1,23 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
+import { api } from "@/lib/api"
+import {
+  ActivityFeed,
+  SparklineGrid,
+  formatCurrency,
+} from "@/lib/dashboard-components"
 import { Header } from "@/components/Header"
 
-/**
- * Agent cubículo · /agents/[slug]
- *
- * Phase 0 · placeholder layout. Phase 1 wires:
- *  - identity_md from managed_agents_registry (canonical)
- *  - recent invocations + p50/p95 latency from agent_invocations
- *  - cost over time Tremor LineChart
- *  - skill assignments + linked clients
- *  - "Run agent" form (debug invocation)
- */
-export default async function AgentCubiculoPage({
+export const dynamic = "force-dynamic"
+
+export default async function AgentDetailPage({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
+  const data = await api.agent(slug).catch(() => null)
+
   return (
     <>
       <Header />
@@ -28,49 +28,98 @@ export default async function AgentCubiculoPage({
         >
           <ArrowLeft className="h-3 w-3" /> Agents
         </Link>
-        <header className="mt-4 flex items-end justify-between">
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-              Cubículo
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-              {slug}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Placeholder · Phase 1 carga identity_md canonical + invocaciones
-              recientes + spend + skill assignments.
-            </p>
-          </div>
-        </header>
 
-        <section className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Placeholder title="Identity (canonical)" lines={4} />
-          <Placeholder title="Recent invocations" lines={4} />
-          <Placeholder title="Cost · 7d" lines={4} />
-          <Placeholder title="p50 / p95 latency" lines={3} />
-          <Placeholder title="Skills assigned" lines={3} />
-          <Placeholder title="Linked clients" lines={3} />
-        </section>
+        {!data ? (
+          <div className="mt-8 rounded-xl border border-border bg-card p-6 text-sm text-destructive-foreground">
+            Agent &quot;{slug}&quot; not found or platform endpoint unreachable.
+          </div>
+        ) : (
+          <>
+            <header className="mt-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                  Cubículo · {data.agent.role} · {data.agent.model}
+                </p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+                  {data.agent.display_name}
+                </h1>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  slug · <code className="font-mono">{data.agent.name}</code>
+                </p>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">
+                <p>
+                  {data.agent.stats_30d.sessions} sesiones · 30d
+                </p>
+                <p>
+                  {formatCurrency(data.agent.stats_30d.cost_usd ?? 0)} spend
+                </p>
+              </div>
+            </header>
+
+            <section className="mt-10">
+              <SparklineGrid
+                agents={[
+                  {
+                    slug: data.agent.name,
+                    label: data.agent.display_name,
+                    metric: "cost · 30d",
+                    current: data.agent.stats_30d.cost_usd ?? 0,
+                    delta: 0,
+                    series: [],
+                  },
+                ]}
+              />
+            </section>
+
+            <section className="mt-10">
+              {data.recent_invocations && data.recent_invocations.length > 0 ? (
+                <ActivityFeed
+                  title={`Recent invocations · ${data.agent.name}`}
+                  invocations={data.recent_invocations.map((row) => ({
+                    id: row.id,
+                    agent: data.agent.name,
+                    clientId: row.client_id,
+                    status:
+                      row.status === "completed"
+                        ? "success"
+                        : row.status === "failed"
+                        ? "failure"
+                        : "running",
+                    durationMs: row.duration_ms ?? 0,
+                    costUsd: row.cost_usd ?? 0,
+                    at: row.started_at,
+                    task: row.model,
+                  }))}
+                  limit={12}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No recent invocations en ventana 30d.
+                </p>
+              )}
+            </section>
+
+            {data.files_produced && data.files_produced.length > 0 ? (
+              <section className="mt-10 rounded-xl border border-border bg-card p-5">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Files produced · Storage
+                </p>
+                <ul className="mt-3 space-y-1 text-xs text-foreground/80">
+                  {data.files_produced.map((f) => (
+                    <li key={f.path}>
+                      <code className="font-mono">{f.path}</code>{" "}
+                      <span className="text-muted-foreground">
+                        ({Math.round(f.size_bytes / 1024)} KB)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </>
+        )}
       </main>
     </>
-  )
-}
-
-function Placeholder({ title, lines }: { title: string; lines: number }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        {title}
-      </p>
-      <div className="mt-4 space-y-2">
-        {Array.from({ length: lines }).map((_, i) => (
-          <div
-            key={i}
-            className="h-3 rounded bg-muted/60"
-            style={{ width: `${65 + ((i * 17) % 35)}%` }}
-          />
-        ))}
-      </div>
-    </div>
   )
 }

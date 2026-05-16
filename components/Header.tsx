@@ -27,10 +27,10 @@ export function Header() {
             Clients
           </Link>
           <Link
-            href="/cascades"
+            href="/graph"
             className="hover:text-foreground hover:underline underline-offset-4"
           >
-            Cascades
+            Graph
           </Link>
         </nav>
       </div>
