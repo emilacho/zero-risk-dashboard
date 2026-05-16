@@ -15,6 +15,10 @@ import type { ClientFolder, ClientStatus } from '../types'
 
 export interface ClienteCarpetaCardProps {
   folder: ClientFolder
+  /** When true, surfaces pointer cursor. Click is expected to come from
+   *  a wrapping `<Link>` so the card can stay serializable from a Server
+   *  Component (no function prop). */
+  interactive?: boolean
   onOpen?: () => void
   className?: string
 }
@@ -26,9 +30,14 @@ const STATUS_STYLES: Record<ClientStatus, { fg: string; bg: string; label: strin
   churned:    { fg: 'text-rose-300',    bg: 'bg-rose-500/14',     label: 'churn' },
 }
 
-export function ClienteCarpetaCard({ folder, onOpen, className }: ClienteCarpetaCardProps) {
+export function ClienteCarpetaCard({
+  folder,
+  interactive: interactiveProp,
+  onOpen,
+  className,
+}: ClienteCarpetaCardProps) {
   const s = STATUS_STYLES[folder.status]
-  const interactive = !!onOpen
+  const interactive = interactiveProp ?? !!onOpen
   const healthColor =
     folder.healthScore >= 75 ? 'hsl(160 84% 50%)'
     : folder.healthScore >= 50 ? 'hsl(40 95% 55%)'

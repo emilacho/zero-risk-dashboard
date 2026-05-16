@@ -38,7 +38,7 @@ async function AgentsGrid() {
               avgDurationMs: 0,
               successRate: 100,
             }}
-            onOpen={() => {}}
+            interactive
           />
         </Link>
       ))}

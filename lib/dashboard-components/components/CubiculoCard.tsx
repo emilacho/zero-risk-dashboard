@@ -30,6 +30,10 @@ export interface CubiculoCardProps {
   }
   skills?: string[]
   recentInvocations?: AgentInvocation[]
+  /** When true, surfaces the "open →" hint + pointer cursor. Click is
+   *  expected to come from a wrapping `<Link>` so the card can stay
+   *  serializable from a Server Component (no function prop). */
+  interactive?: boolean
   onOpen?: () => void
   className?: string
 }
@@ -44,6 +48,7 @@ export function CubiculoCard({
   metrics,
   skills = [],
   recentInvocations = [],
+  interactive: interactiveProp,
   onOpen,
   className,
 }: CubiculoCardProps) {
@@ -71,7 +76,7 @@ export function CubiculoCard({
     setHover(false)
   }
 
-  const interactive = !!onOpen
+  const interactive = interactiveProp ?? !!onOpen
   const statusTone =
     status === 'active' ? { dot: 'bg-emerald-400', pulse: true }
     : status === 'paused' ? { dot: 'bg-amber-400', pulse: false }

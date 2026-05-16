@@ -42,7 +42,7 @@ async function ClientsGrid() {
           href={`/clients/${data.clients[i].id}`}
           className={`block ${cellClassFor(folder.status, folder.healthScore)}`}
         >
-          <ClienteCarpetaCard folder={folder} onOpen={() => {}} className="h-full" />
+          <ClienteCarpetaCard folder={folder} interactive className="h-full" />
         </Link>
       ))}
     </div>
