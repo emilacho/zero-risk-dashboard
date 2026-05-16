@@ -38,14 +38,20 @@ const routes = [
   {
     path: "/clients",
     label: "clients-list",
-    expect: ["Náufrago", "food-delivery"],
+    // DB stores the cliente as "Naufrago" (no accent on /clients) and
+    // "Náufrago" (with accent on the home stats endpoint). Accept either.
+    expect: [["Náufrago", "Naufrago"], "food-delivery"],
   },
   {
     path: `/clients/${NAUFRAGO_ID}`,
     label: "client-detail",
-    expect: ["Náufrago", "food-delivery", "Memory"],
+    expect: [["Náufrago", "Naufrago"], "food-delivery", "Memory"],
   },
-  { path: "/graph", label: "graph", expect: ["Náufrago", "Memory"] },
+  {
+    path: "/graph",
+    label: "graph",
+    expect: [["Náufrago", "Naufrago"], "Memory"],
+  },
 ]
 
 const OUT = path.join(process.cwd(), "scripts", "verify-out")
@@ -93,10 +99,18 @@ async function main() {
     const html = await page.content()
     const visible = await page.evaluate(() => document.body.innerText)
     const errorBoundary = ERROR_BOUNDARY_MARKERS.find((m) => visible.includes(m))
-    const presentMarkers = r.expect.filter((m) =>
-      visible.toLowerCase().includes(m.toLowerCase()),
-    )
-    const missing = r.expect.filter((m) => !presentMarkers.includes(m))
+    // Each `expect` entry is either a string (must match) or a string[]
+    // (any-of · the marker passes if ANY variant is present). This handles
+    // the Náufrago/Naufrago accent inconsistency in the DB.
+    const haystack = visible.toLowerCase()
+    const presentMarkers = []
+    const missing = []
+    for (const m of r.expect) {
+      const variants = Array.isArray(m) ? m : [m]
+      const found = variants.find((v) => haystack.includes(v.toLowerCase()))
+      if (found) presentMarkers.push(found)
+      else missing.push(variants[0])
+    }
     const screenshotPath = path.join(OUT, `${r.label}.png`)
     await page.screenshot({ path: screenshotPath, fullPage: true })
     const verdict =

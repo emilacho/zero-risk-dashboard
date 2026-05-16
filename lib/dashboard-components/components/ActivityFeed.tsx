@@ -132,9 +132,12 @@ export function ActivityFeed({
                   </span>
                 </div>
 
-                {/* Right column · time + meta */}
+                {/* Right column · time + meta · suppressHydrationWarning
+                    because formatRelativeTime uses Date.now() and the
+                    second-resolution string differs between server SSR
+                    and client hydration · the mismatch is cosmetic. */}
                 <div className="text-right">
-                  <div className="text-[12px] text-foreground tabular-nums">
+                  <div className="text-[12px] text-foreground tabular-nums" suppressHydrationWarning>
                     {formatRelativeTime(inv.at)}
                   </div>
                   <div className="text-[10px] text-muted-foreground tabular-nums">
