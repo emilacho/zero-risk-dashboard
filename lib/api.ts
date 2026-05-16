@@ -57,22 +57,48 @@ export interface AgentsResponse {
   agents: AgentRow[]
 }
 
+/**
+ * Shape of `/api/dashboard/agents/[slug]`:
+ *   - `agent` carries ONLY identity fields (no nested `stats_30d` · the
+ *     list endpoint includes it · the detail endpoint exposes derived
+ *     stats via `invocations` + `timeline_30d`).
+ *   - `invocations[]` is the recent activity list · field is NOT
+ *     `recent_invocations`.
+ *   - `timeline_30d[]` is daily rollup (date · sessions · cost_usd).
+ */
 export interface AgentDetailResponse {
   ok: boolean
-  agent: AgentRow
-  recent_invocations: Array<{
+  agent: {
     id: string
+    name: string
+    display_name: string
+    role: string
+    model: string
+    status: string
+    identity_chars: number
+    identity_source: string
+    created_at: string
+    updated_at: string
+  }
+  invocations: Array<{
+    id: string
+    session_id: string | null
+    agent_id: string
+    agent_name: string
     client_id: string | null
+    model: string
     started_at: string
+    ended_at: string | null
     duration_ms: number | null
     cost_usd: number | null
-    status: string
-    error_message: string | null
     tokens_input: number | null
     tokens_output: number | null
-    model: string
+    status: string
   }>
   files_produced?: Array<{ path: string; size_bytes: number }>
+  timeline_30d?: Array<{ date: string; sessions: number; cost_usd: number }>
+  window_days: number
+  timestamp: string
 }
 
 export interface ClientRow {
@@ -103,22 +129,54 @@ export interface ClientsResponse {
   clients: ClientRow[]
 }
 
+/**
+ * Shape of `/api/dashboard/clients/[id]`:
+ *   - `client` carries the full clients row + nested `brand_voice` /
+ *     `config` jsonb (NOT a summarized `stats` block · use endpoint
+ *     `agents_worked` rollup for derived counts).
+ *   - `agents_worked[]` uses `sessions` + `cost_usd` + `last_at` (NOT
+ *     `invocations` + `total_spend_usd` + `last_invocation_at`).
+ *   - `invocations_recent[]` is the timeline (NOT `timeline`).
+ */
 export interface ClientDetailResponse {
   ok: boolean
-  client: ClientRow
+  client: {
+    id: string
+    name: string
+    slug: string
+    website_url: string | null
+    domain: string | null
+    industry: string | null
+    market: string | null
+    status: string
+    preferred_language: string | null
+    country: string | null
+    language: string | null
+    logo_url: string | null
+    brand_colors: unknown[] | null
+    brand_fonts: string[] | null
+    brand_voice: Record<string, unknown> | null
+    config: Record<string, unknown> | null
+    created_at: string
+    updated_at: string
+  }
   agents_worked: Array<{
     agent_id: string
-    invocations: number
-    total_spend_usd: number
-    last_invocation_at: string | null
+    sessions: number
+    cost_usd: number
+    last_at: string | null
   }>
-  timeline: Array<{
+  invocations_recent: Array<{
     id: string
     agent_id: string
-    started_at: string
+    agent_name: string
+    model: string
     cost_usd: number | null
+    tokens_input: number | null
+    tokens_output: number | null
+    started_at: string
+    ended_at: string | null
     status: string
-    duration_ms: number | null
   }>
   storage_files?: Array<{ path: string; size_bytes: number }>
 }
