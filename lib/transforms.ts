@@ -77,7 +77,7 @@ const STATUS_MAP: Record<string, InvocationStatus> = {
 export function invocationsToActivity(
   resp: ActivityResponse,
 ): AgentInvocation[] {
-  return resp.invocations.map((row) => ({
+  return (resp.activity ?? []).map((row) => ({
     id: row.id,
     agent: row.agent_id,
     clientId: row.client_id,
@@ -85,7 +85,7 @@ export function invocationsToActivity(
     durationMs: row.duration_ms ?? 0,
     costUsd: row.cost_usd ?? 0,
     at: row.started_at,
-    task: row.model ?? "",
+    task: row.agent_name ?? row.model ?? "",
   }))
 }
 
