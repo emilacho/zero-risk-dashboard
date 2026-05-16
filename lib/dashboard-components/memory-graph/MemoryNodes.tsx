@@ -2,93 +2,119 @@
 /**
  * MemoryNodes · custom node renderers for the ReactFlow memory graph.
  *
- * Four kinds · client (central), agent, workflow, tool. Each has its
- * own visual treatment that maps to the dashboard theme (violet primary,
- * cyan accent, dark surface). Hand-rolled so the host doesn't need to
- * pull in additional shadcn/UI deps.
+ * Four kinds · client (central) · agent · workflow · tool. Lumen polish:
+ *  - neon glow per node-kind (violet, cyan, amber, muted)
+ *  - hover-expand: scales the node + reveals a brief meta line
+ *  - gradient-fill handles
+ *  - radar ring around the client node (animated)
  */
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
-import { theme } from '../theme'
+import { useState } from 'react'
 import type { MemoryNodeData, MemoryNodeKind } from '../types'
 
-/**
- * Full ReactFlow Node type for our custom data shape. NodeProps wants the
- * complete Node<TData, TType>, not just TData, in @xyflow/react v12.
- */
 export type MemoryGraphNode = Node<MemoryNodeData, MemoryNodeKind>
 
-// ── Shared style helpers ───────────────────────────────────────────────
-const baseNodeStyle = {
-  fontFamily: theme.font.sans,
-  color: theme.colors.fg.primary,
-  borderRadius: theme.radius.lg,
-  border: `1px solid ${theme.colors.border.subtle}`,
-  background: theme.colors.bg.surface,
-  padding: '10px 14px',
-  minWidth: 160,
-  fontSize: 12,
-  lineHeight: 1.3,
-  boxShadow: theme.shadow.md,
+const HANDLE_FILL: Record<MemoryNodeKind, string> = {
+  client:   'hsl(263 80% 65%)',
+  agent:    'hsl(187 85% 55%)',
+  workflow: 'hsl(45 95% 60%)',
+  tool:     'hsl(240 5% 60%)',
 }
 
-function handleStyle(kind: MemoryNodeKind) {
-  const color =
-    kind === 'client' ? theme.colors.primary[500]
-    : kind === 'agent' ? theme.colors.accent[500]
-    : kind === 'workflow' ? theme.colors.warning
-    : theme.colors.fg.muted
+function handle(kind: MemoryNodeKind): React.CSSProperties {
   return {
-    background: color,
-    border: `2px solid ${theme.colors.bg.base}`,
-    width: 8,
-    height: 8,
+    background: HANDLE_FILL[kind],
+    border: '2px solid hsl(240 10% 4%)',
+    width: 9,
+    height: 9,
+    boxShadow: `0 0 8px ${HANDLE_FILL[kind]}`,
   }
 }
 
-// ── Client node · central · larger · violet glow ───────────────────────
+// ── Client node · central · violet glow + radar pulse ──────────────────
 export function ClientNode({ data }: NodeProps<MemoryGraphNode>) {
+  const [hover, setHover] = useState(false)
+  const health = typeof data.meta?.healthScore === 'number' ? data.meta.healthScore : null
+  const healthColor =
+    health == null ? 'hsl(240 5% 60%)'
+    : health >= 75 ? 'hsl(160 84% 50%)'
+    : health >= 50 ? 'hsl(40 95% 55%)'
+    : 'hsl(0 75% 60%)'
   return (
     <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        ...baseNodeStyle,
+        position: 'relative',
         padding: '14px 18px',
-        minWidth: 200,
-        border: `1px solid ${theme.colors.primary[500]}`,
-        background: `linear-gradient(135deg, ${theme.colors.bg.surfaceActive}, ${theme.colors.bg.surface})`,
-        boxShadow: theme.shadow.glow,
+        minWidth: 220,
+        borderRadius: 14,
+        border: '1px solid hsl(263 80% 65% / 0.6)',
+        background:
+          'linear-gradient(135deg, hsl(263 80% 22% / 0.45), hsl(187 85% 22% / 0.25)), hsl(240 10% 8%)',
+        boxShadow: hover
+          ? '0 0 0 1px hsl(263 80% 65% / 0.5), 0 0 36px 4px hsl(263 80% 60% / 0.35)'
+          : '0 0 0 1px hsl(263 80% 65% / 0.3), 0 0 24px -2px hsl(263 80% 60% / 0.3)',
+        transform: hover ? 'scale(1.04)' : 'scale(1)',
+        transition: 'transform 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms ease',
+        color: 'hsl(0 0% 96%)',
+        fontFamily: 'inherit',
+        zIndex: hover ? 10 : 1,
       }}
     >
-      <Handle type="target" position={Position.Left} style={handleStyle('client')} />
-      <Handle type="source" position={Position.Right} style={handleStyle('client')} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+      {/* Radar ring · two layers, offset · slow rotate */}
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: -10,
+          borderRadius: 18,
+          border: '1px dashed hsl(263 80% 65% / 0.35)',
+          pointerEvents: 'none',
+          animation: 'spin-slow 24s linear infinite',
+        }}
+      />
+      <Handle type="target" position={Position.Left} style={handle('client')} />
+      <Handle type="source" position={Position.Right} style={handle('client')} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: theme.radius.full,
-            background: theme.colors.primary[500],
-            boxShadow: `0 0 8px ${theme.colors.primary[500]}`,
+            width: 8, height: 8, borderRadius: 999,
+            background: 'hsl(263 80% 65%)',
+            boxShadow: '0 0 12px hsl(263 90% 60%)',
+            animation: 'pulse-glow 2s ease-in-out infinite',
           }}
         />
-        <span style={{ fontSize: 10, color: theme.colors.primary[400], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <span
+          style={{
+            fontSize: 10,
+            color: 'hsl(263 80% 78%)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.18em',
+            fontFamily: 'var(--font-mono), monospace',
+          }}
+        >
           cliente
         </span>
       </div>
-      <div style={{ fontSize: 15, fontWeight: 600 }}>{data.label}</div>
+      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-display), inherit', letterSpacing: '-0.01em' }}>
+        {data.label}
+      </div>
       {data.meta?.industry ? (
-        <div style={{ fontSize: 11, color: theme.colors.fg.secondary, marginTop: 4 }}>{data.meta.industry}</div>
+        <div style={{ fontSize: 11, color: 'hsl(0 0% 70%)', marginTop: 4 }}>{data.meta.industry}</div>
       ) : null}
-      {typeof data.meta?.healthScore === 'number' ? (
-        <div style={{ marginTop: 6 }}>
-          <div style={{ fontSize: 10, color: theme.colors.fg.muted, marginBottom: 3 }}>
-            health · {data.meta.healthScore}/100
+      {health != null ? (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 9, color: 'hsl(0 0% 55%)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 3 }}>
+            health · {health}/100
           </div>
-          <div style={{ height: 4, background: theme.colors.bg.surfaceActive, borderRadius: theme.radius.full, overflow: 'hidden' }}>
+          <div style={{ height: 4, borderRadius: 999, background: 'hsl(240 6% 16%)', overflow: 'hidden' }}>
             <div
               style={{
-                width: `${data.meta.healthScore}%`,
+                width: `${health}%`,
                 height: '100%',
-                background: theme.colors.success,
+                background: `linear-gradient(90deg, ${healthColor}, hsl(187 85% 55%))`,
+                transition: 'width 600ms ease',
               }}
             />
           </div>
@@ -98,28 +124,51 @@ export function ClientNode({ data }: NodeProps<MemoryGraphNode>) {
   )
 }
 
-// ── Agent node · cyan accent ───────────────────────────────────────────
+// ── Agent node · cyan accent + hover-expand ───────────────────────────
 export function AgentNode({ data }: NodeProps<MemoryGraphNode>) {
+  const [hover, setHover] = useState(false)
   return (
     <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        ...baseNodeStyle,
-        borderLeft: `2px solid ${theme.colors.accent[500]}`,
+        position: 'relative',
+        padding: '10px 14px',
+        minWidth: 168,
+        borderRadius: 12,
+        border: '1px solid hsl(240 6% 16%)',
+        borderLeft: '2px solid hsl(187 85% 55%)',
+        background: 'hsl(240 8% 9% / 0.95)',
+        boxShadow: hover
+          ? '0 0 0 1px hsl(187 85% 55% / 0.5), 0 0 22px -2px hsl(187 95% 50% / 0.55)'
+          : 'none',
+        transform: hover ? 'scale(1.05)' : 'scale(1)',
+        transition: 'transform 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms ease',
+        color: 'hsl(0 0% 96%)',
+        zIndex: hover ? 10 : 1,
       }}
     >
-      <Handle type="target" position={Position.Left} style={handleStyle('agent')} />
-      <Handle type="source" position={Position.Right} style={handleStyle('agent')} />
+      <Handle type="target" position={Position.Left} style={handle('agent')} />
+      <Handle type="source" position={Position.Right} style={handle('agent')} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-        <span style={{ fontSize: 9, color: theme.colors.accent[400], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <span style={{ fontSize: 9, color: 'hsl(187 85% 70%)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--font-mono), monospace' }}>
           agent
         </span>
         {data.meta?.role ? (
-          <span style={{ fontSize: 9, color: theme.colors.fg.muted }}>· {data.meta.role}</span>
+          <span style={{ fontSize: 9, color: 'hsl(0 0% 55%)' }}>· {data.meta.role}</span>
         ) : null}
       </div>
       <div style={{ fontSize: 13, fontWeight: 500 }}>{data.label}</div>
       {data.meta?.model ? (
-        <code style={{ fontFamily: theme.font.mono, fontSize: 10, color: theme.colors.fg.muted, marginTop: 4, display: 'inline-block' }}>
+        <code
+          style={{
+            fontFamily: 'var(--font-mono), monospace',
+            fontSize: 10,
+            color: 'hsl(0 0% 60%)',
+            marginTop: 4,
+            display: 'inline-block',
+          }}
+        >
           {data.meta.model}
         </code>
       ) : null}
@@ -127,24 +176,38 @@ export function AgentNode({ data }: NodeProps<MemoryGraphNode>) {
   )
 }
 
-// ── Workflow node · amber accent ───────────────────────────────────────
+// ── Workflow node · amber accent ──────────────────────────────────────
 export function WorkflowNode({ data }: NodeProps<MemoryGraphNode>) {
+  const [hover, setHover] = useState(false)
   return (
     <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        ...baseNodeStyle,
-        borderLeft: `2px solid ${theme.colors.warning}`,
-        minWidth: 140,
+        position: 'relative',
+        padding: '10px 14px',
+        minWidth: 150,
+        borderRadius: 12,
+        border: '1px solid hsl(240 6% 16%)',
+        borderLeft: '2px solid hsl(45 95% 60%)',
+        background: 'hsl(240 8% 9% / 0.95)',
+        boxShadow: hover
+          ? '0 0 0 1px hsl(45 95% 60% / 0.45), 0 0 22px -2px hsl(45 95% 55% / 0.45)'
+          : 'none',
+        transform: hover ? 'scale(1.05)' : 'scale(1)',
+        transition: 'transform 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms ease',
+        color: 'hsl(0 0% 96%)',
+        zIndex: hover ? 10 : 1,
       }}
     >
-      <Handle type="target" position={Position.Left} style={handleStyle('workflow')} />
-      <Handle type="source" position={Position.Right} style={handleStyle('workflow')} />
-      <div style={{ fontSize: 9, color: theme.colors.warning, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+      <Handle type="target" position={Position.Left} style={handle('workflow')} />
+      <Handle type="source" position={Position.Right} style={handle('workflow')} />
+      <div style={{ fontSize: 9, color: 'hsl(45 95% 70%)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4, fontFamily: 'var(--font-mono), monospace' }}>
         workflow
       </div>
       <div style={{ fontSize: 12, fontWeight: 500 }}>{data.label}</div>
       {typeof data.meta?.runs24h === 'number' ? (
-        <div style={{ fontSize: 10, color: theme.colors.fg.muted, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{ fontSize: 10, color: 'hsl(0 0% 60%)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
           {data.meta.runs24h} runs · 24h
         </div>
       ) : null}
@@ -152,34 +215,42 @@ export function WorkflowNode({ data }: NodeProps<MemoryGraphNode>) {
   )
 }
 
-// ── Tool node · muted · pill-shaped ────────────────────────────────────
+// ── Tool node · muted · pill-shaped ───────────────────────────────────
 export function ToolNode({ data }: NodeProps<MemoryGraphNode>) {
+  const [hover, setHover] = useState(false)
   return (
     <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        ...baseNodeStyle,
-        borderRadius: theme.radius.full,
+        position: 'relative',
         padding: '8px 14px',
-        minWidth: 0,
-        background: theme.colors.bg.surfaceActive,
+        borderRadius: 999,
+        border: '1px solid hsl(240 6% 16%)',
+        background: 'hsl(240 6% 14% / 0.95)',
+        boxShadow: hover ? '0 0 0 1px hsl(240 5% 60% / 0.5), 0 0 18px -2px hsl(240 5% 60% / 0.4)' : 'none',
+        transform: hover ? 'scale(1.05)' : 'scale(1)',
+        transition: 'transform 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms ease',
+        color: 'hsl(0 0% 96%)',
+        zIndex: hover ? 10 : 1,
       }}
     >
-      <Handle type="target" position={Position.Left} style={handleStyle('tool')} />
-      <Handle type="source" position={Position.Right} style={handleStyle('tool')} />
+      <Handle type="target" position={Position.Left} style={handle('tool')} />
+      <Handle type="source" position={Position.Right} style={handle('tool')} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 9, color: theme.colors.fg.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <span style={{ fontSize: 9, color: 'hsl(0 0% 55%)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--font-mono), monospace' }}>
           tool
         </span>
         <span style={{ fontSize: 12, fontWeight: 500 }}>{data.label}</span>
       </div>
       {data.meta?.surface ? (
-        <div style={{ fontSize: 9, color: theme.colors.fg.muted, marginTop: 2 }}>{data.meta.surface}</div>
+        <div style={{ fontSize: 9, color: 'hsl(0 0% 55%)', marginTop: 2 }}>{data.meta.surface}</div>
       ) : null}
     </div>
   )
 }
 
-// ── Registry passed to ReactFlow ───────────────────────────────────────
+// ── Registry passed to ReactFlow ──────────────────────────────────────
 export const memoryNodeTypes = {
   client: ClientNode,
   agent: AgentNode,

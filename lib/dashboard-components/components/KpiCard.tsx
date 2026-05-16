@@ -1,17 +1,16 @@
 'use client'
 /**
- * KpiCard · atomic single-metric card.
+ * KpiCard · atomic single-metric card. Lumen-style polish:
+ *  - gradient-mask border (revealed on hover)
+ *  - violet/cyan spotlight that follows the cursor
+ *  - large display-font digit · tabular-nums · trend-colored delta
+ *  - optional sparkline embed
  *
- * Tremor-style: small label · large digit · delta % · optional inline
- * sparkline. The KpiGrid wires 4 of these together for the dashboard hero.
- *
- * Props are designed to map 1:1 with KpiMetric · the host passes a fixture
- * or a real Supabase aggregate.
+ * Composable via the `size` prop · "feature" doubles the digit height and
+ * gives the card more breathing room, used by the headline KPI in the
+ * bento grid (Spend).
  */
-import { ReactNode } from 'react'
-import { theme } from '../theme'
-import { cn } from '../utils/cn'
-import { formatCurrency, formatNumber, formatPercent } from '../utils/format'
+import { ReactNode, useRef, type MouseEvent } from 'react'
 import { Sparkline } from './Sparkline'
 import type { KpiMetric } from '../types'
 
@@ -26,7 +25,32 @@ export interface KpiCardProps {
   deltaIsGood?: boolean
   /** Render an inline sparkline strip when `metric.sparkline` is provided. */
   showSparkline?: boolean
+  /** "feature" doubles digit size · used for the bento hero card. */
+  size?: 'standard' | 'feature'
+  /** Color of the hover spotlight + sparkline · matches what's emphasized. */
+  glow?: 'violet' | 'cyan'
   className?: string
+}
+
+function fmt(value: number, kind: KpiCardProps['format']): string {
+  if (kind === 'currency') {
+    const abs = Math.abs(value)
+    if (abs >= 1000) return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`
+    if (abs < 1) return `$${value.toFixed(3)}`
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+  if (kind === 'percent') {
+    return `${value.toFixed(1)}%`
+  }
+  // compact integer-friendly
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`
+  return value.toLocaleString('en-US')
+}
+
+function fmtDelta(p: number): string {
+  const sign = p > 0 ? '+' : ''
+  return `${sign}${p.toFixed(1)}%`
 }
 
 export function KpiCard({
@@ -36,86 +60,85 @@ export function KpiCard({
   format = 'number',
   deltaIsGood = true,
   showSparkline = true,
+  size = 'standard',
+  glow = 'violet',
   className,
 }: KpiCardProps) {
-  const value =
-    format === 'currency' ? formatCurrency(metric.value, { compact: true })
-    : format === 'percent' ? formatPercent(metric.value)
-    : formatNumber(metric.value, { compact: true })
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const onMove = (e: MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    el.style.setProperty('--spotlight-x', `${e.clientX - r.left}px`)
+    el.style.setProperty('--spotlight-y', `${e.clientY - r.top}px`)
+  }
 
+  const value = fmt(metric.value, format)
   const deltaPositive = metric.delta > 0
   const deltaNeutral = metric.delta === 0
-  const deltaGood = deltaNeutral ? null : (deltaPositive ? deltaIsGood : !deltaIsGood)
-  const deltaColor = deltaGood === null
-    ? theme.colors.fg.muted
-    : deltaGood
-    ? theme.colors.success
-    : theme.colors.danger
+  const deltaGood = deltaNeutral ? null : deltaPositive ? deltaIsGood : !deltaIsGood
+
+  const deltaClass =
+    deltaGood === null
+      ? 'text-muted-foreground'
+      : deltaGood
+      ? 'text-emerald-400'
+      : 'text-rose-400'
+
+  const isFeature = size === 'feature'
 
   return (
     <div
-      className={cn('kpi-card group relative overflow-hidden', className)}
-      style={{
-        background: theme.colors.bg.surface,
-        border: `1px solid ${theme.colors.border.subtle}`,
-        borderRadius: theme.radius.lg,
-        padding: '1.25rem',
-        transition: `background ${theme.motion.base}, border-color ${theme.motion.base}`,
-      }}
+      ref={cardRef}
+      onMouseMove={onMove}
+      data-glow={glow}
+      data-spotlight="true"
+      data-pop="true"
+      className={[
+        'surface-card group',
+        isFeature ? 'p-6' : 'p-5',
+        className ?? '',
+      ].join(' ')}
     >
-      {/* Hover violet glow accent · subtle */}
-      <div
-        aria-hidden
-        className="kpi-glow"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: `radial-gradient(800px 200px at 0% 0%, ${theme.colors.primary[500]}11, transparent 60%)`,
-          pointerEvents: 'none',
-        }}
-      />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        {icon ? (
-          <span style={{ color: theme.colors.primary[400], display: 'inline-flex', alignItems: 'center' }}>
-            {icon}
+      {/* All real content sits above the spotlight pseudo · z-index 2 to lift above ::before border */}
+      <div className="relative z-[2] flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          {icon ? (
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border bg-secondary/40 text-primary shadow-[inset_0_0_8px_-2px_hsl(var(--primary)/0.4)]">
+              {icon}
+            </span>
+          ) : null}
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            {label}
           </span>
-        ) : null}
-        <span style={{ color: theme.colors.fg.secondary, fontSize: 12, fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
-          {label}
-        </span>
-      </div>
+        </div>
 
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16 }}>
-        <span
-          style={{
-            color: theme.colors.fg.primary,
-            fontSize: 32,
-            fontWeight: 600,
-            fontFamily: theme.font.sans,
-            lineHeight: 1.1,
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {value}
-        </span>
+        <div className="flex items-end justify-between gap-4">
+          <span
+            className={[
+              'font-display font-semibold leading-none tabular-nums',
+              isFeature ? 'text-5xl' : 'text-3xl',
+            ].join(' ')}
+          >
+            {value}
+          </span>
+          {showSparkline && metric.sparkline?.length ? (
+            <Sparkline
+              points={metric.sparkline}
+              width={isFeature ? 140 : 92}
+              height={isFeature ? 44 : 30}
+              stroke={glow === 'cyan' ? 'hsl(187 85% 55%)' : 'hsl(263 80% 65%)'}
+              showEndDot
+            />
+          ) : null}
+        </div>
 
-        {showSparkline && metric.sparkline?.length ? (
-          <Sparkline points={metric.sparkline} width={84} height={28} stroke={theme.colors.primary[400]} />
-        ) : null}
-      </div>
-
-      <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-        <span
-          style={{
-            color: deltaColor,
-            fontWeight: 600,
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {deltaNeutral ? '·' : formatPercent(metric.delta, { signed: true })}
-        </span>
-        <span style={{ color: theme.colors.fg.muted }}>{metric.deltaLabel}</span>
+        <div className="flex items-center gap-2 text-xs">
+          <span className={`font-semibold tabular-nums ${deltaClass}`}>
+            {deltaNeutral ? '·' : fmtDelta(metric.delta)}
+          </span>
+          <span className="text-muted-foreground">{metric.deltaLabel}</span>
+        </div>
       </div>
     </div>
   )

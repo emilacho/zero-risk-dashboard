@@ -1,13 +1,15 @@
 'use client'
 /**
- * KpiGrid · 4-up grid of KpiCards wired with the dashboard's headline
- * KPIs (agents · clients · spend · workflows).
+ * KpiGrid · bento-style varied grid of 4 KPIs. Lumen polish:
+ *  - one "feature" cell (Spend) spans 2 cols on lg+ · bigger digit · cyan glow
+ *  - 3 standard cells · violet glow
+ *  - gradient hairline on the feature card via surface-card
  *
- * Pass a `KpiSnapshot` from real data or fixture. Format + deltaIsGood
- * presets are baked in per metric so the host doesn't have to remember
- * "spend going up is bad".
+ * The layout falls back to a 1-col stack on mobile, 2-col on md, then
+ * lays out as `feature feature std / std std std` on lg.
  */
 import { KpiCard } from './KpiCard'
+import { Bot, Users, DollarSign, Workflow } from 'lucide-react'
 import type { KpiSnapshot } from '../types'
 
 export interface KpiGridProps {
@@ -17,74 +19,55 @@ export interface KpiGridProps {
 export function KpiGrid({ snapshot }: KpiGridProps) {
   return (
     <div
-      className="kpi-grid"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1rem',
-      }}
+      className="
+        grid gap-4
+        grid-cols-1
+        md:grid-cols-2
+        lg:grid-cols-4 lg:grid-rows-[auto_auto]
+      "
     >
+      {/* Hero feature · Spend del mes · spans 2 cols + 2 rows on lg */}
+      <div className="lg:col-span-2 lg:row-span-2">
+        <KpiCard
+          label="Spend del mes"
+          metric={snapshot.spendMonth}
+          format="currency"
+          deltaIsGood={false}
+          size="feature"
+          glow="cyan"
+          icon={<DollarSign className="h-3.5 w-3.5" />}
+          className="h-full"
+        />
+      </div>
+
       <KpiCard
         label="Agentes activos"
         metric={snapshot.agentsActive}
         format="number"
         deltaIsGood
-        icon={<DotIcon />}
+        glow="violet"
+        icon={<Bot className="h-3.5 w-3.5" />}
       />
       <KpiCard
         label="Clientes activos"
         metric={snapshot.clientsActive}
         format="number"
         deltaIsGood
-        icon={<FolderIcon />}
-      />
-      <KpiCard
-        label="Spend del mes"
-        metric={snapshot.spendMonth}
-        format="currency"
-        deltaIsGood={false /* lower spend is good */}
-        icon={<DollarIcon />}
+        glow="violet"
+        icon={<Users className="h-3.5 w-3.5" />}
       />
       <KpiCard
         label="Workflows activos"
         metric={snapshot.workflowsActive}
         format="number"
         deltaIsGood
-        icon={<FlowIcon />}
+        glow="violet"
+        icon={<Workflow className="h-3.5 w-3.5" />}
       />
+      {/* Optional 4th tile on the second row · reserved for the spend
+          card's expanded breathing room on lg. On md and below the grid
+          flows naturally without needing a placeholder. */}
+      <div className="hidden lg:block" />
     </div>
-  )
-}
-
-// Tiny inline SVG icons — keeps the package zero-dep.
-function DotIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="4" fill="currentColor" />
-    </svg>
-  )
-}
-function FolderIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M2 4.5C2 3.67 2.67 3 3.5 3h3.1c.4 0 .78.16 1.06.44L8.5 4.38c.28.28.66.44 1.06.44H12.5c.83 0 1.5.67 1.5 1.5v5.18c0 .83-.67 1.5-1.5 1.5h-9C2.67 13 2 12.33 2 11.5v-7z" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  )
-}
-function DollarIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M8 2v12M11 5.5C11 4.12 9.66 3 8 3s-3 1.12-3 2.5S6.34 8 8 8s3 1.12 3 2.5S9.66 13 8 13s-3-1.12-3-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  )
-}
-function FlowIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <circle cx="3" cy="3" r="2" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="13" cy="8" r="2" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="3" cy="13" r="2" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M5 4l6 3M5 12l6-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
   )
 }

@@ -2,9 +2,12 @@
 
 /**
  * Zero Risk dashboard · dark-mode default · violet/cyan accent theme.
- * Operator-tool aesthetic · NOT marketing site. High-contrast charts
- * via Tremor's default series colors; we override the chrome (cards,
- * borders, primary actions) for brand cohesion.
+ * Operator-tool aesthetic inspired by Lumen Studio:
+ *  - dark base with subtle ambient grid + diagonal beams
+ *  - violet #7c3aed primary + cyan #06b6d4 accent
+ *  - neon glow on focus / hover / important affordances
+ *  - tight tabular type for numbers · Space Grotesk for display
+ *  - bento grids with varied cell sizes per importance
  */
 
 @layer base {
@@ -29,19 +32,21 @@
   }
 
   .dark {
-    --background: 240 10% 5%;
+    --background: 240 10% 4%;
     --foreground: 0 0% 96%;
-    --card: 240 8% 9%;
+    --card: 240 8% 8%;
     --card-foreground: 0 0% 96%;
     --primary: 263 80% 65%;          /* violet */
     --primary-foreground: 240 10% 5%;
+    --primary-glow: 263 90% 60%;     /* glow halo color */
     --secondary: 240 6% 14%;
     --secondary-foreground: 0 0% 96%;
     --muted: 240 6% 14%;
     --muted-foreground: 240 5% 64%;
     --accent: 187 85% 55%;           /* cyan */
     --accent-foreground: 240 10% 5%;
-    --border: 240 6% 18%;
+    --accent-glow: 187 95% 50%;
+    --border: 240 6% 16%;
     --input: 240 6% 18%;
     --ring: 263 80% 65%;
   }
@@ -53,11 +58,373 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    /* Tabular numerals everywhere by default · charts and KPI cards rely on it. */
+    font-variant-numeric: tabular-nums;
   }
 
   ::selection {
-    background-color: hsl(var(--primary));
+    background-color: hsl(var(--primary) / 0.7);
     color: hsl(var(--primary-foreground));
   }
+
+  /* Focus rings glow · matches the brand accent so it feels integral */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary) / 0.7);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.18);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Ambient backdrop · pure CSS · no client JS
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  /* Subtle dot-grid · feels like a control surface */
+  .ambient-grid {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background-image:
+      radial-gradient(hsl(var(--foreground) / 0.04) 1px, transparent 1px),
+      radial-gradient(hsl(var(--foreground) / 0.04) 1px, transparent 1px);
+    background-size: 36px 36px, 36px 36px;
+    background-position: 0 0, 18px 18px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at top, black, transparent 75%);
+  }
+
+  /* Two faint diagonal beams · one violet, one cyan */
+  .ambient-beam-1,
+  .ambient-beam-2 {
+    position: fixed;
+    inset: -25% -10% auto auto;
+    width: 70vw;
+    height: 60vh;
+    z-index: -1;
+    pointer-events: none;
+    filter: blur(60px);
+    opacity: 0.35;
+    mix-blend-mode: screen;
+  }
+  .ambient-beam-1 {
+    background: radial-gradient(ellipse at top right, hsl(var(--primary) / 0.55), transparent 60%);
+  }
+  .ambient-beam-2 {
+    inset: auto auto -25% -10%;
+    background: radial-gradient(ellipse at bottom left, hsl(var(--accent) / 0.45), transparent 60%);
+  }
+
+  /* Body film noise · barely-there texture · keeps cards from feeling printed-on-glass */
+  .bg-noise {
+    background-image:
+      linear-gradient(to bottom, hsl(var(--background)) 0%, hsl(var(--background)) 100%),
+      repeating-linear-gradient(
+        45deg,
+        hsl(var(--foreground) / 0.012) 0,
+        hsl(var(--foreground) / 0.012) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    background-blend-mode: normal, overlay;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Premium card surfaces · Lumen-style polish
+ *
+ * `.surface-card` is the base layer used by every KPI / list / panel.
+ * `.surface-card[data-glow="violet"|"cyan"]` adds a one-pixel gradient
+ * border + soft halo on hover. `.surface-card[data-pop="true"]` lifts
+ * the card on hover (used for the cubículos + cliente folder cards).
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .surface-card {
+    position: relative;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.85), hsl(var(--card) / 0.7));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    backdrop-filter: blur(6px);
+    transition:
+      transform 220ms cubic-bezier(.2,.7,.2,1),
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      background 220ms ease;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .surface-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.45), hsl(var(--accent) / 0.35), transparent 60%);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 240ms ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .surface-card:hover::before,
+  .surface-card[data-glow]::before {
+    opacity: 1;
+  }
+  .surface-card[data-pop="true"]:hover {
+    transform: translateY(-2px);
+  }
+  .surface-card[data-glow="violet"]:hover {
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.4),
+      0 20px 50px -20px hsl(var(--primary) / 0.45);
+  }
+  .surface-card[data-glow="cyan"]:hover {
+    box-shadow:
+      0 0 0 1px hsl(var(--accent) / 0.4),
+      0 20px 50px -20px hsl(var(--accent) / 0.45);
+  }
+
+  /* Inner "spotlight" that follows the mouse · enabled by data-spotlight */
+  .surface-card[data-spotlight="true"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(
+        420px circle at var(--spotlight-x, 50%) var(--spotlight-y, 0%),
+        hsl(var(--primary) / 0.16),
+        transparent 65%
+      );
+    opacity: 0;
+    transition: opacity 200ms ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .surface-card[data-spotlight="true"]:hover::after {
+    opacity: 1;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Text gradients + display font helpers
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  .text-gradient {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--foreground)) 0%,
+      hsl(var(--primary)) 50%,
+      hsl(var(--accent)) 100%
+    );
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+            color: transparent;
+  }
+  .text-gradient-soft {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--foreground)) 0%,
+      hsl(var(--foreground) / 0.6) 100%
+    );
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+            color: transparent;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Animations · Aceternity / Magic UI patterns inline
+ *
+ * - shimmer    · running highlight band across a button
+ * - meteor     · diagonal streaks across the graph canvas
+ * - pulse-glow · the status dot in headers
+ * - sweep-bar  · violet→cyan animated bar fill
+ * - blur-fade  · loading shimmer for skeletons
+ * - text-reveal · word-by-word fade in
+ * ────────────────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes meteor {
+  0%   { transform: translate(0, 0) rotate(215deg); opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translate(-600px, 600px) rotate(215deg); opacity: 0; }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--accent) / 0.6); }
+  50%      { box-shadow: 0 0 0 8px hsl(var(--accent) / 0); }
+}
+@keyframes sweep-bar {
+  0%   { width: 0%; }
+  100% { width: var(--sweep-target, 100%); }
+}
+@keyframes blur-fade {
+  0%   { filter: blur(8px); opacity: 0; transform: translateY(6px); }
+  100% { filter: blur(0);   opacity: 1; transform: translateY(0); }
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+@keyframes flow-dash {
+  to { stroke-dashoffset: -32; }
+}
+
+@layer utilities {
+  .animate-shimmer {
+    background-image: linear-gradient(
+      110deg,
+      transparent 30%,
+      hsl(var(--foreground) / 0.18) 50%,
+      transparent 70%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 2.4s linear infinite;
+  }
+  .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+  .animate-sweep-bar  { animation: sweep-bar 900ms cubic-bezier(.2,.8,.2,1) both; }
+  .animate-blur-fade  { animation: blur-fade 520ms cubic-bezier(.2,.8,.2,1) both; }
+  .animate-spin-slow  { animation: spin-slow 18s linear infinite; }
+
+  /* Glow utilities (composable boxes) */
+  .glow-violet { box-shadow: 0 0 24px -2px hsl(var(--primary) / 0.55); }
+  .glow-cyan   { box-shadow: 0 0 24px -2px hsl(var(--accent) / 0.55); }
+
+  /* Visually distinct chip used on numbered eyebrows ("PARTE 01") */
+  .eyebrow-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--accent));
+    background: hsl(var(--accent) / 0.08);
+    border: 1px solid hsl(var(--accent) / 0.22);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Shimmer button · used for primary CTAs on detail pages.
+ * Mark up as <button class="shimmer-btn"><span>Label</span></button>
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .shimmer-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--primary) / 0.45);
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.95), hsl(var(--accent) / 0.85));
+    color: hsl(var(--primary-foreground));
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 180ms ease, box-shadow 220ms ease;
+    box-shadow:
+      0 4px 14px -6px hsl(var(--primary) / 0.6),
+      inset 0 0 0 1px hsl(var(--primary-foreground) / 0.08);
+  }
+  .shimmer-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+      110deg,
+      transparent 35%,
+      hsl(var(--primary-foreground) / 0.4) 50%,
+      transparent 65%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 3s linear infinite;
+    pointer-events: none;
+  }
+  .shimmer-btn:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 8px 22px -8px hsl(var(--primary) / 0.8),
+      inset 0 0 0 1px hsl(var(--primary-foreground) / 0.1);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * BlurFade skeleton · used for Suspense fallbacks
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .skel-line {
+    height: 1rem;
+    border-radius: 0.4rem;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted) / 0.4),
+      hsl(var(--muted) / 0.75),
+      hsl(var(--muted) / 0.4)
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  .skel-card {
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card) / 0.4);
+    padding: 1.25rem;
+    animation: blur-fade 600ms ease both;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Nav indicator · animated pill behind the active route link
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .nav-pill[data-active="true"] {
+    color: hsl(var(--foreground));
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.18), hsl(var(--accent) / 0.18));
+    border-color: hsl(var(--primary) / 0.35);
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.18),
+      0 6px 18px -10px hsl(var(--primary) / 0.6);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * ReactFlow theme overrides · neon edges + dot grid background
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .react-flow__edge-path {
+    stroke: hsl(var(--accent) / 0.6);
+    stroke-width: 1.4;
+    filter: drop-shadow(0 0 4px hsl(var(--accent) / 0.5));
+  }
+  .react-flow__edge.animated .react-flow__edge-path {
+    stroke-dasharray: 6 6;
+    animation: flow-dash 1.2s linear infinite;
+  }
+  .react-flow__attribution { display: none; }
 }
