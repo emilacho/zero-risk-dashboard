@@ -1,8 +1,6 @@
 import { api } from "@/lib/api"
 import { MemoryGraph } from "@/lib/dashboard-components"
 import { buildAgencyMemoryGraph } from "@/lib/transforms"
-import { Header } from "@/components/Header"
-
 export const dynamic = "force-dynamic"
 
 /**
@@ -23,7 +21,6 @@ export default async function GraphPage() {
   })
   return (
     <>
-      <Header />
       <main className="mx-auto max-w-[1600px] px-4 pb-8 pt-6">
         <section className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

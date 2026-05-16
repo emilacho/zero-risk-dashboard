@@ -6,8 +6,6 @@ import {
   SparklineGrid,
   formatCurrency,
 } from "@/lib/dashboard-components"
-import { Header } from "@/components/Header"
-
 export const dynamic = "force-dynamic"
 
 export default async function AgentDetailPage({
@@ -20,7 +18,6 @@ export default async function AgentDetailPage({
 
   return (
     <>
-      <Header />
       <main className="mx-auto max-w-6xl px-6 pb-16 pt-10">
         <Link
           href="/agents"

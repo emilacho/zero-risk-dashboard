@@ -12,6 +12,7 @@
  */
 import { ReactNode, useRef, type MouseEvent } from 'react'
 import { Sparkline } from './Sparkline'
+import { AnimatedNumber } from '../../../components/AnimatedNumber'
 import type { KpiMetric } from '../types'
 
 export interface KpiCardProps {
@@ -73,7 +74,6 @@ export function KpiCard({
     el.style.setProperty('--spotlight-y', `${e.clientY - r.top}px`)
   }
 
-  const value = fmt(metric.value, format)
   const deltaPositive = metric.delta > 0
   const deltaNeutral = metric.delta === 0
   const deltaGood = deltaNeutral ? null : deltaPositive ? deltaIsGood : !deltaIsGood
@@ -114,14 +114,14 @@ export function KpiCard({
         </div>
 
         <div className="flex items-end justify-between gap-4">
-          <span
+          <AnimatedNumber
+            value={metric.value}
+            format={(v) => fmt(v, format)}
             className={[
               'font-display font-semibold leading-none tabular-nums',
               isFeature ? 'text-5xl' : 'text-3xl',
             ].join(' ')}
-          >
-            {value}
-          </span>
+          />
           {showSparkline && metric.sparkline?.length ? (
             <Sparkline
               points={metric.sparkline}

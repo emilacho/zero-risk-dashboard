@@ -6,7 +6,6 @@ import {
   MemoryGraph,
   formatCurrency,
 } from "@/lib/dashboard-components"
-import { Header } from "@/components/Header"
 import type { MemoryGraphData } from "@/lib/dashboard-components"
 
 export const dynamic = "force-dynamic"
@@ -49,7 +48,6 @@ export default async function ClientDetailPage({
 
   return (
     <>
-      <Header />
       <main className="mx-auto max-w-6xl px-6 pb-16 pt-10">
         <Link
           href="/clients"

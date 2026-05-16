@@ -2,7 +2,6 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { api, type AgentRow } from "@/lib/api"
 import { Pill, ToolPill, formatCurrency, formatRelativeTime } from "@/lib/dashboard-components"
-import { Header } from "@/components/Header"
 import { Skeleton } from "@/components/Skeleton"
 
 export const dynamic = "force-dynamic"
@@ -176,7 +175,6 @@ function Stat({
 export default function AgentsPage() {
   return (
     <>
-      <Header />
       <main className="mx-auto max-w-7xl px-6 pb-16 pt-10">
         <section className="mb-10 flex flex-col gap-3">
           <span className="eyebrow-chip self-start">Hierarchy · agentes</span>

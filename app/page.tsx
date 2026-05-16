@@ -1,5 +1,4 @@
 import { Suspense } from "react"
-import { Header } from "@/components/Header"
 import { HomeMemoryHero } from "@/components/HomeMemoryHero"
 import { Skeleton } from "@/components/Skeleton"
 
@@ -8,7 +7,6 @@ export const dynamic = "force-dynamic"
 export default function DashboardHome() {
   return (
     <>
-      <Header />
       <main className="mx-auto max-w-[1400px] px-6 pb-16 pt-10">
         <section className="mb-8 flex flex-col gap-3">
           <span className="eyebrow-chip self-start">
