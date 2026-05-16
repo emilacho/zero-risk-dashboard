@@ -10,7 +10,7 @@
  * rather than a 0 · honest placeholder beats fabricated metrics.
  */
 import { api } from "@/lib/api"
-import { headers } from "next/headers"
+import { getServiceRoleClient } from "@/lib/supabase-server"
 import {
   Cpu,
   Activity,
@@ -24,7 +24,6 @@ import {
 import { AnimatedNumber } from "@/components/AnimatedNumber"
 
 interface OpsExtras {
-  ok: boolean
   invocations_24h: number | null
   invocations_30d: number | null
   cascade_success_rate: number | null
@@ -36,25 +35,89 @@ interface OpsExtras {
     openai: number | null
     other: number | null
   }
-  timestamp: string
 }
 
-async function loadExtras(): Promise<OpsExtras | null> {
-  // Build absolute URL from request headers so server-side fetch works
-  // in Vercel preview + prod (no NEXT_PUBLIC_SITE_URL needed).
-  const h = await headers()
-  const host = h.get("host")
-  const proto = h.get("x-forwarded-proto") ?? "https"
-  if (!host) return null
-  try {
-    const res = await fetch(`${proto}://${host}/api/dashboard/ops-extras`, {
-      cache: "no-store",
-    })
-    if (!res.ok) return null
-    return (await res.json()) as OpsExtras
-  } catch {
-    return null
+async function loadExtras(): Promise<OpsExtras> {
+  // Server-component direct Supabase access · no HTTP round-trip ·
+  // mirrors the same logic exposed at /api/dashboard/ops-extras for
+  // external consumers (future cron / monitoring).
+  const out: OpsExtras = {
+    invocations_24h: null,
+    invocations_30d: null,
+    cascade_success_rate: null,
+    pending_hitl: null,
+    tokens_24h: null,
+    tokens_30d: null,
+    spend_by_provider_30d: { anthropic: null, openai: null, other: null },
   }
+  try {
+    const supa = getServiceRoleClient()
+    const now = Date.now()
+    const t24h = new Date(now - 24 * 60 * 60 * 1000).toISOString()
+    const t30d = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+    const [count24, rows30, hitl] = await Promise.all([
+      supa
+        .from("agent_invocations")
+        .select("id", { count: "exact", head: true })
+        .gte("started_at", t24h),
+      supa
+        .from("agent_invocations")
+        .select("status, tokens_input, tokens_output, cost_usd, model, started_at")
+        .gte("started_at", t30d),
+      supa
+        .from("hitl_approvals")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .then(
+          (r) => r,
+          () => ({ count: null as number | null, error: null }),
+        ),
+    ])
+
+    out.invocations_24h = count24.count ?? 0
+    out.pending_hitl = hitl.count ?? null
+
+    if (rows30.data) {
+      const total = rows30.data.length
+      const completed = rows30.data.filter((r) => r.status === "completed").length
+      out.invocations_30d = total
+      out.cascade_success_rate =
+        total > 0 ? +((completed / total) * 100).toFixed(1) : null
+
+      let t30dSum = 0
+      let t24hSum = 0
+      let ant = 0
+      let oai = 0
+      let other = 0
+      const cutoff24 = now - 24 * 60 * 60 * 1000
+      for (const r of rows30.data) {
+        const ti = (r.tokens_input as number) ?? 0
+        const to = (r.tokens_output as number) ?? 0
+        const tt = ti + to
+        t30dSum += tt
+        if (r.started_at && new Date(r.started_at).getTime() >= cutoff24) {
+          t24hSum += tt
+        }
+        const cost = (r.cost_usd as number) ?? 0
+        const model = ((r.model as string) ?? "").toLowerCase()
+        if (model.startsWith("claude") || model.includes("anthropic")) ant += cost
+        else if (model.startsWith("gpt") || model.includes("openai")) oai += cost
+        else other += cost
+      }
+      out.tokens_24h = t24hSum
+      out.tokens_30d = t30dSum
+      out.spend_by_provider_30d = {
+        anthropic: +ant.toFixed(3),
+        openai: +oai.toFixed(3),
+        other: +other.toFixed(3),
+      }
+    }
+  } catch (e) {
+    // Soft-fail · the grid renders with `null` placeholders rather than crash
+    console.error("ops-extras direct fetch failed", e)
+  }
+  return out
 }
 
 function fmtUsd(v: number | null | undefined): string {
