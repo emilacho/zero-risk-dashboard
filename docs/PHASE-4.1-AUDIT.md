@@ -1,8 +1,9 @@
 # Phase 4.1 · AnimatedNumber + format-prop audit
 
-**Status:** complete · 2026-05-17
+**Status:** complete · deployed 2026-05-17
 **Branch:** dashboard-lumen-v3
-**Commit:** TBD post-deploy
+**Commit:** `b437786`
+**Preview:** https://zero-risk-dashboard-h8w5cdkg6-zero-risk1.vercel.app
 
 ## Why this exists
 
