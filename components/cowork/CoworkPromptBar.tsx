@@ -41,6 +41,7 @@ import {
   Sparkle,
   ArrowsCounterClockwise,
   ArrowSquareOut,
+  Stop,
 } from "@phosphor-icons/react/dist/ssr"
 import { getOrCreateSessionId, rotateSessionId } from "@/lib/cowork-session"
 
@@ -137,6 +138,11 @@ export function CoworkPromptBar({
   const [pending, setPending] = useState<PromptAttachment[]>([])
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
+  /** Live token-by-token assistant content while a stream is in flight.
+   * Rendered as a separate "ghost" turn at the tail · committed into
+   * `turns` once the stream emits its `done` event (or aborts). */
+  const [streamingText, setStreamingText] = useState<string>("")
+  const [streamingTools, setStreamingTools] = useState<PromptToolCall[]>([])
   const [hydrating, setHydrating] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -145,6 +151,7 @@ export function CoworkPromptBar({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const threadRef = useRef<HTMLDivElement | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   // ── Session id (per channel) ─────────────────────────────────────
   useEffect(() => {
@@ -194,7 +201,7 @@ export function CoworkPromptBar({
   useEffect(() => {
     const el = threadRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [turns, sending])
+  }, [turns, sending, streamingText])
 
   // ── Upload helper ────────────────────────────────────────────────
   const uploadFiles = useCallback(
@@ -243,7 +250,7 @@ export function CoworkPromptBar({
     [channel, sessionId],
   )
 
-  // ── Send ─────────────────────────────────────────────────────────
+  // ── Send (streaming via SSE) ─────────────────────────────────────
   async function onSend() {
     const trimmed = input.trim()
     if (!trimmed || sending) return
@@ -253,6 +260,8 @@ export function CoworkPromptBar({
     }
     setSending(true)
     setError(null)
+    setStreamingText("")
+    setStreamingTools([])
     const attachments = pending
     const userTurn: PromptTurn = {
       role: "user",
@@ -263,10 +272,19 @@ export function CoworkPromptBar({
     setTurns((prev) => [...prev, userTurn])
     setInput("")
     setPending([])
+
+    const ac = new AbortController()
+    abortRef.current = ac
+
+    let accumulatedText = ""
+    let accumulatedTools: PromptToolCall[] = []
+    let streamError: string | null = null
+    let aborted = false
+
     try {
       const res = await fetch("/api/cowork/prompt", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({
           message: trimmed,
           attachments,
@@ -280,36 +298,106 @@ export function CoworkPromptBar({
           history: turns.map((t) => ({ role: t.role, content: t.content })),
           session_id: sessionId,
         }),
+        signal: ac.signal,
       })
-      const json = (await res.json()) as {
-        ok: boolean
-        reply?: string
-        tool_calls?: PromptToolCall[]
-        error?: string
-        hint?: string
+      if (!res.ok || !res.body) {
+        const txt = await res.text().catch(() => "")
+        streamError = `HTTP ${res.status} · ${txt.slice(0, 200)}`
+        toast.error("Cowork falló · " + streamError)
+      } else {
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        let curEvent = ""
+        let curData = ""
+
+        const handle = (event: string, dataStr: string) => {
+          if (!dataStr) return
+          let parsed: Record<string, unknown>
+          try {
+            parsed = JSON.parse(dataStr)
+          } catch {
+            return
+          }
+          if (event === "text") {
+            const v = typeof parsed.value === "string" ? (parsed.value as string) : ""
+            if (v) {
+              accumulatedText += v
+              setStreamingText(accumulatedText)
+            }
+          } else if (event === "tool_use") {
+            const name = String(parsed.name ?? "")
+            const inputObj = (parsed.input ?? {}) as Record<string, unknown>
+            if (name) {
+              accumulatedTools = [...accumulatedTools, { name, input: inputObj }]
+              setStreamingTools(accumulatedTools)
+            }
+          } else if (event === "error") {
+            streamError = String(parsed.message ?? "stream_error")
+            if (!parsed.partial) toast.error("Cowork · " + streamError)
+          } else if (event === "done") {
+            // handled after loop · we already have accumulatedText
+          }
+        }
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done: isDone, value } = await reader.read()
+          if (isDone) break
+          buffer += decoder.decode(value, { stream: true })
+          let nl: number
+          while ((nl = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, nl).replace(/\r$/, "")
+            buffer = buffer.slice(nl + 1)
+            if (line === "") {
+              if (curEvent || curData) {
+                handle(curEvent, curData)
+                curEvent = ""
+                curData = ""
+              }
+              continue
+            }
+            if (line.startsWith(":")) continue
+            if (line.startsWith("event:")) curEvent = line.slice(6).trim()
+            else if (line.startsWith("data:"))
+              curData = (curData ? curData + "\n" : "") + line.slice(5).trim()
+          }
+        }
       }
-      if (!res.ok || !json.ok) {
-        setError(json.hint ?? json.error ?? `HTTP ${res.status}`)
-        toast.error(
-          "Cowork falló · " + (json.error ?? `HTTP ${res.status}`),
-        )
-        return
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "network_error"
+      if (ac.signal.aborted) {
+        aborted = true
+      } else {
+        streamError = msg
+        toast.error("Network · " + msg)
       }
+    } finally {
+      // Commit whatever we have as the assistant turn (full · partial · or abort)
+      const finalText =
+        accumulatedText ||
+        (aborted ? "_(cancelado por el usuario)_" : "_(sin respuesta)_")
       setTurns((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: json.reply ?? "(sin contenido)",
-          tool_calls: json.tool_calls ?? undefined,
+          content: finalText,
+          tool_calls: accumulatedTools.length > 0 ? accumulatedTools : undefined,
           ts: new Date().toISOString(),
         },
       ])
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "network_error"
-      setError(msg)
-      toast.error("Network error · " + msg)
-    } finally {
+      setStreamingText("")
+      setStreamingTools([])
       setSending(false)
+      abortRef.current = null
+      if (streamError) setError(streamError)
+    }
+  }
+
+  function onCancel() {
+    if (abortRef.current && sending) {
+      abortRef.current.abort()
+      toast("Stream cancelado · respuesta parcial guardada")
     }
   }
 
@@ -488,7 +576,16 @@ export function CoworkPromptBar({
               />
             ))
           )}
-          {sending ? (
+          {sending && streamingText ? (
+            <Bubble
+              turn={{
+                role: "assistant",
+                content: streamingText,
+                tool_calls: streamingTools.length > 0 ? streamingTools : undefined,
+              }}
+            />
+          ) : null}
+          {sending && !streamingText ? (
             <div className="flex items-center gap-2 self-start rounded-md border-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--card)/0.6)] px-2.5 py-1.5 text-[10.5px] text-[hsl(var(--muted-foreground))]">
               <CircleNotch weight="bold" className="h-3 w-3 animate-spin" />
               Cowork piensa…
@@ -594,20 +691,28 @@ export function CoworkPromptBar({
             className="min-h-[40px] w-full resize-none rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.3)] bg-[hsl(var(--background)/0.7)] px-3 py-2 text-[13px] leading-snug outline-none transition focus:border-[hsl(var(--accent)/0.6)] disabled:opacity-60"
           />
 
-          <button
-            type="button"
-            onClick={() => void onSend()}
-            disabled={sending || input.trim().length === 0 || !sessionId}
-            className="shimmer-btn inline-flex shrink-0 items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Enviar (Enter)"
-          >
-            {sending ? (
-              <CircleNotch weight="bold" className="h-3.5 w-3.5 animate-spin" />
-            ) : (
+          {sending ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="num inline-flex shrink-0 items-center gap-1.5 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.5)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)]"
+              title="Cancelar stream"
+            >
+              <Stop weight="fill" className="h-3.5 w-3.5" />
+              Detener
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void onSend()}
+              disabled={input.trim().length === 0 || !sessionId}
+              className="shimmer-btn inline-flex shrink-0 items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+              title="Enviar (Enter)"
+            >
               <PaperPlaneRight weight="bold" className="h-3.5 w-3.5" />
-            )}
-            Enviar
-          </button>
+              Enviar
+            </button>
+          )}
         </div>
 
         <p className="num text-[9px] text-[hsl(var(--muted-foreground))]">

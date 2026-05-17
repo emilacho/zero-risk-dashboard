@@ -1,28 +1,21 @@
 /**
- * POST /api/cowork/prompt · STEP 11 master endpoint for CoworkPromptBar.
+ * POST /api/cowork/prompt · STEP 11 · M2 · streaming SSE.
  *
- * Body shape ·
- *   message · string · the user prompt
- *   attachments · Array<{ name · mime · path · url? }> · already
- *     uploaded by /api/cowork/upload
- *   context · {
- *     page?: string,            // e.g. "home" · "dept/mkt" · "clients/[id]"
- *     channel: string,          // matches localStorage cowork session key
- *     client_id?: string,       // if surface is client-scoped
- *     form_state?: Record<…>,  // optional · campaign modal etc
- *     surface_state?: Record<…>// optional · whatever the host wants to expose
- *   }
- *   history · Array<{ role · content }>  // last 12 turns capped server-side
- *   session_id · string
+ * Always streams the Anthropic Messages API response back to the
+ * client as Server-Sent Events. The CoworkPromptBar parses incoming
+ * SSE chunks and renders text token-by-token · tool_use blocks are
+ * accumulated server-side and emitted as a single complete event
+ * once their content_block_stop arrives.
  *
- * Milestone 1 · non-streaming · returns full reply in one JSON.
- * Milestone 2 · same body but switch to SSE chunked transfer.
+ * SSE event schema (client-facing) ·
+ *   event: text       data: { value: string }            // text delta chunk
+ *   event: tool_use   data: { name, input }              // complete tool call
+ *   event: done       data: { usage, stop_reason }       // stream ended cleanly
+ *   event: error      data: { message }                  // upstream/parsing error
  *
- * Persists every turn to `cowork_messages` with metadata =
- *   { channel · session_id · page · client_id · attachments · form_state
- *   · usage · stop_reason · form_updates }.
+ * Persist happens server-side once the stream completes (or partially
+ * if client aborts · we still write what we have).
  */
-import { NextResponse } from "next/server"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { getSessionClient } from "@/lib/supabase-session"
 
@@ -72,7 +65,7 @@ const FORM_UPDATE_TOOL = {
       updates: {
         type: "object",
         description:
-          "Free-shape object · keys match the host form's field names · values are the proposed new values. The host component picks which keys to apply.",
+          "Free-shape object · keys match the host form's field names · values are the proposed new values.",
         additionalProperties: true,
       },
       reasoning: {
@@ -118,48 +111,40 @@ function summarizeBrandVoice(voice: Record<string, unknown> | null): string | nu
   return out.length > 0 ? out.join("\n") : null
 }
 
+function sseError(message: string, status = 400): Response {
+  const body = `event: error\ndata: ${JSON.stringify({ message })}\n\n`
+  return new Response(body, {
+    status,
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  })
+}
+
 export async function POST(req: Request) {
   // Auth
   const supa = await getSessionClient()
   const { data: userRes } = await supa.auth.getUser()
-  if (!userRes?.user) {
-    return NextResponse.json(
-      { ok: false, error: "unauthenticated" },
-      { status: 401 },
-    )
-  }
+  if (!userRes?.user) return sseError("unauthenticated", 401)
   const { data: roleRow } = await supa
     .from("app_roles")
     .select("role")
     .eq("user_id", userRes.user.id)
     .maybeSingle()
-  if (roleRow?.role !== "admin") {
-    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 })
-  }
+  if (roleRow?.role !== "admin") return sseError("forbidden", 403)
 
   let body: Body
   try {
     body = (await req.json()) as Body
   } catch {
-    return NextResponse.json(
-      { ok: false, error: "invalid_json" },
-      { status: 400 },
-    )
+    return sseError("invalid_json")
   }
   const message = typeof body.message === "string" ? body.message.trim() : ""
-  if (!message || message.length > 8000) {
-    return NextResponse.json(
-      { ok: false, error: "message_empty_or_too_long" },
-      { status: 400 },
-    )
-  }
+  if (!message || message.length > 8000) return sseError("message_empty_or_too_long")
   const sessionId = typeof body.session_id === "string" ? body.session_id : ""
-  if (!sessionId) {
-    return NextResponse.json(
-      { ok: false, error: "session_id_required" },
-      { status: 400 },
-    )
-  }
+  if (!sessionId) return sseError("session_id_required")
   const attachments: Attachment[] = Array.isArray(body.attachments)
     ? (body.attachments as Attachment[]).slice(0, 10)
     : []
@@ -173,16 +158,7 @@ export async function POST(req: Request) {
     : []
 
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "anthropic_api_key_missing",
-        hint: "Set ANTHROPIC_API_KEY env on this Vercel project to enable CoworkPromptBar.",
-      },
-      { status: 503 },
-    )
-  }
+  if (!apiKey) return sseError("anthropic_api_key_missing", 503)
 
   // Optional client context lookup
   const svc = getServiceRoleClient()
@@ -196,21 +172,12 @@ export async function POST(req: Request) {
     clientRow = data ?? null
   }
 
-  // ── Build system prompt ──────────────────────────────────────────
   const brandSummary = summarizeBrandVoice(clientRow?.brand_voice ?? null)
   const formStateBlock = context.form_state
-    ? `\n\nCurrent form state (JSON) ·\n\`\`\`json\n${JSON.stringify(
-        context.form_state,
-        null,
-        2,
-      )}\n\`\`\``
+    ? `\n\nCurrent form state (JSON) ·\n\`\`\`json\n${JSON.stringify(context.form_state, null, 2)}\n\`\`\``
     : ""
   const surfaceStateBlock = context.surface_state
-    ? `\n\nSurface state (JSON) ·\n\`\`\`json\n${JSON.stringify(
-        context.surface_state,
-        null,
-        2,
-      )}\n\`\`\``
+    ? `\n\nSurface state (JSON) ·\n\`\`\`json\n${JSON.stringify(context.surface_state, null, 2)}\n\`\`\``
     : ""
   const systemPrompt = [
     "You are Cowork · the embedded operator AI inside Zero Risk's dashboard.",
@@ -231,19 +198,11 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join("\n")
 
-  // ── Build messages array (multimodal user turn) ─────────────────
+  // Multimodal user content
   type ContentBlock =
     | { type: "text"; text: string }
-    | {
-        type: "image"
-        source: {
-          type: "base64"
-          media_type: string
-          data: string
-        }
-      }
+    | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
   const userContent: ContentBlock[] = []
-  // Inline image attachments (limit to ~5 to stay sane)
   const inlineImages = attachments.filter((a) => a.mime?.startsWith("image/")).slice(0, 5)
   for (const a of inlineImages) {
     if (!a.url) continue
@@ -251,29 +210,19 @@ export async function POST(req: Request) {
       const r = await fetch(a.url)
       if (!r.ok) continue
       const buf = Buffer.from(await r.arrayBuffer())
-      // Anthropic accepts at most a few MB per image · skip oversized
       if (buf.byteLength > 5 * 1024 * 1024) continue
       userContent.push({
         type: "image",
-        source: {
-          type: "base64",
-          media_type: a.mime,
-          data: buf.toString("base64"),
-        },
+        source: { type: "base64", media_type: a.mime, data: buf.toString("base64") },
       })
     } catch {
       /* swallow · text fallback below mentions the attachment */
     }
   }
-  // Mention non-image attachments as text references (Claude can't open
-  // arbitrary PDFs natively · the user can describe them or we extend
-  // later to convert PDFs to text server-side)
   const nonImageAttachments = attachments.filter((a) => !a.mime?.startsWith("image/"))
   const userText =
     nonImageAttachments.length > 0
-      ? `${message}\n\n(Adjuntos no-imagen · ${nonImageAttachments
-          .map((a) => `${a.name} [${a.mime}]`)
-          .join(" · ")})`
+      ? `${message}\n\n(Adjuntos no-imagen · ${nonImageAttachments.map((a) => `${a.name} [${a.mime}]`).join(" · ")})`
       : message
   userContent.push({ type: "text", text: userText })
 
@@ -282,96 +231,218 @@ export async function POST(req: Request) {
     { role: "user", content: userContent },
   ]
 
-  // ── Call Anthropic ───────────────────────────────────────────────
-  let claudeJson: {
-    content?: Array<
-      | { type: "text"; text: string }
-      | { type: "tool_use"; name: string; input: Record<string, unknown> }
-    >
-    stop_reason?: string
-    usage?: { input_tokens: number; output_tokens: number }
-  }
-  try {
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1600,
-        system: systemPrompt,
-        tools: TOOLS,
-        messages: claudeMessages,
-      }),
-    })
-    if (!claudeRes.ok) {
-      const errText = await claudeRes.text()
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "anthropic_api_error",
+  // ── Streaming response ──────────────────────────────────────────
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      // SSE event emitter
+      let closed = false
+      function emit(event: string, data: unknown) {
+        if (closed) return
+        try {
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+          )
+        } catch {
+          /* controller already closed by client abort · ignore */
+        }
+      }
+      function done() {
+        if (closed) return
+        closed = true
+        try {
+          controller.close()
+        } catch {
+          /* ignore */
+        }
+      }
+
+      let assistantText = ""
+      const toolBlocks = new Map<number, { name: string; partial: string }>()
+      const toolCalls: Array<{ name: string; input: Record<string, unknown> }> = []
+      let usage: { input_tokens?: number; output_tokens?: number } | null = null
+      let stopReason: string | null = null
+
+      let claudeRes: Response
+      try {
+        claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6",
+            max_tokens: 1600,
+            stream: true,
+            system: systemPrompt,
+            tools: TOOLS,
+            messages: claudeMessages,
+          }),
+          signal: req.signal,
+        })
+      } catch (e) {
+        emit("error", { message: e instanceof Error ? e.message : "anthropic_fetch_failed" })
+        done()
+        return
+      }
+
+      if (!claudeRes.ok || !claudeRes.body) {
+        const errText = await claudeRes.text().catch(() => "")
+        emit("error", {
+          message: "anthropic_api_error",
           status: claudeRes.status,
           details: errText.slice(0, 500),
-        },
-        { status: 502 },
-      )
-    }
-    claudeJson = await claudeRes.json()
-  } catch (e) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "anthropic_fetch_failed",
-        details: e instanceof Error ? e.message : "unknown",
-      },
-      { status: 502 },
-    )
-  }
+        })
+        done()
+        return
+      }
 
-  const blocks = claudeJson.content ?? []
-  const textBlocks: string[] = []
-  const toolCalls: Array<{ name: string; input: Record<string, unknown> }> = []
-  for (const b of blocks) {
-    if (b.type === "text") textBlocks.push(b.text)
-    else if (b.type === "tool_use") toolCalls.push({ name: b.name, input: b.input })
-  }
-  const reply = textBlocks.join("\n\n").trim() || "(sin respuesta textual · ver acciones)"
+      const reader = claudeRes.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      let curEvent = ""
+      let curData = ""
 
-  // ── Persist ──────────────────────────────────────────────────────
-  try {
-    await svc.from("cowork_messages").insert([
-      {
-        content: message,
-        sender_user_id: `dashboard:${userRes.user.id}`,
-        status: "responded",
-        response_content: reply,
-        responded_at: new Date().toISOString(),
-        metadata: {
-          channel,
-          session_id: sessionId,
-          page: context.page,
-          client_id: context.client_id ?? null,
-          form_state: context.form_state ?? null,
-          surface_state: context.surface_state ?? null,
-          attachments,
-          tool_calls: toolCalls,
-          usage: claudeJson.usage,
-          stop_reason: claudeJson.stop_reason,
-        },
-      },
-    ])
-  } catch (e) {
-    console.error("cowork_messages insert failed", e)
-  }
+      const handleEvent = (event: string, dataStr: string) => {
+        if (!dataStr) return
+        let parsed: Record<string, unknown>
+        try {
+          parsed = JSON.parse(dataStr)
+        } catch {
+          return
+        }
+        if (event === "content_block_start") {
+          const idx = Number(parsed.index ?? -1)
+          const block = parsed.content_block as Record<string, unknown> | undefined
+          if (block?.type === "tool_use") {
+            toolBlocks.set(idx, {
+              name: String(block.name ?? ""),
+              partial: "",
+            })
+          }
+        } else if (event === "content_block_delta") {
+          const idx = Number(parsed.index ?? -1)
+          const delta = parsed.delta as Record<string, unknown> | undefined
+          if (delta?.type === "text_delta" && typeof delta.text === "string") {
+            assistantText += delta.text
+            emit("text", { value: delta.text })
+          } else if (
+            delta?.type === "input_json_delta" &&
+            typeof delta.partial_json === "string"
+          ) {
+            const t = toolBlocks.get(idx)
+            if (t) t.partial += delta.partial_json
+          }
+        } else if (event === "content_block_stop") {
+          const idx = Number(parsed.index ?? -1)
+          const t = toolBlocks.get(idx)
+          if (t) {
+            try {
+              const input = t.partial ? (JSON.parse(t.partial) as Record<string, unknown>) : {}
+              toolCalls.push({ name: t.name, input })
+              emit("tool_use", { name: t.name, input })
+            } catch {
+              emit("tool_use", { name: t.name, input: { _raw: t.partial } })
+            }
+            toolBlocks.delete(idx)
+          }
+        } else if (event === "message_delta") {
+          const delta = parsed.delta as Record<string, unknown> | undefined
+          if (delta && typeof delta.stop_reason === "string") {
+            stopReason = delta.stop_reason
+          }
+          if (parsed.usage && typeof parsed.usage === "object") {
+            usage = parsed.usage as typeof usage
+          }
+        } else if (event === "message_stop") {
+          // handled after the read loop
+        }
+      }
 
-  return NextResponse.json({
-    ok: true,
-    reply,
-    tool_calls: toolCalls,
-    usage: claudeJson.usage ?? null,
-    stop_reason: claudeJson.stop_reason ?? null,
+      try {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done: isDone, value } = await reader.read()
+          if (isDone) break
+          buffer += decoder.decode(value, { stream: true })
+          // SSE frames are separated by \n\n · within a frame, "event:"
+          // and "data:" lines accumulate.
+          let nl: number
+          while ((nl = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, nl).replace(/\r$/, "")
+            buffer = buffer.slice(nl + 1)
+            if (line === "") {
+              if (curEvent || curData) {
+                handleEvent(curEvent, curData)
+                curEvent = ""
+                curData = ""
+              }
+              continue
+            }
+            if (line.startsWith(":")) continue // comment
+            if (line.startsWith("event:")) curEvent = line.slice(6).trim()
+            else if (line.startsWith("data:"))
+              curData = (curData ? curData + "\n" : "") + line.slice(5).trim()
+          }
+        }
+      } catch (e) {
+        // Client abort or upstream error · we still persist what we have
+        emit("error", {
+          message: e instanceof Error ? e.message : "stream_interrupted",
+          partial: true,
+        })
+      }
+
+      // Final · persist + emit done
+      try {
+        await svc.from("cowork_messages").insert([
+          {
+            content: message,
+            sender_user_id: `dashboard:${userRes.user.id}`,
+            status: "responded",
+            response_content: assistantText || "(stream sin texto)",
+            responded_at: new Date().toISOString(),
+            metadata: {
+              channel,
+              session_id: sessionId,
+              page: context.page,
+              client_id: context.client_id ?? null,
+              form_state: context.form_state ?? null,
+              surface_state: context.surface_state ?? null,
+              attachments,
+              tool_calls: toolCalls,
+              usage,
+              stop_reason: stopReason,
+              streamed: true,
+            },
+          },
+        ])
+      } catch (e) {
+        console.error("cowork_messages insert failed", e)
+      }
+
+      emit("done", {
+        reply: assistantText,
+        tool_calls: toolCalls,
+        usage,
+        stop_reason: stopReason,
+      })
+      done()
+    },
+    cancel() {
+      // Client aborted · nothing to do · reader will throw inside start()
+      // and persistence still runs with the partial assistantText.
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
   })
 }
