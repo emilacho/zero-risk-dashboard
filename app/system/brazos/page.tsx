@@ -1,5 +1,12 @@
 import { getServiceRoleClient } from "@/lib/supabase-server"
-import { Image, Globe, MousePointerClick, Box, GitBranch, ShieldCheck } from "lucide-react"
+import {
+  Image,
+  Globe,
+  CursorClick,
+  Cube,
+  GitBranch,
+  ShieldCheck,
+} from "@phosphor-icons/react"
 
 export const dynamic = "force-dynamic"
 
@@ -114,7 +121,7 @@ export default async function SystemBrazosTab() {
     {
       slug: "meta-ads",
       label: "B3 · Meta Ads",
-      icon: <MousePointerClick strokeWidth={1.5} className="h-5 w-5" />,
+      icon: <CursorClick strokeWidth={1.5} className="h-5 w-5" />,
       status: "build",
       hue: "cyan",
       kpis: [
@@ -128,7 +135,7 @@ export default async function SystemBrazosTab() {
     {
       slug: "meshy",
       label: "Meshy 3D",
-      icon: <Box strokeWidth={1.5} className="h-5 w-5" />,
+      icon: <Cube strokeWidth={1.5} className="h-5 w-5" />,
       status: "manual",
       hue: "teal",
       kpis: [

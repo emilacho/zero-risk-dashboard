@@ -17,14 +17,14 @@
 import { useCallback, useEffect, useState } from "react"
 import {
   ShieldCheck,
-  ShieldAlert,
+  ShieldWarning,
   Lock,
-  Loader2,
+  CircleNotch,
   Check,
   Copy,
-  AlertTriangle,
-  Sparkles,
-} from "lucide-react"
+  Warning,
+  Sparkle,
+} from "@phosphor-icons/react"
 import { getBrowserClient } from "@/lib/supabase-browser"
 import {
   generateBackupCodes,
@@ -298,7 +298,7 @@ export function MfaSection() {
               {isEnabled ? (
                 <ShieldCheck strokeWidth={1.5} className="h-4 w-4" />
               ) : (
-                <ShieldAlert strokeWidth={1.5} className="h-4 w-4" />
+                <ShieldWarning strokeWidth={1.5} className="h-4 w-4" />
               )}
             </span>
             <div>
@@ -328,14 +328,14 @@ export function MfaSection() {
 
         {error ? (
           <div className="flex items-start gap-2 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--danger))]">
-            <AlertTriangle strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <Warning strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>{error}</span>
           </div>
         ) : null}
 
         {phase.kind === "loading" ? (
           <div className="flex items-center gap-2 text-[12px] text-[hsl(var(--muted-foreground))]">
-            <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+            <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
             Consultando factores MFA…
           </div>
         ) : null}
@@ -359,7 +359,7 @@ export function MfaSection() {
               className="shimmer-btn inline-flex w-fit items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy ? (
-                <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+                <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Lock strokeWidth={1.5} className="h-3.5 w-3.5" />
               )}
@@ -506,7 +506,7 @@ function EnrollPanel({
           className="shimmer-btn inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? (
-            <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+            <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <ShieldCheck strokeWidth={1.5} className="h-3.5 w-3.5" />
           )}
@@ -538,7 +538,7 @@ function BackupCodesPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-start gap-2 rounded-md border-[0.5px] border-[hsl(var(--accent)/0.5)] bg-[hsl(var(--accent)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--accent))]">
-        <Sparkles strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <Sparkle strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           2FA activado · estos {codes.length} backup codes solo se muestran
           UNA vez · guardalos offline (password manager · papel · etc) ·
@@ -633,9 +633,9 @@ function DisablePanel({
           className="num inline-flex items-center gap-2 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.5)] bg-[hsl(var(--danger)/0.06)] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.12)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? (
-            <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+            <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <ShieldAlert strokeWidth={1.5} className="h-3.5 w-3.5" />
+            <ShieldWarning strokeWidth={1.5} className="h-3.5 w-3.5" />
           )}
           Confirmar desactivación
         </button>

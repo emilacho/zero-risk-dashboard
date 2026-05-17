@@ -23,7 +23,13 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
 import * as Tooltip from "@radix-ui/react-tooltip"
-import { Activity, ExternalLink, Loader2, Plug, WifiOff } from "lucide-react"
+import {
+  Pulse,
+  ArrowSquareOut,
+  CircleNotch,
+  Plugs,
+  WifiSlash,
+} from "@phosphor-icons/react"
 import { getBrowserClient } from "@/lib/supabase-browser"
 import { IconForKind } from "@/components/workflows/NodeIcons"
 import { formatValue } from "@/components/AnimatedNumber"
@@ -208,7 +214,7 @@ export function LiveAgentFeed({
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border-[0.5px] border-[hsl(var(--accent)/0.5)] bg-[hsl(var(--accent)/0.12)] text-[hsl(var(--accent))]">
-              <Activity strokeWidth={1.5} className="h-4 w-4" />
+              <Pulse strokeWidth={1.5} className="h-4 w-4" />
             </span>
             <div>
               <h2 className="font-display text-base font-semibold tracking-tight">
@@ -228,7 +234,7 @@ export function LiveAgentFeed({
 
         {rows.length === 0 ? (
           <div className="flex items-center gap-2 rounded-md border-[0.5px] border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/0.3)] px-3 py-6 text-[12px] text-[hsl(var(--muted-foreground))]">
-            <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+            <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
             Esperando actividad de agentes…
           </div>
         ) : (
@@ -279,7 +285,7 @@ function FeedStateBadge({
   if (state === "polling") {
     return (
       <span className="num inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--hue-amber))]">
-        <Plug strokeWidth={1.5} className="h-3 w-3" />
+        <Plugs strokeWidth={1.5} className="h-3 w-3" />
         Polling fallback
       </span>
     )
@@ -287,14 +293,14 @@ function FeedStateBadge({
   if (state === "error") {
     return (
       <span className="num inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--danger))]">
-        <WifiOff strokeWidth={1.5} className="h-3 w-3" />
+        <WifiSlash strokeWidth={1.5} className="h-3 w-3" />
         Realtime offline
       </span>
     )
   }
   return (
     <span className="num inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-      <Loader2 strokeWidth={1.5} className="h-3 w-3 animate-spin" />
+      <CircleNotch strokeWidth={1.5} className="h-3 w-3 animate-spin" />
       Conectando…
     </span>
   )
@@ -364,7 +370,7 @@ function FeedRow({ row }: { row: AgentFeedRow }) {
                   })}
                 </span>
               ) : null}
-              <ExternalLink
+              <ArrowSquareOut
                 strokeWidth={1.5}
                 className="h-3 w-3 text-[hsl(var(--muted-foreground))] transition group-hover:text-[hsl(var(--accent))]"
               />

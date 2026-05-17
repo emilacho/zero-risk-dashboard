@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react"
 import { api, type ClientDetailResponse } from "@/lib/api"
 import {
   ActivityFeed,
@@ -106,7 +106,7 @@ function ClientDetailBody({ data }: { data: ClientDetailResponse }) {
               className="shimmer-btn"
             >
               <span>Open site</span>
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ArrowSquareOut className="h-3.5 w-3.5" />
             </a>
           ) : null}
         </div>

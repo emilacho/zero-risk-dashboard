@@ -7,7 +7,19 @@
  * `<a target="_blank">` to the public URL · NO modal in v1 (Phase
  * 4.5 will add Radix Dialog preview · keep this scope tight).
  */
-import { FileText, Image, Video, Box, Globe, Camera, Sparkles, GitBranch, Search, Activity, ExternalLink } from "lucide-react"
+import {
+  FileText,
+  Image,
+  VideoCamera,
+  Cube,
+  Globe,
+  Camera,
+  Sparkle,
+  GitBranch,
+  MagnifyingGlass,
+  Pulse,
+  ArrowSquareOut,
+} from "@phosphor-icons/react"
 import type {
   BrandSection,
   ImagesSection,
@@ -66,7 +78,7 @@ function StorageGrid({ items, kind }: { items: VaultStorageObject[]; kind: "imag
           kind === "image" ? (
             <Image strokeWidth={1.5} className="h-4 w-4" aria-label="Image" />
           ) : kind === "model" ? (
-            <Box strokeWidth={1.5} className="h-4 w-4" />
+            <Cube strokeWidth={1.5} className="h-4 w-4" />
           ) : (
             <FileText strokeWidth={1.5} className="h-4 w-4" />
           )
@@ -101,7 +113,7 @@ function StorageGrid({ items, kind }: { items: VaultStorageObject[]; kind: "imag
               </div>
             ) : kind === "model" ? (
               <div className="flex aspect-[4/3] items-center justify-center rounded-md border-[0.5px] border-[hsl(var(--border))] bg-gradient-to-br from-[hsl(var(--hue-teal)/0.18)] to-[hsl(var(--hue-violet)/0.12)]">
-                <Box strokeWidth={1.5} className="h-10 w-10 text-[hsl(var(--hue-teal))]" />
+                <Cube strokeWidth={1.5} className="h-10 w-10 text-[hsl(var(--hue-teal))]" />
               </div>
             ) : (
               <div className="flex aspect-[4/3] items-center justify-center rounded-md border-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--card)/0.4)]">
@@ -312,8 +324,8 @@ export function ImagesTab({ data }: { data: ImagesSection }) {
 export function VideosTab() {
   return (
     <EmptyTile
-      icon={<Video strokeWidth={1.5} className="h-4 w-4" />}
-      title="Video pipeline · wire pending"
+      icon={<VideoCamera strokeWidth={1.5} className="h-4 w-4" />}
+      title="VideoCamera pipeline · wire pending"
       message="Brazo Higgsfield Seedance + Veo · spec en /system/brazos · 0 generations todavía"
     />
   )
@@ -348,7 +360,7 @@ export function LandingTab({ data }: { data: LandingSection }) {
                 rel="noreferrer"
                 className="num inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-foreground"
               >
-                open <ExternalLink strokeWidth={1.5} className="h-3 w-3" />
+                open <ArrowSquareOut strokeWidth={1.5} className="h-3 w-3" />
               </a>
             ) : null}
           </div>
@@ -396,7 +408,7 @@ export function SocialPostsTab({ data }: { data: SocialSection }) {
   if (data.recentInvocations.length === 0) {
     return (
       <EmptyTile
-        icon={<Sparkles strokeWidth={1.5} className="h-4 w-4" />}
+        icon={<Sparkle strokeWidth={1.5} className="h-4 w-4" />}
         title="Sin posts sociales generados"
         message="content-creator + carousel-designer + social-media-strategist sin invocaciones recientes para este cliente"
       />
@@ -541,7 +553,7 @@ export function CascadeOutputsTab({ data }: { data: CascadeSection }) {
 export function ApifyScrapesTab() {
   return (
     <EmptyTile
-      icon={<Search strokeWidth={1.5} className="h-4 w-4" />}
+      icon={<MagnifyingGlass strokeWidth={1.5} className="h-4 w-4" />}
       title="Apify scrapes · wire pending"
       message="n8n Competitor Daily Monitor activa · scrapes raw + processed table pending · Brazo 2 spec"
     />
@@ -554,7 +566,7 @@ export function AuditTrailTab({ data }: { data: AuditSection }) {
   if (data.recent.length === 0) {
     return (
       <EmptyTile
-        icon={<Activity strokeWidth={1.5} className="h-4 w-4" />}
+        icon={<Pulse strokeWidth={1.5} className="h-4 w-4" />}
         title="Sin invocaciones registradas"
         message="agent_invocations para este cliente · 0 rows · sin actividad agéntica todavía"
       />

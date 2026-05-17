@@ -9,7 +9,12 @@ import { useState } from "react"
 import { WorkflowSkeleton, type N8nNode, type N8nConnections } from "./WorkflowSkeleton"
 import { NodeActivityDrawer, type OpenNode } from "./NodeActivityDrawer"
 import { useN8nExecutionRealtime } from "@/lib/n8n-realtime"
-import { Loader2, AlertTriangle, History, Play } from "lucide-react"
+import {
+  CircleNotch,
+  Warning,
+  ClockCounterClockwise,
+  Play,
+} from "@phosphor-icons/react"
 
 interface WorkflowLiveCanvasProps {
   workflowId: string
@@ -88,7 +93,7 @@ export function WorkflowLiveCanvas({
               </>
             ) : lastFailed && (!lastDone || new Date(lastFailed.startedAt) > new Date(lastDone.startedAt)) ? (
               <span className="num inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-[hsl(var(--danger))]">
-                <AlertTriangle strokeWidth={1.5} className="h-3.5 w-3.5" />
+                <Warning strokeWidth={1.5} className="h-3.5 w-3.5" />
                 última falló · {fmtRelative(lastFailed.startedAt)}
               </span>
             ) : lastDone ? (
@@ -113,7 +118,7 @@ export function WorkflowLiveCanvas({
             className="num inline-flex items-center gap-1.5 rounded-full border-[0.5px] border-[hsl(var(--accent)/0.5)] bg-[hsl(var(--accent)/0.08)] px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] transition hover:bg-[hsl(var(--accent)/0.16)] disabled:opacity-50"
           >
             {triggerState === "firing" ? (
-              <Loader2 strokeWidth={1.5} className="h-3 w-3 animate-spin" />
+              <CircleNotch strokeWidth={1.5} className="h-3 w-3 animate-spin" />
             ) : (
               <Play strokeWidth={1.5} className="h-3 w-3" />
             )}
@@ -149,11 +154,11 @@ export function WorkflowLiveCanvas({
         ) : null}
       </div>
 
-      {/* History sidebar · últimas 10 executions */}
+      {/* ClockCounterClockwise sidebar · últimas 10 executions */}
       <aside className="surface-card rim-instr p-4" data-rim="violet">
         <div className="relative z-[2]">
           <div className="mb-3 flex items-center gap-2">
-            <History strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary-glow))]" />
+            <ClockCounterClockwise strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--primary-glow))]" />
             <h2 className="font-display text-sm font-semibold tracking-tight">
               Historial · últimas 10
             </h2>

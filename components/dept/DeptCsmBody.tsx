@@ -6,7 +6,13 @@
  * journey state placeholder + HITL pending + health score.
  */
 import Link from "next/link"
-import { Users, Compass, Clock, Activity, ExternalLink } from "lucide-react"
+import {
+  Users,
+  Compass,
+  Clock,
+  Pulse,
+  ArrowSquareOut,
+} from "@phosphor-icons/react"
 import { api } from "@/lib/api"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
 import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
@@ -71,7 +77,7 @@ export async function DeptCsmBody() {
         />
         <OpsKpiCell
           label="Invocations 30d"
-          icon={<Activity strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<Pulse strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={activeInvocations}
           format="number"
           sub={`spend 30d · $${totalSpend.toFixed(3)}`}
@@ -147,7 +153,7 @@ export async function DeptCsmBody() {
                           {c.name}
                         </h3>
                       </div>
-                      <ExternalLink
+                      <ArrowSquareOut
                         strokeWidth={1.5}
                         className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]"
                       />

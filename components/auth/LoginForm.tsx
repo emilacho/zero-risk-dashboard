@@ -15,14 +15,14 @@
 import { useState, type FormEvent } from "react"
 import * as Tabs from "@radix-ui/react-tabs"
 import {
-  Mail,
+  Envelope,
   Lock,
-  Send,
-  LogIn,
-  Loader2,
+  PaperPlaneTilt,
+  SignIn,
+  CircleNotch,
   Check,
-  CircleAlert,
-} from "lucide-react"
+  WarningCircle,
+} from "@phosphor-icons/react"
 import { useRouter } from "next/navigation"
 import { getBrowserClient } from "@/lib/supabase-browser"
 
@@ -121,7 +121,7 @@ function PasswordForm({ next }: { next: string }) {
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <Field
         label="email"
-        icon={<Mail strokeWidth={1.5} className="h-4 w-4" />}
+        icon={<Envelope strokeWidth={1.5} className="h-4 w-4" />}
       >
         <input
           type="email"
@@ -154,9 +154,9 @@ function PasswordForm({ next }: { next: string }) {
         className="shimmer-btn inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {state === "submitting" ? (
-          <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
         ) : (
-          <LogIn strokeWidth={1.5} className="h-3.5 w-3.5" />
+          <SignIn strokeWidth={1.5} className="h-3.5 w-3.5" />
         )}
         {state === "submitting" ? "Verificando..." : "Iniciar sesión"}
       </button>
@@ -222,7 +222,7 @@ function MagicLinkForm({ next }: { next: string }) {
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <Field
         label="email"
-        icon={<Mail strokeWidth={1.5} className="h-4 w-4" />}
+        icon={<Envelope strokeWidth={1.5} className="h-4 w-4" />}
       >
         <input
           type="email"
@@ -241,11 +241,11 @@ function MagicLinkForm({ next }: { next: string }) {
         className="shimmer-btn inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {state === "sending" ? (
-          <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
         ) : state === "sent" ? (
           <Check strokeWidth={1.5} className="h-3.5 w-3.5" />
         ) : (
-          <Send strokeWidth={1.5} className="h-3.5 w-3.5" />
+          <PaperPlaneTilt strokeWidth={1.5} className="h-3.5 w-3.5" />
         )}
         {state === "sent"
           ? "Magic link enviado"
@@ -298,7 +298,7 @@ function Field({
 function ErrorTile({ msg }: { msg: string }) {
   return (
     <div className="flex items-start gap-2 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--danger))]">
-      <CircleAlert strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <WarningCircle strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <span>{msg}</span>
     </div>
   )

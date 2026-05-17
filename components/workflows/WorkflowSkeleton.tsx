@@ -38,7 +38,7 @@ import "@xyflow/react/dist/style.css"
 import dagre from "@dagrejs/dagre"
 import { translateNodeType, type IconKind } from "@/lib/n8n-node-translations"
 import { IconForKind } from "./NodeIcons"
-import { Check, AlertTriangle } from "lucide-react"
+import { Check, Warning } from "@phosphor-icons/react"
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ function BusinessNodeRenderer({ data }: NodeProps<BusinessNode>) {
         ) : data.state === "done" ? (
           <Check strokeWidth={2.4} className="h-3.5 w-3.5 text-[hsl(var(--success))]" />
         ) : data.state === "failed" ? (
-          <AlertTriangle strokeWidth={2.4} className="h-3.5 w-3.5 text-[hsl(var(--danger))]" />
+          <Warning strokeWidth={2.4} className="h-3.5 w-3.5 text-[hsl(var(--danger))]" />
         ) : (
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[hsl(var(--muted-foreground)/0.5)]" />
         )}

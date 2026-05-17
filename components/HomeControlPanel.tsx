@@ -11,16 +11,15 @@
 import Link from "next/link"
 import {
   Cpu,
-  Workflow,
-  Boxes,
-  Layers,
+  FlowArrow,
+  Stack,
   HardDrive,
   Brain,
-  Inbox,
-  Map,
+  Tray,
+  MapTrifold,
   ArrowRight,
-  Network,
-} from "lucide-react"
+  TreeStructure,
+} from "@phosphor-icons/react"
 import { api } from "@/lib/api"
 import { MemoryGraph, StatsBar } from "@/lib/dashboard-components"
 import {
@@ -36,13 +35,13 @@ import { loadAgentFeed } from "@/lib/agent-feed"
 
 const SYSTEM_TAB_ICONS: Record<string, React.ReactNode> = {
   agents: <Cpu strokeWidth={1.5} className="h-4 w-4" />,
-  workflows: <Workflow strokeWidth={1.5} className="h-4 w-4" />,
-  brazos: <Boxes strokeWidth={1.5} className="h-4 w-4" />,
-  plataformas: <Layers strokeWidth={1.5} className="h-4 w-4" />,
+  workflows: <FlowArrow strokeWidth={1.5} className="h-4 w-4" />,
+  brazos: <Stack strokeWidth={1.5} className="h-4 w-4" />,
+  plataformas: <Stack strokeWidth={1.5} className="h-4 w-4" />,
   storage: <HardDrive strokeWidth={1.5} className="h-4 w-4" />,
   memoria: <Brain strokeWidth={1.5} className="h-4 w-4" />,
-  inbox: <Inbox strokeWidth={1.5} className="h-4 w-4" />,
-  roadmap: <Map strokeWidth={1.5} className="h-4 w-4" />,
+  inbox: <Tray strokeWidth={1.5} className="h-4 w-4" />,
+  roadmap: <MapTrifold strokeWidth={1.5} className="h-4 w-4" />,
 }
 
 export async function HomeControlPanel() {
@@ -165,7 +164,7 @@ export async function HomeControlPanel() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.4)] bg-[hsl(var(--primary-glow)/0.12)] text-[hsl(var(--primary-glow))]">
-                <Network strokeWidth={1.5} className="h-4 w-4" />
+                <TreeStructure strokeWidth={1.5} className="h-4 w-4" />
               </span>
               <div>
                 <h2 className="font-display text-base font-semibold tracking-tight">

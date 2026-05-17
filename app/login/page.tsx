@@ -1,5 +1,5 @@
 import { LoginForm } from "@/components/auth/LoginForm"
-import { Sparkles } from "lucide-react"
+import { Sparkle } from "@phosphor-icons/react"
 
 export const dynamic = "force-dynamic"
 
@@ -19,7 +19,7 @@ export default async function LoginPage({
         <div className="relative z-[2] flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-foreground shadow-[0_0_24px_-4px_hsl(var(--primary-glow)/0.7)]">
-              <Sparkles strokeWidth={1.5} className="h-4 w-4" />
+              <Sparkle strokeWidth={1.5} className="h-4 w-4" />
             </span>
             <div>
               <p

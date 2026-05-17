@@ -16,14 +16,14 @@
 import { useState, type FormEvent } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import {
-  Send,
+  PaperPlaneTilt,
   Plus,
-  Loader2,
+  CircleNotch,
   Check,
   X,
-  ExternalLink,
-  CircleAlert,
-} from "lucide-react"
+  ArrowSquareOut,
+  WarningCircle,
+} from "@phosphor-icons/react"
 import {
   CAMPAIGN_OBJECTIVES,
   AUDIENCE_PRESETS,
@@ -260,7 +260,7 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
 
                 {state === "error" && errMsg ? (
                   <div className="flex items-start gap-2 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--danger))]">
-                    <CircleAlert strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <WarningCircle strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>{errMsg}</span>
                   </div>
                 ) : null}
@@ -324,9 +324,9 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
                     className="shimmer-btn inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {state === "submitting" ? (
-                      <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+                      <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Send strokeWidth={1.5} className="h-3.5 w-3.5" />
+                      <PaperPlaneTilt strokeWidth={1.5} className="h-3.5 w-3.5" />
                     )}
                     Create draft
                   </button>
@@ -403,7 +403,7 @@ function ResultPanel({
           className="num inline-flex items-center gap-1 self-start text-[11px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-foreground"
         >
           open in Meta Ads Manager
-          <ExternalLink strokeWidth={1.5} className="h-3 w-3" />
+          <ArrowSquareOut strokeWidth={1.5} className="h-3 w-3" />
         </a>
       ) : (
         <p className="num text-[10px] text-[hsl(var(--muted-foreground))]">

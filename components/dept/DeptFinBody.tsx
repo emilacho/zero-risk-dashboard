@@ -9,10 +9,10 @@ import { getServiceRoleClient } from "@/lib/supabase-server"
 import { api } from "@/lib/api"
 import {
   Coins,
-  Banknote,
-  TrendingUp,
+  CurrencyDollar,
+  TrendUp,
   PiggyBank,
-} from "lucide-react"
+} from "@phosphor-icons/react"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
 import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 import { SpendBreakdownTabs } from "@/components/dept/SpendBreakdownTabs"
@@ -113,14 +113,14 @@ export async function DeptFinBody() {
         />
         <OpsKpiCell
           label="Anthropic 30d"
-          icon={<Banknote strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<CurrencyDollar strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={fin.providerBreakdown.anthropic}
           format="currency"
           sub={`${(((fin.providerBreakdown.anthropic / Math.max(0.0001, fin.spend30d)) * 100) || 0).toFixed(1)}% del total`}
         />
         <OpsKpiCell
           label="OpenAI 30d"
-          icon={<Banknote strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<CurrencyDollar strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={fin.providerBreakdown.openai}
           format="currency"
           sub={`GPT Image vía Vercel AI Gateway`}
@@ -147,7 +147,7 @@ export async function DeptFinBody() {
       <section className="surface-card rim-instr p-5" data-rim="violet">
         <div className="relative z-[2]">
           <div className="mb-3 flex items-center gap-2">
-            <TrendingUp strokeWidth={1.5} className="h-4 w-4" />
+            <TrendUp strokeWidth={1.5} className="h-4 w-4" />
             <h2 className="font-display text-base font-semibold tracking-tight">
               Top 10 agents por spend · 30d
             </h2>

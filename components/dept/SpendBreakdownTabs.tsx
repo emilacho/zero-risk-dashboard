@@ -14,7 +14,7 @@
 import { useState, useMemo } from "react"
 import * as Tabs from "@radix-ui/react-tabs"
 import * as Tooltip from "@radix-ui/react-tooltip"
-import { Info } from "lucide-react"
+import { Info } from "@phosphor-icons/react"
 import { formatValue } from "@/components/AnimatedNumber"
 
 interface BreakdownBucket {

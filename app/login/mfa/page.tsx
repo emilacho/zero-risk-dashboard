@@ -8,7 +8,7 @@
  */
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ShieldCheck } from "lucide-react"
+import { ShieldCheck } from "@phosphor-icons/react"
 import { getSessionClient } from "@/lib/supabase-session"
 import { TotpChallengeForm } from "@/components/auth/TotpChallengeForm"
 

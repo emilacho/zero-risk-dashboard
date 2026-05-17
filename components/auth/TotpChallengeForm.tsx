@@ -14,11 +14,11 @@ import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import {
   ShieldCheck,
-  Loader2,
+  CircleNotch,
   Lock,
-  LifeBuoy,
-  AlertTriangle,
-} from "lucide-react"
+  Lifebuoy,
+  Warning,
+} from "@phosphor-icons/react"
 import { getBrowserClient } from "@/lib/supabase-browser"
 import {
   hashBackupCode,
@@ -126,7 +126,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
   if (state === "loading") {
     return (
       <div className="flex items-center gap-2 text-[12px] text-[hsl(var(--muted-foreground))]">
-        <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+        <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
         Cargando factor MFA…
       </div>
     )
@@ -172,7 +172,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
               : "text-[hsl(var(--muted-foreground))] hover:text-foreground",
           ].join(" ")}
         >
-          <LifeBuoy strokeWidth={1.5} className="h-3 w-3" />
+          <Lifebuoy strokeWidth={1.5} className="h-3 w-3" />
           Backup code
         </button>
       </div>
@@ -212,7 +212,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
         className="shimmer-btn inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {state === "verifying" ? (
-          <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+          <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
         ) : (
           <ShieldCheck strokeWidth={1.5} className="h-3.5 w-3.5" />
         )}
@@ -221,7 +221,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
 
       {state === "error" && error ? (
         <div className="flex items-start gap-2 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--danger))]">
-          <AlertTriangle strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <Warning strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </div>
       ) : null}

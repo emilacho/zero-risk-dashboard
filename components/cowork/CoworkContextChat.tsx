@@ -23,7 +23,13 @@
  * { channel, client_id, form_state, form_updates }.
  */
 import { useEffect, useRef, useState } from "react"
-import { Loader2, Send, Sparkles, AlertTriangle, Check } from "lucide-react"
+import {
+  CircleNotch,
+  PaperPlaneTilt,
+  Sparkle,
+  Warning,
+  Check,
+} from "@phosphor-icons/react"
 
 export interface ChatTurn {
   role: "user" | "assistant"
@@ -139,7 +145,7 @@ export function CoworkContextChat({
           form_state: formState,
           message: trimmed,
           channel,
-          // Send recent context to Claude (cap on backend at 12 turns)
+          // PaperPlaneTilt recent context to Claude (cap on backend at 12 turns)
           history: turns.map((t) => ({ role: t.role, content: t.content })),
         }),
       })
@@ -184,7 +190,7 @@ export function CoworkContextChat({
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <Sparkles strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--accent))]" />
+          <Sparkle strokeWidth={1.5} className="h-3.5 w-3.5 text-[hsl(var(--accent))]" />
           <span className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))]">
             {title}
           </span>
@@ -195,7 +201,7 @@ export function CoworkContextChat({
           ) : null}
         </div>
         {hydrating ? (
-          <Loader2 strokeWidth={1.5} className="h-3 w-3 animate-spin text-[hsl(var(--muted-foreground))]" />
+          <CircleNotch strokeWidth={1.5} className="h-3 w-3 animate-spin text-[hsl(var(--muted-foreground))]" />
         ) : null}
       </div>
 
@@ -220,7 +226,7 @@ export function CoworkContextChat({
         ))}
         {sending ? (
           <div className="flex items-center gap-1.5 self-start rounded-md border-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--card)/0.4)] px-2 py-1 text-[10px] text-[hsl(var(--muted-foreground))]">
-            <Loader2 strokeWidth={1.5} className="h-3 w-3 animate-spin" />
+            <CircleNotch strokeWidth={1.5} className="h-3 w-3 animate-spin" />
             Cowork piensa…
           </div>
         ) : null}
@@ -228,7 +234,7 @@ export function CoworkContextChat({
 
       {error ? (
         <div className="mt-2 flex items-start gap-2 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.08)] px-2 py-1.5 text-[10px] text-[hsl(var(--danger))]">
-          <AlertTriangle strokeWidth={1.5} className="mt-0.5 h-3 w-3 shrink-0" />
+          <Warning strokeWidth={1.5} className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{error}</span>
         </div>
       ) : null}
@@ -255,9 +261,9 @@ export function CoworkContextChat({
           className="num inline-flex shrink-0 items-center gap-1 rounded-md border-[0.5px] border-[hsl(var(--accent)/0.5)] bg-[hsl(var(--accent)/0.1)] px-2.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] transition hover:bg-[hsl(var(--accent)/0.18)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {sending ? (
-            <Loader2 strokeWidth={1.5} className="h-3 w-3 animate-spin" />
+            <CircleNotch strokeWidth={1.5} className="h-3 w-3 animate-spin" />
           ) : (
-            <Send strokeWidth={1.5} className="h-3 w-3" />
+            <PaperPlaneTilt strokeWidth={1.5} className="h-3 w-3" />
           )}
           Enviar
         </button>
@@ -303,7 +309,7 @@ function ChatBubble({
               onClick={onApply}
               className="num inline-flex items-center gap-1 rounded-full border-[0.5px] border-[hsl(var(--accent)/0.5)] bg-[hsl(var(--accent)/0.08)] px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] transition hover:bg-[hsl(var(--accent)/0.18)]"
             >
-              <Sparkles strokeWidth={1.5} className="h-2.5 w-2.5" />
+              <Sparkle strokeWidth={1.5} className="h-2.5 w-2.5" />
               Aplicar sugerencias · {Object.keys(updates).length} campo{Object.keys(updates).length === 1 ? "" : "s"}
             </button>
           ) : null}

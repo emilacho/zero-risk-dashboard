@@ -9,7 +9,12 @@
  * lays out as `feature feature std / std std std` on lg.
  */
 import { KpiCard } from './KpiCard'
-import { Bot, Users, DollarSign, Workflow } from 'lucide-react'
+import {
+  Robot,
+  Users,
+  CurrencyDollarSimple,
+  FlowArrow,
+} from "@phosphor-icons/react"
 import type { KpiSnapshot } from '../types'
 
 export interface KpiGridProps {
@@ -35,7 +40,7 @@ export function KpiGrid({ snapshot }: KpiGridProps) {
           deltaIsGood={false}
           size="feature"
           glow="cyan"
-          icon={<DollarSign className="h-3.5 w-3.5" />}
+          icon={<CurrencyDollarSimple className="h-3.5 w-3.5" />}
           className="h-full"
         />
       </div>
@@ -46,7 +51,7 @@ export function KpiGrid({ snapshot }: KpiGridProps) {
         format="number"
         deltaIsGood
         glow="violet"
-        icon={<Bot className="h-3.5 w-3.5" />}
+        icon={<Robot className="h-3.5 w-3.5" />}
       />
       <KpiCard
         label="Clientes activos"
@@ -62,7 +67,7 @@ export function KpiGrid({ snapshot }: KpiGridProps) {
         format="number"
         deltaIsGood
         glow="violet"
-        icon={<Workflow className="h-3.5 w-3.5" />}
+        icon={<FlowArrow className="h-3.5 w-3.5" />}
       />
       {/* Optional 4th tile on the second row · reserved for the spend
           card's expanded breathing room on lg. On md and below the grid

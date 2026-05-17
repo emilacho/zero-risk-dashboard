@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react"
 import { api } from "@/lib/api"
 import {
   ActivityFeed,
@@ -70,7 +70,7 @@ function AgentDetailBody({
           </div>
           <button type="button" className="shimmer-btn">
             <span>Run agent</span>
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ArrowSquareOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </header>

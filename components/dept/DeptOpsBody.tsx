@@ -11,18 +11,24 @@ import { getServiceRoleClient } from "@/lib/supabase-server"
 import { api } from "@/lib/api"
 import { classifyAgent } from "@/lib/departments"
 import Link from "next/link"
-import { Cpu, Workflow, AlertTriangle, GitBranch, Activity } from "lucide-react"
+import {
+  Cpu,
+  FlowArrow,
+  Warning,
+  GitBranch,
+  Pulse,
+} from "@phosphor-icons/react"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
 import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 
-interface Workflow {
+interface FlowArrow {
   id: string
   name: string
   active: boolean
   trigger: string
 }
 
-async function loadWorkflows(): Promise<{ all: Workflow[]; total: number } | null> {
+async function loadWorkflows(): Promise<{ all: FlowArrow[]; total: number } | null> {
   const base = process.env.N8N_BASE_URL
   const key = process.env.N8N_API_KEY
   if (!base || !key) return null
@@ -99,7 +105,7 @@ export async function DeptOpsBody() {
         />
         <OpsKpiCell
           label="Workflows total"
-          icon={<Workflow strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<FlowArrow strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={workflows?.total ?? null}
           format="number"
           sub={
@@ -117,7 +123,7 @@ export async function DeptOpsBody() {
         />
         <OpsKpiCell
           label="Failure rate"
-          icon={<AlertTriangle strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<Warning strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={null}
           format="percent"
           badge="wire pending"
@@ -234,7 +240,7 @@ export async function DeptOpsBody() {
           title="Untagged agents · sin departamento v1"
           count={untagged.length}
           hue="rose"
-          icon={<Activity strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<Pulse strokeWidth={1.5} className="h-3.5 w-3.5" />}
           sub="Sales · Intel · transversal · pending v2 dept activation · click → ver lista"
           variant="full"
           modalDescription="Cuando se activen Sales + Intel como departamentos v2 estos se reclasifican automáticamente."

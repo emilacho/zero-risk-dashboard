@@ -12,7 +12,7 @@
  */
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Bell, BellRing } from "lucide-react"
+import { Bell, BellRinging } from "@phosphor-icons/react"
 
 type NotificationKind = "cowork" | "hitl" | "slack" | "sentry"
 type NotificationSeverity = "info" | "warn" | "danger"
@@ -130,7 +130,7 @@ export function NotificationInbox() {
         className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/0.6)] text-[hsl(var(--muted-foreground))] transition hover:border-[hsl(var(--primary-glow)/0.4)] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--ring))]"
       >
         {HasUnread ? (
-          <BellRing className="h-4 w-4" />
+          <BellRinging className="h-4 w-4" />
         ) : (
           <Bell className="h-4 w-4" />
         )}

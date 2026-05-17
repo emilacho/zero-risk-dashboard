@@ -21,7 +21,7 @@ import type { ReactNode } from "react"
 import { useState } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import Link from "next/link"
-import { X, ArrowRight, ExternalLink } from "lucide-react"
+import { X, ArrowRight, ArrowSquareOut } from "@phosphor-icons/react"
 
 export type SummaryHue =
   | "violet"
@@ -252,7 +252,7 @@ export function ClickableSummaryCard({
                       </div>
                       {it.href ? (
                         isExternal ? (
-                          <ExternalLink
+                          <ArrowSquareOut
                             strokeWidth={1.5}
                             className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--accent))]"
                           />

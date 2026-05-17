@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react"
 import { WorkflowLiveCanvas } from "@/components/workflows/WorkflowLiveCanvas"
 import { translateWorkflowTitle, workflowSubtitle } from "@/lib/n8n-workflow-titles"
 
@@ -130,7 +130,7 @@ export default async function WorkflowPage({
           rel="noreferrer"
           className="num inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-foreground"
         >
-          abrir en n8n <ExternalLink strokeWidth={1.5} className="h-3 w-3" />
+          abrir en n8n <ArrowSquareOut strokeWidth={1.5} className="h-3 w-3" />
         </a>
       </header>
 
