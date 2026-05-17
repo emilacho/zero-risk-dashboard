@@ -17,18 +17,19 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getMiddlewareClient } from "@/lib/supabase-session"
 
 const PUBLIC_ROUTES = new Set(["/login", "/auth/callback"])
-const ADMIN_ONLY_PREFIXES = ["/system", "/dept", "/agents", "/graph", "/api/admin"]
+// Page prefixes (NOT api prefixes · api routes self-gate)
+const ADMIN_ONLY_PREFIXES = ["/system", "/dept", "/agents", "/graph"]
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Allow public routes + Next.js internals + API routes that handle
-  // their own auth + favicon
+  // Allow public routes + Next.js internals + ALL api routes (each one
+  // does its own auth/role check · admin api uses session OR
+  // INTERNAL_API_KEY header) + favicon
   if (
     PUBLIC_ROUTES.has(pathname) ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/cowork") || // Cowork chat is admin-only checked at route
-    pathname.startsWith("/api/dashboard") || // dashboard endpoints currently public
+    pathname.startsWith("/api/") || // api routes self-gate
     pathname === "/favicon.ico"
   ) {
     return NextResponse.next()
