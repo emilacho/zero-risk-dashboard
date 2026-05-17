@@ -30,6 +30,7 @@ import {
 import { DeptOverviewGrid } from "@/components/DeptOverviewGrid"
 import { OpsKpiGrid } from "@/components/OpsKpiGrid"
 import { SYSTEM_TABS } from "@/lib/system-tabs"
+import { WorkflowsRunningKpi } from "@/components/workflows/WorkflowsRunningKpi"
 
 const SYSTEM_TAB_ICONS: Record<string, React.ReactNode> = {
   agents: <Cpu strokeWidth={1.5} className="h-4 w-4" />,
@@ -115,6 +116,25 @@ export async function HomeControlPanel() {
               </div>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* LIVE · workflows running now · STEP 5 KPI */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <span className="eyebrow-chip">
+            <span className="h-1 w-1 rounded-full bg-current animate-pulse-dot" />
+            Equipo virtual · live
+          </span>
+          <Link
+            href="/system/workflows"
+            className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-foreground"
+          >
+            → todos los workflows
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <WorkflowsRunningKpi />
         </div>
       </section>
 

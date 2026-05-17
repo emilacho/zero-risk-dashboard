@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 export const dynamic = "force-dynamic"
 
 interface WorkflowRow {
@@ -138,9 +140,13 @@ export default async function SystemWorkflowsTab() {
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <span title={r.name}>
+                    <Link
+                      href={`/workflows/${r.id}`}
+                      title={r.name}
+                      className="hover:text-[hsl(var(--accent))] hover:underline"
+                    >
                       {r.name.replace(/^Zero Risk[ ·—-]*/, "")}
-                    </span>
+                    </Link>
                   </td>
                   <td className="num px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
                     {r.trigger.replace("Trigger", "")}
