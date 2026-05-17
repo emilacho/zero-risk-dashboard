@@ -27,9 +27,15 @@
  * lives strictly client↔client.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { toast } from "sonner"
+import {
+  applyCommandTemplate,
+  filterCommands,
+  type CoworkCommand,
+} from "@/lib/cowork-commands"
 import {
   Paperclip,
   FolderOpen,
@@ -132,12 +138,24 @@ export function CoworkPromptBar({
   variant = "full",
   autoFocus = false,
 }: CoworkPromptBarProps) {
+  const pathname = usePathname() ?? ""
+  // Auto-detected page slug · used when the host doesn't pass `page`.
+  // Maps real URL paths to stable slugs that the server prompt cares
+  // about · "/" → "home", "/dept/mkt" → "dept/mkt", "/clients/abc" →
+  // "clients/[id]", "/workflows/xyz" → "workflows/[id]", etc.
+  const autoPage = useMemo(() => derivePageSlug(pathname), [pathname])
+  const effectivePage = page ?? autoPage
+
   const [sessionId, setSessionId] = useState<string>("")
   const [turns, setTurns] = useState<PromptTurn[]>([])
   const [input, setInput] = useState("")
   const [pending, setPending] = useState<PromptAttachment[]>([])
   const [uploading, setUploading] = useState(false)
   const [sending, setSending] = useState(false)
+  // Slash-command menu state
+  const [slashOpen, setSlashOpen] = useState(false)
+  const [slashQuery, setSlashQuery] = useState("")
+  const [slashIdx, setSlashIdx] = useState(0)
   /** Live token-by-token assistant content while a stream is in flight.
    * Rendered as a separate "ghost" turn at the tail · committed into
    * `turns` once the stream emits its `done` event (or aborts). */
@@ -289,7 +307,7 @@ export function CoworkPromptBar({
           message: trimmed,
           attachments,
           context: {
-            page,
+            page: effectivePage,
             channel,
             client_id: clientId,
             form_state: formState,
@@ -401,7 +419,61 @@ export function CoworkPromptBar({
     }
   }
 
+  // Slash command handling · refilters on every input change
+  function handleInputChange(value: string) {
+    setInput(value)
+    if (value.startsWith("/")) {
+      const firstToken = value.split(/\s/)[0]
+      // Only open while still typing the slash-token (no space yet)
+      if (firstToken === value) {
+        setSlashOpen(true)
+        setSlashQuery(value)
+        setSlashIdx(0)
+        return
+      }
+    }
+    if (slashOpen) setSlashOpen(false)
+  }
+
+  function selectCommand(cmd: CoworkCommand) {
+    const { value, caret } = applyCommandTemplate(input, cmd)
+    setInput(value)
+    setSlashOpen(false)
+    setSlashQuery("")
+    setSlashIdx(0)
+    // Restore focus + put caret at the marker if any
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current
+      if (!ta) return
+      ta.focus()
+      ta.setSelectionRange(caret, caret)
+    })
+  }
+
   function onTextareaKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (slashOpen) {
+      const list = filterCommands(slashQuery)
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setSlashIdx((i) => (i + 1) % Math.max(1, list.length))
+        return
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSlashIdx((i) => (i - 1 + Math.max(1, list.length)) % Math.max(1, list.length))
+        return
+      }
+      if (e.key === "Escape") {
+        e.preventDefault()
+        setSlashOpen(false)
+        return
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && list.length > 0) {
+        e.preventDefault()
+        selectCommand(list[slashIdx] ?? list[0])
+        return
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       void onSend()
@@ -488,7 +560,7 @@ export function CoworkPromptBar({
                 {headerTitle}
               </h2>
               <p className="num text-[9.5px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
-                {page ? `surface · ${page}` : "surface · global"}
+                surface · {effectivePage || "global"}
                 {clientName ? ` · cliente · ${clientName}` : ""}
                 {sessionId ? ` · sesión · ${sessionId.slice(0, 8)}` : ""}
               </p>
@@ -675,21 +747,31 @@ export function CoworkPromptBar({
             />
           </div>
 
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onTextareaKey}
-            onPaste={onTextareaPaste}
-            rows={1}
-            placeholder={
-              clientName
-                ? `Preguntale a Cowork sobre ${clientName}…`
-                : "Preguntale a Cowork · adjuntá archivos · pegá screenshots"
-            }
-            disabled={sending}
-            className="min-h-[40px] w-full resize-none rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.3)] bg-[hsl(var(--background)/0.7)] px-3 py-2 text-[13px] leading-snug outline-none transition focus:border-[hsl(var(--accent)/0.6)] disabled:opacity-60"
-          />
+          <div className="relative flex-1">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyDown={onTextareaKey}
+              onPaste={onTextareaPaste}
+              rows={1}
+              placeholder={
+                clientName
+                  ? `Preguntale a Cowork sobre ${clientName}… · escribí "/" para shortcuts`
+                  : "Preguntale a Cowork · escribí \"/\" para shortcuts · adjuntá archivos · pegá screenshots"
+              }
+              disabled={sending}
+              className="min-h-[40px] w-full resize-none rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.3)] bg-[hsl(var(--background)/0.7)] px-3 py-2 text-[13px] leading-snug outline-none transition focus:border-[hsl(var(--accent)/0.6)] disabled:opacity-60"
+            />
+            {slashOpen ? (
+              <SlashMenu
+                query={slashQuery}
+                activeIndex={slashIdx}
+                onPick={selectCommand}
+                onHoverIndex={(i) => setSlashIdx(i)}
+              />
+            ) : null}
+          </div>
 
           {sending ? (
             <button
@@ -726,6 +808,76 @@ export function CoworkPromptBar({
 }
 
 // ── Sub-components ────────────────────────────────────────────────────
+
+function derivePageSlug(pathname: string): string {
+  if (!pathname || pathname === "/") return "home"
+  // /dept/[slug] · /clients/[id] · /workflows/[id] · /agents/[slug] · /system/[tab]
+  const m1 = pathname.match(/^\/(dept|clients|workflows|agents|system)\/[^/]+/)
+  if (m1) {
+    const seg = pathname.split("/")[1]
+    if (seg === "clients" || seg === "workflows" || seg === "agents") return `${seg}/[id]`
+    return pathname.slice(1) // dept/mkt · system/storage
+  }
+  return pathname.replace(/^\//, "")
+}
+
+function SlashMenu({
+  query,
+  activeIndex,
+  onPick,
+  onHoverIndex,
+}: {
+  query: string
+  activeIndex: number
+  onPick: (cmd: CoworkCommand) => void
+  onHoverIndex: (i: number) => void
+}) {
+  const list = filterCommands(query)
+  return (
+    <div className="absolute bottom-full left-0 z-[40] mb-1.5 w-[min(420px,100%)] overflow-hidden rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.4)] bg-[hsl(var(--card)/0.96)] shadow-[0_4px_18px_-2px_hsl(var(--primary-glow)/0.25)] backdrop-blur">
+      <div className="border-b-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--background)/0.4)] px-2 py-1">
+        <p className="num text-[8.5px] uppercase tracking-[0.22em] text-[hsl(var(--muted-foreground))]">
+          Slash commands · {list.length}
+        </p>
+      </div>
+      {list.length === 0 ? (
+        <p className="px-2 py-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+          Sin matches · seguí escribiendo
+        </p>
+      ) : (
+        <ul role="listbox">
+          {list.map((c, i) => (
+            <li key={c.slug}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={i === activeIndex}
+                onMouseEnter={() => onHoverIndex(i)}
+                onClick={() => onPick(c)}
+                className={[
+                  "flex w-full items-center justify-between gap-3 px-2.5 py-1.5 text-left transition",
+                  i === activeIndex
+                    ? "bg-[hsl(var(--accent)/0.12)] text-[hsl(var(--foreground))]"
+                    : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--primary-glow)/0.06)]",
+                ].join(" ")}
+              >
+                <span className="font-mono text-[11px] text-[hsl(var(--accent))]">
+                  {c.label}
+                </span>
+                <span className="truncate text-[10px] text-[hsl(var(--muted-foreground))]">
+                  {c.hint}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="border-t-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--background)/0.4)] px-2 py-1 text-[8.5px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+        ↑↓ navegar · Enter/Tab insertar · Esc cerrar
+      </div>
+    </div>
+  )
+}
 
 function EmptyHint({ variant }: { variant: "full" | "compact" }) {
   return (
