@@ -7,6 +7,7 @@
  */
 import { useState } from "react"
 import { WorkflowSkeleton, type N8nNode, type N8nConnections } from "./WorkflowSkeleton"
+import { NodeActivityDrawer, type OpenNode } from "./NodeActivityDrawer"
 import { useN8nExecutionRealtime } from "@/lib/n8n-realtime"
 import { Loader2, AlertTriangle, History, Play } from "lucide-react"
 
@@ -36,6 +37,7 @@ export function WorkflowLiveCanvas({
     useN8nExecutionRealtime(workflowId, triggerNodeNames, 3000)
   const [triggerState, setTriggerState] = useState<"idle" | "firing" | "ok" | "err">("idle")
   const [triggerMsg, setTriggerMsg] = useState<string | null>(null)
+  const [openNode, setOpenNode] = useState<OpenNode | null>(null)
 
   async function fireManual() {
     setTriggerState("firing")
@@ -123,6 +125,10 @@ export function WorkflowLiveCanvas({
           </button>
         </div>
 
+        <p className="num self-end text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
+          tip · click cualquier nodo del canvas → drawer con actividad reciente
+        </p>
+
         {/* Canvas · 80vh per dispatch */}
         <WorkflowSkeleton
           nodes={nodes}
@@ -131,6 +137,9 @@ export function WorkflowLiveCanvas({
           activeNodeNames={activeNodeNames}
           doneNodeNames={allDone}
           failedNodeNames={allFailed}
+          onNodeClick={({ name, type }) =>
+            setOpenNode({ workflowId, nodeName: name, nodeType: type })
+          }
         />
 
         {triggerState === "err" && triggerMsg ? (
@@ -152,6 +161,13 @@ export function WorkflowLiveCanvas({
           <HistoryList workflowId={workflowId} />
         </div>
       </aside>
+
+      {/* Phase 5.1 · per-node activity drawer · slides from right */}
+      <NodeActivityDrawer
+        open={openNode != null}
+        onClose={() => setOpenNode(null)}
+        node={openNode}
+      />
     </div>
   )
 }

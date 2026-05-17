@@ -71,6 +71,10 @@ export interface WorkflowSkeletonProps {
   doneNodeNames?: string[]
   /** Names of nodes that failed · red alert */
   failedNodeNames?: string[]
+  /** Phase 5.1 · invoked when user clicks a node · WorkflowLiveCanvas
+   * passes a stable callback que abre NodeActivityDrawer. Both
+   * components viven en el client tree · NO server→client serialization. */
+  onNodeClick?: (info: { name: string; type: string }) => void
   className?: string
 }
 
@@ -248,6 +252,7 @@ export function WorkflowSkeleton({
   activeNodeNames = [],
   doneNodeNames = [],
   failedNodeNames = [],
+  onNodeClick,
   className,
 }: WorkflowSkeletonProps) {
   const layout = useMemo(
@@ -326,10 +331,24 @@ export function WorkflowSkeleton({
         maxZoom={1.5}
         nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable={false}
+        elementsSelectable={!!onNodeClick}
         proOptions={{ hideAttribution: true }}
         colorMode="dark"
         onlyRenderVisibleElements={false}
+        onNodeClick={
+          onNodeClick
+            ? (_evt, n) => {
+                const data = n.data as BusinessNodeData | undefined
+                if (!data) return
+                // Find original n8n node to get the type
+                const orig = nodes.find((x) => x.name === data.name)
+                onNodeClick({
+                  name: data.name,
+                  type: orig?.type ?? "unknown",
+                })
+              }
+            : undefined
+        }
       >
         <Background variant={BackgroundVariant.Dots} color="hsl(var(--border))" gap={22} size={1} />
         <Controls
