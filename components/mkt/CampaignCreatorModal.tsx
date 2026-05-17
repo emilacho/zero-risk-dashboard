@@ -29,6 +29,7 @@ import {
   AUDIENCE_PRESETS,
   type CampaignRow,
 } from "@/lib/campaigns"
+import { CoworkContextChat } from "@/components/cowork/CoworkContextChat"
 
 interface ClientOption {
   id: string
@@ -125,7 +126,7 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm data-[state=open]:animate-blur-fade" />
         <Dialog.Content
-          className="surface-card rim-instr fixed left-1/2 top-1/2 z-[71] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 p-6"
+          className="surface-card rim-instr fixed left-1/2 top-1/2 z-[71] flex max-h-[90vh] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto p-6"
           data-rim="cyan"
         >
           <div className="relative z-[2]">
@@ -268,6 +269,45 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
                   Status default · <code className="font-mono">draft</code> · queueable después · status=&apos;paused&apos; siempre cuando real
                   Meta API se llame (NO live auto-launch).
                 </p>
+
+                {/* STEP 8 · Cowork inline chat · contextual al cliente + form state */}
+                {clientId ? (
+                  <CoworkContextChat
+                    channel="campaign_modal"
+                    clientId={clientId}
+                    clientName={clients.find((c) => c.id === clientId)?.name}
+                    formState={{
+                      client_id: clientId,
+                      objective,
+                      daily_budget_usd: Number(dailyBudget),
+                      duration_days: Number(durationDays),
+                      audience_preset: audiencePreset,
+                      creative_count: Number(creativeCount),
+                      destination_url: destinationUrl,
+                    }}
+                    onApplySuggestion={(updates) => {
+                      if (typeof updates.objective === "string") {
+                        const next = updates.objective as (typeof CAMPAIGN_OBJECTIVES)[number]
+                        if (CAMPAIGN_OBJECTIVES.includes(next)) setObjective(next)
+                      }
+                      if (typeof updates.daily_budget_usd === "number") {
+                        setDailyBudget(String(updates.daily_budget_usd))
+                      }
+                      if (typeof updates.duration_days === "number") {
+                        setDurationDays(String(updates.duration_days))
+                      }
+                      if (typeof updates.audience_preset === "string") {
+                        setAudiencePreset(updates.audience_preset)
+                      }
+                      if (typeof updates.creative_count === "number") {
+                        setCreativeCount(String(updates.creative_count))
+                      }
+                      if (typeof updates.destination_url === "string") {
+                        setDestinationUrl(updates.destination_url)
+                      }
+                    }}
+                  />
+                ) : null}
 
                 <div className="mt-2 flex items-center justify-end gap-2">
                   <Dialog.Close asChild>
