@@ -10,7 +10,6 @@ import { Building2, Cpu, Users, Coins, Megaphone, ShieldCheck } from "lucide-rea
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { DEPARTMENTS, rollupAgentsByDept, type DeptSlug } from "@/lib/departments"
 import type { AgentRow } from "@/lib/api"
-import { AnimatedNumber } from "@/components/AnimatedNumber"
 
 const DEPT_ICONS: Record<DeptSlug, React.ReactNode> = {
   ops: <Cpu strokeWidth={1.5} className="h-4 w-4" />,
@@ -147,9 +146,7 @@ export async function DeptOverviewGrid() {
                       active · 30d
                     </span>
                     <span className="font-display text-xl font-semibold tabular-nums">
-                      {isDerivedView ? "—" : (
-                        <AnimatedNumber value={r.activeAgents} format={(v) => v.toFixed(0)} />
-                      )}
+                      {isDerivedView ? "—" : r.activeAgents}
                     </span>
                   </div>
                   <div className="flex flex-col text-right">
@@ -157,16 +154,11 @@ export async function DeptOverviewGrid() {
                       spend · 30d
                     </span>
                     <span className="font-display text-xl font-semibold tabular-nums">
-                      {isDerivedView ? (
-                        "(derived)"
-                      ) : (
-                        <AnimatedNumber
-                          value={r.cost30d}
-                          format={(v) =>
-                            v < 1 ? `$${v.toFixed(3)}` : `$${v.toFixed(2)}`
-                          }
-                        />
-                      )}
+                      {isDerivedView
+                        ? "(derived)"
+                        : r.cost30d < 1
+                          ? `$${r.cost30d.toFixed(3)}`
+                          : `$${r.cost30d.toFixed(2)}`}
                     </span>
                   </div>
                 </div>

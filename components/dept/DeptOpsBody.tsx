@@ -13,7 +13,6 @@ import { classifyAgent } from "@/lib/departments"
 import Link from "next/link"
 import { Cpu, Workflow, AlertTriangle, GitBranch, Activity } from "lucide-react"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
-import { AnimatedNumber } from "@/components/AnimatedNumber"
 
 interface Workflow {
   id: string
@@ -160,7 +159,7 @@ export async function DeptOpsBody() {
                   </div>
                   <div className="flex items-center gap-4 text-[11px]">
                     <span className="num text-[hsl(var(--muted-foreground))]">
-                      <AnimatedNumber value={a.stats_30d?.sessions ?? 0} format={(v) => `${v.toFixed(0)} sess`} />
+                      {a.stats_30d?.sessions ?? 0} sess
                     </span>
                     <span className="num text-[hsl(var(--accent))]">
                       ${(a.stats_30d?.cost_usd ?? 0).toFixed(3)}
