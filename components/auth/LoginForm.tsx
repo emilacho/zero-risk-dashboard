@@ -81,7 +81,17 @@ function PasswordForm({ next }: { next: string }) {
       setErrMsg(error.message)
       return
     }
-    // Session cookie set · navigate
+    // STEP 9 · check if MFA is required for this account
+    try {
+      const aal = await supa.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (aal.data?.nextLevel === "aal2" && aal.data?.currentLevel === "aal1") {
+        router.replace(`/login/mfa?next=${encodeURIComponent(next)}`)
+        return
+      }
+    } catch {
+      // If AAL probe fails, fall through to direct navigation · safer
+      // than blocking sign-in entirely.
+    }
     router.replace(next)
     router.refresh()
   }

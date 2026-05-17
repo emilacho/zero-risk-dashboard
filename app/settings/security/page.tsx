@@ -11,6 +11,7 @@ import Link from "next/link"
 import { ArrowLeft, ShieldCheck } from "lucide-react"
 import { getSessionClient } from "@/lib/supabase-session"
 import { UpdatePasswordForm } from "@/components/auth/UpdatePasswordForm"
+import { MfaSection } from "@/components/auth/MfaSection"
 
 export const dynamic = "force-dynamic"
 
@@ -56,19 +57,9 @@ export default async function SettingsSecurityPage() {
         </div>
       </div>
 
-      <section className="mt-6 surface-card rim-instr p-5" data-rim="rose">
-        <div className="relative z-[2]">
-          <h2 className="font-display text-base font-semibold tracking-tight">
-            2FA · Two-Factor Authentication
-          </h2>
-          <p className="mt-2 text-[12px] text-[hsl(var(--muted-foreground))]">
-            <span className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--danger))]">
-              backlog
-            </span>{" "}
-            · Supabase MFA · TOTP enrollment + recovery codes · pending separate dispatch.
-          </p>
-        </div>
-      </section>
+      <div className="mt-6">
+        <MfaSection />
+      </div>
     </main>
   )
 }
