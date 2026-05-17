@@ -29,7 +29,7 @@ import {
   AUDIENCE_PRESETS,
   type CampaignRow,
 } from "@/lib/campaigns"
-import { CoworkContextChat } from "@/components/cowork/CoworkContextChat"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 interface ClientOption {
   id: string
@@ -270,12 +270,18 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
                   Meta API se llame (NO live auto-launch).
                 </p>
 
-                {/* STEP 8 · Cowork inline chat · contextual al cliente + form state */}
+                {/* STEP 11 M4 · CoworkPromptBar replaces the Phase 8
+                    CoworkContextChat · same HITL apply-suggestion
+                    contract, now with streaming + slash + uploads. */}
                 {clientId ? (
-                  <CoworkContextChat
+                  <CoworkPromptBar
                     channel="campaign_modal"
+                    page="dept/mkt:campaign-modal"
                     clientId={clientId}
                     clientName={clients.find((c) => c.id === clientId)?.name}
+                    variant="compact"
+                    maxThreadHeight={240}
+                    eyebrow="MKT · cowork prompt"
                     formState={{
                       client_id: clientId,
                       objective,

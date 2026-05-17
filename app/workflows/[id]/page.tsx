@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 import { WorkflowLiveCanvas } from "@/components/workflows/WorkflowLiveCanvas"
 import { translateWorkflowTitle, workflowSubtitle } from "@/lib/n8n-workflow-titles"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 export const dynamic = "force-dynamic"
 
@@ -142,6 +143,24 @@ export default async function WorkflowPage({
           triggerNodeNames={triggerNodeNames}
         />
       </div>
+
+      <section className="mt-8">
+        <CoworkPromptBar
+          channel={`workflow:${wf.id}`}
+          eyebrow="Workflow · cowork prompt"
+          variant="full"
+          maxThreadHeight={320}
+          surfaceState={{
+            workflow_id: wf.id,
+            workflow_name_raw: wf.name,
+            workflow_title_translated: translateWorkflowTitle(wf.name),
+            active: wf.active,
+            trigger_count: wf.triggerCount,
+            node_count: wf.nodes.length,
+            trigger_node_names: triggerNodeNames,
+          }}
+        />
+      </section>
     </main>
   )
 }
