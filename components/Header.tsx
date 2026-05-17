@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Sparkles, Network, Users, Cpu } from "lucide-react"
+import { NotificationInbox } from "@/components/NotificationInbox"
 
 const NAV_ITEMS = [
   { href: "/agents", label: "Agents", icon: Cpu },
@@ -34,24 +35,27 @@ export function Header() {
           </span>
           <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse-glow" />
         </Link>
-        <nav className="flex items-center gap-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active =
-              pathname === href ||
-              (href !== "/" && pathname?.startsWith(href + "/"))
-            return (
-              <Link
-                key={href}
-                href={href}
-                data-active={active ? "true" : undefined}
-                className="nav-pill flex items-center gap-1.5 rounded-full border border-transparent px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </Link>
-            )
-          })}
-        </nav>
+        <div className="flex items-center gap-3">
+          <nav className="flex items-center gap-1">
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active =
+                pathname === href ||
+                (href !== "/" && pathname?.startsWith(href + "/"))
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  data-active={active ? "true" : undefined}
+                  className="nav-pill flex items-center gap-1.5 rounded-full border border-transparent px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </Link>
+              )
+            })}
+          </nav>
+          <NotificationInbox />
+        </div>
       </div>
     </header>
   )
