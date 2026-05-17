@@ -1,4 +1,8 @@
 {
   "extends": ["next/core-web-vitals", "next/typescript"],
-  "ignorePatterns": [".next", "node_modules", "dist"]
+  "plugins": ["local"],
+  "rules": {
+    "local/no-function-format-prop": "error"
+  },
+  "ignorePatterns": [".next", "node_modules", "dist", "eslint-plugin-local"]
 }

@@ -13,9 +13,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:check": "next lint --max-warnings=0 --quiet",
+    "audit:format-prop": "node scripts/audit-format-prop.mjs",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "verify": "pnpm type-check && pnpm lint && pnpm test"
+    "verify": "pnpm type-check && pnpm lint && pnpm audit:format-prop && pnpm test",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "{components,app,lib}/**/*.{ts,tsx,js,jsx}": "next lint --file"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
@@ -48,6 +54,9 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.0",
+    "eslint-plugin-local": "file:eslint-plugin-local",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
     "playwright": "^1.60.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",

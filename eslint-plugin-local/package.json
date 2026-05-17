@@ -1,0 +1,8 @@
+{
+  "name": "eslint-plugin-local",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Local ESLint rules for zero-risk-dashboard · regression-safety nets.",
+  "main": "index.js",
+  "license": "UNLICENSED"
+}
