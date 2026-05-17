@@ -14,7 +14,7 @@ import {
   Users,
   CurrencyDollarSimple,
   FlowArrow,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import type { KpiSnapshot } from '../types'
 
 export interface KpiGridProps {

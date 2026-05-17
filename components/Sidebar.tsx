@@ -23,8 +23,10 @@ import {
   TreeStructure,
   Buildings,
   Stack,
-  type Icon,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
+// Type-only import from main module · `/dist/ssr` doesn't export the `Icon`
+// type alias · safe because TS type imports are erased at compile time.
+import type { Icon } from "@phosphor-icons/react"
 import { DEPARTMENTS } from "@/lib/departments"
 import { SYSTEM_TABS } from "@/lib/system-tabs"
 

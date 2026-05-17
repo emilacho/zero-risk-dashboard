@@ -7,7 +7,7 @@ import {
   TreeStructure,
   Users,
   Cpu,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { NotificationInbox } from "@/components/NotificationInbox"
 
 const NAV_ITEMS = [

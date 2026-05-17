@@ -12,7 +12,7 @@ import {
   CurrencyDollar,
   TrendUp,
   PiggyBank,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
 import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 import { SpendBreakdownTabs } from "@/components/dept/SpendBreakdownTabs"

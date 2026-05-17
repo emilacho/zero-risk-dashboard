@@ -22,7 +22,7 @@ import {
   CircleNotch,
   Check,
   WarningCircle,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { useRouter } from "next/navigation"
 import { getBrowserClient } from "@/lib/supabase-browser"
 

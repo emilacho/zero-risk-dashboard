@@ -21,7 +21,7 @@ import type { ReactNode } from "react"
 import { useState } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import Link from "next/link"
-import { X, ArrowRight, ArrowSquareOut } from "@phosphor-icons/react"
+import { X, ArrowRight, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 
 export type SummaryHue =
   | "violet"

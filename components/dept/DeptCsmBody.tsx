@@ -12,7 +12,7 @@ import {
   Clock,
   Pulse,
   ArrowSquareOut,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
 import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"

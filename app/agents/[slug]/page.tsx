@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react"
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import {
   ActivityFeed,

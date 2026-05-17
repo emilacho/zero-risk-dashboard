@@ -18,7 +18,7 @@ import {
   Lock,
   Lifebuoy,
   Warning,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { getBrowserClient } from "@/lib/supabase-browser"
 import {
   hashBackupCode,

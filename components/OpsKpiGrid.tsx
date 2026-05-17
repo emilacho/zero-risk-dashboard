@@ -20,7 +20,7 @@ import {
   Clock,
   FlowArrow,
   Users,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
 
 interface OpsExtras {

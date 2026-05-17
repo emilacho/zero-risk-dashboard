@@ -1,5 +1,5 @@
 import { LoginForm } from "@/components/auth/LoginForm"
-import { Sparkle } from "@phosphor-icons/react"
+import { Sparkle } from "@phosphor-icons/react/dist/ssr"
 
 export const dynamic = "force-dynamic"
 

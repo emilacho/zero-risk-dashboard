@@ -16,7 +16,7 @@ import {
   Ticket,
   Pulse,
   ArrowSquareOut,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import { classifyAgent } from "@/lib/departments"
 import { OpsKpiCell } from "@/components/OpsKpiCell"

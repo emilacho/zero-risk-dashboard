@@ -12,7 +12,7 @@
  */
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Bell, BellRinging } from "@phosphor-icons/react"
+import { Bell, BellRinging } from "@phosphor-icons/react/dist/ssr"
 
 type NotificationKind = "cowork" | "hitl" | "slack" | "sentry"
 type NotificationSeverity = "info" | "warn" | "danger"

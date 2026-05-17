@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "@phosphor-icons/react"
+import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import {
   DEPT_BY_SLUG,
   type DeptSlug,

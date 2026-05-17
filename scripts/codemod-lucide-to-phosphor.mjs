@@ -221,9 +221,9 @@ function rewriteImports(source) {
 
     // Reconstruct import · multi-line if >3 names · else single-line
     if (mapped.length > 3) {
-      return `import {\n  ${mapped.join(",\n  ")},\n} from "@phosphor-icons/react"`
+      return `import {\n  ${mapped.join(",\n  ")},\n} from "@phosphor-icons/react/dist/ssr"`
     }
-    return `import { ${mapped.join(", ")} } from "@phosphor-icons/react"`
+    return `import { ${mapped.join(", ")} } from "@phosphor-icons/react/dist/ssr"`
   })
 
   if (!changed) return { source: modified, changed: false, renames: [] }

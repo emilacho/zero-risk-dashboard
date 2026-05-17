@@ -13,7 +13,7 @@ import {
   Coins,
   Megaphone,
   ShieldCheck,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { DEPARTMENTS, rollupAgentsByDept, type DeptSlug } from "@/lib/departments"
 import type { AgentRow } from "@/lib/api"

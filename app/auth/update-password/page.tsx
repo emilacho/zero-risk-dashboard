@@ -15,7 +15,7 @@
 import { redirect } from "next/navigation"
 import { getSessionClient } from "@/lib/supabase-session"
 import { UpdatePasswordForm } from "@/components/auth/UpdatePasswordForm"
-import { Sparkle } from "@phosphor-icons/react"
+import { Sparkle } from "@phosphor-icons/react/dist/ssr"
 
 export const dynamic = "force-dynamic"
 

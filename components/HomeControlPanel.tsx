@@ -19,7 +19,7 @@ import {
   MapTrifold,
   ArrowRight,
   TreeStructure,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import { MemoryGraph, StatsBar } from "@/lib/dashboard-components"
 import {

@@ -25,7 +25,7 @@ import {
   Pulse,
   CaretDown,
   CaretRight,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { translateNodeType, type IconKind } from "@/lib/n8n-node-translations"
 import { IconForKind } from "./NodeIcons"
 

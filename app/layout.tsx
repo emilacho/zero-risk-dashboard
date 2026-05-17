@@ -9,6 +9,7 @@ import "./globals.css"
 import { RouteTransition } from "@/components/RouteTransition"
 import { Sidebar } from "@/components/Sidebar"
 import { CoworkChat } from "@/components/CoworkChat"
+import { Toaster } from "@/components/ui/Toaster"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -62,6 +63,7 @@ export default function RootLayout({
           <div className="pl-[64px]">{children}</div>
         </RouteTransition>
         <CoworkChat />
+        <Toaster />
       </body>
     </html>
   )

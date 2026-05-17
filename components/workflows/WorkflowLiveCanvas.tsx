@@ -14,7 +14,7 @@ import {
   Warning,
   ClockCounterClockwise,
   Play,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 
 interface WorkflowLiveCanvasProps {
   workflowId: string

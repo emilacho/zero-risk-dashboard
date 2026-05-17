@@ -29,7 +29,7 @@ import {
   CircleNotch,
   Plugs,
   WifiSlash,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { getBrowserClient } from "@/lib/supabase-browser"
 import { IconForKind } from "@/components/workflows/NodeIcons"
 import { formatValue } from "@/components/AnimatedNumber"

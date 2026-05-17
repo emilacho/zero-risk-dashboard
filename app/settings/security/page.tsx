@@ -8,7 +8,7 @@
  */
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, ShieldCheck } from "@phosphor-icons/react"
+import { ArrowLeft, ShieldCheck } from "@phosphor-icons/react/dist/ssr"
 import { getSessionClient } from "@/lib/supabase-session"
 import { UpdatePasswordForm } from "@/components/auth/UpdatePasswordForm"
 import { MfaSection } from "@/components/auth/MfaSection"

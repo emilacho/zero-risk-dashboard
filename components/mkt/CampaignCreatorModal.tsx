@@ -23,7 +23,7 @@ import {
   X,
   ArrowSquareOut,
   WarningCircle,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import {
   CAMPAIGN_OBJECTIVES,
   AUDIENCE_PRESETS,

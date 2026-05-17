@@ -38,7 +38,7 @@ import "@xyflow/react/dist/style.css"
 import dagre from "@dagrejs/dagre"
 import { translateNodeType, type IconKind } from "@/lib/n8n-node-translations"
 import { IconForKind } from "./NodeIcons"
-import { Check, Warning } from "@phosphor-icons/react"
+import { Check, Warning } from "@phosphor-icons/react/dist/ssr"
 
 // ── Types ──────────────────────────────────────────────────
 

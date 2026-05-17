@@ -29,7 +29,7 @@ import {
   Sparkle,
   Warning,
   Check,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 
 export interface ChatTurn {
   role: "user" | "assistant"

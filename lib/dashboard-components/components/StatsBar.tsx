@@ -14,7 +14,7 @@ import {
   Database,
   Clock,
   HardDrive,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 import { formatRelativeTime } from '../utils/format'
 import type { StatsBarSnapshot } from '../types'
 

@@ -13,7 +13,7 @@ import {
   ArrowRight,
   X,
   CircleNotch,
-} from "@phosphor-icons/react"
+} from "@phosphor-icons/react/dist/ssr"
 
 interface RunningRow {
   workflowId: string
