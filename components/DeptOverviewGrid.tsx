@@ -27,39 +27,57 @@ async function loadAgentsForRollup(): Promise<AgentRow[]> {
     const [agentsRes, invRes] = await Promise.all([
       supa
         .from("agents")
-        .select(
-          "id, name, display_name, role, model, status, identity_chars, identity_source",
-        )
+        .select("id, name, display_name, role, model, status")
         .limit(200),
       supa
         .from("agent_invocations")
-        .select("agent_id, agent_name, cost_usd, started_at")
+        .select("agent_name, cost_usd, started_at")
         .gte("started_at", since30)
         .limit(20_000),
     ])
-    if (!agentsRes.data) return []
+    const agentRows = (agentsRes.data ?? []) as Array<{
+      id: string
+      name: string | null
+      display_name: string | null
+      role: string | null
+      model: string | null
+      status: string | null
+    }>
+    const invRows = (invRes.data ?? []) as Array<{
+      agent_name: string | null
+      cost_usd: number | null
+      started_at: string | null
+    }>
     const statsByName = new Map<string, { sessions: number; cost: number }>()
-    for (const row of invRes.data ?? []) {
-      const key = (row.agent_name as string) ?? ""
+    for (const row of invRows) {
+      const key = row.agent_name ?? ""
       if (!key) continue
       const cur = statsByName.get(key) ?? { sessions: 0, cost: 0 }
       cur.sessions += 1
       cur.cost += Number(row.cost_usd ?? 0)
       statsByName.set(key, cur)
     }
-    return agentsRes.data.map(
-      (a) =>
-        ({
-          ...a,
-          stats_30d: {
-            sessions: statsByName.get(a.name as string)?.sessions ?? 0,
-            tokens_input: 0,
-            tokens_output: 0,
-            cost_usd: statsByName.get(a.name as string)?.cost ?? 0,
-            last_activity: null,
-          },
-        }) as unknown as AgentRow,
-    )
+    return agentRows.map((a) => {
+      const name = a.name ?? ""
+      const stats = statsByName.get(name) ?? { sessions: 0, cost: 0 }
+      return {
+        id: a.id,
+        name,
+        display_name: a.display_name ?? name,
+        role: a.role ?? "empleado",
+        model: a.model ?? "claude-sonnet",
+        status: a.status ?? "active",
+        identity_chars: 0,
+        identity_source: "",
+        stats_30d: {
+          sessions: stats.sessions,
+          tokens_input: 0,
+          tokens_output: 0,
+          cost_usd: stats.cost,
+          last_activity: null,
+        },
+      } as AgentRow
+    })
   } catch (e) {
     console.error("dept rollup load failed", e)
     return []

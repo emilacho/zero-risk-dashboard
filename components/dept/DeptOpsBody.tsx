@@ -74,14 +74,15 @@ async function loadCascadeRollup() {
 }
 
 export async function DeptOpsBody() {
-  const agentsRes = await api.agents(200)
+  const agentsRes = await api.agents(200).catch(() => null)
   const workflows = await loadWorkflows()
   const cascadeRollup = await loadCascadeRollup()
 
-  const opsAgents = agentsRes.agents.filter((a) => classifyAgent(a) === "ops")
-  const untagged = agentsRes.agents.filter((a) => classifyAgent(a) === null)
-  const allAgentsCount = agentsRes.agents.length
-  const activeAgentsAll = agentsRes.agents.filter(
+  const allAgents = agentsRes?.agents ?? []
+  const opsAgents = allAgents.filter((a) => classifyAgent(a) === "ops")
+  const untagged = allAgents.filter((a) => classifyAgent(a) === null)
+  const allAgentsCount = allAgents.length
+  const activeAgentsAll = allAgents.filter(
     (a) => (a.stats_30d?.sessions ?? 0) > 0,
   ).length
 
