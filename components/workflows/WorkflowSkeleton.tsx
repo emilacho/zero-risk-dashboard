@@ -86,9 +86,11 @@ export interface WorkflowSkeletonProps {
 }
 
 // ── Dagre LR layout ─────────────────────────────────────────
+// Per port-25 dispatch spec · NODE_W/H bumped from STEP 7's 200×140 to
+// 240×160 (min spec from dispatch) · icon scale-up 56→64 matched below.
 
-const NODE_W = 200
-const NODE_H = 140
+const NODE_W = 240
+const NODE_H = 160
 
 interface LayoutResult {
   positions: Map<string, { x: number; y: number }>
@@ -215,7 +217,7 @@ function BusinessNodeRenderer({ data }: NodeProps<BusinessNode>) {
             color: `hsl(var(--hue-${data.hue}))`,
           }}
         >
-          <IconForKind kind={data.iconKind} size={56} strokeWidth={1.4} />
+          <IconForKind kind={data.iconKind} size={64} strokeWidth={1.4} />
         </span>
         {/* business-language label · middle */}
         <p

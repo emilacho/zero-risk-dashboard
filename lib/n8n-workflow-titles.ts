@@ -23,8 +23,9 @@
  */
 
 const EXACT_TITLES: Record<string, string> = {
+  // ── Original STEP 7d translations (CC#1) ──────────────────
   "creative fatigue auto-refresh loop (every 6h)":
-    "Ciclo de revisión creativa · cada 6 horas",
+    "Refresco Creativo · Cada 6 horas",
   "master journey orchestrator": "Orquestador maestro de jornadas",
   "cascade master": "Cascada principal · multi-agente",
   "cascade daily monitor": "Cascada · monitor diario",
@@ -41,6 +42,51 @@ const EXACT_TITLES: Record<string, string> = {
   "approval gateway": "Pasarela de aprobación · HITL",
   "lead intake": "Captura de leads",
   "lead intake to crm": "Captura de leads · CRM",
+  // ── Port from mission-control PR #25 · 24 explicit canon ──
+  "zero risk — cliente nuevo · landing cascade master":
+    "Onboarding Cliente · Cascade Landing",
+  "zero risk — competitor daily monitor (6am)":
+    "Monitoreo Competencia · Diario 6am",
+  "zero risk — meta ads full-stack optimizer v2 (daily 3am)":
+    "Optimizador Meta Ads · Diario 3am",
+  "zero risk — meta-agent weekly learning cycle (cron monday 9am)":
+    "Aprendizaje Sistémico · Semanal Lunes 9am",
+  "zero risk — social multi-platform publisher":
+    "Publicador Social Multi-Plataforma",
+  "zero risk — client onboarding e2e v2 (webhook: deal won)":
+    "Onboarding Cliente E2E · Trigger Venta Cerrada",
+  "zero risk — client onboarding e2e v2":
+    "Onboarding Cliente E2E",
+  "zero risk — cost watchdog":
+    "Vigilante de Costos · Real-time",
+  "zero risk — campaign metrics collector":
+    "Recolector Métricas Campañas",
+  "zero risk — daily ops digest":
+    "Resumen Operativo · Diario",
+  "zero risk — failed pipeline escalation":
+    "Escalación Pipeline Fallido",
+  "zero risk — hitl pause reminder":
+    "Recordatorio HITL · Tareas Pausadas",
+  "zero risk — pipeline delay resume":
+    "Reanudación Pipeline · Demoras",
+  "zero risk — lead to pipeline":
+    "Lead a Pipeline · Auto-Routing",
+  "zero risk — qbr monthly":
+    "Reporte QBR · Mensual",
+  "zero risk — brand discovery":
+    "Descubrimiento de Marca",
+  "zero risk — ad creative brief":
+    "Brief Creativo de Anuncios",
+  "zero risk — content publisher router":
+    "Ruteo Publicación de Contenido",
+  "zero risk — meta-agent weekly cron":
+    "Meta-Agente · Cron Semanal",
+  "zero risk — closed-loop attribution":
+    "Atribución Closed-Loop",
+  "zero risk — customer health score":
+    "Score de Salud del Cliente",
+  "zero risk — meta ads campaign creator (brazo 3)":
+    "Creador Campañas Meta Ads",
 }
 
 const TOKEN_MAP: Array<[RegExp, string]> = [

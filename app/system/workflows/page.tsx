@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { translateWorkflowTitle, workflowSubtitle } from "@/lib/n8n-workflow-titles"
+import { getWorkflowDescription } from "@/lib/n8n-workflow-descriptions"
 
 export const dynamic = "force-dynamic"
 
@@ -152,6 +153,18 @@ export default async function SystemWorkflowsTab() {
                           {workflowSubtitle(r.name)}
                         </span>
                       ) : null}
+                      {(() => {
+                        const desc = getWorkflowDescription({
+                          workflow_id: r.id,
+                          raw_title: r.name,
+                          translated_title: translateWorkflowTitle(r.name),
+                        })
+                        return desc ? (
+                          <span className="mt-1 block max-w-[80%] text-[11px] italic text-[hsl(var(--muted-foreground))]">
+                            {desc}
+                          </span>
+                        ) : null
+                      })()}
                     </Link>
                   </td>
                   <td className="num px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">

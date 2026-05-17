@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 import { WorkflowLiveCanvas } from "@/components/workflows/WorkflowLiveCanvas"
 import { translateWorkflowTitle, workflowSubtitle } from "@/lib/n8n-workflow-titles"
+import { getWorkflowDescription } from "@/lib/n8n-workflow-descriptions"
 import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 export const dynamic = "force-dynamic"
@@ -124,6 +125,23 @@ export default async function WorkflowPage({
               ? new Date(wf.updatedAt).toISOString().slice(0, 16).replace("T", " ")
               : "—"}
           </p>
+          {(() => {
+            const desc = getWorkflowDescription({
+              workflow_id: wf.id,
+              raw_title: wf.name,
+              translated_title: translateWorkflowTitle(wf.name),
+            })
+            return desc ? (
+              <div className="mt-4 max-w-[80%]">
+                <p className="num text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
+                  qué hace
+                </p>
+                <p className="mt-1 text-[14px] italic text-[hsl(var(--foreground)/0.78)]">
+                  {desc}
+                </p>
+              </div>
+            ) : null
+          })()}
         </div>
         <a
           href={`https://n8n-production-72be.up.railway.app/workflow/${wf.id}`}
