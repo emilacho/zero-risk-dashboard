@@ -52,7 +52,7 @@ export function LoginForm({ next }: { next: string }) {
       </Tabs.List>
 
       <Tabs.Content value="password">
-        <PasswordForm next={next} switchToMagic={() => setTab("magic")} />
+        <PasswordForm next={next} />
       </Tabs.Content>
       <Tabs.Content value="magic">
         <MagicLinkForm next={next} />
@@ -63,17 +63,11 @@ export function LoginForm({ next }: { next: string }) {
 
 // ── Password sign-in ────────────────────────────────────────────────
 
-function PasswordForm({
-  next,
-  switchToMagic,
-}: {
-  next: string
-  switchToMagic: () => void
-}) {
+function PasswordForm({ next }: { next: string }) {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [state, setState] = useState<"idle" | "submitting" | "error">("idle")
+  const [state, setState] = useState<"idle" | "submitting" | "error" | "recovery_sent">("idle")
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -90,6 +84,27 @@ function PasswordForm({
     // Session cookie set · navigate
     router.replace(next)
     router.refresh()
+  }
+
+  async function sendRecovery() {
+    if (!email) {
+      setErrMsg("Ingresá tu email primero · usamos ese para enviar el recovery link")
+      setState("error")
+      return
+    }
+    setState("submitting")
+    setErrMsg(null)
+    const supa = getBrowserClient()
+    const origin = typeof window !== "undefined" ? window.location.origin : ""
+    const { error } = await supa.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
+    })
+    if (error) {
+      setState("error")
+      setErrMsg(error.message)
+      return
+    }
+    setState("recovery_sent")
   }
 
   return (
@@ -138,11 +153,20 @@ function PasswordForm({
 
       <button
         type="button"
-        onClick={switchToMagic}
-        className="num self-start text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--accent))]"
+        onClick={sendRecovery}
+        disabled={state === "submitting" || state === "recovery_sent"}
+        className="num self-start text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--accent))] disabled:opacity-50"
       >
-        ¿Olvidaste contraseña? · usar magic link →
+        {state === "recovery_sent"
+          ? "Recovery email enviado · revisá inbox ↓"
+          : "¿Olvidaste contraseña? · enviar recovery email →"}
       </button>
+
+      {state === "recovery_sent" ? (
+        <div className="rounded-md border-[0.5px] border-[hsl(var(--success)/0.4)] bg-[hsl(var(--success)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--success))]">
+          Email enviado a <code className="font-mono">{email}</code> · tocá el link · vas a quedar redirigido a <code className="font-mono">/auth/update-password</code> para setear una nueva contraseña.
+        </div>
+      ) : null}
 
       {state === "error" && errMsg ? (
         <ErrorTile msg={errMsg} />
@@ -230,7 +254,8 @@ function MagicLinkForm({ next }: { next: string }) {
       {state === "error" && errMsg ? <ErrorTile msg={errMsg} /> : null}
 
       <p className="num mt-2 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-        Magic link · primera vez · sets password en /settings/security (backlog)
+        Magic link · primera vez · luego setear password en{" "}
+        <code className="font-mono text-[hsl(var(--accent))]">/settings/security</code>
       </p>
     </form>
   )
