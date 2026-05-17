@@ -73,27 +73,18 @@
     --success: 154 100% 41%;           /* #00D084 */
     --danger: 347 100% 60%;            /* #FF3366 */
 
-    /* Category palette · v3 multi-color · kept for legacy components
-       (cubicle card hues + memory-graph edge variants). The new Lumen
-       primary/accent above override the front-page hierarchy. */
+    /* Category palette · v3 multi-color · ALL referenced as HSL triplets
+       so they compose with `hsl(var(--hue-x) / 0.4)` alpha tricks. Aligned
+       to flagship tokens (--primary-glow · --accent · --success · --danger)
+       so kind-specific surfaces inherit the Lumen v3 brand pair. Legacy
+       duplicate block (L90-101 pre-fix · slightly different values that
+       silently won via CSS cascade · masking the alignment intent) removed
+       2026-05-17 per audit `2026-05-17-component-library-audit.md`. */
     --hue-violet:  264 78% 60%;        /* aligned to --primary-glow */
     --hue-cyan:    182 60% 57%;        /* aligned to --accent */
     --hue-amber:    40 95% 60%;
     --hue-emerald: 154 100% 41%;       /* aligned to --success */
     --hue-rose:    347 100% 60%;       /* aligned to --danger */
-    --hue-orange:   25 95% 60%;
-    --hue-purple:  280 80% 65%;
-    --hue-teal:    173 80% 50%;
-    --hue-sky:     205 90% 60%;
-    --hue-lime:     90 75% 55%;
-
-    /* Category palette · v3 multi-color · ALL referenced as HSL triplets
-       so they compose with `hsl(var(--hue-x) / 0.4)` alpha tricks. */
-    --hue-violet:  263 80% 65%;
-    --hue-cyan:    187 85% 55%;
-    --hue-amber:    40 95% 60%;
-    --hue-emerald: 160 84% 50%;
-    --hue-rose:    330 80% 65%;
     --hue-orange:   25 95% 60%;
     --hue-purple:  280 80% 65%;
     --hue-teal:    173 80% 50%;
