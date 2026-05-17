@@ -12,6 +12,7 @@
  */
 import { ReactNode, useRef, type MouseEvent } from 'react'
 import { Sparkline } from './Sparkline'
+import { AnimatedNumber } from '../../../components/AnimatedNumber'
 import type { KpiMetric } from '../types'
 
 export interface KpiCardProps {
@@ -32,20 +33,17 @@ export interface KpiCardProps {
   className?: string
 }
 
-function fmt(value: number, kind: KpiCardProps['format']): string {
-  if (kind === 'currency') {
-    const abs = Math.abs(value)
-    if (abs >= 1000) return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`
-    if (abs < 1) return `$${value.toFixed(3)}`
-    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  }
-  if (kind === 'percent') {
-    return `${value.toFixed(1)}%`
-  }
-  // compact integer-friendly
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
-  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`
-  return value.toLocaleString('en-US')
+// Phase 4.1 · `format` prop is now a string identifier · maps to
+// AnimatedNumber's formatType dispatcher. The old `fmt(value, kind)`
+// helper is gone · NO function callbacks crossing boundaries.
+
+function mapFormat(kind: KpiCardProps['format']):
+  | 'currency'
+  | 'percent'
+  | 'compact' {
+  if (kind === 'currency') return 'currency'
+  if (kind === 'percent') return 'percent'
+  return 'compact'
 }
 
 function fmtDelta(p: number): string {
@@ -73,7 +71,6 @@ export function KpiCard({
     el.style.setProperty('--spotlight-y', `${e.clientY - r.top}px`)
   }
 
-  const value = fmt(metric.value, format)
   const deltaPositive = metric.delta > 0
   const deltaNeutral = metric.delta === 0
   const deltaGood = deltaNeutral ? null : deltaPositive ? deltaIsGood : !deltaIsGood
@@ -94,8 +91,9 @@ export function KpiCard({
       data-glow={glow}
       data-spotlight="true"
       data-pop="true"
+      data-rim={glow}
       className={[
-        'surface-card group',
+        'surface-card rim-instr group',
         isFeature ? 'p-6' : 'p-5',
         className ?? '',
       ].join(' ')}
@@ -114,14 +112,14 @@ export function KpiCard({
         </div>
 
         <div className="flex items-end justify-between gap-4">
-          <span
+          <AnimatedNumber
+            value={metric.value}
+            formatType={mapFormat(format)}
             className={[
               'font-display font-semibold leading-none tabular-nums',
               isFeature ? 'text-5xl' : 'text-3xl',
             ].join(' ')}
-          >
-            {value}
-          </span>
+          />
           {showSparkline && metric.sparkline?.length ? (
             <Sparkline
               points={metric.sparkline}

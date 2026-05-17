@@ -42,23 +42,50 @@
   }
 
   .dark {
-    --background: 240 14% 3%;
-    --foreground: 0 0% 96%;
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 96%;
-    --primary: 263 80% 65%;
-    --primary-foreground: 240 10% 5%;
-    --primary-glow: 263 90% 60%;
-    --secondary: 240 8% 11%;
-    --secondary-foreground: 0 0% 96%;
-    --muted: 240 8% 11%;
-    --muted-foreground: 240 5% 64%;
-    --accent: 187 85% 55%;
-    --accent-foreground: 240 10% 5%;
-    --accent-glow: 187 95% 50%;
-    --border: 240 8% 14%;
-    --input: 240 6% 18%;
-    --ring: 263 80% 65%;
+    /* Lumen v3 · canvas + ink */
+    --background: 264 41% 5%;          /* #0A0612 · deep violet-black */
+    --foreground: 240 9% 96%;          /* #F5F5F7 · text-primary */
+    --card: 264 32% 7%;                /* deep card surface */
+    --card-foreground: 240 9% 96%;
+    --secondary: 264 20% 11%;
+    --secondary-foreground: 240 9% 96%;
+    --muted: 264 18% 12%;
+    --muted-foreground: 240 3% 57%;    /* #8E8E93 · text-secondary */
+    --border: 264 30% 14%;             /* hairline border base */
+    --input: 264 25% 18%;
+
+    /* Lumen v3 + Phase 2 · violet flagship (invert relación previa).
+       --primary-deep is the brand hex (#3D2466) for solid/deep fills
+       (sidebar, button base). --primary remains the brighter visible
+       value so violet *reads* as the flagship surface color, with
+       cyan reserved for "agent is doing something" state per ref
+       09 + 16. Cyan accent intensity reduced slightly. */
+    --primary-deep: 264 49% 28%;       /* #3D2466 · brand violet · deep */
+    --primary: 264 78% 60%;            /* visible flagship violet */
+    --primary-foreground: 240 9% 96%;
+    --primary-glow: 264 88% 68%;       /* halo bloom · brighter still */
+    --accent: 182 60% 57%;             /* #4DD4D8 · cyan · secondary */
+    --accent-foreground: 264 41% 5%;
+    --accent-glow: 182 75% 65%;
+    --ring: 264 88% 68%;
+
+    /* Status tokens · success + danger */
+    --success: 154 100% 41%;           /* #00D084 */
+    --danger: 347 100% 60%;            /* #FF3366 */
+
+    /* Category palette · v3 multi-color · kept for legacy components
+       (cubicle card hues + memory-graph edge variants). The new Lumen
+       primary/accent above override the front-page hierarchy. */
+    --hue-violet:  264 78% 60%;        /* aligned to --primary-glow */
+    --hue-cyan:    182 60% 57%;        /* aligned to --accent */
+    --hue-amber:    40 95% 60%;
+    --hue-emerald: 154 100% 41%;       /* aligned to --success */
+    --hue-rose:    347 100% 60%;       /* aligned to --danger */
+    --hue-orange:   25 95% 60%;
+    --hue-purple:  280 80% 65%;
+    --hue-teal:    173 80% 50%;
+    --hue-sky:     205 90% 60%;
+    --hue-lime:     90 75% 55%;
 
     /* Category palette · v3 multi-color · ALL referenced as HSL triplets
        so they compose with `hsl(var(--hue-x) / 0.4)` alpha tricks. */
@@ -96,67 +123,45 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────
- * Ambient backdrop · v3 amped up · 3 radial glow zones + heavier dot grid
+ * Ambient backdrop · v3 Lumen-polish · single centered violet radial.
+ * NO ruido · NO dot grid · NO multi-beam. Single subtle halo behind
+ * the content stack so the eye finds the dashboard, not the canvas.
+ * Legacy `.ambient-grid` / `.ambient-beam-1..3` / `.bg-noise` classes
+ * still exist (used by older mounts) but are neutralized to no-ops.
  * ────────────────────────────────────────────────────────────────── */
 
 @layer base {
-  .ambient-grid {
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-    background-image:
-      radial-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px),
-      radial-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px);
-    background-size: 32px 32px, 32px 32px;
-    background-position: 0 0, 16px 16px;
-    pointer-events: none;
-    mask-image: radial-gradient(ellipse at center, black, transparent 80%);
-  }
-
-  /* Three diagonal radial glow zones · violet top-right, cyan bottom-left,
-     rose mid-left · pure CSS · no client JS */
+  .ambient-grid,
   .ambient-beam-1,
   .ambient-beam-2,
   .ambient-beam-3 {
-    position: fixed;
-    z-index: -1;
-    pointer-events: none;
-    filter: blur(80px);
-    mix-blend-mode: screen;
-  }
-  .ambient-beam-1 {
-    inset: -25% -10% auto auto;
-    width: 70vw;
-    height: 60vh;
-    background: radial-gradient(ellipse at top right, hsl(var(--hue-violet) / 0.55), transparent 60%);
-    opacity: 0.4;
-  }
-  .ambient-beam-2 {
-    inset: auto auto -25% -10%;
-    width: 60vw;
-    height: 55vh;
-    background: radial-gradient(ellipse at bottom left, hsl(var(--hue-cyan) / 0.5), transparent 60%);
-    opacity: 0.35;
-  }
-  .ambient-beam-3 {
-    inset: 35% -10% auto auto;
-    width: 50vw;
-    height: 40vh;
-    background: radial-gradient(ellipse at center, hsl(var(--hue-rose) / 0.35), transparent 60%);
-    opacity: 0.25;
+    /* Legacy compat · no-op in Lumen v3 */
+    display: none;
   }
 
   .bg-noise {
-    background-image:
-      linear-gradient(to bottom, hsl(var(--background)) 0%, hsl(var(--background)) 100%),
-      repeating-linear-gradient(
-        45deg,
-        hsl(var(--foreground) / 0.012) 0,
-        hsl(var(--foreground) / 0.012) 1px,
-        transparent 1px,
-        transparent 3px
+    /* Legacy compat · neutralized · solid bg only */
+    background-image: none;
+  }
+
+  .ambient-halo {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        ellipse 70vw 60vh at 50% 28%,
+        hsl(var(--primary-glow) / 0.14),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 55vw 45vh at 50% 95%,
+        hsl(var(--accent) / 0.06),
+        transparent 70%
       );
-    background-blend-mode: normal, overlay;
+    filter: blur(60px);
+    mix-blend-mode: screen;
   }
 }
 
@@ -171,15 +176,16 @@
   .surface-card {
     position: relative;
     background:
-      linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.72));
-    border: 1px solid hsl(var(--border));
+      linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--card) / 0.78));
+    /* Lumen v3 · 0.5px hairline · violet glow on hover */
+    border: 0.5px solid hsl(var(--primary-glow) / 0.18);
     border-radius: 1rem;
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(8px);
     transition:
-      transform 220ms cubic-bezier(.2,.7,.2,1),
-      border-color 220ms ease,
-      box-shadow 220ms ease,
-      background 220ms ease;
+      transform 300ms cubic-bezier(.2,.7,.2,1),
+      border-color 300ms ease,
+      box-shadow 300ms ease,
+      background 300ms ease;
     overflow: hidden;
     isolation: isolate;
     /* Default hue is violet. Components override with data-hue=... */
@@ -259,6 +265,78 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────
+ * Phase 2 · Edge-as-instrumentation rim
+ *
+ * Per ref 02 (Cantina HUD bible) + ref 04 (Perception Avengers tri-up) ·
+ * cards carry corner ticks at the four corners + (optional) a hairline
+ * sector label. The rim reads as "this is a sensor pane", not chrome.
+ *
+ * Usage:   <div className="surface-card rim-instr" data-rim="violet">
+ * Sectors: add `data-rim-zone="N|S|E|W"` to surface a tiny cardinal
+ *          letter in the top-left for cardinal-sector layouts on
+ *          the home page.
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .rim-instr {
+    --rim-color: hsl(var(--primary-glow) / 0.7);
+  }
+  .rim-instr[data-rim="cyan"]   { --rim-color: hsl(var(--accent) / 0.8); }
+  .rim-instr[data-rim="violet"] { --rim-color: hsl(var(--primary-glow) / 0.8); }
+  .rim-instr[data-rim="amber"]  { --rim-color: hsl(var(--hue-amber) / 0.8); }
+  .rim-instr[data-rim="rose"]   { --rim-color: hsl(var(--danger) / 0.8); }
+
+  /* Four corner ticks · 8px L-shape · 0.5px hairline · sit ABOVE the
+     ::before gradient border so they remain visible on hover. */
+  .rim-instr::before { z-index: 2; }
+  .rim-instr {
+    background-image:
+      /* top-left ┌ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* top-right ┐ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* bottom-left └ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* bottom-right ┘ */
+      linear-gradient(to right, var(--rim-color), var(--rim-color)),
+      linear-gradient(to bottom, var(--rim-color), var(--rim-color)),
+      /* keep the surface-card linear-gradient background underneath */
+      linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--card) / 0.78));
+    background-size:
+      10px 0.5px, 0.5px 10px,
+      10px 0.5px, 0.5px 10px,
+      10px 0.5px, 0.5px 10px,
+      10px 0.5px, 0.5px 10px,
+      100% 100%;
+    background-position:
+      6px 6px, 6px 6px,
+      calc(100% - 6px) 6px, calc(100% - 6px) 6px,
+      6px calc(100% - 6px), 6px calc(100% - 6px),
+      calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) calc(100% - 6px),
+      0 0;
+    background-repeat: no-repeat;
+  }
+
+  /* Tiny cardinal sector glyph · top-left corner · monospace */
+  .rim-instr[data-rim-zone]::after {
+    content: attr(data-rim-zone);
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--rim-color);
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 2;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
  * Text gradients + display font helpers
  * ────────────────────────────────────────────────────────────────── */
 
@@ -313,11 +391,33 @@
 @keyframes sweep-bar     { 0% { width: 0%; } 100% { width: var(--sweep-target, 100%); } }
 @keyframes blur-fade     { 0% { filter: blur(8px); opacity: 0; transform: translateY(6px); } 100% { filter: blur(0); opacity: 1; transform: translateY(0); } }
 @keyframes spin-slow     { to { transform: rotate(360deg); } }
+@keyframes spin-reverse  { to { transform: rotate(-360deg); } }
 @keyframes flow-dash     { to { stroke-dashoffset: -32; } }
 @keyframes scan-line     { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
 @keyframes glow-pulse    { 0%,100% { filter: drop-shadow(0 0 6px hsl(var(--hue) / 0.6)); } 50% { filter: drop-shadow(0 0 14px hsl(var(--hue) / 0.95)); } }
 
+/* ──────────────────────────────────────────────────────────────────
+ * Phase 2 · Jarvis motion vocabulary · binary breathing/scanning
+ * Idle state = breathing 3.5s ease-in-out · Active state = scanning
+ * 0.8s linear sweep. These two keyframes drive every "system heartbeat"
+ * surface on the dashboard (sentinel, status dots, rim ticks).
+ * ────────────────────────────────────────────────────────────────── */
+@keyframes breathing     { 0%,100% { opacity: 0.45; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } }
+@keyframes scanning      { 0% { transform: rotate(0deg); opacity: 0; } 6% { opacity: 0.9; } 50% { opacity: 0.95; } 100% { transform: rotate(360deg); opacity: 0; } }
+@keyframes scan-sweep    { 0% { stroke-dashoffset: 760; opacity: 0.95; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes ring-rotate-slow    { to { transform: rotate(360deg); } }
+@keyframes ring-rotate-counter { to { transform: rotate(-360deg); } }
+@keyframes radial-pulse        { 0%,100% { opacity: 0.35; r: 4; } 50% { opacity: 1; r: 6; } }
+
 @layer utilities {
+  /* Jarvis vocabulary · binary heartbeat */
+  .animate-breathing       { animation: breathing 3.5s ease-in-out infinite; }
+  .animate-scanning        { animation: scanning  0.8s linear infinite; }
+  .animate-ring-slow       { animation: ring-rotate-slow 24s linear infinite; transform-origin: center; }
+  .animate-ring-mid        { animation: ring-rotate-slow 14s linear infinite; transform-origin: center; }
+  .animate-ring-counter    { animation: ring-rotate-counter 18s linear infinite; transform-origin: center; }
+  .animate-radial-pulse    { animation: radial-pulse 2.4s ease-in-out infinite; }
+
   .animate-shimmer {
     background-image: linear-gradient(
       110deg,
@@ -338,6 +438,26 @@
   /* Glow utilities · composable */
   .glow-violet   { box-shadow: 0 0 24px -2px hsl(var(--hue-violet) / 0.55); }
   .glow-cyan     { box-shadow: 0 0 24px -2px hsl(var(--hue-cyan) / 0.55); }
+
+  /* Phase 2 · Jarvis mono-numeral utility · forces JetBrains Mono +
+     tabular-nums on every digit. Apply with `.num` to any element
+     that should tick in place rather than reflow. */
+  .num {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "ss01" 1, "tnum" 1;
+    letter-spacing: 0.01em;
+  }
+
+  /* Phase 2 mandate · numerals are instrumentation. Any element
+     already marked `.tabular-nums` (already widespread in v1) now
+     also picks up the mono face automatically. This converts the
+     entire dashboard's digit set in one rule without touching 30+
+     component files. */
+  .tabular-nums {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
   .glow-amber    { box-shadow: 0 0 24px -2px hsl(var(--hue-amber) / 0.55); }
   .glow-emerald  { box-shadow: 0 0 24px -2px hsl(var(--hue-emerald) / 0.55); }
   .glow-rose     { box-shadow: 0 0 24px -2px hsl(var(--hue-rose) / 0.55); }

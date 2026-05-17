@@ -1,0 +1,172 @@
+"use client"
+/**
+ * Sidebar · Lumen v3 collapsible nav rail.
+ *
+ *   - 64px wide collapsed (always visible · icon-only)
+ *   - 240px wide expanded on hover · labels slide in
+ *   - glass-morphism backdrop · 0.5px violet hairline border
+ *   - Lucide outline icons · stroke 1.5 · 20px
+ *   - active route gets a violet dot + violet glow rail accent
+ *
+ * Replaces the previous top horizontal Header. The page content is
+ * offset by `pl-[64px]` in `app/layout.tsx` so collapsed state is the
+ * resting layout; expansion overlays without reflowing.
+ */
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { motion } from "framer-motion"
+import {
+  Sparkles,
+  LayoutDashboard,
+  Cpu,
+  Users,
+  Network,
+  Building2,
+  Boxes,
+  type LucideIcon,
+} from "lucide-react"
+import { DEPARTMENTS } from "@/lib/departments"
+import { SYSTEM_TABS } from "@/lib/system-tabs"
+
+interface NavItem {
+  href: string
+  label: string
+  icon: LucideIcon
+  /** When set, this is the parent of a sub-tree (renders chevron + children). */
+  children?: { href: string; label: string; cardinal: string; hue: string }[]
+}
+
+const NAV: NavItem[] = [
+  { href: "/", label: "Overview", icon: LayoutDashboard },
+  {
+    href: "/dept",
+    label: "Departamentos",
+    icon: Building2,
+    children: DEPARTMENTS.map((d) => ({
+      href: `/dept/${d.slug}`,
+      label: d.label,
+      cardinal: d.shortLabel,
+      hue: d.hue,
+    })),
+  },
+  {
+    href: "/system",
+    label: "System",
+    icon: Boxes,
+    children: SYSTEM_TABS.map((t) => ({
+      href: `/system/${t.slug}`,
+      label: t.label,
+      cardinal: t.slug.slice(0, 3).toUpperCase(),
+      hue: t.hue,
+    })),
+  },
+  { href: "/agents", label: "Agents", icon: Cpu },
+  { href: "/clients", label: "Clients", icon: Users },
+  { href: "/graph", label: "Graph", icon: Network },
+]
+
+export function Sidebar() {
+  const pathname = usePathname()
+
+  return (
+    <motion.aside
+      initial={false}
+      whileHover={{ width: 240 }}
+      animate={{ width: 64 }}
+      transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+      className="group/sidebar fixed left-0 top-0 z-40 flex h-screen flex-col overflow-hidden border-r-[0.5px] border-[hsl(var(--primary-glow)/0.18)] bg-[hsl(var(--background)/0.6)] backdrop-blur-xl"
+    >
+      {/* Brand mark · 64px square */}
+      <Link
+        href="/"
+        className="flex h-16 items-center gap-3 px-[18px] transition-colors hover:bg-[hsl(var(--primary-glow)/0.06)]"
+      >
+        <span className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-foreground shadow-[0_0_18px_-2px_hsl(var(--primary-glow)/0.6)]">
+          <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+        </span>
+        <span className="overflow-hidden whitespace-nowrap font-marker text-[15px] leading-none tracking-tight opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100">
+          Zero Risk
+        </span>
+      </Link>
+
+      {/* Hairline divider */}
+      <div className="mx-3 h-px bg-[hsl(var(--primary-glow)/0.12)]" />
+
+      {/* Nav stack */}
+      <nav className="mt-3 flex flex-1 flex-col gap-1 px-3">
+        {NAV.map(({ href, label, icon: Icon, children }) => {
+          const active =
+            href === "/"
+              ? pathname === "/"
+              : pathname === href || pathname?.startsWith(href + "/")
+          return (
+            <div key={href} className="flex flex-col">
+              <Link
+                href={
+                  href === "/dept"
+                    ? "/dept/ops"
+                    : href === "/system"
+                      ? "/system/agents"
+                      : href
+                }
+                aria-label={label}
+                data-active={active ? "true" : undefined}
+                className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--primary-glow)/0.12)]"
+              >
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary-glow))] opacity-0 shadow-[0_0_8px_hsl(var(--primary-glow)/0.7)] transition-opacity group-data-[active=true]/item:opacity-100"
+                />
+                <Icon
+                  strokeWidth={1.5}
+                  className="h-5 w-5 shrink-0 text-[hsl(var(--muted-foreground))] transition-colors group-hover/item:text-foreground group-data-[active=true]/item:text-[hsl(var(--accent))]"
+                />
+                <span className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 group-hover/item:text-foreground group-data-[active=true]/item:text-foreground">
+                  {label}
+                </span>
+              </Link>
+              {/* Children · only render on parent expansion */}
+              {children && active ? (
+                <div className="ml-6 mt-1 flex flex-col gap-0.5 opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100">
+                  {children.map((child) => {
+                    const childActive = pathname === child.href
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        data-active={childActive ? "true" : undefined}
+                        className="group/child flex h-7 items-center gap-2 rounded-md px-2 text-[11px] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--primary-glow)/0.06)] hover:text-foreground data-[active=true]:bg-[hsl(var(--primary-glow)/0.1)] data-[active=true]:text-foreground"
+                      >
+                        <span
+                          className="num inline-flex h-4 items-center rounded px-1 text-[9px] uppercase tracking-[0.16em]"
+                          style={{
+                            color: `hsl(var(--hue-${child.hue}))`,
+                            background: `hsl(var(--hue-${child.hue}) / 0.12)`,
+                          }}
+                        >
+                          {child.cardinal}
+                        </span>
+                        <span className="overflow-hidden whitespace-nowrap">{child.label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* Footer · live status dot */}
+      <div className="flex h-12 items-center gap-3 border-t-[0.5px] border-[hsl(var(--primary-glow)/0.12)] px-[18px]">
+        <span className="relative inline-flex h-2 w-2 shrink-0">
+          <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] opacity-60 animate-ping" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(var(--success))]" />
+        </span>
+        <span className="overflow-hidden whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100">
+          Live
+        </span>
+      </div>
+    </motion.aside>
+  )
+}

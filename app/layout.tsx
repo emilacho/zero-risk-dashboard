@@ -1,7 +1,14 @@
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google"
+import {
+  Inter,
+  JetBrains_Mono,
+  Space_Grotesk,
+  Permanent_Marker,
+} from "next/font/google"
 import "./globals.css"
 import { RouteTransition } from "@/components/RouteTransition"
+import { Sidebar } from "@/components/Sidebar"
+import { CoworkChat } from "@/components/CoworkChat"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,13 +20,20 @@ const mono = JetBrains_Mono({
   variable: "--font-mono",
   display: "swap",
 })
-// Display font · used for the hero headlines and section titles to give
-// the dashboard a Lumen-Studio-style hierarchy (tight letter-spacing,
-// confident weight) without leaving the Inter family for body copy.
+// Display font · Space Grotesk bold for section titles · tight letter-
+// spacing, confident weight without leaving the sans family.
 const display = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   weight: ["400", "500", "600", "700"],
+  display: "swap",
+})
+// Marker · single-weight Google handwriting · used sparingly for the
+// brand mark + hero accent only · keeps body copy in Inter.
+const marker = Permanent_Marker({
+  subsets: ["latin"],
+  variable: "--font-marker",
+  weight: "400",
   display: "swap",
 })
 
@@ -39,13 +53,15 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${mono.variable} ${display.variable} font-sans antialiased bg-noise`}
+        className={`${inter.variable} ${mono.variable} ${display.variable} ${marker.variable} font-sans antialiased`}
       >
-        {/* Static decorative layer · pure CSS · no client JS */}
-        <div className="ambient-grid" aria-hidden />
-        <div className="ambient-beam-1" aria-hidden />
-        <div className="ambient-beam-2" aria-hidden />
-        <RouteTransition>{children}</RouteTransition>
+        {/* Lumen v3 · single subtle violet halo · no grid, no noise */}
+        <div className="ambient-halo" aria-hidden />
+        <Sidebar />
+        <RouteTransition>
+          <div className="pl-[64px]">{children}</div>
+        </RouteTransition>
+        <CoworkChat />
       </body>
     </html>
   )

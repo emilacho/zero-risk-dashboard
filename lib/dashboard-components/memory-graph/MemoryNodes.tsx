@@ -8,10 +8,20 @@
  *  - hover scale + glow bloom
  *
  * Renderer registry exported as `memoryNodeTypes` for ReactFlow.
+ *
+ * Phase 3 · `sector-pill` is a non-data ornamental node type used to
+ * label each cardinal cluster (AGENTS N, CLIENTS W, etc). It draws a
+ * floating violet-glow pill above the cluster and carries the count.
  */
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { useState } from 'react'
 import type { MemoryNodeData, MemoryNodeKind } from '../types'
+
+export interface SectorPillData extends Record<string, unknown> {
+  label: string
+  cardinal: string
+  count: number
+}
 
 export type MemoryGraphNode = Node<MemoryNodeData, MemoryNodeKind>
 
@@ -474,6 +484,38 @@ export function RevenueStatNode({ data }: NodeProps<MemoryGraphNode>) {
 }
 
 // ── Registry passed to ReactFlow ──────────────────────────────────────
+// ── Sector pill · floating cardinal label above each cluster ─────────
+function SectorPillNode({ data }: NodeProps<Node<SectorPillData>>) {
+  return (
+    <div
+      className="pointer-events-none flex select-none items-center gap-2 rounded-full border-[0.5px] px-3 py-1 shadow-[0_0_16px_-2px_hsl(var(--primary-glow)/0.55)] backdrop-blur-sm"
+      style={{
+        borderColor: 'hsl(var(--primary-glow) / 0.55)',
+        background: 'hsl(var(--background) / 0.85)',
+      }}
+    >
+      <span
+        className="font-mono text-[9px] uppercase tracking-[0.22em]"
+        style={{ color: 'hsl(var(--accent))' }}
+      >
+        {data.cardinal}
+      </span>
+      <span
+        className="text-[10px] font-semibold uppercase tracking-[0.18em]"
+        style={{ color: 'hsl(var(--foreground))' }}
+      >
+        {data.label}
+      </span>
+      <span
+        className="num text-[10px] tabular-nums"
+        style={{ color: 'hsl(var(--muted-foreground))' }}
+      >
+        ×{data.count}
+      </span>
+    </div>
+  )
+}
+
 export const memoryNodeTypes = {
   'agency-root':   AgencyRootNode,
   client:          ClientNode,
@@ -486,4 +528,5 @@ export const memoryNodeTypes = {
   'content-asset': ContentAssetNode,
   'team-member':   TeamMemberNode,
   'revenue-stat':  RevenueStatNode,
+  'sector-pill':   SectorPillNode,
 }

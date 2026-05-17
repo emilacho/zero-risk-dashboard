@@ -7,6 +7,9 @@ import {
   buildAgencyMemoryGraph,
   buildStatsBarSnapshot,
 } from "@/lib/transforms"
+import { RadialSentinel } from "@/components/RadialSentinel"
+import { OpsKpiGrid } from "@/components/OpsKpiGrid"
+import { DeptOverviewGrid } from "@/components/DeptOverviewGrid"
 
 /**
  * HomeMemoryHero · the v3 home-page hero.
@@ -43,7 +46,24 @@ export async function HomeMemoryHero() {
   return (
     <div className="flex flex-col gap-6">
       <StatsBar snapshot={stats} />
-      <MemoryGraph data={graph} height={720} title={null} chrome="chrome" />
+      <DeptOverviewGrid />
+      <OpsKpiGrid />
+      {/* Phase 2 · radial sentinel as foreground HUD overlay on top of
+          the MemoryGraph. The graph remains the primary affordance via
+          ReactFlow interactions (pan/zoom); the sentinel reads as a
+          translucent instrumentation rim around the centre, per refs
+          02 Cantina / 05 GMUNK / 09 Jayse · "system at rest, but
+          alive". Lower z-index of the sentinel rings is fine because
+          `pointer-events-none` keeps the graph fully interactive. */}
+      <div className="relative">
+        <MemoryGraph data={graph} height={720} title={null} chrome="chrome" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-70 mix-blend-screen"
+        >
+          <RadialSentinel size={640} label="LUMEN · ZERO RISK" />
+        </div>
+      </div>
     </div>
   )
 }

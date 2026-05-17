@@ -308,9 +308,10 @@ export function buildAgencyMemoryGraph(args: {
   }
 
   // 10 · Team members · the humans
+  // Canon correction 2026-05-17 · Xavier Pérez NO existe · figura
+  // ficticia. Único founder/admin · Emilio Pérez.
   const TEAM = [
-    { id: "team:emilio", label: "Emilio Pérez", role: "founder · ops" },
-    { id: "team:xavier", label: "Xavier Pérez", role: "co-founder · sales" },
+    { id: "team:emilio", label: "Emilio Pérez", role: "founder · admin" },
   ]
   for (const t of TEAM) {
     nodes.push({ id: t.id, kind: "team-member", label: t.label, meta: { role: t.role } })

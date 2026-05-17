@@ -3,8 +3,8 @@ import Link from "next/link"
 import { api, type ClientRow } from "@/lib/api"
 import { ClienteCarpetaCard } from "@/lib/dashboard-components"
 import { clientRowToFolder } from "@/lib/transforms"
-import { Header } from "@/components/Header"
 import { Skeleton } from "@/components/Skeleton"
+import { StaggerList } from "@/components/StaggerList"
 
 export const dynamic = "force-dynamic"
 
@@ -47,7 +47,7 @@ async function ClientsGrid() {
     pills: inferPills(c),
   }))
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <StaggerList className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {folders.map((folder, i) => (
         <Link
           key={data.clients[i].id}
@@ -57,14 +57,13 @@ async function ClientsGrid() {
           <ClienteCarpetaCard folder={folder} interactive className="h-full" />
         </Link>
       ))}
-    </div>
+    </StaggerList>
   )
 }
 
 export default function ClientsPage() {
   return (
     <>
-      <Header />
       <main className="mx-auto max-w-7xl px-6 pb-16 pt-10">
         <section className="mb-10 flex flex-col gap-3">
           <span className="eyebrow-chip self-start">Carpetas · clientes</span>

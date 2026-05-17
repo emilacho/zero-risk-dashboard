@@ -60,8 +60,9 @@ export function ClienteCarpetaCard({
       onClick={onOpen}
       data-hue={statusHue}
       data-pop="true"
+      data-rim="violet"
       className={[
-        'surface-card relative',
+        'surface-card rim-instr relative',
         interactive ? 'cursor-pointer' : '',
         className ?? '',
       ].join(' ')}
