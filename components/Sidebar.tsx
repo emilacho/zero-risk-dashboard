@@ -21,17 +21,32 @@ import {
   Cpu,
   Users,
   Network,
+  Building2,
   type LucideIcon,
 } from "lucide-react"
+import { DEPARTMENTS } from "@/lib/departments"
 
 interface NavItem {
   href: string
   label: string
   icon: LucideIcon
+  /** When set, this is the parent of a sub-tree (renders chevron + children). */
+  children?: { href: string; label: string; cardinal: string; hue: string }[]
 }
 
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  {
+    href: "/dept",
+    label: "Departamentos",
+    icon: Building2,
+    children: DEPARTMENTS.map((d) => ({
+      href: `/dept/${d.slug}`,
+      label: d.label,
+      cardinal: d.shortLabel,
+      hue: d.hue,
+    })),
+  },
   { href: "/agents", label: "Agents", icon: Cpu },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/graph", label: "Graph", icon: Network },
@@ -66,32 +81,59 @@ export function Sidebar() {
 
       {/* Nav stack */}
       <nav className="mt-3 flex flex-1 flex-col gap-1 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, children }) => {
           const active =
             href === "/"
               ? pathname === "/"
               : pathname === href || pathname?.startsWith(href + "/")
           return (
-            <Link
-              key={href}
-              href={href}
-              aria-label={label}
-              data-active={active ? "true" : undefined}
-              className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--primary-glow)/0.12)]"
-            >
-              {/* Active rail · violet accent */}
-              <span
-                aria-hidden
-                className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary-glow))] opacity-0 shadow-[0_0_8px_hsl(var(--primary-glow)/0.7)] transition-opacity group-data-[active=true]/item:opacity-100"
-              />
-              <Icon
-                strokeWidth={1.5}
-                className="h-5 w-5 shrink-0 text-[hsl(var(--muted-foreground))] transition-colors group-hover/item:text-foreground group-data-[active=true]/item:text-[hsl(var(--accent))]"
-              />
-              <span className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 group-hover/item:text-foreground group-data-[active=true]/item:text-foreground">
-                {label}
-              </span>
-            </Link>
+            <div key={href} className="flex flex-col">
+              <Link
+                href={href === "/dept" ? "/dept/ops" : href}
+                aria-label={label}
+                data-active={active ? "true" : undefined}
+                className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--primary-glow)/0.12)]"
+              >
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary-glow))] opacity-0 shadow-[0_0_8px_hsl(var(--primary-glow)/0.7)] transition-opacity group-data-[active=true]/item:opacity-100"
+                />
+                <Icon
+                  strokeWidth={1.5}
+                  className="h-5 w-5 shrink-0 text-[hsl(var(--muted-foreground))] transition-colors group-hover/item:text-foreground group-data-[active=true]/item:text-[hsl(var(--accent))]"
+                />
+                <span className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 group-hover/item:text-foreground group-data-[active=true]/item:text-foreground">
+                  {label}
+                </span>
+              </Link>
+              {/* Children · only render on parent expansion */}
+              {children && active ? (
+                <div className="ml-6 mt-1 flex flex-col gap-0.5 opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100">
+                  {children.map((child) => {
+                    const childActive = pathname === child.href
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        data-active={childActive ? "true" : undefined}
+                        className="group/child flex h-7 items-center gap-2 rounded-md px-2 text-[11px] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--primary-glow)/0.06)] hover:text-foreground data-[active=true]:bg-[hsl(var(--primary-glow)/0.1)] data-[active=true]:text-foreground"
+                      >
+                        <span
+                          className="num inline-flex h-4 items-center rounded px-1 text-[9px] uppercase tracking-[0.16em]"
+                          style={{
+                            color: `hsl(var(--hue-${child.hue}))`,
+                            background: `hsl(var(--hue-${child.hue}) / 0.12)`,
+                          }}
+                        >
+                          {child.cardinal}
+                        </span>
+                        <span className="overflow-hidden whitespace-nowrap">{child.label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
           )
         })}
       </nav>

@@ -9,6 +9,7 @@ import {
 } from "@/lib/transforms"
 import { RadialSentinel } from "@/components/RadialSentinel"
 import { OpsKpiGrid } from "@/components/OpsKpiGrid"
+import { DeptOverviewGrid } from "@/components/DeptOverviewGrid"
 
 /**
  * HomeMemoryHero · the v3 home-page hero.
@@ -45,6 +46,7 @@ export async function HomeMemoryHero() {
   return (
     <div className="flex flex-col gap-6">
       <StatsBar snapshot={stats} />
+      <DeptOverviewGrid />
       <OpsKpiGrid />
       {/* Phase 2 · radial sentinel as foreground HUD overlay on top of
           the MemoryGraph. The graph remains the primary affordance via
