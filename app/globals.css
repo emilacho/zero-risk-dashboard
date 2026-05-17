@@ -871,3 +871,72 @@
   }
   .cowork-md img { max-width: 100%; border-radius: 6px; }
 }
+
+/* ──────────────────────────────────────────────────────────────────
+ *  CoworkPromptBar syntax highlighting · STEP 12
+ *  rehype-highlight produces `.hljs-*` classes inside `<code>` inside
+ *  `<pre>`. We map them onto the Lumen palette so code reads coherent
+ *  with the rest of the card surface · NO highlight.js theme CSS dep
+ *  (would clash with our dark canvas anyway).
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .cowork-md pre code.hljs { background: transparent; padding: 0; }
+
+  .cowork-md .hljs-comment,
+  .cowork-md .hljs-quote {
+    color: hsl(var(--muted-foreground) / 0.85);
+    font-style: italic;
+  }
+
+  .cowork-md .hljs-keyword,
+  .cowork-md .hljs-selector-tag,
+  .cowork-md .hljs-built_in {
+    color: hsl(var(--accent));
+  }
+
+  .cowork-md .hljs-string,
+  .cowork-md .hljs-attr,
+  .cowork-md .hljs-template-string {
+    color: hsl(var(--hue-emerald));
+  }
+
+  .cowork-md .hljs-number,
+  .cowork-md .hljs-literal,
+  .cowork-md .hljs-meta {
+    color: hsl(var(--hue-amber));
+  }
+
+  .cowork-md .hljs-title,
+  .cowork-md .hljs-title.function_,
+  .cowork-md .hljs-function .hljs-title,
+  .cowork-md .hljs-name,
+  .cowork-md .hljs-section {
+    color: hsl(var(--primary-glow));
+  }
+
+  .cowork-md .hljs-type,
+  .cowork-md .hljs-class .hljs-title,
+  .cowork-md .hljs-symbol {
+    color: hsl(var(--hue-purple));
+  }
+
+  .cowork-md .hljs-variable,
+  .cowork-md .hljs-attribute,
+  .cowork-md .hljs-property,
+  .cowork-md .hljs-params {
+    color: hsl(var(--hue-sky));
+  }
+
+  .cowork-md .hljs-tag,
+  .cowork-md .hljs-regexp,
+  .cowork-md .hljs-link {
+    color: hsl(var(--hue-rose));
+  }
+
+  .cowork-md .hljs-deletion { color: hsl(var(--danger)); }
+  .cowork-md .hljs-addition { color: hsl(var(--success)); }
+
+  .cowork-md .hljs-emphasis { font-style: italic; }
+  .cowork-md .hljs-strong { font-weight: 600; }
+}

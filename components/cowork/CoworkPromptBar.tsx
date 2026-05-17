@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import rehypeHighlight from "rehype-highlight"
 import { toast } from "sonner"
 import {
   applyCommandTemplate,
@@ -45,11 +46,28 @@ import {
   Image as PhImage,
   FileText,
   Sparkle,
-  ArrowsCounterClockwise,
   ArrowSquareOut,
   Stop,
+  Plus,
+  DownloadSimple,
+  CaretDown,
+  Trash,
 } from "@phosphor-icons/react/dist/ssr"
-import { getOrCreateSessionId, rotateSessionId } from "@/lib/cowork-session"
+import {
+  getOrCreateSessionId,
+  rotateSessionId,
+  listSessionsForChannel,
+  setActiveSession,
+  deleteSession,
+  touchSession,
+  type ChannelSession,
+} from "@/lib/cowork-session"
+import {
+  toMarkdown,
+  toJSON,
+  downloadBlob,
+  suggestFilename,
+} from "@/lib/cowork-export"
 
 export interface PromptAttachment {
   name: string
@@ -147,6 +165,8 @@ export function CoworkPromptBar({
   const effectivePage = page ?? autoPage
 
   const [sessionId, setSessionId] = useState<string>("")
+  const [sessions, setSessions] = useState<ChannelSession[]>([])
+  const [exportOpen, setExportOpen] = useState(false)
   const [turns, setTurns] = useState<PromptTurn[]>([])
   const [input, setInput] = useState("")
   const [pending, setPending] = useState<PromptAttachment[]>([])
@@ -171,10 +191,21 @@ export function CoworkPromptBar({
   const threadRef = useRef<HTMLDivElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // ── Session id (per channel) ─────────────────────────────────────
+  // ── Session id (per channel) + tabs list ─────────────────────────
   useEffect(() => {
     setSessionId(getOrCreateSessionId(channel))
+    setSessions(listSessionsForChannel(channel))
   }, [channel])
+
+  // Bump session ts after a successful exchange so the tab list
+  // reorders by recency.
+  useEffect(() => {
+    if (!sessionId) return
+    if (turns.length > 0) {
+      touchSession(channel, sessionId)
+      setSessions(listSessionsForChannel(channel))
+    }
+  }, [turns.length, sessionId, channel])
 
   // ── Hydrate thread on session change ─────────────────────────────
   useEffect(() => {
@@ -514,14 +545,64 @@ export function CoworkPromptBar({
     if (files.length > 0) void uploadFiles(files)
   }
 
-  // ── New session ──────────────────────────────────────────────────
+  // ── Multi-session management ─────────────────────────────────────
   function onNewSession() {
     const next = rotateSessionId(channel)
     setSessionId(next)
     setTurns([])
     setInput("")
     setPending([])
+    setSessions(listSessionsForChannel(channel))
     toast.success("Sesión Cowork nueva · iniciada")
+  }
+
+  function onSwitchSession(id: string) {
+    if (id === sessionId) return
+    const next = setActiveSession(channel, id)
+    if (!next) return
+    setSessionId(next)
+    setSessions(listSessionsForChannel(channel))
+    // Thread re-hydration is triggered by the `sessionId` effect.
+  }
+
+  function onDeleteSession(id: string) {
+    if (!confirm("¿Borrar esta sesión? · localStorage solo · cowork_messages quedan en Supabase.")) return
+    const next = deleteSession(channel, id)
+    setSessions(listSessionsForChannel(channel))
+    setSessionId(next)
+    if (next !== sessionId) {
+      setTurns([])
+    }
+    toast.success("Sesión removida")
+  }
+
+  // ── Export ───────────────────────────────────────────────────────
+  function onExport(format: "md" | "json") {
+    const active = sessions.find((s) => s.id === sessionId)
+    const meta = {
+      channel,
+      sessionId,
+      label: active?.label,
+      page: effectivePage,
+      clientName,
+      exportedAt: new Date().toISOString(),
+    }
+    const exportable = turns.map((t) => ({
+      role: t.role,
+      content: t.content,
+      attachments: t.attachments,
+      tool_calls: t.tool_calls,
+      ts: t.ts,
+    }))
+    const content =
+      format === "md" ? toMarkdown(meta, exportable) : toJSON(meta, exportable)
+    downloadBlob(
+      suggestFilename(meta, format),
+      content,
+      format === "md" ? "text/markdown" : "application/json",
+    )
+    setExportOpen(false)
+    toast.success(`Exportado · ${format.toUpperCase()}`)
   }
 
   const headerTitle = useMemo(() => {
@@ -566,16 +647,59 @@ export function CoworkPromptBar({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onNewSession}
-            className="num inline-flex items-center gap-1 rounded-full border-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--card)/0.5)] px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))] transition hover:text-[hsl(var(--accent))]"
-            title="Empezar conversación nueva"
-          >
-            <ArrowsCounterClockwise weight="bold" className="h-3 w-3" />
-            Nueva sesión
-          </button>
+          <div className="relative flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExportOpen((v) => !v)}
+              disabled={turns.length === 0}
+              className="num inline-flex items-center gap-1 rounded-full border-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--card)/0.5)] px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))] transition hover:text-[hsl(var(--accent))] disabled:cursor-not-allowed disabled:opacity-40"
+              title="Exportar conversación"
+            >
+              <DownloadSimple weight="bold" className="h-3 w-3" />
+              Exportar
+              <CaretDown weight="bold" className="h-2.5 w-2.5" />
+            </button>
+            {exportOpen ? (
+              <div className="absolute right-0 top-full z-[40] mt-1 w-44 overflow-hidden rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.4)] bg-[hsl(var(--card)/0.96)] shadow-[0_4px_18px_-2px_hsl(var(--primary-glow)/0.25)] backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => onExport("md")}
+                  className="num flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--accent)/0.12)] hover:text-[hsl(var(--foreground))]"
+                >
+                  <FileText weight="duotone" className="h-3 w-3" />
+                  Markdown (.md)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onExport("json")}
+                  className="num flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--accent)/0.12)] hover:text-[hsl(var(--foreground))]"
+                >
+                  <FileText weight="duotone" className="h-3 w-3" />
+                  JSON (.json)
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={onNewSession}
+              className="num inline-flex items-center gap-1 rounded-full border-[0.5px] border-[hsl(var(--border))] bg-[hsl(var(--card)/0.5)] px-2.5 py-1 text-[9.5px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))] transition hover:text-[hsl(var(--accent))]"
+              title="Empezar conversación nueva"
+            >
+              <Plus weight="bold" className="h-3 w-3" />
+              Nueva
+            </button>
+          </div>
         </header>
+
+        {/* Multi-session tabs · only when more than one session exists for this channel */}
+        {sessions.length > 1 ? (
+          <SessionTabs
+            sessions={sessions}
+            activeId={sessionId}
+            onSwitch={onSwitchSession}
+            onDelete={onDeleteSession}
+          />
+        ) : null}
 
         {/* Thread */}
         <div
@@ -879,6 +1003,64 @@ function SlashMenu({
   )
 }
 
+function SessionTabs({
+  sessions,
+  activeId,
+  onSwitch,
+  onDelete,
+}: {
+  sessions: ChannelSession[]
+  activeId: string
+  onSwitch: (id: string) => void
+  onDelete: (id: string) => void
+}) {
+  function fmtAgo(ts: string): string {
+    if (!ts) return ""
+    const ms = Date.now() - new Date(ts).getTime()
+    if (ms < 60_000) return "ahora"
+    if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m`
+    if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h`
+    return `${Math.floor(ms / 86_400_000)}d`
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1 border-b-[0.5px] border-[hsl(var(--border))] pb-2">
+      {sessions.map((s) => {
+        const active = s.id === activeId
+        return (
+          <span
+            key={s.id}
+            className={[
+              "group inline-flex items-center gap-1 rounded-full border-[0.5px] px-2 py-0.5 text-[9.5px] uppercase tracking-[0.14em] transition",
+              active
+                ? "border-[hsl(var(--accent)/0.6)] bg-[hsl(var(--accent)/0.14)] text-[hsl(var(--accent))]"
+                : "border-[hsl(var(--border))] bg-[hsl(var(--card)/0.5)] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+            ].join(" ")}
+          >
+            <button
+              type="button"
+              onClick={() => onSwitch(s.id)}
+              className="flex items-center gap-1"
+              title={`${s.label} · ${s.id.slice(0, 8)}`}
+            >
+              <span className="max-w-[120px] truncate">{s.label}</span>
+              <span className="opacity-60">· {fmtAgo(s.ts)}</span>
+            </button>
+            <button
+              type="button"
+              aria-label={`Borrar ${s.label}`}
+              onClick={() => onDelete(s.id)}
+              className="ml-0.5 opacity-0 transition group-hover:opacity-70 hover:opacity-100 hover:text-[hsl(var(--danger))]"
+              title="Borrar sesión (sólo localStorage)"
+            >
+              <Trash weight="bold" className="h-2.5 w-2.5" />
+            </button>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 function EmptyHint({ variant }: { variant: "full" | "compact" }) {
   return (
     <div className="rounded-md border-[0.5px] border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/0.3)] px-3 py-4 text-[11px] text-[hsl(var(--muted-foreground))]">
@@ -919,7 +1101,12 @@ function Bubble({
           <p className="whitespace-pre-wrap">{turn.content}</p>
         ) : (
           <div className="cowork-md">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{turn.content}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
+            >
+              {turn.content}
+            </ReactMarkdown>
           </div>
         )}
       </div>
