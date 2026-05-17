@@ -130,7 +130,8 @@ export function NotificationInbox() {
         className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/0.6)] text-[hsl(var(--muted-foreground))] transition hover:border-[hsl(var(--primary-glow)/0.4)] hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[hsl(var(--ring))]"
       >
         {HasUnread ? (
-          <BellRinging className="h-4 w-4" />
+          /* Status indicator · fill weight signals attention required. */
+          <BellRinging className="h-4 w-4" weight="fill" />
         ) : (
           <Bell className="h-4 w-4" />
         )}

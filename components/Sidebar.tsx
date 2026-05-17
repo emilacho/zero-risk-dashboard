@@ -84,7 +84,8 @@ export function Sidebar() {
         className="flex h-16 items-center gap-3 px-[18px] transition-colors hover:bg-[hsl(var(--primary-glow)/0.06)]"
       >
         <span className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-foreground shadow-[0_0_18px_-2px_hsl(var(--primary-glow)/0.6)]">
-          <Sparkle className="h-4 w-4" strokeWidth={1.5} />
+          {/* Logo glyph · small (16px) so fill weight reads strongest. */}
+          <Sparkle className="h-4 w-4" weight="fill" />
         </span>
         <span className="overflow-hidden whitespace-nowrap font-marker text-[15px] leading-none tracking-tight opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100">
           Zero Risk
@@ -119,8 +120,11 @@ export function Sidebar() {
                   aria-hidden
                   className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary-glow))] opacity-0 shadow-[0_0_8px_hsl(var(--primary-glow)/0.7)] transition-opacity group-data-[active=true]/item:opacity-100"
                 />
+                {/* Phosphor weight canon · sidebar nav icons (20px+) use
+                    duotone so the Lumen violet+cyan flagship pair has
+                    visual presence at primary-nav scale. */}
                 <Icon
-                  strokeWidth={1.5}
+                  weight="duotone"
                   className="h-5 w-5 shrink-0 text-[hsl(var(--muted-foreground))] transition-colors group-hover/item:text-foreground group-data-[active=true]/item:text-[hsl(var(--accent))]"
                 />
                 <span className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 group-hover/item:text-foreground group-data-[active=true]/item:text-foreground">

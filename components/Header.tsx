@@ -23,7 +23,7 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link href="/" className="group flex items-center gap-2.5">
           <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_0_24px_-4px_hsl(var(--primary)/0.7)] transition-shadow group-hover:shadow-[0_0_28px_-2px_hsl(var(--primary)/0.9)]">
-            <Sparkle className="h-3.5 w-3.5" />
+            <Sparkle className="h-3.5 w-3.5" weight="fill" />
             <span
               aria-hidden
               className="absolute inset-0 rounded-lg ring-1 ring-inset ring-white/15"
