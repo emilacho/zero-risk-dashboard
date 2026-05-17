@@ -20,6 +20,7 @@ import {
 import { api } from "@/lib/api"
 import { classifyAgent } from "@/lib/departments"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
+import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 import { CampaignCreatorModal } from "@/components/mkt/CampaignCreatorModal"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import type { CampaignRow } from "@/lib/campaigns"
@@ -66,12 +67,26 @@ export async function DeptMktBody() {
     <div className="flex flex-col gap-8">
       {/* KPI bar · 4 cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <OpsKpiCell
-          label="MKT agents active"
+        <ClickableSummaryCard
+          title="MKT agents active"
+          count={active.length}
+          hue="cyan"
           icon={<Activity strokeWidth={1.5} className="h-3.5 w-3.5" />}
-          value={active.length}
-          format="number"
-          sub={`${mktAgents.length} total · utilization ${((active.length / Math.max(1, mktAgents.length)) * 100).toFixed(1)}%`}
+          sub={`${mktAgents.length} total · utilization ${((active.length / Math.max(1, mktAgents.length)) * 100).toFixed(1)}% · click → top consumers`}
+          modalDescription="MKT agents con invocations 30d · sorted desc · click row → /agents/{slug}"
+          seeAllHref="/system/agents"
+          items={active
+            .sort(
+              (a, b) =>
+                (b.stats_30d?.sessions ?? 0) - (a.stats_30d?.sessions ?? 0),
+            )
+            .map((a) => ({
+              primary: a.name,
+              secondary: a.model,
+              tertiary: `${a.stats_30d?.sessions ?? 0} sess · $${(a.stats_30d?.cost_usd ?? 0).toFixed(4)}`,
+              status: "active",
+              href: `/agents/${a.name}`,
+            }))}
         />
         <OpsKpiCell
           label="MKT spend 30d"

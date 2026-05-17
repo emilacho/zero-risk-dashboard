@@ -9,6 +9,7 @@ import Link from "next/link"
 import { Users, Compass, Clock, Activity, ExternalLink } from "lucide-react"
 import { api } from "@/lib/api"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
+import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 
 async function loadJourneyAndHitl() {
@@ -75,12 +76,28 @@ export async function DeptCsmBody() {
           format="number"
           sub={`spend 30d · $${totalSpend.toFixed(3)}`}
         />
-        <OpsKpiCell
-          label="Pending HITL"
+        <ClickableSummaryCard
+          title="Pending HITL"
+          count={hitlTotal}
+          hue="rose"
           icon={<Clock strokeWidth={1.5} className="h-3.5 w-3.5" />}
-          value={hitlTotal}
-          format="number"
-          sub="hitl_approvals · status=pending"
+          sub={
+            hitlTotal === 0
+              ? "0 items · runtime emisión pending"
+              : "click → ver lista por cliente"
+          }
+          modalDescription="hitl_approvals con status=pending · agrupado por cliente"
+          seeAllHref="/system/inbox"
+          items={Array.from(hitlByClient.entries()).map(([cid, count]) => {
+            const client = clientsRes.clients.find((c) => c.id === cid)
+            return {
+              primary: client?.name ?? cid.slice(0, 8),
+              secondary: `${count} pending`,
+              tertiary: `cliente · ${cid.slice(0, 8)}`,
+              status: count > 0 ? "pending" : "ok",
+              href: `/clients/${cid}`,
+            }
+          })}
         />
         <OpsKpiCell
           label="Journey active"

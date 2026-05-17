@@ -13,6 +13,7 @@ import { classifyAgent } from "@/lib/departments"
 import Link from "next/link"
 import { Cpu, Workflow, AlertTriangle, GitBranch, Activity } from "lucide-react"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
+import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 
 interface Workflow {
   id: string
@@ -227,23 +228,31 @@ export async function DeptOpsBody() {
         </div>
       </section>
 
-      {/* Untagged agents callout */}
+      {/* Untagged agents · STEP 4.5 ClickableSummaryCard pattern */}
       {untagged.length > 0 ? (
-        <section className="surface-card rim-instr p-5" data-rim="rose">
-          <div className="relative z-[2]">
-            <div className="mb-2 flex items-center gap-2">
-              <Activity strokeWidth={1.5} className="h-4 w-4 text-[hsl(var(--danger))]" />
-              <h2 className="font-display text-base font-semibold tracking-tight">
-                Untagged agents · {untagged.length} sin departamento v1
-              </h2>
-            </div>
-            <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
-              Sales (9) · Intel research (4) · transversal / experimental
-              · todavía sin asignación canonical de oficina. Cuando se
-              activen Sales + Intel como departamentos v2 estos se reclasifican.
-            </p>
-          </div>
-        </section>
+        <ClickableSummaryCard
+          title="Untagged agents · sin departamento v1"
+          count={untagged.length}
+          hue="rose"
+          icon={<Activity strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          sub="Sales · Intel · transversal · pending v2 dept activation · click → ver lista"
+          variant="full"
+          modalDescription="Cuando se activen Sales + Intel como departamentos v2 estos se reclasifican automáticamente."
+          seeAllHref="/system/agents"
+          items={untagged
+            .sort(
+              (a, b) =>
+                (b.stats_30d?.sessions ?? 0) - (a.stats_30d?.sessions ?? 0) ||
+                a.name.localeCompare(b.name),
+            )
+            .map((a) => ({
+              primary: a.name,
+              secondary: a.role,
+              tertiary: `${a.model} · ${a.stats_30d?.sessions ?? 0} sess 30d · $${(a.stats_30d?.cost_usd ?? 0).toFixed(4)}`,
+              status: (a.stats_30d?.sessions ?? 0) > 0 ? "active" : "idle",
+              href: `/agents/${a.name}`,
+            }))}
+        />
       ) : null}
     </div>
   )

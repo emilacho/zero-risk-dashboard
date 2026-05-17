@@ -14,6 +14,7 @@ import {
   PiggyBank,
 } from "lucide-react"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
+import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 
 interface ProviderSpend {
   anthropic: number
@@ -89,12 +90,22 @@ export async function DeptFinBody() {
     <div className="flex flex-col gap-8">
       {/* KPI bar */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <OpsKpiCell
-          label="Spend 30d"
+        <ClickableSummaryCard
+          title="Spend 30d"
+          count={fin.perAgentTop.length}
+          displayValue={`$${fin.spend30d.toFixed(2)}`}
+          hue="amber"
           icon={<Coins strokeWidth={1.5} className="h-3.5 w-3.5" />}
-          value={fin.spend30d}
-          format="currency"
-          sub={`total acumulado · $${fin.spendTotal.toFixed(3)}`}
+          sub={`total acumulado · $${fin.spendTotal.toFixed(3)} · click → top 10 agents por spend`}
+          modalDescription="Top agents por spend 30d · sumando todos los clientes"
+          seeAllHref="/system/agents"
+          items={fin.perAgentTop.map((a, i) => ({
+            primary: a.agent_name,
+            secondary: `#${i + 1}`,
+            tertiary: `$${a.cost.toFixed(4)} · ${a.count} invocations`,
+            status: "ok",
+            href: `/agents/${a.agent_name}`,
+          }))}
         />
         <OpsKpiCell
           label="Anthropic 30d"

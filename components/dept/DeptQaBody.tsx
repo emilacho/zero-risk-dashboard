@@ -19,6 +19,7 @@ import {
 import { api } from "@/lib/api"
 import { classifyAgent } from "@/lib/departments"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
+import { ClickableSummaryCard } from "@/components/ui/ClickableSummaryCard"
 
 export async function DeptQaBody() {
   const agentsRes = await api.agents(200)
@@ -42,12 +43,26 @@ export async function DeptQaBody() {
     <div className="flex flex-col gap-8">
       {/* KPI bar */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <OpsKpiCell
-          label="QA agents · 30d"
+        <ClickableSummaryCard
+          title="QA agents · 30d"
+          count={qaAgents.length}
+          hue="rose"
           icon={<ShieldCheck strokeWidth={1.5} className="h-3.5 w-3.5" />}
-          value={qaAgents.length}
-          format="number"
-          sub={`${qaSessions} sesiones · $${qaCost.toFixed(3)}`}
+          sub={`${qaSessions} sesiones · $${qaCost.toFixed(3)} · click → ver Camino III reviewers`}
+          modalDescription="QA agents · editor + style-consistency + spell-check + delivery-coord + optimization"
+          seeAllHref="/system/agents"
+          items={qaAgents
+            .sort(
+              (a, b) =>
+                (b.stats_30d?.sessions ?? 0) - (a.stats_30d?.sessions ?? 0),
+            )
+            .map((a) => ({
+              primary: a.name,
+              secondary: a.role,
+              tertiary: `${a.model} · ${a.stats_30d?.sessions ?? 0} sess · $${(a.stats_30d?.cost_usd ?? 0).toFixed(4)}`,
+              status: (a.stats_30d?.sessions ?? 0) > 0 ? "active" : "idle",
+              href: `/agents/${a.name}`,
+            }))}
         />
         <OpsKpiCell
           label="Approve rate"
