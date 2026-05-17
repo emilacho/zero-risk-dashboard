@@ -2,12 +2,16 @@
 /**
  * OpsKpiCell · Phase 3 · client-side cell renderer for OpsKpiGrid.
  *
- * Lives as a separate "use client" file so the parent server component
- * (OpsKpiGrid) can hand it primitive props (no function callbacks
- * across the boundary, which Next 15 will reject).
+ * Phase 4.1 refactor · removed local `fmtUsd` + `fmtCompact` callbacks
+ * passed to `<AnimatedNumber format={...} />`. Now uses the
+ * string-identifier `formatType` API · NO function callbacks anywhere
+ * in this component (server → client safe).
  *
- * Cell handles its own formatting + the count-up animation via
- * AnimatedNumber.
+ * `format` prop maps:
+ *   "currency" → AnimatedNumber formatType="currency" (small spends
+ *                 show 3 decimals · large amounts show 2)
+ *   "percent"  → formatType="percent" with 1 decimal
+ *   "number"   → formatType="compact" with k/M suffix
  */
 import type { ReactNode } from "react"
 import { AnimatedNumber } from "@/components/AnimatedNumber"
@@ -24,16 +28,13 @@ interface OpsKpiCellProps {
   badge?: string
 }
 
-function fmtUsd(v: number): string {
-  if (Math.abs(v) >= 1000) return `$${(v / 1000).toFixed(1)}k`
-  if (Math.abs(v) < 1) return `$${v.toFixed(3)}`
-  return `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function fmtCompact(v: number): string {
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}k`
-  return v.toLocaleString("en-US")
+function mapOpsFormat(f: OpsFormat = "number"):
+  | "currency"
+  | "percent"
+  | "compact" {
+  if (f === "currency") return "currency"
+  if (f === "percent") return "percent"
+  return "compact"
 }
 
 export function OpsKpiCell({
@@ -46,12 +47,7 @@ export function OpsKpiCell({
   badge,
 }: OpsKpiCellProps) {
   const pending = value == null || badge === "wire pending"
-  const formatter =
-    format === "currency"
-      ? fmtUsd
-      : format === "percent"
-      ? (v: number) => `${v.toFixed(1)}%`
-      : fmtCompact
+  const formatType = mapOpsFormat(format)
 
   return (
     <div
@@ -78,7 +74,7 @@ export function OpsKpiCell({
           ) : (
             <AnimatedNumber
               value={value}
-              format={formatter}
+              formatType={formatType}
               className="font-display text-[28px] font-semibold leading-none tabular-nums"
             />
           )}
