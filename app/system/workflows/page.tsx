@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { translateWorkflowTitle, workflowSubtitle } from "@/lib/n8n-workflow-titles"
 
 export const dynamic = "force-dynamic"
 
@@ -143,9 +144,14 @@ export default async function SystemWorkflowsTab() {
                     <Link
                       href={`/workflows/${r.id}`}
                       title={r.name}
-                      className="hover:text-[hsl(var(--accent))] hover:underline"
+                      className="block hover:text-[hsl(var(--accent))] hover:underline"
                     >
-                      {r.name.replace(/^Zero Risk[ ·—-]*/, "")}
+                      <span>{translateWorkflowTitle(r.name)}</span>
+                      {workflowSubtitle(r.name) ? (
+                        <span className="num block text-[9px] uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">
+                          {workflowSubtitle(r.name)}
+                        </span>
+                      ) : null}
                     </Link>
                   </td>
                   <td className="num px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">

@@ -30,6 +30,8 @@ export type IconKind =
   | "wait"
   | "merge"
   | "split"
+  | "webhook"
+  | "camino_qa"
   | "unknown"
 
 export interface NodeTranslation {
@@ -62,7 +64,7 @@ const EXACT: Record<string, NodeTranslation> = {
   "n8n-nodes-base.webhook": {
     label: "Llega solicitud externa",
     description: "Punto de entrada · alguien o algo dispara este flujo",
-    icon: "cliente",
+    icon: "webhook",
     hue: "cyan",
   },
   "n8n-nodes-base.scheduleTrigger": {

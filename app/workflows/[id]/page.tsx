@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 import { WorkflowLiveCanvas } from "@/components/workflows/WorkflowLiveCanvas"
+import { translateWorkflowTitle, workflowSubtitle } from "@/lib/n8n-workflow-titles"
 
 export const dynamic = "force-dynamic"
 
@@ -106,10 +107,16 @@ export default async function WorkflowPage({
             {wf.active ? "● ACTIVO" : "○ INACTIVO"} · {wf.triggerCount} disparador{wf.triggerCount === 1 ? "" : "es"} · {wf.nodes.length} nodos
           </p>
           <h1 className="mt-2 font-display text-[36px] font-semibold leading-[1.05] tracking-tight md:text-[44px]">
-            <span className="text-gradient">
-              {wf.name.replace(/^Zero Risk[ ·—-]*/, "")}
-            </span>
+            <span className="text-gradient">{translateWorkflowTitle(wf.name)}</span>
           </h1>
+          {(() => {
+            const sub = workflowSubtitle(wf.name)
+            return sub ? (
+              <p className="mt-1 num text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
+                n8n · <span className="font-mono">{sub}</span>
+              </p>
+            ) : null
+          })()}
           <p className="mt-1 num text-[10px] text-[hsl(var(--muted-foreground))]">
             id · <code className="font-mono">{wf.id}</code> · updated{" "}
             {wf.updatedAt
