@@ -27,6 +27,7 @@ interface ExtrasResponse {
   invocations_30d: number | null
   cascade_success_rate: number | null
   pending_hitl: number | null
+  active_clients: number | null
   tokens_24h: number | null
   tokens_30d: number | null
   spend_by_provider_30d: {
@@ -49,10 +50,22 @@ export async function GET() {
     invocations_30d: null,
     cascade_success_rate: null,
     pending_hitl: null,
+    active_clients: null,
     tokens_24h: null,
     tokens_30d: null,
     spend_by_provider_30d: { anthropic: null, openai: null, other: null },
     timestamp: now.toISOString(),
+  }
+
+  // Active clients · archived_at IS NULL · Sprint 6 cleanup
+  try {
+    const { count: ac } = await supa
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .is("archived_at", null)
+    out.active_clients = ac ?? null
+  } catch {
+    out.active_clients = null
   }
 
   // Invocations 24h count

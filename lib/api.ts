@@ -116,6 +116,14 @@ export interface ClientRow {
   brand_colors: unknown[] | null
   created_at: string
   updated_at: string
+  /**
+   * Sprint 6 cleanup · NULL means the cliente is operational (visible in
+   * production views). Non-null timestamp = soft-archived. Dashboard
+   * data layer filters `archived_at IS NULL` so smoke + dupe rows never
+   * surface. Migration · 202605170100_archive_smoke_clients.sql.
+   */
+  archived_at?: string | null
+  archived_reason?: string | null
   stats: {
     invocations: number
     agents_touched: number
@@ -237,8 +245,21 @@ export const api = {
     fetchJSON<AgentsResponse>(`/api/dashboard/agents?limit=${limit}`),
   agent: (slug: string) =>
     fetchJSON<AgentDetailResponse>(`/api/dashboard/agents/${slug}`),
-  clients: (limit = 100) =>
-    fetchJSON<ClientsResponse>(`/api/dashboard/clients?limit=${limit}`),
+  /**
+   * Returns ONLY operational clients (archived_at IS NULL).
+   * Platform endpoint still ships archived rows for now; we filter
+   * client-side until the platform endpoint adds the default filter.
+   * Pass `includeArchived: true` to see archived rows too (e.g. admin
+   * audit views).
+   */
+  clients: async (limit = 100, includeArchived = false) => {
+    const data = await fetchJSON<ClientsResponse>(
+      `/api/dashboard/clients?limit=${limit}`,
+    )
+    if (includeArchived) return data
+    const filtered = data.clients.filter((c) => c.archived_at == null)
+    return { ...data, count: filtered.length, clients: filtered }
+  },
   client: (id: string) =>
     fetchJSON<ClientDetailResponse>(`/api/dashboard/clients/${id}`),
   activity: (limit = 25) =>

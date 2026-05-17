@@ -28,6 +28,8 @@ interface OpsExtras {
   invocations_30d: number | null
   cascade_success_rate: number | null
   pending_hitl: number | null
+  /** Sprint 6 cleanup · counts clients with archived_at IS NULL. */
+  active_clients: number | null
   tokens_24h: number | null
   tokens_30d: number | null
   spend_by_provider_30d: {
@@ -46,6 +48,7 @@ async function loadExtras(): Promise<OpsExtras> {
     invocations_30d: null,
     cascade_success_rate: null,
     pending_hitl: null,
+    active_clients: null,
     tokens_24h: null,
     tokens_30d: null,
     spend_by_provider_30d: { anthropic: null, openai: null, other: null },
@@ -56,7 +59,7 @@ async function loadExtras(): Promise<OpsExtras> {
     const t24h = new Date(now - 24 * 60 * 60 * 1000).toISOString()
     const t30d = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-    const [count24, rows30, hitl] = await Promise.all([
+    const [count24, rows30, hitl, activeClients] = await Promise.all([
       supa
         .from("agent_invocations")
         .select("id", { count: "exact", head: true })
@@ -73,10 +76,15 @@ async function loadExtras(): Promise<OpsExtras> {
           (r) => r,
           () => ({ count: null as number | null, error: null }),
         ),
+      supa
+        .from("clients")
+        .select("id", { count: "exact", head: true })
+        .is("archived_at", null),
     ])
 
     out.invocations_24h = count24.count ?? 0
     out.pending_hitl = hitl.count ?? null
+    out.active_clients = activeClients.count ?? null
 
     if (rows30.data) {
       const total = rows30.data.length
@@ -150,7 +158,11 @@ export async function OpsKpiGrid() {
   const spendAnthropic = extras?.spend_by_provider_30d.anthropic ?? null
   const spendOpenai = extras?.spend_by_provider_30d.openai ?? null
   const spend30d = metrics?.totals.spend_usd_30d ?? null
-  const clientsTotal = metrics?.totals.clients_total ?? null
+  // Active clients = non-archived count from Supabase direct (preferred)
+  // OR fall back to metrics endpoint clients_total (raw count including
+  // archived) if Supabase direct failed.
+  const activeClients =
+    extras?.active_clients ?? metrics?.totals.clients_total ?? null
   const workflowsN8n = metrics?.totals.workflows_n8n ?? null
 
   return (
@@ -235,11 +247,11 @@ export async function OpsKpiGrid() {
         <Cell
           label="Active clients"
           icon={<Users strokeWidth={1.5} className="h-3.5 w-3.5" />}
-          value={clientsTotal}
+          value={activeClients}
           format="number"
           sub={
             metrics?.totals.agents_active != null
-              ? `agents active · ${metrics.totals.agents_active}`
+              ? `agents active · ${metrics.totals.agents_active} · 11 archived smoke/dupes`
               : undefined
           }
         />
