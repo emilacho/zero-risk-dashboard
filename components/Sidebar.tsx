@@ -22,9 +22,11 @@ import {
   Users,
   Network,
   Building2,
+  Boxes,
   type LucideIcon,
 } from "lucide-react"
 import { DEPARTMENTS } from "@/lib/departments"
+import { SYSTEM_TABS } from "@/lib/system-tabs"
 
 interface NavItem {
   href: string
@@ -45,6 +47,17 @@ const NAV: NavItem[] = [
       label: d.label,
       cardinal: d.shortLabel,
       hue: d.hue,
+    })),
+  },
+  {
+    href: "/system",
+    label: "System",
+    icon: Boxes,
+    children: SYSTEM_TABS.map((t) => ({
+      href: `/system/${t.slug}`,
+      label: t.label,
+      cardinal: t.slug.slice(0, 3).toUpperCase(),
+      hue: t.hue,
     })),
   },
   { href: "/agents", label: "Agents", icon: Cpu },
@@ -89,7 +102,13 @@ export function Sidebar() {
           return (
             <div key={href} className="flex flex-col">
               <Link
-                href={href === "/dept" ? "/dept/ops" : href}
+                href={
+                  href === "/dept"
+                    ? "/dept/ops"
+                    : href === "/system"
+                      ? "/system/agents"
+                      : href
+                }
                 aria-label={label}
                 data-active={active ? "true" : undefined}
                 className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--primary-glow)/0.12)]"
