@@ -738,3 +738,73 @@
   }
   .react-flow__attribution { display: none; }
 }
+
+/* ──────────────────────────────────────────────────────────────────
+ *  CoworkPromptBar markdown · STEP 11
+ *  Lightweight prose for react-markdown output · no @tailwindcss/
+ *  typography dep · matches the Lumen card surface tokens.
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .cowork-md > * + * { margin-top: 0.5rem; }
+  .cowork-md h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+  .cowork-md h2 { font-size: 0.98rem; font-weight: 600; letter-spacing: -0.01em; }
+  .cowork-md h3 { font-size: 0.92rem; font-weight: 600; }
+  .cowork-md p  { line-height: 1.55; }
+  .cowork-md strong { color: hsl(var(--foreground)); }
+  .cowork-md em { color: hsl(var(--muted-foreground)); font-style: italic; }
+  .cowork-md ul { list-style: disc; padding-left: 1.1rem; }
+  .cowork-md ol { list-style: decimal; padding-left: 1.2rem; }
+  .cowork-md li { margin-top: 0.15rem; }
+  .cowork-md a  {
+    color: hsl(var(--accent));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .cowork-md a:hover { color: hsl(var(--foreground)); }
+  .cowork-md code:not(pre code) {
+    background: hsl(var(--card) / 0.65);
+    border: 0.5px solid hsl(var(--border));
+    border-radius: 4px;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.85em;
+    color: hsl(var(--accent));
+  }
+  .cowork-md pre {
+    background: hsl(var(--background) / 0.7);
+    border: 0.5px solid hsl(var(--border));
+    border-radius: 6px;
+    padding: 0.7rem 0.85rem;
+    overflow-x: auto;
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  .cowork-md pre code { color: hsl(var(--foreground)); }
+  .cowork-md blockquote {
+    border-left: 2px solid hsl(var(--primary-glow) / 0.4);
+    padding-left: 0.7rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .cowork-md table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+  .cowork-md th, .cowork-md td {
+    border-bottom: 0.5px solid hsl(var(--border));
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+  }
+  .cowork-md th {
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.65rem;
+  }
+  .cowork-md hr {
+    border: none;
+    border-top: 0.5px solid hsl(var(--border));
+    margin: 0.6rem 0;
+  }
+  .cowork-md img { max-width: 100%; border-radius: 6px; }
+}

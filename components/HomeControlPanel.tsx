@@ -32,6 +32,7 @@ import { SYSTEM_TABS } from "@/lib/system-tabs"
 import { WorkflowsRunningKpi } from "@/components/workflows/WorkflowsRunningKpi"
 import { LiveAgentFeed } from "@/components/home/LiveAgentFeed"
 import { loadAgentFeed } from "@/lib/agent-feed"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 const SYSTEM_TAB_ICONS: Record<string, React.ReactNode> = {
   agents: <Cpu strokeWidth={1.5} className="h-4 w-4" />,
@@ -67,6 +68,19 @@ export async function HomeControlPanel() {
   return (
     <div className="flex flex-col gap-8">
       <StatsBar snapshot={stats} />
+
+      {/* COWORK PROMPT BAR · STEP 11 · main dispatcher to Cowork from
+          the dashboard · prompt + file attach + clipboard paste +
+          drag/drop · sesión por canal "home" persistida en localStorage
+          + cowork_messages */}
+      <CoworkPromptBar
+        channel="home"
+        page="home"
+        eyebrow="Capa principal · cowork prompt"
+        variant="full"
+        maxThreadHeight={360}
+        autoFocus={false}
+      />
 
       {/* PRIMARY · 5 oficinas · the dept grid is the headline */}
       <DeptOverviewGrid />
