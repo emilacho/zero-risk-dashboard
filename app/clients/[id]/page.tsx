@@ -7,6 +7,7 @@ import {
   formatCurrency,
 } from "@/lib/dashboard-components"
 import type { MemoryGraphData } from "@/lib/dashboard-components"
+import { ClientVault } from "@/components/clients/ClientVault"
 
 export const dynamic = "force-dynamic"
 
@@ -269,6 +270,11 @@ function ClientDetailBody({ data }: { data: ClientDetailResponse }) {
           </div>
         </section>
       ) : null}
+
+      {/* STEP 4.6 · Vault del cliente · 10 tabs · light metadata · admin only */}
+      <div className="mt-10">
+        <ClientVault clientId={data.client.id} clientSlug={data.client.slug} />
+      </div>
     </>
   )
 }
