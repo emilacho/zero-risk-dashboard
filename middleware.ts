@@ -18,7 +18,7 @@ import { getMiddlewareClient } from "@/lib/supabase-session"
 
 const PUBLIC_ROUTES = new Set(["/login", "/auth/callback"])
 // Page prefixes (NOT api prefixes · api routes self-gate)
-const ADMIN_ONLY_PREFIXES = ["/system", "/dept", "/agents", "/graph"]
+const ADMIN_ONLY_PREFIXES = ["/system", "/dept", "/agents", "/graph", "/workflows"]
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
