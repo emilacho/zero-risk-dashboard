@@ -11,11 +11,12 @@ import { DeptFinBody } from "@/components/dept/DeptFinBody"
 import { DeptMktBody } from "@/components/dept/DeptMktBody"
 import { DeptQaBody } from "@/components/dept/DeptQaBody"
 
+// Pure dynamic · no prerender at build time · avoids build-time
+// platform endpoint reachability flakiness that pinned /dept/ops to
+// a frozen error response (digest 3406040795 on builds buik7g6ao +
+// khcjxnmt3). Each request hits the platform endpoint live.
 export const dynamic = "force-dynamic"
-
-export async function generateStaticParams() {
-  return (Object.keys(DEPT_BY_SLUG) as DeptSlug[]).map((slug) => ({ slug }))
-}
+export const revalidate = 0
 
 export default async function DeptPage({
   params,
