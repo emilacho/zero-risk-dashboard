@@ -33,6 +33,7 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion"
+import { EASING } from "@/lib/motion"
 
 export type FormatType =
   | "integer"
@@ -176,7 +177,7 @@ export function AnimatedNumber({
     }
     const controls = animate(mv, value, {
       duration,
-      ease: [0.2, 0.7, 0.2, 1],
+      ease: EASING.out,
     })
     const unsub = formatted.on("change", (v) => setText(v))
     return () => {
