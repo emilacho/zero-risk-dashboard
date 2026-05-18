@@ -358,9 +358,12 @@ export function WorkflowSkeleton({
     [nodes, connections],
   )
 
-  const activeSet = new Set(activeNodeNames)
-  const doneSet = new Set(doneNodeNames)
-  const failedSet = new Set(failedNodeNames)
+  // Memoize Set constructions so downstream useMemo(businessNodes·styledEdges)
+  // don't invalidate on every parent render. Sprint #9 warnings cleanup ·
+  // closes react-hooks/exhaustive-deps · WorkflowSkeleton 361-363.
+  const activeSet = useMemo(() => new Set(activeNodeNames), [activeNodeNames])
+  const doneSet = useMemo(() => new Set(doneNodeNames), [doneNodeNames])
+  const failedSet = useMemo(() => new Set(failedNodeNames), [failedNodeNames])
 
   const businessNodes = useMemo<BusinessNode[]>(() => {
     return nodes.map((n) => {
