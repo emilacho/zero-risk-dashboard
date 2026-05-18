@@ -29,6 +29,7 @@ import {
 import type { Icon } from "@phosphor-icons/react"
 import { DEPARTMENTS } from "@/lib/departments"
 import { SYSTEM_TABS } from "@/lib/system-tabs"
+import { DURATION, EASING } from "@/lib/motion"
 
 interface NavItem {
   href: string
@@ -75,7 +76,7 @@ export function Sidebar() {
       initial={false}
       whileHover={{ width: 240 }}
       animate={{ width: 64 }}
-      transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+      transition={{ duration: DURATION.base, ease: EASING.out }}
       className="group/sidebar fixed left-0 top-0 z-40 flex h-screen flex-col overflow-hidden border-r-[0.5px] border-[hsl(var(--primary-glow)/0.18)] bg-[hsl(var(--background)/0.6)] backdrop-blur-xl"
     >
       {/* Brand mark · 64px square */}
