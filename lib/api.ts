@@ -262,6 +262,41 @@ export const api = {
   },
   client: (id: string) =>
     fetchJSON<ClientDetailResponse>(`/api/dashboard/clients/${id}`),
+  /**
+   * BUG02 fix · 2026-05-18 · resolves a client detail by EITHER UUID
+   * OR slug. The platform endpoint `/api/dashboard/clients/{id}` only
+   * accepts a UUID-shaped value (Postgres throws `invalid input
+   * syntax for type uuid: "<slug>"`). The dashboard wires slug-based
+   * urls so without this resolver every non-UUID URL gives 500 + a
+   * "not found" card. Long-term · fix the platform endpoint to
+   * accept either. Doc · zr-vault/raw/qa/2026-05-18-bug02-naufrago-slug-fix.md.
+   */
+  clientByIdOrSlug: async (
+    idOrSlug: string,
+  ): Promise<ClientDetailResponse | null> => {
+    const trimmed = idOrSlug.trim()
+    if (!trimmed) return null
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (UUID_RE.test(trimmed)) {
+      try {
+        return await api.client(trimmed)
+      } catch {
+        return null
+      }
+    }
+    try {
+      const list = await api.clients(200, true)
+      const slugLc = trimmed.toLowerCase()
+      const match = list.clients.find(
+        (c) => (c.slug ?? "").toLowerCase() === slugLc,
+      )
+      if (!match) return null
+      return await api.client(match.id)
+    } catch {
+      return null
+    }
+  },
   activity: (limit = 25) =>
     fetchJSON<ActivityResponse>(`/api/dashboard/activity?limit=${limit}`),
   realtimeConfig: () =>
