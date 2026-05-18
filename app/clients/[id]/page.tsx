@@ -46,7 +46,10 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const data = await api.client(id).catch(() => null)
+  // BUG02 (2026-05-18) · accept BOTH uuid and slug in the URL · platform
+  // endpoint only takes UUID so slug urls (e.g. /clients/naufrago) need
+  // the resolver to list+match first.
+  const data = await api.clientByIdOrSlug(id).catch(() => null)
 
   return (
     <>
