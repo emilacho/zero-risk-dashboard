@@ -16,6 +16,7 @@
  * for body · marker font for the byline accent. Phosphor SSR icons only.
  */
 import Link from "next/link"
+import Image from "next/image"
 import { Quotes, ArrowRight, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 import { RevealOnScroll } from "@/components/motion/RevealOnScroll"
 import { ParallaxBackground } from "@/components/motion/ParallaxBackground"
@@ -243,11 +244,16 @@ function AuthorAvatar({ author }: { author: EditorialAuthor }) {
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("") || "?"
   if (author.avatarUrl) {
-    /* eslint-disable-next-line @next/next/no-img-element */
+    // Sprint #9 warnings cleanup · next/image swap. `unoptimized` keeps
+    // arbitrary avatar host support without polluting remotePatterns ·
+    // avatar is a tiny 64×64 ring · LCP/CDN cost negligible.
     return (
-      <img
+      <Image
         src={author.avatarUrl}
         alt={author.name}
+        width={64}
+        height={64}
+        unoptimized
         className="h-16 w-16 shrink-0 rounded-full object-cover ring-1 ring-[hsl(var(--border))]"
       />
     )
