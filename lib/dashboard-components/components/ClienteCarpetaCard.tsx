@@ -189,7 +189,7 @@ function HealthGauge({ value, color }: { value: number; color: string }) {
           strokeLinecap="round"
           strokeDasharray={mounted ? dashArray : `0 ${C}`}
           style={{
-            transition: 'stroke-dasharray 900ms cubic-bezier(.2,.8,.2,1)',
+            transition: 'stroke-dasharray var(--dur-deliberate) var(--ease-out-quart)',
             filter: `drop-shadow(0 0 6px ${color})`,
           }}
         />
