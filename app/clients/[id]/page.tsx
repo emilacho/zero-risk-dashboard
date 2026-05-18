@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 import { api, type ClientDetailResponse } from "@/lib/api"
 import {
   ActivityFeed,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/dashboard-components"
 import type { MemoryGraphData } from "@/lib/dashboard-components"
 import { ClientVault } from "@/components/clients/ClientVault"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 export const dynamic = "force-dynamic"
 
@@ -62,7 +63,32 @@ export default async function ClientDetailPage({
             Client &quot;{id}&quot; not found or platform endpoint unreachable.
           </div>
         ) : (
-          <ClientDetailBody data={data} />
+          <>
+            <ClientDetailBody data={data} />
+            <section className="mt-10">
+              <CoworkPromptBar
+                channel={`client:${data.client.id}`}
+                clientId={data.client.id}
+                clientName={data.client.name}
+                eyebrow="Cliente · cowork prompt"
+                variant="full"
+                maxThreadHeight={320}
+                surfaceState={{
+                  client_slug: data.client.slug,
+                  industry: data.client.industry,
+                  total_sessions: data.agents_worked.reduce(
+                    (s, a) => s + a.sessions,
+                    0,
+                  ),
+                  total_spend_usd: data.agents_worked.reduce(
+                    (s, a) => s + a.cost_usd,
+                    0,
+                  ),
+                  agents_worked_count: data.agents_worked.length,
+                }}
+              />
+            </section>
+          </>
         )}
       </main>
     </>
@@ -106,7 +132,7 @@ function ClientDetailBody({ data }: { data: ClientDetailResponse }) {
               className="shimmer-btn"
             >
               <span>Open site</span>
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ArrowSquareOut className="h-3.5 w-3.5" />
             </a>
           ) : null}
         </div>

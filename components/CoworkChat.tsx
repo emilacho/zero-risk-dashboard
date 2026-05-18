@@ -2,8 +2,8 @@
 /**
  * CoworkChat · floating message button + 400px slide-in drawer.
  *
- *   - Button bottom-right · `MessageCircle` Lucide stroke 1.5
- *   - Click opens drawer · autosize textarea + Send cyan shimmer
+ *   - Button bottom-right · `ChatCircle` Lucide stroke 1.5
+ *   - Click opens drawer · autosize textarea + PaperPlaneTilt cyan shimmer
  *   - POST to /api/cowork/message · persists + fires Slack #equipo
  *   - Toast feedback inline (success / failure)
  *
@@ -11,7 +11,13 @@
  */
 import { useState, useRef, useEffect, type ChangeEvent, type KeyboardEvent } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { MessageCircle, Send, X, Check, Loader2 } from "lucide-react"
+import {
+  ChatCircle,
+  PaperPlaneTilt,
+  X,
+  Check,
+  CircleNotch,
+} from "@phosphor-icons/react/dist/ssr"
 
 type SendState = "idle" | "sending" | "ok" | "error"
 
@@ -80,7 +86,7 @@ export function CoworkChat() {
         {open ? (
           <X strokeWidth={1.5} className="h-5 w-5 text-[hsl(var(--foreground))]" />
         ) : (
-          <MessageCircle
+          <ChatCircle
             strokeWidth={1.5}
             className="h-5 w-5 text-[hsl(var(--accent))]"
           />
@@ -149,13 +155,13 @@ export function CoworkChat() {
                   className="shimmer-btn inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {state === "sending" ? (
-                    <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+                    <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
                   ) : state === "ok" ? (
                     <Check strokeWidth={1.5} className="h-3.5 w-3.5" />
                   ) : (
-                    <Send strokeWidth={1.5} className="h-3.5 w-3.5" />
+                    <PaperPlaneTilt strokeWidth={1.5} className="h-3.5 w-3.5" />
                   )}
-                  {state === "ok" ? "Sent" : state === "sending" ? "Enviando..." : "Send"}
+                  {state === "ok" ? "Sent" : state === "sending" ? "Enviando..." : "PaperPlaneTilt"}
                 </button>
               </div>
 

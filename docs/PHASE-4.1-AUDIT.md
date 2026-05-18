@@ -64,5 +64,8 @@ This means legacy callers that lived inside the client tree (e.g. older `KpiCard
 
 ## Followups
 
-- Add ESLint rule that flags `format={anything-that-looks-like-a-function}` on `AnimatedNumber` imports (Phase 4.2 candidate · low priority since the warn + fallback already prevents crashes).
+- ~~Add ESLint rule that flags `format={anything-that-looks-like-a-function}` on `AnimatedNumber` imports~~ → **shipped in Phase 4.2** (2026-05-17). See:
+  - `eslint-plugin-local/rules/no-function-format-prop.js` · AST visitor on JSXOpeningElement scoped to `AnimatedNumber` + `OpsKpiCell` · catches `ArrowFunctionExpression`, `FunctionExpression`, and fn-shaped bare Identifiers (`fmtUsd`, `formatX`, `*Fn`).
+  - `scripts/audit-format-prop.mjs` · zero-dep regex audit · run via `pnpm audit:format-prop` · also wired into `pnpm verify` and the husky `pre-commit` hook.
+  - Three-layer defense · TypeScript (catches OpsKpiCell) + ESLint local rule (catches both) + grep audit (catches both, runs faster than tsc).
 - Apply the same string-identifier pattern proactively to any new component that accepts behavior props.

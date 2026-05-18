@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Phase 4.2 · pre-commit guard.
+#
+# Runs lint-staged (which lints only the staged files) plus the
+# format-prop grep audit so any reintroduction of the digest
+# 3406040795 regression is caught before the commit lands.
+
+pnpm exec lint-staged
+pnpm audit:format-prop

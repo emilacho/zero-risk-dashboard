@@ -16,32 +16,34 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
 import {
-  Sparkles,
-  LayoutDashboard,
+  Sparkle,
+  SquaresFour,
   Cpu,
   Users,
-  Network,
-  Building2,
-  Boxes,
-  type LucideIcon,
-} from "lucide-react"
+  TreeStructure,
+  Buildings,
+  Stack,
+} from "@phosphor-icons/react/dist/ssr"
+// Type-only import from main module · `/dist/ssr` doesn't export the `Icon`
+// type alias · safe because TS type imports are erased at compile time.
+import type { Icon } from "@phosphor-icons/react"
 import { DEPARTMENTS } from "@/lib/departments"
 import { SYSTEM_TABS } from "@/lib/system-tabs"
 
 interface NavItem {
   href: string
   label: string
-  icon: LucideIcon
+  icon: Icon
   /** When set, this is the parent of a sub-tree (renders chevron + children). */
   children?: { href: string; label: string; cardinal: string; hue: string }[]
 }
 
 const NAV: NavItem[] = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/", label: "Overview", icon: SquaresFour },
   {
     href: "/dept",
     label: "Departamentos",
-    icon: Building2,
+    icon: Buildings,
     children: DEPARTMENTS.map((d) => ({
       href: `/dept/${d.slug}`,
       label: d.label,
@@ -52,7 +54,7 @@ const NAV: NavItem[] = [
   {
     href: "/system",
     label: "System",
-    icon: Boxes,
+    icon: Stack,
     children: SYSTEM_TABS.map((t) => ({
       href: `/system/${t.slug}`,
       label: t.label,
@@ -62,7 +64,7 @@ const NAV: NavItem[] = [
   },
   { href: "/agents", label: "Agents", icon: Cpu },
   { href: "/clients", label: "Clients", icon: Users },
-  { href: "/graph", label: "Graph", icon: Network },
+  { href: "/graph", label: "Graph", icon: TreeStructure },
 ]
 
 export function Sidebar() {
@@ -82,7 +84,8 @@ export function Sidebar() {
         className="flex h-16 items-center gap-3 px-[18px] transition-colors hover:bg-[hsl(var(--primary-glow)/0.06)]"
       >
         <span className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-foreground shadow-[0_0_18px_-2px_hsl(var(--primary-glow)/0.6)]">
-          <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+          {/* Logo glyph · small (16px) so fill weight reads strongest. */}
+          <Sparkle className="h-4 w-4" weight="fill" />
         </span>
         <span className="overflow-hidden whitespace-nowrap font-marker text-[15px] leading-none tracking-tight opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100">
           Zero Risk
@@ -117,8 +120,11 @@ export function Sidebar() {
                   aria-hidden
                   className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary-glow))] opacity-0 shadow-[0_0_8px_hsl(var(--primary-glow)/0.7)] transition-opacity group-data-[active=true]/item:opacity-100"
                 />
+                {/* Phosphor weight canon · sidebar nav icons (20px+) use
+                    duotone so the Lumen violet+cyan flagship pair has
+                    visual presence at primary-nav scale. */}
                 <Icon
-                  strokeWidth={1.5}
+                  weight="duotone"
                   className="h-5 w-5 shrink-0 text-[hsl(var(--muted-foreground))] transition-colors group-hover/item:text-foreground group-data-[active=true]/item:text-[hsl(var(--accent))]"
                 />
                 <span className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 group-hover/item:text-foreground group-data-[active=true]/item:text-foreground">

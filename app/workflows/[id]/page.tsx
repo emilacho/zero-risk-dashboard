@@ -1,6 +1,9 @@
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 import { WorkflowLiveCanvas } from "@/components/workflows/WorkflowLiveCanvas"
+import { translateWorkflowTitle, workflowSubtitle } from "@/lib/n8n-workflow-titles"
+import { getWorkflowDescription } from "@/lib/n8n-workflow-descriptions"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 export const dynamic = "force-dynamic"
 
@@ -106,16 +109,39 @@ export default async function WorkflowPage({
             {wf.active ? "● ACTIVO" : "○ INACTIVO"} · {wf.triggerCount} disparador{wf.triggerCount === 1 ? "" : "es"} · {wf.nodes.length} nodos
           </p>
           <h1 className="mt-2 font-display text-[36px] font-semibold leading-[1.05] tracking-tight md:text-[44px]">
-            <span className="text-gradient">
-              {wf.name.replace(/^Zero Risk[ ·—-]*/, "")}
-            </span>
+            <span className="text-gradient">{translateWorkflowTitle(wf.name)}</span>
           </h1>
+          {(() => {
+            const sub = workflowSubtitle(wf.name)
+            return sub ? (
+              <p className="mt-1 num text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
+                n8n · <span className="font-mono">{sub}</span>
+              </p>
+            ) : null
+          })()}
           <p className="mt-1 num text-[10px] text-[hsl(var(--muted-foreground))]">
             id · <code className="font-mono">{wf.id}</code> · updated{" "}
             {wf.updatedAt
               ? new Date(wf.updatedAt).toISOString().slice(0, 16).replace("T", " ")
               : "—"}
           </p>
+          {(() => {
+            const desc = getWorkflowDescription({
+              workflow_id: wf.id,
+              raw_title: wf.name,
+              translated_title: translateWorkflowTitle(wf.name),
+            })
+            return desc ? (
+              <div className="mt-4 max-w-[80%]">
+                <p className="num text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
+                  qué hace
+                </p>
+                <p className="mt-1 text-[14px] italic text-[hsl(var(--foreground)/0.78)]">
+                  {desc}
+                </p>
+              </div>
+            ) : null
+          })()}
         </div>
         <a
           href={`https://n8n-production-72be.up.railway.app/workflow/${wf.id}`}
@@ -123,7 +149,7 @@ export default async function WorkflowPage({
           rel="noreferrer"
           className="num inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-foreground"
         >
-          abrir en n8n <ExternalLink strokeWidth={1.5} className="h-3 w-3" />
+          abrir en n8n <ArrowSquareOut strokeWidth={1.5} className="h-3 w-3" />
         </a>
       </header>
 
@@ -135,6 +161,24 @@ export default async function WorkflowPage({
           triggerNodeNames={triggerNodeNames}
         />
       </div>
+
+      <section className="mt-8">
+        <CoworkPromptBar
+          channel={`workflow:${wf.id}`}
+          eyebrow="Workflow · cowork prompt"
+          variant="full"
+          maxThreadHeight={320}
+          surfaceState={{
+            workflow_id: wf.id,
+            workflow_name_raw: wf.name,
+            workflow_title_translated: translateWorkflowTitle(wf.name),
+            active: wf.active,
+            trigger_count: wf.triggerCount,
+            node_count: wf.nodes.length,
+            trigger_node_names: triggerNodeNames,
+          }}
+        />
+      </section>
     </main>
   )
 }

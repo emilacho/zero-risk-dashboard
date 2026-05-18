@@ -11,16 +11,15 @@
 import Link from "next/link"
 import {
   Cpu,
-  Workflow,
-  Boxes,
-  Layers,
+  FlowArrow,
+  Stack,
   HardDrive,
   Brain,
-  Inbox,
-  Map,
+  Tray,
+  MapTrifold,
   ArrowRight,
-  Network,
-} from "lucide-react"
+  TreeStructure,
+} from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import { MemoryGraph, StatsBar } from "@/lib/dashboard-components"
 import {
@@ -31,23 +30,32 @@ import { DeptOverviewGrid } from "@/components/DeptOverviewGrid"
 import { OpsKpiGrid } from "@/components/OpsKpiGrid"
 import { SYSTEM_TABS } from "@/lib/system-tabs"
 import { WorkflowsRunningKpi } from "@/components/workflows/WorkflowsRunningKpi"
+import { LiveAgentFeed } from "@/components/home/LiveAgentFeed"
+import { loadAgentFeed } from "@/lib/agent-feed"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 const SYSTEM_TAB_ICONS: Record<string, React.ReactNode> = {
   agents: <Cpu strokeWidth={1.5} className="h-4 w-4" />,
-  workflows: <Workflow strokeWidth={1.5} className="h-4 w-4" />,
-  brazos: <Boxes strokeWidth={1.5} className="h-4 w-4" />,
-  plataformas: <Layers strokeWidth={1.5} className="h-4 w-4" />,
+  workflows: <FlowArrow strokeWidth={1.5} className="h-4 w-4" />,
+  brazos: <Stack strokeWidth={1.5} className="h-4 w-4" />,
+  plataformas: <Stack strokeWidth={1.5} className="h-4 w-4" />,
   storage: <HardDrive strokeWidth={1.5} className="h-4 w-4" />,
   memoria: <Brain strokeWidth={1.5} className="h-4 w-4" />,
-  inbox: <Inbox strokeWidth={1.5} className="h-4 w-4" />,
-  roadmap: <Map strokeWidth={1.5} className="h-4 w-4" />,
+  inbox: <Tray strokeWidth={1.5} className="h-4 w-4" />,
+  roadmap: <MapTrifold strokeWidth={1.5} className="h-4 w-4" />,
 }
 
 export async function HomeControlPanel() {
-  const [metrics, agents, clients] = await Promise.all([
+  const [metrics, agents, clients, agentFeed] = await Promise.all([
     api.metrics().catch(() => null),
     api.agents(100).catch(() => null),
     api.clients(100).catch(() => null),
+    loadAgentFeed(7).catch(() => ({
+      rows: [],
+      count24h: 0,
+      totalCost24h: 0,
+      generatedAt: new Date().toISOString(),
+    })),
   ])
 
   const stats = buildStatsBarSnapshot({ metrics, agents, clients })
@@ -60,6 +68,19 @@ export async function HomeControlPanel() {
   return (
     <div className="flex flex-col gap-8">
       <StatsBar snapshot={stats} />
+
+      {/* COWORK PROMPT BAR · STEP 11 · main dispatcher to Cowork from
+          the dashboard · prompt + file attach + clipboard paste +
+          drag/drop · sesión por canal "home" persistida en localStorage
+          + cowork_messages */}
+      <CoworkPromptBar
+        channel="home"
+        page="home"
+        eyebrow="Capa principal · cowork prompt"
+        variant="full"
+        maxThreadHeight={360}
+        autoFocus={false}
+      />
 
       {/* PRIMARY · 5 oficinas · the dept grid is the headline */}
       <DeptOverviewGrid />
@@ -119,7 +140,9 @@ export async function HomeControlPanel() {
         </div>
       </section>
 
-      {/* LIVE · workflows running now · STEP 5 KPI */}
+      {/* LIVE · workflows running + STEP 10 live agent feed (Realtime
+          subscribe on agent_invocations · ver equipo virtual trabajando
+          en vivo). Layout · KPI tile narrow left · feed wide right. */}
       <section>
         <div className="mb-3 flex items-center justify-between">
           <span className="eyebrow-chip">
@@ -133,8 +156,16 @@ export async function HomeControlPanel() {
             → todos los workflows
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <WorkflowsRunningKpi />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-1">
+            <WorkflowsRunningKpi />
+          </div>
+          <LiveAgentFeed
+            initialRows={agentFeed.rows}
+            initialCount24h={agentFeed.count24h}
+            initialCost24h={agentFeed.totalCost24h}
+            maxRows={7}
+          />
         </div>
       </section>
 
@@ -147,7 +178,7 @@ export async function HomeControlPanel() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.4)] bg-[hsl(var(--primary-glow)/0.12)] text-[hsl(var(--primary-glow))]">
-                <Network strokeWidth={1.5} className="h-4 w-4" />
+                <TreeStructure strokeWidth={1.5} className="h-4 w-4" />
               </span>
               <div>
                 <h2 className="font-display text-base font-semibold tracking-tight">

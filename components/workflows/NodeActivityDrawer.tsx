@@ -17,15 +17,15 @@ import Link from "next/link"
 import * as Dialog from "@radix-ui/react-dialog"
 import {
   X,
-  ExternalLink,
+  ArrowSquareOut,
   ArrowRight,
-  Loader2,
+  CircleNotch,
   Check,
-  AlertTriangle,
-  Activity,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react"
+  Warning,
+  Pulse,
+  CaretDown,
+  CaretRight,
+} from "@phosphor-icons/react/dist/ssr"
 import { translateNodeType, type IconKind } from "@/lib/n8n-node-translations"
 import { IconForKind } from "./NodeIcons"
 
@@ -174,14 +174,14 @@ export function NodeActivityDrawer({
           <div className="relative z-[2] flex-1 overflow-y-auto p-5">
             {loading && rows.length === 0 ? (
               <div className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]">
-                <Loader2 strokeWidth={1.5} className="h-4 w-4 animate-spin" />
+                <CircleNotch strokeWidth={1.5} className="h-4 w-4 animate-spin" />
                 <span className="num text-[11px] uppercase tracking-[0.18em]">
                   cargando...
                 </span>
               </div>
             ) : rows.length === 0 ? (
               <div className="rounded-lg border-[0.5px] border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/0.3)] p-6 text-center">
-                <Activity strokeWidth={1.5} className="mx-auto h-5 w-5 text-[hsl(var(--muted-foreground))]" />
+                <Pulse strokeWidth={1.5} className="mx-auto h-5 w-5 text-[hsl(var(--muted-foreground))]" />
                 <p className="num mt-2 text-[10px] uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))]">
                   Sin actividad reciente para este nodo
                 </p>
@@ -303,7 +303,7 @@ export function NodeActivityDrawer({
                           rel="noreferrer"
                           className="num inline-flex items-center gap-1 uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))] hover:text-foreground"
                         >
-                          n8n raw <ExternalLink strokeWidth={1.5} className="h-3 w-3" />
+                          n8n raw <ArrowSquareOut strokeWidth={1.5} className="h-3 w-3" />
                         </a>
                       ) : null}
                     </div>
@@ -332,11 +332,11 @@ function StatusIcon({ status }: { status: string }) {
     return <Check strokeWidth={2} className="h-3.5 w-3.5 text-[hsl(var(--success))]" />
   }
   if (s === "failed" || s === "error") {
-    return <AlertTriangle strokeWidth={2} className="h-3.5 w-3.5 text-[hsl(var(--danger))]" />
+    return <Warning strokeWidth={2} className="h-3.5 w-3.5 text-[hsl(var(--danger))]" />
   }
   if (s === "running" || s === "in_progress") {
     return (
-      <Loader2 strokeWidth={2} className="h-3.5 w-3.5 animate-spin text-[hsl(var(--accent))]" />
+      <CircleNotch strokeWidth={2} className="h-3.5 w-3.5 animate-spin text-[hsl(var(--accent))]" />
     )
   }
   return <span className="inline-block h-1.5 w-1.5 rounded-full bg-[hsl(var(--muted-foreground))]" />
@@ -383,9 +383,9 @@ function ExpandableBlock({
         className="num inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] hover:text-foreground"
       >
         {expanded ? (
-          <ChevronDown strokeWidth={1.5} className="h-3 w-3" />
+          <CaretDown strokeWidth={1.5} className="h-3 w-3" />
         ) : (
-          <ChevronRight strokeWidth={1.5} className="h-3 w-3" />
+          <CaretRight strokeWidth={1.5} className="h-3 w-3" />
         )}
         {label}
       </button>

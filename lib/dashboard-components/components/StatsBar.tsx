@@ -8,7 +8,13 @@
  * Pass real data via the `snapshot` prop. The renderer formats the
  * memory size (bytes) compactly and the lastSync as relative time.
  */
-import { Cpu, Network, Database, Clock, HardDrive } from 'lucide-react'
+import {
+  Cpu,
+  TreeStructure,
+  Database,
+  Clock,
+  HardDrive,
+} from "@phosphor-icons/react/dist/ssr"
 import { formatRelativeTime } from '../utils/format'
 import type { StatsBarSnapshot } from '../types'
 
@@ -40,7 +46,7 @@ const CELLS = [
   {
     key: 'relationships',
     label: 'relationships',
-    Icon: Network,
+    Icon: TreeStructure,
     hue: 'cyan',
     sub: 'edges in memory',
   },

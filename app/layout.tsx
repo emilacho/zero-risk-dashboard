@@ -8,7 +8,13 @@ import {
 import "./globals.css"
 import { RouteTransition } from "@/components/RouteTransition"
 import { Sidebar } from "@/components/Sidebar"
-import { CoworkChat } from "@/components/CoworkChat"
+// STEP 11 M4 · the floating Phase 3 CoworkChat drawer is DEPRECATED
+// in favor of the inline CoworkPromptBar (embedded per-surface · home
+// + dept/mkt modal + clients/workflows/agents detail pages). Keeping
+// the file at components/CoworkChat.tsx for forensic value but no
+// longer mounting it. /api/cowork/message route stays alive for any
+// external (n8n) posters.
+import { Toaster } from "@/components/ui/Toaster"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,7 +67,7 @@ export default function RootLayout({
         <RouteTransition>
           <div className="pl-[64px]">{children}</div>
         </RouteTransition>
-        <CoworkChat />
+        <Toaster />
       </body>
     </html>
   )

@@ -10,13 +10,13 @@
 import Link from "next/link"
 import {
   Megaphone,
-  Instagram,
-  MousePointerClick,
-  Mail,
+  InstagramLogo,
+  CursorClick,
+  Envelope,
   Ticket,
-  Activity,
-  ExternalLink,
-} from "lucide-react"
+  Pulse,
+  ArrowSquareOut,
+} from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import { classifyAgent } from "@/lib/departments"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
@@ -71,7 +71,7 @@ export async function DeptMktBody() {
           title="MKT agents active"
           count={active.length}
           hue="cyan"
-          icon={<Activity strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<Pulse strokeWidth={1.5} className="h-3.5 w-3.5" />}
           sub={`${mktAgents.length} total · utilization ${((active.length / Math.max(1, mktAgents.length)) * 100).toFixed(1)}% · click → top consumers`}
           modalDescription="MKT agents con invocations 30d · sorted desc · click row → /agents/{slug}"
           seeAllHref="/system/agents"
@@ -97,14 +97,14 @@ export async function DeptMktBody() {
         />
         <OpsKpiCell
           label="Meta campaigns"
-          icon={<MousePointerClick strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<CursorClick strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={null}
           badge="wire pending"
           sub="Brazo 3 · post Facebook App build"
         />
         <OpsKpiCell
           label="IG followers"
-          icon={<Instagram strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<InstagramLogo strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={null}
           badge="wire pending"
           sub="Meta Graph API"
@@ -119,13 +119,13 @@ export async function DeptMktBody() {
           </h2>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <ChannelTile
-              icon={<MousePointerClick strokeWidth={1.5} className="h-4 w-4" />}
+              icon={<CursorClick strokeWidth={1.5} className="h-4 w-4" />}
               title="Meta Ads (Brazo 3)"
               status="build"
               note="Facebook Developers App pending · spec ready"
             />
             <ChannelTile
-              icon={<Instagram strokeWidth={1.5} className="h-4 w-4" />}
+              icon={<InstagramLogo strokeWidth={1.5} className="h-4 w-4" />}
               title="IG organic · @naufrago"
               status="manual"
               note="Posts cliente piloto · metrics pull pending GHL Social wire"
@@ -137,7 +137,7 @@ export async function DeptMktBody() {
               note="ticker promo active · client-sites-template deployed"
             />
             <ChannelTile
-              icon={<Mail strokeWidth={1.5} className="h-4 w-4" />}
+              icon={<Envelope strokeWidth={1.5} className="h-4 w-4" />}
               title="Email · GHL Unlimited"
               status="ready"
               note="$297/mo subscription · sequences not yet authored"
@@ -271,7 +271,7 @@ export async function DeptMktBody() {
                         rel="noreferrer"
                         className="num inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-foreground"
                       >
-                        Meta <ExternalLink strokeWidth={1.5} className="h-3 w-3" />
+                        Meta <ArrowSquareOut strokeWidth={1.5} className="h-3 w-3" />
                       </a>
                     ) : null}
                   </li>

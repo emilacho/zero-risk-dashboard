@@ -16,19 +16,20 @@
 import { useState, type FormEvent } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import {
-  Send,
+  PaperPlaneTilt,
   Plus,
-  Loader2,
+  CircleNotch,
   Check,
   X,
-  ExternalLink,
-  CircleAlert,
-} from "lucide-react"
+  ArrowSquareOut,
+  WarningCircle,
+} from "@phosphor-icons/react/dist/ssr"
 import {
   CAMPAIGN_OBJECTIVES,
   AUDIENCE_PRESETS,
   type CampaignRow,
 } from "@/lib/campaigns"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 
 interface ClientOption {
   id: string
@@ -125,7 +126,7 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm data-[state=open]:animate-blur-fade" />
         <Dialog.Content
-          className="surface-card rim-instr fixed left-1/2 top-1/2 z-[71] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 p-6"
+          className="surface-card rim-instr fixed left-1/2 top-1/2 z-[71] flex max-h-[90vh] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto p-6"
           data-rim="cyan"
         >
           <div className="relative z-[2]">
@@ -259,7 +260,7 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
 
                 {state === "error" && errMsg ? (
                   <div className="flex items-start gap-2 rounded-md border-[0.5px] border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--danger))]">
-                    <CircleAlert strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <WarningCircle strokeWidth={1.5} className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>{errMsg}</span>
                   </div>
                 ) : null}
@@ -268,6 +269,51 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
                   Status default · <code className="font-mono">draft</code> · queueable después · status=&apos;paused&apos; siempre cuando real
                   Meta API se llame (NO live auto-launch).
                 </p>
+
+                {/* STEP 11 M4 · CoworkPromptBar replaces the Phase 8
+                    CoworkContextChat · same HITL apply-suggestion
+                    contract, now with streaming + slash + uploads. */}
+                {clientId ? (
+                  <CoworkPromptBar
+                    channel="campaign_modal"
+                    page="dept/mkt:campaign-modal"
+                    clientId={clientId}
+                    clientName={clients.find((c) => c.id === clientId)?.name}
+                    variant="compact"
+                    maxThreadHeight={240}
+                    eyebrow="MKT · cowork prompt"
+                    formState={{
+                      client_id: clientId,
+                      objective,
+                      daily_budget_usd: Number(dailyBudget),
+                      duration_days: Number(durationDays),
+                      audience_preset: audiencePreset,
+                      creative_count: Number(creativeCount),
+                      destination_url: destinationUrl,
+                    }}
+                    onApplySuggestion={(updates) => {
+                      if (typeof updates.objective === "string") {
+                        const next = updates.objective as (typeof CAMPAIGN_OBJECTIVES)[number]
+                        if (CAMPAIGN_OBJECTIVES.includes(next)) setObjective(next)
+                      }
+                      if (typeof updates.daily_budget_usd === "number") {
+                        setDailyBudget(String(updates.daily_budget_usd))
+                      }
+                      if (typeof updates.duration_days === "number") {
+                        setDurationDays(String(updates.duration_days))
+                      }
+                      if (typeof updates.audience_preset === "string") {
+                        setAudiencePreset(updates.audience_preset)
+                      }
+                      if (typeof updates.creative_count === "number") {
+                        setCreativeCount(String(updates.creative_count))
+                      }
+                      if (typeof updates.destination_url === "string") {
+                        setDestinationUrl(updates.destination_url)
+                      }
+                    }}
+                  />
+                ) : null}
 
                 <div className="mt-2 flex items-center justify-end gap-2">
                   <Dialog.Close asChild>
@@ -284,9 +330,9 @@ export function CampaignCreatorModal({ clients }: CampaignCreatorModalProps) {
                     className="shimmer-btn inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {state === "submitting" ? (
-                      <Loader2 strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
+                      <CircleNotch strokeWidth={1.5} className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Send strokeWidth={1.5} className="h-3.5 w-3.5" />
+                      <PaperPlaneTilt strokeWidth={1.5} className="h-3.5 w-3.5" />
                     )}
                     Create draft
                   </button>
@@ -363,7 +409,7 @@ function ResultPanel({
           className="num inline-flex items-center gap-1 self-start text-[11px] uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-foreground"
         >
           open in Meta Ads Manager
-          <ExternalLink strokeWidth={1.5} className="h-3 w-3" />
+          <ArrowSquareOut strokeWidth={1.5} className="h-3 w-3" />
         </a>
       ) : (
         <p className="num text-[10px] text-[hsl(var(--muted-foreground))]">

@@ -6,7 +6,14 @@
  * · clicking a card navigates a /dept/[slug].
  */
 import Link from "next/link"
-import { Building2, Cpu, Users, Coins, Megaphone, ShieldCheck } from "lucide-react"
+import {
+  Buildings,
+  Cpu,
+  Users,
+  Coins,
+  Megaphone,
+  ShieldCheck,
+} from "@phosphor-icons/react/dist/ssr"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { DEPARTMENTS, rollupAgentsByDept, type DeptSlug } from "@/lib/departments"
 import type { AgentRow } from "@/lib/api"
@@ -174,6 +181,6 @@ export async function DeptOverviewGrid() {
   )
 }
 
-// Suppress unused-import warning for Building2 (kept for future home
+// Suppress unused-import warning for Buildings (kept for future home
 // section header)
-void Building2
+void Buildings

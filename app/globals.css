@@ -39,6 +39,26 @@
     --input: 240 6% 90%;
     --ring: 263 70% 50%;
     --radius: 0.5rem;
+
+    /* ─── Motion canon · D5 (Sprint #8) ─────────────────────────────────
+     * Single source of truth for animation easing + duration. Mirrors
+     * lib/motion.ts EASING + DURATION objects so CSS callers stay aligned
+     * with Framer callers. Reach for `var(--ease-out)` + `var(--dur-base)`
+     * in `transition` and `animation` shorthand · NEVER inline a one-off
+     * cubic-bezier or magic ms value.
+     */
+    --ease-out:       cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-out-quart: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-in:        cubic-bezier(0.8, 0.2, 0.8, 0.2);
+    --ease-in-out:    cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --dur-instant:    100ms;
+    --dur-fast:       200ms;
+    --dur-base:       300ms;
+    --dur-slow:       500ms;
+    --dur-deliberate: 800ms;
+    --dur-languid:    1200ms;
   }
 
   .dark {
@@ -73,27 +93,18 @@
     --success: 154 100% 41%;           /* #00D084 */
     --danger: 347 100% 60%;            /* #FF3366 */
 
-    /* Category palette · v3 multi-color · kept for legacy components
-       (cubicle card hues + memory-graph edge variants). The new Lumen
-       primary/accent above override the front-page hierarchy. */
+    /* Category palette · v3 multi-color · ALL referenced as HSL triplets
+       so they compose with `hsl(var(--hue-x) / 0.4)` alpha tricks. Aligned
+       to flagship tokens (--primary-glow · --accent · --success · --danger)
+       so kind-specific surfaces inherit the Lumen v3 brand pair. Legacy
+       duplicate block (L90-101 pre-fix · slightly different values that
+       silently won via CSS cascade · masking the alignment intent) removed
+       2026-05-17 per audit `2026-05-17-component-library-audit.md`. */
     --hue-violet:  264 78% 60%;        /* aligned to --primary-glow */
     --hue-cyan:    182 60% 57%;        /* aligned to --accent */
     --hue-amber:    40 95% 60%;
     --hue-emerald: 154 100% 41%;       /* aligned to --success */
     --hue-rose:    347 100% 60%;       /* aligned to --danger */
-    --hue-orange:   25 95% 60%;
-    --hue-purple:  280 80% 65%;
-    --hue-teal:    173 80% 50%;
-    --hue-sky:     205 90% 60%;
-    --hue-lime:     90 75% 55%;
-
-    /* Category palette · v3 multi-color · ALL referenced as HSL triplets
-       so they compose with `hsl(var(--hue-x) / 0.4)` alpha tricks. */
-    --hue-violet:  263 80% 65%;
-    --hue-cyan:    187 85% 55%;
-    --hue-amber:    40 95% 60%;
-    --hue-emerald: 160 84% 50%;
-    --hue-rose:    330 80% 65%;
     --hue-orange:   25 95% 60%;
     --hue-purple:  280 80% 65%;
     --hue-teal:    173 80% 50%;
@@ -409,6 +420,22 @@
 @keyframes ring-rotate-counter { to { transform: rotate(-360deg); } }
 @keyframes radial-pulse        { 0%,100% { opacity: 0.35; r: 4; } 50% { opacity: 1; r: 6; } }
 
+/* D5 motion canon · scroll-driven keyframes · canonical entry curves.
+ * Use via `<RevealOnScroll />` wrapper · or class .reveal-on-scroll +
+ * IntersectionObserver toggle on `data-revealed="true"`. */
+@keyframes reveal-fade-up {
+  from { opacity: 0; transform: translateY(16px); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+@keyframes reveal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes reveal-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 @layer utilities {
   /* Jarvis vocabulary · binary heartbeat */
   .animate-breathing       { animation: breathing 3.5s ease-in-out infinite; }
@@ -417,6 +444,33 @@
   .animate-ring-mid        { animation: ring-rotate-slow 14s linear infinite; transform-origin: center; }
   .animate-ring-counter    { animation: ring-rotate-counter 18s linear infinite; transform-origin: center; }
   .animate-radial-pulse    { animation: radial-pulse 2.4s ease-in-out infinite; }
+
+  /* D5 motion canon · reveal-on-scroll utilities · pair with
+   * IntersectionObserver toggling `data-revealed` attribute. Default
+   * state is hidden · `data-revealed="true"` plays the keyframe. */
+  .reveal-on-scroll {
+    opacity: 0;
+    will-change: opacity, transform, filter;
+  }
+  .reveal-on-scroll[data-revealed="true"] {
+    animation: reveal-fade-up var(--dur-slow) var(--ease-out) forwards;
+  }
+  .reveal-on-scroll[data-variant="fade"][data-revealed="true"] {
+    animation-name: reveal-fade-in;
+  }
+  .reveal-on-scroll[data-variant="scale"][data-revealed="true"] {
+    animation-name: reveal-scale-in;
+  }
+  /* Respect prefers-reduced-motion · skip the animation · just show. */
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-on-scroll,
+    .reveal-on-scroll[data-revealed="true"] {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+    }
+  }
 
   .animate-shimmer {
     background-image: linear-gradient(
@@ -746,4 +800,143 @@
     animation: flow-dash 1.2s linear infinite;
   }
   .react-flow__attribution { display: none; }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  CoworkPromptBar markdown · STEP 11
+ *  Lightweight prose for react-markdown output · no @tailwindcss/
+ *  typography dep · matches the Lumen card surface tokens.
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .cowork-md > * + * { margin-top: 0.5rem; }
+  .cowork-md h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+  .cowork-md h2 { font-size: 0.98rem; font-weight: 600; letter-spacing: -0.01em; }
+  .cowork-md h3 { font-size: 0.92rem; font-weight: 600; }
+  .cowork-md p  { line-height: 1.55; }
+  .cowork-md strong { color: hsl(var(--foreground)); }
+  .cowork-md em { color: hsl(var(--muted-foreground)); font-style: italic; }
+  .cowork-md ul { list-style: disc; padding-left: 1.1rem; }
+  .cowork-md ol { list-style: decimal; padding-left: 1.2rem; }
+  .cowork-md li { margin-top: 0.15rem; }
+  .cowork-md a  {
+    color: hsl(var(--accent));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .cowork-md a:hover { color: hsl(var(--foreground)); }
+  .cowork-md code:not(pre code) {
+    background: hsl(var(--card) / 0.65);
+    border: 0.5px solid hsl(var(--border));
+    border-radius: 4px;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.85em;
+    color: hsl(var(--accent));
+  }
+  .cowork-md pre {
+    background: hsl(var(--background) / 0.7);
+    border: 0.5px solid hsl(var(--border));
+    border-radius: 6px;
+    padding: 0.7rem 0.85rem;
+    overflow-x: auto;
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  .cowork-md pre code { color: hsl(var(--foreground)); }
+  .cowork-md blockquote {
+    border-left: 2px solid hsl(var(--primary-glow) / 0.4);
+    padding-left: 0.7rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .cowork-md table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+  .cowork-md th, .cowork-md td {
+    border-bottom: 0.5px solid hsl(var(--border));
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+  }
+  .cowork-md th {
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.65rem;
+  }
+  .cowork-md hr {
+    border: none;
+    border-top: 0.5px solid hsl(var(--border));
+    margin: 0.6rem 0;
+  }
+  .cowork-md img { max-width: 100%; border-radius: 6px; }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  CoworkPromptBar syntax highlighting · STEP 12
+ *  rehype-highlight produces `.hljs-*` classes inside `<code>` inside
+ *  `<pre>`. We map them onto the Lumen palette so code reads coherent
+ *  with the rest of the card surface · NO highlight.js theme CSS dep
+ *  (would clash with our dark canvas anyway).
+ * ────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .cowork-md pre code.hljs { background: transparent; padding: 0; }
+
+  .cowork-md .hljs-comment,
+  .cowork-md .hljs-quote {
+    color: hsl(var(--muted-foreground) / 0.85);
+    font-style: italic;
+  }
+
+  .cowork-md .hljs-keyword,
+  .cowork-md .hljs-selector-tag,
+  .cowork-md .hljs-built_in {
+    color: hsl(var(--accent));
+  }
+
+  .cowork-md .hljs-string,
+  .cowork-md .hljs-attr,
+  .cowork-md .hljs-template-string {
+    color: hsl(var(--hue-emerald));
+  }
+
+  .cowork-md .hljs-number,
+  .cowork-md .hljs-literal,
+  .cowork-md .hljs-meta {
+    color: hsl(var(--hue-amber));
+  }
+
+  .cowork-md .hljs-title,
+  .cowork-md .hljs-title.function_,
+  .cowork-md .hljs-function .hljs-title,
+  .cowork-md .hljs-name,
+  .cowork-md .hljs-section {
+    color: hsl(var(--primary-glow));
+  }
+
+  .cowork-md .hljs-type,
+  .cowork-md .hljs-class .hljs-title,
+  .cowork-md .hljs-symbol {
+    color: hsl(var(--hue-purple));
+  }
+
+  .cowork-md .hljs-variable,
+  .cowork-md .hljs-attribute,
+  .cowork-md .hljs-property,
+  .cowork-md .hljs-params {
+    color: hsl(var(--hue-sky));
+  }
+
+  .cowork-md .hljs-tag,
+  .cowork-md .hljs-regexp,
+  .cowork-md .hljs-link {
+    color: hsl(var(--hue-rose));
+  }
+
+  .cowork-md .hljs-deletion { color: hsl(var(--danger)); }
+  .cowork-md .hljs-addition { color: hsl(var(--success)); }
+
+  .cowork-md .hljs-emphasis { font-style: italic; }
+  .cowork-md .hljs-strong { font-weight: 600; }
 }

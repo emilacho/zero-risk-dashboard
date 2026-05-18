@@ -1,11 +1,12 @@
 import Link from "next/link"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import {
   ActivityFeed,
   SparklineGrid,
   formatCurrency,
 } from "@/lib/dashboard-components"
+import { CoworkPromptBar } from "@/components/cowork/CoworkPromptBar"
 export const dynamic = "force-dynamic"
 
 export default async function AgentDetailPage({
@@ -31,7 +32,29 @@ export default async function AgentDetailPage({
             Agent &quot;{slug}&quot; not found or platform endpoint unreachable.
           </div>
         ) : (
-          <AgentDetailBody data={data} />
+          <>
+            <AgentDetailBody data={data} />
+            <section className="mt-10">
+              <CoworkPromptBar
+                channel={`agent:${data.agent.name}`}
+                eyebrow="Agente · cowork prompt"
+                variant="full"
+                maxThreadHeight={320}
+                surfaceState={{
+                  agent_name: data.agent.name,
+                  display_name: data.agent.display_name,
+                  role: data.agent.role,
+                  model: data.agent.model,
+                  total_invocations: data.invocations.length,
+                  total_spend_usd: data.invocations.reduce(
+                    (s, i) => s + (i.cost_usd ?? 0),
+                    0,
+                  ),
+                  status: data.agent.status,
+                }}
+              />
+            </section>
+          </>
         )}
       </main>
     </>
@@ -70,7 +93,7 @@ function AgentDetailBody({
           </div>
           <button type="button" className="shimmer-btn">
             <span>Run agent</span>
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ArrowSquareOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </header>

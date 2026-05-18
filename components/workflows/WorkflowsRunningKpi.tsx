@@ -8,7 +8,12 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import * as Dialog from "@radix-ui/react-dialog"
-import { Activity, ArrowRight, X, Loader2 } from "lucide-react"
+import {
+  Pulse,
+  ArrowRight,
+  X,
+  CircleNotch,
+} from "@phosphor-icons/react/dist/ssr"
 
 interface RunningRow {
   workflowId: string
@@ -64,7 +69,7 @@ export function WorkflowsRunningKpi() {
           <div className="relative z-[2]">
             <div className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]">
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border-[0.5px] border-[hsl(var(--accent)/0.4)] bg-[hsl(var(--accent)/0.12)] text-[hsl(var(--accent))]">
-                <Activity strokeWidth={1.5} className="h-3.5 w-3.5" />
+                <Pulse strokeWidth={1.5} className="h-3.5 w-3.5" />
               </span>
               <span className="font-mono text-[10px] uppercase tracking-[0.18em]">
                 workflows · ejecutándose ahora
@@ -73,7 +78,7 @@ export function WorkflowsRunningKpi() {
             <div className="mt-2 flex items-end justify-between">
               <span className="font-display text-3xl font-semibold leading-none tabular-nums">
                 {loading ? (
-                  <Loader2 strokeWidth={1.5} className="h-6 w-6 animate-spin" />
+                  <CircleNotch strokeWidth={1.5} className="h-6 w-6 animate-spin" />
                 ) : (
                   rows.length
                 )}

@@ -11,11 +11,11 @@
 import Link from "next/link"
 import {
   ShieldCheck,
-  CheckCircle2,
-  RefreshCcw,
-  AlertOctagon,
-  Type,
-} from "lucide-react"
+  CheckCircle,
+  ArrowsCounterClockwise,
+  WarningOctagon,
+  TextT,
+} from "@phosphor-icons/react/dist/ssr"
 import { api } from "@/lib/api"
 import { classifyAgent } from "@/lib/departments"
 import { OpsKpiCell } from "@/components/OpsKpiCell"
@@ -66,7 +66,7 @@ export async function DeptQaBody() {
         />
         <OpsKpiCell
           label="Approve rate"
-          icon={<CheckCircle2 strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<CheckCircle strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={null}
           format="percent"
           badge="wire pending"
@@ -74,7 +74,7 @@ export async function DeptQaBody() {
         />
         <OpsKpiCell
           label="Revision rate"
-          icon={<RefreshCcw strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<ArrowsCounterClockwise strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={null}
           format="percent"
           badge="wire pending"
@@ -82,7 +82,7 @@ export async function DeptQaBody() {
         />
         <OpsKpiCell
           label="Time-to-publish p50"
-          icon={<AlertOctagon strokeWidth={1.5} className="h-3.5 w-3.5" />}
+          icon={<WarningOctagon strokeWidth={1.5} className="h-3.5 w-3.5" />}
           value={null}
           format="number"
           badge="wire pending"
@@ -166,7 +166,7 @@ export async function DeptQaBody() {
                     <span className="num">${(a.stats_30d?.cost_usd ?? 0).toFixed(3)}</span>
                     <span className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
                       {a.model.includes("haiku") ? (
-                        <Type strokeWidth={1.5} className="inline h-3 w-3" />
+                        <TextT strokeWidth={1.5} className="inline h-3 w-3" />
                       ) : null}{" "}
                       {a.model}
                     </span>
