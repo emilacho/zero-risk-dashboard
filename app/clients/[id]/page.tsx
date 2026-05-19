@@ -46,10 +46,10 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  // BUG02 (2026-05-18) · accept BOTH uuid and slug in the URL · platform
-  // endpoint only takes UUID so slug urls (e.g. /clients/naufrago) need
-  // the resolver to list+match first.
-  const data = await api.clientByIdOrSlug(id).catch(() => null)
+  // Platform endpoint `/api/dashboard/clients/{id}` now accepts UUID or
+  // slug natively (zero-risk-platform PR #51) · the dashboard-side
+  // resolver was retired in Sprint #9 cleanup.
+  const data = await api.client(id).catch(() => null)
 
   return (
     <>
