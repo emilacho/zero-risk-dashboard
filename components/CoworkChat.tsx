@@ -18,6 +18,7 @@ import {
   Check,
   CircleNotch,
 } from "@phosphor-icons/react/dist/ssr"
+import { DURATION, EASING } from "@/lib/motion"
 
 type SendState = "idle" | "sending" | "ok" | "error"
 
@@ -100,7 +101,7 @@ export function CoworkChat() {
             initial={{ x: 420, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 420, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+            transition={{ duration: DURATION.base, ease: EASING.out }}
             className="fixed right-0 top-0 z-50 flex h-screen w-[400px] flex-col border-l-[0.5px] border-[hsl(var(--primary-glow)/0.2)] bg-[hsl(var(--background)/0.92)] backdrop-blur-xl"
             role="dialog"
             aria-label="Mensaje a Cowork"

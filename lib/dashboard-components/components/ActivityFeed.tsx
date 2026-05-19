@@ -11,6 +11,7 @@
 import { motion } from 'framer-motion'
 import { formatCurrency, formatRelativeTime } from '../utils/format'
 import type { AgentInvocation, InvocationStatus } from '../types'
+import { DURATION, EASING, STAGGER } from '@/lib/motion'
 
 export interface ActivityFeedProps {
   invocations: AgentInvocation[]
@@ -99,7 +100,7 @@ export function ActivityFeed({
                 key={inv.id}
                 initial={{ opacity: 0, y: 10, filter: 'blur(6px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ duration: 0.4, delay: idx * 0.035, ease: [0.2, 0.8, 0.2, 1] }}
+                transition={{ duration: DURATION.base, delay: idx * STAGGER.tight, ease: EASING.outQuart }}
                 onClick={interactive ? () => onRowClick!(inv) : undefined}
                 className={[
                   'grid grid-cols-[14px_minmax(0,1fr)_auto] gap-3 py-2.5',

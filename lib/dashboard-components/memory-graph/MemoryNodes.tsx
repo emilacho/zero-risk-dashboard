@@ -89,7 +89,7 @@ function commonShell(
         : `linear-gradient(135deg, hsl(${hue} / 0.08), hsl(var(--card) / 0.95))`,
     boxShadow: hover ? hoverShadow : baseShadow,
     transform: hover ? 'scale(1.05)' : 'scale(1)',
-    transition: 'transform 200ms cubic-bezier(.2,.7,.2,1), box-shadow 200ms ease',
+    transition: 'transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out)',
     color: 'hsl(var(--foreground))',
     fontFamily: 'inherit',
     zIndex: hover ? 10 : 1,
