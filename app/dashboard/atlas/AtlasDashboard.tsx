@@ -1,156 +1,77 @@
 "use client"
 /**
- * AtlasDashboard · client island scaffold.
+ * AtlasDashboard · client island.
  *
- * Sprint 2 scaffold · placeholder shell que CC#4 reemplaza con
- * componentes v2 sobrio. Acepta `initialData` del server component +
- * usa TanStack Query hooks para refresh client-side. Renderiza 7
- * secciones stub correspondientes a las streams Tier 1.
+ * Sprint 2 · Equipo B closeout · composes the 12 v2 sobrio components
+ * onto the page in canonical order. Server component prefetches the
+ * snapshot via `/api/atlas/snapshot` and hydrates it as `initialData`
+ * to the TanStack Query cache (zero waterfall on first paint).
  */
-import { useAtlasSnapshot } from "./hooks/useAtlasSnapshot"
+import { useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import type { AtlasSnapshotResponse } from "./types"
+import { AtlasHeader } from "./components/AtlasHeader"
+import { AtlasDriftAlert } from "./components/AtlasDriftAlert"
+import { AtlasKpiGrid } from "./components/AtlasKpiGrid"
+import { AtlasUtilizationBars } from "./components/AtlasUtilizationBars"
+import { AtlasBrazosTable } from "./components/AtlasBrazosTable"
+import { AtlasClientsTable } from "./components/AtlasClientsTable"
+import { AtlasStackGrid } from "./components/AtlasStackGrid"
+import { AtlasEndpointsSummary } from "./components/AtlasEndpointsSummary"
+import { AtlasDriftList } from "./components/AtlasDriftList"
+import { AtlasGitActivity } from "./components/AtlasGitActivity"
+import { AtlasIntegrationsHealth } from "./components/AtlasIntegrationsHealth"
+import { AtlasFooter } from "./components/AtlasFooter"
 
 interface AtlasDashboardProps {
   initialSnapshot: AtlasSnapshotResponse | null
 }
 
 export function AtlasDashboard({ initialSnapshot }: AtlasDashboardProps) {
-  const { data, isLoading, isError, error, refetch } = useAtlasSnapshot(
-    initialSnapshot ?? undefined,
-  )
+  const queryClient = useQueryClient()
 
-  if (isLoading && !data) {
-    return (
-      <p className="text-sm text-[hsl(var(--muted-foreground))]">
-        Loading snapshot...
-      </p>
-    )
-  }
-  if (isError) {
-    return (
-      <div className="flex flex-col gap-2">
-        <p className="text-sm text-[hsl(var(--danger))]">
-          Failed to load snapshot · {(error as Error)?.message ?? "unknown"}
-        </p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="num self-start rounded-md border border-[hsl(var(--border))] px-3 py-1 text-[10px] uppercase tracking-[0.18em]"
-        >
-          retry
-        </button>
-      </div>
-    )
-  }
-
-  if (!data) return null
+  // Seed the snapshot + its sub-streams into the TanStack cache so the
+  // 12 child components hit warm data on first render · no waterfall.
+  useEffect(() => {
+    if (!initialSnapshot) return
+    queryClient.setQueryData(["atlas", "snapshot"], initialSnapshot)
+    if (initialSnapshot.agents) {
+      queryClient.setQueryData(["atlas", "agents"], initialSnapshot.agents)
+    }
+    if (initialSnapshot.workflows) {
+      queryClient.setQueryData(["atlas", "workflows"], initialSnapshot.workflows)
+    }
+    if (initialSnapshot.clients) {
+      queryClient.setQueryData(["atlas", "clients"], initialSnapshot.clients)
+    }
+    if (initialSnapshot.drift) {
+      queryClient.setQueryData(["atlas", "drift"], initialSnapshot.drift)
+    }
+    if (initialSnapshot.git) {
+      queryClient.setQueryData(["atlas", "git"], initialSnapshot.git)
+    }
+    if (initialSnapshot.integrations) {
+      queryClient.setQueryData(
+        ["atlas", "integrations-health"],
+        initialSnapshot.integrations,
+      )
+    }
+  }, [initialSnapshot, queryClient])
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="surface-card rim-instr p-5" data-rim="violet">
-        <div className="relative z-[2]">
-          <p className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-            Snapshot · last validated{" "}
-            {new Date(data.last_validated_at).toLocaleString()}
-          </p>
-          <h2 className="font-display mt-1 text-xl font-semibold tracking-tight">
-            ZeroRiskBible · ground truth dashboard
-          </h2>
-        </div>
-      </section>
-
-      <SourceStrip data={data} />
-
-      {/* 7 stub secciones · CC#4 reemplaza cada placeholder con componente v2 sobrio */}
-      <SectionStub
-        title="Agents"
-        subtitle={
-          data.agents
-            ? `${data.agents.total} total · ${data.agents.with_executions_30d} active 30d · ${data.agents.dormant_count} dormant`
-            : "no data"
-        }
-      />
-      <SectionStub
-        title="Workflows"
-        subtitle={
-          data.workflows
-            ? `n8n ${data.workflows.n8n_status} · ${data.workflows.total} total · ${data.workflows.active} active`
-            : "no data"
-        }
-      />
-      <SectionStub
-        title="Clients"
-        subtitle={
-          data.clients
-            ? `${data.clients.total} total · ${data.clients.active_real} active · ${data.clients.smoke_with_data} smoke-with-data · ${data.clients.smoke_empty} smoke-empty`
-            : "no data"
-        }
-      />
-      <SectionStub
-        title="Drift findings"
-        subtitle={
-          data.drift
-            ? `${data.drift.findings_count} findings detected`
-            : "no data"
-        }
-      />
-      <SectionStub
-        title="Git"
-        subtitle={
-          data.git?.head_commit
-            ? `HEAD ${data.git.head_commit.substring(0, 7)} · ${data.git.head_message?.substring(0, 60) ?? ""}`
-            : "no git data"
-        }
-      />
-      <SectionStub
-        title="Integrations health"
-        subtitle={
-          data.integrations
-            ? `${data.integrations.rows.length} integrations · ${data.integrations.rows.filter((r) => r.status === "ok").length} ok`
-            : "no data"
-        }
-      />
+      <AtlasHeader />
+      <AtlasDriftAlert />
+      <AtlasKpiGrid />
+      <AtlasUtilizationBars />
+      <AtlasBrazosTable />
+      <AtlasClientsTable />
+      <AtlasStackGrid />
+      <AtlasEndpointsSummary />
+      <AtlasDriftList />
+      <AtlasGitActivity />
+      <AtlasIntegrationsHealth />
+      <AtlasFooter />
     </div>
-  )
-}
-
-function SourceStrip({ data }: { data: AtlasSnapshotResponse }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {Object.entries(data.sources_status).map(([key, status]) => (
-        <span
-          key={key}
-          className="num inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--border))] px-2 py-1 text-[10px] uppercase tracking-[0.18em]"
-        >
-          <span
-            aria-hidden
-            className="h-1.5 w-1.5 rounded-full"
-            style={{
-              backgroundColor:
-                status === "ok"
-                  ? "hsl(var(--success))"
-                  : "hsl(var(--danger))",
-            }}
-          />
-          {key}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function SectionStub({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <section className="surface-card rim-instr p-5" data-rim="cyan">
-      <div className="relative z-[2] flex flex-col gap-1">
-        <p className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-          section · stub · CC#4 implementa
-        </p>
-        <h3 className="font-display text-lg font-semibold leading-tight">
-          {title}
-        </h3>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">{subtitle}</p>
-      </div>
-    </section>
   )
 }
