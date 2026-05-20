@@ -8,6 +8,7 @@
  * + partial data + clear flag so the dashboard renders without breaking.
  */
 import { NextResponse } from "next/server"
+import { getSessionClient } from "@/lib/supabase-session"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -31,6 +32,15 @@ interface SampleWorkflowRow {
 }
 
 export async function GET() {
+  const session = await getSessionClient()
+  const { data: userRes } = await session.auth.getUser()
+  if (!userRes?.user) {
+    return NextResponse.json(
+      { ok: false, error: "unauthenticated" },
+      { status: 401 },
+    )
+  }
+
   const apiUrl = process.env.N8N_API_URL ?? "https://n8n.zero-risk.com"
   const apiKey = process.env.N8N_API_KEY
 

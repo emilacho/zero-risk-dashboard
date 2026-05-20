@@ -9,6 +9,7 @@
  */
 import { NextResponse } from "next/server"
 import { getServiceRoleClient } from "@/lib/supabase-server"
+import { getSessionClient } from "@/lib/supabase-session"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -43,6 +44,15 @@ interface InvocationRow {
 }
 
 export async function GET() {
+  const session = await getSessionClient()
+  const { data: userRes } = await session.auth.getUser()
+  if (!userRes?.user) {
+    return NextResponse.json(
+      { ok: false, error: "unauthenticated" },
+      { status: 401 },
+    )
+  }
+
   try {
     const supa = getServiceRoleClient()
 

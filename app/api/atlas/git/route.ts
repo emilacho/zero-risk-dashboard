@@ -12,6 +12,7 @@
  */
 import { NextResponse } from "next/server"
 import { execSync } from "child_process"
+import { getSessionClient } from "@/lib/supabase-session"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -33,6 +34,15 @@ function safeExec(cmd: string): string | null {
 }
 
 export async function GET() {
+  const session = await getSessionClient()
+  const { data: userRes } = await session.auth.getUser()
+  if (!userRes?.user) {
+    return NextResponse.json(
+      { ok: false, error: "unauthenticated" },
+      { status: 401 },
+    )
+  }
+
   const envHead = process.env.GIT_HEAD_HASH
   const envMsg = process.env.GIT_HEAD_MESSAGE
   const envLog = process.env.GIT_LOG_RECENT

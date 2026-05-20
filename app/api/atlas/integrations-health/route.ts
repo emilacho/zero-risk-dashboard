@@ -6,6 +6,7 @@
  * check has a 5s timeout · partial failures NEVER block the response.
  */
 import { NextResponse } from "next/server"
+import { getSessionClient } from "@/lib/supabase-session"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -44,6 +45,15 @@ async function pingUrl(
 }
 
 export async function GET() {
+  const session = await getSessionClient()
+  const { data: userRes } = await session.auth.getUser()
+  if (!userRes?.user) {
+    return NextResponse.json(
+      { ok: false, error: "unauthenticated" },
+      { status: 401 },
+    )
+  }
+
   const now = new Date().toISOString()
   const rows: HealthRow[] = []
 

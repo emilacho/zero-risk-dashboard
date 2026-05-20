@@ -10,6 +10,7 @@
  * Cache · 60s revalidate · refetch on demand.
  */
 import { NextResponse } from "next/server"
+import { getSessionClient } from "@/lib/supabase-session"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -44,6 +45,15 @@ async function fetchAtlas<T>(
 }
 
 export async function GET(request: Request) {
+  const session = await getSessionClient()
+  const { data: userRes } = await session.auth.getUser()
+  if (!userRes?.user) {
+    return NextResponse.json(
+      { ok: false, error: "unauthenticated" },
+      { status: 401 },
+    )
+  }
+
   const base = buildBaseUrl(request.url)
 
   const [agents, workflows, clients, drift, git, integrations] =
