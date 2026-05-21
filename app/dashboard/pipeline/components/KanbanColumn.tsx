@@ -1,27 +1,27 @@
 "use client"
 import { useDroppable } from "@dnd-kit/core"
 import { KanbanCard } from "./KanbanCard"
-import { STATE_LABEL } from "../types"
-import type { JourneyCard, JourneyState } from "../types"
+import { COLUMN_LABEL } from "../types"
+import type { JourneyCard, KanbanColumn as KanbanColumnId } from "../types"
 
 interface KanbanColumnProps {
-  state: JourneyState
+  column: KanbanColumnId
   cards: JourneyCard[]
 }
 
-export function KanbanColumn({ state, cards }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: state })
+export function KanbanColumn({ column, cards }: KanbanColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: column })
   return (
     <div
       ref={setNodeRef}
       className={`flex h-full min-w-[260px] flex-1 flex-col gap-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/20 p-3 transition-colors ${
         isOver ? "border-[hsl(var(--foreground))]/50 bg-[hsl(var(--muted))]/40" : ""
       }`}
-      data-state={state}
+      data-column={column}
     >
       <header className="flex items-baseline justify-between">
         <h3 className="font-display text-sm font-semibold tracking-tight">
-          {STATE_LABEL[state]}
+          {COLUMN_LABEL[column]}
         </h3>
         <span className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
           {cards.length}

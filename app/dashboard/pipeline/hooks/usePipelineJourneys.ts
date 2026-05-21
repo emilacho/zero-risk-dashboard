@@ -1,6 +1,6 @@
 "use client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { JourneyState, PipelineResponse } from "../types"
+import type { KanbanColumn, PipelineResponse } from "../types"
 
 async function fetchPipeline(): Promise<PipelineResponse> {
   const res = await fetch("/api/pipeline/journeys", { cache: "no-store" })
@@ -18,11 +18,11 @@ export function usePipelineJourneys() {
 export function useMoveJourney() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (vars: { id: string; to_state: JourneyState; stage?: string }) => {
+    mutationFn: async (vars: { id: string; to_column: KanbanColumn; stage?: string }) => {
       const res = await fetch(`/api/pipeline/journeys/${vars.id}/move`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to_state: vars.to_state, stage: vars.stage }),
+        body: JSON.stringify({ to_column: vars.to_column, stage: vars.stage }),
       })
       const data = (await res.json()) as { ok: boolean; error?: string }
       if (!res.ok || !data.ok) throw new Error(data.error ?? "move failed")
@@ -36,15 +36,14 @@ export function useMoveJourney() {
           ...prev,
           columns: { ...prev.columns },
         }
-        // Find + remove from old column · push into new
-        for (const k of Object.keys(next.columns) as JourneyState[]) {
+        for (const k of Object.keys(next.columns) as KanbanColumn[]) {
           const list = next.columns[k]
           const idx = list.findIndex((c) => c.id === vars.id)
           if (idx >= 0) {
             const [card] = list.splice(idx, 1)
-            next.columns[vars.to_state] = [
-              { ...card, journey_state: vars.to_state },
-              ...(next.columns[vars.to_state] ?? []),
+            next.columns[vars.to_column] = [
+              { ...card, column: vars.to_column },
+              ...(next.columns[vars.to_column] ?? []),
             ]
             break
           }

@@ -1,28 +1,51 @@
 /**
- * POST /api/pipeline/journeys/[id]/move · transition a journey to a new state.
+ * POST /api/pipeline/journeys/[id]/move · transition a journey row's
+ * column via the kanban UI.
  *
- * Body · { to_state: JourneyState, stage?: string, notes?: string }
- * Validation · DB check constraint enforces journey_state ∈ enum · we
- * pre-validate before update for friendlier errors.
+ * Sprint 5 D1 · refactored to write to `client_journey_state` (the L1
+ * canonical table per decision doc 2026-05-21). Move semantic ·
+ * 'discovery' / 'onboarding' columns update `journey=ONBOARD` + adjust
+ * `current_stage`; other columns map to the matching `journey` value
+ * ('content' → CONTENT, etc).
  *
- * Side effects · updates `last_activity_at` to NOW · appends a row to
- * `journey_step_executions` if the table exists (best-effort · this
- * table may or may not be present depending on PR #56 scope).
- *
- * Sprint 4 · Pipeline kanban API · 2026-05-20.
+ * Side effects ·
+ *   - UPDATE `journey` + `current_stage` + `updated_at`
+ *   - If target column maps to a terminal state ('completed' future),
+ *     also set `completed_at = now()`
+ *   - Insert into `journey_step_executions` for audit (best-effort)
  */
 import { NextResponse } from "next/server"
 import { getSessionClient } from "@/lib/supabase-session"
 import { getServiceRoleClient } from "@/lib/supabase-server"
-import { JOURNEY_STATES } from "../../route"
+import { KANBAN_COLUMNS, type KanbanColumn } from "../../route"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 interface MoveBody {
+  to_column?: string
+  /** Backwards-compat alias from Sprint 4 · `to_state` is also accepted. */
   to_state?: string
   stage?: string | null
   notes?: string | null
+}
+
+const COLUMN_TO_JOURNEY: Record<KanbanColumn, string> = {
+  discovery: "ONBOARD",
+  onboarding: "ONBOARD",
+  content: "CONTENT",
+  optimizing: "OPTIMIZE",
+  reporting: "REPORT",
+  renewal: "RENEWAL",
+}
+
+const COLUMN_TO_DEFAULT_STAGE: Record<KanbanColumn, string | null> = {
+  discovery: "discovery",
+  onboarding: "send_intake_form",
+  content: "content_brief",
+  optimizing: "optimization_review",
+  reporting: "report_compile",
+  renewal: "renewal_negotiation",
 }
 
 async function requireSession() {
@@ -44,12 +67,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   } catch {
     return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 })
   }
-  if (!body.to_state) {
-    return NextResponse.json({ ok: false, error: "to_state_required" }, { status: 400 })
-  }
-  if (!JOURNEY_STATES.includes(body.to_state as (typeof JOURNEY_STATES)[number])) {
+  const targetColumn = (body.to_column ?? body.to_state ?? "") as KanbanColumn
+  if (!targetColumn) {
     return NextResponse.json(
-      { ok: false, error: `invalid_state · allowed ${JOURNEY_STATES.join(",")}` },
+      { ok: false, error: "to_column_required" },
+      { status: 400 },
+    )
+  }
+  if (!KANBAN_COLUMNS.includes(targetColumn)) {
+    return NextResponse.json(
+      { ok: false, error: `invalid_column · allowed ${KANBAN_COLUMNS.join(",")}` },
       { status: 400 },
     )
   }
@@ -57,8 +84,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const supa = getServiceRoleClient()
     const { data: current, error: getErr } = await supa
-      .from("journey_executions")
-      .select("id, client_id, journey_state, current_step, total_steps")
+      .from("client_journey_state")
+      .select("id, client_id, journey, current_stage, status")
       .eq("id", id)
       .maybeSingle()
     if (getErr) {
@@ -67,26 +94,27 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!current) {
       return NextResponse.json({ ok: false, error: "journey_not_found" }, { status: 404 })
     }
-    if (current.journey_state === body.to_state) {
+
+    const targetJourney = COLUMN_TO_JOURNEY[targetColumn]
+    const targetStage = body.stage ?? COLUMN_TO_DEFAULT_STAGE[targetColumn]
+
+    if (current.journey === targetJourney && current.current_stage === targetStage) {
       return NextResponse.json({
         ok: true,
         noop: true,
         journey: current,
-        reason: "already_in_state",
+        reason: "already_in_target_state",
       })
     }
 
     const nowIso = new Date().toISOString()
-    const patch: Record<string, unknown> = {
-      journey_state: body.to_state,
-      last_activity_at: nowIso,
-    }
-    if (body.stage !== undefined) patch.stage = body.stage
-    if (body.to_state === "churned") patch.completed_at = nowIso
-
     const { data: updated, error: updErr } = await supa
-      .from("journey_executions")
-      .update(patch)
+      .from("client_journey_state")
+      .update({
+        journey: targetJourney,
+        current_stage: targetStage,
+        updated_at: nowIso,
+      })
       .eq("id", id)
       .select()
       .single()
@@ -94,19 +122,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 })
     }
 
-    // Best-effort transition log · table may not exist · ignore.
+    // Best-effort audit · table may not exist, so we catch + continue.
     try {
       await supa.from("journey_step_executions").insert({
         journey_execution_id: id,
-        from_state: current.journey_state,
-        to_state: body.to_state,
-        stage: body.stage ?? null,
+        from_state: `${current.journey}:${current.current_stage ?? ""}`,
+        to_state: `${targetJourney}:${targetStage ?? ""}`,
+        stage: targetStage,
         notes: body.notes ?? null,
         actor: user.email ?? user.id,
         created_at: nowIso,
       })
     } catch {
-      // Audit table absent · transition still committed in journey_executions.
+      // Audit table absent · transition still committed in client_journey_state.
     }
 
     return NextResponse.json({ ok: true, journey: updated })

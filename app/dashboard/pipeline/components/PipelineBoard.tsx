@@ -8,8 +8,8 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core"
 import { usePipelineJourneys, useMoveJourney } from "../hooks/usePipelineJourneys"
-import { JOURNEY_STATES, STATE_LABEL } from "../types"
-import type { JourneyState } from "../types"
+import { KANBAN_COLUMNS, COLUMN_LABEL } from "../types"
+import type { KanbanColumn as KanbanColumnId } from "../types"
 import { KanbanColumn } from "./KanbanColumn"
 
 export function PipelineBoard() {
@@ -19,19 +19,19 @@ export function PipelineBoard() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
-  const states = useMemo<JourneyState[]>(
-    () => (data?.states ?? JOURNEY_STATES.filter((s) => s !== "churned")) as JourneyState[],
+  const columns = useMemo<KanbanColumnId[]>(
+    () => (data?.states ?? KANBAN_COLUMNS) as KanbanColumnId[],
     [data?.states],
   )
 
   function handleDragEnd(e: DragEndEvent) {
     const id = e.active.id as string
-    const fromState = (e.active.data?.current as { fromState?: JourneyState } | undefined)
-      ?.fromState
-    const toState = e.over?.id as JourneyState | undefined
-    if (!id || !toState || !fromState || fromState === toState) return
-    if (!JOURNEY_STATES.includes(toState)) return
-    move.mutate({ id, to_state: toState })
+    const fromColumn = (e.active.data?.current as { fromColumn?: KanbanColumnId } | undefined)
+      ?.fromColumn
+    const toColumn = e.over?.id as KanbanColumnId | undefined
+    if (!id || !toColumn || !fromColumn || fromColumn === toColumn) return
+    if (!KANBAN_COLUMNS.includes(toColumn)) return
+    move.mutate({ id, to_column: toColumn })
   }
 
   if (isLoading) return <BoardSkeleton />
@@ -52,21 +52,21 @@ export function PipelineBoard() {
               Pipeline
             </h2>
             <p className="num mt-0.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-              {data?.total ?? 0} journeys · drag entre columnas para mover stage
+              {data?.total ?? 0} journeys · source · {data?.source_table ?? "client_journey_state"} · drag entre columnas
             </p>
           </div>
           <div className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-            {states.length} stages canónicos · journey_executions
+            {columns.length} columnas canónicas
           </div>
         </header>
 
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="flex h-[68vh] gap-3 overflow-x-auto">
-            {states.map((s) => (
+            {columns.map((c) => (
               <KanbanColumn
-                key={s}
-                state={s}
-                cards={(data?.columns?.[s] ?? []) as never}
+                key={c}
+                column={c}
+                cards={(data?.columns?.[c] ?? []) as never}
               />
             ))}
           </div>
@@ -80,10 +80,10 @@ export function PipelineBoard() {
 
         <footer className="num flex items-center gap-2 border-t border-[hsl(var(--border))]/40 pt-3 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
           legend ·
-          {states.map((s) => (
-            <span key={s} className="inline-flex items-center gap-1">
+          {columns.map((c) => (
+            <span key={c} className="inline-flex items-center gap-1">
               <span className="h-1 w-1 rounded-full bg-[hsl(var(--foreground))]/40" />
-              {STATE_LABEL[s]}
+              {COLUMN_LABEL[c]}
             </span>
           ))}
         </footer>

@@ -1,38 +1,26 @@
-export const JOURNEY_STATES = [
+export const KANBAN_COLUMNS = [
   "discovery",
   "onboarding",
   "content",
   "optimizing",
   "reporting",
   "renewal",
-  "churned",
 ] as const
 
-export type JourneyState = (typeof JOURNEY_STATES)[number]
+export type KanbanColumn = (typeof KANBAN_COLUMNS)[number]
 
 /**
- * Canonical UI labels per dispatch 2026-05-20 ·
- * DB check constraint locks the underlying value names · the labels here
- * are what the kanban columns display.
+ * Canonical UI labels per dispatch + Sprint 5 refactor (2026-05-21).
+ * Source table is `client_journey_state` per decision doc
+ * `pipeline-canonical-table-client-journey-state` 2026-05-21.
  */
-export const STATE_LABEL: Record<JourneyState, string> = {
+export const COLUMN_LABEL: Record<KanbanColumn, string> = {
   discovery: "Discovery",
   onboarding: "Onboarding",
   content: "Production",
   optimizing: "Optimization",
   reporting: "Reporting",
   renewal: "Renewal",
-  churned: "Churned",
-}
-
-export const STATE_HUE: Record<JourneyState, string> = {
-  discovery: "cyan",
-  onboarding: "emerald",
-  content: "violet",
-  optimizing: "amber",
-  reporting: "blue",
-  renewal: "fuchsia",
-  churned: "muted",
 }
 
 export interface JourneyCard {
@@ -40,19 +28,26 @@ export interface JourneyCard {
   client_id: string
   client_slug: string | null
   client_name: string
-  journey_state: JourneyState
-  stage: string | null
+  /** Source journey value (ONBOARD · CONTENT · OPTIMIZE · REPORT · RENEWAL). */
+  journey: string
+  /** Granular stage label (free-form text from L1). */
+  current_stage: string | null
+  /** active · paused · completed · failed. */
+  status: string
+  trigger_type: string | null
+  trigger_source: string | null
+  pending_hitl: number
   started_at: string
   last_activity_at: string | null
-  current_step: number | null
-  total_steps: number | null
-  pending_hitl: number
-  metadata: Record<string, unknown> | null
+  completed_at: string | null
+  /** The kanban column the row currently belongs to. */
+  column: KanbanColumn
 }
 
 export interface PipelineResponse {
   ok: true
-  columns: Record<JourneyState, JourneyCard[]>
+  columns: Record<KanbanColumn, JourneyCard[]>
   total: number
-  states: JourneyState[]
+  states: KanbanColumn[]
+  source_table: "client_journey_state"
 }
