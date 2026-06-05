@@ -12,9 +12,7 @@ import { DeptMktBody } from "@/components/dept/DeptMktBody"
 import { DeptQaBody } from "@/components/dept/DeptQaBody"
 
 // Pure dynamic · no prerender at build time · avoids build-time
-// platform endpoint reachability flakiness that pinned /dept/ops to
-// a frozen error response (digest 3406040795 on builds buik7g6ao +
-// khcjxnmt3). Each request hits the platform endpoint live.
+// platform endpoint reachability flakiness. Each request hits live.
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
@@ -27,6 +25,10 @@ export default async function DeptPage({
   const dept = DEPT_BY_SLUG[slug as DeptSlug]
   if (!dept) notFound()
 
+  // MKT · render the approved Marketing console full-bleed · it carries its
+  // own chrome (tabs · live feed · circulatorio flow). Sidebar = nav back.
+  if (dept.slug === "mkt") return <DeptMktBody />
+
   const body = (() => {
     switch (dept.slug) {
       case "ops":
@@ -35,8 +37,6 @@ export default async function DeptPage({
         return <DeptCsmBody />
       case "fin":
         return <DeptFinBody />
-      case "mkt":
-        return <DeptMktBody />
       case "qa":
         return <DeptQaBody />
       default:

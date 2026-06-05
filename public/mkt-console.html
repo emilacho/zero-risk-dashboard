@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080B">
+<meta name="robots" content="noindex, nofollow">
+<title>Zero Risk · Consola Motor · multi-vista</title>
+<style>
+  :root{
+    --bg:#07080B;--bg2:#0A0C11;--panel:#0E1117;--panel2:#12161D;--panel3:#171B22;--line:#1B2230;--line2:#27303f;--line3:#3a4456;
+    --ink:#E7EAF0;--ink2:#AEB6C4;--mut:#727C8C;--mut2:#4A5364;
+    --blue:#5B8DEF;--teal:#46B3A8;--violet:#8E86E0;--green:#43B581;--amber:#D2A24B;--lime:#8FC73E;--orange:#E8923A;--red:#DE6A5E;--cyan:#5BD0C0;--pink:#EA4B71;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;--fz:-apple-system,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--fz);font-size:14px;overflow:hidden;-webkit-font-smoothing:antialiased}
+  .shell{display:flex;flex-direction:column;height:100vh}
+  .top{display:flex;align-items:center;gap:16px;height:54px;padding:0 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0b0e14,#08090d);z-index:5}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:750;font-size:14px}
+  .brand .gem{width:18px;height:18px;border-radius:5px;background:conic-gradient(from 120deg,var(--blue),var(--violet),var(--teal),var(--blue));box-shadow:0 0 14px rgba(91,141,239,.55)}
+  .brand small{color:var(--mut);font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase}
+  .tabs{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
+  .tab{font-family:var(--mono);font-size:11px;color:var(--mut);padding:7px 13px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .tab:hover{color:var(--ink2);background:var(--panel)}
+  .tab.on{color:var(--ink);background:var(--panel2);border-color:var(--line2)}
+  .top .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .liveband{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid rgba(67,181,129,.3);background:rgba(67,181,129,.07);border-radius:7px;padding:5px 10px}
+  .liveband .d{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:bp 1.6s infinite}
+  @keyframes bp{0%,100%{opacity:1}50%{opacity:.4}}
+  .clock{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+
+  .body{flex:1;display:grid;grid-template-columns:262px 1fr;min-height:0}
+  .feed{border-right:1px solid var(--line);background:var(--bg2);display:flex;flex-direction:column;min-height:0}
+  .feed .fh{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line)}
+  .feed .fh h3{margin:0;font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--ink2)}
+  .feed .fh .d{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:bp 1.6s infinite}
+  .feed .fh .note{margin-left:auto;font-family:var(--mono);font-size:8px;color:var(--mut2)}
+  .flist{flex:1;overflow-y:auto;padding:6px 0}
+  .fl{padding:6px 14px;border-left:2px solid var(--mut2);margin:2px 8px;border-radius:0 6px 6px 0;animation:fin .35s ease both;background:rgba(255,255,255,.012)}
+  @keyframes fin{from{opacity:0;transform:translateX(-6px)}to{opacity:1}}
+  .fl .l1{display:flex;align-items:center;gap:7px}
+  .fl .cat{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+  .fl .tm{margin-left:auto;font-family:var(--mono);font-size:8px;color:var(--mut2)}
+  .fl .tx{font-size:11px;color:var(--ink2);margin-top:2px;line-height:1.3}.fl .tx b{color:var(--ink)}
+
+  .main{position:relative;min-width:0;overflow:hidden}
+  .view{position:absolute;inset:0;overflow:auto;padding:14px 20px 40px;display:none}
+  .view.on{display:block}
+  #view-arq{padding:0}
+  .preview{position:absolute;top:10px;right:16px;font-family:var(--mono);font-size:8px;color:var(--amber);border:1px solid rgba(210,162,75,.3);background:rgba(210,162,75,.05);border-radius:6px;padding:3px 8px;z-index:6;pointer-events:none}
+  .vh{font-size:15px;font-weight:700;margin:2px 0 3px}.vsub{font-family:var(--mono);font-size:10px;color:var(--mut);margin-bottom:16px;line-height:1.5}
+
+  /* ===== Arquitectura ===== */
+  .arqwrap{padding:14px 22px 34px}
+  .arqcap{text-align:center;font-family:var(--mono);font-size:10px;color:var(--mut);margin:0 0 14px;line-height:1.6}
+  .arqcap b{color:var(--ink2)}
+  .arqdiagram{position:relative;display:flex;gap:18px;align-items:flex-start}
+  .flowlayer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;overflow:visible}
+  .flowtag{position:absolute;left:0;top:0;font-family:var(--mono);font-size:9px;font-weight:600;background:rgba(8,10,14,.92);border:1px solid var(--line2);border-radius:6px;padding:2px 7px;pointer-events:none;z-index:4;transform:translate(-50%,-185%);white-space:nowrap;opacity:0;transition:opacity .3s}
+  @keyframes nodepulse{0%{box-shadow:0 0 0 0 rgba(0,0,0,0)}45%{box-shadow:0 0 0 2px var(--pc,#5BD0C0),0 0 22px -2px var(--pc,#5BD0C0)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+  .gnode.pulse,.jcard.pulse{animation:nodepulse .65s ease}
+  .arqmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:24px}
+  .arqside{flex:0 0 198px;width:198px;display:flex;flex-direction:column;gap:13px;margin-top:120px;border-left:1px dashed rgba(142,134,224,.25);padding-left:16px}
+  .arqside .sl{font-family:var(--mono);font-size:9px;letter-spacing:1.1px;text-transform:uppercase;color:#8E86E0;text-align:center;margin-bottom:2px}
+  .arqside .sl small{display:block;color:var(--mut2);font-size:7.5px;letter-spacing:0;margin-top:3px;text-transform:none}
+  .arqband{position:relative;border:1px solid var(--line);border-radius:14px;padding:12px 14px 15px;background:rgba(255,255,255,.012)}
+  .arqband.sub{background:rgba(67,181,129,.035);border-color:rgba(67,181,129,.22)}
+  .arqband.paper{border-style:dashed;border-color:rgba(224,121,94,.3);background:rgba(224,121,94,.03)}
+  .arqband .bl{font-family:var(--mono);font-size:10px;letter-spacing:1.3px;text-transform:uppercase;margin:0 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .arqband .bl .bn{font-weight:700}.arqband .bl .bx{color:var(--mut2);letter-spacing:0;text-transform:none}
+  .arqband .bl::before{content:"";width:9px;height:9px;border-radius:3px;background:currentColor;box-shadow:0 0 8px currentColor;opacity:.9}
+  .bandtag{font-family:var(--mono);font-size:7.5px;font-weight:700;letter-spacing:.4px;padding:1px 6px;border-radius:5px;border:1px solid currentColor}
+  .bandtag.paper{color:#E0795E}.bandtag.live{color:var(--green)}
+  .bandrow{display:flex;flex-wrap:wrap;gap:16px 20px;justify-content:center;align-items:stretch}
+  .gnode{position:relative;width:158px;background:rgba(13,16,22,.97);border:1px solid var(--line2);border-radius:11px;padding:9px 12px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
+  .gnode.rail{width:100%}
+  .gnode:hover{transform:translateY(-2px);border-color:var(--line3);box-shadow:0 6px 20px -8px rgba(0,0,0,.6)}
+  .gnode.ghost{opacity:.62;border-style:dashed;background:rgba(13,16,22,.6)}
+  .gnode.ghost:hover{opacity:1}
+  .gnode .gh{display:flex;align-items:center;gap:7px}.gnode .gdot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+  .gnode .gt{font-size:11.5px;font-weight:680;color:var(--ink);line-height:1.15}
+  .gnode .gst{margin-left:auto;font-family:var(--mono);font-size:6.5px;font-weight:700;padding:1px 5px;border-radius:4px;border:1px solid var(--line2);color:var(--mut);flex:0 0 auto}
+  .gnode .gst.LIVE{color:var(--green);border-color:rgba(67,181,129,.3)}.gnode .gst.SHADOW{color:var(--cyan);border-color:rgba(91,208,192,.3)}.gnode .gst.BUILD{color:var(--violet)}.gnode .gst.WAIT{color:var(--red)}.gnode .gst.DEGR{color:var(--orange)}
+  .gnode .gst.DESIGN{color:#8E86E0;border-color:rgba(142,134,224,.3)}.gnode .gst.PAPER{color:#E0795E;border-color:rgba(224,121,94,.3)}.gnode .gst.MIXED{color:#D2A24B;border-color:rgba(210,162,75,.3)}.gnode .gst.PAUSE{color:var(--amber);border-color:rgba(210,162,75,.3)}
+  .gnode .gsub{font-family:var(--mono);font-size:8px;color:var(--mut);margin-top:5px}
+  .gnode .gm{font-family:var(--mono);font-size:11px;font-weight:700;margin-top:6px}
+
+  /* journeys lifecycle line */
+  .jflow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;justify-content:center}
+  .jstep{display:flex;align-items:center}
+  .jcard{width:156px;background:rgba(13,16,22,.97);border:1px solid var(--line2);border-radius:11px;padding:9px 11px 11px;cursor:pointer;transition:transform .15s,border-color .15s;border-top:3px solid var(--jc,#586070)}
+  .jcard:hover{transform:translateY(-2px);border-color:var(--line3)}
+  .jcard.own{background:rgba(234,75,113,.05);box-shadow:0 0 0 1px rgba(234,75,113,.18)}
+  .jcard.dim{opacity:.5}.jcard.dim:hover{opacity:1}
+  .jcard .jc-h{display:flex;align-items:center;gap:6px}
+  .jcard .jcode{font-family:var(--mono);font-size:8px;font-weight:700;color:#0b0e14;background:var(--jc,#586070);border-radius:4px;padding:1px 5px}
+  .jcard .jt{font-size:12px;font-weight:700;color:var(--ink)}
+  .jcard .jown{font-family:var(--mono);font-size:7.5px;color:var(--mut);margin-top:6px;text-transform:uppercase;letter-spacing:.4px}
+  .jcard .jown b{color:var(--pink)}
+  .jcard .jd{font-family:var(--mono);font-size:8px;color:var(--mut);margin-top:5px;line-height:1.35}
+  .jcard .jst2{display:inline-block;font-family:var(--mono);font-size:6.5px;font-weight:700;padding:1px 5px;border-radius:4px;border:1px solid currentColor;margin-top:7px}
+  .jarrowx{color:var(--mut2);font-size:15px;padding:0 1px;align-self:center}
+  @media(max-width:900px){.jarrowx{display:none}}
+
+  /* HITL box */
+  .hitlwrap{max-width:900px}
+  .hitlbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+  .hitlbar .hb{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 13px}
+  .hitlbar .hb b{font-size:16px;font-weight:750}
+  .hitlcard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--rk,#586070);border-radius:10px;padding:12px 15px;margin-bottom:10px;animation:fin .3s ease both}
+  .hitlcard .hk-top{display:flex;align-items:center;gap:10px}
+  .hitlcard .hk-t{font-size:13px;font-weight:660;color:var(--ink)}
+  .hitlcard .hk-risk{font-family:var(--mono);font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:5px;border:1px solid currentColor}
+  .hitlcard .hk-age{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--mut2)}
+  .hitlcard .hk-src{font-family:var(--mono);font-size:8.5px;color:var(--mut);margin-top:6px}
+  .hitlcard .hk-src b{color:var(--ink2)}
+  .hitlcard .hk-desc{font-size:12px;color:var(--ink2);margin-top:7px;line-height:1.45}
+  .hitlcard .hk-act{display:flex;gap:8px;margin-top:11px}
+  .hbtn{font-family:var(--mono);font-size:10px;font-weight:600;padding:6px 14px;border-radius:7px;cursor:pointer;border:1px solid var(--line2);background:var(--panel2);color:var(--ink2)}
+  .hbtn:hover{border-color:var(--line3)}
+  .hbtn.ok{color:var(--green);border-color:rgba(67,181,129,.35)}
+  .hbtn.rev{color:var(--amber);border-color:rgba(210,162,75,.35)}
+  .hbtn.no{color:var(--red);border-color:rgba(222,106,94,.35)}
+  .hitldone{text-align:center;font-family:var(--mono);font-size:11px;color:var(--green);padding:34px;border:1px dashed var(--line2);border-radius:12px}
+
+  .wfhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+  .wfhead .wfhl{font-size:15px;font-weight:700}
+  .wfhead .wfhs{font-family:var(--mono);font-size:10px;color:var(--mut);margin-left:8px;font-weight:400}
+  .wfmode{display:flex;gap:6px;margin-left:auto}
+  .wmb{font-family:var(--mono);font-size:10.5px;color:var(--mut);padding:6px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--line2);background:var(--panel)}
+  .wmb.on{color:var(--ink);background:var(--panel2);border-color:var(--line3)}
+  .wmb:hover{color:var(--ink2)}
+  .wfsub{display:none}.wfsub.on{display:block}
+
+  .matrix{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px}
+  .mcol{flex:0 0 210px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px;display:flex;flex-direction:column}
+  .mcol.otherdept{opacity:.6}
+  .mcol .ch{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .mcol .ch .cd{width:9px;height:9px;border-radius:3px}
+  .mcol .ch .cn{font-size:12px;font-weight:700}
+  .mcol .ch .cc{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--mut);border:1px solid var(--line2);border-radius:5px;padding:1px 6px}
+  .wfcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 9px;margin-bottom:7px;cursor:pointer;transition:.12s}
+  .wfcard:hover{border-color:var(--line3);transform:translateY(-1px)}
+  .wfcard.dormant{opacity:.6;border-style:dashed}
+  .wfcard .wn{font-size:11px;color:var(--ink2);font-weight:560;line-height:1.25;display:flex;align-items:center;gap:6px}
+  .wfcard .wn .sd{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .wfcard .wmeta{font-family:var(--mono);font-size:8px;color:var(--mut2);margin-top:4px;display:flex;gap:8px}
+
+  .wfactive{background:var(--panel2);border:1px solid rgba(91,208,192,.28);border-radius:11px;padding:11px 14px;margin-bottom:10px}
+  .wfactive .wa-h{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--cyan);margin-bottom:9px}
+  .wfactive .wa-h .bd{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:bp 1.4s infinite}
+  .wfactive .wa-h .st{margin-left:auto;color:var(--mut);text-transform:none;letter-spacing:0}
+  .wa-list{display:flex;flex-wrap:wrap;gap:8px;min-height:30px;align-items:center}
+  .wa-empty{font-family:var(--mono);font-size:10px;color:var(--mut2)}
+  .wa-chip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:6px 11px;cursor:pointer;animation:fin .25s ease both;border-left:3px solid var(--rc,#5BD0C0)}
+  .wa-chip .ad{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .wa-chip .an{font-size:11px;font-weight:600;color:var(--ink)}
+  .wa-chip .ac{font-family:var(--mono);font-size:9px;color:var(--amber)}
+  .wa-chip .ap{font-family:var(--mono);font-size:8.5px;color:var(--mut2)}
+
+  .wflegend{display:flex;flex-wrap:wrap;gap:13px;margin:2px 2px 18px;font-family:var(--mono);font-size:8.5px;color:var(--mut)}
+  .wflegend span{display:inline-flex;align-items:center;gap:5px}
+  .wflegend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+  .deptpill{font-family:var(--mono);font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:1px 6px;border-radius:5px;border:1px solid var(--line2);color:var(--mut)}
+  .deptpill.mkt{color:var(--pink);border-color:rgba(234,75,113,.4)}
+  .actb{font-family:var(--mono);font-size:8px;font-weight:600;padding:1px 6px;border-radius:5px;border:1px solid currentColor;white-space:nowrap}
+  .actb.cron{color:#43B581}.actb.live{color:#46B3A8}.actb.dorm{color:#8a93a3}
+  .deptdivider{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--mut2);text-align:center;margin:18px 0 6px;padding-top:14px;border-top:1px dashed var(--line2)}
+
+  .wfboard{display:flex;flex-direction:column;gap:18px;padding-bottom:30px}
+  .wfsec.otherdept{opacity:.6}.wfsec.otherdept:hover{opacity:.95}
+  .wfsec-h{display:flex;align-items:center;gap:9px;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  .wfsec-h .cd{width:11px;height:11px;border-radius:3px}.wfsec-h .cn{font-size:13.5px;font-weight:700}.wfsec-h .cc{font-family:var(--mono);font-size:9px;color:var(--mut);border:1px solid var(--line2);border-radius:5px;padding:1px 7px}.wfsec-h .sl{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--mut2)}
+  .wfrow{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 14px;margin-bottom:7px;cursor:pointer;transition:border-color .15s,box-shadow .2s,background .2s}
+  .wfrow:hover{border-color:var(--line3)}
+  .wfrow.dormant{opacity:.62;border-style:dashed}.wfrow.dormant .wbox{opacity:.4}.wfrow.dormant:hover{opacity:.95}
+  .wfrow.running{border-color:var(--rc);box-shadow:0 0 0 1px var(--rc),0 0 24px -8px var(--rc);background:rgba(255,255,255,.018);opacity:1}
+  .wfr-top{display:flex;align-items:center;gap:12px}
+  .wfr-top .wst{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .wfr-top .wname{font-size:12.5px;font-weight:580;color:var(--ink);display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap}
+  .wfr-top .wname .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+  .wfr-top .wtrig{font-family:var(--mono);font-size:9px;color:var(--mut2);text-transform:uppercase;letter-spacing:.4px;flex:0 0 auto;margin-left:auto}
+  .wstrip{display:flex;align-items:center;flex-wrap:wrap;margin-top:10px;gap:5px 0}
+  .wnode{display:flex;align-items:center}
+  .wbox{display:inline-flex;align-items:center;gap:5px;max-width:150px;padding:4px 8px;border-radius:6px;border:1px solid var(--line2);border-left:3px solid var(--nc);background:var(--panel2);font-family:var(--mono);font-size:9px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .18s,box-shadow .2s,background .2s,opacity .2s,color .2s}
+  .wbox::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--nc);flex:0 0 auto;box-shadow:0 0 5px var(--nc);transition:transform .2s}
+  .wconn{width:9px;height:1px;background:var(--line2);flex:0 0 auto}
+  .wnode:last-child .wconn{display:none}
+  .wbox.idle{opacity:.6}.wbox.pending{opacity:.32}.wbox.done{opacity:1;background:var(--panel3);color:var(--ink2)}
+  .wbox.run{opacity:1;transform:translateY(-1px) scale(1.05);background:var(--panel3);border-color:var(--nc);box-shadow:0 0 0 1px var(--nc),0 0 16px -3px var(--nc);color:var(--ink)}
+  .wbox.run::before{transform:scale(1.5);box-shadow:0 0 10px var(--nc)}
+
+  .grid{display:grid;gap:10px}
+  .g3{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .g4{grid-template-columns:repeat(auto-fill,minmax(186px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px}
+  .secT{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mut);margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+  .secT::before{content:"";width:9px;height:9px;border-radius:3px;background:currentColor;box-shadow:0 0 8px currentColor;opacity:.85}
+  .secT .cnt{margin-left:auto;color:var(--mut2);font-weight:400}
+  .agcard{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px;cursor:pointer;transition:.12s}
+  .agcard:hover{border-color:var(--line3);transform:translateY(-1px)}
+  .agcard.head{border-color:rgba(210,162,75,.4);background:rgba(210,162,75,.05)}
+  .agcard .an{font-size:11.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px}
+  .agcard .am{margin-left:auto;font-family:var(--mono);font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid var(--line2)}
+  .am.opus{color:#E0A458;border-color:rgba(224,164,88,.35)}.am.sonnet{color:var(--blue);border-color:rgba(91,141,239,.35)}.am.haiku{color:var(--violet);border-color:rgba(142,134,224,.35)}
+  .agcard .as{font-family:var(--mono);font-size:8.5px;color:var(--mut);margin-top:5px;line-height:1.3}
+  .agcard .aw{font-family:var(--mono);font-size:8px;color:var(--violet);margin-top:5px}
+  .brcard .brh{display:flex;align-items:center;gap:8px;margin-bottom:9px}.brcard .brh .bd{width:10px;height:10px;border-radius:3px}.brcard .brh .bn{font-size:13px;font-weight:700}
+  .brcard .brh .bst{margin-left:auto;font-family:var(--mono);font-size:8px;color:var(--mut);border:1px solid var(--line2);border-radius:5px;padding:1px 6px}
+  .brrow{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:7px}
+  .brrow b{color:var(--ink2);font-weight:600}
+  .brrow .chip{display:inline-block;font-size:8.5px;color:var(--ink2);background:var(--panel2);border:1px solid var(--line2);border-radius:5px;padding:1px 6px;margin:2px 3px 0 0}
+  .brrow .chip.brain{color:var(--cyan);border-color:rgba(91,208,192,.35)}
+  .brrow .chip.wf{color:var(--pink);border-color:rgba(234,75,113,.3)}
+
+  .brainwrap{display:grid;grid-template-columns:1fr 220px 1fr;gap:14px;align-items:center;margin-top:8px}
+  .srccol{display:flex;flex-direction:column;gap:8px}
+  .srccard{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 11px}
+  .srccard .sn{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:7px}.srccard .sn .sd{width:8px;height:8px;border-radius:50%}
+  .srccard .sm{font-family:var(--mono);font-size:8.5px;color:var(--mut);margin-top:4px}
+  .braincore{text-align:center}
+  .braincore .orb{width:120px;height:120px;border-radius:50%;margin:0 auto;background:radial-gradient(circle at 40% 35%,#b6a6ff,#5b4bbf 60%,#241a52);box-shadow:0 0 50px rgba(142,134,224,.5);display:grid;place-items:center}
+  .braincore .orb b{font-size:13px;color:#fff}.braincore .cap{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:8px}
+
+  .scrim{position:fixed;inset:0;background:rgba(4,5,8,.55);opacity:0;pointer-events:none;transition:.2s;z-index:40}.scrim.on{opacity:1;pointer-events:auto}
+  .detail{position:fixed;top:0;right:-470px;width:450px;max-width:94vw;height:100vh;background:var(--bg2);border-left:1px solid var(--line2);z-index:50;transition:right .26s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:-30px 0 60px rgba(0,0,0,.4)}
+  .detail.on{right:0}
+  .dh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+  .dh .orb{width:32px;height:32px;border-radius:9px;flex:0 0 auto}.dh .nm{font-size:15px;font-weight:720}.dh .sb{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:2px}
+  .dh .x{margin-left:auto;background:none;border:0;color:var(--mut);font-size:22px;cursor:pointer}
+  .db{padding:16px 20px;overflow-y:auto;flex:1}
+  .desc{font-size:12.5px;color:var(--ink2);line-height:1.55;margin-bottom:14px}
+  .note{font-size:11px;line-height:1.5;border-radius:9px;padding:9px 11px;margin-bottom:12px;border:1px solid}
+  .note.warn{color:#e9b366;border-color:rgba(210,162,75,.3);background:rgba(210,162,75,.06)}.note.bad{color:#e7918a;border-color:rgba(222,106,94,.3);background:rgba(222,106,94,.07)}
+  .dsec{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mut);margin:16px 0 9px}
+  .lane{margin:4px 0}.lstep{display:flex;align-items:center;gap:10px;padding:5px 0;position:relative}.lstep::before{content:"";position:absolute;left:4.5px;top:15px;height:calc(100% - 3px);width:1px;background:var(--line2)}.lstep:last-child::before{display:none}
+  .lstep .ld{width:10px;height:10px;border-radius:50%;flex:0 0 auto;z-index:1;box-shadow:0 0 6px}.lstep .lt{font-size:12px;color:var(--ink2)}.lstep .lk2{margin-left:auto;font-family:var(--mono);font-size:7px;color:var(--mut2);text-transform:uppercase;border:1px solid var(--line2);border-radius:4px;padding:1px 5px}
+  .agchips{display:flex;flex-wrap:wrap;gap:5px}.agchips span{font-family:var(--mono);font-size:9px;color:var(--ink2);background:var(--panel);border:1px solid var(--line2);border-radius:6px;padding:3px 8px}.agchips span.ag{color:var(--violet)}.agchips span.br{color:var(--cyan)}
+  @media(max-width:820px){.body{grid-template-columns:1fr}.feed{display:none}.brainwrap{grid-template-columns:1fr}.arqdiagram{flex-direction:column}.arqside{width:100%;flex:1;margin-top:0;border-left:0;border-top:1px dashed rgba(142,134,224,.25);padding-left:0;padding-top:14px;flex-direction:row;flex-wrap:wrap}}
+  /* explorador de vaults (estilo historial) */
+  .expl{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;flex-direction:column}
+  .expl.on{display:flex}
+  .expl-top{display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--line);position:relative}
+  .et-title{font-size:14.5px;font-weight:750;display:flex;align-items:center;gap:9px;min-width:200px}
+  .et-search{flex:1;max-width:560px;margin:0 auto;position:relative}
+  .et-search input{width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:999px;color:var(--ink);font-size:13px;padding:9px 16px 9px 38px;outline:none;font-family:var(--fz)}
+  .et-search input:focus{border-color:var(--line3)}
+  .et-search .si{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:13px}
+  .et-x{background:none;border:0;color:var(--mut);font-size:24px;cursor:pointer;line-height:1}
+  .expl-prev{position:absolute;top:50%;right:56px;transform:translateY(-50%);font-family:var(--mono);font-size:8px;color:var(--amber);border:1px solid rgba(210,162,75,.3);background:rgba(210,162,75,.05);border-radius:6px;padding:3px 8px}
+  .expl-body{flex:1;display:grid;grid-template-columns:250px 1fr;min-height:0}
+  .expl-side{border-right:1px solid var(--line);padding:12px 10px;overflow-y:auto}
+  .ss-h{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.1px;color:var(--mut);margin:8px 8px 6px}
+  .ss-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;cursor:pointer;font-size:13px;color:var(--ink2)}
+  .ss-item:hover{background:var(--panel)}
+  .ss-item.on{background:var(--panel2);color:var(--ink);font-weight:600}
+  .ss-item .sd{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .ss-item .sc{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--mut2)}
+  .ss-item.muted{opacity:.5;cursor:default}
+  .expl-main{overflow-y:auto}
+  .expl-tabs{display:flex;gap:4px;padding:11px 24px 0;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:1}
+  .xt{font-family:var(--mono);font-size:11px;color:var(--mut);padding:9px 12px;border-bottom:2px solid transparent;cursor:pointer}
+  .xt.on{color:var(--blue);border-bottom-color:var(--blue)}
+  .expl-group{padding:16px 24px 4px;font-size:13.5px;font-weight:680;color:var(--ink)}
+  .expl-row{display:flex;align-items:center;gap:14px;padding:8px 24px}
+  .expl-row:hover{background:var(--panel)}
+  .er-th{width:40px;height:40px;border-radius:7px;flex:0 0 auto;display:grid;place-items:center;font-size:18px;border:1px solid}
+  .er-tm{font-family:var(--mono);font-size:11px;color:var(--mut);width:70px;flex:0 0 auto}
+  .er-main{min-width:0;flex:1}
+  .er-t{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .er-d{font-family:var(--mono);font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .er-dot{color:var(--mut2);font-size:18px;flex:0 0 auto;cursor:pointer;padding:0 8px}
+  .er-dot:hover{color:var(--ink2)}
+  .expl-empty{padding:46px;text-align:center;color:var(--mut);font-family:var(--mono);font-size:12px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <div class="brand"><span class="gem"></span><div>ZERO RISK<br><small>Consola Motor · Marketing</small></div></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="right"><span class="liveband"><span class="d"></span> EN VIVO</span><span class="clock" id="clock">09:12</span></div>
+  </div>
+  <div class="body">
+    <aside class="feed">
+      <div class="fh"><span class="d"></span><h3>Feed en vivo</h3><span class="note">§148</span></div>
+      <div class="flist" id="flist"></div>
+    </aside>
+    <div class="main">
+      <div class="preview">VISTA PREVIA · simulado</div>
+      <div class="view on" id="view-arq"><div class="arqwrap">
+        <div class="arqcap"><b>Las 6 etapas del ciclo del cliente son libretos · la sala los corre.</b> &nbsp;Master archivado · RUFLO entró a La Sala. &nbsp;<b style="color:#EA4B71">Marketing dueña de 2: Producir + Mantenimiento.</b> &nbsp;<span style="color:#5BD0C0">Tickets en vivo · líneas por corredores (entran/salen por el borde, nunca sobre las cajas).</span></div>
+        <div class="arqdiagram" id="arqdiagram">
+          <svg class="flowlayer" id="flowlayer"></svg>
+          <div class="flowtag" id="flowtag"></div>
+          <div class="arqmain" id="arqmain"></div>
+          <div class="arqside" id="arqside"></div>
+        </div>
+      </div></div>
+      <div class="view" id="view-wf"></div>
+      <div class="view" id="view-ag"></div>
+      <div class="view" id="view-hitl"></div>
+      <div class="view" id="view-br"></div>
+      <div class="view" id="view-brain"></div>
+    </div>
+  </div>
+</div>
+
+<div class="expl" id="expl">
+  <div class="expl-top">
+    <div class="et-title"><span id="expl-dot" style="width:11px;height:11px;border-radius:3px;display:inline-block;background:#8FC73E"></span><span id="expl-name">Vault</span></div>
+    <div class="et-search"><span class="si">&#128269;</span><input id="expl-q" placeholder="Buscar en outputs..."></div>
+    <span class="expl-prev">VISTA PREVIA &middot; simulado</span>
+    <button class="et-x" onclick="closeExpl()">&times;</button>
+  </div>
+  <div class="expl-body">
+    <div class="expl-side" id="expl-side"></div>
+    <div class="expl-main"><div class="expl-tabs" id="expl-tabs"></div><div id="expl-list"></div></div>
+  </div>
+</div>
+<div class="scrim" id="scrim" onclick="closeDetail()"></div>
+<aside class="detail" id="detail"><div class="dh"><span class="orb" id="d-orb"></span><div><div class="nm" id="d-nm"></div><div class="sb" id="d-sb"></div></div><button class="x" onclick="closeDetail()">×</button></div><div class="db" id="d-body"></div></aside>
+
+<script>
+(function(){
+  var WFREAL=[{"n": "L1 Master Journey Orchestrator (Sprint 8C)", "c": "life", "s": "live", "tg": "webhook", "td": "POST /webhook/l1-dispatch", "nd": [["trigger", "webhook", "Webhook L1 dispatch"], ["gate", "Validate payload", "Validate payload"], ["service", "Supabase", "Get existing active row"], ["code", "Resolve next stage", "Resolve next stage"], ["gate", "Row exists", "Row exists?"], ["service", "Supabase", "PATCH update row"], ["gate", "Switch by journey", "Switch by journey"], ["http", "L2 dispatch ONBOARD", "L2 dispatch ONBOARD"], ["code", "Build DispatchResult", "Build DispatchResult"], ["out", "respond", "Respond 200 DispatchResult"], ["http", "L2 dispatch PRODUCE…", "L2 dispatch PRODUCE NEXUS"], ["http", "L2 dispatch ALWAYS_…", "L2 dispatch ALWAYS_ON"], ["end", "Stub NoOp REVIE…", "Stub NoOp REVIEW/ACQUIRE/GROWTH"], ["service", "Supabase", "POST insert row"], ["out", "respond", "Respond 400 invalid"]], "dp": "sala", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "UptimeRobot → Slack #equipo Proxy (Cron 5min)", "c": "monitor", "s": "live", "tg": "cron", "td": "*/5 * * * *", "nd": [["trigger", "cron", "Every 5 Minutes"], ["service", "UptimeRobot", "Fetch UptimeRobot Monitors"], ["service", "Supabase", "Fetch all monitor_state"], ["code", "Process monitors vs…", "Process monitors vs state"], ["gate", "shouldNotify", "IF shouldNotify"], ["service", "Slack", "Post Slack #equipo"], ["service", "Supabase", "Upsert monitor_state (post-notify)"], ["end", "Done", "Done"], ["service", "Supabase", "Upsert monitor_state (no-notify)"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Video Pipeline: Seedance → FFmpeg → Multi-Platform Export", "c": "content", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/video-generate", "nd": [["trigger", "webhook", "Webhook: Video Brief"], ["code", "Validate Brief", "Code: Validate Brief"], ["service", "Brain RAG", "Client Brain: Style Guides"], ["agent", "video-editor", "Agent: Video Editor (Script → Storyboard)"], ["service", "Higgsfield", "Higgsfield Seedance 2.0: Generate Video"], ["service", "Supabase", "Upload: Base Video → Supabase"], ["service", "Whisper", "OpenAI Whisper: Auto-Subtitle"], ["code", "Platform Export Spe…", "Code: Platform Export Specs"], ["service", "FFmpeg", "FFmpeg: Transcode All Platforms"], ["http", "Record: Outcome", "Record: Outcome"], ["service", "Slack", "Slack: Notify Team"]], "dp": "content", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Cost Watchdog Multi-Service v2 (Cron Hourly)", "c": "monitor", "s": "live", "tg": "cron", "td": "0 * * * *", "nd": [["trigger", "cron", "Hourly"], ["service", "Supabase", "Fetch Anthropic"], ["code", "Aggregate Costs", "Aggregate Costs"], ["http", "24h History", "Fetch 24h History"], ["code", "Detect Anomalies", "Detect Anomalies"], ["gate", "Anomaly", "Anomaly?"], ["service", "Slack", "Alert Slack"], ["end", "Normal", "Normal"], ["agent", "mops-director", "Invoke · mops-director"], ["service", "OpenAI", "Fetch OpenAI"], ["service", "Apify", "Fetch Apify"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Sentry Alert Router", "c": "monitor", "s": "live", "tg": "webhook", "td": "POST /webhook/sentry-alerts", "nd": [["trigger", "webhook", "Sentry Webhook"], ["code", "Classify Severity", "Classify Severity"], ["http", "Check Recent Duplic…", "Check Recent Duplicate"], ["gate", "Duplicate", "Is Duplicate?"], ["gate", "P0", "Is P0?"], ["service", "Slack", "P0: Slack #ops-critical"], ["http", "P0: Create MC Task …", "P0: Create MC Task (Emilio)"], ["http", "to error_events Tab…", "Log to error_events Table"], ["gate", "P1", "Is P1?"], ["service", "Slack", "P1: Slack #ops-alerts"], ["http", "P1: Create MC Task", "P1: Create MC Task"], ["end", "P2: Log Only (D…", "P2: Log Only (Digest)"], ["end", "Skip (Duplicate)", "Skip (Duplicate)"]], "dp": "infra", "av": "whlive", "cl": "servicio externo"}, {"n": "SEO Rank-to-#1 v2 UPGRADED", "c": "specialty", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/seo-rank-one-v2", "nd": [["trigger", "webhook", "Webhook: SEO Engagement v2"], ["code", "Validate & Normalize", "Validate & Normalize"], ["agent", "GUARD: Cannibalizat…", "GUARD: Cannibalization Check"], ["gate", "no cannibalization …", "IF no cannibalization conflicts"], ["http", "Engagement Start", "Persist Engagement Start"]], "dp": "seo", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Competitor Daily Monitor (6am · Apify Service Wire)", "c": "apifybrain", "s": "live", "tg": "cron", "td": "0 6 * * *", "nd": [["trigger", "cron", "Daily 6am"], ["service", "Supabase", "Load active clients with apify enabled"], ["split", "split", "Split per cliente"], ["code", "Filter functions fo…", "Filter functions for competitor scope"], ["split", "batch", "Split per function"], ["agent", "Apify Service Workf…", "Call Apify Service Workflow"], ["code", "Aggregate Service r…", "Aggregate Service responses"], ["service", "Slack", "Slack daily summary"]], "dp": "brain", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Landing Page CRO Optimizer v2 (Weekly Sundays 7am)", "c": "specialty", "s": "live", "tg": "cron", "td": "0 7 * * 0", "nd": [["trigger", "cron", "Weekly Sundays 7am"], ["http", "Active Landing Pages", "Fetch Active Landing Pages"], ["split", "split", "Split Pages"], ["service", "Firecrawl", "Firecrawl Scrape"], ["merge", "merge", "Merge Audit Data"], ["code", "Analyze Page Health", "Analyze Page Health"], ["agent", "cro-specialist", "CRO Specialist (Sonnet)"], ["service", "G. Stitch", "Google Stitch Variants"], ["http", "Launch Experiment", "Launch Experiment"], ["http", "Queue HITL", "Queue HITL"], ["service", "PageSpeed", "PageSpeed Insights"], ["service", "GA4*", "GA4 Conversion Metrics"]], "dp": "creative", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "RSA 15-Headline Variant Generator", "c": "paid", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/rsa-generate", "nd": [["trigger", "webhook", "Webhook: RSA Brief"], ["code", "Validate Brief", "Code: Validate Brief"], ["service", "Brain RAG", "Client Brain: Brand Context"], ["agent", "creative-director", "Agent: Creative Director (RSA Gen)"], ["code", "Validate RSA Matrix", "Code: Validate RSA Matrix"], ["gate", "If: Validation Pass…", "If: Validation Passed?"], ["http", "RSA Headline Library", "Store: RSA Headline Library"], ["http", "Record: Outcome", "Record: Outcome"], ["service", "Slack", "Slack: Notify Team"], ["http", "MC Inbox", "Notify MC Inbox"], ["service", "Slack", "Slack: Notify Failure"]], "dp": "paid", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Account Health Score Daily (6am)", "c": "analytics", "s": "live", "tg": "cron", "td": "0 6 * * *", "nd": [["trigger", "cron", "Daily 6am"], ["http", "Active Clients", "Fetch Active Clients"], ["split", "split", "Split Clients"], ["http", "NPS (90d)", "Fetch NPS (90d)"], ["merge", "merge", "Merge Signals"], ["code", "Compute Health Score", "Compute Health Score"], ["http", "Health Snapshot", "Persist Health Snapshot"], ["http", "Previous Health", "Fetch Previous Health"], ["code", "Check Tier Transiti…", "Check Tier Transition"], ["gate", "Transition", "Is Transition?"], ["service", "Slack", "Alert Slack: Tier Transition"], ["http", "MC: Create Transiti…", "MC: Create Transition Task"], ["end", "No Transition", "No Transition"], ["http", "Usage Frequency (30…", "Fetch Usage Frequency (30d)"], ["http", "Feature Adoption", "Fetch Feature Adoption"], ["http", "Support Tickets (30…", "Fetch Support Tickets (30d)"], ["http", "Relationship Threads", "Fetch Relationship Threads"], ["agent", "jefe-client-success", "Invoke · jefe-client-success"], ["agent", "crm-architect", "Invoke · crm-architect"]], "dp": "cuenta", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Cliente Nuevo · Landing Cascade Master", "c": "content", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/cliente-nuevo-landing", "nd": [["trigger", "webhook", "Webhook · Cliente Nuevo Landing"], ["code", "Validate Payload", "Validate Payload"], ["http", "Client · UPSERT", "Persist Client · UPSERT"], ["gate", "Branch · Instagram", "Branch · Instagram?"], ["service", "Apify·IG", "Apify · Instagram Scrape"], ["agent", "brand-strategist", "Agent · brand-strategist"], ["agent", "market_research_analyst", "Agent · market_research_analyst"], ["agent", "creative-director", "Agent · creative-director"], ["agent", "web-designer", "Agent · web-designer"], ["agent", "content-creator", "Agent · content-creator (marketing)"], ["agent", "spell-check-corrector", "Agent · spell-check-corrector (Haiku)"], ["agent", "editor-en-jefe", "Agent · editor-en-jefe (Camino III)"], ["agent", "style-consistency-reviewer", "Agent · style-consistency-reviewer (Gap 4)"], ["agent", "delivery-coordinator", "Agent · delivery-coordinator (Gap 5)"], ["service", "GPT Image", "Hero · GPT Image (post-delivery)"], ["http", "Save All Outputs · …", "Save All Outputs · Storage v2/"], ["http", "Hero · Copy to v2/h…", "Hero · Copy to v2/hero.png"], ["service", "Slack", "Notify · Slack + CC#4 Callback"], ["out", "respond", "Respond"], ["agent", "market-research", "Invoke · market-research"]], "dp": "creative", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Pipeline Delay Resume (Hourly)", "c": "monitor", "s": "live", "tg": "cron", "td": "0 * * * *", "nd": [["trigger", "cron", "Hourly Check"], ["http", "Check & Resume Dela…", "Check & Resume Delayed Pipelines"], ["gate", "Resumed", "Any Resumed?"], ["service", "Slack", "Notify Slack (Resumed)"], ["end", "No Pipelines Re…", "No Pipelines Ready"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Agent Latency + Error Rate Monitor (Cron 10min)", "c": "monitor", "s": "live", "tg": "cron", "td": "*/10 * * * *", "nd": [["trigger", "cron", "Every 10min"], ["http", "Last 10min", "Fetch Last 10min"], ["code", "Calculate Stats", "Calculate Stats"], ["http", "30min History", "Fetch 30min History"], ["code", "Detect Regressions", "Detect Regressions"], ["gate", "Issues", "Has Issues?"], ["service", "Slack", "Alert Slack"], ["end", "Healthy", "Healthy"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Meta-Agent Weekly Learning Cycle (Cron Monday 9am)", "c": "ops", "s": "live", "tg": "cron", "td": "0 9 * * 1", "nd": [["trigger", "cron", "Every Monday 9am CET"], ["http", "Agent Outcomes (Las…", "Fetch Agent Outcomes (Last 7 Days)"], ["http", "Performance Metrics…", "Fetch Performance Metrics (Last 7 Days)"], ["code", "Aggregate Outcomes …", "Aggregate Outcomes & Metrics"], ["agent", "optimization-agent", "Invoke Optimization Agent (Meta-Learning)"], ["code", "Extract Improvement…", "Extract Improvement Proposals"], ["split", "split", "Split Proposals for Queueing"], ["http", "Queue Improvement P…", "Queue Improvement Proposals"], ["service", "Slack", "Publish Weekly Digest to Slack"], ["http", "Mission Control", "Notify Mission Control"], ["end", "Cycle Complete", "Cycle Complete"]], "dp": "creative", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Competitive Intelligence 5-Layer Deep Scan", "c": "apifybrain", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/ci-deep-scan", "nd": [["trigger", "webhook", "Webhook"], ["code", "Validate", "Validate"], ["service", "Apify", "L1: Meta Ad Library"], ["merge", "merge", "Merge 5 Layers"], ["agent", "Competitive Strateg…", "Competitive Strategist (Opus)"], ["http", "Deep Report", "Persist Deep Report"], ["out", "respond", "Respond"], ["service", "DataForSEO", "L2: DataForSEO Competitors"], ["service", "Apify·LI", "L3: LinkedIn + Social"], ["service", "Firecrawl", "L4: Website Full Crawl"], ["http", "L5: PR + News", "L5: PR + News"]], "dp": "intel", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Churn Prediction 90d Pre-Renewal (9am)", "c": "analytics", "s": "live", "tg": "cron", "td": "0 9 * * *", "nd": [["trigger", "cron", "Daily 9am"], ["http", "Clients in 90-120d …", "Fetch Clients in 90-120d Window"], ["split", "split", "Split by Client"], ["http", "Health Trend (90d)", "Fetch Health Trend (90d)"], ["merge", "merge", "Merge Churn Signals"], ["code", "Compute Churn Risk …", "Compute Churn Risk Score"], ["http", "Churn Prediction", "Persist Churn Prediction"], ["gate", "Risk > 60", "Risk > 60?"], ["service", "Slack", "Alert Slack: High Churn Risk"], ["http", "MC: Create Interven…", "MC: Create Intervention Task"], ["end", "Low Risk (Conti…", "Low Risk (Continue Monitoring)"], ["http", "Thread Density", "Fetch Thread Density"], ["http", "Support Escalations…", "Fetch Support Escalations (90d)"], ["http", "NRR Trajectory (3m)", "Fetch NRR Trajectory (3m)"]], "dp": "cuenta", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "MASTER JOURNEY ORCHESTRATOR (Nivel 1)", "c": "life", "s": "live", "tg": "webhook", "td": "POST /webhook/journey-dispatch", "nd": [["trigger", "webhook", "Master Journey Webhook (Entry)"], ["code", "Parse & Validate Re…", "Parse & Validate Request"], ["service", "Brain RAG", "Load Client Brain Context"], ["service", "Supabase", "Init client_journey_state row"], ["gate", "Router · dispatch b…", "Router · dispatch by journey type"], ["subwf", "→ sub-wf", "Dispatch Journey A · ACQUIRE"], ["service", "Supabase", "Callback to Master Orchestrator (status update)"], ["http", "MC Inbox (visibilid…", "Notify MC Inbox (visibilidad para Emilio)"], ["http", "Dispatch Journey B …", "Dispatch Journey B · ONBOARD"], ["http", "Dispatch Journey C …", "Dispatch Journey C · PRODUCE (NEXUS)"], ["http", "Dispatch Journey D …", "Dispatch Journey D · ALWAYS_ON (registrar event)"], ["http", "Dispatch Journey E …", "Dispatch Journey E · REVIEW (QBR)"], ["trigger", "sub", "When Executed by Another Workflow"], ["code", "Adapt Sub-workflow …", "Adapt Sub-workflow Input"]], "dp": "sala", "av": "whlive", "cl": "lo llama: Client Onboarding E2E v2"}, {"n": "Creative Performance Learner (Daily Cron 4AM UTC)", "c": "paid", "s": "live", "tg": "cron", "td": "0 4 * * *", "nd": [["trigger", "cron", "Trigger: Daily 4 AM UTC"], ["code", "Prep: Query Params", "Prep: Query Params"], ["http", "Creative Outcomes (…", "Fetch: Creative Outcomes (24h)"], ["http", "Ad Metrics (24h)", "Fetch: Ad Metrics (24h)"], ["code", "Aggregate by Angle …", "Code: Aggregate by Angle + Segment"], ["agent", "optimization-agent", "Agent: Optimization Agent (CAMEL meta-agent)"], ["http", "Creative Performanc…", "Store: Creative Performance Insights"], ["service", "Slack", "Slack: Daily Report"]], "dp": "creative", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Landing Page A/B Deployer", "c": "specialty", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/landing-ab-deploy", "nd": [["trigger", "webhook", "Webhook: A/B Deploy Brief"], ["code", "Validate Brief", "Code: Validate Brief"], ["service", "Vercel", "Vercel: Deploy Variant A"], ["service", "PostHog", "PostHog: Create Experiment"], ["http", "Experiment Metadata", "Store: Experiment Metadata"], ["service", "Slack", "Slack: Notify Deployment"], ["service", "Vercel", "Vercel: Deploy Variant B"]], "dp": "creative", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Google Ads Performance Max Optimizer (Daily 4am)", "c": "paid", "s": "live", "tg": "cron", "td": "0 4 * * *", "nd": [["trigger", "cron", "Daily 4am"], ["http", "Performance Max Cam…", "Fetch Performance Max Campaigns"], ["split", "split", "Split Campaigns"], ["http", "Campaign Performance", "Get Campaign Performance"], ["merge", "merge", "Merge"], ["code", "Analyze PMax Health", "Analyze PMax Health"], ["agent", "media-buyer", "Media Buyer (Sonnet) - PMax Plan"], ["gate", "Issues", "Has Issues?"], ["http", "Queue HITL", "Queue HITL"], ["end", "Healthy", "Healthy"], ["http", "Asset Group Health", "Get Asset Group Health"]], "dp": "paid", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Agent Outcomes Writer (Cluster 1)", "c": "ops", "s": "live", "tg": "webhook", "td": "POST /webhook/outcomes-writer", "nd": [["trigger", "webhook", "Outcomes Webhook Entry"], ["code", "Normalize Outcome", "Normalize Outcome"], ["service", "Supabase", "Write to Supabase"]], "dp": "infra", "av": "whlive", "cl": "runner de agentes"}, {"n": "NEXUS 7-Phase Campaign Orchestrator", "c": "life", "s": "live", "tg": "webhook", "td": "POST /webhook/campaign-orchestrator", "nd": [["trigger", "webhook", "Campaign Webhook (Entry)"], ["http", "Parse & Validate Re…", "Parse & Validate Request"], ["http", "Initialize Pipeline…", "Initialize Pipeline State"], ["http", "Resolve Phase", "Resolve Phase"], ["agent", "jefe-marketing", "Execute Phase (jefe-marketing)"], ["code", "Merge Phase Context", "Merge Phase Context"], ["subwf", "→ sub-wf", "Validate Phase Output (Evidence Collector)"], ["gate", "Validation Passed", "Validation Passed?"], ["http", "Advance to Next Pha…", "Advance to Next Phase"], ["http", "Phase State to DB", "Persist Phase State to DB"], ["http", "Mission Control (Ph…", "Notify Mission Control (Phase Complete)"], ["gate", "All Phases Complete", "All Phases Complete?"], ["service", "Slack", "Notify Slack (Pipeline Complete)"], ["end", "Success (End)", "Success (End)"], ["end", "Go Back to Phas…", "Go Back to Phase Execution"], ["code", "Track Retry Count (…", "Track Retry Count (canon guardrail #2)"], ["http", "Handle Validation F…", "Handle Validation Failure"], ["gate", "Retries Remaining", "Retries Remaining?"], ["service", "Slack", "Notify Slack (HITL Escalation)"], ["http", "Queue for HITL Revi…", "Queue for HITL Review"], ["end", "HITL (End)", "HITL (End)"], ["service", "Supabase", "DLQ Insert (workflow_dlq · best effort)"], ["agent", "campaign-brief-agent", "Invoke · campaign-brief-agent"]], "dp": "sala", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Ad Creative → Landing Message Match Validator", "c": "analytics", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/message-match-audit", "nd": [["trigger", "webhook", "Webhook: Creative or Landing Change"], ["code", "Validate Input", "Validate Input"], ["http", "Creative (if applic…", "Fetch Creative (if applicable)"], ["merge", "merge", "Merge Content"], ["agent", "editor-en-jefe", "Editor en Jefe (Sonnet) - Schwartz Audit"], ["gate", "Mismatch >30pct gap", "Mismatch >30pct gap?"], ["http", "BLOCK Launch + Esca…", "BLOCK Launch + Escalate"], ["service", "Slack", "Slack Alert (BLOCKED)"], ["out", "respond", "Respond (Blocked)"], ["http", "MC Inbox", "Notify MC Inbox"], ["out", "respond", "Respond (Approved)"], ["service", "Firecrawl", "Scrape Landing (if applicable)"]], "dp": "creative", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Smoke Test Agent Invocation (canonical · Sprint 8D Emilio canon 2026-05-24)", "c": "ops", "s": "live", "tg": "webhook", "td": "POST /webhook/smoke-test-agent", "nd": [["trigger", "webhook", "Webhook · POST /smoke-test-agent"], ["agent", "agent via /api/agen…", "Invoke agent via /api/agents/run-sdk"]], "dp": "sala", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Content Repurposing 1→N (Webhook or Cron)", "c": "content", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/content-repurpose", "nd": [["trigger", "webhook", "Webhook: Pillar Content"], ["code", "Validate Brief", "Code: Validate Brief"], ["http", "Pillar Content", "Fetch: Pillar Content"], ["service", "Brain RAG", "Client Brain: Style Guide"], ["agent", "content-creator", "Agent: Content Creator (Repurpose)"], ["http", "Repurposing Queue", "Store: Repurposing Queue"], ["gate", "If: Auto-Publish En…", "If: Auto-Publish Enabled?"], ["agent", "growth-hacker", "Agent: Growth Hacker (Publish)"], ["http", "Record: Outcome", "Record: Outcome"], ["service", "Slack", "Slack: Notify Team"], ["http", "MC Inbox", "Notify MC Inbox"], ["end", "Manual Approval…", "No-Op: Manual Approval Path"]], "dp": "creative", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Cross-Platform Attribution Validator (Hourly)", "c": "analytics", "s": "live", "tg": "cron", "td": "0 * * * *", "nd": [["trigger", "cron", "Hourly"], ["http", "Active Campaigns", "Fetch Active Campaigns"], ["split", "split", "Split"], ["service", "Meta Graph", "Meta Spend + Conversions"], ["merge", "merge", "Merge Platform Data"], ["code", "10-Point Attributio…", "10-Point Attribution Audit"], ["gate", "Discrepancy", "Has Discrepancy?"], ["service", "Supabase", "Persist Audit to Supabase"], ["service", "Slack", "Slack Alert"], ["end", "Tracking OK", "Tracking OK"], ["http", "Google Spend + Conv…", "Google Spend + Conversions"], ["service", "TikTok", "TikTok Spend + Conversions"], ["service", "GA4*", "GA4 Conversions"]], "dp": "paid", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "RUFLO Smart Router", "c": "life", "s": "live", "tg": "webhook", "td": "POST /webhook/router-entry", "nd": [["trigger", "webhook", "Router Webhook Entry"], ["code", "Normalize & Validat…", "Normalize & Validate Request"], ["service", "Brain RAG", "Load Client Context (Client Brain)"], ["agent", "ruflo", "Invoke RUFLO Classifier"], ["code", "Extract Routing Dec…", "Extract Routing Decision"], ["gate", "Should Escalate to …", "Should Escalate to HITL?"], ["http", "Routing Decision", "Log Routing Decision"], ["http", "Mission Control", "Notify Mission Control"], ["end", "Normal Routing …", "Normal Routing (End)"], ["http", "MC Inbox", "Notify MC Inbox"], ["http", "Queue for HITL Revi…", "Queue for HITL Review (High Risk)"], ["service", "Slack", "Notify Slack (Escalation)"], ["end", "Escalated (End)", "Escalated (End)"]], "dp": "sala", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Lead → Campaign Pipeline", "c": "life", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/new-lead", "nd": [["trigger", "webhook", "GHL Webhook: New Lead"], ["http", "Start Campaign Pipe…", "Start Campaign Pipeline"], ["service", "Slack", "Notify Slack"], ["out", "respond", "Respond to GHL"]], "dp": "ventas", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Cost Alerts Cron 30min (Sprint #5 Item 3)", "c": "monitor", "s": "live", "tg": "cron", "td": "*/30 * * * *", "nd": [["trigger", "cron", "Every 30min"], ["http", "MC Costs 24h", "Fetch MC Costs 24h"], ["service", "Supabase", "Fetch Cost Alert State"], ["code", "Evaluate Threshold …", "Evaluate Threshold + Cooldown"], ["gate", "Should Alert", "Should Alert?"], ["service", "Slack", "Slack Alert #equipo"], ["service", "Supabase", "Upsert Cost Alert State"], ["end", "No Alert (withi…", "No Alert (within threshold or cooldown)"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "SEO Topical Authority Builder Monthly", "c": "specialty", "s": "live", "tg": "cron", "td": "0 3 1 * *", "nd": [["trigger", "cron", "Trigger: 1st of month 3am UTC"], ["code", "Load Active Clients", "Load Active Clients"], ["split", "split", "Split Into Each Client"], ["agent", "seo-content-strategist", "Invoke seo-content-strategist"], ["http", "Deliverable", "Persist Deliverable"]], "dp": "seo", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Supabase Weekly Backup (Cron Sunday 3am UTC)", "c": "monitor", "s": "live", "tg": "cron", "td": "0 3 * * 0", "nd": [["trigger", "cron", "Sunday 3am UTC"], ["code", "Prepare Backup Info", "Prepare Backup Info"], ["service", "pg_dump", "Execute pg_dump"], ["service", "Supabase", "List Backups"], ["code", "Identify Old Backups", "Identify Old Backups"], ["service", "Slack", "Success Slack"], ["service", "Healthchecks", "Ping Healthchecks"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Incrementality Test Runner (15min + Webhook)", "c": "analytics", "s": "live", "tg": "cron", "td": "*/15 * * * *", "nd": [["trigger", "cron", "Every 15min"], ["http", "Active Tests", "Fetch Active Tests"], ["split", "split", "Split Tests"], ["http", "Validate Readiness", "Validate Readiness"], ["code", "Plan Test Execution", "Plan Test Execution"], ["http", "Execute Test", "Execute Test"], ["http", "Test Results", "Fetch Test Results"], ["code", "Analyze & Interpret…", "Analyze & Interpret Results"], ["gate", "Test Complete", "Test Complete?"], ["service", "Supabase", "Persist Results to Supabase"], ["agent", "tracking-specialist", "Tracking Specialist Interpretation"], ["end", "Still Running", "Still Running"], ["trigger", "webhook", "Webhook: Start Test"]], "dp": "paid", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Healthchecks Ping Monitor (Cron Hourly)", "c": "monitor", "s": "live", "tg": "cron", "td": "0 * * * *", "nd": [["trigger", "cron", "Hourly Check"], ["service", "Healthchecks", "Self-Heartbeat Ping"], ["service", "Healthchecks", "Fetch All Checks"], ["code", "Analyze Check Status", "Analyze Check Status"], ["gate", "Critical Failure", "Critical Failure?"], ["service", "Slack", "Alert Slack"], ["end", "All Healthy", "All Healthy"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "GEO Content Freshness Cron", "c": "specialty", "s": "live", "tg": "cron", "td": "0 3 * * 1", "nd": [["trigger", "cron", "Trigger: Mondays 3am UTC"], ["code", "Query Stale GEO Con…", "Query Stale GEO Content"], ["split", "split", "Split Into Each Page"], ["http", "Page Content", "Fetch Page Content"], ["code", "Analyze Citations &…", "Analyze Citations & Stats"], ["gate", "refresh_needed", "IF refresh_needed"], ["agent", "GEO Optimization", "Agent: GEO Optimization"], ["http", "Queue Refresh Task", "Queue Refresh Task"]], "dp": "creative", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Social Multi-Platform Publisher", "c": "content", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/social-publish", "nd": [["trigger", "webhook", "Webhook"], ["code", "Validate", "Validate"], ["agent", "Adapt Per Platform …", "Adapt Per Platform (Sonnet)"], ["service", "GPT Image*", "Generate Assets (Ideogram)"], ["http", "Schedule Batch (pen…", "Schedule Batch (pending)"], ["out", "respond", "Respond"], ["agent", "influencer-manager", "Invoke · influencer-manager"], ["http", "HITL Review", "HITL Review"]], "dp": "content", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "SEO Cannibalization Audit Weekly", "c": "specialty", "s": "live", "tg": "cron", "td": "0 2 * * 0", "nd": [["trigger", "cron", "Trigger: Sundays 2am UTC"], ["code", "Load Active Clients", "Load Active Clients"], ["split", "split", "Split Into Each Client"], ["service", "GSC", "GSC Query-Page Mapping (last 30d)"], ["code", "Detect Cannibalizat…", "Detect Cannibalization"], ["gate", "conflicts > 0", "IF conflicts > 0"], ["agent", "seo-specialist", "Agent: SEO Specialist"], ["service", "Supabase", "Persist to Supabase"]], "dp": "seo", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "MV Refresh agent_invocations_daily_rollup (Cron 15min · Sprint #5 Item 4)", "c": "monitor", "s": "live", "tg": "cron", "td": "*/15 * * * *", "nd": [["trigger", "cron", "Every 15min"], ["service", "Supabase", "Refresh MV (RPC)"], ["code", "Log Refresh Result", "Log Refresh Result"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "SEO Backlink Opportunity Scanner Weekly", "c": "specialty", "s": "live", "tg": "cron", "td": "0 6 * * 1", "nd": [["trigger", "cron", "Trigger: Mondays 6am UTC"], ["code", "Load Active Clients", "Load Active Clients"], ["split", "split", "Split Into Each Client"], ["agent", "seo-backlink-strategist", "Invoke seo-backlink-strategist"], ["http", "Deliverable", "Persist Deliverable"]], "dp": "seo", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Community Health Daily (8am · Apify Service Wire)", "c": "apifybrain", "s": "live", "tg": "cron", "td": "0 8 * * *", "nd": [["trigger", "cron", "Daily 8am"], ["service", "Supabase", "Load active clients with apify enabled"], ["split", "split", "Split per cliente"], ["code", "Filter functions fo…", "Filter functions for community scope"], ["split", "batch", "Split per function"], ["agent", "Apify Service Workf…", "Call Apify Service Workflow"], ["code", "Aggregate Service r…", "Aggregate Service responses"], ["service", "Slack", "Slack daily summary"]], "dp": "brain", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Subject Line A/B + A/A Validator", "c": "ops", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/subject-line-validate", "nd": [["trigger", "webhook", "Webhook: Subject Lines"], ["code", "Validate Input", "Validate Input"], ["code", "Schwedelson Pattern…", "Schwedelson Patterns Check"], ["code", "Sample Size Calcula…", "Sample Size Calculator"], ["http", "Run A/A Control Test", "Run A/A Control Test"], ["gate", "A/A Control Biased", "A/A Control Biased?"], ["http", "Test Plan", "Create Test Plan"], ["out", "respond", "Respond: Test Ready"], ["http", "MC Inbox", "Notify MC Inbox"], ["out", "respond", "Respond: Abort (A/A Bias)"]], "dp": "email", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Brain Daily Re-index (Cron 3am UTC · Sprint 8D)", "c": "apifybrain", "s": "live", "tg": "cron", "td": "0 3 * * *", "nd": [["trigger", "cron", "Daily 3am UTC"], ["service", "Brain RAG", "POST /api/brain/reindex-stale"], ["gate", "Log result (Slack o…", "Log result (Slack on errors)"], ["service", "Slack", "Notify Slack on errors"], ["end", "Success path (n…", "Success path (no-op)"]], "dp": "brain", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Client Onboarding E2E v2 (Webhook: Deal Won)", "c": "account", "s": "prep", "tg": "webhook", "td": "POST /webhook/zero-risk/deal-won-onboarding", "nd": [["trigger", "webhook", "Webhook: Deal Won"], ["code", "Validate Deal Data", "Validate Deal Data"], ["agent", "onboarding-specialist", "Call Onboarding Specialist: Auto-Discovery"], ["service", "Supabase", "Persist Client to Supabase"], ["end", "Spell Check Pas…", "Spell Check Pass (in-cascade)"], ["http", "Run Onboarding Casc…", "Run Onboarding Cascade (Gap 3)"], ["subwf", "→ sub-wf", "Trigger Master Journey ugK3"], ["code", "Build Success Plan …", "Build Success Plan Template"], ["service", "Notion", "Create Success Plan in Notion"], ["http", "Schedule Kickoff Ca…", "Schedule Kickoff Call (GHL Calendar)"], ["code", "Compute Handoff Sco…", "Compute Handoff Score"], ["http", "GHL: Create AM Hand…", "GHL: Create AM Handoff Task"], ["service", "Slack", "Alert Slack: Onboarding Initiated"], ["http", "MC Inbox", "Notify MC Inbox"], ["service", "Notion", "Create Notion Client Workspace"], ["service", "Supabase", "[APIFY-WIRE] Load active clients with apify enabled (onboarding_e2e)"], ["split", "split", "[APIFY-WIRE] Split per cliente (onboarding_e2e)"], ["code", "[APIFY-WIRE] Filter…", "[APIFY-WIRE] Filter functions for onboarding_e2e scope"], ["split", "batch", "[APIFY-WIRE] Split per function (onboarding_e2e)"], ["service", "Apify Service W…", "[APIFY-WIRE] Call Apify Service Workflow (onboarding_e2e)"], ["code", "[APIFY-WIRE] Aggreg…", "[APIFY-WIRE] Aggregate Service responses (onboarding_e2e)"]], "dp": "cuenta", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "IndexNow + Real-Time Crawl Signaling", "c": "specialty", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/indexnow-signal", "nd": [["trigger", "webhook", "Webhook: Content Published"], ["code", "Validate URLs", "Validate URLs"], ["service", "IndexNow", "Submit to IndexNow"], ["service", "GSC", "Submit to Google Search Console"]], "dp": "seo", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Influencer Authenticity Gate", "c": "specialty", "s": "prep", "tg": "webhook", "td": "POST /webhook/zero-risk/influencer-vet", "nd": [["trigger", "webhook", "Webhook: Influencer Handle"], ["code", "Validate Input", "Validate Input"], ["service", "HypeAuditor", "HypeAuditor: Profile Data"], ["code", "Check Authenticity …", "Check Authenticity Signals"], ["gate", "Authenticity Passed", "Authenticity Passed?"], ["http", "Add to Approved List", "Add to Approved List"], ["out", "respond", "Respond: APPROVED"], ["http", "Rejection", "Log Rejection"], ["out", "respond", "Respond: REJECTED"], ["service", "Supabase", "[APIFY-WIRE] Load active clients with apify enabled (influencer_auth)"], ["split", "split", "[APIFY-WIRE] Split per cliente (influencer_auth)"], ["code", "[APIFY-WIRE] Filter…", "[APIFY-WIRE] Filter functions for influencer_auth scope"], ["split", "batch", "[APIFY-WIRE] Split per function (influencer_auth)"], ["service", "Apify Service W…", "[APIFY-WIRE] Call Apify Service Workflow (influencer_auth)"], ["code", "[APIFY-WIRE] Aggreg…", "[APIFY-WIRE] Aggregate Service responses (influencer_auth)"]], "dp": "social", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "QBR Generator Quarterly (1st of Quarter 4am)", "c": "analytics", "s": "prep", "tg": "cron", "td": "0 4 1 1,4,7,10 *", "nd": [["trigger", "cron", "1st of Quarter at 4am"], ["http", "Tier 1 & 2 Clients", "Fetch Tier 1 & 2 Clients"], ["split", "split", "Split Clients"], ["http", "90d Campaign Outcom…", "Fetch 90d Campaign Outcomes"], ["merge", "merge", "Merge QBR Data"], ["agent", "reporting-agent", "Call Reporting Agent: Generate QBR"], ["service", "Notion", "Create Notion QBR Draft"], ["http", "Submit HITL Gate: E…", "Submit HITL Gate: Emilio Approval"], ["service", "Slack", "Alert Slack: HITL Gate Opened"], ["http", "KPI Targets", "Fetch KPI Targets"], ["http", "Competitive Benchma…", "Fetch Competitive Benchmarks"], ["service", "Supabase", "[APIFY-WIRE] Load active clients with apify enabled (qbr_quarterly)"], ["split", "split", "[APIFY-WIRE] Split per cliente (qbr_quarterly)"], ["code", "[APIFY-WIRE] Filter…", "[APIFY-WIRE] Filter functions for qbr_quarterly scope"], ["split", "batch", "[APIFY-WIRE] Split per function (qbr_quarterly)"], ["service", "Apify Service W…", "[APIFY-WIRE] Call Apify Service Workflow (qbr_quarterly)"], ["code", "[APIFY-WIRE] Aggreg…", "[APIFY-WIRE] Aggregate Service responses (qbr_quarterly)"], ["trigger", "webhook", "Webhook: Journey E REVIEW (Dispatch)"]], "dp": "cuenta", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Expansion Readiness Scanner (Fridays 2pm)", "c": "analytics", "s": "live", "tg": "cron", "td": "0 14 * * 5", "nd": [["trigger", "cron", "Fridays 2pm"], ["http", "Active Clients (3+ …", "Fetch Active Clients (3+ months tenure)"], ["split", "split", "Split Clients"], ["http", "Adoption %", "Fetch Adoption %"], ["merge", "merge", "Merge Expansion Signals"], ["code", "Compute Expansion R…", "Compute Expansion Readiness"], ["gate", "Ready", "Is Ready?"], ["http", "Expansion Opportuni…", "Create Expansion Opportunity"], ["code", "Build Slack Digest", "Build Slack Digest"], ["service", "Slack", "Send Slack Digest to AM Channel"], ["end", "Not Ready (Cont…", "Not Ready (Continue Monitoring)"], ["http", "NPS (90d)", "Fetch NPS (90d)"], ["http", "Engagement (30d vs …", "Fetch Engagement (30d vs prev)"], ["http", "NRR Trajectory (3m)", "Fetch NRR Trajectory (3m)"], ["http", "Expansion Intent (f…", "Fetch Expansion Intent (from GHL)"]], "dp": "cuenta", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Review Severity Tier Router (Real-time)", "c": "ops", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/review-webhook", "nd": [["trigger", "webhook", "Webhook: Review Posted"], ["code", "Validate Review", "Validate Review"], ["code", "Classify Severity T…", "Classify Severity Tier"], ["gate", "Tier 1", "Is Tier 1?"], ["service", "Slack", "Slack: Tier 1 Alert (No Auto-Response)"], ["http", "Review Metric", "Log Review Metric"], ["out", "respond", "Respond to Webhook"], ["http", "MC Inbox", "Notify MC Inbox"], ["gate", "Tier 2", "Is Tier 2?"], ["agent", "Draft Tier 2 Respon…", "Draft Tier 2 Response (Haiku)"], ["http", "Queue Tier 2 for HI…", "Queue Tier 2 for HITL"], ["code", "Select Tier 3 Templ…", "Select Tier 3 Template"], ["http", "Tier 3 Auto-Response", "Post Tier 3 Auto-Response"], ["agent", "pr-earned-media-manager", "Invoke · pr-earned-media-manager"], ["agent", "community-manager", "Invoke · community-manager"]], "dp": "social", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Email Lifecycle Orchestrator (Webhook-Driven)", "c": "ops", "s": "live", "tg": "webhook", "td": "POST /webhook/zero-risk/email-lifecycle", "nd": [["trigger", "webhook", "Webhook: Lifecycle Event"], ["code", "Validate Event", "Validate Event"], ["gate", "Event = contact_cre…", "Event = contact_created?"], ["agent", "Compose Welcome (So…", "Compose Welcome (Sonnet)"], ["http", "Sequence", "Log Sequence"], ["out", "respond", "Respond to Webhook"], ["http", "MC Inbox", "Notify MC Inbox"], ["gate", "Event = cart_abando…", "Event = cart_abandoned?"], ["agent", "Compose Abandoned C…", "Compose Abandoned Cart (Sonnet)"], ["gate", "Event = purchase_co…", "Event = purchase_completed?"], ["agent", "Compose Post-Purcha…", "Compose Post-Purchase (Sonnet)"], ["gate", "Event = browse_aban…", "Event = browse_abandoned?"], ["agent", "Compose Browse Aban…", "Compose Browse Abandonment (Sonnet)"], ["gate", "Event = inactivity_…", "Event = inactivity_180d?"], ["agent", "Compose Winback (So…", "Compose Winback (Sonnet)"]], "dp": "email", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Client NPS + CSAT Monthly Pulse (1st of Month 10am)", "c": "account", "s": "live", "tg": "cron", "td": "0 10 1 * *", "nd": [["trigger", "cron", "1st of Month at 10am"], ["http", "All Active Clients", "Fetch All Active Clients"], ["split", "split", "Split Clients"], ["http", "Primary Champion Co…", "Fetch Primary Champion Contact"], ["code", "Prepare Survey Email", "Prepare Survey Email"], ["http", "Send NPS Survey Ema…", "Send NPS Survey Email (GHL)"], ["http", "Survey Sent", "Log Survey Sent"], ["service", "Slack", "Alert Slack: NPS Pulse Sent"]], "dp": "cuenta", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Meta Ads Full-Stack Optimizer v2 (Daily 3am)", "c": "paid", "s": "prep", "tg": "cron", "td": "0 3 * * *", "nd": [["trigger", "cron", "Daily 3am"], ["http", "Active Campaigns", "Fetch Active Campaigns"], ["split", "split", "Split Campaigns"], ["service", "Meta Graph", "Meta Insights (ad-level)"], ["code", "Classify + Anomaly …", "Classify + Anomaly Detect"], ["agent", "media-buyer", "Media Buyer (Sonnet) - Tier-Aware Plan"], ["gate", "Underperformers", "Has Underperformers?"], ["http", "Stage Optimization …", "Stage Optimization (Dry-run → HITL)"], ["gate", ">20% Spend Realloc", ">20% Spend Realloc?"], ["http", "Queue HITL (Large R…", "Queue HITL (Large Realloc)"], ["http", "Queue HITL (Standar…", "Queue HITL (Standard)"], ["end", "All Healthy", "All Healthy"], ["service", "Supabase", "[APIFY-WIRE] Load active clients with apify enabled (meta_ads_optimizer)"], ["split", "split", "[APIFY-WIRE] Split per cliente (meta_ads_optimizer)"], ["code", "[APIFY-WIRE] Filter…", "[APIFY-WIRE] Filter functions for meta_ads_optimizer scope"], ["split", "batch", "[APIFY-WIRE] Split per function (meta_ads_optimizer)"], ["service", "Apify Service W…", "[APIFY-WIRE] Call Apify Service Workflow (meta_ads_optimizer)"], ["code", "[APIFY-WIRE] Aggreg…", "[APIFY-WIRE] Aggregate Service responses (meta_ads_optimizer)"]], "dp": "paid", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Phase Gate Evidence Collector", "c": "ops", "s": "live", "tg": "webhook", "td": "POST /webhook/evidence-collector", "nd": [["trigger", "webhook", "Evidence Collector Webhook"], ["code", "Normalize Request", "Normalize Request"], ["code", "Structural Validati…", "Structural Validation (Fields)"], ["gate", "Structural Check Pa…", "Structural Check Passed?"], ["agent", "editor-en-jefe", "Semantic Validation (Editor en Jefe QC)"], ["code", "Extract Validation …", "Extract Validation Verdict"], ["service", "Supabase", "Log Audit to Supabase"], ["end", "Pass (End)", "Pass (End)"], ["end", "Structural Fail…", "Structural Fail (End)"], ["trigger", "sub", "When Executed by Another Workflow"], ["code", "Adapt Sub-workflow …", "Adapt Sub-workflow Input"]], "dp": "sala", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "JOURNEY B · ONBOARD Pipeline (Cliente firmado → activo)", "c": "life", "s": "prep", "tg": "webhook", "td": "POST /webhook/journey-b-onboard", "nd": [["trigger", "webhook", "Journey B entry (from Master Orchestrator)"], ["agent", "onboarding-specialist", "Step 1 · onboarding-specialist intake form"], ["service", "→ Brain", "Step 1b · brain ingest · intake form v0"], ["end", "Step 2 · wait f…", "Step 2 · wait for intake form completion (persist+resume)"], ["agent", "customer-research", "Step 4 · customer-research ICP"], ["service", "→ Brain", "Step 4b · brain ingest · ICP v1"], ["agent", "Step 5 · competitiv…", "Step 5 · competitive-intelligence landscape mapping"], ["service", "→ Brain", "Step 5b · brain ingest · competitive v2"], ["agent", "brand-strategist", "Step 3 · brand-strategist auto-generate Brand Book v0"], ["service", "→ Brain", "Step 6 · populate Client Brain (5 tablas)"], ["agent", "web-designer", "Step 7 · web-designer · Notion workspace setup"], ["service", "Notion", "Step 8 · Notion API · crear workspace real"], ["service", "Notion", "Step 8.1 · Notion subpage · Brand Book v1"], ["service", "Notion", "Step 8.2 · Notion subpage · ICP Document"], ["service", "Notion", "Step 8.3 · Notion subpage · Análisis Competitivo"], ["agent", "sales-enablement", "Step 9 · sales-enablement · kickoff deck"], ["service", "Notion", "Step 9.1 · Notion subpage · Kickoff Deck"], ["http", "Step 10 · HITL · Br…", "Step 10 · HITL · Brand Book + KPIs validation (Emilio + Cliente)"], ["gate", "Step 10b · E-009 IF…", "Step 10b · E-009 IF edit_iteration_count >= 2 THEN escalate"], ["agent", "jefe-client-success", "Step 10c · escalate to jefe-client-success (max edits)"], ["end", "Step 11 · resum…", "Step 11 · resume after approval (persist+resume)"], ["agent", "jefe-marketing", "Step 12 · jefe-marketing · first sprint plan"], ["service", "Notion", "Step 12.1 · Notion subpage · Plan Primer Sprint"], ["service", "Supabase", "Step 13 · mark cliente ACTIVO · trigger Journey C + D"], ["http", "Step 14 · auto-trig…", "Step 14 · auto-trigger Journey C (first campaign)"], ["service", "Supabase", "Step 15 · callback to Master Orchestrator"], ["service", "Supabase", "[APIFY-WIRE] Load active clients with apify enabled (journey_b_onboard)"], ["split", "split", "[APIFY-WIRE] Split per cliente (journey_b_onboard)"], ["code", "[APIFY-WIRE] Filter…", "[APIFY-WIRE] Filter functions for journey_b_onboard scope"], ["split", "batch", "[APIFY-WIRE] Split per function (journey_b_onboard)"], ["service", "Apify Service W…", "[APIFY-WIRE] Call Apify Service Workflow (journey_b_onboard)"], ["code", "[APIFY-WIRE] Aggreg…", "[APIFY-WIRE] Aggregate Service responses (journey_b_onboard)"]], "dp": "sala", "av": "whdorm", "cl": "obrero · espera disparo"}, {"n": "Creative Fatigue Auto-Refresh Loop (Every 6h)", "c": "paid", "s": "live", "tg": "cron", "td": "{\"interval\":[{\"hoursInterval\":6,\"field\":\"hours\"}]}", "nd": [["trigger", "cron", "Trigger: Every 6 Hours"], ["code", "Prepare Query", "Code: Prepare Query"], ["service", "Slack", "Slack: Notify Team"], ["trigger", "webhook", "Webhook: Manual Trigger"]], "dp": "creative", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Weekly Client Report Generator v2 (Mondays 8am)", "c": "analytics", "s": "prep", "tg": "cron", "td": "0 8 * * 1", "nd": [["trigger", "cron", "Mondays 8am"], ["http", "All Active Clients", "Fetch All Active Clients"], ["split", "split", "Split Clients"], ["service", "Meta Graph", "Meta Ads (7d)"], ["merge", "merge", "Merge Report Data"], ["agent", "reporting-agent", "Call Reporting Agent: Generate Report"], ["service", "Notion", "Create Notion Report Draft"], ["http", "Submit HITL Gate: W…", "Submit HITL Gate: Weekly Report"], ["service", "Slack", "Alert Slack: HITL Gate Opened"], ["agent", "account-manager", "Invoke · account-manager"], ["service", "GA4*", "GA4 (7d)"], ["http", "GHL Pipeline (7d)", "GHL Pipeline (7d)"], ["service", "PostHog", "PostHog Events (7d)"], ["agent", "reporting-agent", "Invoke · reporting-agent"], ["service", "Supabase", "[APIFY-WIRE] Load active clients with apify enabled (weekly_report)"], ["split", "split", "[APIFY-WIRE] Split per cliente (weekly_report)"], ["code", "[APIFY-WIRE] Filter…", "[APIFY-WIRE] Filter functions for weekly_report scope"], ["split", "batch", "[APIFY-WIRE] Split per function (weekly_report)"], ["service", "Apify Service W…", "[APIFY-WIRE] Call Apify Service Workflow (weekly_report)"], ["code", "[APIFY-WIRE] Aggreg…", "[APIFY-WIRE] Aggregate Service responses (weekly_report)"]], "dp": "cuenta", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "Apify Service Workflow (canonical · Sprint 9 P0)", "c": "apifybrain", "s": "live", "tg": "webhook", "td": "POST /webhook/apify-service-workflow", "nd": [["trigger", "webhook", "Webhook · /apify-service-workflow"], ["code", "Validate Body", "Validate Body"], ["gate", "validation_ok", "IF validation_ok?"], ["service", "Supabase", "HTTP · Supabase clients lookup"], ["code", "Gate Decision", "Gate Decision"], ["gate", "proceed", "IF proceed?"], ["gate", "dry_run", "IF dry_run?"], ["code", "dry-run-synthetic", "dry-run-synthetic"], ["merge", "merge", "Merge · apify data ready"], ["code", "transform-sections", "transform-sections"], ["code", "pre-destination", "pre-destination"], ["gate", "should_brain", "IF should_brain?"], ["service", "→ Brain", "HTTP · /api/brain/ingest-source"], ["gate", "should_callback", "IF should_callback?"], ["http", "· callback_url", "HTTP · callback_url"], ["merge", "merge", "Merge · destinations done"], ["code", "final-response-ok", "final-response-ok"], ["out", "respond", "Respond · success"], ["gate", "Switch · apify_func…", "Switch · apify_function"], ["service", "Apify·FB", "apify-fb-ads"], ["service", "Apify·IG", "apify-ig"], ["service", "Apify·IG", "apify-ig-comments"], ["service", "Apify·LI", "apify-linkedin"], ["service", "Apify·TT", "apify-tiktok"], ["code", "skipped-response", "skipped-response"], ["out", "respond", "Respond · skipped"]], "dp": "brain", "av": "whlive", "cl": "lo llama: Competitor Daily Monitor"}, {"n": "Agent Outcomes Writer (HARDCODED v2)", "c": "ops", "s": "live", "tg": "webhook", "td": "POST /webhook/outcomes-writer-v2", "nd": [["trigger", "webhook", "Outcomes Webhook Entry"], ["code", "Normalize Outcome", "Normalize Outcome"], ["service", "Supabase", "Write to Supabase"], ["end", "Success (End)", "Success (End)"]], "dp": "infra", "av": "whlive", "cl": "runner de agentes"}, {"n": "HITL Inbox Processor (Every 15 Minutes)", "c": "ops", "s": "live", "tg": "cron", "td": "*/15 * * * *", "nd": [["trigger", "cron", "Every 15 Minutes"], ["http", "Pending HITL Items", "Fetch Pending HITL Items"], ["code", "Categorize Items by…", "Categorize Items by Age"], ["gate", "Expired Items", "Any Expired Items?"], ["split", "split", "Split Expired Items"], ["http", "Expire Item & Escal…", "Expire Item & Escalate"], ["http", "Cycle Metrics", "Log Cycle Metrics"], ["http", "Mission Control", "Notify Mission Control"], ["end", "Cycle Complete", "Cycle Complete"], ["gate", "Critical Items", "Any Critical Items?"], ["split", "split", "Split Critical Items"], ["service", "Slack", "Alert Slack (Critical)"], ["gate", "Stale Items to Reno…", "Any Stale Items to Renotify?"], ["split", "split", "Split Stale Items"], ["http", "DM Approver (Renoti…", "DM Approver (Renotify)"]], "dp": "infra", "av": "cron", "cl": "reloj · se dispara solo"}, {"n": "UptimeRobot Webhook Handler", "c": "monitor", "s": "live", "tg": "webhook", "td": "POST /webhook/uptimerobot-alerts", "nd": [["trigger", "webhook", "UptimeRobot Webhook"], ["code", "Parse Alert", "Parse Alert"], ["gate", "Service Down", "Is Service Down?"], ["service", "Slack", "DOWN: Alert Slack"], ["http", "DOWN: Create MC Task", "DOWN: Create MC Task"], ["http", "to uptime_incidents", "Log to uptime_incidents"], ["service", "Slack", "UP: Notify Slack"]], "dp": "infra", "av": "whlive", "cl": "servicio externo"}, {"n": "TikTok + LinkedIn Unified Manager (Daily 5am)", "c": "paid", "s": "live", "tg": "cron", "td": "0 5 * * *", "nd": [["trigger", "cron", "Daily 5am"], ["service", "TikTok", "Fetch TikTok Campaigns"], ["split", "split", "Split TikTok"], ["code", "Identify Platform", "Identify Platform"], ["http", "Platform Stats", "Get Platform Stats"], ["code", "Analyze Platform-Sp…", "Analyze Platform-Specific Health"], ["agent", "media-buyer", "Media Buyer (Sonnet) - Alt Platform"], ["gate", "Issues", "Has Issues?"], ["http", "Queue HITL", "Queue HITL"], ["end", "Healthy", "Healthy"], ["service", "LinkedIn", "Fetch LinkedIn Campaigns"], ["split", "split", "Split LinkedIn"]], "dp": "paid", "av": "cron", "cl": "reloj · se dispara solo"}];
+  var CATS=[
+    {id:'life',n:'Lifecycle · Orquestación',c:'#5B8DEF'},{id:'content',n:'Content Production',c:'#10A37F'},{id:'paid',n:'Paid Media',c:'#4C8BF5'},
+    {id:'analytics',n:'Analytics / Reportes',c:'#E8923A'},{id:'account',n:'Account / Onboarding',c:'#43B581'},{id:'specialty',n:'SEO / Specialty',c:'#D2A24B'},
+    {id:'ops',n:'Operations',c:'#6E8BA8'},{id:'monitor',n:'Monitor / Infra',c:'#7C8595'},{id:'apifybrain',n:'Ingesta · Apify+Brain',c:'#8E86E0'}
+  ];
+  var NCOL={trigger:'#5B8DEF',agent:'#8E86E0',service:'#5BD0C0',http:'#5E7CA8',code:'#8A93A3',gate:'#D2A24B',merge:'#46B3A8',split:'#B07FA8',subwf:'#EA4B71',out:'#43B581',end:'#56606E'};
+  var NLAB={trigger:'trigger',agent:'agente',service:'brazo/servicio',http:'API interna',code:'código',gate:'gate / IF',merge:'merge',split:'split',subwf:'sub-workflow',out:'salida',end:'fin / no-op'};
+  function nodeColor(t){return NCOL[t]||'#727C8C';}
+  function catOf(id){return CATS.find(function(c){return c.id===id;})||{n:id,c:'#727C8C'};}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function uniq(a){var o=[];a.forEach(function(x){if(o.indexOf(x)<0)o.push(x);});return o;}
+  function h32(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+  function trigLabel(w){var m={webhook:'webhook',scheduleTrigger:'cron',executeWorkflowTrigger:'sub'};return m[w.tg]||w.tg||'on-demand';}
+
+  var DEPTG={
+    paid:{dept:'Marketing',sub:'Paid Media',mkt:1,c:'#4C8BF5'},
+    creative:{dept:'Marketing',sub:'Creative / CRO',mkt:1,c:'#8E86E0'},
+    seo:{dept:'Marketing',sub:'SEO',mkt:1,c:'#D2A24B'},
+    content:{dept:'Marketing',sub:'Content',mkt:1,c:'#10A37F'},
+    social:{dept:'Marketing',sub:'Social / Reputación',mkt:1,c:'#EA4B71'},
+    intel:{dept:'Marketing',sub:'Intelligence',mkt:1,c:'#5BD0C0'},
+    email:{dept:'Marketing',sub:'Email / Lifecycle',mkt:1,c:'#5B8DEF'},
+    cuenta:{dept:'Cuenta',sub:'Cuenta / Client Success',mkt:0,c:'#43B581'},
+    ventas:{dept:'Ventas',sub:'Ventas',mkt:0,c:'#6E8BA8'},
+    sala:{dept:'Sala',sub:'Orquestación (sala)',mkt:0,c:'#8FA6E0'},
+    brain:{dept:'Compartido',sub:'Brain / compartido',mkt:0,c:'#8E86E0'},
+    infra:{dept:'Infra',sub:'Infra / Ops',mkt:0,c:'#7C8595'},
+    otros:{dept:'Otros',sub:'Otros',mkt:0,c:'#727C8C'}
+  };
+  var DEPTORDER=['paid','creative','seo','content','social','intel','email','cuenta','ventas','sala','brain','infra','otros'];
+  function depG(w){return DEPTG[w.dp]||DEPTG.otros;}
+  function depCol(w){return depG(w).c;}
+  function alive(w){return w.av!=='whdorm';}
+  function actBadge(w){return w.av==='cron'?'<span class="actb cron">⏰ '+esc(w.cl)+'</span>':(w.av==='whlive'?'<span class="actb live">🔌 '+esc(w.cl)+'</span>':'<span class="actb dorm">💤 '+esc(w.cl)+'</span>');}
+
+  var VIEWS=[['arq','Arquitectura'],['wf','Workflows · '+WFREAL.length],['ag','Marketing · equipo'],['hitl','Aprobaciones'],['br','Brazos'],['brain','Brain']];
+  var tabsEl=document.getElementById('tabs');
+  VIEWS.forEach(function(v){var b=document.createElement('div');b.className='tab'+(v[0]==='arq'?' on':'');b.textContent=v[1];b.dataset.v=v[0];b.onclick=function(){setView(v[0]);};tabsEl.appendChild(b);});
+  window.setView=function(v){
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.v===v);});
+    document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on');});
+    document.getElementById('view-'+v).classList.add('on');
+    if(v==='wf'&&!wfDone){renderWF();wfDone=1;}
+    if(v==='ag'&&!agDone){renderAg();agDone=1;}
+    if(v==='hitl'&&!hitlDone){renderHitl();hitlDone=1;}
+    if(v==='br'&&!brDone){renderBr();brDone=1;}
+    if(v==='brain'&&!bnDone){renderBrain();bnDone=1;}
+  };
+  var wfDone=0,agDone=0,hitlDone=0,brDone=0,bnDone=0;
+
+  /* ====== WORKFLOWS · por departamento + activación ====== */
+  function renderWF(){
+    var el=document.getElementById('view-wf');
+    var mkt=WFREAL.filter(function(w){return depG(w).mkt;}).length;
+    var aliveN=WFREAL.filter(alive).length, dorm=WFREAL.length-aliveN;
+    var h='<div class="wfhead"><div><span class="wfhl">Workflows · '+WFREAL.length+'</span><span class="wfhs">'+mkt+' de Marketing · '+aliveN+' se disparan solos/vivos · '+dorm+' obreros dormidos (esperan disparo)</span></div><div class="wfmode"><span class="wmb on" data-m="motor" onclick="setWfMode(\'motor\')">⚡ Motor en vivo</span><span class="wmb" data-m="matriz" onclick="setWfMode(\'matriz\')">▦ Matriz</span></div></div>';
+    h+='<div id="wf-motor" class="wfsub on"></div><div id="wf-matrix" class="wfsub">'+buildMatrix()+'</div>';
+    el.innerHTML=h; buildBoard();
+  }
+  window.setWfMode=function(m){document.querySelectorAll('.wmb').forEach(function(b){b.classList.toggle('on',b.dataset.m===m);});
+    document.getElementById('wf-motor').classList.toggle('on',m==='motor');document.getElementById('wf-matrix').classList.toggle('on',m==='matriz');};
+  function buildMatrix(){
+    var mh='<div class="matrix">';
+    DEPTORDER.forEach(function(gid){var g=DEPTG[gid];var list=WFREAL.map(function(w,i){return [w,i];}).filter(function(p){return p[0].dp===gid;});if(!list.length)return;
+      mh+='<div class="mcol'+(g.mkt?'':' otherdept')+'"><div class="ch"><span class="cd" style="background:'+g.c+';box-shadow:0 0 7px '+g.c+'"></span><span class="cn">'+g.sub+'</span><span class="cc">'+list.length+'</span></div>';
+      list.forEach(function(p){var w=p[0];var dz=!alive(w);
+        mh+='<div class="wfcard'+(dz?' dormant':'')+'" onclick="openWf('+p[1]+')"><div class="wn"><span class="sd" style="background:'+(dz?'#586070':depCol(w))+'"></span>'+esc(w.n)+'</div><div class="wmeta">'+actBadge(w)+'</div></div>';});
+      mh+='</div>';});
+    return mh+'</div>';
+  }
+  var wfWired=0;
+  function buildBoard(){
+    var active='<div class="wfactive"><div class="wa-h"><span class="bd"></span>Workflows activos · <span id="wa-n">0</span><span class="st" id="wa-st"></span></div><div class="wa-list" id="wa-list"><span class="wa-empty">— ninguno ejecutando ahora —</span></div></div>';
+    var leg='<div class="wflegend"><span><i style="background:#43B581"></i>⏰ cron · se dispara solo (vivo)</span><span><i style="background:#46B3A8"></i>🔌 webhook · lo llama algo vivo</span><span><i style="background:#586070"></i>💤 obrero · espera disparo (sala/manual)</span></div>';
+    var board='<div class="wfboard">',div=false;
+    DEPTORDER.forEach(function(gid){var g=DEPTG[gid];var list=WFREAL.map(function(w,i){return [w,i];}).filter(function(p){return p[0].dp===gid;});if(!list.length)return;
+      if(!g.mkt&&!div){board+='<div class="deptdivider">— otros departamentos · no Marketing —</div>';div=true;}
+      var av=list.filter(function(p){return alive(p[0]);}).length;
+      board+='<div class="wfsec'+(g.mkt?'':' otherdept')+'"><div class="wfsec-h"><span class="cd" style="background:'+g.c+';box-shadow:0 0 8px '+g.c+'"></span><span class="cn">'+g.sub+'</span>'+(g.mkt?'<span class="deptpill mkt">Marketing</span>':'<span class="deptpill">'+g.dept+'</span>')+'<span class="cc">'+list.length+'</span><span class="sl">'+av+' vivos</span></div>';
+      list.forEach(function(p){var w=p[0],idx=p[1];var dz=!alive(w);
+        var strip=w.nd.map(function(nd){return '<span class="wnode"><span class="wbox idle" style="--nc:'+nodeColor(nd[0])+'" title="'+esc(nd[2])+' · '+nd[0]+'">'+esc(nd[1])+'</span><span class="wconn"></span></span>';}).join('');
+        var dot=dz?'#586070':(w.av==='cron'?'#43B581':'#46B3A8');
+        board+='<div class="wfrow'+(dz?' dormant':'')+'" data-wf="'+idx+'" style="--rc:'+g.c+'" onclick="openWf('+idx+')"><div class="wfr-top"><span class="wst" style="background:'+dot+'"></span><div class="wname"><span class="nm">'+esc(w.n)+'</span>'+actBadge(w)+'</div><span class="wtrig">'+w.nd.length+' nodos</span></div><div class="wstrip">'+strip+'</div></div>';});
+      board+='</div>';});
+    board+='</div>';
+    document.getElementById('wf-motor').innerHTML=active+leg+board;
+    renderActive();
+    if(!wfWired){wfWired=1;setInterval(wfTick,240);}
+  }
+  function wfVisible(){var v=document.getElementById('view-wf'),m=document.getElementById('wf-motor');return v&&v.classList.contains('on')&&m&&m.classList.contains('on');}
+  function rowEl(idx){return document.querySelector('.wfrow[data-wf="'+idx+'"]');}
+  var ACTIVE={},MAXA=5;
+  function startWf(idx){if(ACTIVE[idx])return;var w=WFREAL[idx];var total=w.nd.length;
+    var stepMs=Math.max(240,Math.min(720,Math.floor(10500/Math.max(total,1))));
+    ACTIVE[idx]={start:performance.now(),nodes:w.nd,total:total,stepMs:stepMs,col:depCol(w)};
+    var r=rowEl(idx);if(r)r.classList.add('running');pushFeed(['WORKFLOW',depCol(w),'▸ '+esc(w.n)+' · iniciado']);}
+  function paintRow(idx,step){var r=rowEl(idx);if(!r)return;var a=ACTIVE[idx];
+    var boxes=r.querySelectorAll('.wbox');boxes.forEach(function(b,i){b.className='wbox '+(i<step?'done':i===step?'run':'pending');});}
+  function finishWf(idx){var a=ACTIVE[idx];var r=rowEl(idx);delete ACTIVE[idx];var w=WFREAL[idx];
+    if(r){r.querySelectorAll('.wbox').forEach(function(b){b.className='wbox done';});
+      setTimeout(function(){r.classList.remove('running');r.querySelectorAll('.wbox').forEach(function(b){b.className='wbox idle';});},480);}
+    pushFeed(['WORKFLOW',a?a.col:'#727C8C','✓ '+esc(w.n)+' · completado']);}
+  function wfTick(){if(!wfVisible())return;var now=performance.now();
+    Object.keys(ACTIVE).forEach(function(k){var a=ACTIVE[k];var step=Math.floor((now-a.start)/a.stepMs);if(step>=a.total)finishWf(+k);else paintRow(+k,step);});
+    if(Object.keys(ACTIVE).length<MAXA&&Math.random()<0.5){var pool=[];WFREAL.forEach(function(w,i){if(alive(w)&&!ACTIVE[i])pool.push(i);});if(pool.length)startWf(pool[Math.floor(Math.random()*pool.length)]);}
+    renderActive();}
+  function renderActive(){var box=document.getElementById('wa-list');if(!box)return;var ks=Object.keys(ACTIVE);var n=document.getElementById('wa-n');if(n)n.textContent=ks.length;
+    var st=document.getElementById('wa-st');if(st)st.textContent=WFREAL.filter(alive).length+' vivos · '+WFREAL.length+' total';
+    if(!ks.length){box.innerHTML='<span class="wa-empty">— ninguno ejecutando ahora —</span>';return;}
+    var now=performance.now();
+    box.innerHTML=ks.map(function(k){var a=ACTIVE[k];var w=WFREAL[+k];var step=Math.min(Math.floor((now-a.start)/a.stepMs),a.total-1);var cur=a.nodes[step]?a.nodes[step][1]:'';
+      return '<div class="wa-chip" style="--rc:'+a.col+'" onclick="openWf('+k+')"><span class="ad" style="background:'+a.col+';box-shadow:0 0 7px '+a.col+'"></span><span class="an">'+esc(w.n)+'</span><span class="ac">▸ '+esc(cur)+'</span><span class="ap">'+(step+1)+'/'+a.total+'</span></div>';}).join('');}
+  window.openWf=function(idx){var w=WFREAL[idx];if(!w)return;var g=depG(w);
+    setHead(w.n,'workflow · '+g.sub+(g.mkt?' · Marketing':' · '+g.dept)+' · '+w.nd.length+' nodos',g.c);
+    var actTxt=w.av==='cron'?'cron — se dispara solo ('+esc(w.cl)+')':(w.av==='whlive'?'webhook — '+esc(w.cl):'webhook — '+esc(w.cl));
+    var h='<div class="desc">Trigger: <b>'+esc(trigLabel(w))+'</b>'+(w.td?' · <span style="color:var(--mut)">'+esc(w.td)+'</span>':'')+'. Secuencia real de nodos.</div>';
+    h+='<div class="note '+(alive(w)?'warn':'bad')+'">Activación: <b>'+actTxt+'</b>'+(alive(w)?'':'. Hoy <b>nadie lo llama en vivo</b> — es un obrero que espera al director (la sala) o un disparo manual desde Mission Control.')+'</div>';
+    h+='<div class="dsec">Nodos ('+w.nd.length+')</div><div class="lane">';
+    w.nd.forEach(function(n){var c=nodeColor(n[0]);h+='<div class="lstep" title="'+esc(n[2])+'"><span class="ld" style="background:'+c+';box-shadow:0 0 6px '+c+'"></span><span class="lt">'+esc(n[1])+'</span><span class="lk2">'+n[0]+'</span></div>';});
+    h+='</div>';
+    var ag=w.nd.filter(function(n){return n[0]==='agent';}),sv=w.nd.filter(function(n){return n[0]==='service';});
+    if(ag.length){h+='<div class="dsec">Agentes invocados ('+uniq(ag.map(function(a){return a[1];})).length+')</div><div class="agchips">'+uniq(ag.map(function(a){return a[1];})).map(function(a){return '<span class="ag">👤 '+esc(a)+'</span>';}).join('')+'</div>';}
+    if(sv.length){h+='<div class="dsec">Brazos / servicios ('+uniq(sv.map(function(s){return s[1];})).length+')</div><div class="agchips">'+uniq(sv.map(function(s){return s[1];})).map(function(s){return '<span class="br">🔧 '+esc(s)+'</span>';}).join('')+'</div>';}
+    document.getElementById('d-body').innerHTML=h;show();
+  };
+
+  /* ====== MARKETING · equipo ====== */
+  var MKTHEAD={slug:'jefe-marketing',role:'Dirige el área · estrategia, prioridades y calidad',model:'sonnet',mk:'jefe-marketing'};
+  var MKTAREAS=[
+    {area:'Content · Producción',c:'#10A37F',ag:[
+      {slug:'content-creator',role:'Crea contenido: posts, copy, artículos',model:'sonnet',mk:'content-creator'},
+      {slug:'editor-en-jefe',role:'Calidad editorial · voz de marca · revisor Camino III',model:'opus',mk:'editor-en-jefe'},
+      {slug:'spell-check-corrector',role:'Ortografía y gramática',model:'haiku',mk:'spell-check'},
+      {slug:'style-consistency-reviewer',role:'Consistencia de estilo de marca',model:'haiku',mk:'style-consistency'}
+    ]},
+    {area:'Creative · Diseño y video',c:'#8E86E0',ag:[
+      {slug:'creative-director',role:'Dirección creativa · ángulos · briefs',model:'opus',mk:'creative-director'},
+      {slug:'video-editor',role:'Guion → storyboard → video (Higgsfield)',model:'sonnet',mk:'video-editor'},
+      {slug:'web-designer',role:'Diseño de landing / web',model:'sonnet',mk:'web-designer'},
+      {slug:'carousel-designer',role:'Carruseles y piezas sociales',model:'sonnet',mk:'carousel'}
+    ]},
+    {area:'Paid Media · Pauta',c:'#4C8BF5',ag:[
+      {slug:'media-buyer',role:'Optimiza pauta: Meta · Google · TikTok · LinkedIn',model:'sonnet',mk:'media-buyer'},
+      {slug:'tracking-specialist',role:'Tracking, atribución, incrementalidad',model:'haiku',mk:'tracking'}
+    ]},
+    {area:'SEO',c:'#D2A24B',ag:[
+      {slug:'seo-specialist',role:'Ranking · canibalización · on-page',model:'sonnet',mk:'seo-specialist'},
+      {slug:'seo-content-strategist',role:'Autoridad temática · clusters',model:'sonnet',mk:'seo-content'},
+      {slug:'seo-backlink-strategist',role:'Oportunidades de backlinks',model:'sonnet',mk:'seo-backlink'},
+      {slug:'seo-geo-optimization',role:'GEO · frescura de contenido',model:'sonnet',mk:'seo-geo'}
+    ]},
+    {area:'Social · Comunidad',c:'#EA4B71',ag:[
+      {slug:'social-media-strategist',role:'Publica multi-plataforma · estrategia social',model:'sonnet',mk:'social-media'},
+      {slug:'community-manager',role:'Gestión de comunidad',model:'sonnet',mk:'community'}
+    ]},
+    {area:'CRO · Conversión',c:'#46B3A8',ag:[
+      {slug:'cro-specialist',role:'Optimiza conversión de landings',model:'sonnet',mk:'cro-specialist'}
+    ]},
+    {area:'Influencer & PR · Reputación',c:'#E8923A',ag:[
+      {slug:'influencer-manager',role:'Vetting y gestión de influencers',model:'sonnet',mk:'influencer'},
+      {slug:'pr-earned-media-manager',role:'PR y earned media',model:'sonnet',mk:'pr-earned'},
+      {slug:'review-responder',role:'Responde reseñas por severidad',model:'haiku',mk:'review-responder'}
+    ]},
+    {area:'Growth & Intelligence',c:'#5BD0C0',ag:[
+      {slug:'growth-hacker',role:'Experimentos de crecimiento',model:'sonnet',mk:'growth-hacker'},
+      {slug:'optimization-agent',role:'Meta-aprendizaje · mejora continua',model:'sonnet',mk:'optimization'},
+      {slug:'competitive-intelligence-agent',role:'Inteligencia competitiva (5-layer)',model:'sonnet',mk:'competitive'},
+      {slug:'market-research',role:'Investigación de mercado / ICP',model:'sonnet',mk:'market'}
+    ]}
+  ];
+  var ALLAG={};ALLAG[MKTHEAD.slug]=Object.assign({area:'Dirección'},MKTHEAD);
+  MKTAREAS.forEach(function(ar){ar.ag.forEach(function(a){ALLAG[a.slug]=Object.assign({area:ar.area,c:ar.c},a);});});
+  function agWf(mk){var o=[];WFREAL.forEach(function(w,i){if(w.nd.some(function(n){return n[0]==='agent'&&n[1].toLowerCase().indexOf(mk)>=0;}))o.push([i,w.n]);});return o;}
+  function mcolOf(m){return {opus:'#E0A458',sonnet:'#5B8DEF',haiku:'#8E86E0'}[m]||'#8E86E0';}
+  function agCard(a){var nw=agWf(a.mk).length;
+    return '<div class="agcard'+(a.slug==='jefe-marketing'?' head':'')+'" onclick="openAg(\''+a.slug+'\')"><div class="an">'+(a.slug==='jefe-marketing'?'⭐ ':'👤 ')+a.slug+'<span class="am '+a.model+'">'+a.model+'</span></div><div class="as">'+a.role+'</div><div class="aw">▸ '+nw+' workflow'+(nw===1?'':'s')+'</div></div>';}
+  function renderAg(){
+    var el=document.getElementById('view-ag');
+    var total=1;MKTAREAS.forEach(function(ar){total+=ar.ag.length;});
+    var h='<div class="vh">Marketing · equipo (organigrama)</div><div class="vsub">Departamento de Marketing tal cual agencia real · '+total+' roles · jefe-marketing dirige · cada agente opera DENTRO de workflows (§149) · "en N workflows" = nodos reales del snapshot</div>';
+    h+='<div class="secT" style="color:#D2A24B">Dirección</div><div class="grid g4">'+agCard(ALLAG['jefe-marketing'])+'</div>';
+    MKTAREAS.forEach(function(ar){
+      h+='<div class="secT" style="color:'+ar.c+'">'+ar.area+'<span class="cnt">'+ar.ag.length+'</span></div><div class="grid g4">';
+      ar.ag.forEach(function(a){h+=agCard(a);});
+      h+='</div>';
+    });
+    el.innerHTML=h;
+  }
+  window.openAg=function(slug){var a=ALLAG[slug];if(!a)return;var mc=mcolOf(a.model);
+    setHead(a.slug,'agente · Marketing · '+a.area,mc);
+    var wfs=agWf(a.mk);
+    var h='<div class="desc">'+a.role+'. Modelo <b>'+a.model+'</b>. §149: se invoca SOLO dentro de workflows (no corre suelto) y lee el Brain del cliente por invocación.</div>';
+    h+='<div class="dsec">Opera en workflows ('+wfs.length+')</div>';
+    if(wfs.length){h+='<div class="lane">'+wfs.map(function(p){return '<div class="lstep" style="cursor:pointer" onclick="openWf('+p[0]+')"><span class="ld" style="background:'+mc+';box-shadow:0 0 6px '+mc+'"></span><span class="lt">'+esc(p[1])+'</span></div>';}).join('')+'</div>';}
+    else h+='<div class="note warn">En el catálogo, sin workflow mapeado en el snapshot 26-may (rol definido, aún no cableado a un workflow real).</div>';
+    document.getElementById('d-body').innerHTML=h;show();
+  };
+
+  /* ====== APROBACIONES · HITL ====== */
+  var HITL=[
+    {id:1,t:'Campaña Pérez · aprobar creatividades',risk:'media',age:'hace 2h',src:'Producir · NEXUS (fase Approval)',d:'3 piezas listas para publicar (LAUNCH). Requieren tu OK antes de salir al aire.'},
+    {id:2,t:'Náufrago · encender ONBOARD real',risk:'alta',age:'hace 1d',src:'La Sala · STOP-2',d:'Primer cliente real por la puerta canónica. Gated §144 + STOP-2 · reversible en <60s.'},
+    {id:3,t:'Camino III · pieza escalada',risk:'media',age:'hace 5h',src:'QA · gate de calidad 3-de-N',d:'Un contenido no alcanzó consenso de los 3 revisores. La decisión final es tuya.'},
+    {id:4,t:'Meta Ads · subir presupuesto',risk:'media',age:'hace 3h',src:'Mantenimiento · media-buyer',d:'El optimizador sugiere subir el tope diario en la campaña ganadora de Pérez (de $40 a $65).'},
+    {id:5,t:'Creative Fatigue · refrescar pauta',risk:'baja',age:'hace 6h',src:'Mantenimiento · creative',d:'Anuncios con fatiga alta detectada. Aprobar refresh de creatividades.'},
+    {id:6,t:'Reseña 1★ · aprobar respuesta',risk:'media',age:'hace 1h',src:'review-responder',d:'Respuesta redactada a una reseña negativa. Aprobar antes de publicar.'}
+  ];
+  function riskCol(r){return {alta:'#DE6A5E',media:'#D2A24B',baja:'#6E8BA8'}[r]||'#586070';}
+  function renderHitl(){
+    var el=document.getElementById('view-hitl');
+    el.innerHTML='<div class="vh">Aprobaciones · Bandeja §144 (HITL)</div><div class="vsub">Lo que espera tu decisión. La consola observa y propone; tú apruebas o rechazas — tu OK <b>emite el intent</b> y la sala despacha (§149). VISTA PREVIA · simulado.</div><div class="hitlbar" id="hitlbar"></div><div class="hitlwrap" id="hitllist"></div>';
+    paintHitl();
+  }
+  function paintHitl(){
+    var bar=document.getElementById('hitlbar'),list=document.getElementById('hitllist');if(!list)return;
+    var alta=HITL.filter(function(x){return x.risk==='alta';}).length;
+    bar.innerHTML='<div class="hb"><b>'+HITL.length+'</b> pendientes</div><div class="hb" style="color:#DE6A5E"><b>'+alta+'</b> alta prioridad</div><div class="hb">tú · único aprobador (§144)</div>';
+    if(!HITL.length){list.innerHTML='<div class="hitldone">✓ Bandeja vacía — nada espera tu decisión ahora.</div>';return;}
+    list.innerHTML=HITL.map(function(x){var rc=riskCol(x.risk);
+      return '<div class="hitlcard" style="--rk:'+rc+'"><div class="hk-top"><span class="hk-t">'+esc(x.t)+'</span><span class="hk-risk" style="color:'+rc+'">'+x.risk+'</span><span class="hk-age">'+x.age+'</span></div>'
+        +'<div class="hk-src">origen: <b>'+esc(x.src)+'</b></div><div class="hk-desc">'+esc(x.d)+'</div>'
+        +'<div class="hk-act"><span class="hbtn ok" onclick="hitlAct('+x.id+',\'aprobada\')">✓ Aprobar</span><span class="hbtn rev" onclick="hitlAct('+x.id+',\'en revisión\')">◴ Revisar</span><span class="hbtn no" onclick="hitlAct('+x.id+',\'rechazada\')">✕ Rechazar</span></div></div>';
+    }).join('');
+  }
+  window.hitlAct=function(id,verb){var it=HITL.find(function(x){return x.id===id;});if(!it)return;
+    HITL=HITL.filter(function(x){return x.id!==id;});
+    var col=verb==='rechazada'?'#DE6A5E':(verb==='aprobada'?'#43B581':'#D2A24B');
+    pushFeed(['HITL §144',col,esc(it.t)+' → '+verb+(verb!=='en revisión'?' · intent emitido a la sala':'')]);
+    paintHitl();
+  };
+
+  /* ====== BRAZOS ====== */
+  var BRAZOS=[
+    {n:'Apify',c:'#8FC73E',st:'LIVE',callers:['Apify Service WF','Competitor Daily','Community Health','CI 5-Layer'],dest:['workflows','Brain RAG','Whisper→Brain'],brain:1,note:'Hub centralizado (Sprint 9). Scrapea FB/IG/TikTok/LinkedIn. Se consulta desde varios workflows y desde el cerebro. Alimenta el Brain vía /api/brain/ingest-source.'},
+    {n:'DataForSEO',c:'#5B8DEF',st:'MCP',callers:['SEO Cannibalization','CI 5-Layer'],dest:['workflows','Brain RAG'],brain:1,note:'SERP + keywords. El contenido SEO/competidor también alimenta el Brain.'},
+    {n:'Whisper',c:'#8E86E0',st:'used',callers:['Video Pipeline','Apify Service WF'],dest:['Brain RAG'],brain:1,note:'Transcribe audio/YouTube → embeddings al Brain.'},
+    {n:'Higgsfield',c:'#FFB000',st:'canon',callers:['Video Pipeline'],dest:['Drive · video'],brain:0,note:'Seedance 2.0 · video multi-modelo (un solo billing).'},
+    {n:'GPT Image',c:'#10A37F',st:'LIVE',callers:['Social Publisher','Landing Cascade'],dest:['Drive · piezas'],brain:0,note:'Generación de imágenes (REST directo).'},
+    {n:'Meta Graph',c:'#4C8BF5',st:'LIVE',callers:['Meta Ads Optimizer','Social Publisher','Attribution','Weekly Report'],dest:['EGRESO · publica','ingress (insights)'],brain:0,note:'IG/FB/WA. Canal de EGRESO/publicación + lee métricas. (El "egreso" es esto, no una capa.)'},
+    {n:'Resend',c:'#5B8DEF',st:'wrap',callers:['Email Lifecycle','agents'],dest:['EGRESO · email'],brain:0,note:'Canal de egreso: email transaccional. El egreso/publicación pasa por aquí.'},
+    {n:'Twilio',c:'#F22F46',st:'wrap',callers:['HITL escalation'],dest:['EGRESO · SMS'],brain:0,note:'Canal de egreso: SMS/voz. El egreso/publicación pasa por aquí.'},
+    {n:'Notion',c:'#C9CDD6',st:'LIVE',callers:['Journey B','Onboarding E2E','Weekly Report','QBR'],dest:['workspaces · reportes'],brain:0,note:'Workspaces de cliente + reportes + subpáginas de outputs.'},
+    {n:'Slack',c:'#E01E5A',st:'LIVE',callers:['38 nodos · casi todos los WF'],dest:['#equipo · alertas'],brain:0,note:'Canal de notificación/HITL más usado del sistema.'},
+    {n:'Supabase',c:'#3FB581',st:'Capa 4',callers:['33 nodos · CRM + estado'],dest:['datos · journey_state · DLQ'],brain:0,note:'Backend (Capa 4): CRM nativo + estado de pipelines + event-log.'},
+    {n:'PostHog',c:'#E8923A',st:'LIVE',callers:['Weekly Report','Landing A/B'],dest:['workflows · métricas'],brain:0,note:'Analítica de comportamiento (reemplaza GA4 purgado).'}
+  ];
+  function renderBr(){
+    var el=document.getElementById('view-br');
+    var h='<div class="vh">Brazos · registro de servicios (transversales)</div><div class="vsub">Servicios consultados desde varios workflows y desde el cerebro. Algunos (Apify · DataForSEO · Whisper) <b style="color:var(--cyan)">alimentan el Brain</b>; otros (Meta · Resend · Twilio) son los <b style="color:var(--orange)">canales de egreso/publicación</b>. No son una capa.</div><div class="grid g3">';
+    BRAZOS.forEach(function(b){
+      h+='<div class="card brcard" style="cursor:pointer" onclick="openBr(\''+b.n.replace(/[^a-zA-Z0-9]/g,'')+'\')"><div class="brh"><span class="bd" style="background:'+b.c+';box-shadow:0 0 8px '+b.c+'"></span><span class="bn">'+b.n+'</span><span class="bst">'+b.st+'</span></div>';
+      h+='<div class="brrow"><b>Llamado por</b><br>'+b.callers.map(function(x){return '<span class="chip wf">'+x+'</span>';}).join('')+'</div>';
+      h+='<div class="brrow"><b>Alimenta / destino</b><br>'+b.dest.map(function(x){return '<span class="chip'+(/Brain/.test(x)?' brain':'')+'">'+x+'</span>';}).join('')+'</div>';
+      h+='</div>';});
+    h+='</div>';el.innerHTML=h;
+  }
+  window.openBr=function(key){var b=BRAZOS.find(function(x){return x.n.replace(/[^a-zA-Z0-9]/g,'')===key;});if(!b)return;
+    setHead(b.n,'brazo · servicio transversal',b.c);
+    var h='<div class="desc">'+b.note+'</div>';
+    if(b.brain)h+='<div class="note warn">Multi-destino: además de servir a workflows, <b>alimenta el Brain</b> vía /api/brain/ingest-source.</div>';
+    h+='<div class="dsec">Llamado por ('+b.callers.length+')</div><div class="agchips">'+b.callers.map(function(x){return '<span>🔧 '+x+'</span>';}).join('')+'</div>';
+    h+='<div class="dsec">Alimenta / destino</div><div class="agchips">'+b.dest.map(function(x){return '<span class="'+(/Brain/.test(x)?'br':'')+'">'+x+'</span>';}).join('')+'</div>';
+    document.getElementById('d-body').innerHTML=h;show();
+  };
+
+  /* ====== EXPLORADOR DE BRAZOS · vault de outputs (estilo historial) (§148) ====== */
+  var BVAULT={
+    'Apify':{c:'#8FC73E',icon:'🕸️',kind:'scrapes',items:[
+      {t:'Meta Ads · @seguridad-rival (12 anuncios)',d:'facebook.com/ads · competidor',tm:'09:48',date:'Hoy',cli:'Pérez',ic:'📊'},
+      {t:'IG perfil · @perez_seguridad',d:'instagram.com · propio',tm:'08:30',date:'Hoy',cli:'Pérez',ic:'📷'},
+      {t:'TikTok trending · #seguridadindustrial',d:'tiktok.com · 40 videos',tm:'06:00',date:'Hoy',cli:'Náufrago',ic:'🎵'},
+      {t:'LinkedIn · empresas competidoras',d:'linkedin.com · 18 perfiles',tm:'22:10',date:'Ayer',cli:'Pérez',ic:'💼'},
+      {t:'Community posts · grupo FB',d:'facebook.com/groups · 60 posts',tm:'08:05',date:'Ayer',cli:'Náufrago',ic:'💬'}
+    ]},
+    'GPT Image':{c:'#10A37F',icon:'🖼️',kind:'imágenes',items:[
+      {t:'Reel cover · oferta junio',d:'Drive/Pérez/creativos · 1080×1920',tm:'09:50',date:'Hoy',cli:'Pérez',ic:'🖼️'},
+      {t:'Carrusel · 5 slides',d:'Drive/Pérez/carruseles',tm:'09:12',date:'Hoy',cli:'Pérez',ic:'🖼️'},
+      {t:'Ad creative · variante B',d:'Drive/Náufrago/ads',tm:'17:40',date:'Ayer',cli:'Náufrago',ic:'🖼️'}
+    ]},
+    'Higgsfield':{c:'#FFB000',icon:'🎬',kind:'videos',items:[
+      {t:'Reel testimonio · 8s',d:'Drive/Pérez/video · Seedance',tm:'09:20',date:'Hoy',cli:'Pérez',ic:'🎬'},
+      {t:'Clip producto · 12s',d:'Drive/Náufrago/video',tm:'19:02',date:'Ayer',cli:'Náufrago',ic:'🎬'}
+    ]},
+    'Whisper':{c:'#8E86E0',icon:'🎙️',kind:'transcripts',items:[
+      {t:'Transcript · webinar competidor',d:'YouTube → Brain · 32 min',tm:'07:15',date:'Hoy',cli:'Pérez',ic:'📝'},
+      {t:'Nota de voz · brief cliente',d:'audio → Brain · 4 min',tm:'11:20',date:'Ayer',cli:'Náufrago',ic:'📝'}
+    ]},
+    'DataForSEO':{c:'#5B8DEF',icon:'🔎',kind:'SEO data',items:[
+      {t:'SERP · "seguridad industrial ecuador"',d:'top 20 · posición #6',tm:'06:30',date:'Hoy',cli:'Pérez',ic:'📈'},
+      {t:'Backlinks · perez-seguridad.com',d:'48 dominios · 3 nuevos',tm:'03:00',date:'Ayer',cli:'Pérez',ic:'🔗'}
+    ]},
+    'Notion':{c:'#C9CDD6',icon:'📄',kind:'docs',items:[
+      {t:'Brand Book · Pérez v3',d:'notion.so/perez · 14 págs',tm:'08:00',date:'Hoy',cli:'Pérez',ic:'📓'},
+      {t:'Weekly Report · semana 23',d:'notion.so/perez/reportes',tm:'lun 08:00',date:'Esta semana',cli:'Pérez',ic:'📑'},
+      {t:'QBR · Q2',d:'notion.so/perez/qbr',tm:'1 jun',date:'Esta semana',cli:'Pérez',ic:'📋'}
+    ]}
+  };
+  var BCHAN=['Meta Graph','Resend','Twilio','Slack','PostHog'];
+  var explState={brazo:'Apify',tab:'fecha',q:''};
+  function explSide(){
+    var s='<div class="ss-h">Vault · brazos con output</div>';
+    Object.keys(BVAULT).forEach(function(k){var b=BVAULT[k];s+='<div class="ss-item'+(k===explState.brazo?' on':'')+'" onclick="explPick(\''+k+'\')"><span class="sd" style="background:'+b.c+'"></span>'+b.icon+' '+k+'<span class="sc">'+b.items.length+'</span></div>';});
+    s+='<div class="ss-h" style="margin-top:14px">Canales (no acumulan)</div>';
+    BCHAN.forEach(function(k){s+='<div class="ss-item muted"><span class="sd" style="background:#586070"></span>'+k+'</div>';});
+    return s;
+  }
+  window.explPick=function(k){explState.brazo=k;explState.q='';var qi=document.getElementById('expl-q');if(qi)qi.value='';explRender();};
+  window.explTab=function(t){explState.tab=t;explRender();};
+  function explRender(){
+    var b=BVAULT[explState.brazo];if(!b)return;
+    document.getElementById('expl-name').textContent='Vault · '+explState.brazo+' ('+b.kind+')';
+    document.getElementById('expl-dot').style.background=b.c;
+    document.getElementById('expl-side').innerHTML=explSide();
+    document.getElementById('expl-tabs').innerHTML=[['fecha','Por fecha'],['cliente','Por cliente']].map(function(t){return '<span class="xt'+(t[0]===explState.tab?' on':'')+'" onclick="explTab(\''+t[0]+'\')">'+t[1]+'</span>';}).join('');
+    var items=b.items.filter(function(it){return !explState.q||(it.t+' '+it.d+' '+it.cli).toLowerCase().indexOf(explState.q.toLowerCase())>=0;});
+    var keyf=explState.tab==='cliente'?function(it){return 'Cliente · '+it.cli;}:function(it){return it.date;};
+    var groups={},order=[];
+    items.forEach(function(it){var g=keyf(it);if(!groups[g]){groups[g]=[];order.push(g);}groups[g].push(it);});
+    var h='';
+    if(!items.length)h='<div class="expl-empty">— sin resultados —</div>';
+    order.forEach(function(g){h+='<div class="expl-group">'+esc(g)+'</div>';groups[g].forEach(function(it){
+      h+='<div class="expl-row"><div class="er-th" style="background:'+b.c+'22;border-color:'+b.c+'55">'+it.ic+'</div><div class="er-tm">'+esc(it.tm)+'</div><div class="er-main"><div class="er-t">'+esc(it.t)+'</div><div class="er-d">'+esc(it.d)+'</div></div><span class="er-dot">⋮</span></div>';});});
+    document.getElementById('expl-list').innerHTML=h;
+  }
+  window.openExpl=function(k){explState.brazo=(k&&BVAULT[k])?k:'Apify';explState.q='';explState.tab='fecha';var qi=document.getElementById('expl-q');if(qi)qi.value='';explRender();document.getElementById('expl').classList.add('on');};
+  window.closeExpl=function(){document.getElementById('expl').classList.remove('on');};
+  (function(){var qi=document.getElementById('expl-q');if(qi)qi.addEventListener('input',function(){explState.q=this.value;explRender();});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')closeExpl();});})();
+  var _openBrReg=window.openBr;
+  window.openBr=function(key){var b=BRAZOS.find(function(x){return x.n.replace(/[^a-zA-Z0-9]/g,'')===key;});if(b&&BVAULT[b.n]){openExpl(b.n);}else{_openBrReg(key);}};
+
+  /* ====== BRAIN ====== */
+  function renderBrain(){
+    var el=document.getElementById('view-brain');
+    var SRC=[['Push-enrichment · docs cliente','brand_book · brief · ICP (v3)','#43B581'],['Apify scrapes','ads competitivos · audience','#8FC73E'],['DataForSEO','contenido SEO / SERP','#5B8DEF'],['Whisper','transcripts YouTube/audio','#8E86E0']];
+    var OUT=[['Re-index diario','cron 3am UTC · re-embed','#46B3A8'],['Filtro anti-poison','ADR-012 · PLANIFICADO','#D2A24B'],['Lectura por invocación','enrichSystemPromptWithClientBrain()','#5BD0C0']];
+    var h='<div class="vh">Brain · RAG (pgvector) · bidireccional · Capa 0</div><div class="vsub">Se ALIMENTA de varias fuentes (no solo docs) y se DEPURA (re-index + filtro). Namespace por client_id · evidencia runtime brain_hit ✓.</div>';
+    h+='<div class="brainwrap"><div class="srccol"><div class="secT" style="margin:0 0 4px">Alimentar →</div>';
+    SRC.forEach(function(s){h+='<div class="srccard"><div class="sn"><span class="sd" style="background:'+s[2]+';box-shadow:0 0 7px '+s[2]+'"></span>'+s[0]+'</div><div class="sm">'+s[1]+'</div></div>';});
+    h+='</div><div class="braincore"><div class="orb"><b>RAG<br>Brain</b></div><div class="cap">pgvector 1536d<br>per client_id</div></div>';
+    h+='<div class="srccol"><div class="secT" style="margin:0 0 4px">→ Depurar / usar</div>';
+    OUT.forEach(function(s){h+='<div class="srccard"><div class="sn"><span class="sd" style="background:'+s[2]+';box-shadow:0 0 7px '+s[2]+'"></span>'+s[0]+'</div><div class="sm">'+s[1]+'</div></div>';});
+    h+='</div></div>';
+    h+='<div class="note warn" style="margin-top:18px">Apify/DataForSEO/Whisper <b>sí alimentan el Brain</b> (via ingest-source). La "depuración" hoy = re-index diario; el filtro anti-poisoning está como GAP planificado.</div>';
+    el.innerHTML=h;
+  }
+
+  /* ====== ARQUITECTURA ====== */
+  var arqmain=document.getElementById('arqmain'), arqside=document.getElementById('arqside');
+  var AN=[
+    {id:'ingreso',band:'ctrl',t:'Ingreso',s:'webhooks/forms + crons',c:'#EA4B71',m:'5+5 doors',st:'LIVE'},
+    {id:'human',band:'ctrl',t:'Human Gate',s:'§144 · bandeja HITL',c:'#DE6A5E',m:'aprobaciones',st:'LIVE'},
+    {id:'mc',band:'ctrl',t:'Mission Control',s:'Lumen v4 · cabina',c:'#5B8DEF',m:'ver desde arriba',st:'LIVE'},
+    {id:'guard',band:'sala',t:'Anti-injection',s:'ADR-012 · ingreso',c:'#43B581',m:'dormido',st:'SHADOW'},
+    {id:'eventlog',band:'sala',t:'Event-log',s:'append-only · autoritativo',c:'#46B3A8',m:'0 eventos',st:'SHADOW'},
+    {id:'router',band:'sala',t:'Router · decide()',s:'despachador único · determinista',c:'#5BD0C0',m:'60/60 test',st:'SHADOW'},
+    {id:'executor',band:'sala',t:'Executor',s:'durable · Inngest',c:'#46B3A8',m:'shadow',st:'SHADOW'},
+    {id:'ruflo',band:'sala',t:'Clasificador · ex-RUFLO',s:'tipa intención + escala a HITL',c:'#8FC73E',m:'absorbido · opcional',st:'DESIGN'},
+    {id:'store',band:'c4',t:'Supabase + API',s:'DB · pgvector · event-log',c:'#3FB581',m:'41 migr',st:'LIVE'},
+    {id:'brain',band:'side',t:'Client Brain',s:'Capa 0 · RAG pgvector',c:'#8E86E0',m:'brain_hit ✓',st:'LIVE'},
+    {id:'brazos',band:'side',t:'Brazos / servicios',s:'Apify·DataForSEO·Meta·Whisper·Slack…',c:'#5BD0C0',m:'consultados',st:'MIXED'},
+    {id:'camino',band:'side',t:'Camino III',s:'QA gate 3-de-N',c:'#D2A24B',m:'no desplegado',st:'DESIGN'}
+  ];
+  var MAIN=[
+    ['ctrl','Entrada + Control humano','Ingreso · HITL §144 · Mission Control (ver desde arriba)','#5B8DEF','flat'],
+    ['sala','La Sala · Control Plane','despachador único · router + event-log + executor + clasificador (ex-RUFLO)','#8FA6E0','flat'],
+    ['c2','Capa 2 · Orquestación · libretos del ciclo del cliente','la sala corre estos libretos · Marketing dueña de 2 (Producir + Mantenimiento)','#EA8AA0','journeys'],
+    ['wfdept','Workflows n8n · por departamento','LO QUE REALMENTE CORRE · cada wf con disparo propio (cron/webhook) · invoca agentes §149 + brazos','#E8923A','depts'],
+    ['c4','Capa 4 · Backend','Supabase + Next.js 14 API','#727C8C','flat']
+  ];
+  var DCOL={Marketing:'#EA4B71',Ventas:'#4C8BF5',Cuenta:'#43B581','Ventas/Cuenta':'#6E8BA8'};
+  function stCol(s){return {PAPER:'#E0795E',DEGR:'#E8923A',PAUSE:'#D2A24B',MIXED:'#D2A24B',LIVE:'#43B581'}[s]||'#727C8C';}
+  function stLabel(s){return {PAPER:'papel',DEGR:'real · degradado',PAUSE:'pausado',MIXED:'mixto · piezas vivas',LIVE:'vivo'}[s]||s;}
+  var JOURNEYS=[
+    {id:'acquire',code:'A',t:'Conseguir',sub:'ACQUIRE',dept:'Ventas',own:0,st:'PAPER',
+     d:'Atraer, calificar y cerrar al cliente.',
+     long:'El embudo de captación: capturar prospecto → calificar → llamada → propuesta → cierre. Marketing alimenta (genera prospectos); Ventas cierra. Al cerrar (deal-won) dispara la Bienvenida.',
+     note:'Papel · nunca se construyó como journey (solo un glue "nuevo lead" huérfano que apunta a GHL, dado de baja). Es de Ventas — fuera de Marketing.'},
+    {id:'onboard',code:'B',t:'Bienvenida',sub:'ONBOARD',dept:'Cuenta',own:0,st:'DEGR',
+     d:'Recibir y montar al cliente firmado.',
+     long:'La ÚNICA etapa construida de verdad (Journey B · 32 nodos · cascada de 24 llamadas). Crea el workspace en Notion, arma el brand book, agenda el kickoff y persiste el cliente.',
+     agents:['onboarding-specialist','account-manager','jefe-client-success','brand-strategist (brand book)','sales-enablement (kickoff deck)'],
+     out:'entrega a: Producir',
+     note:'Real pero degradado · 0 corridas recientes, con historial (15 invocaciones). Es de Cuenta; Marketing solo aporta piezas.', wf:'ONBOARD'},
+    {id:'produce',code:'C',t:'Producir',sub:'PRODUCE · NEXUS',dept:'Marketing',own:1,st:'PAUSE',
+     d:'Producir campañas y contenido. Motor: NEXUS 7-fases.',
+     long:'El motor de producción de campañas (NEXUS 7-Phase). Funciona por fases: ejecuta fase → valida la salida (Evidence Collector) → ¿pasó? → avanza o reintenta (con tope) → si falla o es riesgosa, escala a HITL → guarda estado → siguiente fase. Con cola de errores (DLQ) y guardrail de reintentos. PRODUCE = NEXUS (no son cosas distintas).',
+     agents:['jefe-marketing (ejecuta las fases)','campaign-brief-agent','creative-director','content-creator','media-buyer','video-editor'],
+     brazos:['GPT Image (piezas)','Higgsfield (video)','Meta Graph (publica)'],
+     inn:'viene de: Bienvenida (Cuenta)', out:'entrega a: publicar → analítica → Mantenimiento',
+     note:'Pausado tras el incidente $19 · corrió 1 vez E2E (ok), 0 corridas recientes.', wf:'NEXUS'},
+    {id:'alwayson',code:'D',t:'Mantenimiento',sub:'ALWAYS_ON',dept:'Marketing',own:1,st:'MIXED',
+     d:'Optimización continua, siempre encendida.',
+     long:'El loop de optimización 24/7. Como journey orquestado (Journey D) es papel, PERO sus piezas corren solas todos los días — esas SÍ están vivas. Mantiene y mejora lo que Producir lanzó.',
+     crons:['Meta Ads Optimizer (diario)','Google PMax Optimizer (diario)','Creative Performance Learner (diario)','Creative Fatigue (cada 6h)','Attribution Validator (cada hora)','Incrementality (15 min)','Landing CRO (semanal)','GEO Freshness (semanal)','Meta-Agent Learning (semanal)'],
+     agents:['media-buyer','optimization-agent','cro-specialist','tracking-specialist','seo-geo-optimization'],
+     inn:'viene de: Producir (campañas lanzadas)', out:'mantiene y optimiza en continuo',
+     note:'Mixto · el libreto orquestado es papel, pero sus 9 crones de optimización corren vivos cada día (independientes).'},
+    {id:'review',code:'E',t:'Revisión',sub:'REVIEW · QBR',dept:'Cuenta',own:0,st:'PAPER',
+     d:'Junta periódica de resultados con el cliente.',
+     long:'La revisión de resultados (QBR). Cuenta lleva la relación; Marketing pone los números (reportes, weekly report).',
+     note:'Papel. Es de Cuenta; Marketing aporta los datos.'},
+    {id:'growth',code:'F',t:'Crecimiento',sub:'GROWTH',dept:'Ventas/Cuenta',own:0,st:'PAPER',
+     d:'Hacer crecer la cuenta, venderle más.',
+     long:'Expandir una cuenta existente (upsell/cross-sell). Cuenta detecta la oportunidad, Ventas cierra la expansión; Marketing aporta experimentos de crecimiento.',
+     note:'Papel. Compartida Ventas/Cuenta.'}
+  ];
+  var JM={};JOURNEYS.forEach(function(j){JM[j.id]=j;});
+
+  function mkcard(n,rail){var d=document.createElement('div');d.className='gnode'+(['SHADOW','DESIGN'].indexOf(n.st)>=0?' ghost':'')+(rail?' rail':'');d.setAttribute('data-fp',n.id);
+    d.innerHTML='<div class="gh"><span class="gdot" style="background:'+n.c+';box-shadow:0 0 8px '+n.c+'"></span><span class="gt">'+n.t+'</span><span class="gst '+n.st+'">'+n.st+'</span></div><div class="gsub">'+n.s+'</div><div class="gm" style="color:'+n.c+'">'+n.m+'</div>';
+    d.onclick=function(){openArq(n);};return d;}
+  MAIN.forEach(function(bd){var sec=document.createElement('div');sec.className='arqband'+(bd[0]==='c2'?' paper':'')+(bd[4]==='depts'?' sub':'');
+    var lbl=document.createElement('div');lbl.className='bl';lbl.style.color=bd[3];
+    var tag=bd[0]==='c2'?' <span class="bandtag paper">cadena = diseño</span>':(bd[4]==='depts'?' <span class="bandtag live">VIVO</span>':'');
+    lbl.innerHTML='<span class="bn">'+bd[1]+'</span> <span class="bx">· '+bd[2]+'</span>'+tag;sec.appendChild(lbl);
+    if(bd[4]==='journeys'){var jf=document.createElement('div');jf.className='jflow';
+      JOURNEYS.forEach(function(j,i){var step=document.createElement('div');step.className='jstep';
+        var c=DCOL[j.dept]||'#586070';var card=document.createElement('div');card.className='jcard'+(j.own?' own':' dim');card.style.setProperty('--jc',c);card.setAttribute('data-fp',j.id);
+        card.innerHTML='<div class="jc-h"><span class="jcode">'+j.code+'</span><span class="jt">'+j.t+'</span></div>'
+          +'<div class="jown">'+(j.own?'<b>★ Marketing</b>':j.dept)+'</div><div class="jd">'+j.d+'</div>'
+          +'<span class="jst2" style="color:'+stCol(j.st)+'">'+stLabel(j.st)+'</span>';
+        card.onclick=(function(jj){return function(){openJourney(jj);};})(j.id);
+        step.appendChild(card);jf.appendChild(step);
+        if(i<JOURNEYS.length-1){var ar=document.createElement('div');ar.className='jarrowx';ar.textContent='→';jf.appendChild(ar);}});
+      sec.appendChild(jf);
+    }else if(bd[4]==='depts'){var dr=document.createElement('div');dr.className='bandrow';
+      CATS.filter(function(c){return c.id!=='life';}).forEach(function(c){var list=WFREAL.filter(function(w){return w.c===c.id;});var cnt=list.length;if(!cnt)return;
+        var lvc=list.filter(function(w){return w.s==='live';}).length;
+        var agset={};list.forEach(function(w){w.nd.forEach(function(n){if(n[0]==='agent')agset[n[1]]=1;});});var nag=Object.keys(agset).length;
+        var d=document.createElement('div');d.className='gnode';d.style.borderLeft='3px solid '+c.c;d.setAttribute('data-fp','dept-'+c.id);
+        d.innerHTML='<div class="gh"><span class="gdot" style="background:'+c.c+';box-shadow:0 0 7px '+c.c+'"></span><span class="gt">'+c.n+'</span></div><div class="gm" style="color:'+c.c+'"><b>'+cnt+'</b> wf · '+lvc+' live</div>'+(nag?'<div class="gsub">👤 '+nag+' agentes dentro</div>':'');
+        d.onclick=function(){setView('wf');};dr.appendChild(d);});
+      sec.appendChild(dr);
+    }else{var row=document.createElement('div');row.className='bandrow';AN.filter(function(n){return n.band===bd[0];}).forEach(function(n){row.appendChild(mkcard(n));});sec.appendChild(row);}
+    arqmain.appendChild(sec);});
+  var sh=document.createElement('div');sh.className='sl';sh.innerHTML='Transversal<small>servicios + QA · no son capas</small>';arqside.appendChild(sh);
+  AN.filter(function(n){return n.band==='side';}).forEach(function(n){arqside.appendChild(mkcard(n,1));});
+
+  var ADET={
+    ingreso:'Entrada · ingreso (webhooks Tally/Meta/Twilio + crons). HOY multi-door (5 Vercel + 5 cron n8n). Va arriba, con el control humano. La "puerta única" es target vía la sala.',
+    human:'§144 · Human Gate. Único checkpoint humano para acciones importantes/irreversibles. Es la bandeja de Aprobaciones (pestaña Aprobaciones).',
+    mc:'Mission Control Lumen v4 · cabina humana (dashboards, estado de agentes, costos, bandeja HITL). "Ver desde arriba". Se recablea para sentarse ENCIMA de la sala.',
+    guard:'La Sala · filtro anti-inyección (ADR-012 · 5 capas). MERGED en shadow y DORMIDO (0 enforce). Se enciende por nivel de confianza de la fuente.',
+    eventlog:'La Sala · event-log append-only (sala_event_log), fuente de verdad. SHADOW: migración no aplicada, 0 eventos en prod.',
+    router:'La Sala · router decide() determinista — el DESPACHADOR ÚNICO ("una sola cosa despacha"). SHADOW: 60/60 tests, solo sintético. Absorbe el ruteo que antes hacían Master y RUFLO.',
+    executor:'La Sala · executor durable = Inngest (default; Vercel Workflow diferido). SHADOW.',
+    ruflo:'La Sala · Clasificador (ex-RUFLO). RUFLO se archivó como router (su despacho lo absorbió el router determinista). Lo que SÍ se conserva, dentro de la sala, son sus dos capacidades reales: (1) clasificar un pedido en texto libre → intent tipado, y (2) escalar a humano si es riesgoso (rama "Should Escalate to HITL"). HOY: opcional · solo hace falta cuando entren pedidos en texto libre (decisión §144).',
+    store:'Capa 4 · Backend. Supabase (DB + pgvector + event-log) + Next.js 14 API. Donde escriben workflows y agentes.',
+    brain:'Transversal · Capa 0 · Client Brain RAG (pgvector). Lo alimentan docs + Apify/DataForSEO/Whisper; los agentes leen por invocación. LIVE (brain_hit ✓).',
+    brazos:'Transversal (no es capa) · Brazos / servicios: Apify, DataForSEO, Meta Graph, Whisper, Slack, Notion, Drive, Higgsfield, Resend, Twilio, PostHog… Se consultan desde varios workflows y desde el cerebro; varios alimentan el Brain; Meta/Resend/Twilio son los canales de EGRESO/publicación.',
+    camino:'Transversal (no es capa) · Camino III · gate de calidad 3-de-N. Estado real: CÓDIGO shipped (lib + APIs + 26 tests) pero NO desplegado — tablas 404 en prod y 0 workflow Camino en n8n. Diferido a Phase 1.5; Emilio es el revisor hoy.'
+  };
+  var WFLINK={ruflo:'RUFLO'};
+  function wfIndex(sub){var idx=-1;WFREAL.forEach(function(w,i){if(idx<0&&w.n.toUpperCase().indexOf(sub.toUpperCase())>=0)idx=i;});return idx;}
+  function openArq(n){setHead(n.t,n.s,n.c);var h='<div class="desc">'+(ADET[n.id]||'')+'</div>';
+    if(n.id==='camino')h+='<div class="note warn">DISEÑADO · no desplegado (Phase 1.5). Faltan tablas + workflow n8n + wire-in. Diseño: 3 revisores (editor-en-jefe · brand-strategist · jefe-client-success) → aprobar / escalar a HITL.</div>';
+    else if(n.id==='ruflo')h+='<div class="note warn">Decisión abierta (§144): el clasificador se arma ahora o se deja documentado para cuando mandes pedidos en texto libre. La parte de "escalar a humano" ya cae en la bandeja de Aprobaciones.</div>';
+    else if(['SHADOW','DESIGN'].indexOf(n.st)>=0)h+='<div class="note warn">Estado: <b>'+n.st+'</b> — no es flujo live hoy. Representado atenuado a propósito (§148).</div>';
+    if(WFLINK[n.id]){var ix=wfIndex(WFLINK[n.id]);if(ix>=0)h+='<button class="tab on" style="width:100%;text-align:center" onclick="openWf('+ix+')">Ver nodos reales →</button>';}
+    if(n.id==='brazos')h+='<button class="tab on" style="width:100%;text-align:center" onclick="setView(\'br\');closeDetail()">Abrir registro de brazos →</button>';
+    if(n.id==='brain')h+='<button class="tab on" style="width:100%;text-align:center" onclick="setView(\'brain\');closeDetail()">Abrir vista Brain →</button>';
+    if(n.id==='human')h+='<button class="tab on" style="width:100%;text-align:center" onclick="setView(\'hitl\');closeDetail()">Abrir bandeja de Aprobaciones →</button>';
+    document.getElementById('d-body').innerHTML=h;show();}
+
+  window.openJourney=function(id){var j=JM[id];if(!j)return;var c=DCOL[j.dept]||'#586070';
+    setHead(j.t+' · '+j.sub,'libreto · '+(j.own?'Marketing (dueña)':j.dept),c);
+    var h='<div class="desc">'+j.long+'</div>';
+    h+='<div class="note '+(j.st==='PAPER'?'bad':'warn')+'">Estado: <b>'+stLabel(j.st)+'</b> — '+j.note+'</div>';
+    if(j.inn||j.out){h+='<div class="dsec">En la línea de producción</div><div class="agchips">'+(j.inn?'<span>↙ '+esc(j.inn)+'</span>':'')+(j.out?'<span>↗ '+esc(j.out)+'</span>':'')+'</div>';}
+    if(j.crons){h+='<div class="dsec">Piezas vivas hoy ('+j.crons.length+' crones)</div><div class="lane">'+j.crons.map(function(x){return '<div class="lstep"><span class="ld" style="background:'+c+';box-shadow:0 0 6px '+c+'"></span><span class="lt">'+esc(x)+'</span></div>';}).join('')+'</div>';}
+    if(j.agents){h+='<div class="dsec">Empleados AI ('+j.agents.length+')</div><div class="agchips">'+j.agents.map(function(a){return '<span class="ag">👤 '+esc(a)+'</span>';}).join('')+'</div>';}
+    if(j.brazos){h+='<div class="dsec">Brazos / servicios</div><div class="agchips">'+j.brazos.map(function(b){return '<span class="br">🔧 '+esc(b)+'</span>';}).join('')+'</div>';}
+    if(j.wf){var ix=wfIndex(j.wf);if(ix>=0)h+='<button class="tab on" style="width:100%;text-align:center;margin-top:8px" onclick="openWf('+ix+')">Ver nodos reales →</button>';}
+    document.getElementById('d-body').innerHTML=h;show();
+  };
+
+  function hexd(c){var n=parseInt(c.slice(1),16);return 'rgb('+Math.round((n>>16&255)*.4)+','+Math.round((n>>8&255)*.4)+','+Math.round((n&255)*.4)+')';}
+  function setHead(nm,sb,c){document.getElementById('d-nm').textContent=nm;document.getElementById('d-sb').textContent=sb||'';var o=document.getElementById('d-orb');o.style.background='radial-gradient(circle at 35% 30%,'+c+','+hexd(c)+')';o.style.boxShadow='0 0 18px '+c;}
+  function show(){document.getElementById('detail').classList.add('on');document.getElementById('scrim').classList.add('on');}
+  window.closeDetail=function(){document.getElementById('detail').classList.remove('on');document.getElementById('scrim').classList.remove('on');};
+
+  var POOL=[['INPUT','#EA4B71','→ ingreso · Deal Won (Ventas)'],['WORKFLOW','#10A37F','Content Production · repurpose'],['AGENTE','#8E86E0','content-creator (en wf)'],['CONTEXTO','#8E86E0','Brain → 5 chunks (Pérez)'],['BRAZO','#8FC73E','Apify (transversal) · scrape'],['ENRICH','#5BD0C0','Apify → /ingest-source ↺ Brain'],['HITL §144','#DE6A5E','Aprobación pendiente · creatividades'],['EGRESO','#E8923A','Meta Graph · publica IG'],['CRON','#4C8BF5','Meta Ads Optimizer · 3am'],['SHADOW','#8FA6E0','sala · router decide() (sintético)']];
+  var fl=document.getElementById('flist');function p2(n){return(n<10?'0':'')+n;}
+  function pushFeed(p){var d=new Date();var el=document.createElement('div');el.className='fl';el.style.borderLeftColor=p[1];el.innerHTML='<div class="l1"><span class="cat" style="color:'+p[1]+'">'+p[0]+'</span><span class="tm">'+p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+'</span></div><div class="tx">'+p[2]+'</div>';fl.insertBefore(el,fl.firstChild);while(fl.children.length>22)fl.removeChild(fl.lastChild);}
+  for(var i=0;i<8;i++)pushFeed(POOL[(i*3)%POOL.length]);
+  setInterval(function(){pushFeed(POOL[Math.floor(Math.random()*POOL.length)]);},1900);
+  function tick(){var d=new Date();document.getElementById('clock').textContent=p2(d.getHours())+':'+p2(d.getMinutes());}tick();setInterval(tick,1000);
+
+  /* ====== FLUJO CIRCULATORIO · ruteo en cuadrícula (corredores + márgenes) (§148) ====== */
+  (function(){
+    var arqd=document.getElementById('arqdiagram'),arqmain=document.getElementById('arqmain'),svg=document.getElementById('flowlayer');
+    if(!arqd||!svg)return;
+    var FLOWS=[
+      {f:'ingreso',t:'router',c:'#EA4B71',kw:['deal-won','cliente nuevo','Pérez firmó','Náufrago'],side:'C'},
+      {f:'router',t:'produce',c:'#5BD0C0',kw:['brief campaña','arranca PRODUCE','plan mensual','lanzar'],side:'C'},
+      {f:'produce',t:'dept-content',c:'#10A37F',kw:['3 reels','blog post','carrusel x5','guion video'],side:'C'},
+      {f:'alwayson',t:'dept-paid',c:'#46B3A8',kw:['re-optimiza','ajuste diario','aprende'],side:'C'},
+      {f:'produce',t:'human',c:'#DE6A5E',kw:['aprobar arte','revisar copy','visto bueno'],side:'L'},
+      {f:'produce',t:'store',c:'#3FB581',kw:['checkpoint','guarda estado','persiste'],side:'L'},
+      {f:'dept-paid',t:'brazos',c:'#4C8BF5',kw:['pauta Meta','subir budget','pausar adset','CPA bajo'],side:'RAIL'},
+      {f:'dept-content',t:'brazos',c:'#E8923A',kw:['publica IG','post FB','sube TikTok','programa'],side:'RAIL'},
+      {f:'dept-content',t:'brain',c:'#8E86E0',kw:['lee marca','contexto Pérez','tono','5 chunks'],side:'RAIL'},
+      {f:'brazos',t:'brain',c:'#8FC73E',kw:['scrape ads','competidor','ingesta','embeddings'],side:'RR'}
+    ];
+    var DEFS='<defs><filter id="cglow" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="csoft" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="5.5"/></filter></defs>';
+    svg.innerHTML=DEFS+'<g id="cpaths" style="visibility:hidden"></g><g id="cfx"></g>';
+    var cpaths=svg.querySelector('#cpaths'),cfx=svg.querySelector('#cfx');
+    function fpEl(id){return document.querySelector('[data-fp="'+id+'"]');}
+    function roundD(p,r){if(p.length<2)return '';var d='M'+p[0][0].toFixed(1)+' '+p[0][1].toFixed(1);
+      for(var i=1;i<p.length-1;i++){var a=p[i-1],bb=p[i],c=p[i+1];
+        var v1x=a[0]-bb[0],v1y=a[1]-bb[1],l1=Math.hypot(v1x,v1y)||1,v2x=c[0]-bb[0],v2y=c[1]-bb[1],l2=Math.hypot(v2x,v2y)||1;
+        var d1=Math.min(r,l1/2),d2=Math.min(r,l2/2);
+        d+=' L'+(bb[0]+v1x/l1*d1).toFixed(1)+' '+(bb[1]+v1y/l1*d1).toFixed(1)+' Q'+bb[0].toFixed(1)+' '+bb[1].toFixed(1)+' '+(bb[0]+v2x/l2*d2).toFixed(1)+' '+(bb[1]+v2y/l2*d2).toFixed(1);}
+      d+=' L'+p[p.length-1][0].toFixed(1)+' '+p[p.length-1][1].toFixed(1);return d;}
+    var built=false;
+    function build(){
+      var BX=arqd.getBoundingClientRect();if(BX.width<10)return;
+      var mb=(arqmain||arqd).getBoundingClientRect();
+      var xL=mb.left-BX.left+16, xR=mb.right-BX.left-16;
+      function geo(id){var el=fpEl(id);if(!el)return null;var r=el.getBoundingClientRect();
+        var g={x:r.left+r.width/2-BX.left,y:r.top+r.height/2-BX.top,top:r.top-BX.top,bottom:r.bottom-BX.top,left:r.left-BX.left,right:r.right-BX.left};
+        var band=el.closest('.arqband');if(band){var br=band.getBoundingClientRect();g.by=br.top-BX.top;g.bb=br.bottom-BX.top;}else{g.by=g.top;g.bb=g.bottom;}
+        return g;}
+      var rI=0,lI=0,ps='';
+      FLOWS.forEach(function(fl,i){var A=geo(fl.f),Bn=geo(fl.t);if(!A||!Bn){fl.wp=null;return;}var wp;
+        if(fl.side==='RR'){wp=[[A.x,A.top],[A.x,Bn.bottom],[Bn.x,Bn.bottom]];}
+        else if(fl.side==='RAIL'){var k=rI++;var lx=xR-k*16,gy=A.by-12-k*7;wp=[[A.x,A.top],[A.x,gy],[lx,gy],[lx,Bn.y],[Bn.left-2,Bn.y]];}
+        else{var down=Bn.by>A.by;var aE=down?A.bottom:A.top,aG=down?A.bb+12:A.by-12,bE=down?Bn.top:Bn.bottom,bG=down?Bn.by-12:Bn.bb+12;
+          if(fl.side==='C'){var gy2=(aG+bG)/2;wp=[[A.x,aE],[A.x,gy2],[Bn.x,gy2],[Bn.x,bE]];}
+          else{var k2=lI++;var lx2=xL+k2*16;wp=[[A.x,aE],[A.x,aG],[lx2,aG],[lx2,bG],[Bn.x,bG],[Bn.x,bE]];}}
+        fl.wp=wp;fl.d=roundD(wp,8);ps+='<path id="cfp'+i+'" d="'+fl.d+'" fill="none" stroke="#000"/>';});
+      cpaths.innerHTML=ps;
+      FLOWS.forEach(function(fl,i){var el=document.getElementById('cfp'+i);fl.el=el;fl.len=el?el.getTotalLength():0;});
+      built=true;
+    }
+    function at(fl,t){var d=Math.max(0,Math.min(fl.len,fl.len*t));var p=fl.el.getPointAtLength(d);return [p.x,p.y];}
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function pick(a){return a[Math.floor(Math.random()*a.length)];}
+    var dots=[];
+    function spawn(d){var pool=[];FLOWS.forEach(function(f,i){if(f.wp&&f.len)pool.push(i);});if(!pool.length){d.e=-1;return;}d.e=pool[Math.floor(Math.random()*pool.length)];d.t=0;d.sp=18+Math.random()*34;d.kw=pick(FLOWS[d.e].kw);}
+    for(var i=0;i<7;i++){var dd={};dd.e=-1;dd.t=Math.random();dots.push(dd);}
+    var last=0;
+    function frame(ts){var dt=Math.min((ts-last)/1000,0.05)||0;last=ts;
+      var view=document.getElementById('view-arq');
+      if(!view||!view.classList.contains('on')){requestAnimationFrame(frame);return;}
+      if(!built)build();
+      if(!built){requestAnimationFrame(frame);return;}
+      var fx='';
+      dots.forEach(function(d){if(d.e<0||!FLOWS[d.e].wp){spawn(d);return;}var fl=FLOWS[d.e];d.t+=(d.sp*dt)/fl.len;if(d.t>=1)spawn(d);});
+      dots.forEach(function(d){if(d.e<0)return;var fl=FLOWS[d.e];if(!fl.wp||!fl.len)return;var al=Math.sin(Math.PI*Math.min(d.t,1));
+        if(al>0.04)fx+='<path d="'+fl.d+'" fill="none" stroke="'+fl.c+'" stroke-width="1.6" stroke-opacity="'+(0.4*al).toFixed(2)+'" stroke-linecap="round" stroke-linejoin="round"/>';});
+      dots.forEach(function(d){if(d.e<0)return;var fl=FLOWS[d.e];if(!fl.wp||!fl.len)return;var q=at(fl,d.t);var al=Math.sin(Math.PI*Math.min(d.t,1));
+        fx+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="5" fill="'+fl.c+'" opacity="0.16" filter="url(#csoft)"/>';
+        fx+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="2.6" fill="'+fl.c+'" filter="url(#cglow)"/>';
+        if(al>0.06)fx+='<text x="'+q[0].toFixed(1)+'" y="'+(q[1]-9).toFixed(1)+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8.6" font-weight="500" paint-order="stroke" stroke="#08090c" stroke-width="2.6" fill="'+fl.c+'" opacity="'+(0.9*al).toFixed(2)+'">'+esc(d.kw)+'</text>';});
+      cfx.innerHTML=fx;
+      requestAnimationFrame(frame);
+    }
+    window.addEventListener('resize',function(){built=false;});
+    setTimeout(function(){build();requestAnimationFrame(frame);},700);
+  })();
+})();
+</script>
+</body>
+</html>
