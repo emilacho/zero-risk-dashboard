@@ -841,7 +841,7 @@
         var d1=Math.min(r,l1/2),d2=Math.min(r,l2/2);
         d+=' L'+(bb[0]+v1x/l1*d1).toFixed(1)+' '+(bb[1]+v1y/l1*d1).toFixed(1)+' Q'+bb[0].toFixed(1)+' '+bb[1].toFixed(1)+' '+(bb[0]+v2x/l2*d2).toFixed(1)+' '+(bb[1]+v2y/l2*d2).toFixed(1);}
       d+=' L'+p[p.length-1][0].toFixed(1)+' '+p[p.length-1][1].toFixed(1);return d;}
-    var built=false;
+    var built=false,lastW=0,lastH=0;
     function build(){
       var BX=arqd.getBoundingClientRect();if(BX.width<10)return;
       var mb=(arqmain||arqd).getBoundingClientRect();
@@ -872,6 +872,7 @@
     function frame(ts){var dt=Math.min((ts-last)/1000,0.05)||0;last=ts;
       var view=document.getElementById('view-arq');
       if(!view||!view.classList.contains('on')){requestAnimationFrame(frame);return;}
+      var _bx=arqd.getBoundingClientRect();if(Math.abs(_bx.width-lastW)>2||Math.abs(_bx.height-lastH)>2){lastW=_bx.width;lastH=_bx.height;built=false;}
       if(!built)build();
       if(!built){requestAnimationFrame(frame);return;}
       var fx='';
@@ -885,7 +886,7 @@
       cfx.innerHTML=fx;
       requestAnimationFrame(frame);
     }
-    window.addEventListener('resize',function(){built=false;});
+    window.addEventListener('resize',function(){built=false;});if(window.ResizeObserver){try{new ResizeObserver(function(){built=false;}).observe(arqd);}catch(e){}}
     setTimeout(function(){build();requestAnimationFrame(frame);},700);
   })();
 })();
