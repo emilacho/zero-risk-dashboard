@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from "@/lib/supabase-server"
+import { HitlCard } from "./hitl-card"
 
 export const dynamic = "force-dynamic"
 
@@ -10,12 +11,27 @@ interface CoworkMsg {
   status: string
 }
 
+interface HitlRowRaw {
+  id: string
+  status: string
+  priority: string | null
+  client_id: string | null
+  created_at: string
+  payload: Record<string, unknown> | null
+  context: Record<string, unknown> | null
+  rejection_reason: string | null
+}
+
 async function loadInboxData() {
   const supa = getServiceRoleClient()
-  const [hitl, cowork] = await Promise.all([
+  const [hitlRows, cowork] = await Promise.all([
     supa
       .from("hitl_approvals")
-      .select("id, status", { count: "exact" })
+      .select(
+        "id, status, priority, client_id, created_at, payload, context, rejection_reason",
+        { count: "exact" },
+      )
+      .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(20),
     supa
@@ -25,10 +41,14 @@ async function loadInboxData() {
       .limit(20),
   ])
   return {
-    hitlCount: hitl.count ?? 0,
+    hitlPending: (hitlRows.data ?? []) as HitlRowRaw[],
+    hitlCount: hitlRows.count ?? 0,
     coworkMessages: (cowork.data ?? []) as CoworkMsg[],
   }
 }
+
+const REVIEWER_ID = process.env.MC_HITL_DEFAULT_REVIEWER ?? "emilio"
+const WIRE_FLAG_ON = (process.env.MC_HITL_RESOLVE_WIRE_ENABLED ?? "") === "1"
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
@@ -39,7 +59,7 @@ function relativeTime(iso: string): string {
 }
 
 export default async function SystemInboxTab() {
-  const { hitlCount, coworkMessages } = await loadInboxData()
+  const { hitlCount, hitlPending, coworkMessages } = await loadInboxData()
   const coworkPending = coworkMessages.filter((m) => m.status === "pending").length
 
   return (
@@ -117,20 +137,32 @@ export default async function SystemInboxTab() {
         </div>
       </section>
 
-      {/* HITL placeholder */}
+      {/* HITL queue · canon canon-canon-Phase 1 wire · Approve/Reject buttons */}
       <section className="surface-card rim-instr p-5" data-rim="rose">
         <div className="relative z-[2]">
-          <h2 className="font-display text-base font-semibold tracking-tight">
-            HITL queue · {hitlCount} items
-          </h2>
-          <p className="mt-2 text-[12px] text-[hsl(var(--muted-foreground))]">
-            <span className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--danger))]">
-              wire pending
-            </span>{" "}
-            · `hitl_approvals` table created STEP 1 · agent runtime needs
-            to start inserting rows when revision_needed o approval-required
-            verdicts fire from QA cascade.
-          </p>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-base font-semibold tracking-tight">
+              HITL queue · {hitlCount} pending
+            </h2>
+            <span className="num text-[10px] text-[hsl(var(--muted-foreground))]">
+              POST /api/hitl/resolve · mode={WIRE_FLAG_ON ? "live" : "shadow"} ·
+              reviewer={REVIEWER_ID}
+            </span>
+          </div>
+          {hitlPending.length === 0 ? (
+            <p className="num text-xs text-[hsl(var(--muted-foreground))]">
+              No HITL items pending · canon canon-canon-when QA cascade or
+              router emits revision_needed / approval-required, rows land here
+              with Approve / Reject buttons wired to the n8n hitl-resume webhook
+              (shadow until §144 of Phase 1 flips).
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {hitlPending.map((r) => (
+                <HitlCard key={r.id} row={r} reviewerId={REVIEWER_ID} />
+              ))}
+            </ul>
+          )}
         </div>
       </section>
     </div>
