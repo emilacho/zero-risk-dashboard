@@ -5,6 +5,7 @@ import {
   Space_Grotesk,
   Permanent_Marker,
 } from "next/font/google"
+import { GoogleAnalytics } from "@next/third-parties/google"
 import "./globals.css"
 import { RouteTransition } from "@/components/RouteTransition"
 import { Sidebar } from "@/components/Sidebar"
@@ -53,6 +54,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
+// Sprint 4 Día 5 · GA4 wire. Component degrades gracefully when the env
+// var is absent (returns null · no script tag · zero crash). Populate
+// `NEXT_PUBLIC_GA_MEASUREMENT_ID` (format `G-XXXXXXXXXX`) after creating
+// the GA4 property in the Analytics console.
+const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -69,6 +76,7 @@ export default function RootLayout({
         </RouteTransition>
         <Toaster />
       </body>
+      {GA_ID ? <GoogleAnalytics gaId={GA_ID} /> : null}
     </html>
   )
 }
