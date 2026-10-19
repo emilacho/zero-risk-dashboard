@@ -79,7 +79,7 @@ export interface HitlResolveDeps {
   readonly retryOnce?: boolean
   /** Dirección de la plataforma para resolver filas SIN ejecución de n8n (default `NEXT_PUBLIC_PLATFORM_API_URL`, luego la canónica). */
   readonly platformApiUrl?: string
-  /** Llave interna con la que el tablero llama a la plataforma (`x-api-key`; default `INTERNAL_API_KEY`). */
+  /** Llave con la que el tablero llama a la plataforma (`x-api-key`). Por omisión `PLATFORM_INTERNAL_KEY` (variable SOLO de llamadas salientes) y, si no existe, `INTERNAL_API_KEY`. */
   readonly internalKey?: string
 }
 
@@ -200,7 +200,8 @@ async function resolverPorLaPlataforma(
   c: { deps: HitlResolveDeps; fetchImpl: typeof fetch; timeoutMs: number; client_id: string | null; client_lookup: HitlResolveResult["client_lookup"]; ts: string },
 ): Promise<HitlResolveResult> {
   const base = trimSlash(c.deps.platformApiUrl ?? process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://zero-risk-platform.vercel.app")
-  const llave = c.deps.internalKey ?? process.env.INTERNAL_API_KEY ?? ""
+  // `PLATFORM_INTERNAL_KEY` primero: es la llave SALIENTE hacia la plataforma y no abre las rutas entrantes del tablero (que hoy aceptan solo sesión de administrador mientras `INTERNAL_API_KEY` no exista)
+  const llave = c.deps.internalKey ?? (process.env.PLATFORM_INTERNAL_KEY || process.env.INTERNAL_API_KEY || "")
   if (!llave) return refused("internal_key_unset", input, { client_id: c.client_id, client_lookup: c.client_lookup })
   const aprobada = input.decision === "approve"
   const cuerpo: Record<string, unknown> = {

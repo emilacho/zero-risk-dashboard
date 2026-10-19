@@ -126,6 +126,25 @@ describe("resolver desde el tablero, sobre la bandeja única", () => {
     const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: caida, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
     expect(r).toMatchObject({ ok: false, platform_status: 0, platform_error: "ECONNRESET", hitl_row_updated: false })
   })
+  it("🔴 la llave saliente sale de PLATFORM_INTERNAL_KEY y, si no existe, de INTERNAL_API_KEY; sin ninguna se rechaza antes de llamar", async () => {
+    const llamar = async () => {
+      const g = grabadora(pieza)
+      const f = fetchOk()
+      const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", now: AHORA })
+      return { r, f }
+    }
+    const llaveEnviada = (f: typeof fetch) => (((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] ?? {}) as { headers?: Record<string, string> }).headers?.["x-api-key"]
+    try {
+      vi.stubEnv("PLATFORM_INTERNAL_KEY", "saliente"); vi.stubEnv("INTERNAL_API_KEY", "entrante")
+      expect(llaveEnviada((await llamar()).f)).toBe("saliente") // la variable propia de las llamadas salientes manda
+      vi.stubEnv("PLATFORM_INTERNAL_KEY", "")
+      expect(llaveEnviada((await llamar()).f)).toBe("entrante") // sin ella, la compartida
+      vi.stubEnv("INTERNAL_API_KEY", "")
+      const sin = await llamar()
+      expect(sin.r).toMatchObject({ mode: "refused", ok: false })
+      expect(sin.f).not.toHaveBeenCalled()
+    } finally { vi.unstubAllEnvs() }
+  })
   it("sin la llave interna no hay con qué llamar a la plataforma: se rechaza antes de llamar a nadie", async () => {
     const g = grabadora(pieza)
     const f = fetchOk()
