@@ -7,7 +7,7 @@
  * Returns:
  *   invocations_24h          · count from agent_invocations
  *   cascade_success_rate     · % of invocations with status='completed' in 30d
- *   pending_hitl             · count from hitl_approvals if table exists, else null
+ *   pending_hitl             · count from hitl_queue (la bandeja única) if table exists, else null
  *   tokens_24h               · sum(tokens_input + tokens_output) past 24h
  *   tokens_30d               · same · 30d window
  *   spend_by_provider_30d    · { anthropic: $, openai: $, other: $ } · estimated
@@ -117,7 +117,7 @@ export async function GET() {
   // HITL approvals · table may or may not exist · soft-fail
   try {
     const { count: hitl } = await supa
-      .from("hitl_approvals")
+      .from("hitl_queue")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
     out.pending_hitl = hitl ?? 0

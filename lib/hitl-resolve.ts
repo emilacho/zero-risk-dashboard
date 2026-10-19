@@ -30,14 +30,14 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 export type HitlDecision = "approve" | "reject"
 
 export interface HitlResolveInput {
-  /** Canon · id de `hitl_approvals.id`. */
+  /** Canon · id de la fila de la bandeja única (`hitl_queue.id`; antes `hitl_approvals.id`). */
   readonly hitl_id: string
   readonly decision: HitlDecision
   /** Canon · quién aprobó · canon canon "emilio" (lock-in en deploy) ·
    *  canon-canon-tests pueden inyectar otro valor. */
   readonly reviewer_id: string
   /** Canon · razón opcional cuando `decision='reject'` · canon-canon-
-   *  obligatoria si quieres trace en `hitl_approvals.rejection_reason`. */
+   *  obligatoria si quieres trace en `hitl_queue.resolution_notes`. */
   readonly rejection_reason?: string
 }
 
@@ -96,6 +96,22 @@ interface HitlRow {
   client_id: string | null
   context: Record<string, unknown> | null
   payload: Record<string, unknown> | null
+}
+
+/**
+ * LA BANDEJA ÚNICA (CC#3 · 19-oct · arreglo 3): el tablero lee y resuelve en `hitl_queue` (antes `hitl_approvals`, que nadie escribía).
+ * El `context` que usa el webhook de n8n (execution_id, hitl_token, client_name) vive en `hitl_queue.metadata`.
+ */
+export const TABLA_BANDEJA = "hitl_queue"
+export function filaDeBandeja(data: Record<string, unknown> | null): HitlRow | null {
+  if (!data) return null
+  return {
+    id: String(data.id),
+    status: String(data.status),
+    client_id: (data.client_id as string | null) ?? null,
+    context: (data.metadata as Record<string, unknown> | null) ?? (data.context as Record<string, unknown> | null) ?? null,
+    payload: (data.payload as Record<string, unknown> | null) ?? null,
+  }
 }
 
 /**
@@ -199,15 +215,15 @@ export async function resolveHitlApproval(
 
   // ── load the HITL row · canon-canon-validate exists + pending
   const lookup = await deps.supabase
-    .from("hitl_approvals")
-    .select("id, status, client_id, context, payload")
+    .from(TABLA_BANDEJA)
+    .select("id, status, client_id, metadata, payload")
     .eq("id", input.hitl_id)
     .maybeSingle()
 
   if (lookup.error) {
     return refused(`db_lookup_error · ${lookup.error.message}`, input)
   }
-  const row = (lookup.data ?? null) as HitlRow | null
+  const row = filaDeBandeja((lookup.data ?? null) as Record<string, unknown> | null)
   if (!row) {
     return refused("hitl_id_not_found", input)
   }
@@ -266,7 +282,11 @@ export async function resolveHitlApproval(
   }
 
   // ── n8n hitl-resume POST · canon-canon-spec §2.A · 30s timeout · retry once on 5xx
-  if (!n8nBaseUrl) {
+  // Sin `execution_id` no hay ninguna ejecución de n8n pausada que reanudar (es el caso de una pieza que deja la oficina o de una compuerta que no espera):
+  // la fila se resuelve directamente en la bandeja y no se llama al webhook.
+  const reanudar = Boolean(fields.execution_id)
+  let n8nResult: { status: number; ok: boolean; error?: string } = { status: 0, ok: true }
+  if (reanudar && !n8nBaseUrl) {
     return refused("n8n_base_url_unset", input, { client_id, client_lookup })
   }
   const webhookUrl = `${trimSlash(n8nBaseUrl)}/webhook/hitl-resume`
@@ -292,9 +312,11 @@ export async function resolveHitlApproval(
     }
   }
 
-  let n8nResult = await sendOnce()
-  if (!n8nResult.ok && (deps.retryOnce ?? true) && (n8nResult.status === 0 || n8nResult.status >= 500)) {
+  if (reanudar) {
     n8nResult = await sendOnce()
+    if (!n8nResult.ok && (deps.retryOnce ?? true) && (n8nResult.status === 0 || n8nResult.status >= 500)) {
+      n8nResult = await sendOnce()
+    }
   }
 
   if (!n8nResult.ok) {
@@ -314,18 +336,24 @@ export async function resolveHitlApproval(
 
   // ── canon · update the row · canon-canon-status approved|rejected + ts
   const ts = now()
+  const decision = {
+    decision: input.decision === "approve" ? "approved" : "rejected",
+    por: input.reviewer_id,
+    cuando: ts,
+    ...(input.decision === "reject" ? { motivo: input.rejection_reason ?? "(no reason given)" } : {}),
+  }
+  const quien = { resolved_by: input.reviewer_id, reviewer: input.reviewer_id, resolved_at: ts, decided_at: ts, decision }
   const updatePatch: Record<string, unknown> =
     input.decision === "approve"
-      ? { status: "approved", approved_by: input.reviewer_id, approved_at: ts }
+      ? { status: "approved", ...quien }
       : {
           status: "rejected",
-          rejected_at: ts,
-          rejection_reason: input.rejection_reason ?? "(no reason given)",
-          approved_by: input.reviewer_id, // canon · approved_by is the reviewer who pressed the button regardless of outcome
+          resolution_notes: input.rejection_reason ?? "(no reason given)",
+          ...quien,
         }
 
   const update = await deps.supabase
-    .from("hitl_approvals")
+    .from(TABLA_BANDEJA)
     .update(updatePatch)
     .eq("id", input.hitl_id)
     .eq("status", "pending") // canon · belt-and-suspenders idempotency
@@ -340,7 +368,7 @@ export async function resolveHitlApproval(
       decision: input.decision,
       client_id,
       execution_id: fields.execution_id,
-      n8n_status: n8nResult.status,
+      n8n_status: reanudar ? n8nResult.status : undefined,
       client_lookup,
       hitl_row_updated: false,
     }
@@ -353,7 +381,7 @@ export async function resolveHitlApproval(
     decision: input.decision,
     client_id,
     execution_id: fields.execution_id,
-    n8n_status: n8nResult.status,
+    n8n_status: reanudar ? n8nResult.status : undefined,
     client_lookup,
     hitl_row_updated: true,
   }

@@ -27,7 +27,7 @@ async function loadJourneyAndHitl() {
         .select("client_id, journey_state, stage, last_activity_at")
         .is("completed_at", null),
       supa
-        .from("hitl_approvals")
+        .from("hitl_queue")
         .select("id, client_id, status", { count: "exact" })
         .eq("status", "pending"),
     ])
@@ -92,7 +92,7 @@ export async function DeptCsmBody() {
               ? "0 items · runtime emisión pending"
               : "click → ver lista por cliente"
           }
-          modalDescription="hitl_approvals con status=pending · agrupado por cliente"
+          modalDescription="hitl_queue (bandeja única) con status=pending · agrupado por cliente"
           seeAllHref="/system/inbox"
           items={Array.from(hitlByClient.entries()).map(([cid, count]) => {
             const client = clientsRes.clients.find((c) => c.id === cid)
