@@ -50,6 +50,9 @@ export interface HitlResolveResult {
   readonly execution_id: string | null
   readonly n8n_status?: number
   readonly n8n_error?: string
+  /** resuelta por la plataforma (`PATCH /api/hitl/{id}`): su estado HTTP y, si falló, por qué */
+  readonly platform_status?: number
+  readonly platform_error?: string
   readonly client_lookup?: "by-id" | "by-name" | "skipped" | "failed"
   readonly refused_reason?: string
   readonly hitl_row_updated?: boolean
@@ -74,6 +77,10 @@ export interface HitlResolveDeps {
   readonly now?: () => string
   /** Canon · default 1 retry on n8n 5xx · canon-canon-spec §2.A "retry once". */
   readonly retryOnce?: boolean
+  /** Dirección de la plataforma para resolver filas SIN ejecución de n8n (default `NEXT_PUBLIC_PLATFORM_API_URL`, luego la canónica). */
+  readonly platformApiUrl?: string
+  /** Llave interna con la que el tablero llama a la plataforma (`x-api-key`; default `INTERNAL_API_KEY`). */
+  readonly internalKey?: string
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -180,6 +187,64 @@ export async function lookupClientIdByName(
 // canon · main entry · resolve()
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Resolver por la plataforma (`PATCH {plataforma}/api/hitl/{id}`, arreglo 3 · 19-oct, a pedido de la certificación de CC#2): la ruta de la plataforma es quien aplica los efectos de
+ * aprobar o rechazar según el tipo de la fila. Cuerpo: `{ status, reviewer, decision, frase_del_aprobador? }` (el motivo del rechazo viaja como frase). Sin reintento: una aprobación
+ * con efectos no se repite a ciegas. 2xx = resuelta (un 207 es «decisión tomada, efecto parcial»: se dice en `platform_status`).
+ */
+async function resolverPorLaPlataforma(
+  input: HitlResolveInput,
+  c: { deps: HitlResolveDeps; fetchImpl: typeof fetch; timeoutMs: number; client_id: string | null; client_lookup: HitlResolveResult["client_lookup"]; ts: string },
+): Promise<HitlResolveResult> {
+  const base = trimSlash(c.deps.platformApiUrl ?? process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://zero-risk-platform.vercel.app")
+  const llave = c.deps.internalKey ?? process.env.INTERNAL_API_KEY ?? ""
+  if (!llave) return refused("internal_key_unset", input, { client_id: c.client_id, client_lookup: c.client_lookup })
+  const aprobada = input.decision === "approve"
+  const cuerpo: Record<string, unknown> = {
+    status: aprobada ? "approved" : "rejected",
+    reviewer: input.reviewer_id,
+    decision: { decision: aprobada ? "approved" : "rejected", por: input.reviewer_id, cuando: c.ts, ...(aprobada ? {} : { motivo: input.rejection_reason ?? "(no reason given)" }) },
+    ...(aprobada ? {} : { frase_del_aprobador: input.rejection_reason ?? "(no reason given)" }),
+  }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), c.timeoutMs)
+  try {
+    const res = await c.fetchImpl(`${base}/api/hitl/${encodeURIComponent(input.hitl_id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-api-key": llave },
+      body: JSON.stringify(cuerpo),
+      signal: controller.signal,
+    })
+    return {
+      mode: "live",
+      ok: res.ok,
+      hitl_id: input.hitl_id,
+      decision: input.decision,
+      client_id: c.client_id,
+      execution_id: null,
+      platform_status: res.status,
+      ...(res.ok ? {} : { platform_error: (await res.text().catch(() => "")).slice(0, 300) || `http_${res.status}` }),
+      client_lookup: c.client_lookup,
+      hitl_row_updated: res.ok,
+    }
+  } catch (e) {
+    return {
+      mode: "live",
+      ok: false,
+      hitl_id: input.hitl_id,
+      decision: input.decision,
+      client_id: c.client_id,
+      execution_id: null,
+      platform_status: 0,
+      platform_error: e instanceof Error ? e.message : String(e),
+      client_lookup: c.client_lookup,
+      hitl_row_updated: false,
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function resolveHitlApproval(
   input: HitlResolveInput,
   deps: HitlResolveDeps,
@@ -283,10 +348,12 @@ export async function resolveHitlApproval(
 
   // ── n8n hitl-resume POST · canon-canon-spec §2.A · 30s timeout · retry once on 5xx
   // Sin `execution_id` no hay ninguna ejecución de n8n pausada que reanudar (es el caso de una pieza que deja la oficina o de una compuerta que no espera):
-  // la fila se resuelve directamente en la bandeja y no se llama al webhook.
-  const reanudar = Boolean(fields.execution_id)
-  let n8nResult: { status: number; ok: boolean; error?: string } = { status: 0, ok: true }
-  if (reanudar && !n8nBaseUrl) {
+  // se resuelve por la PLATAFORMA (`PATCH /api/hitl/{id}`), que es donde viven los efectos de aprobar (promover el manual de marca revisado, armar el ensayo de
+  // publicación del lote social, propagar la decisión a los paquetes de contenido…). Actualizar la fila directo los saltaría en silencio.
+  if (!fields.execution_id) {
+    return resolverPorLaPlataforma(input, { deps, fetchImpl, timeoutMs, client_id, client_lookup, ts: now() })
+  }
+  if (!n8nBaseUrl) {
     return refused("n8n_base_url_unset", input, { client_id, client_lookup })
   }
   const webhookUrl = `${trimSlash(n8nBaseUrl)}/webhook/hitl-resume`
@@ -312,11 +379,9 @@ export async function resolveHitlApproval(
     }
   }
 
-  if (reanudar) {
+  let n8nResult = await sendOnce()
+  if (!n8nResult.ok && (deps.retryOnce ?? true) && (n8nResult.status === 0 || n8nResult.status >= 500)) {
     n8nResult = await sendOnce()
-    if (!n8nResult.ok && (deps.retryOnce ?? true) && (n8nResult.status === 0 || n8nResult.status >= 500)) {
-      n8nResult = await sendOnce()
-    }
   }
 
   if (!n8nResult.ok) {
@@ -368,7 +433,7 @@ export async function resolveHitlApproval(
       decision: input.decision,
       client_id,
       execution_id: fields.execution_id,
-      n8n_status: reanudar ? n8nResult.status : undefined,
+      n8n_status: n8nResult.status,
       client_lookup,
       hitl_row_updated: false,
     }
@@ -381,7 +446,7 @@ export async function resolveHitlApproval(
     decision: input.decision,
     client_id,
     execution_id: fields.execution_id,
-    n8n_status: reanudar ? n8nResult.status : undefined,
+    n8n_status: n8nResult.status,
     client_lookup,
     hitl_row_updated: true,
   }

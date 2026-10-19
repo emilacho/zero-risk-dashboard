@@ -80,14 +80,59 @@ describe("resolver desde el tablero, sobre la bandeja única", () => {
     expect(parche).not.toHaveProperty("rejection_reason")
     expect(parche).not.toHaveProperty("rejected_at")
   })
-  it("🔴 una pieza de la oficina (sin ejecución de n8n pausada) se resuelve directo en la bandeja: no llama al webhook ni exige la dirección de n8n", async () => {
+  it("🔴 una pieza de la oficina (sin ejecución de n8n) se resuelve POR LA PLATAFORMA: PATCH /api/hitl/{id} con la llave; ni webhook de n8n ni escritura directa del tablero", async () => {
     const g = grabadora(pieza)
     const f = fetchOk()
-    const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, n8nBaseUrl: "", now: AHORA })
-    expect(r).toMatchObject({ mode: "live", ok: true, hitl_row_updated: true, execution_id: null })
+    const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, n8nBaseUrl: "", platformApiUrl: "https://plataforma.test/", internalKey: "llave-interna", now: AHORA })
+    expect(r).toMatchObject({ mode: "live", ok: true, hitl_row_updated: true, execution_id: null, platform_status: 200 })
     expect(r.n8n_status).toBeUndefined()
+    const llamadas = (f as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(llamadas).toHaveLength(1)
+    expect(llamadas[0][0]).toBe("https://plataforma.test/api/hitl/p-1")
+    expect(llamadas[0][1]).toMatchObject({ method: "PATCH", headers: { "x-api-key": "llave-interna", "Content-Type": "application/json" } })
+    expect(JSON.parse(String(llamadas[0][1].body))).toEqual({ status: "approved", reviewer: "emilio", decision: { decision: "approved", por: "emilio", cuando: AHORA() } })
+    expect(g.llamadas.some((x) => x[0] === "update")).toBe(false) // el tablero NO toca la fila: los efectos de aprobar viven en la plataforma
+  })
+  it("rechazar por la plataforma: el motivo viaja como frase del aprobador (la plataforma lo guarda como nota del borrador) y dentro de la decisión", async () => {
+    const g = grabadora(pieza)
+    const f = fetchOk()
+    await resolveHitlApproval({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "no va con la marca" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
+    const cuerpo = JSON.parse(String((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body))
+    expect(cuerpo).toEqual({ status: "rejected", reviewer: "emilio", decision: { decision: "rejected", por: "emilio", cuando: AHORA(), motivo: "no va con la marca" }, frase_del_aprobador: "no va con la marca" })
+  })
+  it("el id va codificado en la dirección (una fila con caracteres raros no cambia la ruta)", async () => {
+    const g = grabadora({ ...pieza, id: "a/b?c" })
+    const f = fetchOk()
+    await resolveHitlApproval({ hitl_id: "a/b?c", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
+    expect((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe("https://plataforma.test/api/hitl/a%2Fb%3Fc")
+  })
+  it("un 207 de la plataforma (decisión tomada, efecto parcial) cuenta como resuelta y lo dice en platform_status", async () => {
+    const g = grabadora(pieza)
+    const f = vi.fn(async () => new Response("{}", { status: 207 })) as unknown as typeof fetch
+    const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
+    expect(r).toMatchObject({ ok: true, platform_status: 207, hitl_row_updated: true })
+  })
+  it("si la plataforma falla (404, 500 o red) NO se da por resuelta y se dice por qué; sin reintento", async () => {
+    for (const [respuesta, esperado] of [[new Response('{"error":"not_found"}', { status: 404 }), 404], [new Response("caído", { status: 500 }), 500]] as const) {
+      const g = grabadora(pieza)
+      const f = vi.fn(async () => respuesta.clone()) as unknown as typeof fetch
+      const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
+      expect(r).toMatchObject({ mode: "live", ok: false, platform_status: esperado, hitl_row_updated: false })
+      expect(String(r.platform_error)).not.toBe("")
+      expect(f).toHaveBeenCalledTimes(1)
+    }
+    const g = grabadora(pieza)
+    const caida = vi.fn(async () => { throw new Error("ECONNRESET") }) as unknown as typeof fetch
+    const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: caida, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
+    expect(r).toMatchObject({ ok: false, platform_status: 0, platform_error: "ECONNRESET", hitl_row_updated: false })
+  })
+  it("sin la llave interna no hay con qué llamar a la plataforma: se rechaza antes de llamar a nadie", async () => {
+    const g = grabadora(pieza)
+    const f = fetchOk()
+    const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "", now: AHORA })
+    expect(r).toMatchObject({ mode: "refused", ok: false })
+    expect(r.refused_reason).toMatch(/internal_key_unset/)
     expect(f).not.toHaveBeenCalled()
-    expect(g.llamadas.find((x) => x[0] === "update")![1]).toMatchObject({ status: "approved", resolved_by: "emilio" })
   })
   it("con ejecución pausada pero sin dirección de n8n sigue rechazando (nada cambia para las compuertas)", async () => {
     const g = grabadora(conEjecucion)
