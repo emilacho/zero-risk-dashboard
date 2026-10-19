@@ -90,15 +90,15 @@ describe("resolver desde el tablero, sobre la bandeja única", () => {
     expect(llamadas).toHaveLength(1)
     expect(llamadas[0][0]).toBe("https://plataforma.test/api/hitl/p-1")
     expect(llamadas[0][1]).toMatchObject({ method: "PATCH", headers: { "x-api-key": "llave-interna", "Content-Type": "application/json" } })
-    expect(JSON.parse(String(llamadas[0][1].body))).toEqual({ status: "approved", reviewer: "emilio", decision: "approved" })
+    expect(JSON.parse(String(llamadas[0][1].body))).toEqual({ status: "approved", reviewer: "emilio" })
     expect(g.llamadas.some((x) => x[0] === "update")).toBe(false) // el tablero NO toca la fila: los efectos de aprobar viven en la plataforma
   })
-  it("rechazar por la plataforma: el motivo viaja como frase del aprobador (la plataforma lo guarda como nota del borrador); la decisión va en texto", async () => {
+  it("rechazar por la plataforma: el motivo viaja como frase del aprobador (la plataforma lo guarda como nota del borrador); no lleva decision (la plataforma la define como texto)", async () => {
     const g = grabadora(pieza)
     const f = fetchOk()
     await resolveHitlApproval({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "no va con la marca" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
     const cuerpo = JSON.parse(String((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body))
-    expect(cuerpo).toEqual({ status: "rejected", reviewer: "emilio", decision: "rejected", frase_del_aprobador: "no va con la marca" })
+    expect(cuerpo).toEqual({ status: "rejected", reviewer: "emilio", frase_del_aprobador: "no va con la marca" })
   })
   it("el id va codificado en la dirección (una fila con caracteres raros no cambia la ruta)", async () => {
     const g = grabadora({ ...pieza, id: "a/b?c" })
@@ -160,6 +160,52 @@ describe("resolver desde el tablero, sobre la bandeja única", () => {
     const r = await resolveHitlApproval({ hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" }, { supabase: g.supabase, fetchImpl: fetchOk(), wireEnabled: true, n8nBaseUrl: "", now: AHORA })
     expect(r).toMatchObject({ mode: "refused", ok: false })
     expect(r.refused_reason).toMatch(/already_resolved/)
+  })
+})
+
+/** el contrato REAL de la plataforma (copia de src/lib/contracts/inputs/hitl-action.json): tipos, listas cerradas y largos de cada propiedad */
+const CONTRATO = JSON.parse(fs.readFileSync(path.resolve(__dirname, "fixtures", "hitl-action.schema.json"), "utf8")) as { properties: Record<string, { type?: string | string[]; enum?: unknown[]; maxLength?: number }> }
+function violaciones(cuerpo: Record<string, unknown>): string[] {
+  const out: string[] = []
+  for (const [k, v] of Object.entries(cuerpo)) {
+    const p = CONTRATO.properties[k]
+    if (!p) continue // additionalProperties: true
+    const tipo = v === null ? "null" : Array.isArray(v) ? "array" : typeof v
+    if (p.type && !([] as string[]).concat(p.type).includes(tipo)) out.push(`/${k} debe ser ${[].concat(p.type as never).join(",")} y es ${tipo}`)
+    if (p.enum && !p.enum.includes(v)) out.push(`/${k} fuera de la lista`)
+    if (p.maxLength !== undefined && typeof v === "string" && v.length > p.maxLength) out.push(`/${k} pasa de ${p.maxLength}`)
+  }
+  return out
+}
+
+describe("🔴 el cuerpo REAL que el tablero manda a la plataforma cumple el contrato de la plataforma (hitl-action)", () => {
+  const cuerpoDe = async (input: Parameters<typeof resolveHitlApproval>[0]) => {
+    const g = grabadora(pieza)
+    const f = fetchOk()
+    await resolveHitlApproval(input, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
+    return JSON.parse(String((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body)) as Record<string, unknown>
+  }
+  it("aprobar y rechazar (con motivo normal, larguísimo o vacío) no violan el contrato y NO llevan «decision»", async () => {
+    for (const input of [
+      { hitl_id: "p-1", decision: "approve", reviewer_id: "emilio" },
+      { hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "no va con la marca" },
+      { hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "x".repeat(5000) },
+      { hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "   " },
+    ] as const) {
+      const c = await cuerpoDe(input)
+      expect(violaciones(c), JSON.stringify(c).slice(0, 80)).toEqual([])
+      expect(c).not.toHaveProperty("decision")
+    }
+  })
+  it("el motivo se recorta a lo que admite la plataforma (2000) y un motivo vacío no manda una frase vacía", async () => {
+    expect(String((await cuerpoDe({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "x".repeat(5000) })).frase_del_aprobador)).toHaveLength(2000) // el límite del contrato, no el de la constante
+    expect((await cuerpoDe({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "   " })).frase_del_aprobador).toBe("(no reason given)")
+  })
+  it("el validador de la prueba SÍ detecta el choque de antes (un objeto en «decision», una decisión fuera de la lista y una frase de más de 2000 no pasan el contrato)", () => {
+    expect(violaciones({ status: "approved", decision: { decision: "approved" } })).toHaveLength(2) // tipo y lista
+    expect(violaciones({ decision: "aprobado" })).toHaveLength(1)
+    expect(violaciones({ reason: "x".repeat(2001) })).toHaveLength(1)
+    expect(violaciones({ status: "approved", reviewer: "emilio", frase_del_aprobador: "ok" })).toEqual([])
   })
 })
 

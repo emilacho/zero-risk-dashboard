@@ -187,9 +187,12 @@ export async function lookupClientIdByName(
 // canon · main entry · resolve()
 // ─────────────────────────────────────────────────────────────────────
 
+/** largo máximo de `frase_del_aprobador` en la ruta de la plataforma */
+export const FRASE_MAXIMA = 2000
+
 /**
  * Resolver por la plataforma (`PATCH {plataforma}/api/hitl/{id}`, arreglo 3 · 19-oct, a pedido de la certificación de CC#2): la ruta de la plataforma es quien aplica los efectos de
- * aprobar o rechazar según el tipo de la fila. Cuerpo: `{ status, reviewer, decision, frase_del_aprobador? }` con `decision` en TEXTO (el esquema de la plataforma rechaza un objeto con 400) y el motivo del rechazo como frase. Sin reintento: una aprobación
+ * aprobar o rechazar según el tipo de la fila. Cuerpo: `{ status, reviewer, decision, frase_del_aprobador? }` SIN `decision` (el esquema de la plataforma la define como texto y rechaza un objeto con 400) y el motivo del rechazo como frase (máx. 2000). Sin reintento: una aprobación
  * con efectos no se repite a ciegas. 2xx = resuelta (un 207 es «decisión tomada, efecto parcial»: se dice en `platform_status`).
  */
 async function resolverPorLaPlataforma(
@@ -203,9 +206,9 @@ async function resolverPorLaPlataforma(
   const cuerpo: Record<string, unknown> = {
     status: aprobada ? "approved" : "rejected",
     reviewer: input.reviewer_id,
-    // la ruta de la plataforma valida `decision` como TEXTO (approved|rejected|…), no como objeto: el motivo viaja en `frase_del_aprobador`
-    decision: aprobada ? "approved" : "rejected",
-    ...(aprobada ? {} : { frase_del_aprobador: input.rejection_reason ?? "(no reason given)" }),
+    // SIN `decision`: la plataforma guarda `decision = {}` y pone reviewer, decided_at y resolved_at (el esquema `hitl-action` define `decision` como TEXTO y rechaza un objeto con 400).
+    // El motivo del rechazo viaja en `frase_del_aprobador` (la plataforma admite de 1 a 2000 caracteres y lo guarda en `metadata.decision_humana`).
+    ...(aprobada ? {} : { frase_del_aprobador: (input.rejection_reason ?? "").trim().slice(0, FRASE_MAXIMA) || "(no reason given)" }),
   }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), c.timeoutMs)
