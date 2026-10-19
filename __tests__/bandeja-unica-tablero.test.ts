@@ -90,15 +90,15 @@ describe("resolver desde el tablero, sobre la bandeja única", () => {
     expect(llamadas).toHaveLength(1)
     expect(llamadas[0][0]).toBe("https://plataforma.test/api/hitl/p-1")
     expect(llamadas[0][1]).toMatchObject({ method: "PATCH", headers: { "x-api-key": "llave-interna", "Content-Type": "application/json" } })
-    expect(JSON.parse(String(llamadas[0][1].body))).toEqual({ status: "approved", reviewer: "emilio", decision: { decision: "approved", por: "emilio", cuando: AHORA() } })
+    expect(JSON.parse(String(llamadas[0][1].body))).toEqual({ status: "approved", reviewer: "emilio", decision: "approved" })
     expect(g.llamadas.some((x) => x[0] === "update")).toBe(false) // el tablero NO toca la fila: los efectos de aprobar viven en la plataforma
   })
-  it("rechazar por la plataforma: el motivo viaja como frase del aprobador (la plataforma lo guarda como nota del borrador) y dentro de la decisión", async () => {
+  it("rechazar por la plataforma: el motivo viaja como frase del aprobador (la plataforma lo guarda como nota del borrador); la decisión va en texto", async () => {
     const g = grabadora(pieza)
     const f = fetchOk()
     await resolveHitlApproval({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "no va con la marca" }, { supabase: g.supabase, fetchImpl: f, wireEnabled: true, platformApiUrl: "https://plataforma.test", internalKey: "k", now: AHORA })
     const cuerpo = JSON.parse(String((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body))
-    expect(cuerpo).toEqual({ status: "rejected", reviewer: "emilio", decision: { decision: "rejected", por: "emilio", cuando: AHORA(), motivo: "no va con la marca" }, frase_del_aprobador: "no va con la marca" })
+    expect(cuerpo).toEqual({ status: "rejected", reviewer: "emilio", decision: "rejected", frase_del_aprobador: "no va con la marca" })
   })
   it("el id va codificado en la dirección (una fila con caracteres raros no cambia la ruta)", async () => {
     const g = grabadora({ ...pieza, id: "a/b?c" })
