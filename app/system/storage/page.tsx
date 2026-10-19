@@ -24,7 +24,7 @@ async function loadTableCounts(): Promise<TableRow[]> {
     { name: "agent_invocations", desc: "every Claude SDK call · primary metric source" },
     { name: "agent_image_generations", desc: "GPT Image 1.5 generations" },
     { name: "cowork_messages", desc: "dashboard chat inbox (Phase 3)" },
-    { name: "hitl_approvals", desc: "HITL queue · created STEP 1" },
+    { name: "hitl_queue", desc: "Bandeja única de aprobaciones (hitl_approvals y hitl_pending_approvals: solo lectura)" },
     { name: "cascade_runs", desc: "cascade tracking parent · STEP 1" },
     { name: "cascade_stages", desc: "per-stage detail · STEP 1" },
     { name: "journey_executions", desc: "client journey state machine · STEP 1" },

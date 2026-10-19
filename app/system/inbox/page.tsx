@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from "@/lib/supabase-server"
+import { COLUMNAS_DE_LA_BANDEJA, filaParaLaTarjeta, type HitlQueueRow } from "@/lib/bandeja-tarjeta"
 import { HitlCard } from "./hitl-card"
 
 export const dynamic = "force-dynamic"
@@ -11,24 +12,14 @@ interface CoworkMsg {
   status: string
 }
 
-interface HitlRowRaw {
-  id: string
-  status: string
-  priority: string | null
-  client_id: string | null
-  created_at: string
-  payload: Record<string, unknown> | null
-  context: Record<string, unknown> | null
-  rejection_reason: string | null
-}
-
 async function loadInboxData() {
   const supa = getServiceRoleClient()
   const [hitlRows, cowork] = await Promise.all([
+    // LA BANDEJA ÚNICA (arreglo 3 · 19-oct): lo que deja la oficina, la revisión y las compuertas está en `hitl_queue`.
     supa
-      .from("hitl_approvals")
+      .from("hitl_queue")
       .select(
-        "id, status, priority, client_id, created_at, payload, context, rejection_reason",
+        COLUMNAS_DE_LA_BANDEJA,
         { count: "exact" },
       )
       .eq("status", "pending")
@@ -41,7 +32,7 @@ async function loadInboxData() {
       .limit(20),
   ])
   return {
-    hitlPending: (hitlRows.data ?? []) as HitlRowRaw[],
+    hitlPending: ((hitlRows.data ?? []) as HitlQueueRow[]).map(filaParaLaTarjeta),
     hitlCount: hitlRows.count ?? 0,
     coworkMessages: (cowork.data ?? []) as CoworkMsg[],
   }
@@ -70,7 +61,7 @@ export default async function SystemInboxTab() {
       </span>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        <InboxStat label="HITL pending" value={hitlCount} hue="rose" sub="hitl_approvals · status=pending" />
+        <InboxStat label="HITL pending" value={hitlCount} hue="rose" sub="hitl_queue · status=pending (bandeja única)" />
         <InboxStat
           label="Cowork pending"
           value={coworkPending}
