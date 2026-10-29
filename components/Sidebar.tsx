@@ -19,61 +19,32 @@ import {
   Sparkle,
   SquaresFour,
   Images,
-  Gauge,
-  Bell,
-  CurrencyDollar,
-  Cpu,
   Users,
+  Gauge,
+  CurrencyDollar,
+  Bell,
   TreeStructure,
-  Buildings,
-  Stack,
 } from "@phosphor-icons/react/dist/ssr"
 // Type-only import from main module · `/dist/ssr` doesn't export the `Icon`
 // type alias · safe because TS type imports are erased at compile time.
 import type { Icon } from "@phosphor-icons/react"
-import { DEPARTMENTS } from "@/lib/departments"
-import { SYSTEM_TABS } from "@/lib/system-tabs"
 import { DURATION, EASING } from "@/lib/motion"
 
 interface NavItem {
   href: string
   label: string
   icon: Icon
-  /** When set, this is the parent of a sub-tree (renders chevron + children). */
-  children?: { href: string; label: string; cardinal: string; hue: string }[]
 }
 
+/** El menú final (29-oct · aprobado por Emilio): 7 entradas. */
 const NAV: NavItem[] = [
-  { href: "/", label: "Overview", icon: SquaresFour },
+  { href: "/", label: "Inicio", icon: SquaresFour },
   { href: "/piezas", label: "Piezas", icon: Images },
+  { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/oficinas", label: "Oficinas", icon: Gauge },
   { href: "/gasto", label: "Gasto", icon: CurrencyDollar },
   { href: "/alertas", label: "Alertas", icon: Bell },
-  {
-    href: "/dept",
-    label: "Departamentos",
-    icon: Buildings,
-    children: DEPARTMENTS.map((d) => ({
-      href: `/dept/${d.slug}`,
-      label: d.label,
-      cardinal: d.shortLabel,
-      hue: d.hue,
-    })),
-  },
-  {
-    href: "/system",
-    label: "System",
-    icon: Stack,
-    children: SYSTEM_TABS.map((t) => ({
-      href: `/system/${t.slug}`,
-      label: t.label,
-      cardinal: t.slug.slice(0, 3).toUpperCase(),
-      hue: t.hue,
-    })),
-  },
-  { href: "/agents", label: "Agents", icon: Cpu },
-  { href: "/clients", label: "Clients", icon: Users },
-  { href: "/graph", label: "Graph", icon: TreeStructure },
+  { href: "/mapa", label: "Mapa", icon: TreeStructure },
 ]
 
 export function Sidebar() {
@@ -106,7 +77,7 @@ export function Sidebar() {
 
       {/* Nav stack */}
       <nav className="mt-3 flex flex-1 flex-col gap-1 px-3">
-        {NAV.map(({ href, label, icon: Icon, children }) => {
+        {NAV.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/"
               ? pathname === "/"
@@ -114,13 +85,7 @@ export function Sidebar() {
           return (
             <div key={href} className="flex flex-col">
               <Link
-                href={
-                  href === "/dept"
-                    ? "/dept/ops"
-                    : href === "/system"
-                      ? "/system/agents"
-                      : href
-                }
+                href={href}
                 aria-label={label}
                 data-active={active ? "true" : undefined}
                 className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--primary-glow)/0.12)]"
@@ -140,34 +105,7 @@ export function Sidebar() {
                   {label}
                 </span>
               </Link>
-              {/* Children · only render on parent expansion */}
-              {children && active ? (
-                <div className="ml-6 mt-1 flex flex-col gap-0.5 opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100">
-                  {children.map((child) => {
-                    const childActive = pathname === child.href
-                    return (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        data-active={childActive ? "true" : undefined}
-                        className="group/child flex h-7 items-center gap-2 rounded-md px-2 text-[11px] text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--primary-glow)/0.06)] hover:text-foreground data-[active=true]:bg-[hsl(var(--primary-glow)/0.1)] data-[active=true]:text-foreground"
-                      >
-                        <span
-                          className="num inline-flex h-4 items-center rounded px-1 text-[9px] uppercase tracking-[0.16em]"
-                          style={{
-                            color: `hsl(var(--hue-${child.hue}))`,
-                            background: `hsl(var(--hue-${child.hue}) / 0.12)`,
-                          }}
-                        >
-                          {child.cardinal}
-                        </span>
-                        <span className="overflow-hidden whitespace-nowrap">{child.label}</span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              ) : null}
-            </div>
+                          </div>
           )
         })}
       </nav>
