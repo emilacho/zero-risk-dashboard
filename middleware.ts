@@ -15,6 +15,7 @@
  */
 import { type NextRequest, NextResponse } from "next/server"
 import { getMiddlewareClient } from "@/lib/supabase-session"
+import { API_PUBLICAS, llaveInternaValida } from "@/lib/api-gate"
 
 const PUBLIC_ROUTES = new Set(["/login", "/auth/callback"])
 // Page prefixes (NOT api prefixes · api routes self-gate)
@@ -23,16 +24,21 @@ const ADMIN_ONLY_PREFIXES = ["/system", "/dept", "/agents", "/graph", "/workflow
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Allow public routes + Next.js internals + ALL api routes (each one
-  // does its own auth/role check · admin api uses session OR
-  // INTERNAL_API_KEY header) + favicon
-  if (
-    PUBLIC_ROUTES.has(pathname) ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/") || // api routes self-gate
-    pathname === "/favicon.ico"
-  ) {
+  // Public routes + Next.js internals + favicon pass straight through
+  if (PUBLIC_ROUTES.has(pathname) || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
     return NextResponse.next()
+  }
+
+  // /api/* · DENY BY DEFAULT (29-oct · Fase 0): internal key OR admin session OR explicit allowlist
+  if (pathname.startsWith("/api/")) {
+    if (API_PUBLICAS.has(pathname) || llaveInternaValida(req)) return NextResponse.next()
+    const resApi = NextResponse.next()
+    const supaApi = getMiddlewareClient(req, resApi)
+    const { data: { user: userApi } } = await supaApi.auth.getUser()
+    if (!userApi) return NextResponse.json({ ok: false, error: "unauthenticated" }, { status: 401 })
+    const { data: rolApi } = await supaApi.from("app_roles").select("role").eq("user_id", userApi.id).maybeSingle()
+    if (rolApi?.role !== "admin") return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 })
+    return resApi
   }
 
   const res = NextResponse.next()
