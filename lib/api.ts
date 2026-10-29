@@ -4,7 +4,7 @@
  *
  * Base URL is `NEXT_PUBLIC_PLATFORM_API_URL` · falls back to the canonical
  * Vercel prod for the platform repo so local dev still works without env
- * setup. All endpoints are public read · no auth headers needed.
+ * setup. 29-oct (Fase 0): the platform dashboard endpoints now require `x-api-key` (INTERNAL_API_KEY, server-side only; never NEXT_PUBLIC).
  */
 
 const BASE_URL =
@@ -229,6 +229,7 @@ export interface RealtimeConfigResponse {
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
+    headers: { ...(init?.headers as Record<string, string> | undefined), ...(process.env.INTERNAL_API_KEY ? { "x-api-key": process.env.INTERNAL_API_KEY } : {}) },
     cache: "no-store",
   })
   if (!res.ok) {
