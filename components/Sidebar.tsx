@@ -18,6 +18,7 @@ import { motion } from "framer-motion"
 import {
   Sparkle,
   SquaresFour,
+  Images,
   Cpu,
   Users,
   TreeStructure,
@@ -41,6 +42,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: SquaresFour },
+  { href: "/piezas", label: "Piezas", icon: Images },
   {
     href: "/dept",
     label: "Departamentos",
