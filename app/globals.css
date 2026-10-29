@@ -63,16 +63,16 @@
 
   .dark {
     /* Lumen v3 · canvas + ink */
-    --background: 264 41% 5%;          /* #0A0612 · deep violet-black */
+    --background: 220 8% 8%;           /* gris carbón */
     --foreground: 240 9% 96%;          /* #F5F5F7 · text-primary */
-    --card: 264 32% 7%;                /* deep card surface */
+    --card: 220 8% 11%;
     --card-foreground: 240 9% 96%;
-    --secondary: 264 20% 11%;
+    --secondary: 220 7% 15%;
     --secondary-foreground: 240 9% 96%;
-    --muted: 264 18% 12%;
+    --muted: 220 7% 15%;
     --muted-foreground: 240 3% 57%;    /* #8E8E93 · text-secondary */
-    --border: 264 30% 14%;             /* hairline border base */
-    --input: 264 25% 18%;
+    --border: 220 6% 20%;
+    --input: 220 6% 22%;
 
     /* Lumen v3 + Phase 2 · violet flagship (invert relación previa).
        --primary-deep is the brand hex (#3D2466) for solid/deep fills
@@ -80,18 +80,18 @@
        value so violet *reads* as the flagship surface color, with
        cyan reserved for "agent is doing something" state per ref
        09 + 16. Cyan accent intensity reduced slightly. */
-    --primary-deep: 264 49% 28%;       /* #3D2466 · brand violet · deep */
-    --primary: 264 78% 60%;            /* visible flagship violet */
+    --primary-deep: 215 30% 30%;
+    --primary: 212 55% 62%;            /* UN acento discreto: azul acero */
     --primary-foreground: 240 9% 96%;
-    --primary-glow: 264 88% 68%;       /* halo bloom · brighter still */
-    --accent: 182 60% 57%;             /* #4DD4D8 · cyan · secondary */
-    --accent-foreground: 264 41% 5%;
-    --accent-glow: 182 75% 65%;
-    --ring: 264 88% 68%;
+    --primary-glow: 212 55% 68%;
+    --accent: 212 40% 55%;
+    --accent-foreground: 220 8% 8%;
+    --accent-glow: 212 40% 62%;
+    --ring: 212 55% 68%;
 
     /* Status tokens · success + danger */
-    --success: 154 100% 41%;           /* #00D084 */
-    --danger: 347 100% 60%;            /* #FF3366 */
+    --success: 150 35% 48%;
+    --danger: 2 50% 58%;
 
     /* Category palette · v3 multi-color · ALL referenced as HSL triplets
        so they compose with `hsl(var(--hue-x) / 0.4)` alpha tricks. Aligned
@@ -100,16 +100,16 @@
        duplicate block (L90-101 pre-fix · slightly different values that
        silently won via CSS cascade · masking the alignment intent) removed
        2026-05-17 per audit `2026-05-17-component-library-audit.md`. */
-    --hue-violet:  264 78% 60%;        /* aligned to --primary-glow */
-    --hue-cyan:    182 60% 57%;        /* aligned to --accent */
-    --hue-amber:    40 95% 60%;
-    --hue-emerald: 154 100% 41%;       /* aligned to --success */
-    --hue-rose:    347 100% 60%;       /* aligned to --danger */
-    --hue-orange:   25 95% 60%;
-    --hue-purple:  280 80% 65%;
-    --hue-teal:    173 80% 50%;
-    --hue-sky:     205 90% 60%;
-    --hue-lime:     90 75% 55%;
+    --hue-violet:212 55% 62%;        /* aligned to --primary-glow */
+    --hue-cyan:200 35% 55%;        /* aligned to --accent */
+    --hue-amber:40 55% 56%;
+    --hue-emerald:150 35% 48%;       /* aligned to --success */
+    --hue-rose:2 50% 58%;       /* aligned to --danger */
+    --hue-orange:25 50% 56%;
+    --hue-purple:240 25% 62%;
+    --hue-teal:170 30% 48%;
+    --hue-sky:205 40% 60%;
+    --hue-lime:90 30% 50%;
   }
 
   html { color-scheme: dark; }
@@ -939,4 +939,156 @@
 
   .cowork-md .hljs-emphasis { font-style: italic; }
   .cowork-md .hljs-strong { font-weight: 600; }
+}
+
+
+/* ══ PALETA SOBRIA (CC#1 · 29-oct · pedido de Emilio, ADENDA 2) ══
+ * Sin brillos, halos, desenfoques ni animaciones de «escaneo». Fondo gris carbón, un acento discreto y colores de estado apagados.
+ * Va al final a propósito: gana sobre los efectos de arriba sin tocar cada componente. Se respeta prefers-reduced-motion por construcción. */
+html, body { background-image: none !important; }
+*, *::before, *::after { text-shadow: none !important; animation: none !important; }
+[class*='glow'], .surface-card, .rim-instr, .eyebrow-chip { box-shadow: none !important; filter: none !important; backdrop-filter: none !important; }
+.ambient-halo, .ambient-grid, .ambient-beam-1, .ambient-beam-2, .ambient-beam-3, .bg-noise { display: none !important; }
+.react-flow__edge-path { filter: none !important; }
+:focus-visible { box-shadow: none !important; outline: 2px solid hsl(var(--primary) / 0.6); }
+.reveal-on-scroll, .reveal-on-scroll[data-revealed="true"] { opacity: 1 !important; transform: none !important; filter: none !important; }
+
+/* colores de estado apagados: se remapea la escala de Tailwind (v4 lee estas variables) */
+:root {
+  --color-emerald-50: oklch(0.96 0.07 150);
+  --color-emerald-100: oklch(0.92 0.07 150);
+  --color-emerald-200: oklch(0.86 0.07 150);
+  --color-emerald-300: oklch(0.78 0.07 150);
+  --color-emerald-400: oklch(0.7 0.07 150);
+  --color-emerald-500: oklch(0.62 0.07 150);
+  --color-emerald-600: oklch(0.54 0.07 150);
+  --color-emerald-700: oklch(0.46 0.07 150);
+  --color-green-50: oklch(0.96 0.07 150);
+  --color-green-100: oklch(0.92 0.07 150);
+  --color-green-200: oklch(0.86 0.07 150);
+  --color-green-300: oklch(0.78 0.07 150);
+  --color-green-400: oklch(0.7 0.07 150);
+  --color-green-500: oklch(0.62 0.07 150);
+  --color-green-600: oklch(0.54 0.07 150);
+  --color-green-700: oklch(0.46 0.07 150);
+  --color-lime-50: oklch(0.96 0.06 130);
+  --color-lime-100: oklch(0.92 0.06 130);
+  --color-lime-200: oklch(0.86 0.06 130);
+  --color-lime-300: oklch(0.78 0.06 130);
+  --color-lime-400: oklch(0.7 0.06 130);
+  --color-lime-500: oklch(0.62 0.06 130);
+  --color-lime-600: oklch(0.54 0.06 130);
+  --color-lime-700: oklch(0.46 0.06 130);
+  --color-amber-50: oklch(0.96 0.08 80);
+  --color-amber-100: oklch(0.92 0.08 80);
+  --color-amber-200: oklch(0.86 0.08 80);
+  --color-amber-300: oklch(0.78 0.08 80);
+  --color-amber-400: oklch(0.7 0.08 80);
+  --color-amber-500: oklch(0.62 0.08 80);
+  --color-amber-600: oklch(0.54 0.08 80);
+  --color-amber-700: oklch(0.46 0.08 80);
+  --color-yellow-50: oklch(0.96 0.08 90);
+  --color-yellow-100: oklch(0.92 0.08 90);
+  --color-yellow-200: oklch(0.86 0.08 90);
+  --color-yellow-300: oklch(0.78 0.08 90);
+  --color-yellow-400: oklch(0.7 0.08 90);
+  --color-yellow-500: oklch(0.62 0.08 90);
+  --color-yellow-600: oklch(0.54 0.08 90);
+  --color-yellow-700: oklch(0.46 0.08 90);
+  --color-orange-50: oklch(0.96 0.08 55);
+  --color-orange-100: oklch(0.92 0.08 55);
+  --color-orange-200: oklch(0.86 0.08 55);
+  --color-orange-300: oklch(0.78 0.08 55);
+  --color-orange-400: oklch(0.7 0.08 55);
+  --color-orange-500: oklch(0.62 0.08 55);
+  --color-orange-600: oklch(0.54 0.08 55);
+  --color-orange-700: oklch(0.46 0.08 55);
+  --color-rose-50: oklch(0.96 0.08 20);
+  --color-rose-100: oklch(0.92 0.08 20);
+  --color-rose-200: oklch(0.86 0.08 20);
+  --color-rose-300: oklch(0.78 0.08 20);
+  --color-rose-400: oklch(0.7 0.08 20);
+  --color-rose-500: oklch(0.62 0.08 20);
+  --color-rose-600: oklch(0.54 0.08 20);
+  --color-rose-700: oklch(0.46 0.08 20);
+  --color-red-50: oklch(0.96 0.08 25);
+  --color-red-100: oklch(0.92 0.08 25);
+  --color-red-200: oklch(0.86 0.08 25);
+  --color-red-300: oklch(0.78 0.08 25);
+  --color-red-400: oklch(0.7 0.08 25);
+  --color-red-500: oklch(0.62 0.08 25);
+  --color-red-600: oklch(0.54 0.08 25);
+  --color-red-700: oklch(0.46 0.08 25);
+  --color-pink-50: oklch(0.96 0.07 10);
+  --color-pink-100: oklch(0.92 0.07 10);
+  --color-pink-200: oklch(0.86 0.07 10);
+  --color-pink-300: oklch(0.78 0.07 10);
+  --color-pink-400: oklch(0.7 0.07 10);
+  --color-pink-500: oklch(0.62 0.07 10);
+  --color-pink-600: oklch(0.54 0.07 10);
+  --color-pink-700: oklch(0.46 0.07 10);
+  --color-fuchsia-50: oklch(0.96 0.04 260);
+  --color-fuchsia-100: oklch(0.92 0.04 260);
+  --color-fuchsia-200: oklch(0.86 0.04 260);
+  --color-fuchsia-300: oklch(0.78 0.04 260);
+  --color-fuchsia-400: oklch(0.7 0.04 260);
+  --color-fuchsia-500: oklch(0.62 0.04 260);
+  --color-fuchsia-600: oklch(0.54 0.04 260);
+  --color-fuchsia-700: oklch(0.46 0.04 260);
+  --color-violet-50: oklch(0.96 0.04 255);
+  --color-violet-100: oklch(0.92 0.04 255);
+  --color-violet-200: oklch(0.86 0.04 255);
+  --color-violet-300: oklch(0.78 0.04 255);
+  --color-violet-400: oklch(0.7 0.04 255);
+  --color-violet-500: oklch(0.62 0.04 255);
+  --color-violet-600: oklch(0.54 0.04 255);
+  --color-violet-700: oklch(0.46 0.04 255);
+  --color-purple-50: oklch(0.96 0.04 255);
+  --color-purple-100: oklch(0.92 0.04 255);
+  --color-purple-200: oklch(0.86 0.04 255);
+  --color-purple-300: oklch(0.78 0.04 255);
+  --color-purple-400: oklch(0.7 0.04 255);
+  --color-purple-500: oklch(0.62 0.04 255);
+  --color-purple-600: oklch(0.54 0.04 255);
+  --color-purple-700: oklch(0.46 0.04 255);
+  --color-indigo-50: oklch(0.96 0.05 255);
+  --color-indigo-100: oklch(0.92 0.05 255);
+  --color-indigo-200: oklch(0.86 0.05 255);
+  --color-indigo-300: oklch(0.78 0.05 255);
+  --color-indigo-400: oklch(0.7 0.05 255);
+  --color-indigo-500: oklch(0.62 0.05 255);
+  --color-indigo-600: oklch(0.54 0.05 255);
+  --color-indigo-700: oklch(0.46 0.05 255);
+  --color-cyan-50: oklch(0.96 0.04 225);
+  --color-cyan-100: oklch(0.92 0.04 225);
+  --color-cyan-200: oklch(0.86 0.04 225);
+  --color-cyan-300: oklch(0.78 0.04 225);
+  --color-cyan-400: oklch(0.7 0.04 225);
+  --color-cyan-500: oklch(0.62 0.04 225);
+  --color-cyan-600: oklch(0.54 0.04 225);
+  --color-cyan-700: oklch(0.46 0.04 225);
+  --color-sky-50: oklch(0.96 0.05 245);
+  --color-sky-100: oklch(0.92 0.05 245);
+  --color-sky-200: oklch(0.86 0.05 245);
+  --color-sky-300: oklch(0.78 0.05 245);
+  --color-sky-400: oklch(0.7 0.05 245);
+  --color-sky-500: oklch(0.62 0.05 245);
+  --color-sky-600: oklch(0.54 0.05 245);
+  --color-sky-700: oklch(0.46 0.05 245);
+  --color-teal-50: oklch(0.96 0.05 190);
+  --color-teal-100: oklch(0.92 0.05 190);
+  --color-teal-200: oklch(0.86 0.05 190);
+  --color-teal-300: oklch(0.78 0.05 190);
+  --color-teal-400: oklch(0.7 0.05 190);
+  --color-teal-500: oklch(0.62 0.05 190);
+  --color-teal-600: oklch(0.54 0.05 190);
+  --color-teal-700: oklch(0.46 0.05 190);
+  --color-blue-50: oklch(0.96 0.06 250);
+  --color-blue-100: oklch(0.92 0.06 250);
+  --color-blue-200: oklch(0.86 0.06 250);
+  --color-blue-300: oklch(0.78 0.06 250);
+  --color-blue-400: oklch(0.7 0.06 250);
+  --color-blue-500: oklch(0.62 0.06 250);
+  --color-blue-600: oklch(0.54 0.06 250);
+  --color-blue-700: oklch(0.46 0.06 250);
 }
