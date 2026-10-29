@@ -69,7 +69,7 @@ async function loadExtras(): Promise<OpsExtras> {
         .select("status, tokens_input, tokens_output, cost_usd, model, started_at")
         .gte("started_at", t30d),
       supa
-        .from("hitl_approvals")
+        .from("hitl_queue")
         .select("id", { count: "exact", head: true })
         .eq("status", "pending")
         .then(
@@ -223,7 +223,7 @@ export async function OpsKpiGrid() {
           value={pendingHitl}
           format="number"
           badge={pendingHitl == null ? "wire pending" : undefined}
-          sub="hitl_approvals · status=pending"
+          sub="hitl_queue · status=pending"
         />
         <Cell
           label="n8n · 24h"

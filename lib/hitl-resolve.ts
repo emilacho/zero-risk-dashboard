@@ -30,14 +30,14 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 export type HitlDecision = "approve" | "reject"
 
 export interface HitlResolveInput {
-  /** Canon · id de `hitl_approvals.id`. */
+  /** Canon · id de la fila de la bandeja única (`hitl_queue.id`; antes `hitl_approvals.id`). */
   readonly hitl_id: string
   readonly decision: HitlDecision
   /** Canon · quién aprobó · canon canon "emilio" (lock-in en deploy) ·
    *  canon-canon-tests pueden inyectar otro valor. */
   readonly reviewer_id: string
   /** Canon · razón opcional cuando `decision='reject'` · canon-canon-
-   *  obligatoria si quieres trace en `hitl_approvals.rejection_reason`. */
+   *  obligatoria si quieres trace en `hitl_queue.resolution_notes`. */
   readonly rejection_reason?: string
 }
 
@@ -50,6 +50,9 @@ export interface HitlResolveResult {
   readonly execution_id: string | null
   readonly n8n_status?: number
   readonly n8n_error?: string
+  /** resuelta por la plataforma (`PATCH /api/hitl/{id}`): su estado HTTP y, si falló, por qué */
+  readonly platform_status?: number
+  readonly platform_error?: string
   readonly client_lookup?: "by-id" | "by-name" | "skipped" | "failed"
   readonly refused_reason?: string
   readonly hitl_row_updated?: boolean
@@ -74,6 +77,10 @@ export interface HitlResolveDeps {
   readonly now?: () => string
   /** Canon · default 1 retry on n8n 5xx · canon-canon-spec §2.A "retry once". */
   readonly retryOnce?: boolean
+  /** Dirección de la plataforma para resolver filas SIN ejecución de n8n (default `NEXT_PUBLIC_PLATFORM_API_URL`, luego la canónica). */
+  readonly platformApiUrl?: string
+  /** Llave con la que el tablero llama a la plataforma (`x-api-key`). Por omisión `PLATFORM_INTERNAL_KEY` (variable SOLO de llamadas salientes) y, si no existe, `INTERNAL_API_KEY`. */
+  readonly internalKey?: string
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -96,6 +103,22 @@ interface HitlRow {
   client_id: string | null
   context: Record<string, unknown> | null
   payload: Record<string, unknown> | null
+}
+
+/**
+ * LA BANDEJA ÚNICA (CC#3 · 19-oct · arreglo 3): el tablero lee y resuelve en `hitl_queue` (antes `hitl_approvals`, que nadie escribía).
+ * El `context` que usa el webhook de n8n (execution_id, hitl_token, client_name) vive en `hitl_queue.metadata`.
+ */
+export const TABLA_BANDEJA = "hitl_queue"
+export function filaDeBandeja(data: Record<string, unknown> | null): HitlRow | null {
+  if (!data) return null
+  return {
+    id: String(data.id),
+    status: String(data.status),
+    client_id: (data.client_id as string | null) ?? null,
+    context: (data.metadata as Record<string, unknown> | null) ?? (data.context as Record<string, unknown> | null) ?? null,
+    payload: (data.payload as Record<string, unknown> | null) ?? null,
+  }
 }
 
 /**
@@ -164,6 +187,69 @@ export async function lookupClientIdByName(
 // canon · main entry · resolve()
 // ─────────────────────────────────────────────────────────────────────
 
+/** largo máximo de `frase_del_aprobador` en la ruta de la plataforma */
+export const FRASE_MAXIMA = 2000
+
+/**
+ * Resolver por la plataforma (`PATCH {plataforma}/api/hitl/{id}`, arreglo 3 · 19-oct, a pedido de la certificación de CC#2): la ruta de la plataforma es quien aplica los efectos de
+ * aprobar o rechazar según el tipo de la fila. Cuerpo: `{ status, reviewer, decision, frase_del_aprobador? }` SIN `decision` (el esquema de la plataforma la define como texto y rechaza un objeto con 400) y el motivo del rechazo como frase (máx. 2000). Sin reintento: una aprobación
+ * con efectos no se repite a ciegas. 2xx = resuelta (un 207 es «decisión tomada, efecto parcial»: se dice en `platform_status`).
+ */
+async function resolverPorLaPlataforma(
+  input: HitlResolveInput,
+  c: { deps: HitlResolveDeps; fetchImpl: typeof fetch; timeoutMs: number; client_id: string | null; client_lookup: HitlResolveResult["client_lookup"]; ts: string },
+): Promise<HitlResolveResult> {
+  const base = trimSlash(c.deps.platformApiUrl ?? process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://zero-risk-platform.vercel.app")
+  // `PLATFORM_INTERNAL_KEY` primero: es la llave SALIENTE hacia la plataforma y no abre las rutas entrantes del tablero (que hoy aceptan solo sesión de administrador mientras `INTERNAL_API_KEY` no exista)
+  const llave = c.deps.internalKey ?? (process.env.PLATFORM_INTERNAL_KEY || process.env.INTERNAL_API_KEY || "")
+  if (!llave) return refused("internal_key_unset", input, { client_id: c.client_id, client_lookup: c.client_lookup })
+  const aprobada = input.decision === "approve"
+  const cuerpo: Record<string, unknown> = {
+    status: aprobada ? "approved" : "rejected",
+    reviewer: input.reviewer_id,
+    // SIN `decision`: la plataforma guarda `decision = {}` y pone reviewer, decided_at y resolved_at (el esquema `hitl-action` define `decision` como TEXTO y rechaza un objeto con 400).
+    // El motivo del rechazo viaja en `frase_del_aprobador` (la plataforma admite de 1 a 2000 caracteres y lo guarda en `metadata.decision_humana`).
+    ...(aprobada ? {} : { frase_del_aprobador: (input.rejection_reason ?? "").trim().slice(0, FRASE_MAXIMA) || "(no reason given)" }),
+  }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), c.timeoutMs)
+  try {
+    const res = await c.fetchImpl(`${base}/api/hitl/${encodeURIComponent(input.hitl_id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-api-key": llave },
+      body: JSON.stringify(cuerpo),
+      signal: controller.signal,
+    })
+    return {
+      mode: "live",
+      ok: res.ok,
+      hitl_id: input.hitl_id,
+      decision: input.decision,
+      client_id: c.client_id,
+      execution_id: null,
+      platform_status: res.status,
+      ...(res.ok ? {} : { platform_error: (await res.text().catch(() => "")).slice(0, 300) || `http_${res.status}` }),
+      client_lookup: c.client_lookup,
+      hitl_row_updated: res.ok,
+    }
+  } catch (e) {
+    return {
+      mode: "live",
+      ok: false,
+      hitl_id: input.hitl_id,
+      decision: input.decision,
+      client_id: c.client_id,
+      execution_id: null,
+      platform_status: 0,
+      platform_error: e instanceof Error ? e.message : String(e),
+      client_lookup: c.client_lookup,
+      hitl_row_updated: false,
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function resolveHitlApproval(
   input: HitlResolveInput,
   deps: HitlResolveDeps,
@@ -199,15 +285,15 @@ export async function resolveHitlApproval(
 
   // ── load the HITL row · canon-canon-validate exists + pending
   const lookup = await deps.supabase
-    .from("hitl_approvals")
-    .select("id, status, client_id, context, payload")
+    .from(TABLA_BANDEJA)
+    .select("id, status, client_id, metadata, payload")
     .eq("id", input.hitl_id)
     .maybeSingle()
 
   if (lookup.error) {
     return refused(`db_lookup_error · ${lookup.error.message}`, input)
   }
-  const row = (lookup.data ?? null) as HitlRow | null
+  const row = filaDeBandeja((lookup.data ?? null) as Record<string, unknown> | null)
   if (!row) {
     return refused("hitl_id_not_found", input)
   }
@@ -266,6 +352,12 @@ export async function resolveHitlApproval(
   }
 
   // ── n8n hitl-resume POST · canon-canon-spec §2.A · 30s timeout · retry once on 5xx
+  // Sin `execution_id` no hay ninguna ejecución de n8n pausada que reanudar (es el caso de una pieza que deja la oficina o de una compuerta que no espera):
+  // se resuelve por la PLATAFORMA (`PATCH /api/hitl/{id}`), que es donde viven los efectos de aprobar (promover el manual de marca revisado, armar el ensayo de
+  // publicación del lote social, propagar la decisión a los paquetes de contenido…). Actualizar la fila directo los saltaría en silencio.
+  if (!fields.execution_id) {
+    return resolverPorLaPlataforma(input, { deps, fetchImpl, timeoutMs, client_id, client_lookup, ts: now() })
+  }
   if (!n8nBaseUrl) {
     return refused("n8n_base_url_unset", input, { client_id, client_lookup })
   }
@@ -314,18 +406,24 @@ export async function resolveHitlApproval(
 
   // ── canon · update the row · canon-canon-status approved|rejected + ts
   const ts = now()
+  const decision = {
+    decision: input.decision === "approve" ? "approved" : "rejected",
+    por: input.reviewer_id,
+    cuando: ts,
+    ...(input.decision === "reject" ? { motivo: input.rejection_reason ?? "(no reason given)" } : {}),
+  }
+  const quien = { resolved_by: input.reviewer_id, reviewer: input.reviewer_id, resolved_at: ts, decided_at: ts, decision }
   const updatePatch: Record<string, unknown> =
     input.decision === "approve"
-      ? { status: "approved", approved_by: input.reviewer_id, approved_at: ts }
+      ? { status: "approved", ...quien }
       : {
           status: "rejected",
-          rejected_at: ts,
-          rejection_reason: input.rejection_reason ?? "(no reason given)",
-          approved_by: input.reviewer_id, // canon · approved_by is the reviewer who pressed the button regardless of outcome
+          resolution_notes: input.rejection_reason ?? "(no reason given)",
+          ...quien,
         }
 
   const update = await deps.supabase
-    .from("hitl_approvals")
+    .from(TABLA_BANDEJA)
     .update(updatePatch)
     .eq("id", input.hitl_id)
     .eq("status", "pending") // canon · belt-and-suspenders idempotency
