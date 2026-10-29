@@ -6,6 +6,7 @@
 
 /** el único tipo de la bandeja que se aprueba aquí; los demás se listan en solo lectura */
 export const TIPO_PIEZA = "content_piece_review"
+/** límite de rondas de cambios por pieza (decisión de Emilio, 29-oct). NO lo hace cumplir el tablero: lo hace la ruta de la plataforma `POST /api/oficina/cambios` (CC#2); aquí solo se muestra en el aviso al dueño. Si cambia, cambia en los dos lados. */
 export const RONDAS_MAXIMAS_DE_CAMBIOS = 5
 export const COMENTARIO_MINIMO = 10
 export const MOTIVO_MINIMO = 5
