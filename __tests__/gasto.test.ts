@@ -85,3 +85,17 @@ describe("lectura paginada", () => {
 describe("formato", () => {
   it("lo muy pequeño no se redondea a cero", () => { expect(usdFino(0.0042)).toBe("US$ 0,0042"); expect(usdFino(0)).toBe("US$ 0,00"); expect(usdFino(1.234)).toBe("US$ 1,23") })
 })
+
+describe("fichas dadas de baja y de prueba (D7)", () => {
+  it("se juntan en UNA fila; las activas y «sin cliente» se quedan aparte; el total no cambia", async () => {
+    const { repartoVisible } = await import("@/lib/gasto-datos")
+    const filas = [
+      { clave: "a", nombre: "Zero Risk", total: 13, llamadas: 5 }, { clave: "b", nombre: "Zero Risk", total: 4, llamadas: 2 }, { clave: "c", nombre: "cliente prueba-p", total: 8, llamadas: 9 },
+      { clave: "", nombre: "Sin cliente (gasto de la agencia)", total: 3, llamadas: 1 },
+    ]
+    const v = repartoVisible(filas, new Set(["a"]))
+    expect(v.map((x) => x.nombre)).toEqual(["Zero Risk", "Fichas dadas de baja y de prueba (2)", "Sin cliente (gasto de la agencia)"].sort((x, y) => v.findIndex((r) => r.nombre === x) - v.findIndex((r) => r.nombre === y)))
+    expect(v.find((x) => x.clave === "fichas-inactivas")).toMatchObject({ total: 12, llamadas: 11 })
+    expect(v.reduce((t, x) => t + x.total, 0)).toBe(28)
+  })
+})

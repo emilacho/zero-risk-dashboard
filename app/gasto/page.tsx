@@ -73,7 +73,7 @@ function Tabla({ titulo, filas, vacio }: { titulo: string; filas: Reparto[]; vac
 export default async function GastoPage() {
   const puerta = await exigirAdmin()
   if (!puerta.ok) redirect(puerta.status === 401 ? "/login?next=%2Fgasto" : "/login?error=forbidden")
-  const { resumen: r, cortado, leido_en } = await leerGasto(getServiceRoleClient())
+  const { resumen: r, por_cliente_visible, cortado, leido_en } = await leerGasto(getServiceRoleClient())
   const sobreElTecho = r.hoy.total > TECHO_DIARIO_USD
 
   return (
@@ -97,7 +97,7 @@ export default async function GastoPage() {
       </section>
 
       <div className="mt-6 grid gap-3 md:grid-cols-2">
-        <Tabla titulo="Por cliente (30 días)" filas={r.por_cliente} vacio="Sin gasto en estos 30 días." />
+        <Tabla titulo="Por cliente (30 días)" filas={por_cliente_visible} vacio="Sin gasto en estos 30 días." />
         <Tabla titulo="Por proveedor (30 días)" filas={r.por_proveedor} vacio="Sin gasto en estos 30 días." />
       </div>
 

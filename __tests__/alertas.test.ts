@@ -13,16 +13,28 @@ describe("de dónde salen las alertas", () => {
   })
   it("costos: dice la cifra y el techo", () => {
     const [a] = deCostos([{ threshold_key: "diario", last_fired_at: "2026-10-28T00:00:00Z", last_value_usd: "12.5", threshold_usd: 10 }])
-    expect(a.clave).toBe("costo:diario"); expect(a.detalle).toBe("llegó a US$ 12.50 con techo de US$ 10.00")
+    expect(a.clave).toBe("costo:diario"); expect(a.detalle).toBe("llegó a US$ 12,50 con un techo de US$ 10,00")
   })
   it("oficina: fallo, tope y desacuerdo cuentan; ensayo, prueba, estados sanos y lo viejo no", () => {
     const r = deOficina([
-      enc({ id: "a", estado: "fallido" }), enc({ id: "b", estado: "cerrado_por_tope" }), enc({ id: "c", con_desacuerdo: true }),
-      enc({ id: "d", estado: "fallido", dry_run: true }), enc({ id: "e", estado: "fallido", prueba: true }), enc({ id: "f" }),
-      enc({ id: "g", estado: "fallido", creado_en: "2026-10-01T00:00:00Z" }),
+      enc({ id: "a", brief_id: "A", estado: "fallido" }), enc({ id: "b", brief_id: "B", estado: "cerrado_por_tope" }), enc({ id: "c", brief_id: "C", con_desacuerdo: true }),
+      enc({ id: "d", brief_id: "D", estado: "fallido", dry_run: true }), enc({ id: "e", brief_id: "E", estado: "fallido", prueba: true }), enc({ id: "f", brief_id: "F" }),
+      enc({ id: "g", brief_id: "G", estado: "fallido", creado_en: "2026-10-01T00:00:00Z" }),
     ], AHORA)
     expect(r.map((x) => x.clave)).toEqual(["oficina:a", "oficina:b", "oficina:c"])
-    expect(r[2].detalle).toMatch(/no se pusieron de acuerdo/)
+    expect(r[2].detalle).toMatch(/desacuerdos abiertos/)
+    // nada interno: ni BRF, ni familia cruda, ni versión, ni dinero con punto
+    for (const x of r) { expect(x.titulo + x.detalle).not.toMatch(/BRF|carrusel_mesa|vd|d.dd/) }
+    expect(r[0].titulo).toBe("Carrusel · 28 oct")
+  })
+})
+
+describe("una pieza, una alerta", () => {
+  it("los intentos viejos de un pedido ya rehecho no son alerta; si el último también falló, es UNA sola", () => {
+    const rehecho = deOficina([enc({ id: "v1", estado: "fallido", creado_en: "2026-10-28T10:00:00Z" }), enc({ id: "v2", estado: "cerrado", creado_en: "2026-10-28T12:00:00Z" })], AHORA)
+    expect(rehecho).toEqual([])
+    const igual = deOficina([enc({ id: "v1", estado: "fallido", creado_en: "2026-10-28T10:00:00Z" }), enc({ id: "v2", estado: "fallido", creado_en: "2026-10-28T12:00:00Z" }), enc({ id: "v3", estado: "fallido", creado_en: "2026-10-28T14:00:00Z" })], AHORA)
+    expect(igual.map((x) => x.clave)).toEqual(["oficina:v3"])
   })
 })
 

@@ -37,7 +37,8 @@ export default async function AlertasPage() {
 
   return (
     <main className="mx-auto max-w-[900px] px-6 pb-16 pl-24 pt-10">
-      <h1 className="font-display text-xl font-semibold text-zinc-100">Alertas</h1>
+      <span className="eyebrow-chip">Parte 06</span>
+      <h1 className="mt-2 font-display text-[34px] font-semibold leading-tight tracking-tight">Alertas</h1>
       <p className="mt-1 text-sm text-zinc-500">
         Lo que el sistema marcó como problema. «Ya lo vi» la manda abajo; si vuelve a ocurrir, reaparece arriba como nueva.
       </p>
@@ -50,14 +51,14 @@ export default async function AlertasPage() {
       <section className="mt-6">
         <h2 className="mb-2 text-sm font-medium text-zinc-200">Nuevas <span className="num text-zinc-500">({nuevas.length})</span></h2>
         {nuevas.length === 0 ? <p className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-4 text-sm text-zinc-400">Nada pendiente. Todo lo que el sistema marcó ya lo viste.</p> : (
-          <ul className="rounded-lg border border-zinc-800 bg-zinc-900/60">{nuevas.map((a) => <Fila key={a.clave} a={a} conBoton />)}</ul>
+          <ul data-hue="amber" className="surface-card">{nuevas.map((a) => <Fila key={a.clave} a={a} conBoton />)}</ul>
         )}
       </section>
 
       <section className="mt-8">
         <h2 className="mb-2 text-sm font-medium text-zinc-200">Ya vistas <span className="num text-zinc-500">({vistas.length})</span></h2>
         {vistas.length === 0 ? <p className="text-sm text-zinc-500">Todavía no marcaste ninguna.</p> : (
-          <ul className="rounded-lg border border-zinc-800 bg-zinc-900/40">{vistas.map((a) => <Fila key={a.clave} a={a} conBoton={false} />)}</ul>
+          <ul data-hue="violet" className="surface-card">{vistas.map((a) => <Fila key={a.clave} a={a} conBoton={false} />)}</ul>
         )}
       </section>
     </main>
