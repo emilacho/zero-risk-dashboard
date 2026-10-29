@@ -24,7 +24,7 @@ export default async function MapaPage() {
     error = e instanceof Error ? e.message : String(e)
   }
   return (
-    <main className="mx-auto max-w-[1300px] px-6 pb-16 pl-24 pt-10">
+    <main data-seccion="mapa" className="mx-auto max-w-[1300px] px-6 pb-16 pl-24 pt-10">
       <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight">Mapa</h1>
       <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">El recorrido de una pieza, de izquierda a derecha. Cada estación cuenta lo que pasó por ella en los últimos 7 días (solo trabajo real, sin ensayos).</p>
       {error && <p className="mt-6 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-[13px] text-rose-200">No pude leer el mapa: {error}</p>}

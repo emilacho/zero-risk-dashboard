@@ -15,7 +15,7 @@ const corto = (dia: string) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}`
 
 function Cifra({ titulo, valor, nota }: { titulo: string; valor: string; nota: string }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+    <div className="surface-card p-4">
       <p className="text-[11px] uppercase tracking-wide text-zinc-500">{titulo}</p>
       <p className="num mt-1 text-2xl font-semibold text-zinc-100">{valor}</p>
       <p className="mt-1 text-[12px] text-zinc-500">{nota}</p>
@@ -51,7 +51,7 @@ function Barras({ dias }: { dias: DiaDeGasto[] }) {
 
 function Tabla({ titulo, filas, vacio }: { titulo: string; filas: Reparto[]; vacio: string }) {
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+    <section className="surface-card p-4">
       <h2 className="text-sm font-medium text-zinc-200">{titulo}</h2>
       {filas.length === 0 ? <p className="mt-3 text-sm text-zinc-500">{vacio}</p> : (
         <table className="mt-3 w-full text-[13px]">
@@ -77,7 +77,7 @@ export default async function GastoPage() {
   const sobreElTecho = r.hoy.total > TECHO_DIARIO_USD
 
   return (
-    <main className="mx-auto max-w-[1100px] px-6 pb-16 pl-24 pt-10">
+    <main data-seccion="gasto" className="mx-auto max-w-[1100px] px-6 pb-16 pl-24 pt-10">
       <h1 className="font-display text-xl font-semibold text-zinc-100">Gasto</h1>
       <p className="mt-1 text-sm text-zinc-500">
         Lo que cuestan los empleados AI y Apify. Es la misma cifra que miran los vigías. Días contados en hora de Ecuador.
@@ -91,7 +91,7 @@ export default async function GastoPage() {
         <Cifra titulo="Últimos 30 días" valor={usd2(r.ultimos.total)} nota={`promedio ${usd2(r.ultimos.promedio_por_dia)} al día`} />
       </div>
 
-      <section className="mt-6 rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+      <section className="mt-6 surface-card p-4">
         <h2 className="mb-3 text-sm font-medium text-zinc-200">Gasto por día</h2>
         <Barras dias={r.ultimos.dias} />
       </section>
@@ -101,7 +101,7 @@ export default async function GastoPage() {
         <Tabla titulo="Por proveedor (30 días)" filas={r.por_proveedor} vacio="Sin gasto en estos 30 días." />
       </div>
 
-      <section className="mt-6 rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+      <section className="mt-6 surface-card p-4">
         <h2 className="text-sm font-medium text-zinc-200">Piezas de la oficina · gasto contra tope</h2>
         {r.piezas.length === 0 ? <p className="mt-3 text-sm text-zinc-500">Todavía no hay piezas.</p> : (
           <table className="mt-3 w-full text-[13px]">

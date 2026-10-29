@@ -190,8 +190,8 @@
       background 300ms ease;
     overflow: hidden;
     isolation: isolate;
-    /* Default hue is violet. Components override with data-hue=... */
-    --hue: var(--hue-violet);
+    /* El color por omisión es el de la SECCIÓN (data-seccion en la página); sin sección, violeta. data-hue lo cambia por tarjeta. */
+    --hue: var(--seccion, var(--hue-violet));
   }
   .surface-card[data-hue="violet"]   { --hue: var(--hue-violet); }
   .surface-card[data-hue="cyan"]     { --hue: var(--hue-cyan); }
@@ -510,10 +510,20 @@
     font-size: 0.65rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: hsl(var(--hue-cyan));
-    background: hsl(var(--hue-cyan) / 0.08);
-    border: 1px solid hsl(var(--hue-cyan) / 0.25);
+    color: hsl(var(--seccion, var(--hue-cyan)));
+    background: hsl(var(--seccion, var(--hue-cyan)) / 0.08);
+    border: 1px solid hsl(var(--seccion, var(--hue-cyan)) / 0.25);
   }
+
+  /* Color por sección: cada pantalla y su ícono del menú comparten matiz */
+  [data-seccion="inicio"]   { --seccion: var(--hue-violet); }
+  [data-seccion="piezas"]   { --seccion: var(--hue-amber); }
+  [data-seccion="clientes"] { --seccion: var(--hue-sky); }
+  [data-seccion="oficinas"] { --seccion: var(--hue-teal); }
+  [data-seccion="gasto"]    { --seccion: var(--hue-lime); }
+  [data-seccion="alertas"]  { --seccion: var(--hue-rose); }
+  [data-seccion="mapa"]     { --seccion: var(--hue-orange); }
+  .cifra-seccion { color: hsl(var(--hue, var(--seccion, var(--hue-violet)))); }
 
   /* Tool / category pill · data-hue drives the color */
   .pill {

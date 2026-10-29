@@ -44,7 +44,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
   if (!f) notFound()
   const manual = origenDelManual(f.manual)
   return (
-    <main className="mx-auto max-w-[1200px] px-6 pb-16 pl-24 pt-10">
+    <main data-seccion="clientes" className="mx-auto max-w-[1200px] px-6 pb-16 pl-24 pt-10">
       <Link href="/clientes" className="text-[12px] text-[hsl(var(--muted-foreground))] hover:underline">← Clientes</Link>
       <h1 className="mt-2 font-display text-[30px] font-semibold leading-tight tracking-tight">{f.cliente.nombre}</h1>
       <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">

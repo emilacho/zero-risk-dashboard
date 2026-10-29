@@ -6,6 +6,7 @@ import { leerInicio, type Bloque } from "@/lib/inicio-datos"
 import { TOPE_DIARIO_USD, cuando, porcentajeDelTope } from "@/lib/inicio"
 import { usd, type Semaforo } from "@/lib/oficinas"
 import { ChatConCowork } from "@/components/inicio/ChatConCowork"
+import { Barras, Tendencia } from "@/components/inicio/MiniGrafica"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Inicio" }
@@ -25,7 +26,7 @@ export default async function InicioPage() {
   const ahora = new Date()
   const d = await leerInicio(getServiceRoleClient(), ahora)
   return (
-    <main className="mx-auto max-w-[1100px] px-6 pb-16 pl-24 pt-10">
+    <main data-seccion="inicio" className="mx-auto max-w-[1100px] px-6 pb-16 pl-24 pt-10">
       <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight">Inicio</h1>
 
       <section className="mt-6">
@@ -36,9 +37,24 @@ export default async function InicioPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             {d.te_necesitan.valor.map((p) => (
               <Link key={p.clave} href={p.href} data-hue={p.clave === "piezas" ? "amber" : p.clave === "preguntas" ? "rose" : "violet"} className="surface-card block p-5">
-                <span className="num block text-[44px] font-semibold leading-none">{p.cuantos}</span>
+                <span className="num cifra-seccion block text-[44px] font-semibold leading-none">{p.cuantos}</span>
                 <span className="mt-2 block text-[14px]">{p.titulo}</span>
                 {p.nota && <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">{p.nota}</span>}
+              </Link>
+            ))}
+          </div>
+        )}
+        {d.miniaturas.ok && d.miniaturas.valor.length > 0 && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {d.miniaturas.valor.map((m) => (
+              <Link key={m.id} href={`/piezas?id=${m.id}`} data-hue="amber" className="surface-card flex items-center gap-3 p-3">
+                {m.tiene_dibujo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/api/piezas/${m.id}/lamina/1`} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-md border border-white/10 object-cover" />
+                ) : (
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-white/10 text-[10px] text-[hsl(var(--muted-foreground))]">sin dibujo</span>
+                )}
+                <span className="min-w-0 text-[12px] leading-snug">{m.titulo}<span className="cifra-seccion mt-1 block text-[11px]">Abrir y decidir →</span></span>
               </Link>
             ))}
           </div>
@@ -60,17 +76,21 @@ export default async function InicioPage() {
         {!d.cifras.ok ? <NoSePudoLeer b={d.cifras} /> : (
           <div className="grid gap-3 sm:grid-cols-3">
             <div data-hue="teal" className="surface-card p-5">
-              <span className="num block text-[34px] font-semibold leading-none">{d.cifras.valor.piezas_semana}</span>
+              <span className="num cifra-seccion block text-[34px] font-semibold leading-none">{d.cifras.valor.piezas_semana}</span>
               <span className="mt-2 block text-[13px]">piezas entregadas (7 días)</span>
+              <Barras etiqueta="Piezas entregadas por semana, últimas 6 semanas" items={d.cifras.valor.semanas.map((s) => ({ etiqueta: "semana del " + s.etiqueta, valor: s.piezas }))} />
+              <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">por semana · últimas 6</span>
             </div>
             <Link href="/gasto" data-hue="lime" className="surface-card block p-5">
-              <span className="num block text-[34px] font-semibold leading-none">{usd(d.cifras.valor.gasto_mes)}</span>
+              <span className="num cifra-seccion block text-[34px] font-semibold leading-none">{usd(d.cifras.valor.gasto_mes)}</span>
               <span className="mt-2 block text-[13px]">gasto de {d.cifras.valor.mes}</span>
               <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-[hsl(var(--primary))]" style={{ width: `${porcentajeDelTope(d.cifras.valor.gasto_hoy)}%` }} /></span>
               <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">hoy {usd(d.cifras.valor.gasto_hoy)} de {usd(TOPE_DIARIO_USD)} de tope diario</span>
+              <Tendencia etiqueta="Gasto diario de los últimos 30 días" valores={d.cifras.valor.gasto_30d} />
+              <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">gasto por día · 30 días</span>
             </Link>
             <Link href="/clientes" data-hue="sky" className="surface-card block p-5">
-              <span className="num block text-[34px] font-semibold leading-none">{d.cifras.valor.clientes_activos}</span>
+              <span className="num cifra-seccion block text-[34px] font-semibold leading-none">{d.cifras.valor.clientes_activos}</span>
               <span className="mt-2 block text-[13px]">clientes en servicio</span>
             </Link>
           </div>

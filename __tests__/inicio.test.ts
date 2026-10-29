@@ -78,3 +78,17 @@ describe("puertas y chat de Inicio", () => {
     for (const viejo of ["HomeControlPanel", "LiveAgentFeed", "OpsKpiGrid", "Sprint 6"]) expect(t, viejo).not.toContain(viejo)
   })
 })
+
+describe("piezas por semana (mini-gráfica)", () => {
+  it("cuenta por ventanas de 7 días, solo lo real y entregado; la última es «esta semana»", async () => {
+    const { piezasPorSemana } = await import("@/lib/inicio")
+    const ahora = new Date("2026-10-29T12:00:00Z")
+    const hace = (d: number) => new Date(ahora.getTime() - d * 86_400_000).toISOString()
+    const s = piezasPorSemana([
+      { estado: "cerrado", cerrado_en: hace(1) }, { estado: "cerrado", cerrado_en: hace(2) }, { estado: "cerrado", dry_run: true, cerrado_en: hace(2) },
+      { estado: "fallido", cerrado_en: hace(3) }, { estado: "cerrado", cerrado_en: hace(9) }, { estado: "cerrado", cerrado_en: hace(80) },
+    ], ahora, 6)
+    expect(s).toHaveLength(6)
+    expect(s.map((x) => x.piezas)).toEqual([0, 0, 0, 0, 1, 2])
+  })
+})
