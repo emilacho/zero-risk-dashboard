@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
-import { COMENTARIO_MINIMO, MOTIVO_MINIMO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
+import { COMENTARIO_MINIMO, MOTIVO_MINIMO, RONDAS_MAXIMAS_DE_CAMBIOS, ROTULO_DE_ORIGEN } from "@/lib/piezas"
 
 type Pestana = "lamina" | "equipo" | "jefatura" | "gasto"
 type Dialogo = null | "cambios" | "rechazar"
@@ -156,7 +156,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
             {pestana === "gasto" && (
               <>
                 <Bloque titulo="Gasto de esta pieza">{usd(pieza.gasto_usd)}</Bloque>
-                <Bloque titulo="Pedir cambios">Cada ronda vuelve a gastar lo que cuesta una pieza (≈ {usd(pieza.gasto_usd)}). Límite: 5 rondas por pieza.</Bloque>
+                <Bloque titulo="Pedir cambios">Cada ronda vuelve a gastar lo que cuesta una pieza (≈ {usd(pieza.gasto_usd)}). Límite: {RONDAS_MAXIMAS_DE_CAMBIOS} rondas por pieza.</Bloque>
               </>
             )}
           </div>

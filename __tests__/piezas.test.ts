@@ -280,6 +280,53 @@ describe("los botones: decidir una pieza", () => {
   })
 })
 
+describe("cada razón por sí sola exige la casilla (y una pieza limpia no)", () => {
+  const resolverOk = vi.fn(async (): Promise<HitlResolveResult> => ({ mode: "live", ok: true, hitl_id: FILA.id, decision: "approve", client_id: "c1", execution_id: null, platform_status: 200 }))
+  const conMeta = (meta: Record<string, unknown>) => {
+    const t = TABLAS(); t.hitl_queue = [{ ...FILA, metadata: { ...META, revision_incompleta: false, jefatura_resultado: "aprobada", con_desacuerdo: false, desacuerdos: [], ...meta } }, OTRA]
+    const b = baseFalsa(t); return { supabase: b.supabase, revisor: "emilio", ...deps, resolver: resolverOk as never, llave: "k" }
+  }
+  const razones: Array<[string, Record<string, unknown>]> = [
+    ["revision_incompleta", { revision_incompleta: true }],
+    ["incompleta_por_tope", { jefatura_resultado: "incompleta_por_tope" }],
+    ["con_desacuerdo", { con_desacuerdo: true }],
+    ["desacuerdos", { desacuerdos: ["imagen: falta"] }],
+    ["sin_dibujar", { sin_dibujar: true }],
+  ]
+  for (const [nombre, meta] of razones) {
+    it(`sola, ${nombre} exige la casilla: aprobar sin ella → 400`, async () => {
+      resolverOk.mockClear()
+      const r = await decidirPieza(FILA.id, { accion: "aprobar" }, conMeta(meta))
+      expect(r.status).toBe(400)
+      expect(r.cuerpo.error).toBe("casilla_requerida")
+      expect(resolverOk).not.toHaveBeenCalled()
+    })
+  }
+  it("una pieza limpia se aprueba sin casilla", async () => {
+    resolverOk.mockClear()
+    const r = await decidirPieza(FILA.id, { accion: "aprobar" }, conMeta({}))
+    expect(r.status).toBe(200)
+    expect(resolverOk).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("pedir cambios: la plataforma que falla nunca se lee como éxito", () => {
+  const nuevo = (fetchImpl: typeof fetch) => { const b = baseFalsa(TABLAS()); return { supabase: b.supabase, revisor: "emilio", ...deps, fetchImpl, llave: "k" } }
+  const red = (cambios: () => Response | Promise<Response>) => (async (url: string) => (String(url).endsWith("manifest.json") ? new Response(JSON.stringify(MANIFIESTO)) : cambios())) as unknown as typeof fetch
+  for (const codigo of [401, 500]) {
+    it(`la plataforma contesta ${codigo} → 502 ok:false`, async () => {
+      const r = await decidirPieza(FILA.id, { accion: "cambios", comentario: "el titular es muy largo" }, nuevo(red(() => new Response("no", { status: codigo }))))
+      expect(r.status).toBe(502)
+      expect(r.cuerpo).toMatchObject({ ok: false, error: "la_plataforma_rechazo", plataforma_status: codigo })
+    })
+  }
+  it("la llamada lanza (red caída) → 502 ok:false", async () => {
+    const r = await decidirPieza(FILA.id, { accion: "cambios", comentario: "el titular es muy largo" }, nuevo(red(() => { throw new Error("ECONNRESET") })))
+    expect(r.status).toBe(502)
+    expect(r.cuerpo).toMatchObject({ ok: false, error: "plataforma_sin_respuesta" })
+  })
+})
+
 describe("las puertas: solo el administrador con sesión", () => {
   const RAIZ = path.join(__dirname, "..")
   const leer = (p: string) => fs.readFileSync(path.join(RAIZ, p), "utf8")
