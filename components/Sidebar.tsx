@@ -19,6 +19,7 @@ import {
   Sparkle,
   SquaresFour,
   Images,
+  Gauge,
   Cpu,
   Users,
   TreeStructure,
@@ -43,6 +44,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: SquaresFour },
   { href: "/piezas", label: "Piezas", icon: Images },
+  { href: "/oficinas", label: "Oficinas", icon: Gauge },
   {
     href: "/dept",
     label: "Departamentos",
