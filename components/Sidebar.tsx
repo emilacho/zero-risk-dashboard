@@ -14,6 +14,7 @@
  */
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import {
   Sparkle,
@@ -51,6 +52,9 @@ const NAV: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  // al tocar una entrada se enciende al instante; no espera a que llegue la pantalla nueva
+  const [tocada, setTocada] = useState<string | null>(null)
+  useEffect(() => setTocada(null), [pathname])
 
   return (
     <motion.aside
@@ -80,8 +84,9 @@ export function Sidebar() {
       {/* Nav stack */}
       <nav className="mt-3 flex flex-1 flex-col gap-1 px-3">
         {NAV.map(({ href, label, icon: Icon, hue }) => {
-          const active =
-            href === "/"
+          const active = tocada
+            ? tocada === href
+            : href === "/"
               ? pathname === "/"
               : pathname === href || pathname?.startsWith(href + "/")
           return (
@@ -90,6 +95,7 @@ export function Sidebar() {
                 href={href}
                 aria-label={label}
                 title={label}
+                onClick={() => setTocada(href)}
                 data-active={active ? "true" : undefined}
                 style={{ ["--h" as string]: `var(--hue-${hue})` }}
                 className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--h)/0.14)]"
@@ -103,7 +109,7 @@ export function Sidebar() {
                     visual presence at primary-nav scale. */}
                 <Icon
                   weight="duotone"
-                  className="h-5 w-5 shrink-0 text-[hsl(var(--h)/0.8)] transition-colors group-hover/item:text-[hsl(var(--h))] group-data-[active=true]/item:text-[hsl(var(--h))]"
+                  className={`h-5 w-5 shrink-0 text-[hsl(var(--h)/0.8)] transition-colors ${tocada === href ? "animate-pulse" : ""} group-hover/item:text-[hsl(var(--h))] group-data-[active=true]/item:text-[hsl(var(--h))]`}
                 />
                 <span className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 group-hover/item:text-foreground group-data-[active=true]/item:text-foreground">
                   {label}

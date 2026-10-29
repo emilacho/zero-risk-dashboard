@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { leerInicio, type Bloque } from "@/lib/inicio-datos"
-import { TOPE_DIARIO_USD, cuando, porcentajeDelTope } from "@/lib/inicio"
+import { cuando } from "@/lib/inicio"
 import { usd, type Semaforo } from "@/lib/oficinas"
 import { ChatConCowork } from "@/components/inicio/ChatConCowork"
 import { Barras, Tendencia } from "@/components/inicio/MiniGrafica"
@@ -13,8 +13,8 @@ export const metadata = { title: "Inicio" }
 
 const LUZ: Record<Semaforo, string> = { verde: "bg-emerald-400", ambar: "bg-amber-400", rojo: "bg-rose-500", gris: "bg-zinc-500" }
 
-function Titulo({ n, children }: { n: number; children: React.ReactNode }) {
-  return <h2 className="mb-3 flex items-center gap-2"><span className="eyebrow-chip">Parte {String(n).padStart(2, "0")}</span><span className="text-[12px] font-medium uppercase tracking-[0.08em] text-[hsl(var(--muted-foreground))]">{children}</span></h2>
+function Titulo({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-3 text-[12px] font-medium uppercase tracking-[0.08em] text-[hsl(var(--muted-foreground))]">{children}</h2>
 }
 function NoSePudoLeer({ b }: { b: Extract<Bloque<unknown>, { ok: false }> }) {
   return <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-[13px] text-rose-200">No pude leer esto: {b.error}</p>
@@ -30,7 +30,7 @@ export default async function InicioPage() {
       <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight">Inicio</h1>
 
       <section className="mt-6">
-        <Titulo n={1}>Te necesitan</Titulo>
+        <Titulo>Te necesitan</Titulo>
         {!d.te_necesitan.ok ? <NoSePudoLeer b={d.te_necesitan} /> : d.te_necesitan.valor.length === 0 ? (
           <p className="surface-card p-5 text-[15px]">Todo al día.</p>
         ) : (
@@ -39,7 +39,6 @@ export default async function InicioPage() {
               <Link key={p.clave} href={p.href} data-hue={p.clave === "piezas" ? "amber" : p.clave === "preguntas" ? "rose" : "violet"} className="surface-card block p-5">
                 <span className="num cifra-seccion block text-[44px] font-semibold leading-none">{p.cuantos}</span>
                 <span className="mt-2 block text-[14px]">{p.titulo}</span>
-                {p.nota && <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">{p.nota}</span>}
               </Link>
             ))}
           </div>
@@ -54,7 +53,7 @@ export default async function InicioPage() {
                 ) : (
                   <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-white/10 text-[10px] text-[hsl(var(--muted-foreground))]">sin dibujo</span>
                 )}
-                <span className="min-w-0 text-[12px] leading-snug">{m.titulo}<span className="cifra-seccion mt-1 block text-[11px]">Abrir y decidir →</span></span>
+                <span className="min-w-0 text-[12px] leading-snug">{m.titulo}</span>
               </Link>
             ))}
           </div>
@@ -62,7 +61,7 @@ export default async function InicioPage() {
       </section>
 
       <section className="mt-8">
-        <Titulo n={2}>Estado del sistema</Titulo>
+        <Titulo>Estado del sistema</Titulo>
         {!d.estado.ok ? <NoSePudoLeer b={d.estado} /> : (
           <Link href={d.estado.valor.href} data-hue={d.estado.valor.semaforo === "verde" ? "emerald" : d.estado.valor.semaforo === "ambar" ? "amber" : d.estado.valor.semaforo === "rojo" ? "rose" : "violet"} className="surface-card flex items-center gap-3 p-4 text-[15px]">
             <span className={`h-3 w-3 rounded-full ${LUZ[d.estado.valor.semaforo]}`} />
@@ -72,22 +71,19 @@ export default async function InicioPage() {
       </section>
 
       <section className="mt-8">
-        <Titulo n={3}>Esta semana</Titulo>
+        <Titulo>Esta semana</Titulo>
         {!d.cifras.ok ? <NoSePudoLeer b={d.cifras} /> : (
           <div className="grid gap-3 sm:grid-cols-3">
             <div data-hue="teal" className="surface-card p-5">
               <span className="num cifra-seccion block text-[34px] font-semibold leading-none">{d.cifras.valor.piezas_semana}</span>
               <span className="mt-2 block text-[13px]">piezas entregadas (7 días)</span>
               <Barras etiqueta="Piezas entregadas por semana, últimas 6 semanas" items={d.cifras.valor.semanas.map((s) => ({ etiqueta: "semana del " + s.etiqueta, valor: s.piezas }))} />
-              <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">por semana · últimas 6</span>
             </div>
             <Link href="/gasto" data-hue="lime" className="surface-card block p-5">
               <span className="num cifra-seccion block text-[34px] font-semibold leading-none">{usd(d.cifras.valor.gasto_mes)}</span>
               <span className="mt-2 block text-[13px]">gasto de {d.cifras.valor.mes}</span>
-              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/10"><span className="block h-full bg-[hsl(var(--primary))]" style={{ width: `${porcentajeDelTope(d.cifras.valor.gasto_hoy)}%` }} /></span>
-              <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">hoy {usd(d.cifras.valor.gasto_hoy)} de {usd(TOPE_DIARIO_USD)} de tope diario</span>
+              <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">hoy {usd(d.cifras.valor.gasto_hoy)}</span>
               <Tendencia etiqueta="Gasto diario de los últimos 30 días" valores={d.cifras.valor.gasto_30d} />
-              <span className="mt-1 block text-[11px] text-[hsl(var(--muted-foreground))]">gasto por día · 30 días</span>
             </Link>
             <Link href="/clientes" data-hue="sky" className="surface-card block p-5">
               <span className="num cifra-seccion block text-[34px] font-semibold leading-none">{d.cifras.valor.clientes_activos}</span>
@@ -98,7 +94,7 @@ export default async function InicioPage() {
       </section>
 
       <section className="mt-8">
-        <Titulo n={4}>Oficinas</Titulo>
+        <Titulo>Oficinas</Titulo>
         {!d.oficinas.ok ? <NoSePudoLeer b={d.oficinas} /> : (
           <ul data-hue="violet" className="surface-card divide-y divide-white/5">
             {d.oficinas.valor.map((o) => (
@@ -107,7 +103,6 @@ export default async function InicioPage() {
                   <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${LUZ[o.semaforo]}`} />
                   <span className="w-40 shrink-0 font-medium">{o.nombre}</span>
                   <span className="text-[hsl(var(--muted-foreground))]">{o.estado_texto}</span>
-                  <span className="ml-auto text-[11px] text-[hsl(var(--muted-foreground))]">{o.ultima_actividad ? cuando(o.ultima_actividad, ahora) : "sin actividad registrada"}</span>
                 </Link>
               </li>
             ))}
@@ -116,7 +111,7 @@ export default async function InicioPage() {
       </section>
 
       <section className="mt-8">
-        <Titulo n={5}>Lo último que pasó</Titulo>
+        <Titulo>Lo último que pasó</Titulo>
         {!d.hechos.ok ? <NoSePudoLeer b={d.hechos} /> : d.hechos.valor.length === 0 ? (
           <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Todavía no hay hechos para mostrar.</p>
         ) : (

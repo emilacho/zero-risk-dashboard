@@ -230,11 +230,13 @@
     pointer-events: none;
     z-index: 1;
   }
-  .surface-card:hover::before {
+  a.surface-card:hover::before,
+  button.surface-card:hover::before {
     opacity: 1;
   }
   .surface-card[data-pop="true"]:hover { transform: translateY(-1px); }
-  .surface-card:hover { border-color: hsl(var(--hue) / 0.45); }
+  a.surface-card:hover,
+  button.surface-card:hover { border-color: hsl(var(--hue) / 0.45); }
 
   .surface-card[data-spotlight="true"]::after {
     content: "";

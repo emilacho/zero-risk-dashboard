@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
 import { resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible, usdES } from "@/lib/lenguaje"
-import { COMENTARIO_MINIMO, MOTIVO_MINIMO, RONDAS_MAXIMAS_DE_CAMBIOS, ROTULO_DE_ORIGEN } from "@/lib/piezas"
+import { COMENTARIO_MINIMO, MOTIVO_MINIMO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
 
-type Pestana = "lamina" | "equipo" | "jefatura" | "gasto"
+type Pestana = "lamina" | "equipo" | "jefatura"
 type Dialogo = null | "cambios" | "rechazar"
 
 const COLOR_AVISO = { rojo: "border-rose-500/40 bg-rose-500/10 text-rose-200", ambar: "border-amber-500/40 bg-amber-500/10 text-amber-100", info: "border-white/10 bg-white/5" } as const
@@ -72,6 +72,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
       <header className="flex flex-wrap items-center gap-2 border-b-[0.5px] border-white/10 px-5 py-3">
         <h2 className="font-display text-[16px] font-semibold">{pieza.titulo}</h2>
         <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[pieza.estado]}</span>
+        <span className="num text-[11px] text-[hsl(var(--muted-foreground))]">{usd(pieza.gasto_usd)}</span>
         <span className="ml-auto flex items-center gap-2">
           {total > 0 && (
             <button onClick={() => setTodas((v) => !v)} className="rounded-full border border-white/10 px-3 py-1 text-[11px] hover:bg-white/5">{todas ? "Ver una lámina" : `Ver las ${total} juntas`}</button>
@@ -83,7 +84,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
         <div className="flex min-h-0 flex-col items-center justify-center gap-3 overflow-auto bg-[hsl(var(--background))] p-4">
           {total === 0 && (
             <div className="max-w-md rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
-              Sin dibujo. Esta pieza no tiene láminas dibujadas (un ensayo, o el dibujo falló). No hay nada que mirar aquí; el texto del equipo, si existe, está en las pestañas.
+              Sin dibujo.
             </div>
           )}
           {total > 0 && !todas && lamina && (
@@ -119,7 +120,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
 
         <aside className="flex min-h-0 flex-col border-l-[0.5px] border-white/10">
           <nav className="flex border-b-[0.5px] border-white/10 text-[13px]">
-            {([["lamina", "Lámina"], ["equipo", "Equipo"], ["jefatura", "Jefatura"], ["gasto", "Gasto"]] as const).map(([k, t]) => (
+            {([["lamina", "Lámina"], ["equipo", "Equipo"], ["jefatura", "Jefatura"]] as const).map(([k, t]) => (
               <button key={k} onClick={() => setPestana(k)} className={`px-3.5 py-2.5 ${pestana === k ? "text-white shadow-[inset_0_-2px_hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"}`}>{t}</button>
             ))}
           </nav>
@@ -129,10 +130,9 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
                 {pieza.avisos.map((a, i) => <div key={i} className={`rounded-lg border p-2.5 ${COLOR_AVISO[a.nivel]}`}>{a.nivel === "rojo" ? "⛔ " : "⚠ "}{a.texto}</div>)}
                 {lamina && (
                   <>
-                    <Bloque titulo="Origen de la imagen">{ROTULO_DE_ORIGEN[lamina.origen]}</Bloque>
-                    <Bloque titulo={`Texto de la lámina ${lamina.n}`}>
+                    <Bloque titulo={`Lámina ${lamina.n} · ${ROTULO_DE_ORIGEN[lamina.origen]}`}>
                       {[lamina.eyebrow, lamina.titular, lamina.cuerpo, lamina.pie].filter(Boolean).map((t, i) => <p key={i} className={i === 1 ? "font-semibold" : ""}>{t}</p>)}
-                      {![lamina.eyebrow, lamina.titular, lamina.cuerpo].some(Boolean) && <p className="text-[hsl(var(--muted-foreground))]">(la oficina no guardó el texto de esta lámina)</p>}
+                      {![lamina.eyebrow, lamina.titular, lamina.cuerpo].some(Boolean) && <p className="text-[hsl(var(--muted-foreground))]">Sin texto guardado.</p>}
                     </Bloque>
                   </>
                 )}
@@ -141,7 +141,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
             )}
             {pestana === "equipo" && (
               pieza.aportes.length === 0
-                ? <p className="text-[hsl(var(--muted-foreground))]">Esta pieza no pasó por la mesa de especialistas: no hay aportes que mostrar.</p>
+                ? <p className="text-[hsl(var(--muted-foreground))]">Sin aportes.</p>
                 : pieza.aportes.map((a) => (
                   <Bloque key={a.n} titulo={`${rolDeLaMesaLegible(a.de)} ${tipoDeAporteLegible(a.tipo)}${a.para ? ` a ${rolDeLaMesaLegible(a.para)}` : ""}`}><p className="whitespace-pre-wrap">{a.texto.slice(0, 700)}</p></Bloque>
                 ))
@@ -153,20 +153,14 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
                 {pieza.jefatura.opinion_externa && <Bloque titulo="Opinión externa"><p className="whitespace-pre-wrap">{pieza.jefatura.opinion_externa.slice(0, 1400)}</p></Bloque>}
               </>
             )}
-            {pestana === "gasto" && (
-              <>
-                <Bloque titulo="Gasto de esta pieza">{usd(pieza.gasto_usd)}</Bloque>
-                <Bloque titulo="Pedir cambios">Cada ronda vuelve a gastar lo que cuesta una pieza (≈ {usd(pieza.gasto_usd)}). Límite: {RONDAS_MAXIMAS_DE_CAMBIOS} rondas por pieza.</Bloque>
-              </>
-            )}
           </div>
         </aside>
       </div>
 
       <footer className="border-t-[0.5px] border-white/10 bg-black/30 px-5 py-3">
         {mensaje && <p className={`mb-2 text-[13px] ${mensaje.ok ? "text-emerald-300" : "text-rose-300"}`}>{mensaje.texto}</p>}
-        {!pieza.es_pieza && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Esto es una «{tipoDeRevisionLegible(pieza.tipo).toLowerCase()}», no una pieza: se resuelve en su propia pantalla, no con estos botones.</p>}
-        {pieza.es_pieza && !pendiente && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Esta pieza ya está «{ETIQUETA_ESTADO[pieza.estado].toLowerCase()}».</p>}
+        {!pieza.es_pieza && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">{tipoDeRevisionLegible(pieza.tipo)} · solo lectura.</p>}
+        {pieza.es_pieza && !pendiente && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[pieza.estado]}.</p>}
         {pendiente && (
           <div className="flex flex-wrap items-center gap-3">
             {pieza.exige_casilla && (
@@ -175,7 +169,6 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
             <button disabled={enviando || (pieza.exige_casilla && !casilla)} onClick={() => enviar("aprobar")} className={`${boton} border-emerald-500 bg-emerald-700/70 hover:bg-emerald-700`}>Aprobar <small className="opacity-80">(no publica todavía)</small></button>
             <button disabled={enviando} onClick={() => { setDialogo("cambios"); setMensaje(null) }} className={`${boton} border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.25)] hover:bg-[hsl(var(--primary)/0.4)]`}>Pedir cambios{marcadas.length > 0 ? ` en ${marcadas.length} lámina${marcadas.length === 1 ? "" : "s"}` : ""}…</button>
             <button disabled={enviando} onClick={() => { setDialogo("rechazar"); setMensaje(null) }} className={`${boton} border-rose-500 bg-rose-900/50 hover:bg-rose-900`}>Rechazar…</button>
-            <span className="ml-auto text-[11px] text-[hsl(var(--muted-foreground))]">← → pasan láminas · clic en la imagen amplía</span>
           </div>
         )}
       </footer>
@@ -184,13 +177,9 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[hsl(var(--background))] p-5 shadow-2xl">
             <h3 className="font-display text-[16px] font-semibold">{dialogo === "cambios" ? "Pedir cambios" : "Rechazar la pieza"}</h3>
-            <p className="mt-1 text-[12px] text-[hsl(var(--muted-foreground))]">
-              {dialogo === "cambios"
-                ? `${marcadas.length > 0 ? `Láminas marcadas: ${marcadas.join(", ")}. ` : "Sin láminas marcadas: el cambio es sobre toda la pieza. "}La oficina rehace la pieza con tu comentario y gasta de nuevo ≈ ${usd(pieza.gasto_usd)} (confirmar es aceptar ese gasto).`
-                : "La pieza queda rechazada y no se publica. Escribe el motivo."}
-            </p>
+            {dialogo === "cambios" && <p className="mt-1 text-[12px] text-[hsl(var(--muted-foreground))]">{marcadas.length > 0 ? `Láminas ${marcadas.join(", ")} · ` : "Toda la pieza · "}vuelve a gastar ≈ {usd(pieza.gasto_usd)}</p>}
             <textarea autoFocus value={comentario} onChange={(e) => setComentario(e.target.value)} rows={5} maxLength={2000} placeholder={dialogo === "cambios" ? "¿Qué quieres distinto?" : "Motivo del rechazo"} className="mt-3 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-sm outline-none focus:border-[hsl(var(--primary))]" />
-            <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Mínimo {dialogo === "cambios" ? COMENTARIO_MINIMO : MOTIVO_MINIMO} caracteres.</p>
+            <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Mínimo {dialogo === "cambios" ? COMENTARIO_MINIMO : MOTIVO_MINIMO} letras</p>
             {mensaje && !mensaje.ok && <p className="mt-2 text-[13px] text-rose-300">{mensaje.texto}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setDialogo(null)} className={`${boton} border-white/10`}>Cancelar</button>
