@@ -84,7 +84,7 @@ describe("las piezas puras de la pantalla", () => {
     expect(agrupar([{ e: "a" }, { e: "a" }, { e: "b" }, { e: null }], "e")).toEqual({ a: 2, b: 1, "—": 1 })
     expect(suma([{ c: "1.5" }, { c: 2 }, { c: null }, { c: "x" }], "c")).toBe(3.5)
     expect(desde(7, AHORA)).toBe("2026-10-22T12:00:00.000Z")
-    expect(usd(1.8408)).toBe("US$ 1.84")
+    expect(usd(1.8408)).toBe("US$ 1,84")
     expect(usd(null)).toBe("—")
   })
   it("la peor luz: rojo manda sobre ámbar sobre verde sobre gris", () => {
@@ -102,36 +102,38 @@ describe("las cinco tarjetas con datos conocidos", () => {
     const c = (await leerOficinas(baseFalsa(TABLAS()), AHORA)).find((t) => t.clave === "creativa")!
     const d = Object.fromEntries(c.datos.map((x) => [x.etiqueta, x]))
     expect(d["Piezas entregadas (7 días)"].valor).toBe("2")
-    expect(d["Fallidas (7 días)"]).toMatchObject({ valor: "1", alerta: true })
-    expect(d["En curso ahora"].valor).toBe("1")
-    expect(d["Gasto real (7 días)"].valor).toBe("US$ 3.91") // 1.84+1.73+0.24+0.10; ni el ensayo (0) ni los US$ 9 de hace 9 días
+    expect(d["Piezas con problema"]).toMatchObject({ valor: "0" }) // el intento fallido ya fue reemplazado por uno nuevo del mismo pedido: no cuenta como fallo
+    expect(d["Gasto (7 días)"].valor).toBe("US$ 3,91") // 1.84+1.73+0.24+0.10; ni el ensayo (0) ni los US$ 9 de hace 9 días
     expect(c.espera).toEqual(["2 piezas por aprobar"]) // solo content_piece_review pendientes; no la lista de competidores ni la aprobada
-    expect(c.detalle.join("|")).toMatch(/Último turno fallido \(hace 20 h\): mesa:dirigir:creative-director-mesa · OFICINA_SIN_MOLDE_SIMULADO/)
-    expect(c.detalle.join("|")).toMatch(/Familias activas: post_img, carrusel_mesa/)
+    expect(c.hizo).toContain("Trabaja ahora en 1 pieza")
+    // nada de lo interno se ve: ni fallos de ensayo, ni familias crudas, ni códigos
+    expect(JSON.stringify(c)).not.toMatch(/SIMULADO|carrusel_mesa|post_img|mesa:dirigir|Familias activas|último turno/i)
     expect(c).toMatchObject({ semaforo: "verde", estado_texto: "Encendida", enlace: { href: "/piezas" } })
   })
   it("financiera: encargos por estado, gasto, preguntas al dueño sin responder y tablero vigente", async () => {
     const f = (await leerOficinas(baseFalsa(TABLAS()), AHORA)).find((t) => t.clave === "financiera")!
-    expect(f.datos.find((x) => x.etiqueta === "Encargos (7 días)")!.valor).toMatch(/1 cerrado/)
-    expect(f.datos.find((x) => x.etiqueta === "Encargos (7 días)")!.valor).toMatch(/1 sin acuerdo/)
-    expect(f.datos.find((x) => x.etiqueta === "Gasto real (7 días)")!.valor).toBe("US$ 0.70")
+    expect(f.hizo[0]).toBe("Trabajó en 2 encargos en 7 días (1 terminado)")
+    expect(f.datos.find((x) => x.etiqueta === "Gasto (7 días)")!.valor).toBe("US$ 0,70")
     expect(f.espera).toEqual(["1 pregunta al dueño sin responder"])
-    expect(f.detalle[0]).toBe("Tableros vigentes: firmado")
+    expect(f.hizo).toContain("Tablero vigente: 1 firmado")
+    expect(f.hizo).toContain("Sus preguntas salen por Slack")
   })
   it("jefatura: revisiones, resultados, las cortadas por tope en alerta y las fallidas", async () => {
     const j = (await leerOficinas(baseFalsa(TABLAS()), AHORA)).find((t) => t.clave === "jefatura")!
     expect(j.datos.find((x) => x.etiqueta === "Revisiones (7 días)")!.valor).toBe("3")
-    expect(j.datos.find((x) => x.etiqueta === "Cortadas por tope")).toMatchObject({ valor: "1", alerta: true })
-    expect(j.detalle.join("|")).toMatch(/Revisa: plan, pieza/)
-    expect(j.detalle.join("|")).toMatch(/1 revisión fallida/)
+    expect(j.semaforo).toBe("ambar") // hay una revisión cortada por tope: se dice en la frase de estado
+    expect(j.estado_texto).toMatch(/1 revisión cortada por límite de gasto/)
+    expect(j.hizo).toContain("Revisa piezas y planes antes de que lleguen a Emilio")
+    expect(j.hizo).toContain("1 falló")
+    expect(JSON.stringify(j)).not.toMatch(/incompleta_por_tope|Revisa: plan, pieza/)
   })
   it("cerebro: trozos, fichas vigentes (no las retiradas), pasadas del portero y gasto; al día = verde", async () => {
     const c = (await leerOficinas(baseFalsa(TABLAS()), AHORA)).find((t) => t.clave === "cerebro")!
     const d = Object.fromEntries(c.datos.map((x) => [x.etiqueta, x.valor]))
     expect(d["Trozos de conocimiento"]).toBe("514")
     expect(d["Fichas vigentes"]).toBe("2")
-    expect(d["Pasadas del portero (7 días)"]).toBe("2 hecha")
-    expect(d["Gasto del portero (7 días)"]).toBe("US$ 0.35")
+    expect(c.hizo).toContain("El portero repasó 2 veces en 7 días (2 terminadas bien)")
+    expect(c.hizo).toContain("Gastó US$ 0,35 en 7 días")
     expect(c.semaforo).toBe("verde")
   })
   it("cerebro: una pausa abierta del portero es ROJA y se dice; una alarma abierta, ámbar; sin pasadas en 2 días, ámbar", async () => {
@@ -142,18 +144,17 @@ describe("las cinco tarjetas con datos conocidos", () => {
     const alarma = TABLAS(); alarma.cerebro_alertas = [{ titulo: "Sin saldo de Anthropic", repeticiones: 3, cerrado_en: null }]
     const b = (await leerOficinas(baseFalsa(alarma), AHORA)).find((t) => t.clave === "cerebro")!
     expect(b.semaforo).toBe("ambar")
-    expect(b.espera[0]).toBe("Alarma abierta: Sin saldo de Anthropic (×3)")
+    expect(b.espera[0]).toBe("Alarma abierta: Sin saldo de Anthropic (se repitió 3 veces)")
     const parado = TABLAS(); parado.cerebro_portero_corridas = [{ estado: "hecha", gasto_apify_usd: 0, gasto_modelo_usd: 0, creado_en: hace(24 * 4), prueba: false }]
     expect((await leerOficinas(baseFalsa(parado), AHORA)).find((t) => t.clave === "cerebro")!.semaforo).toBe("ambar")
   })
   it("planeación: lee el interruptor de cadena_config, no cuenta lo seco, y marca los vencidos", async () => {
     const p = (await leerOficinas(baseFalsa(TABLAS()), AHORA)).find((t) => t.clave === "planeacion")!
     expect(p.estado_texto).toBe("Encendida")
-    expect(p.datos.find((x) => x.etiqueta === "Campañas")!.valor).toMatch(/1 activa/) // la seca no cuenta
-    expect(p.datos.find((x) => x.etiqueta === "Campañas")!.valor).not.toMatch(/2 activa/)
-    expect(p.datos.find((x) => x.etiqueta === "Vencidos")).toMatchObject({ valor: "1", alerta: true })
-    expect(p.datos.find((x) => x.etiqueta === "Gasto (7 días)")!.valor).toBe("US$ 0.30") // los US$ 5 son de una corrida seca
-    expect(p.espera).toEqual(["1 espera con plazo corriendo"])
+    expect(p.hizo[0]).toBe("2 campañas: en marcha, terminada") // la campaña seca (de ensayo) no cuenta
+    expect(p.hizo).toContain("1 paso se venció sin terminar")
+    expect(p.datos.find((x) => x.etiqueta === "Gasto (7 días)")!.valor).toBe("US$ 0,30") // los US$ 5 son de una corrida seca
+    expect(p.espera).toEqual(["1 paso espera una respuesta y su plazo corre"])
     expect(p.semaforo).toBe("ambar") // encendida pero con un paso vencido
   })
   it("una oficina apagada se ve gris y no la tapa nada", async () => {
@@ -175,7 +176,7 @@ describe("cuando una lectura falla NO se inventa un número", () => {
   it("un error al leer el conteo de piezas por aprobar tampoco se vuelve «0 piezas»", async () => {
     const t = await leerOficinas(baseFalsa(TABLAS(), { hitl_queue: "connection refused" }), AHORA)
     const c = t.find((x) => x.clave === "creativa")!
-    expect(c.error).toMatch(/hitl_queue: connection refused/)
+    expect(c.error).toMatch(/connection refused/)
     expect(c.espera).toEqual([])
     expect(c.datos).toEqual([])
   })

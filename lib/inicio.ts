@@ -14,7 +14,7 @@ export function teNecesitan(p: { piezas: number; revisiones: number; preguntas: 
   const todo: Pendiente[] = [
     { clave: "piezas", titulo: p.piezas === 1 ? "pieza por aprobar" : "piezas por aprobar", cuantos: p.piezas, href: "/piezas" },
     { clave: "preguntas", titulo: p.preguntas === 1 ? "pregunta de la oficina financiera" : "preguntas de la oficina financiera", cuantos: p.preguntas, href: "/oficinas#financiera", nota: "se responden en #buzon-de-preguntas" },
-    { clave: "revisiones", titulo: p.revisiones === 1 ? "otra revisión pendiente" : "otras revisiones pendientes", cuantos: p.revisiones, href: "/piezas?estado=todas", nota: "planes, competidores y escalaciones: de solo lectura aquí" },
+    { clave: "revisiones", titulo: p.revisiones === 1 ? "otra revisión pendiente" : "otras revisiones pendientes", cuantos: p.revisiones, href: "/piezas?estado=todas", nota: "planes y otras revisiones: se ven en Piezas, solo lectura" },
   ]
   return todo.filter((x) => x.cuantos > 0)
 }
@@ -26,8 +26,9 @@ export function estadoDelSistema(tarjetas: TarjetaDeOficina[], alertasAbiertas: 
   const rojas = tarjetas.filter((t) => t.semaforo === "rojo").length
   const peor = peorSemaforo(tarjetas)
   if (alertasAbiertas != null && alertasAbiertas > 0) return { semaforo: "rojo", texto: alertasAbiertas === 1 ? "1 alerta abierta" : `${alertasAbiertas} alertas abiertas`, href: "/alertas" }
-  if (rojas > 0) return { semaforo: "rojo", texto: rojas === 1 ? "1 oficina con problema" : `${rojas} oficinas con problema`, href: "/oficinas" }
-  if (peor === "ambar") return { semaforo: "ambar", texto: "Hay algo que mirar en una oficina", href: "/oficinas" }
+  const nombres = (luz: Semaforo) => tarjetas.filter((t) => t.semaforo === luz).map((t) => t.nombre).join(", ")
+  if (rojas > 0) return { semaforo: "rojo", texto: `${rojas === 1 ? "1 oficina con problema" : `${rojas} oficinas con problema`}: ${nombres("rojo")}`, href: "/oficinas" }
+  if (peor === "ambar") return { semaforo: "ambar", texto: `Hay algo que mirar: ${nombres("ambar")}`, href: "/oficinas" }
   if (peor === "gris") return { semaforo: "gris", texto: "Todas las oficinas están apagadas", href: "/oficinas" }
   return { semaforo: "verde", texto: "Todo funcionando", href: "/oficinas" }
 }

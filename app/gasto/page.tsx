@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { leerGasto } from "@/lib/gasto-datos"
+import { familiaLegible, estadoDeLaPiezaLegible } from "@/lib/lenguaje"
 import { usd2, usdFino, type DiaDeGasto, type Reparto } from "@/lib/gasto"
 
 export const dynamic = "force-dynamic"
@@ -58,8 +59,8 @@ function Tabla({ titulo, filas, vacio }: { titulo: string; filas: Reparto[]; vac
             {filas.map((f) => (
               <tr key={f.clave || "_"} className="border-t border-zinc-800">
                 <td className="py-1.5 pr-2 text-zinc-300">{f.nombre}</td>
-                <td className="num py-1.5 pr-2 text-right text-zinc-500">{f.llamadas} llamadas</td>
-                <td className="num py-1.5 text-right text-zinc-100">{usdFino(f.total)}</td>
+                <td className="num whitespace-nowrap py-1.5 pr-2 text-right text-zinc-500">{f.llamadas} llamadas</td>
+                <td className="num whitespace-nowrap py-1.5 text-right text-zinc-100">{usdFino(f.total)}</td>
               </tr>
             ))}
           </tbody>
@@ -107,8 +108,8 @@ export default async function GastoPage() {
             <tbody>
               {r.piezas.map((p) => (
                 <tr key={p.id} className="border-t border-zinc-800">
-                  <td className="py-1.5 pr-2 text-zinc-300">{p.familia} · v{p.version}{p.dry_run ? " · ensayo" : ""}</td>
-                  <td className="py-1.5 pr-2 text-zinc-500">{p.estado.replaceAll("_", " ")}</td>
+                  <td className="py-1.5 pr-2 text-zinc-300">{familiaLegible(p.familia)}{p.dry_run ? " · prueba" : ""}</td>
+                  <td className="py-1.5 pr-2 text-zinc-500">{estadoDeLaPiezaLegible(p.estado)}</td>
                   <td className="num py-1.5 text-right text-zinc-100">{usdFino(p.gasto_usd)} <span className="text-zinc-500">de {usd2(p.tope_usd)}</span></td>
                 </tr>
               ))}

@@ -45,7 +45,8 @@ describe("el visor de piezas se dibuja", () => {
   it("fila de otro tipo (competidores): sin botones de aprobar, dice dónde se resuelve", async () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
     const html = dibujar(<VisorDePieza pieza={{ ...base, tipo: "confirm_competitor_list", es_pieza: false, laminas: [], avisos: [] }} siguienteId={null} />)
-    expect(html).toMatch(/de tipo «confirm_competitor_list»: se resuelve en su propia pantalla/)
+    expect(html).toMatch(/«confirmar lista de competidores», no una pieza: se resuelve en su propia pantalla/)
+    expect(html).not.toContain("confirm_competitor_list")
     expect(html).not.toContain("Pedir cambios")
   })
   it("una pieza ya aprobada no muestra botones", async () => {

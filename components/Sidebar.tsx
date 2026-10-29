@@ -87,6 +87,7 @@ export function Sidebar() {
               <Link
                 href={href}
                 aria-label={label}
+                title={label}
                 data-active={active ? "true" : undefined}
                 className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--primary-glow)/0.12)]"
               >

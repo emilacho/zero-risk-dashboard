@@ -83,5 +83,5 @@ describe("lectura paginada", () => {
 })
 
 describe("formato", () => {
-  it("lo muy pequeño no se redondea a cero", () => { expect(usdFino(0.0042)).toBe("US$ 0.0042"); expect(usdFino(0)).toBe("US$ 0.00"); expect(usdFino(1.234)).toBe("US$ 1.23") })
+  it("lo muy pequeño no se redondea a cero", () => { expect(usdFino(0.0042)).toBe("US$ 0,0042"); expect(usdFino(0)).toBe("US$ 0,00"); expect(usdFino(1.234)).toBe("US$ 1,23") })
 })

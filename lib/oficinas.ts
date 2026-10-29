@@ -2,6 +2,8 @@
  * LAS OFICINAS (CC#1 · 29-oct · parte 2 del dashboard): lógica PURA de la pantalla «¿cómo está cada oficina?». Cada tarjeta dice lo que la base dice HOY (estado real, últimos 7 días,
  * lo que espera de Emilio); si una lectura falla la tarjeta lo dice, nunca inventa un número.
  */
+import { usdES } from "@/lib/lenguaje"
+
 export const DIAS_DE_LA_VENTANA = 7
 
 export type Semaforo = "verde" | "ambar" | "rojo" | "gris"
@@ -41,7 +43,7 @@ export const suma = (filas: Array<Record<string, unknown>>, columna: string): nu
 
 export const desde = (dias: number, ahora: Date = new Date()): string => new Date(ahora.getTime() - dias * 86_400_000).toISOString()
 
-export const usd = (n: number | null | undefined): string => (n == null || !Number.isFinite(n) ? "—" : `US$ ${n.toFixed(2)}`)
+export const usd = usdES
 
 export interface Dato { etiqueta: string; valor: string; alerta?: boolean }
 export interface TarjetaDeOficina {
@@ -52,8 +54,10 @@ export interface TarjetaDeOficina {
   estado_texto: string
   datos: Dato[]
   ultima_actividad: string | null
+  /** lo que esta oficina necesita de Emilio, en frases */
   espera: string[]
-  detalle: string[]
+  /** lo que hizo (y lo que salió mal de verdad), en frases; nunca valores crudos de la base */
+  hizo: string[]
   enlace?: { href: string; texto: string }
   /** si la lectura falló: lo que dijo la base (la tarjeta lo enseña en vez de un número) */
   error?: string
@@ -62,7 +66,7 @@ export interface TarjetaDeOficina {
 export const ORDEN_DE_LAS_OFICINAS: TarjetaDeOficina["clave"][] = ["creativa", "financiera", "jefatura", "cerebro", "planeacion"]
 
 /** la tarjeta que se muestra cuando una oficina no se pudo leer */
-export const tarjetaConError = (clave: TarjetaDeOficina["clave"], nombre: string, que_hace: string, error: string): TarjetaDeOficina => ({ clave, nombre, que_hace, semaforo: "rojo", estado_texto: "No pude leerla", datos: [], ultima_actividad: null, espera: [], detalle: [], error })
+export const tarjetaConError = (clave: TarjetaDeOficina["clave"], nombre: string, que_hace: string, error: string): TarjetaDeOficina => ({ clave, nombre, que_hace, semaforo: "rojo", estado_texto: "No pude leerla", datos: [], ultima_actividad: null, espera: [], hizo: [], error })
 
 /** la peor luz de las tarjetas (para el resumen de arriba) */
 export function peorSemaforo(t: TarjetaDeOficina[]): Semaforo {

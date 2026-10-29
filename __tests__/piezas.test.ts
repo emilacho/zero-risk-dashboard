@@ -44,6 +44,7 @@ function baseFalsa(tablas: Record<string, Array<Record<string, unknown>>>) {
     const filtro = (c: string, v: unknown) => { filas = filas.filter((f) => f[c] === v); return b }
     b.select = () => b
     b.eq = filtro
+    b.neq = (c: string, v: unknown) => { filas = filas.filter((f) => f[c] !== v); return b }
     b.in = (c: string, vs: unknown[]) => { filas = filas.filter((f) => vs.includes(f[c])); return b }
     b.order = (c: string, o?: { ascending?: boolean }) => { filas.sort((x, y) => (String(x[c]) < String(y[c]) ? -1 : 1) * (o?.ascending === false ? -1 : 1)); return b }
     b.limit = (n: number) => { filas = filas.slice(0, n); return b }
@@ -148,7 +149,7 @@ describe("la dirección de una lámina solo cuelga del almacén de la oficina (n
 describe("la lectura: lista y detalle desde la bandeja", () => {
   it("la lista trae las piezas y las de otro tipo (en solo lectura), con cliente y marcas", async () => {
     const { supabase } = baseFalsa(TABLAS())
-    const l = await listarPiezas(supabase, { estado: "pendiente" })
+    const l = [...await listarPiezas(supabase, { estado: "pendiente", tipo: "piezas" }), ...await listarPiezas(supabase, { estado: "pendiente", tipo: "otras" })]
     expect(l).toHaveLength(2)
     expect(l.find((x) => x.id === FILA.id)).toMatchObject({ es_pieza: true, cliente: "Zero Risk Seguridad Industrial", estado: "pendiente", gasto_usd: 1.84, incompleta: true, desacuerdos: 2, tiene_dibujo: true })
     expect(l.find((x) => x.id === OTRA.id)).toMatchObject({ es_pieza: false, tipo: "confirm_competitor_list", tiene_dibujo: false })

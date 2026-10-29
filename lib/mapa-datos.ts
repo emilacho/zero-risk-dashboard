@@ -2,7 +2,8 @@
  * MAPA · lectura (servidor, solo lectura). Un error de la base lanza; nunca se lee como «0».
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { contarCosas, dondeEstaElEncargo, humanizar, type Paso, type PiezaEnElMapa } from "@/lib/mapa"
+import { familiaLegible, estadoDeLaPiezaLegible, resultadoDeJefaturaLegible, tituloDePieza } from "@/lib/lenguaje"
+import { contarCosas, dondeEstaElEncargo, type Paso, type PiezaEnElMapa } from "@/lib/mapa"
 import { agrupar, desde } from "@/lib/oficinas"
 
 type Fila = Record<string, unknown>
@@ -23,18 +24,19 @@ export async function leerMapa(supa: SupabaseClient, ahora: Date = new Date()): 
     filas(supa.from("jefatura_revisiones").select("resultado, dry_run, cerrado_en, creado_en").gte("creado_en", hace7).limit(1000), "jefatura_revisiones"),
     filas(supa.from("hitl_queue").select("status, created_at").eq("type", "content_piece_review").gte("created_at", hace7).limit(1000), "hitl_queue"),
   ])
+  const ultimoPorClave = new Map<string, Fila>()
+  for (const e of enc) { const k = `${e.brief_id}|${e.familia}`; const p = ultimoPorClave.get(k); if (!p || String(e.creado_en) > String(p.creado_en)) ultimoPorClave.set(k, e) }
+  const finales = [...ultimoPorClave.values()].sort((a, b) => String(b.creado_en).localeCompare(String(a.creado_en)))
   const rev = revisiones.filter((r) => r.dry_run !== true)
   const porResultado = agrupar(rev, "resultado")
   const porEstadoBandeja = agrupar(bandeja, "status")
-  const turnosDeTrabajo = turnos.filter((t) => t.tipo === "agente" || t.tipo === "codigo")
-  const fallidos = turnos.filter((t) => t.estado === "fallo").length
   const pasos: Paso[] = [
-    { clave: "brief", cuantos: new Set(enc.map((e) => String(e.brief_id))).size, detalle: [contarCosas(enc.length, "encargo", "encargos") + " (con repeticiones)"], ultimo: ultimo(enc, "creado_en") },
-    { clave: "oficina", cuantos: enc.filter((e) => String(e.estado).startsWith("cerrado")).length, detalle: [`${turnosDeTrabajo.length} turnos de trabajo`, fallidos > 0 ? `${contarCosas(fallidos, "turno fallido", "turnos fallidos")}` : "sin turnos fallidos", `${enc.filter((e) => e.estado === "fallido").length} encargos fallidos`], ultimo: ultimo(turnos, "fin") },
-    { clave: "mesa", cuantos: aportes.length, detalle: [`${new Set(aportes.map((a) => String(a.encargo_id))).size} piezas pasaron por la mesa`], ultimo: ultimo(aportes, "creado_en") },
-    { clave: "jefatura", cuantos: rev.length, detalle: Object.entries(porResultado).map(([k, n]) => `${n} ${humanizar(k)}`), ultimo: ultimo(rev, "cerrado_en") },
-    { clave: "bandeja", cuantos: bandeja.length, detalle: Object.entries(porEstadoBandeja).map(([k, n]) => `${n} ${k === "pending" ? "pendiente" : k === "approved" ? "aprobada" : k === "rejected" ? "rechazada" : humanizar(k)}`), ultimo: ultimo(bandeja, "created_at") },
+    { clave: "brief", cuantos: new Set(enc.map((e) => String(e.brief_id))).size, detalle: [contarCosas(new Set(enc.map((e) => String(e.brief_id))).size, "pedido de pieza", "pedidos de piezas") + " en 7 días"], ultimo: ultimo(enc, "creado_en") },
+    { clave: "oficina", cuantos: finales.filter((e) => String(e.estado).startsWith("cerrado")).length, detalle: [`${contarCosas(finales.filter((e) => String(e.estado).startsWith("cerrado")).length, "pieza entregada", "piezas entregadas")}`, finales.filter((e) => e.estado === "fallido").length > 0 ? `${contarCosas(finales.filter((e) => e.estado === "fallido").length, "pieza que falló y no se rehízo", "piezas que fallaron y no se rehicieron")}` : "ninguna pieza fallida sin rehacer"], ultimo: ultimo(turnos, "fin") },
+    { clave: "mesa", cuantos: aportes.length, detalle: [`${contarCosas(new Set(aportes.map((a) => String(a.encargo_id))).size, "pieza pasó por la mesa", "piezas pasaron por la mesa")}`], ultimo: ultimo(aportes, "creado_en") },
+    { clave: "jefatura", cuantos: rev.length, detalle: Object.entries(porResultado).map(([k, n]) => `${n} ${resultadoDeJefaturaLegible(k)}`), ultimo: ultimo(rev, "cerrado_en") },
+    { clave: "bandeja", cuantos: bandeja.length, detalle: Object.entries(porEstadoBandeja).map(([k, n]) => `${n} ${k === "pending" ? "por aprobar" : k === "approved" ? "aprobada" : k === "rejected" ? "rechazada" : k === "edited" ? "con cambios pedidos" : "en otro estado"}`), ultimo: ultimo(bandeja, "created_at") },
   ]
-  const piezas: PiezaEnElMapa[] = enc.slice(0, 8).map((e) => ({ id: String(e.id), brief: String(e.brief_id), familia: humanizar(e.familia), donde: dondeEstaElEncargo(e), estado: humanizar(e.estado), creado_en: String(e.creado_en), gasto_usd: Number(e.gasto_usd ?? 0) }))
+  const piezas: PiezaEnElMapa[] = finales.slice(0, 8).map((e) => ({ id: String(e.id), brief: tituloDePieza({ familia: e.familia, creada: String(e.creado_en) }), familia: familiaLegible(e.familia), donde: dondeEstaElEncargo(e), estado: estadoDeLaPiezaLegible(e.estado), creado_en: String(e.creado_en), gasto_usd: Number(e.gasto_usd ?? 0) }))
   return { pasos, piezas }
 }

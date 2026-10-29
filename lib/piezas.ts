@@ -16,7 +16,10 @@ export type EstadoPieza = "pendiente" | "aprobada" | "con_cambios" | "rechazada"
 export const ESTADOS_DE_LA_BANDEJA: Record<string, EstadoPieza> = { pending: "pendiente", approved: "aprobada", edited: "con_cambios", rejected: "rechazada" }
 export const estadoDeLaPieza = (status: string): EstadoPieza => ESTADOS_DE_LA_BANDEJA[status] ?? "otro"
 
-export type OrigenDeLaImagen = "tipografia" | "con_imagen"
+/** de dónde sale la imagen de fondo de una lámina: no hay (solo tipografía), la generó la IA, es foto propia del cliente, o hay imagen pero no se sabe cuál */
+export type OrigenDeLaImagen = "tipografia" | "generada" | "propia" | "con_imagen"
+/** dirección de la imagen de fondo → su origen real (lo que eligió la oficina: `imagenes_elegidas.por_ref`) */
+export type MapaDeOrigenes = Record<string, "generada" | "propia" | string>
 
 export interface Lamina {
   n: number
@@ -41,7 +44,13 @@ export const tieneGlifosRiesgosos = (t: string | null | undefined): boolean => !
 const esPng = (a: ArchivoDelManifiesto): boolean => /\.(png|jpe?g|webp)$/i.test(a.nombre)
 
 /** une el manifiesto (qué láminas hay de verdad) con los textos de la oficina (qué dice cada una) */
-export function laminasDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undefined, slides: SlideDeLaOficina[] | null | undefined): Lamina[] {
+export function origenDeLaLamina(url: string | null | undefined, origenes: MapaDeOrigenes | undefined): OrigenDeLaImagen {
+  if (!url) return "tipografia"
+  const o = origenes?.[url]
+  return o === "generada" ? "generada" : o === "propia" ? "propia" : "con_imagen"
+}
+
+export function laminasDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undefined, slides: SlideDeLaOficina[] | null | undefined, origenes?: MapaDeOrigenes): Lamina[] {
   const imgs = (archivos ?? []).filter(esPng)
   return imgs.map((a, i) => {
     const s = slides?.[i]
@@ -51,7 +60,7 @@ export function laminasDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undef
       nombre: a.nombre,
       ancho: a.ancho ?? null,
       alto: a.alto ?? null,
-      origen: s?.background_image_url ? "con_imagen" : "tipografia",
+      origen: origenDeLaLamina(s?.background_image_url, origenes),
       eyebrow: s?.eyebrow ?? null,
       titular: s?.headline ?? null,
       cuerpo: s?.body ?? null,
@@ -61,7 +70,12 @@ export function laminasDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undef
   })
 }
 
-export const ROTULO_DE_ORIGEN: Record<OrigenDeLaImagen, string> = { tipografia: "Solo tipografía de marca · sin foto ni imagen generada", con_imagen: "Lámina con imagen de fondo" }
+export const ROTULO_DE_ORIGEN: Record<OrigenDeLaImagen, string> = {
+  tipografia: "Solo tipografía de marca · sin foto ni imagen generada",
+  generada: "Imagen de fondo generada con IA",
+  propia: "Foto propia del cliente como fondo",
+  con_imagen: "Lámina con imagen de fondo (no se pudo saber si es generada o propia)",
+}
 
 export interface Aviso { nivel: "rojo" | "ambar" | "info"; texto: string }
 
@@ -81,16 +95,17 @@ export function resumenDiceImagenesGeneradas(preview: string | null | undefined)
 export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[]): Aviso[] {
   const meta = fila.metadata ?? {}
   const out: Aviso[] = []
-  const conImagen = laminas.filter((l) => l.origen === "con_imagen").length
+  const conImagen = laminas.filter((l) => l.origen !== "tipografia").length
+  const generadas = laminas.filter((l) => l.origen === "generada").length
   const dice = resumenDiceImagenesGeneradas(fila.output_preview)
-  if (dice > 0 && conImagen === 0) out.push({ nivel: "rojo", texto: `La bandeja decía «${dice} imágenes generadas con IA», pero el manifiesto no trae ninguna: las láminas son solo tipografía.` })
-  else if (dice > 0 && dice !== conImagen) out.push({ nivel: "rojo", texto: `La bandeja dice ${dice} imágenes generadas y el manifiesto muestra ${conImagen}.` })
+  if (dice > 0 && conImagen === 0) out.push({ nivel: "rojo", texto: `El resumen de la bandeja decía «${dice} imágenes generadas con IA», pero la pieza no trae ninguna: las láminas son solo tipografía.` })
+  else if (dice > 0 && dice !== conImagen && dice !== generadas) out.push({ nivel: "rojo", texto: `El resumen de la bandeja dice ${dice} imágenes generadas y la pieza muestra ${generadas > 0 ? generadas : conImagen}.` })
   if (laminas.length === 0) out.push({ nivel: "rojo", texto: "Sin dibujo: esta pieza no tiene láminas dibujadas (un ensayo, o el dibujo falló). No hay nada que mirar." })
-  if (meta.revision_incompleta === true || meta.jefatura_resultado === "incompleta_por_tope") out.push({ nivel: "ambar", texto: "La revisión de la jefatura no terminó (se cortó por tope)." })
+  if (meta.revision_incompleta === true || meta.jefatura_resultado === "incompleta_por_tope") out.push({ nivel: "ambar", texto: "La revisión de la jefatura no terminó: se cortó por el límite de gasto." })
   const desac = lista(meta.desacuerdos)
   if (desac.length > 0) out.push({ nivel: "ambar", texto: `${desac.length} desacuerdo${desac.length === 1 ? "" : "s"} abierto${desac.length === 1 ? "" : "s"} en la revisión.` })
   const glifos = laminas.filter((l) => l.glifos_riesgosos).map((l) => l.n)
-  if (glifos.length > 0) out.push({ nivel: "ambar", texto: `Las láminas ${glifos.join(", ")} llevan signos (✔ ✗ o emojis) que el dibujo pinta como cuadros «NO GLYPH». Mira la imagen antes de aprobar.` })
+  if (glifos.length > 0) out.push({ nivel: "ambar", texto: `Las láminas ${glifos.join(", ")} llevan signos (✔ ✗ o emojis) que el dibujo pinta como cuadros vacíos. Mira la imagen antes de aprobar.` })
   if (meta.sin_dibujar === true) out.push({ nivel: "rojo", texto: "Cerrada SIN DIBUJAR: es solo el texto del equipo, decide una persona." })
   return out
 }

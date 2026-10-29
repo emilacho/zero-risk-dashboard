@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { leerOficinas } from "@/lib/oficinas-datos"
 import { leerGasto } from "@/lib/gasto-datos"
 import { desde, type TarjetaDeOficina } from "@/lib/oficinas"
+import { contarPiezasPorAprobar } from "@/lib/piezas-datos"
+import { familiaLegible, resultadoDeJefaturaLegible, estadoDeCampanaLegible } from "@/lib/lenguaje"
 import { estadoDelSistema, teNecesitan, ultimosHechos, type EstadoDelSistema, type Hecho, type Pendiente } from "@/lib/inicio"
 
 type Fila = Record<string, unknown>
@@ -35,7 +37,7 @@ export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date())
   const [te_necesitan, cifras, hechos, mensajes_sin_respuesta] = await Promise.all([
     bloque(async () => {
       const [piezas, otras, preguntas] = await Promise.all([
-        contar(supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").eq("type", "content_piece_review"), "hitl_queue"),
+        contarPiezasPorAprobar(supa),
         contar(supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").neq("type", "content_piece_review"), "hitl_queue"),
         contar(supa.from("finanzas_preguntas").select("*", { count: "exact", head: true }).is("respondida_en", null), "finanzas_preguntas"),
       ])
@@ -58,9 +60,9 @@ export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date())
         filas(supa.from("hitl_queue").select("id, title, status, decided_at").neq("status", "pending").not("decided_at", "is", null).eq("type", "content_piece_review").order("decided_at", { ascending: false }).limit(10), "hitl_queue"),
       ])
       const h: Hecho[] = []
-      for (const e of enc.filter((x) => x.dry_run !== true)) h.push({ cuando: String(e.cerrado_en), texto: String(e.estado).startsWith("cerrado") ? `Pieza lista: ${e.brief_id} (${String(e.familia).replace(/_/g, " ")})` : `Pieza ${e.brief_id} terminó en «${String(e.estado).replace(/_/g, " ")}»`, href: "/piezas?estado=todas" })
-      for (const r of rev.filter((x) => x.dry_run !== true)) h.push({ cuando: String(r.cerrado_en), texto: `La jefatura revisó una ${String(r.artifact_type)}: ${String(r.resultado).replace(/_/g, " ")}` })
-      for (const c of camp.filter((x) => x.seco !== true)) h.push({ cuando: String(c.creada_en), texto: `Se armó una campaña (${String(c.estado).replace(/_/g, " ")})` })
+      for (const e of enc.filter((x) => x.dry_run !== true)) h.push({ cuando: String(e.cerrado_en), texto: String(e.estado).startsWith("cerrado") ? `Pieza lista: ${familiaLegible(e.familia)}` : `Una pieza (${familiaLegible(e.familia).toLowerCase()}) no se pudo terminar`, href: "/piezas?estado=todas" })
+      for (const r of rev.filter((x) => x.dry_run !== true)) h.push({ cuando: String(r.cerrado_en), texto: `La jefatura revisó ${r.artifact_type === "pieza" ? "una pieza" : r.artifact_type === "plan" ? "un plan" : "un trabajo"}: ${resultadoDeJefaturaLegible(r.resultado)}` })
+      for (const c of camp.filter((x) => x.seco !== true)) h.push({ cuando: String(c.creada_en), texto: `Se armó una campaña (${estadoDeCampanaLegible(c.estado)})` })
       for (const d of dec) h.push({ cuando: String(d.decided_at), texto: `Pieza ${d.status === "approved" ? "aprobada" : d.status === "rejected" ? "rechazada" : "con cambios"}: ${String(d.title).replace(/^⚠️\s*/, "").slice(0, 70)}`, href: `/piezas?id=${d.id}&estado=todas` })
       return ultimosHechos(h, 5)
     }),

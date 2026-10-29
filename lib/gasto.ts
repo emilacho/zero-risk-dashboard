@@ -6,6 +6,8 @@
  * Antes del 5-sep (cuando nació el detalle de llamadas) solo existe la fila del día: ahí ES el dato del día.
  * Los días se cuentan en hora de Ecuador (UTC-5, sin horario de verano).
  */
+import { usdES, usdFinoES } from "@/lib/lenguaje"
+
 export const DIAS_DE_GASTO = 30
 const DESFASE_ECUADOR_MS = 5 * 3_600_000
 
@@ -131,6 +133,6 @@ export function resumirGasto(p: { invocaciones: Invocacion[]; costos: FilaDeCost
   }
 }
 
-export const usd2 = (n: number): string => `US$ ${n.toFixed(2)}`
+export const usd2 = (n: number): string => usdES(n)
 /** el costo de una pieza se ve con 2 decimales, pero lo muy pequeño no se redondea a cero */
-export const usdFino = (n: number): string => (n > 0 && n < 0.01 ? `US$ ${n.toFixed(4)}` : usd2(n))
+export const usdFino = (n: number): string => usdFinoES(n)

@@ -5,7 +5,7 @@ import path from "node:path"
 import { estadoDelSistema, porcentajeDelTope, teNecesitan, ultimosHechos } from "@/lib/inicio"
 import type { TarjetaDeOficina } from "@/lib/oficinas"
 
-const tarjeta = (clave: TarjetaDeOficina["clave"], semaforo: TarjetaDeOficina["semaforo"]): TarjetaDeOficina => ({ clave, nombre: clave, que_hace: "", semaforo, estado_texto: "", datos: [], ultima_actividad: null, espera: [], detalle: [] })
+const tarjeta = (clave: TarjetaDeOficina["clave"], semaforo: TarjetaDeOficina["semaforo"]): TarjetaDeOficina => ({ clave, nombre: clave, que_hace: "", semaforo, estado_texto: "", datos: [], ultima_actividad: null, espera: [], hizo: [] })
 
 describe("Te necesitan", () => {
   it("solo aparece lo que tiene al menos uno; el plural sigue al número", () => {
@@ -24,8 +24,8 @@ describe("Estado del sistema (una línea)", () => {
     expect(estadoDelSistema([tarjeta("creativa", "verde"), tarjeta("cerebro", "gris")], null)).toMatchObject({ semaforo: "verde", texto: "Todo funcionando" })
   })
   it("una oficina en rojo gana sobre ámbar; el conteo va en singular y plural", () => {
-    expect(estadoDelSistema([tarjeta("creativa", "rojo"), tarjeta("cerebro", "ambar")], null)).toMatchObject({ semaforo: "rojo", texto: "1 oficina con problema" })
-    expect(estadoDelSistema([tarjeta("creativa", "rojo"), tarjeta("cerebro", "rojo")], null).texto).toBe("2 oficinas con problema")
+    expect(estadoDelSistema([tarjeta("creativa", "rojo"), tarjeta("cerebro", "ambar")], null)).toMatchObject({ semaforo: "rojo", texto: "1 oficina con problema: creativa" })
+    expect(estadoDelSistema([tarjeta("creativa", "rojo"), tarjeta("cerebro", "rojo")], null).texto).toMatch(/^2 oficinas con problema/)
   })
   it("ámbar → algo que mirar; todo apagado → gris", () => {
     expect(estadoDelSistema([tarjeta("creativa", "ambar")], null).semaforo).toBe("ambar")

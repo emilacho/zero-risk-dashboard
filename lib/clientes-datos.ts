@@ -4,6 +4,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { DIAS_DEL_GASTO, fasesDelPlan, gastoReal, ordenarClientes, type FasesDelPlan, type ResumenDeCliente } from "@/lib/clientes"
 import { desde } from "@/lib/oficinas"
+import { leerGasto } from "@/lib/gasto-datos"
+import { estadoDeLaPiezaLegible, tituloDePieza } from "@/lib/lenguaje"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -18,21 +20,21 @@ const por = (f: Fila[], col: string): Map<string, Fila[]> => { const m = new Map
 export async function listarClientes(supa: SupabaseClient, ahora: Date = new Date()): Promise<ResumenDeCliente[]> {
   const clientes = await filas(supa.from("clients").select("id, name, industry, status").is("archived_at", null).limit(200), "clients")
   const pend = await filas(supa.from("hitl_queue").select("client_id").eq("status", "pending").eq("type", "content_piece_review").limit(1000), "hitl_queue")
-  const gasto = await filas(supa.from("agent_invocations").select("client_id, cost_usd").not("client_id", "is", null).gte("created_at", desde(DIAS_DEL_GASTO, ahora)).limit(10000), "agent_invocations")
+  const gastoTotal = new Map((await leerGasto(supa, ahora)).resumen.por_cliente.map((x) => [x.clave, x.total]))
   const trozos = await filas(supa.from("cerebro_fichas").select("client_id").is("retirada_en", null).limit(10000), "cerebro_fichas")
   const campanas = await filas(supa.from("cadena_campanas").select("client_id, estado, seco").order("creada_en", { ascending: false }).limit(200), "cadena_campanas")
-  const pPend = por(pend, "client_id"), pGasto = por(gasto, "client_id"), pTrozos = por(trozos, "client_id"), pCamp = por(campanas.filter((c) => c.seco !== true), "client_id")
+  const pPend = por(pend, "client_id"), pTrozos = por(trozos, "client_id"), pCamp = por(campanas.filter((c) => c.seco !== true), "client_id")
   return ordenarClientes(clientes.map((c) => {
     const id = String(c.id)
-    return { id, nombre: String(c.name), rubro: c.industry ? String(c.industry) : null, estado: String(c.status ?? ""), piezas_por_aprobar: pPend.get(id)?.length ?? 0, gasto_30d: gastoReal(pGasto.get(id) ?? [], "cost_usd"), trozos_del_cerebro: pTrozos.get(id)?.length ?? 0, campana: pCamp.get(id)?.[0] ? String(pCamp.get(id)![0].estado) : null }
+    return { id, nombre: String(c.name), rubro: c.industry ? String(c.industry) : null, estado: String(c.status ?? ""), piezas_por_aprobar: pPend.get(id)?.length ?? 0, gasto_30d: gastoTotal.get(id) ?? 0, trozos_del_cerebro: pTrozos.get(id)?.length ?? 0, campana: pCamp.get(id)?.[0] ? String(pCamp.get(id)![0].estado) : null }
   }))
 }
 
 export interface FichaDeCliente {
   cliente: { id: string; nombre: string; rubro: string | null; estado: string; mercado: string | null; sitio: string | null; creado: string | null }
-  piezas: Array<{ id: string; titulo: string; estado: string; creada: string }>
+  piezas: Array<{ id: string; titulo: string; estado: string; pendiente: boolean; creada: string }>
   plan: null | { campana_estado: string; desde: string | null; hasta: string | null; presupuesto: number | null; version_estrategia: number | null; fases: FasesDelPlan[]; filas_del_calendario: number }
-  gasto: { agentes_30d: number; piezas_30d: number; llamadas_30d: number }
+  gasto: { total_30d: number; agentes_30d: number; piezas_30d: number; llamadas_30d: number }
   cerebro: { fichas_vigentes: number; trozos: number }
   manual: null | { version: number | null; proposito: string | null; eslogan: string | null; voz: string | null; auto_generated: boolean; human_validated: boolean; gate: string | null }
   perfiles_de_cliente_ideal: number
@@ -41,7 +43,7 @@ export interface FichaDeCliente {
 export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date = new Date()): Promise<FichaDeCliente | null> {
   const c = await una(supa.from("clients").select("id, name, industry, status, market, website_url, created_at").eq("id", id).maybeSingle(), "clients")
   if (!c) return null
-  const piezas = await filas(supa.from("hitl_queue").select("id, title, status, created_at").eq("client_id", id).eq("type", "content_piece_review").order("created_at", { ascending: false }).limit(20), "hitl_queue")
+  const piezas = await filas(supa.from("hitl_queue").select("id, title, status, created_at, metadata").eq("client_id", id).eq("type", "content_piece_review").order("created_at", { ascending: false }).limit(20), "hitl_queue")
   const camp = await una(supa.from("cadena_campanas").select("id, estado, fecha_inicio, fecha_fin, presupuesto_planificacion_usd").eq("client_id", id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
   let plan: FichaDeCliente["plan"] = null
   if (camp) {
@@ -55,12 +57,14 @@ export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date 
   const trozos = await contar(supa.from("client_brain_chunks").select("*", { count: "exact", head: true }).eq("client_id", id), "client_brain_chunks")
   const b = await una(supa.from("client_brand_books").select("version, brand_purpose, tagline, voice_description, auto_generated, human_validated, gate_outcome").eq("client_id", id).order("version", { ascending: false }).limit(1).maybeSingle(), "client_brand_books")
   const icp = await contar(supa.from("client_icp_documents").select("*", { count: "exact", head: true }).eq("client_id", id), "client_icp_documents")
-  const estado = (s: unknown) => (s === "pending" ? "pendiente" : s === "approved" ? "aprobada" : s === "rejected" ? "rechazada" : s === "edited" ? "con cambios" : String(s))
+  const g = await leerGasto(supa, ahora)
+  const totalGasto = g.resumen.por_cliente.find((x) => x.clave === id)?.total ?? 0
+  const estado = (s: unknown) => (s === "pending" ? "por aprobar" : s === "approved" ? "aprobada" : s === "rejected" ? "rechazada" : s === "edited" ? "con cambios pedidos" : estadoDeLaPiezaLegible(s))
   return {
     cliente: { id: String(c.id), nombre: String(c.name), rubro: c.industry ? String(c.industry) : null, estado: String(c.status ?? ""), mercado: c.market ? String(c.market) : null, sitio: c.website_url ? String(c.website_url) : null, creado: c.created_at ? String(c.created_at) : null },
-    piezas: piezas.map((p) => ({ id: String(p.id), titulo: String(p.title).replace(/^⚠️\s*/, ""), estado: estado(p.status), creada: String(p.created_at) })),
+    piezas: piezas.map((p) => ({ id: String(p.id), titulo: tituloDePieza({ familia: (p.metadata as Record<string, unknown> | null)?.familia, tituloCrudo: p.title, cliente: null, creada: String(p.created_at) }), estado: estado(p.status), pendiente: p.status === "pending", creada: String(p.created_at) })),
     plan,
-    gasto: { agentes_30d: gastoReal(inv, "cost_usd"), piezas_30d: gastoReal(enc, "gasto_usd"), llamadas_30d: inv.length },
+    gasto: { total_30d: totalGasto, agentes_30d: gastoReal(inv, "cost_usd"), piezas_30d: gastoReal(enc, "gasto_usd"), llamadas_30d: inv.length },
     cerebro: { fichas_vigentes: fichas, trozos },
     manual: b ? { version: b.version == null ? null : Number(b.version), proposito: b.brand_purpose ? String(b.brand_purpose) : null, eslogan: b.tagline ? String(b.tagline) : null, voz: b.voice_description ? String(b.voice_description) : null, auto_generated: b.auto_generated === true, human_validated: b.human_validated === true, gate: b.gate_outcome ? String(b.gate_outcome) : null } : null,
     perfiles_de_cliente_ideal: icp,

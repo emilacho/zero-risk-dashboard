@@ -4,7 +4,7 @@ import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { cargarFicha, type FichaDeCliente } from "@/lib/clientes-datos"
 import { etiquetaDelCliente, origenDelManual } from "@/lib/clientes"
-import { usd } from "@/lib/oficinas"
+import { usdES as usd, estadoDeCampanaLegible, pilarLegible, revisionDeFidelidadLegible, diaYHora } from "@/lib/lenguaje"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Cliente" }
@@ -23,7 +23,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 const Dato = ({ e, v }: { e: string; v: React.ReactNode }) => (
   <div>
     <dt className="text-[11px] uppercase tracking-[0.06em] text-[hsl(var(--muted-foreground))]">{e}</dt>
-    <dd className="num text-[13px]">{v}</dd>
+    <dd className="text-[13px]">{v}</dd>
   </div>
 )
 const Vacio = ({ children }: { children: React.ReactNode }) => <p className="text-[13px] text-[hsl(var(--muted-foreground))]">{children}</p>
@@ -56,8 +56,8 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
             <ul className="space-y-1.5 text-[13px]">
               {f.piezas.map((p) => (
                 <li key={p.id} className="flex justify-between gap-3">
-                  <Link href={`/piezas?id=${p.id}&estado=todas`} className="truncate hover:underline">{p.titulo}</Link>
-                  <span className={p.estado === "pendiente" ? "text-amber-300" : "text-[hsl(var(--muted-foreground))]"}>{p.estado}</span>
+                  <Link href={`/piezas?id=${p.id}&estado=todas`} className="truncate hover:underline">{p.titulo} <span className="text-[hsl(var(--muted-foreground))]">· {diaYHora(p.creada)}</span></Link>
+                  <span className={p.pendiente ? "shrink-0 text-amber-300" : "shrink-0 text-[hsl(var(--muted-foreground))]"}>{p.estado}</span>
                 </li>
               ))}
             </ul>
@@ -67,15 +67,15 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
           {!f.plan ? <Vacio>Sin plan: este cliente todavía no tiene campaña armada.</Vacio> : (
             <>
               <dl className="grid grid-cols-2 gap-3">
-                <Dato e="Campaña" v={f.plan.campana_estado.replace(/_/g, " ")} />
+                <Dato e="Campaña" v={estadoDeCampanaLegible(f.plan.campana_estado)} />
                 <Dato e="Ventana" v={`${dia(f.plan.desde)} → ${dia(f.plan.hasta)}`} />
                 <Dato e="Presupuesto" v={f.plan.presupuesto == null ? "—" : usd(f.plan.presupuesto)} />
-                <Dato e="Filas del calendario" v={f.plan.filas_del_calendario} />
+                <Dato e="Publicaciones en el calendario" v={f.plan.filas_del_calendario} />
               </dl>
               {f.plan.fases.length > 0 ? (
                 <ol className="space-y-1 text-[13px]">
                   {f.plan.fases.map((x) => (
-                    <li key={x.clave}>Días {x.dia_desde}–{x.dia_hasta} · {x.objetivo}{x.cita_plan ? <span className="text-[hsl(var(--muted-foreground))]"> — {x.cita_plan}</span> : null}</li>
+                    <li key={x.clave}>Días {x.dia_desde}–{x.dia_hasta} · {x.objetivo}{pilarLegible(x.cita_plan) ? <span className="text-[hsl(var(--muted-foreground))]"> — {pilarLegible(x.cita_plan)}</span> : null}</li>
                   ))}
                 </ol>
               ) : <Vacio>Aún sin estrategia con fases.</Vacio>}
@@ -84,11 +84,11 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
         </Bloque>
         <Bloque titulo="Gasto (30 días)">
           <dl className="grid grid-cols-2 gap-3">
-            <Dato e="Agentes" v={usd(f.gasto.agentes_30d)} />
-            <Dato e="Llamadas" v={f.gasto.llamadas_30d} />
-            <Dato e="Piezas (oficina creativa)" v={usd(f.gasto.piezas_30d)} />
+            <Dato e="Total (el mismo de Gasto)" v={usd(f.gasto.total_30d)} />
+            <Dato e="Empleados AI" v={usd(f.gasto.agentes_30d)} />
+            <Dato e="De eso, piezas de la oficina creativa" v={usd(f.gasto.piezas_30d)} />
           </dl>
-          <p className="text-[11px] text-[hsl(var(--muted-foreground))]">La libreta de costos no separa por cliente; esta cifra sale del registro de los agentes y de las piezas.</p>
+          <p className="text-[11px] text-[hsl(var(--muted-foreground))]">El total incluye a los empleados AI y a Apify. Lo de las piezas ya está dentro del gasto de los empleados.</p>
         </Bloque>
         <Bloque titulo="Cerebro">
           <dl className="grid grid-cols-2 gap-3">
@@ -101,13 +101,13 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
           {!f.manual ? <Vacio>Sin manual de marca.</Vacio> : (
             <>
               <p className={`w-fit rounded-full border px-2.5 py-0.5 text-[11px] ${manual.propuesta ? "border-amber-500/40 text-amber-200" : "border-white/15"}`}>
-                {manual.texto}{f.manual.version != null ? ` · v${f.manual.version}` : ""}
+                {manual.texto}
               </p>
               <dl className="grid gap-3">
-                <Dato e="Propósito" v={f.manual.proposito ?? "—"} />
-                <Dato e="Eslogan" v={f.manual.eslogan ?? "—"} />
-                <Dato e="Voz" v={f.manual.voz ?? "—"} />
-                {f.manual.gate && <Dato e="Revisión de fidelidad" v={f.manual.gate} />}
+                <Dato e="Propósito" v={f.manual.proposito ?? <span className="text-amber-300">Falta definirlo</span>} />
+                <Dato e="Eslogan" v={f.manual.eslogan ?? <span className="text-amber-300">Falta definirlo</span>} />
+                <Dato e="Voz de la marca" v={f.manual.voz ?? <span className="text-amber-300">Falta definirla</span>} />
+                {f.manual.gate && <Dato e="Revisión de fidelidad" v={revisionDeFidelidadLegible(f.manual.gate)} />}
               </dl>
             </>
           )}
