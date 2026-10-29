@@ -39,7 +39,7 @@ export function ChatConCowork({ sinRespuesta }: { sinRespuesta: number | null })
       const j = (await r.json()) as { ok: boolean; error?: string }
       if (!r.ok || !j.ok) throw new Error(j.error ?? `HTTP ${r.status}`)
       setTexto("")
-      setAviso({ ok: true, texto: "Guardado. Cowork lo verá cuando lea su bandeja." })
+      setAviso({ ok: true, texto: "Guardado." })
       await cargar()
     } catch (e) {
       setAviso({ ok: false, texto: `No se guardó: ${e instanceof Error ? e.message : String(e)}` })
@@ -68,9 +68,9 @@ export function ChatConCowork({ sinRespuesta }: { sinRespuesta: number | null })
                 : <p className="mt-1 text-[12px] text-amber-300">Sin respuesta todavía</p>}
             </div>
           ))}
-          <textarea value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") void enviar() }} maxLength={4000} rows={3} placeholder="Escribe un mensaje para Cowork… (Ctrl+Enter envía)" className="w-full rounded-lg border border-white/10 bg-transparent p-3 text-[13px] outline-none focus:border-[hsl(var(--primary))]" />
+          <textarea value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") void enviar() }} maxLength={4000} rows={3} placeholder="Escribe un mensaje…" className="w-full rounded-lg border border-white/10 bg-transparent p-3 text-[13px] outline-none focus:border-[hsl(var(--primary))]" />
           <div className="flex items-center justify-between gap-3">
-            <p className={`text-[12px] ${aviso ? (aviso.ok ? "text-emerald-300" : "text-rose-300") : "text-[hsl(var(--muted-foreground))]"}`}>{aviso?.texto ?? "No es en vivo: Cowork responde cuando lee su bandeja."}</p>
+            <p className={`text-[12px] ${aviso ? (aviso.ok ? "text-emerald-300" : "text-rose-300") : "text-[hsl(var(--muted-foreground))]"}`}>{aviso?.texto ?? "No es en vivo."}</p>
             <button type="button" onClick={() => void enviar()} disabled={enviando || texto.trim().length === 0} className="rounded-lg border border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.18)] px-4 py-1.5 text-[13px] font-medium disabled:opacity-40">{enviando ? "Enviando…" : "Enviar"}</button>
           </div>
         </div>

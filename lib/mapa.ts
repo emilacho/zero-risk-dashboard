@@ -25,7 +25,7 @@ export function dondeEstaElEncargo(e: { estado?: unknown; hitl_queue_id?: unknow
 export const humanizar = (s: unknown): string => String(s ?? "—").replace(/_/g, " ")
 
 export interface Paso { clave: Estacion; cuantos: number; detalle: string[]; ultimo: string | null }
-export interface PiezaEnElMapa { id: string; brief: string; familia: string; donde: DondeEsta; estado: string; creado_en: string; gasto_usd: number }
+export interface PiezaEnElMapa { id: string; hitl_queue_id: string | null; brief: string; familia: string; donde: DondeEsta; estado: string; creado_en: string; gasto_usd: number }
 
 /** cuenta en singular/plural: «1 brief», «3 briefs» */
 export const contarCosas = (n: number, uno: string, varios: string): string => `${n} ${n === 1 ? uno : varios}`

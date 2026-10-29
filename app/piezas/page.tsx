@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { cargarPieza, contarPiezasPorAprobar, listarPiezas, type FiltroDeEstado } from "@/lib/piezas-datos"
-import { diaYHora, usdES } from "@/lib/lenguaje"
+import { diaYHora } from "@/lib/lenguaje"
 import { VisorDePieza } from "./VisorDePieza"
 
 export const dynamic = "force-dynamic"
@@ -41,13 +41,13 @@ export default async function PiezasPage({ searchParams }: { searchParams: Promi
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {piezas.length === 0 && <p className="px-4 py-6 text-sm text-[hsl(var(--muted-foreground))]">No hay piezas por aprobar. Cuando la oficina entregue una aparecerá aquí.</p>}
+          {piezas.length === 0 && <p className="px-4 py-6 text-sm text-[hsl(var(--muted-foreground))]">No hay piezas por aprobar.</p>}
           {piezas.map((p) => (
             <Link key={p.id} href={enlace(p.id)} className={`flex gap-3 border-t-[0.5px] border-white/5 px-4 py-3 transition-colors hover:bg-white/[0.03] ${p.id === elegida ? "bg-white/[0.06]" : ""}`}>
               <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${PUNTO[p.estado]}`} />
               <span className="min-w-0">
                 <span className="block text-[13px] font-medium">{p.titulo_legible}</span>
-                <span className="block text-[11px] text-[hsl(var(--muted-foreground))]">{diaYHora(p.creada)} · {usdES(p.gasto_usd)} · {ETIQUETA[p.estado]}</span>
+                <span className="block text-[11px] text-[hsl(var(--muted-foreground))]">{diaYHora(p.creada)}{estado === "todas" ? " · " + ETIQUETA[p.estado] : ""}</span>
                 {(!p.tiene_dibujo || p.incompleta || p.desacuerdos > 0) && (
                   <span className="block text-[11px] text-amber-300/90">
                     {[!p.tiene_dibujo ? "sin dibujo" : "", p.incompleta ? "revisión de la jefatura incompleta" : "", p.desacuerdos > 0 ? `${p.desacuerdos} desacuerdos` : ""].filter(Boolean).join(" · ")}
@@ -62,7 +62,7 @@ export default async function PiezasPage({ searchParams }: { searchParams: Promi
               {otras.map((p) => (
                 <Link key={p.id} href={enlace(p.id)} className={`block border-t-[0.5px] border-white/5 px-4 py-2.5 text-[12px] hover:bg-white/[0.03] ${p.id === elegida ? "bg-white/[0.06]" : ""}`}>
                   <span className="block">{p.titulo_legible}</span>
-                  <span className="block text-[11px] text-[hsl(var(--muted-foreground))]">{diaYHora(p.creada)} · solo lectura</span>
+                  <span className="block text-[11px] text-[hsl(var(--muted-foreground))]">{diaYHora(p.creada)}</span>
                 </Link>
               ))}
             </details>
@@ -70,7 +70,7 @@ export default async function PiezasPage({ searchParams }: { searchParams: Promi
         </div>
       </aside>
       <section className="min-w-0 flex-1">
-        {detalle ? <VisorDePieza key={detalle.id} pieza={detalle} siguienteId={siguiente} /> : <p className="p-8 text-sm text-[hsl(var(--muted-foreground))]">Elige una pieza de la lista.</p>}
+        {detalle ? <VisorDePieza key={detalle.id} pieza={detalle} siguienteId={siguiente} /> : <p className="p-8 text-sm text-[hsl(var(--muted-foreground))]">Elige una pieza.</p>}
       </section>
     </div>
   )

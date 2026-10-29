@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { leerAlertas } from "@/lib/alertas-datos"
-import { VENTANA_OFICINA_DIAS, type Alerta, type FuenteDeAlerta } from "@/lib/alertas"
+import type { Alerta, FuenteDeAlerta } from "@/lib/alertas"
 import { BotonYaLoVi } from "./BotonYaLoVi"
 
 export const dynamic = "force-dynamic"
@@ -19,10 +19,9 @@ function Fila({ a, conBoton }: { a: Alerta; conBoton: boolean }) {
         <p className="text-[13px] font-medium text-zinc-100">{a.titulo}</p>
         {a.detalle && <p className="mt-0.5 break-words text-[12px] text-zinc-400">{a.detalle}</p>}
         <p className="mt-1 text-[11px] text-zinc-500">
-          {FUENTE[a.fuente]} · última vez {cuando(a.ultima_en)}
-          {a.repeticiones > 1 ? ` · se repitió ${a.repeticiones} veces desde ${cuando(a.desde)}` : ""}
-          {a.cerrada ? " · ya cerrada" : ""}
-          {!conBoton && a.vista_en ? ` · vista ${cuando(a.vista_en)}` : ""}
+          {FUENTE[a.fuente]} · {cuando(a.ultima_en)}
+          {a.repeticiones > 1 ? ` · ${a.repeticiones} veces` : ""}
+          {a.cerrada ? " · cerrada" : ""}
         </p>
       </div>
       {conBoton && <BotonYaLoVi clave={a.clave} />}
@@ -37,27 +36,18 @@ export default async function AlertasPage() {
 
   return (
     <main data-seccion="alertas" className="mx-auto max-w-[900px] px-6 pb-16 pl-24 pt-10">
-      <span className="eyebrow-chip">Alertas</span>
-      <h1 className="mt-2 font-display text-[34px] font-semibold leading-tight tracking-tight">Alertas</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Lo que el sistema marcó como problema. «Ya lo vi» la manda abajo; si vuelve a ocurrir, reaparece arriba como nueva.
-      </p>
-
-      <p className="surface-card mt-4 px-3 py-2 text-[12px] text-zinc-400">
-        Esta pantalla muestra las alarmas del cerebro, los topes de costo y los problemas reales de la oficina (últimos {VENTANA_OFICINA_DIAS} días).
-        Todavía no lee el historial del canal #alertas de Slack: la llave del bot no tiene permiso para leer ese historial.
-      </p>
+      <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight">Alertas</h1>
 
       <section className="mt-6">
         <h2 className="mb-2 text-sm font-medium text-zinc-200">Nuevas <span className="num text-zinc-500">({nuevas.length})</span></h2>
-        {nuevas.length === 0 ? <p className="surface-card px-4 py-4 text-sm text-zinc-400">Nada pendiente. Todo lo que el sistema marcó ya lo viste.</p> : (
+        {nuevas.length === 0 ? <p className="surface-card px-4 py-4 text-sm text-zinc-400">Nada pendiente.</p> : (
           <ul className="surface-card">{nuevas.map((a) => <Fila key={a.clave} a={a} conBoton />)}</ul>
         )}
       </section>
 
       <section className="mt-8">
         <h2 className="mb-2 text-sm font-medium text-zinc-200">Ya vistas <span className="num text-zinc-500">({vistas.length})</span></h2>
-        {vistas.length === 0 ? <p className="text-sm text-zinc-500">Todavía no marcaste ninguna.</p> : (
+        {vistas.length === 0 ? <p className="text-sm text-zinc-500">Ninguna.</p> : (
           <ul className="surface-card">{vistas.map((a) => <Fila key={a.clave} a={a} conBoton={false} />)}</ul>
         )}
       </section>

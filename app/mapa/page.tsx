@@ -26,7 +26,6 @@ export default async function MapaPage() {
   return (
     <main data-seccion="mapa" className="mx-auto max-w-[1300px] px-6 pb-16 pl-24 pt-10">
       <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight">Mapa</h1>
-      <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">El recorrido de una pieza, de izquierda a derecha. Cada estación cuenta lo que pasó por ella en los últimos 7 días (solo trabajo real, sin ensayos).</p>
       {error && <p className="mt-6 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-[13px] text-rose-200">No pude leer el mapa: {error}</p>}
       {mapa && (
         <>
@@ -38,17 +37,15 @@ export default async function MapaPage() {
                   <div className="surface-card h-full p-4">
                     <span className="text-[11px] uppercase tracking-[0.08em] text-[hsl(var(--muted-foreground))]">{i + 1}. {est.nombre}</span>
                     <span className="num mt-2 block text-[36px] font-semibold leading-none">{p.cuantos}</span>
-                    <span className="mt-2 block text-[12px] text-[hsl(var(--muted-foreground))]">{est.que_hace}</span>
                     <ul className="mt-3 space-y-0.5 text-[12px]">{p.detalle.map((d, k) => <li key={k}>{d}</li>)}</ul>
-                    <span className="mt-3 block text-[11px] text-[hsl(var(--muted-foreground))]">Último movimiento: {haceCuanto(p.ultimo, ahora)}</span>
                   </div>
                   {i < ESTACIONES.length - 1 && <span aria-hidden className="absolute -right-2.5 top-1/2 hidden -translate-y-1/2 text-[hsl(var(--muted-foreground))] md:block">›</span>}
                 </li>
               )
             })}
           </ol>
-          <h2 className="mb-3 mt-10 text-[11px] font-medium uppercase tracking-[0.08em] text-[hsl(var(--muted-foreground))]">Dónde está cada pieza</h2>
-          {mapa.piezas.length === 0 ? <p className="text-[13px] text-[hsl(var(--muted-foreground))]">No hubo piezas reales en los últimos 7 días.</p> : (
+          <h2 className="mb-3 mt-10 text-[11px] font-medium uppercase tracking-[0.08em] text-[hsl(var(--muted-foreground))]">Piezas</h2>
+          {mapa.piezas.length === 0 ? <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Sin piezas en 7 días.</p> : (
             <ul className="surface-card divide-y divide-white/5">
               {mapa.piezas.map((p) => (
                 <li key={p.id} className="flex items-baseline gap-3 px-4 py-2.5 text-[13px]">
@@ -56,7 +53,7 @@ export default async function MapaPage() {
                   <span className={`w-48 shrink-0 ${COLOR[p.donde]}`}>{p.donde === "oficina" ? `${DONDE[p.donde]} · ${p.estado}` : DONDE[p.donde]}</span>
                   <span className="num w-20 shrink-0 text-right">{usd(p.gasto_usd)}</span>
                   <span className="ml-auto text-[11px] text-[hsl(var(--muted-foreground))]">{haceCuanto(p.creado_en, ahora)}</span>
-                  {p.donde === "bandeja" && <Link href="/piezas" className="text-[12px] text-[hsl(var(--primary-glow))] hover:underline">Abrir →</Link>}
+                  {p.donde === "bandeja" && p.hitl_queue_id && <Link href={`/piezas?id=${p.hitl_queue_id}`} className="text-[12px] text-[hsl(var(--primary-glow))] hover:underline">Abrir →</Link>}
                 </li>
               ))}
             </ul>

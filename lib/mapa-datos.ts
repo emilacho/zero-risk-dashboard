@@ -37,6 +37,6 @@ export async function leerMapa(supa: SupabaseClient, ahora: Date = new Date()): 
     { clave: "jefatura", cuantos: rev.length, detalle: Object.entries(porResultado).map(([k, n]) => `${n} ${resultadoDeJefaturaLegible(k)}`), ultimo: ultimo(rev, "cerrado_en") },
     { clave: "bandeja", cuantos: bandeja.length, detalle: Object.entries(porEstadoBandeja).map(([k, n]) => `${n} ${k === "pending" ? "por aprobar" : k === "approved" ? "aprobada" : k === "rejected" ? "rechazada" : k === "edited" ? "con cambios pedidos" : "en otro estado"}`), ultimo: ultimo(bandeja, "created_at") },
   ]
-  const piezas: PiezaEnElMapa[] = finales.slice(0, 8).map((e) => ({ id: String(e.id), brief: tituloDePieza({ familia: e.familia, creada: String(e.creado_en) }), familia: familiaLegible(e.familia), donde: dondeEstaElEncargo(e), estado: estadoDeLaPiezaLegible(e.estado), creado_en: String(e.creado_en), gasto_usd: Number(e.gasto_usd ?? 0) }))
+  const piezas: PiezaEnElMapa[] = finales.slice(0, 8).map((e) => ({ id: String(e.id), hitl_queue_id: e.hitl_queue_id ? String(e.hitl_queue_id) : null, brief: tituloDePieza({ familia: e.familia, creada: String(e.creado_en) }), familia: familiaLegible(e.familia), donde: dondeEstaElEncargo(e), estado: estadoDeLaPiezaLegible(e.estado), creado_en: String(e.creado_en), gasto_usd: Number(e.gasto_usd ?? 0) }))
   return { pasos, piezas }
 }
