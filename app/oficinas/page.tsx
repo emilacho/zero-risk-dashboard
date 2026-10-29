@@ -18,7 +18,7 @@ export default async function OficinasPage() {
   const peor = peorSemaforo(tarjetas)
   const ahora = new Date()
   return (
-    <main className="mx-auto max-w-[1400px] px-6 pb-16 pl-24 pt-10">
+    <main data-seccion="oficinas" className="mx-auto max-w-[1400px] px-6 pb-16 pl-24 pt-10">
       <span className="eyebrow-chip self-start">Estado real · últimos 7 días</span>
       <h1 className="mt-3 font-display text-[34px] font-semibold leading-tight tracking-tight">Oficinas</h1>
       <p className="mt-1 flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]"><span className={`h-2.5 w-2.5 rounded-full ${LUZ[peor]}`} />{RESUMEN[peor]}</p>

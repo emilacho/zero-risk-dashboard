@@ -21,11 +21,11 @@ export default async function ClientesPage() {
     error = e instanceof Error ? e.message : String(e)
   }
   return (
-    <main className="mx-auto max-w-[1200px] px-6 pb-16 pl-24 pt-10">
+    <main data-seccion="clientes" className="mx-auto max-w-[1200px] px-6 pb-16 pl-24 pt-10">
       <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight">Clientes</h1>
       <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">Una ficha por cliente: sus piezas, su plan, su gasto, su cerebro y su manual. El gasto es el mismo de la pantalla Gasto, de los últimos 30 días.</p>
       {error && <p className="mt-6 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-[13px] text-rose-200">No pude leer los clientes: {error}</p>}
-      <div className="mt-6 overflow-hidden rounded-lg border border-white/10">
+      <div className="surface-card mt-6">
         <table className="w-full text-left text-[13px]">
           <thead className="bg-white/[0.03] text-[11px] uppercase tracking-[0.06em] text-[hsl(var(--muted-foreground))]">
             <tr>

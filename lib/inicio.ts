@@ -3,6 +3,7 @@
  * Nada técnico: ni llamadas de agentes ni identificadores. Lo que no se pudo leer se dice; nunca se rellena con un cero.
  */
 import { haceCuanto, peorSemaforo, type Semaforo, type TarjetaDeOficina } from "@/lib/oficinas"
+import { diaCorto } from "@/lib/lenguaje"
 
 /** tope diario de gasto de la agencia (canon: umbral de $10/día; los vigías de una pieza llevan su propio tope) */
 export const TOPE_DIARIO_USD = 10
@@ -38,6 +39,23 @@ export interface Hecho { cuando: string; texto: string; href?: string }
 /** los N hechos más recientes, del más nuevo al más viejo; los de fecha ilegible se descartan */
 export function ultimosHechos(hechos: Hecho[], n = 5): Hecho[] {
   return hechos.filter((h) => Number.isFinite(new Date(h.cuando).getTime())).sort((a, b) => new Date(b.cuando).getTime() - new Date(a.cuando).getTime()).slice(0, n)
+}
+
+/** piezas entregadas por semana: `n` ventanas de 7 días hacia atrás desde `ahora` (la última es «esta semana»); solo trabajo real */
+export interface Semana { desde: string; etiqueta: string; piezas: number }
+export function piezasPorSemana(encargos: Array<{ estado?: unknown; dry_run?: unknown; cerrado_en?: unknown }>, ahora: Date, n = 6): Semana[] {
+  const DIA = 86_400_000
+  const out: Semana[] = []
+  for (let i = n - 1; i >= 0; i--) {
+    const fin = ahora.getTime() - i * 7 * DIA, ini = fin - 7 * DIA
+    const piezas = encargos.filter((e) => {
+      if (e.dry_run === true || !String(e.estado ?? "").startsWith("cerrado")) return false
+      const t = new Date(String(e.cerrado_en ?? "")).getTime()
+      return Number.isFinite(t) && t > ini && t <= fin
+    }).length
+    out.push({ desde: new Date(ini).toISOString(), etiqueta: diaCorto(new Date(ini + DIA)), piezas })
+  }
+  return out
 }
 
 export const cuando = (iso: string, ahora: Date = new Date()): string => haceCuanto(iso, ahora)

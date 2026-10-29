@@ -29,7 +29,7 @@ export default async function PiezasPage({ searchParams }: { searchParams: Promi
   const enlace = (id: string) => `/piezas?id=${id}${estado === "todas" ? "&estado=todas" : ""}`
 
   return (
-    <div className="flex h-screen min-h-0 pl-16">
+    <div data-seccion="piezas" className="flex h-screen min-h-0 pl-16">
       <aside className="flex w-[340px] shrink-0 flex-col border-r-[0.5px] border-white/10">
         <div className="px-4 pb-2 pt-4">
           <h1 className="font-display text-[17px] font-semibold">

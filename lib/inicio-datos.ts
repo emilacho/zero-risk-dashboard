@@ -6,9 +6,9 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { leerOficinas } from "@/lib/oficinas-datos"
 import { leerGasto } from "@/lib/gasto-datos"
 import { desde, type TarjetaDeOficina } from "@/lib/oficinas"
-import { contarPiezasPorAprobar } from "@/lib/piezas-datos"
+import { contarPiezasPorAprobar, listarPiezas } from "@/lib/piezas-datos"
 import { familiaLegible, resultadoDeJefaturaLegible, estadoDeCampanaLegible } from "@/lib/lenguaje"
-import { estadoDelSistema, teNecesitan, ultimosHechos, type EstadoDelSistema, type Hecho, type Pendiente } from "@/lib/inicio"
+import { estadoDelSistema, piezasPorSemana, teNecesitan, ultimosHechos, type EstadoDelSistema, type Hecho, type Pendiente, type Semana } from "@/lib/inicio"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -26,7 +26,9 @@ async function bloque<T>(f: () => Promise<T>): Promise<Bloque<T>> {
 export interface LecturaDeInicio {
   te_necesitan: Bloque<Pendiente[]>
   estado: Bloque<EstadoDelSistema>
-  cifras: Bloque<{ piezas_semana: number; gasto_hoy: number; gasto_mes: number; mes: string; clientes_activos: number }>
+  cifras: Bloque<{ piezas_semana: number; gasto_hoy: number; gasto_mes: number; mes: string; clientes_activos: number; gasto_30d: number[]; semanas: Semana[] }>
+  /** las piezas por aprobar con su miniatura (la lámina 1), las 3 más nuevas */
+  miniaturas: Bloque<Array<{ id: string; titulo: string; tiene_dibujo: boolean }>>
   oficinas: Bloque<TarjetaDeOficina[]>
   hechos: Bloque<Hecho[]>
   mensajes_sin_respuesta: Bloque<number>
@@ -46,11 +48,12 @@ export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date())
     bloque(async () => {
       const [g, enc, cli] = await Promise.all([
         leerGasto(supa, ahora),
-        filas(supa.from("oficina_encargos").select("estado, dry_run").gte("cerrado_en", desde(7, ahora)).limit(1000), "oficina_encargos"),
+        filas(supa.from("oficina_encargos").select("estado, dry_run, cerrado_en").gte("cerrado_en", desde(42, ahora)).limit(2000), "oficina_encargos"),
         contar(supa.from("clients").select("*", { count: "exact", head: true }).in("status", ["active", "onboarding"]).is("archived_at", null), "clients"),
       ])
-      const hechas = enc.filter((e) => e.dry_run !== true && String(e.estado).startsWith("cerrado")).length
-      return { piezas_semana: hechas, gasto_hoy: g.resumen.hoy.total, gasto_mes: g.resumen.mes.total, mes: g.resumen.mes.etiqueta, clientes_activos: cli }
+      const semanas = piezasPorSemana(enc, ahora, 6)
+      const hechas = semanas[semanas.length - 1].piezas
+      return { piezas_semana: hechas, gasto_hoy: g.resumen.hoy.total, gasto_mes: g.resumen.mes.total, mes: g.resumen.mes.etiqueta, clientes_activos: cli, gasto_30d: g.resumen.ultimos.dias.map((x) => x.total), semanas }
     }),
     bloque(async () => {
       const [enc, rev, camp, dec] = await Promise.all([
@@ -68,6 +71,7 @@ export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date())
     }),
     bloque(() => contar(supa.from("cowork_messages").select("*", { count: "exact", head: true }).eq("status", "pending"), "cowork_messages")),
   ])
+  const miniaturas = await bloque(async () => (await listarPiezas(supa, { estado: "pendiente", tipo: "piezas", limite: 3 })).map((p) => ({ id: p.id, titulo: p.titulo_legible, tiene_dibujo: p.tiene_dibujo })))
   const estado: Bloque<EstadoDelSistema> = oficinas.ok ? { ok: true, valor: estadoDelSistema(oficinas.valor, null) } : { ok: false, error: oficinas.error }
-  return { te_necesitan, estado, cifras, oficinas, hechos, mensajes_sin_respuesta }
+  return { te_necesitan, estado, cifras, oficinas, hechos, mensajes_sin_respuesta, miniaturas }
 }

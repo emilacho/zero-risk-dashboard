@@ -34,17 +34,19 @@ interface NavItem {
   href: string
   label: string
   icon: Icon
+  /** matiz de su sección (el mismo de data-seccion en la página) */
+  hue: string
 }
 
 /** El menú final (29-oct · aprobado por Emilio): 7 entradas. */
 const NAV: NavItem[] = [
-  { href: "/", label: "Inicio", icon: SquaresFour },
-  { href: "/piezas", label: "Piezas", icon: Images },
-  { href: "/clientes", label: "Clientes", icon: Users },
-  { href: "/oficinas", label: "Oficinas", icon: Gauge },
-  { href: "/gasto", label: "Gasto", icon: CurrencyDollar },
-  { href: "/alertas", label: "Alertas", icon: Bell },
-  { href: "/mapa", label: "Mapa", icon: TreeStructure },
+  { href: "/", label: "Inicio", icon: SquaresFour, hue: "violet" },
+  { href: "/piezas", label: "Piezas", icon: Images, hue: "amber" },
+  { href: "/clientes", label: "Clientes", icon: Users, hue: "sky" },
+  { href: "/oficinas", label: "Oficinas", icon: Gauge, hue: "teal" },
+  { href: "/gasto", label: "Gasto", icon: CurrencyDollar, hue: "lime" },
+  { href: "/alertas", label: "Alertas", icon: Bell, hue: "rose" },
+  { href: "/mapa", label: "Mapa", icon: TreeStructure, hue: "orange" },
 ]
 
 export function Sidebar() {
@@ -77,7 +79,7 @@ export function Sidebar() {
 
       {/* Nav stack */}
       <nav className="mt-3 flex flex-1 flex-col gap-1 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, hue }) => {
           const active =
             href === "/"
               ? pathname === "/"
@@ -89,18 +91,19 @@ export function Sidebar() {
                 aria-label={label}
                 title={label}
                 data-active={active ? "true" : undefined}
-                className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--primary-glow)/0.12)]"
+                style={{ ["--h" as string]: `var(--hue-${hue})` }}
+                className="group/item relative flex h-10 items-center gap-3 rounded-lg px-[10px] text-sm transition-colors hover:bg-[hsl(var(--primary-glow)/0.08)] data-[active=true]:bg-[hsl(var(--h)/0.14)]"
               >
                 <span
                   aria-hidden
-                  className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[hsl(var(--primary-glow))] opacity-0 shadow-[0_0_8px_hsl(var(--primary-glow)/0.7)] transition-opacity group-data-[active=true]/item:opacity-100"
+                  className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[hsl(var(--h))] opacity-0 transition-opacity group-data-[active=true]/item:opacity-100"
                 />
                 {/* Phosphor weight canon · sidebar nav icons (20px+) use
                     duotone so the Lumen violet+cyan flagship pair has
                     visual presence at primary-nav scale. */}
                 <Icon
                   weight="duotone"
-                  className="h-5 w-5 shrink-0 text-[hsl(var(--muted-foreground))] transition-colors group-hover/item:text-foreground group-data-[active=true]/item:text-[hsl(var(--accent))]"
+                  className="h-5 w-5 shrink-0 text-[hsl(var(--h)/0.8)] transition-colors group-hover/item:text-[hsl(var(--h))] group-data-[active=true]/item:text-[hsl(var(--h))]"
                 />
                 <span className="overflow-hidden whitespace-nowrap text-[13px] font-medium text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity duration-200 group-hover/sidebar:opacity-100 group-hover/item:text-foreground group-data-[active=true]/item:text-foreground">
                   {label}
