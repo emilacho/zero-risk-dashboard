@@ -20,6 +20,7 @@ import {
   SquaresFour,
   Images,
   Gauge,
+  Bell,
   CurrencyDollar,
   Cpu,
   Users,
@@ -47,6 +48,7 @@ const NAV: NavItem[] = [
   { href: "/piezas", label: "Piezas", icon: Images },
   { href: "/oficinas", label: "Oficinas", icon: Gauge },
   { href: "/gasto", label: "Gasto", icon: CurrencyDollar },
+  { href: "/alertas", label: "Alertas", icon: Bell },
   {
     href: "/dept",
     label: "Departamentos",
