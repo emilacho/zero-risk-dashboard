@@ -24,7 +24,7 @@ export default async function OficinasPage() {
       <p className="mt-1 flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]"><span className={`h-2.5 w-2.5 rounded-full ${LUZ[peor]}`} />{RESUMEN[peor]}</p>
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {tarjetas.map((t) => (
-          <section key={t.clave} className="surface-card flex flex-col gap-3 p-5" data-hue={t.semaforo === "rojo" ? "rose" : t.semaforo === "ambar" ? "amber" : t.semaforo === "verde" ? "emerald" : "violet"}>
+          <section key={t.clave} id={t.clave} className="scroll-mt-6 surface-card flex flex-col gap-3 p-5" data-hue={t.semaforo === "rojo" ? "rose" : t.semaforo === "ambar" ? "amber" : t.semaforo === "verde" ? "emerald" : "violet"}>
             <header>
               <div className="flex items-center gap-2">
                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${LUZ[t.semaforo]}`} />
