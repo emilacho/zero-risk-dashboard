@@ -19,7 +19,7 @@ import { API_PUBLICAS, llaveInternaValida } from "@/lib/api-gate"
 
 const PUBLIC_ROUTES = new Set(["/login", "/auth/callback"])
 // Page prefixes (NOT api prefixes · api routes self-gate)
-const ADMIN_ONLY_PREFIXES = ["/system", "/dept", "/agents", "/graph", "/workflows", "/piezas", "/oficinas", "/gasto", "/alertas"]
+const ADMIN_ONLY_PREFIXES = ["/system", "/dept", "/agents", "/graph", "/workflows", "/piezas", "/oficinas", "/gasto", "/alertas", "/clientes"]
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
