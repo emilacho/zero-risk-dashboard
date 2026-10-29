@@ -1,10 +1,13 @@
 /** CLIENTES · lógica pura + lectura con base falsa. US$ 0, sin red. La prueba contra la base viva está en clientes-viva.test.ts. */
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import fs from "node:fs"
 import path from "node:path"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { etiquetaDelCliente, fasesDelPlan, gastoReal, ordenarClientes, origenDelManual, type ResumenDeCliente } from "@/lib/clientes"
 import { cargarFicha, listarClientes } from "@/lib/clientes-datos"
+
+// el gasto por cliente sale de la MISMA lectura que la pantalla Gasto: aquí se sustituye por una cifra conocida
+vi.mock("@/lib/gasto-datos", () => ({ leerGasto: async () => ({ resumen: { por_cliente: [{ clave: "11111111-1111-1111-1111-111111111111", nombre: "Náufrago", total: 0.9, llamadas: 3 }, { clave: "2", nombre: "Otro", total: 9, llamadas: 1 }] } }) }))
 
 describe("gasto por cliente", () => {
   it("suma sin los ensayos (dry_run) y tolera basura", () => {
@@ -16,10 +19,10 @@ describe("gasto por cliente", () => {
 
 describe("etiquetas y manual", () => {
   it("el estado del cliente se dice en español y lo desconocido se muestra tal cual", () => {
-    expect(etiquetaDelCliente("active")).toBe("Activo")
-    expect(etiquetaDelCliente("onboarding")).toBe("En alta")
-    expect(etiquetaDelCliente("raro")).toBe("raro")
-    expect(etiquetaDelCliente(null)).toBe("Sin estado")
+    expect(etiquetaDelCliente("active")).toBe("Cliente activo")
+    expect(etiquetaDelCliente("onboarding")).toBe("Cliente nuevo, en preparación")
+    expect(etiquetaDelCliente("raro")).toBe("Sin estado definido")
+    expect(etiquetaDelCliente(null)).toBe("Sin estado definido")
   })
   it("el manual: validado por persona gana; generado sin validar es PROPUESTA; sin manual lo dice", () => {
     expect(origenDelManual(null)).toEqual({ texto: "Sin manual de marca", propuesta: false })
@@ -79,16 +82,16 @@ describe("la lista y la ficha leen lo que dice la base", () => {
   it("lista: piezas por aprobar, gasto y fichas por cliente; ensayo no cuenta", async () => {
     const l = await listarClientes(baseFalsa(TABLAS()))
     expect(l.map((x) => x.nombre)).toEqual(["Náufrago", "Otro"])
-    expect(l[0]).toMatchObject({ piezas_por_aprobar: 1, gasto_30d: 0.75, trozos_del_cerebro: 1, campana: "activa" })
+    expect(l[0]).toMatchObject({ piezas_por_aprobar: 1, gasto_30d: 0.9, trozos_del_cerebro: 1, campana: "activa" }) // el estado crudo; la pantalla lo traduce
     expect(l[1]).toMatchObject({ piezas_por_aprobar: 0, gasto_30d: 9, campana: null })
   })
   it("ficha: piezas, plan con fases, gasto sin ensayos, cerebro, manual propuesta", async () => {
     const f = (await cargarFicha(baseFalsa(TABLAS()), ID))!
     expect(f.cliente.nombre).toBe("Náufrago")
-    expect(f.piezas.map((p) => [p.titulo, p.estado])).toEqual([["Pieza A", "pendiente"], ["Pieza B", "aprobada"]])
+    expect(f.piezas.map((p) => [p.titulo, p.estado])).toEqual([["Pieza · 27 oct", "por aprobar"], ["Pieza · 26 oct", "aprobada"]])
     expect(f.plan).toMatchObject({ campana_estado: "activa", presupuesto: 500, version_estrategia: 1, filas_del_calendario: 2 })
     expect(f.plan!.fases).toHaveLength(1)
-    expect(f.gasto).toEqual({ agentes_30d: 0.75, piezas_30d: 1.5, llamadas_30d: 2 })
+    expect(f.gasto).toEqual({ total_30d: 0.9, agentes_30d: 0.75, piezas_30d: 1.5, llamadas_30d: 2 })
     expect(f.cerebro).toEqual({ fichas_vigentes: 1, trozos: 3 })
     expect(f.manual).toMatchObject({ version: 2, auto_generated: true, human_validated: false })
     expect(f.perfiles_de_cliente_ideal).toBe(1)
@@ -100,7 +103,7 @@ describe("la lista y la ficha leen lo que dice la base", () => {
     expect(f.manual).toBeNull()
   })
   it("un error de la base NO se lee como cero: la lectura lanza", async () => {
-    await expect(listarClientes(baseFalsa(TABLAS(), ["agent_invocations"]))).rejects.toThrow(/agent_invocations: boom/)
+    await expect(listarClientes(baseFalsa(TABLAS(), ["hitl_queue"]))).rejects.toThrow(/hitl_queue: boom/)
     await expect(cargarFicha(baseFalsa(TABLAS(), ["hitl_queue"]), ID)).rejects.toThrow(/hitl_queue: boom/)
   })
 })

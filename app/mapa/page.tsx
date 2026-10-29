@@ -52,9 +52,8 @@ export default async function MapaPage() {
             <ul className="surface-card divide-y divide-white/5">
               {mapa.piezas.map((p) => (
                 <li key={p.id} className="flex items-baseline gap-3 px-4 py-2.5 text-[13px]">
-                  <span className="w-20 shrink-0 font-medium">{p.brief}</span>
-                  <span className="w-36 shrink-0 text-[hsl(var(--muted-foreground))]">{p.familia}</span>
-                  <span className={`w-48 shrink-0 ${COLOR[p.donde]}`}>{DONDE[p.donde]} · {p.estado}</span>
+                  <span className="w-64 shrink-0 font-medium">{p.brief}</span>
+                  <span className={`w-48 shrink-0 ${COLOR[p.donde]}`}>{p.donde === "oficina" ? `${DONDE[p.donde]} · ${p.estado}` : DONDE[p.donde]}</span>
                   <span className="num w-20 shrink-0 text-right">{usd(p.gasto_usd)}</span>
                   <span className="ml-auto text-[11px] text-[hsl(var(--muted-foreground))]">{haceCuanto(p.creado_en, ahora)}</span>
                   {p.donde === "bandeja" && <Link href="/piezas" className="text-[12px] text-[hsl(var(--primary-glow))] hover:underline">Abrir →</Link>}

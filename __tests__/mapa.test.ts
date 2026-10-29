@@ -56,19 +56,19 @@ describe("leerMapa", () => {
   it("cada estación cuenta solo trabajo real: el ensayo (dry_run) no entra", async () => {
     const m = await leerMapa(baseFalsa(TABLAS()), new Date("2026-10-29T12:00:00Z"))
     const p = Object.fromEntries(m.pasos.map((x) => [x.clave, x]))
-    expect(p.brief.cuantos).toBe(2) // BRF-0002 y BRF-0004 reales; el ensayo repetido no suma
+    expect(p.brief.cuantos).toBe(2) // dos pedidos reales; el ensayo repetido no suma
     expect(p.oficina.cuantos).toBe(1) // un encargo cerrado real
-    expect(p.oficina.detalle).toContain("1 encargos fallidos")
+    expect(p.oficina.detalle).toContain("1 pieza que falló y no se rehízo")
     expect(p.mesa.cuantos).toBe(2) // los 2 aportes del encargo real; el del ensayo no
     expect(p.jefatura.cuantos).toBe(1)
-    expect(p.jefatura.detalle).toEqual(["1 incompleta por tope"])
+    expect(p.jefatura.detalle).toEqual(["1 incompleta: se cortó por tope de gasto"])
     expect(p.bandeja.cuantos).toBe(1)
-    expect(p.bandeja.detalle).toEqual(["1 pendiente"])
+    expect(p.bandeja.detalle).toEqual(["1 por aprobar"])
     expect(p.mesa.ultimo).toBe("2026-10-29T10:03:00Z")
   })
   it("las piezas se colocan donde la base dice, sin ensayos", async () => {
     const m = await leerMapa(baseFalsa(TABLAS()), new Date("2026-10-29T12:00:00Z"))
-    expect(m.piezas.map((x) => [x.brief, x.donde])).toEqual([["BRF-0002", "bandeja"], ["BRF-0004", "fallo"]])
+    expect(m.piezas.map((x) => [x.brief, x.donde])).toEqual([["Carrusel · 29 oct", "bandeja"], ["Historias · 28 oct", "fallo"]])
   })
   it("sin piezas reales no inventa nada", async () => {
     const m = await leerMapa(baseFalsa({ ...TABLAS(), oficina_encargos: [] }), new Date("2026-10-29T12:00:00Z"))

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
+import { resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible, usdES } from "@/lib/lenguaje"
 import { COMENTARIO_MINIMO, MOTIVO_MINIMO, RONDAS_MAXIMAS_DE_CAMBIOS, ROTULO_DE_ORIGEN } from "@/lib/piezas"
 
 type Pestana = "lamina" | "equipo" | "jefatura" | "gasto"
@@ -10,7 +11,7 @@ type Dialogo = null | "cambios" | "rechazar"
 
 const COLOR_AVISO = { rojo: "border-rose-500/40 bg-rose-500/10 text-rose-200", ambar: "border-amber-500/40 bg-amber-500/10 text-amber-100", info: "border-white/10 bg-white/5" } as const
 const ETIQUETA_ESTADO: Record<string, string> = { pendiente: "Pendiente", aprobada: "Aprobada", con_cambios: "Con cambios pedidos", rechazada: "Rechazada", otro: "Otro" }
-const usd = (n: number | null) => (n == null ? "—" : `US$ ${n.toFixed(2)}`)
+const usd = usdES
 
 export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; siguienteId: string | null }) {
   const router = useRouter()
@@ -69,9 +70,8 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
   return (
     <div className="flex h-screen min-h-0 flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b-[0.5px] border-white/10 px-5 py-3">
-        <h2 className="font-display text-[16px] font-semibold">{pieza.titulo.replace(/^⚠️\s*/, "")}</h2>
+        <h2 className="font-display text-[16px] font-semibold">{pieza.titulo}</h2>
         <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[pieza.estado]}</span>
-        {pieza.version != null && <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">v{pieza.version}</span>}
         <span className="ml-auto flex items-center gap-2">
           {total > 0 && (
             <button onClick={() => setTodas((v) => !v)} className="rounded-full border border-white/10 px-3 py-1 text-[11px] hover:bg-white/5">{todas ? "Ver una lámina" : `Ver las ${total} juntas`}</button>
@@ -110,7 +110,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src(l.n)} alt={`Lámina ${l.n}`} onClick={() => { setN(l.n); setTodas(false) }} className="block w-full cursor-zoom-in object-cover" style={{ aspectRatio: "1080/1350" }} />
                   <button onClick={() => pendiente && marcar(l.n)} disabled={!pendiente} className={`num absolute left-2 top-2 rounded-full px-2.5 py-0.5 text-[11px] ${marcadas.includes(l.n) ? "bg-amber-400 text-black" : "bg-black/70"}`}>{marcadas.includes(l.n) ? `${l.n} · cambiar` : `${l.n} / ${total}`}</button>
-                  {l.glifos_riesgosos && <span className="block border-t border-white/10 px-2 py-1 text-[10px] text-amber-200">⚠ signos que se dibujan como «NO GLYPH»</span>}
+                  {l.glifos_riesgosos && <span className="block border-t border-white/10 px-2 py-1 text-[10px] text-amber-200">⚠ signos que se dibujan como cuadros vacíos</span>}
                 </div>
               ))}
             </div>
@@ -141,14 +141,14 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
             )}
             {pestana === "equipo" && (
               pieza.aportes.length === 0
-                ? <p className="text-[hsl(var(--muted-foreground))]">Esta pieza no pasó por la mesa: no hay libro de aportes. {pieza.familia ? `(familia ${pieza.familia})` : ""}</p>
+                ? <p className="text-[hsl(var(--muted-foreground))]">Esta pieza no pasó por la mesa de especialistas: no hay aportes que mostrar.</p>
                 : pieza.aportes.map((a) => (
-                  <Bloque key={a.n} titulo={`A${a.n} · ${a.de}${a.para ? ` → ${a.para}` : ""} · ${a.tipo}`}><p className="whitespace-pre-wrap">{a.texto.slice(0, 700)}</p></Bloque>
+                  <Bloque key={a.n} titulo={`${rolDeLaMesaLegible(a.de)} ${tipoDeAporteLegible(a.tipo)}${a.para ? ` a ${rolDeLaMesaLegible(a.para)}` : ""}`}><p className="whitespace-pre-wrap">{a.texto.slice(0, 700)}</p></Bloque>
                 ))
             )}
             {pestana === "jefatura" && (
               <>
-                <Bloque titulo="Resultado">{pieza.jefatura.resultado ?? "sin revisión registrada"}</Bloque>
+                <Bloque titulo="Resultado">{resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}</Bloque>
                 {pieza.jefatura.desacuerdos.length > 0 && <Bloque titulo={`Desacuerdos (${pieza.jefatura.desacuerdos.length})`}><ul className="list-disc space-y-1 pl-4">{pieza.jefatura.desacuerdos.map((d, i) => <li key={i}>{d}</li>)}</ul></Bloque>}
                 {pieza.jefatura.opinion_externa && <Bloque titulo="Opinión externa"><p className="whitespace-pre-wrap">{pieza.jefatura.opinion_externa.slice(0, 1400)}</p></Bloque>}
               </>
@@ -165,7 +165,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
 
       <footer className="border-t-[0.5px] border-white/10 bg-black/30 px-5 py-3">
         {mensaje && <p className={`mb-2 text-[13px] ${mensaje.ok ? "text-emerald-300" : "text-rose-300"}`}>{mensaje.texto}</p>}
-        {!pieza.es_pieza && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Este elemento es de tipo «{pieza.tipo}»: se resuelve en su propia pantalla, no con estos botones.</p>}
+        {!pieza.es_pieza && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Esto es una «{tipoDeRevisionLegible(pieza.tipo).toLowerCase()}», no una pieza: se resuelve en su propia pantalla, no con estos botones.</p>}
         {pieza.es_pieza && !pendiente && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Esta pieza ya está «{ETIQUETA_ESTADO[pieza.estado].toLowerCase()}».</p>}
         {pendiente && (
           <div className="flex flex-wrap items-center gap-3">

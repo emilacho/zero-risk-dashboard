@@ -16,7 +16,9 @@ import {
   type EstadoPieza,
   type Lamina,
   type SlideDeLaOficina,
+  type MapaDeOrigenes,
 } from "@/lib/piezas"
+import { tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
 
 export const COLUMNAS_DE_LA_LISTA = "id, status, client_id, created_at, title, type, agent_name, output_preview, metadata"
 
@@ -26,7 +28,10 @@ export interface FilaDeLaLista {
   status: string
   tipo: string
   es_pieza: boolean
+  /** el título crudo de la bandeja: NO se muestra, solo sirve para deducir la red social */
   titulo: string
+  /** «Carrusel Facebook · Zero Risk Seguridad Industrial · 29 oct» */
+  titulo_legible: string
   cliente_id: string | null
   cliente: string | null
   creada: string
@@ -38,8 +43,19 @@ export interface FilaDeLaLista {
 
 export type FiltroDeEstado = "pendiente" | "todas"
 
-export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: FiltroDeEstado; limite?: number } = {}): Promise<FilaDeLaLista[]> {
+/** LA cuenta de piezas por aprobar: la usan Inicio y Piezas (una sola fuente) */
+export async function contarPiezasPorAprobar(supa: SupabaseClient): Promise<number> {
+  const r = await supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").eq("type", TIPO_PIEZA)
+  if (r.error) throw new Error(`no pude contar las piezas por aprobar: ${r.error.message}`)
+  return r.count ?? 0
+}
+
+/** `tipo`: solo piezas (por omisión), solo las otras revisiones de la bandeja, o todo */
+export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: FiltroDeEstado; limite?: number; tipo?: "piezas" | "otras" | "todas" } = {}): Promise<FilaDeLaLista[]> {
   let q = supa.from("hitl_queue").select(COLUMNAS_DE_LA_LISTA).order("created_at", { ascending: false }).limit(filtro.limite ?? 60)
+  const tipo = filtro.tipo ?? "piezas"
+  if (tipo === "piezas") q = q.eq("type", TIPO_PIEZA)
+  else if (tipo === "otras") q = q.neq("type", TIPO_PIEZA)
   if ((filtro.estado ?? "pendiente") === "pendiente") q = q.eq("status", "pending")
   const r = await q
   if (r.error) throw new Error(`no pude leer la bandeja: ${r.error.message}`)
@@ -59,7 +75,10 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       status: String(f.status),
       tipo: String(f.type ?? ""),
       es_pieza: f.type === TIPO_PIEZA,
-      titulo: String(f.title ?? f.output_preview ?? "(sin título)"),
+      titulo: String(f.title ?? f.output_preview ?? ""),
+      titulo_legible: f.type === TIPO_PIEZA
+        ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null, creada: String(f.created_at) })
+        : [tipoDeRevisionLegible(f.type), f.client_id ? nombres.get(String(f.client_id)) : null].filter(Boolean).join(" · "),
       cliente_id: (f.client_id as string | null) ?? null,
       cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null,
       creada: String(f.created_at),
@@ -137,7 +156,13 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     const l = await supa.from("oficina_mesa_aportes").select("n, de, para, tipo, texto, costo_usd").eq("encargo_id", encargoId).order("n", { ascending: true }).limit(80)
     aportes = ((l.data ?? []) as Array<Record<string, unknown>>).map((x) => ({ n: Number(x.n), de: String(x.de), para: (x.para as string | null) ?? null, tipo: String(x.tipo), texto: String(x.texto ?? ""), costo_usd: x.costo_usd == null ? null : Number(x.costo_usd) }))
   }
-  const laminas = laminasDeLaPieza(archivos, slides)
+  const origenes: MapaDeOrigenes = {}
+  if (encargoId) {
+    const e = await supa.from("oficina_artefactos").select("contenido").eq("encargo_id", encargoId).eq("tipo", "imagenes_elegidas").order("version", { ascending: false }).limit(1)
+    const por = (((e.data ?? [])[0] ?? null) as { contenido?: { por_ref?: Record<string, { url?: string; origen?: string }> } } | null)?.contenido?.por_ref ?? {}
+    for (const v of Object.values(por)) if (v?.url && v.origen) origenes[v.url] = v.origen
+  }
+  const laminas = laminasDeLaPieza(archivos, slides, origenes)
   const opinion = (meta.opinion_externa as { texto?: string } | null | undefined)?.texto ?? null
   return {
     id: String(f.id),
@@ -145,7 +170,7 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     status: String(f.status),
     tipo: String(f.type ?? ""),
     es_pieza: f.type === TIPO_PIEZA,
-    titulo: String(f.title ?? "(sin título)"),
+    titulo: f.type === TIPO_PIEZA ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente, creada: String(f.created_at) }) : [tipoDeRevisionLegible(f.type), cliente].filter(Boolean).join(" · "),
     cliente,
     creada: String(f.created_at),
     familia: (meta.familia as string | undefined) ?? null,

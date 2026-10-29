@@ -1,9 +1,12 @@
 /**
- * LAS OFICINAS · lectura (servidor, solo lectura): una tarjeta por oficina con su interruptor real, lo de los últimos 7 días y lo que espera de Emilio.
- * Cada oficina se lee por separado: si una lectura falla, esa tarjeta lo dice y las demás siguen.
+ * LAS OFICINAS · lectura (servidor, solo lectura): una tarjeta por oficina con su estado en una frase, lo que hizo y lo que necesita de Emilio.
+ * Cada oficina se lee por separado: si una lectura falla, esa tarjeta lo dice y las demás siguen. Nada crudo: la traducción vive en `oficinas-frases.ts` y `lenguaje.ts`.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { DIAS_DE_LA_VENTANA, agrupar, desde, haceCuanto, semaforoDelInterruptor, suma, tarjetaConError, usd, type Dato, type TarjetaDeOficina } from "@/lib/oficinas"
+import { DIAS_DE_LA_VENTANA, desde, semaforoDelInterruptor, suma, tarjetaConError, usd, type Dato, type Semaforo, type TarjetaDeOficina } from "@/lib/oficinas"
+import { frasesDeLaCreativa, frasesDeLaFinanciera, frasesDeLaJefatura, fraseDeEstadoDeLaCreativa, resumirEncargos } from "@/lib/oficinas-frases"
+import { contarPiezasPorAprobar } from "@/lib/piezas-datos"
+import { estadoDeCampanaLegible, plural } from "@/lib/lenguaje"
 
 type Fila = Record<string, unknown>
 
@@ -24,43 +27,36 @@ async function contar(q: PromiseLike<{ count: number | null; error: { message: s
   return r.count ?? 0
 }
 const maxFecha = (f: Fila[], col: string): string | null => f.map((x) => String(x[col] ?? "")).filter(Boolean).sort().pop() ?? null
-const lista = (v: unknown): string => (Array.isArray(v) && v.length > 0 ? v.join(", ") : "ninguna")
-const resumenDeEstados = (m: Record<string, number>): string => (Object.keys(m).length === 0 ? "ninguno" : Object.entries(m).map(([k, n]) => `${n} ${k.replace(/_/g, " ")}`).join(" · "))
+/** la peor de dos luces: rojo > ámbar > verde > gris */
+const peor = (a: Semaforo, b: Semaforo | null): Semaforo => {
+  const orden: Semaforo[] = ["rojo", "ambar", "verde", "gris"]
+  return b === null ? a : orden[Math.min(orden.indexOf(a), orden.indexOf(b))]
+}
 
 const QUE_HACE = {
-  creativa: "Hace las piezas: carruseles, historias, publicaciones; con la mesa de especialistas.",
+  creativa: "Hace las piezas: carruseles, historias y publicaciones, con la mesa de especialistas.",
   financiera: "Arma el tablero financiero del cliente y le pregunta al dueño lo que falta.",
-  jefatura: "Revisa cada pieza y cada plan antes de que llegue a Emilio.",
+  jefatura: "Revisa cada pieza y cada plan antes de que lleguen a Emilio.",
   cerebro: "Guarda lo que se sabe de cada cliente; el portero lo vigila y lo entrega a quien lo pide.",
   planeacion: "Arma el plan y el calendario de cada campaña.",
 } as const
 
 export async function leerCreativa(supa: SupabaseClient, ahora: Date): Promise<TarjetaDeOficina> {
-  const cfg = await una(supa.from("oficina_config").select("estado, familias_activas, clientes_ensayo").eq("id", 1).maybeSingle(), "oficina_config")
-  const enc = await filas(supa.from("oficina_encargos").select("estado, gasto_usd, dry_run, familia, brief_id, version_encargo, creado_en").gte("creado_en", desde(DIAS_DE_LA_VENTANA, ahora)).order("creado_en", { ascending: false }).limit(300), "oficina_encargos")
-  const reales = enc.filter((e) => e.dry_run !== true)
-  const pendientes = await contar(supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").eq("type", "content_piece_review"), "hitl_queue")
-  const fallo = await filas(supa.from("oficina_turnos").select("paso, agente, error, fin").eq("estado", "fallo").order("fin", { ascending: false }).limit(1), "oficina_turnos")
-  const por = agrupar(reales, "estado")
-  const fallidos = por.fallido ?? 0
-  const hechos = Object.entries(por).filter(([k]) => k.startsWith("cerrado")).reduce((a, [, n]) => a + n, 0)
-  const enCurso = reales.length - hechos - fallidos
+  const cfg = await una(supa.from("oficina_config").select("estado, clientes_ensayo").eq("id", 1).maybeSingle(), "oficina_config")
+  const enc = await filas(supa.from("oficina_encargos").select("estado, gasto_usd, dry_run, familia, brief_id, creado_en").gte("creado_en", desde(DIAS_DE_LA_VENTANA, ahora)).order("creado_en", { ascending: false }).limit(500), "oficina_encargos")
+  const porAprobar = await contarPiezasPorAprobar(supa)
+  const r = resumirEncargos(enc, ahora)
+  const f = frasesDeLaCreativa(r, porAprobar)
   const sw = semaforoDelInterruptor(cfg?.estado as string, cfg?.clientes_ensayo)
+  const conProblema = r.fallidas.length + r.a_medias.length
   const datos: Dato[] = [
-    { etiqueta: "Piezas entregadas (7 días)", valor: String(hechos) },
-    { etiqueta: "Fallidas (7 días)", valor: String(fallidos), alerta: fallidos > 0 },
-    { etiqueta: "En curso ahora", valor: String(enCurso) },
-    { etiqueta: "Gasto real (7 días)", valor: usd(suma(reales, "gasto_usd")) },
+    { etiqueta: "Piezas entregadas (7 días)", valor: String(r.entregadas) },
+    { etiqueta: "Piezas con problema", valor: String(conProblema), alerta: conProblema > 0 },
+    { etiqueta: "Gasto (7 días)", valor: usd(r.gasto) },
   ]
-  const detalle = [`Familias activas: ${lista(cfg?.familias_activas)}`]
-  const t = fallo[0]
-  if (t) detalle.push(`Último turno fallido (${haceCuanto(String(t.fin ?? ""), ahora)}): ${String(t.paso)} · ${String(t.error ?? "").slice(0, 180)}`)
-  const ult = reales.slice(0, 4).map((e) => `${e.brief_id ?? "—"} v${e.version_encargo ?? 1} · ${e.familia} · ${String(e.estado).replace(/_/g, " ")} · ${usd(Number(e.gasto_usd))}`)
-  if (ult.length) detalle.push(...ult.map((x) => `· ${x}`))
   return {
-    clave: "creativa", nombre: "Oficina creativa", que_hace: QUE_HACE.creativa, semaforo: sw.semaforo, estado_texto: sw.texto, datos,
-    ultima_actividad: maxFecha(enc, "creado_en"), espera: pendientes > 0 ? [`${pendientes} pieza${pendientes === 1 ? "" : "s"} por aprobar`] : [], detalle,
-    enlace: { href: "/piezas", texto: "Abrir piezas" },
+    clave: "creativa", nombre: "Oficina creativa", que_hace: QUE_HACE.creativa, semaforo: peor(sw.semaforo, f.semaforoExtra), estado_texto: fraseDeEstadoDeLaCreativa(sw.texto, r), datos,
+    ultima_actividad: r.ultima, espera: f.espera, hizo: f.hizo, enlace: { href: "/piezas", texto: "Abrir piezas" },
   }
 }
 
@@ -70,18 +66,13 @@ export async function leerFinanciera(supa: SupabaseClient, ahora: Date): Promise
   const abiertas = await contar(supa.from("finanzas_preguntas").select("*", { count: "exact", head: true }).is("respondida_en", null), "finanzas_preguntas")
   const tableros = await filas(supa.from("finanzas_tableros").select("estado, vigente, creado_en").eq("vigente", true).order("creado_en", { ascending: false }).limit(5), "finanzas_tableros")
   const reales = enc.filter((e) => e.dry_run !== true)
+  const gasto = suma(reales, "gasto_usd")
   const sw = semaforoDelInterruptor(cfg?.estado as string, cfg?.clientes_ensayo)
+  const f = frasesDeLaFinanciera({ encargos: reales, gasto, tableros, conversa: cfg?.conversa, preguntasSlack: cfg?.preguntas_slack, abiertas })
   return {
     clave: "financiera", nombre: "Oficina financiera", que_hace: QUE_HACE.financiera, semaforo: sw.semaforo, estado_texto: sw.texto,
-    datos: [
-      { etiqueta: "Encargos (7 días)", valor: resumenDeEstados(agrupar(reales, "estado")) },
-      { etiqueta: "Gasto real (7 días)", valor: usd(suma(reales, "gasto_usd")) },
-      { etiqueta: "Conversa con el dueño", valor: String(cfg?.conversa ?? "—") },
-      { etiqueta: "Preguntas por Slack", valor: String(cfg?.preguntas_slack ?? "—") },
-    ],
-    ultima_actividad: maxFecha(enc, "actualizado_en") ?? maxFecha(enc, "creado_en"),
-    espera: abiertas > 0 ? [`${abiertas} pregunta${abiertas === 1 ? "" : "s"} al dueño sin responder`] : [],
-    detalle: [tableros.length ? `Tableros vigentes: ${tableros.map((t) => String(t.estado)).join(", ")}` : "Sin tablero vigente"],
+    datos: [{ etiqueta: "Encargos (7 días)", valor: String(reales.length) }, { etiqueta: "Gasto (7 días)", valor: usd(gasto) }],
+    ultima_actividad: maxFecha(enc, "actualizado_en") ?? maxFecha(enc, "creado_en"), espera: f.espera, hizo: f.hizo,
   }
 }
 
@@ -89,21 +80,14 @@ export async function leerJefatura(supa: SupabaseClient, ahora: Date): Promise<T
   const cfg = await una(supa.from("jefatura_config").select("estado, tipos_activos, clientes_ensayo").eq("id", 1).maybeSingle(), "jefatura_config")
   const rev = await filas(supa.from("jefatura_revisiones").select("estado, resultado, gasto_usd, dry_run, creado_en").gte("creado_en", desde(DIAS_DE_LA_VENTANA, ahora)).order("creado_en", { ascending: false }).limit(300), "jefatura_revisiones")
   const reales = rev.filter((r) => r.dry_run !== true)
-  const por = agrupar(reales, "resultado")
-  const incompletas = por.incompleta_por_tope ?? 0
-  const fallidas = por.fallida ?? 0
+  const gasto = suma(reales, "gasto_usd")
   const sw = semaforoDelInterruptor(cfg?.estado as string, cfg?.clientes_ensayo)
+  const f = frasesDeLaJefatura({ revisiones: reales, gasto, tipos: cfg?.tipos_activos })
   return {
-    clave: "jefatura", nombre: "Jefatura (revisión)", que_hace: QUE_HACE.jefatura, semaforo: sw.semaforo, estado_texto: sw.texto,
-    datos: [
-      { etiqueta: "Revisiones (7 días)", valor: String(reales.length) },
-      { etiqueta: "Resultado", valor: resumenDeEstados(por) },
-      { etiqueta: "Cortadas por tope", valor: String(incompletas), alerta: incompletas > 0 },
-      { etiqueta: "Gasto (7 días)", valor: usd(suma(reales, "gasto_usd")) },
-    ],
-    ultima_actividad: maxFecha(rev, "creado_en"),
-    espera: [],
-    detalle: [`Revisa: ${lista(cfg?.tipos_activos)}`, ...(fallidas > 0 ? [`${fallidas} revisión${fallidas === 1 ? "" : "es"} fallida${fallidas === 1 ? "" : "s"} en 7 días`] : [])],
+    clave: "jefatura", nombre: "Jefatura (revisión)", que_hace: QUE_HACE.jefatura, semaforo: peor(sw.semaforo, f.ambar ? "ambar" : null),
+    estado_texto: f.estadoExtra ? `${sw.texto} · ${f.estadoExtra}` : sw.texto,
+    datos: [{ etiqueta: "Revisiones (7 días)", valor: String(reales.length) }, { etiqueta: "Gasto (7 días)", valor: usd(gasto) }],
+    ultima_actividad: maxFecha(rev, "creado_en"), espera: [], hizo: f.hizo,
   }
 }
 
@@ -117,22 +101,24 @@ export async function leerCerebro(supa: SupabaseClient, ahora: Date): Promise<Ta
   const reales = corridas.filter((c) => c.prueba !== true)
   const ultima = maxFecha(corridas, "creado_en")
   const viejo = ultima ? ahora.getTime() - new Date(ultima).getTime() > 48 * 3_600_000 : true
-  const espera = [
-    ...pausas.map((p) => `Portero en pausa: ${String(p.motivo).slice(0, 120)}`),
-    ...alertas.map((a) => `Alarma abierta: ${String(a.titulo).slice(0, 100)}${Number(a.repeticiones) > 1 ? ` (×${a.repeticiones})` : ""}`),
+  const hechas = reales.filter((c) => c.estado === "hecha").length
+  const gasto = suma(reales, "gasto_apify_usd") + suma(reales, "gasto_modelo_usd")
+  const hizo = [
+    `Guarda ${plural(fichas, "ficha vigente", "fichas vigentes")} y ${plural(trozos, "trozo de conocimiento", "trozos de conocimiento")}`,
+    reales.length === 0 ? "El portero no repasó nada en 7 días" : `El portero repasó ${plural(reales.length, "vez", "veces")} en 7 días (${plural(hechas, "terminada bien", "terminadas bien")})`,
+    `Atendió ${plural(pedidos.length, "pedido", "pedidos")} de las oficinas en 7 días`,
+    ...(gasto > 0 ? [`Gastó ${usd(gasto)} en 7 días`] : []),
   ]
-  const semaforo = pausas.length > 0 ? "rojo" : alertas.length > 0 || viejo ? "ambar" : "verde"
+  const espera = [
+    ...pausas.map((p) => `El portero está en pausa: ${String(p.motivo).slice(0, 120)}`),
+    ...alertas.map((a) => `Alarma abierta: ${String(a.titulo).slice(0, 100)}${Number(a.repeticiones) > 1 ? ` (se repitió ${a.repeticiones} veces)` : ""}`),
+  ]
+  const semaforo: Semaforo = pausas.length > 0 ? "rojo" : alertas.length > 0 || viejo ? "ambar" : "verde"
   return {
     clave: "cerebro", nombre: "Cerebro y portero", que_hace: QUE_HACE.cerebro, semaforo,
-    estado_texto: pausas.length > 0 ? "Portero en pausa" : viejo ? "El portero no corre hace más de 2 días" : "Al día",
-    datos: [
-      { etiqueta: "Trozos de conocimiento", valor: String(trozos) },
-      { etiqueta: "Fichas vigentes", valor: String(fichas) },
-      { etiqueta: "Pasadas del portero (7 días)", valor: resumenDeEstados(agrupar(reales, "estado")) },
-      { etiqueta: "Gasto del portero (7 días)", valor: usd(suma(reales, "gasto_apify_usd") + suma(reales, "gasto_modelo_usd")) },
-      { etiqueta: "Pedidos de las oficinas (7 días)", valor: String(pedidos.length) },
-    ],
-    ultima_actividad: ultima, espera, detalle: [],
+    estado_texto: pausas.length > 0 ? "Portero en pausa" : viejo ? "El portero no ha corrido en más de 2 días" : "Al día",
+    datos: [{ etiqueta: "Fichas vigentes", valor: String(fichas) }, { etiqueta: "Trozos de conocimiento", valor: String(trozos) }],
+    ultima_actividad: ultima, espera, hizo,
   }
 }
 
@@ -143,21 +129,21 @@ export async function leerPlaneacion(supa: SupabaseClient, ahora: Date): Promise
   const corridas = await filas(supa.from("cadena_corridas").select("estado, costo_usd, seco, creada_en").gte("creada_en", desde(DIAS_DE_LA_VENTANA, ahora)).order("creada_en", { ascending: false }).limit(300), "cadena_corridas")
   const esperas = await filas(supa.from("cadena_esperas").select("estado, motivo, vence_en, seco").eq("estado", "viva").limit(50), "cadena_esperas")
   const reales = corridas.filter((c) => c.seco !== true)
-  const por = agrupar(reales, "estado")
-  const vencidas = por.vencida ?? 0
+  const vencidas = reales.filter((c) => c.estado === "vencida").length
   const vivas = esperas.filter((e) => e.seco !== true).length
   const sw = semaforoDelInterruptor(valor("estado_cadena") as string, valor("clientes_ensayo"))
+  const camp = campanas.filter((c) => c.seco !== true)
+  const gasto = suma(reales, "costo_usd")
+  const hizo = [
+    camp.length === 0 ? "No hay campañas armadas" : `${plural(camp.length, "campaña", "campañas")}: ${camp.map((c) => estadoDeCampanaLegible(c.estado)).join(", ")}`,
+    reales.length === 0 ? "No dio pasos en 7 días" : `Dio ${plural(reales.length, "paso", "pasos")} en 7 días`,
+    ...(vencidas > 0 ? [`${plural(vencidas, "paso se venció", "pasos se vencieron")} sin terminar`] : []),
+    ...(gasto > 0 ? [`Gastó ${usd(gasto)} en 7 días`] : []),
+  ]
   return {
-    clave: "planeacion", nombre: "Planeación", que_hace: QUE_HACE.planeacion, semaforo: vencidas > 0 && sw.semaforo === "verde" ? "ambar" : sw.semaforo, estado_texto: sw.texto,
-    datos: [
-      { etiqueta: "Campañas", valor: resumenDeEstados(agrupar(campanas.filter((c) => c.seco !== true), "estado")) },
-      { etiqueta: "Pasos (7 días)", valor: resumenDeEstados(por) },
-      { etiqueta: "Vencidos", valor: String(vencidas), alerta: vencidas > 0 },
-      { etiqueta: "Gasto (7 días)", valor: usd(suma(reales, "costo_usd")) },
-    ],
-    ultima_actividad: maxFecha(corridas, "creada_en"),
-    espera: vivas > 0 ? [`${vivas} espera${vivas === 1 ? "" : "s"} con plazo corriendo`] : [],
-    detalle: [],
+    clave: "planeacion", nombre: "Planeación", que_hace: QUE_HACE.planeacion, semaforo: peor(sw.semaforo, vencidas > 0 ? "ambar" : null), estado_texto: sw.texto,
+    datos: [{ etiqueta: "Campañas", valor: String(camp.length) }, { etiqueta: "Gasto (7 días)", valor: usd(gasto) }],
+    ultima_actividad: maxFecha(corridas, "creada_en"), espera: vivas > 0 ? [plural(vivas, "paso espera una respuesta y su plazo corre", "pasos esperan una respuesta y su plazo corre")] : [], hizo,
   }
 }
 

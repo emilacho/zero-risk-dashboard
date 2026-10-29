@@ -37,11 +37,20 @@ export default async function OficinasPage() {
               <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-[13px] text-rose-200">No pude leer esta oficina: {t.error}</p>
             ) : (
               <>
-                {t.espera.length > 0 && (
-                  <ul className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-[13px] text-amber-100">
-                    {t.espera.map((e, i) => <li key={i}>⏳ {e}</li>)}
-                  </ul>
+                {t.hizo.length > 0 && (
+                  <div>
+                    <h3 className="text-[11px] uppercase tracking-[0.06em] text-[hsl(var(--muted-foreground))]">Qué hizo</h3>
+                    <ul className="mt-1 space-y-1 text-[13px]">{t.hizo.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </div>
                 )}
+                <div>
+                  <h3 className="text-[11px] uppercase tracking-[0.06em] text-[hsl(var(--muted-foreground))]">Qué te necesita</h3>
+                  {t.espera.length > 0 ? (
+                    <ul className="mt-1 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-[13px] text-amber-100">
+                      {t.espera.map((e, i) => <li key={i}>{e}</li>)}
+                    </ul>
+                  ) : <p className="mt-1 text-[13px] text-[hsl(var(--muted-foreground))]">Nada por ahora.</p>}
+                </div>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
                   {t.datos.map((d) => (
                     <div key={d.etiqueta} className={d.valor.length > 24 ? "col-span-2" : ""}>
@@ -50,7 +59,6 @@ export default async function OficinasPage() {
                     </div>
                   ))}
                 </dl>
-                {t.detalle.length > 0 && <ul className="space-y-1 text-[12px] text-[hsl(var(--muted-foreground))]">{t.detalle.map((x, i) => <li key={i}>{x}</li>)}</ul>}
                 <footer className="mt-auto flex items-center justify-between pt-1 text-[11px] text-[hsl(var(--muted-foreground))]">
                   <span>Última actividad: {haceCuanto(t.ultima_actividad, ahora)}</span>
                   {t.enlace && <Link href={t.enlace.href} className="text-[hsl(var(--primary-glow))] hover:underline">{t.enlace.texto} →</Link>}

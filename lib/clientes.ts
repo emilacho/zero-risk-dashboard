@@ -2,10 +2,11 @@
  * CLIENTES (CC#1 · 29-oct · parte 3 del dashboard): lógica PURA de la ficha por cliente. Cada cifra sale de una tabla real; lo que no existe se dice («sin plan», «sin manual»), nunca se rellena.
  * Ojo con el gasto: la libreta `costs` NO trae client_id, así que el gasto POR CLIENTE sale de `agent_invocations` (lo que gastaron los agentes) y de `oficina_encargos` (lo que costó cada pieza). No es la cifra de la libreta; esa es la de Gasto.
  */
+import { estadoDelClienteLegible } from "@/lib/lenguaje"
+
 export const DIAS_DEL_GASTO = 30
 
-export const ETIQUETA_DEL_CLIENTE: Record<string, string> = { active: "Activo", onboarding: "En alta", paused: "En pausa", churned: "Dado de baja", prospect: "Prospecto" }
-export const etiquetaDelCliente = (estado: string | null | undefined): string => ETIQUETA_DEL_CLIENTE[String(estado ?? "")] ?? (estado ? String(estado) : "Sin estado")
+export const etiquetaDelCliente = (estado: string | null | undefined): string => estadoDelClienteLegible(estado)
 
 export interface FilaDeGasto { cost_usd?: unknown; costo_usd?: unknown; gasto_usd?: unknown; dry_run?: unknown }
 
