@@ -30,9 +30,11 @@ const pedir = (ruta: string, h: Record<string, string> = {}) => middleware(new N
 beforeEach(() => { sesion.user = null; sesion.rol = null; process.env.INTERNAL_API_KEY = 'k-interna-de-prueba' })
 
 describe('/api denegado por omisión', () => {
-  it('la lista de rutas no está vacía (la prueba mira algo) y trae las cinco que estaban abiertas', () => {
-    expect(RUTAS.length).toBeGreaterThan(20)
-    for (const r of ['/api/cowork/messages', '/api/cowork/message', '/api/notifications/feed', '/api/dashboard/ops-extras', '/api/hitl/resolve']) expect(RUTAS).toContain(r)
+  it('la lista de rutas no está vacía (la prueba mira algo) y trae las que estaban abiertas y siguen existiendo', () => {
+    // 29-oct · la limpieza retiró las pantallas viejas y con ellas /api/notifications/feed y /api/dashboard/ops-extras (dos de las cinco abiertas)
+    expect(RUTAS.length).toBeGreaterThanOrEqual(7)
+    for (const r of ['/api/cowork/messages', '/api/cowork/message', '/api/hitl/resolve']) expect(RUTAS).toContain(r)
+    for (const r of ['/api/notifications/feed', '/api/dashboard/ops-extras']) expect(RUTAS).not.toContain(r)
   })
   it.each(RUTAS)('%s · sin sesión ni llave → 401', async (r) => { expect((await pedir(r)).status).toBe(401) })
   it.each(RUTAS)('%s · llave equivocada → 401', async (r) => { expect((await pedir(r, { 'x-api-key': 'otra' })).status).toBe(401) })
