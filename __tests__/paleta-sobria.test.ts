@@ -1,35 +1,30 @@
-/** La paleta sobria (ADENDA 2): fondo gris carbón, sin brillos ni animaciones, estados apagados. US$ 0. */
+/** Lumen con el neón bajado (D7, ADENDA 3): colores de categoría, dos niveles de neón y nada de animaciones de escaneo. US$ 0. */
 import { describe, expect, it } from "vitest"
 import fs from "node:fs"
 import path from "node:path"
 
 const css = fs.readFileSync(path.join(__dirname, "..", "app", "globals.css"), "utf8")
 const dark = css.slice(css.indexOf("  .dark {"), css.indexOf("html { color-scheme: dark; }"))
-const token = (n: string): number[] => {
-  const m = new RegExp(`--${n}:\\s*(\\d+) (\\d+)% (\\d+)%`).exec(dark)
-  if (!m) throw new Error(`falta el color ${n}`)
-  return [Number(m[1]), Number(m[2]), Number(m[3])]
-}
 
-describe("paleta sobria", () => {
-  it("el fondo oscuro es gris carbón (poca saturación, no violeta) y el acento no es neón", () => {
-    const [h, s] = token("background")
-    expect(s).toBeLessThanOrEqual(10)
-    expect(h < 250 || h > 290).toBe(true)
-    for (const t of ["primary", "accent", "success", "danger"]) expect(token(t)[1], t).toBeLessThanOrEqual(60)
+describe("Lumen con el neón bajado", () => {
+  it("una sola perilla de neón: A = 0,5 y B = 0,3 (más sobrio)", () => {
+    expect(dark).toMatch(/--neon:\s*0\.5/)
+    expect(dark).toMatch(/data-neon="b"[^}]*--neon:\s*0\.3/)
   })
-  it("la capa final apaga animaciones, brillos y desenfoque, y deja visibles los bloques que aparecían al desplazar", () => {
-    const fin = css.slice(css.indexOf("PALETA SOBRIA"))
-    expect(fin).toMatch(/animation: none !important/)
-    expect(fin).toMatch(/box-shadow: none !important/)
-    expect(fin).toMatch(/backdrop-filter: none !important/)
-    expect(fin).toMatch(/\.reveal-on-scroll[^}]*opacity: 1 !important/)
+  it("las diez categorías de Lumen siguen y su saturación depende de la perilla (no están fijas)", () => {
+    for (const h of ["violet", "cyan", "amber", "emerald", "rose", "orange", "purple", "teal", "sky", "lime"]) expect(dark, h).toMatch(new RegExp("--hue-" + h + ":[^;]*var\\(--neon\\)"))
   })
-  it("los colores de estado de Tailwind quedan apagados (croma bajo)", () => {
-    for (const f of ["emerald", "amber", "rose"]) {
-      const m = new RegExp(`--color-${f}-400: oklch\\(([\\d.]+) ([\\d.]+) `).exec(css)
-      expect(m, f).not.toBeNull()
-      expect(Number(m![2]), f).toBeLessThanOrEqual(0.1)
-    }
+  it("fondo con leve tinte violeta (no gris muerto)", () => {
+    expect(dark).toMatch(/--background:\s*264 calc\(/)
+  })
+  it("sin respiración ni escaneo; al pasar el cursor solo un borde de color suave", () => {
+    expect(css).toMatch(/\.animate-breathing[^}]*animation: none !important/)
+    expect(css).toMatch(/\.animate-scanning[^}]*animation: none !important/)
+    expect(css).toMatch(/\.surface-card:hover \{ border-color: hsl\(var\(--hue\) \/ 0\.45\); \}/)
+    expect(css).not.toMatch(/\.surface-card, \.rim-instr[^}]*box-shadow: none !important/)
+  })
+  it("los colores de estado de Tailwind siguen a la perilla de neón", () => {
+    const m = /--color-emerald-400: oklch\(([\d.]+) calc\([^)]*var\(--neon[^)]*\)[^)]*\) /.exec(css)
+    expect(m).not.toBeNull()
   })
 })
