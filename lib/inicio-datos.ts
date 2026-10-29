@@ -1,0 +1,71 @@
+/**
+ * INICIO · lectura (servidor, solo lectura). Reutiliza las lecturas de Oficinas y de Gasto para que una cifra tenga UN solo dueño.
+ * Cada bloque se lee por separado: si uno falla, ese bloque dice que no pudo leerse y los demás siguen.
+ */
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { leerOficinas } from "@/lib/oficinas-datos"
+import { leerGasto } from "@/lib/gasto-datos"
+import { desde, type TarjetaDeOficina } from "@/lib/oficinas"
+import { estadoDelSistema, teNecesitan, ultimosHechos, type EstadoDelSistema, type Hecho, type Pendiente } from "@/lib/inicio"
+
+type Fila = Record<string, unknown>
+type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
+type C = PromiseLike<{ count: number | null; error: { message: string } | null }>
+
+async function filas(q: R, que: string): Promise<Fila[]> { const r = await q; if (r.error) throw new Error(`${que}: ${r.error.message}`); return (r.data ?? []) as Fila[] }
+async function contar(q: C, que: string): Promise<number> { const r = await q; if (r.error) throw new Error(`${que}: ${r.error.message}`); return r.count ?? 0 }
+
+/** un bloque que puede fallar sin tumbar a los demás */
+export type Bloque<T> = { ok: true; valor: T } | { ok: false; error: string }
+async function bloque<T>(f: () => Promise<T>): Promise<Bloque<T>> {
+  try { return { ok: true, valor: await f() } } catch (e) { return { ok: false, error: e instanceof Error ? e.message : String(e) } }
+}
+
+export interface LecturaDeInicio {
+  te_necesitan: Bloque<Pendiente[]>
+  estado: Bloque<EstadoDelSistema>
+  cifras: Bloque<{ piezas_semana: number; gasto_hoy: number; gasto_mes: number; mes: string; clientes_activos: number }>
+  oficinas: Bloque<TarjetaDeOficina[]>
+  hechos: Bloque<Hecho[]>
+  mensajes_sin_respuesta: Bloque<number>
+}
+
+export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date()): Promise<LecturaDeInicio> {
+  const oficinas = await bloque(() => leerOficinas(supa, ahora))
+  const [te_necesitan, cifras, hechos, mensajes_sin_respuesta] = await Promise.all([
+    bloque(async () => {
+      const [piezas, otras, preguntas] = await Promise.all([
+        contar(supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").eq("type", "content_piece_review"), "hitl_queue"),
+        contar(supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").neq("type", "content_piece_review"), "hitl_queue"),
+        contar(supa.from("finanzas_preguntas").select("*", { count: "exact", head: true }).is("respondida_en", null), "finanzas_preguntas"),
+      ])
+      return teNecesitan({ piezas, revisiones: otras, preguntas })
+    }),
+    bloque(async () => {
+      const [g, enc, cli] = await Promise.all([
+        leerGasto(supa, ahora),
+        filas(supa.from("oficina_encargos").select("estado, dry_run").gte("cerrado_en", desde(7, ahora)).limit(1000), "oficina_encargos"),
+        contar(supa.from("clients").select("*", { count: "exact", head: true }).in("status", ["active", "onboarding"]).is("archived_at", null), "clients"),
+      ])
+      const hechas = enc.filter((e) => e.dry_run !== true && String(e.estado).startsWith("cerrado")).length
+      return { piezas_semana: hechas, gasto_hoy: g.resumen.hoy.total, gasto_mes: g.resumen.mes.total, mes: g.resumen.mes.etiqueta, clientes_activos: cli }
+    }),
+    bloque(async () => {
+      const [enc, rev, camp, dec] = await Promise.all([
+        filas(supa.from("oficina_encargos").select("brief_id, familia, estado, cerrado_en, dry_run").not("cerrado_en", "is", null).order("cerrado_en", { ascending: false }).limit(10), "oficina_encargos"),
+        filas(supa.from("jefatura_revisiones").select("artifact_type, resultado, cerrado_en, dry_run").not("cerrado_en", "is", null).order("cerrado_en", { ascending: false }).limit(10), "jefatura_revisiones"),
+        filas(supa.from("cadena_campanas").select("estado, creada_en, seco").order("creada_en", { ascending: false }).limit(5), "cadena_campanas"),
+        filas(supa.from("hitl_queue").select("id, title, status, decided_at").neq("status", "pending").not("decided_at", "is", null).eq("type", "content_piece_review").order("decided_at", { ascending: false }).limit(10), "hitl_queue"),
+      ])
+      const h: Hecho[] = []
+      for (const e of enc.filter((x) => x.dry_run !== true)) h.push({ cuando: String(e.cerrado_en), texto: String(e.estado).startsWith("cerrado") ? `Pieza lista: ${e.brief_id} (${String(e.familia).replace(/_/g, " ")})` : `Pieza ${e.brief_id} terminó en «${String(e.estado).replace(/_/g, " ")}»`, href: "/piezas?estado=todas" })
+      for (const r of rev.filter((x) => x.dry_run !== true)) h.push({ cuando: String(r.cerrado_en), texto: `La jefatura revisó una ${String(r.artifact_type)}: ${String(r.resultado).replace(/_/g, " ")}` })
+      for (const c of camp.filter((x) => x.seco !== true)) h.push({ cuando: String(c.creada_en), texto: `Se armó una campaña (${String(c.estado).replace(/_/g, " ")})` })
+      for (const d of dec) h.push({ cuando: String(d.decided_at), texto: `Pieza ${d.status === "approved" ? "aprobada" : d.status === "rejected" ? "rechazada" : "con cambios"}: ${String(d.title).replace(/^⚠️\s*/, "").slice(0, 70)}`, href: `/piezas?id=${d.id}&estado=todas` })
+      return ultimosHechos(h, 5)
+    }),
+    bloque(() => contar(supa.from("cowork_messages").select("*", { count: "exact", head: true }).eq("status", "pending"), "cowork_messages")),
+  ])
+  const estado: Bloque<EstadoDelSistema> = oficinas.ok ? { ok: true, valor: estadoDelSistema(oficinas.valor, null) } : { ok: false, error: oficinas.error }
+  return { te_necesitan, estado, cifras, oficinas, hechos, mensajes_sin_respuesta }
+}
