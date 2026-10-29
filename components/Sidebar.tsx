@@ -20,6 +20,7 @@ import {
   SquaresFour,
   Images,
   Gauge,
+  CurrencyDollar,
   Cpu,
   Users,
   TreeStructure,
@@ -45,6 +46,7 @@ const NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: SquaresFour },
   { href: "/piezas", label: "Piezas", icon: Images },
   { href: "/oficinas", label: "Oficinas", icon: Gauge },
+  { href: "/gasto", label: "Gasto", icon: CurrencyDollar },
   {
     href: "/dept",
     label: "Departamentos",
