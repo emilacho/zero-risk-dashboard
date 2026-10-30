@@ -72,3 +72,21 @@ describe("anotaciones internas pegadas a un elemento de lista", () => {
     expect(separarNota("Abrimos [24h]")).toMatchObject({ valor: "Abrimos [24h]", explicacion: null })
   })
 })
+
+describe("lo que escribió el dueño desde el tablero", () => {
+  const meta = { proposito: { fuente: "dueno", por: "emilio", en: "2026-10-30T16:00:00Z", valor_anterior: "Viejo", cita: null }, mision: { estado: "confirmado", fuente: "sitio", aceptado_por_el_dueno: { por: "emilio", en: "x" } }, tagline_opciones: { fuente: "dueno" }, nunca_hace: { fuente: "dueno" } }
+  const f = leerManual({ human_validated: false, provenance_tag: {}, brand_purpose: "Que todos coman rico", brand_mission: "Misión del sitio", tagline: "Del mar a tu mesa",
+    content_text: JSON.stringify({ brand_book_draft: { _field_meta: meta, nunca_hace: ["prometer entregas imposibles", "usar cifras sin respaldo"], icp_summary: "Familias de la costa" } }) })!
+  const c = (k: string) => f.campos.find((x) => x.clave === k)!
+  it("el campo que escribió el dueño se rotula «escrito por el dueño»; lo que acepta al validar, «aceptado»; lo demás, nada", () => {
+    expect(c("proposito")).toMatchObject({ valor: "Que todos coman rico", origen: "dueno" })
+    expect(c("eslogan")).toMatchObject({ valor: "Del mar a tu mesa", origen: "dueno" }) // la procedencia del eslogan vive bajo tagline_opciones
+    expect(c("mision").origen).toBe("aceptado")
+    expect(c("voz").origen).toBeNull()
+  })
+  it("muestra también el público y lo que la marca nunca dice o hace (los lee del borrador)", () => {
+    expect(c("publico")).toMatchObject({ valor: "Familias de la costa", estado: "lleno" })
+    expect(c("nunca")).toMatchObject({ valor: "prometer entregas imposibles · usar cifras sin respaldo", origen: "dueno" })
+  })
+  it("un hueco no lleva origen", () => { expect(c("vision").origen).toBeNull() })
+})
