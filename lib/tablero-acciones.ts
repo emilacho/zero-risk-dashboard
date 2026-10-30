@@ -5,6 +5,7 @@
  * Si la plataforma todavía no tiene la ruta responde 404/405 y aquí se dice «todavía no disponible» (501): nunca se simula un cambio.
  * Una acción que GASTA dinero exige `confirmo_gasto: true` (el botón lo manda solo después de mostrar el tope) y se rechaza sin él.
  */
+import { vaciarCache } from "@/lib/cache-corta"
 
 export type NombreDeAccion =
   | "rehacer-pieza"
@@ -170,6 +171,7 @@ export async function ejecutarAccion(nombre: string, raw: unknown, d: DepsDeAcci
       headers: { "Content-Type": "application/json", "x-api-key": llave },
       body: JSON.stringify({ ...cuerpoFinal, reviewer: d.revisor, origen: "dashboard", ...(def.gasta ? { confirmo_gasto: true, tope_usd: def.gasta.tope_usd } : {}) }),
     })
+    vaciarCache() // después de una acción la próxima lectura es fresca (el reflejo inmediato manda sobre la caché corta)
     const t = (await r.text().catch(() => "")).slice(0, 600)
     let datos: Record<string, unknown> = {}
     try { const j = JSON.parse(t); if (esObjeto(j)) datos = j } catch { /* texto plano */ }

@@ -59,6 +59,8 @@ export function getMiddlewareClient(req: NextRequest, res: NextResponse) {
   )
 }
 
+import { rolDe } from "@/lib/rol-cache"
+
 export async function getCurrentRole(): Promise<{
   userId: string | null
   email: string | null
@@ -67,14 +69,10 @@ export async function getCurrentRole(): Promise<{
   const supa = await getSessionClient()
   const { data: userRes } = await supa.auth.getUser()
   if (!userRes?.user) return { userId: null, email: null, role: null }
-  const { data: roleRow } = await supa
-    .from("app_roles")
-    .select("role")
-    .eq("user_id", userRes.user.id)
-    .maybeSingle()
-  return {
-    userId: userRes.user.id,
-    email: userRes.user.email ?? null,
-    role: (roleRow?.role as "admin" | "client_viewer" | undefined) ?? null,
-  }
+  const uid = userRes.user.id
+  const role = await rolDe(uid, async () => {
+    const { data: roleRow } = await supa.from("app_roles").select("role").eq("user_id", uid).maybeSingle()
+    return (roleRow?.role as "admin" | "client_viewer" | undefined) ?? null
+  })
+  return { userId: uid, email: userRes.user.email ?? null, role }
 }

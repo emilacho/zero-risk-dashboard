@@ -3,6 +3,7 @@
  * Cada oficina se lee por separado: si una lectura falla, esa tarjeta lo dice y las demás siguen. Nada crudo: la traducción vive en `oficinas-frases.ts` y `lenguaje.ts`.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { conCache, TTL_CORTO_MS } from "@/lib/cache-corta"
 import { DIAS_DE_LA_VENTANA, desde, semaforoDelInterruptor, suma, tarjetaConError, usd, type Dato, type Semaforo, type TarjetaDeOficina } from "@/lib/oficinas"
 import { frasesDeLaCreativa, frasesDeLaFinanciera, frasesDeLaJefatura, fraseDeEstadoDeLaCreativa, resumirEncargos } from "@/lib/oficinas-frases"
 import { contarPiezasPorAprobar } from "@/lib/piezas-datos"
@@ -156,7 +157,11 @@ const LECTORES: Array<{ clave: TarjetaDeOficina["clave"]; nombre: string; leer: 
 ]
 
 /** las cinco tarjetas; cada una se lee aparte: una que falla se muestra como «No pude leerla» con la causa */
-export async function leerOficinas(supa: SupabaseClient, ahora: Date = new Date()): Promise<TarjetaDeOficina[]> {
+export function leerOficinas(supa: SupabaseClient, ahora: Date = new Date()): Promise<TarjetaDeOficina[]> {
+  return conCache("oficinas", TTL_CORTO_MS, () => leerOficinasSinCache(supa, ahora))
+}
+
+async function leerOficinasSinCache(supa: SupabaseClient, ahora: Date): Promise<TarjetaDeOficina[]> {
   return Promise.all(LECTORES.map(async (l) => {
     try { return await l.leer(supa, ahora) } catch (e) { return tarjetaConError(l.clave, l.nombre, QUE_HACE[l.clave], e instanceof Error ? e.message : String(e)) }
   }))

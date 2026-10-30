@@ -16,7 +16,12 @@ export function rutaSeRefresca(ruta: string | null | undefined): boolean {
   return !RUTAS_SIN_REFRESCO.some((r) => ruta === r || ruta.startsWith(`${r}/`))
 }
 
+/** tras un clic o un cambio de pantalla no se recarga durante este rato: la navegación manda */
+export const PAUSA_TRAS_NAVEGAR_MS = 4_000
+
 export interface EstadoDeLaPantalla {
+  /** ms desde el último clic en un enlace o cambio de ruta */
+  desdeNavegar?: number
   ruta: string | null | undefined
   /** la pestaña no se está viendo */
   oculta: boolean
@@ -30,5 +35,5 @@ export interface EstadoDeLaPantalla {
 
 /** ¿toca volver a leer ahora? Nunca mientras escribes o mientras envías: perderías lo escrito */
 export function debeRefrescar(e: EstadoDeLaPantalla): boolean {
-  return rutaSeRefresca(e.ruta) && !e.oculta && !e.escribiendo && !e.enviando && !e.sinRed
+  return rutaSeRefresca(e.ruta) && !e.oculta && !e.escribiendo && !e.enviando && !e.sinRed && !(e.desdeNavegar !== undefined && e.desdeNavegar < PAUSA_TRAS_NAVEGAR_MS)
 }
