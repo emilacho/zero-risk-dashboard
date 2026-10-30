@@ -11,7 +11,7 @@ export type NombreDeAccion =
   | "rehacer-pieza"
   | "plan-aprobar" | "plan-cambios" | "plan-responder"
   | "firmar-tablero"
-  | "cliente-editar" | "cliente-nuevo" | "cliente-baja"
+  | "cliente-editar" | "cliente-nuevo" | "cliente-baja" | "cliente-tope"
   | "oficina-estado" | "oficina-tope"
   | "revision-resolver"
   | "manual-campos" | "manual-validar"
@@ -64,7 +64,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       if (!id) return mal("falta el cliente")
       if (!esObjeto(c.campos)) return mal("faltan los datos que cambian")
       const campos: Cuerpo = {}
-      for (const k of ["rubro", "ciudad", "sitio", "redes", "presupuesto"]) {
+      for (const k of ["rubro", "ciudad", "sitio", "redes"]) {
         const v = (c.campos as Cuerpo)[k]
         if (v === undefined) continue
         if (k === "presupuesto") { const n = Number(v); if (!Number.isFinite(n) || n < 0 || n > 10_000_000) return mal("el presupuesto debe ser un número positivo"); campos[k] = n; continue }
@@ -72,6 +72,14 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
         const t = texto(v); if (t.length > 300) return mal(`«${k}» es demasiado largo`); campos[k] = t
       }
       return Object.keys(campos).length ? { ok: true, cuerpo: { client_id: id, campos } } : mal("no cambió nada")
+    },
+  },
+  "cliente-tope": {
+    gasta: null,
+    validar: (c) => {
+      const id = conId(c, "client_id"), n = Number(c.tope_usd)
+      if (!id) return mal("falta el cliente")
+      return !Number.isFinite(n) || n <= 0 || n > 1000 ? mal("el tope debe estar entre 0,01 y 1.000 dólares") : { ok: true, cuerpo: { client_id: id, tope_usd: Math.round(n * 100) / 100 } }
     },
   },
   "cliente-nuevo": {

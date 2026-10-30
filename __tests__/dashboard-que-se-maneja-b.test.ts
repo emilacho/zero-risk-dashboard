@@ -36,8 +36,12 @@ describe("cada acción valida lo que pide", () => {
     ["plan-responder", { espera_id: ID, respuesta: "" }, false],
     ["firmar-tablero", { tablero_id: ID }, true],
     ["firmar-tablero", { tablero_id: "x" }, false],
-    ["cliente-editar", { client_id: ID, campos: { rubro: "restaurante", presupuesto: 300, redes: { instagram: "naufrago", tuiter: "x" } } }, true],
-    ["cliente-editar", { client_id: ID, campos: { presupuesto: -3 } }, false],
+    ["cliente-editar", { client_id: ID, campos: { rubro: "restaurante", redes: { instagram: "naufrago", tuiter: "x" } } }, true],
+    ["cliente-editar", { client_id: ID, campos: { presupuesto: 300 } }, false],
+    ["cliente-tope", { client_id: ID, tope_usd: 25 }, true],
+    ["cliente-tope", { client_id: ID, tope_usd: 0 }, false],
+    ["cliente-tope", { client_id: ID, tope_usd: 5000 }, false],
+    ["cliente-tope", { tope_usd: 10 }, false],
     ["cliente-editar", { client_id: ID, campos: {} }, false],
     ["cliente-nuevo", { nombre: "La Esquina", rubro: "cafetería" }, true],
     ["cliente-nuevo", { nombre: "L", rubro: "cafetería" }, false],
@@ -145,7 +149,7 @@ describe("la puerta del tablero: solo administrador con sesión", () => {
 })
 
 describe("cada botón que pintan las pantallas nombra una acción que existe, y el tablero no escribe la base", () => {
-  const PANTALLAS = ["app/oficinas/page.tsx", "app/alertas/page.tsx", "app/clientes/page.tsx", "app/clientes/[id]/page.tsx", "app/piezas/VisorDePieza.tsx"]
+  const PANTALLAS = ["app/oficinas/page.tsx", "app/alertas/page.tsx", "app/clientes/page.tsx", "app/clientes/[id]/page.tsx", "app/piezas/VisorDePieza.tsx", "components/TopeDelCliente.tsx"]
   it("todas las acciones de los botones están en el catálogo", () => {
     const usadas = new Set<string>()
     for (const p of PANTALLAS) for (const m of leer(p).matchAll(/accion="([a-z-]+)"/g)) usadas.add(m[1])
@@ -154,7 +158,7 @@ describe("cada botón que pintan las pantallas nombra una acción que existe, y 
   })
   it("cada acción del catálogo tiene su botón en alguna pantalla (ninguna queda sin usar)", () => {
     const todo = PANTALLAS.map(leer).join("\n")
-    for (const a of Object.keys(ACCIONES)) expect(todo, a).toContain(`accion="${a}"`)
+    for (const a of Object.keys(ACCIONES)) expect(todo.includes(`accion="${a}"`) || todo.includes(`/api/acciones/${a}"`), a).toBe(true)
   })
 // ADENDA 4 (30-oct): las piezas salen SOLO de la campaña (planeación → brief → oficina). Desde el tablero no se puede crear una fuera de ella.
   it("no existe ningún camino del tablero para pedir una pieza nueva fuera de la campaña", async () => {

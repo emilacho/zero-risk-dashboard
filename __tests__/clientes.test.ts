@@ -91,7 +91,7 @@ describe("la lista y la ficha leen lo que dice la base", () => {
     expect(f.piezas.map((p) => [p.titulo, p.estado])).toEqual([["Pieza · 27 oct", "por aprobar"], ["Pieza · 26 oct", "aprobada"]])
     expect(f.plan).toMatchObject({ campana_estado: "activa", presupuesto: 500, version_estrategia: 1, filas_del_calendario: 2 })
     expect(f.plan!.fases).toHaveLength(1)
-    expect(f.gasto).toEqual({ total_30d: 0.9, agentes_30d: 0.75, piezas_30d: 1.5, llamadas_30d: 2 })
+    expect(f.gasto).toMatchObject({ tope_24h: null, total_30d: 0.9, agentes_30d: 0.75, piezas_30d: 1.5, llamadas_30d: 2 })
     expect(f.cerebro).toEqual({ fichas_vigentes: 1, trozos: 3 })
     expect(f.manual).toMatchObject({ version: 2, auto_generated: true, human_validated: false })
     expect(f.perfiles_de_cliente_ideal).toBe(1)

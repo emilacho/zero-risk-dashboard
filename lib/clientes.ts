@@ -73,3 +73,28 @@ export function visibles(c: ResumenDeCliente[], verBajas: boolean): ResumenDeCli
 export function ordenarClientes(c: ResumenDeCliente[]): ResumenDeCliente[] {
   return [...c].sort((a, b) => b.piezas_por_aprobar - a.piezas_por_aprobar || b.gasto_30d - a.gasto_30d || a.nombre.localeCompare(b.nombre, "es"))
 }
+
+/** Tope general de 24 h por cliente que aplica la plataforma cuando la ficha no trae uno propio (DEFAULT_RUN_SPEND_CAP_USD · run-sdk-spend-gate). Solo sirve para decir «sobre el general». */
+export const TOPE_GENERAL_24H_USD = 8
+/** paso de los botones − / + del tope */
+export const PASO_DEL_TOPE_USD = 5
+export const TOPE_MAXIMO_USD = 1000
+
+/** `clients.config.spend_cap_usd` (número > 0) o null si la ficha no lo trae */
+export function topeDeLaFicha(config: unknown): number | null {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return null
+  const n = Number((config as Record<string, unknown>).spend_cap_usd)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+/** lo gastado por los empleados AI en las últimas 24 h (ventana móvil, la misma del freno), sin ensayos */
+export function gastado24h(filas: Array<FilaDeGasto & { created_at?: unknown }>, ahora: Date): number {
+  const desde = ahora.getTime() - 86_400_000
+  return gastoReal(filas.filter((f) => { const t = new Date(String(f.created_at ?? "")).getTime(); return Number.isFinite(t) && t >= desde }), "cost_usd")
+}
+
+/** el siguiente valor del tope al pulsar − o +: nunca baja de 0,01 ni pasa del máximo; redondea a céntimos */
+export function moverTope(actual: number, signo: 1 | -1): number {
+  const n = Math.round((actual + signo * PASO_DEL_TOPE_USD) * 100) / 100
+  return Math.min(TOPE_MAXIMO_USD, Math.max(0.01, n))
+}

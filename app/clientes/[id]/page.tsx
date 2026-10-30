@@ -5,6 +5,7 @@ import { getServiceRoleClient } from "@/lib/supabase-server"
 import { cargarFicha, type FichaDeCliente } from "@/lib/clientes-datos"
 import { etiquetaDelCliente, esDeBaja, origenDelManual } from "@/lib/clientes"
 import { AccionBoton } from "@/components/AccionBoton"
+import { TopeDelCliente } from "@/components/TopeDelCliente"
 import { CAMPOS_DEL_MANUAL, REDES } from "@/lib/tablero-acciones"
 import { usdES as usd, estadoDeCampanaLegible, pilarLegible, revisionDeFidelidadLegible, diaYHora } from "@/lib/lenguaje"
 
@@ -56,6 +57,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
       <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
         {etiquetaDelCliente(f.cliente.estado)}{f.cliente.rubro ? ` · ${f.cliente.rubro}` : ""}{f.cliente.mercado ? ` · ${f.cliente.mercado}` : ""}
       </p>
+      <TopeDelCliente clientId={id} topeInicial={f.gasto.tope_24h} gastado={f.gasto.gastado_24h} />
       <div className="mt-4 flex flex-wrap items-start gap-3">
         <AccionBoton
           accion="cliente-editar" datos={{ client_id: id }} etiqueta="Editar datos" variante="suave" anidar="campos"
@@ -63,7 +65,6 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
             { clave: "rubro", etiqueta: "Rubro", inicial: f.cliente.rubro ?? "" },
             { clave: "ciudad", etiqueta: "Ciudad o mercado", inicial: f.cliente.mercado ?? "" },
             { clave: "sitio", etiqueta: "Sitio web", inicial: f.cliente.sitio ?? "" },
-            { clave: "presupuesto", etiqueta: "Presupuesto mensual (US$)", tipo: "numero", ayuda: "Déjalo vacío para no cambiarlo." },
             ...REDES.map((r) => ({ clave: `redes.${r}`, etiqueta: `Usuario en ${r[0].toUpperCase()}${r.slice(1)}`, ayuda: "Déjalo vacío para no cambiarlo." })),
           ]}
         />
