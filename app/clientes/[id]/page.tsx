@@ -48,7 +48,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
   const deBaja = esDeBaja({ estado: f.cliente.estado, nombre: f.cliente.nombre })
   const lector = f.manual?.lector ?? null
   const del = (clave: string) => lector?.campos.find((c) => c.clave === clave)?.valor ?? ""
-  const valorDelManual: Record<string, string> = { proposito: del("proposito"), eslogan: del("eslogan"), voz: del("voz") }
+  const valorDelManual: Record<string, string> = { proposito: del("proposito"), eslogan: del("eslogan"), voz: del("voz"), posicionamiento: del("posicionamiento"), publico: del("publico"), valores: del("valores").replace(/ · /g, "\n"), nunca: del("nunca").replace(/ · /g, "\n") }
   return (
     <main data-seccion="clientes" className="mx-auto max-w-[1200px] px-6 pb-16 pl-24 pt-10">
       <Link href="/clientes" className="text-[12px] text-[hsl(var(--muted-foreground))] hover:underline">← Clientes</Link>
@@ -160,7 +160,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
               </div>
               <dl className="grid gap-3">
                 {(lector?.campos ?? []).map((c) => (
-                  <Dato key={c.clave} e={c.etiqueta} v={c.valor ? (<>{c.valor}{c.estado === "propuesta" && <span className="ml-2 text-[11px] text-amber-300">propuesta del agente</span>}{c.explicacion && <details className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]"><summary className="cursor-pointer">Por qué se propone</summary><p className="mt-1">{c.explicacion}</p></details>}</>) : <span className="text-amber-300">{c.nota}</span>} />
+                  <Dato key={c.clave} e={c.etiqueta} v={c.valor ? (<>{c.valor}{c.estado === "propuesta" && <span className="ml-2 text-[11px] text-amber-300">propuesta del agente</span>}{c.origen === "dueno" && <span className="ml-2 text-[11px] text-emerald-300">escrito por el dueño</span>}{c.origen === "aceptado" && <span className="ml-2 text-[11px] text-[hsl(var(--muted-foreground))]">aceptado por el dueño</span>}{c.explicacion && <details className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]"><summary className="cursor-pointer">Por qué se propone</summary><p className="mt-1">{c.explicacion}</p></details>}</>) : <span className="text-amber-300">{c.nota}</span>} />
                 ))}
                 {f.manual.gate && <Dato e="Revisión de fidelidad" v={revisionDeFidelidadLegible(f.manual.gate)} />}
               </dl>
