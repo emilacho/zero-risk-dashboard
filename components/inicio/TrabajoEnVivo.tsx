@@ -11,7 +11,7 @@ export function TrabajoEnVivo({ inicial }: { inicial: Datos }) {
   const [filas, setFilas] = useState<FilaDelTrabajo[]>(inicial.filas)
   const [hoy, setHoy] = useState(inicial.hoy)
   const [error, setError] = useState(false)
-  const ultima = useRef<string | null>(inicial.filas[0]?.cuando ?? null)
+  const ultima = useRef<string | null>(inicial.cursor)
 
   useEffect(() => {
     let vivo = true
@@ -25,8 +25,8 @@ export function TrabajoEnVivo({ inicial }: { inicial: Datos }) {
         setError(false)
         setHoy(j.hoy)
         if (j.filas.length) {
-          ultima.current = j.filas[0].cuando
-          setFilas((prev) => { const ya = new Set(j.filas.map((x) => x.id)); return [...j.filas, ...prev.filter((x) => !ya.has(x.id))].slice(0, 8) })
+          if (j.cursor) ultima.current = j.cursor
+          setFilas((prev) => { const ya = new Set(j.filas.map((x) => x.id)); return [...j.filas, ...prev.filter((x) => !ya.has(x.id))].sort((a, b) => (a.cuando < b.cuando ? 1 : -1)).slice(0, 8) })
         }
       } catch { if (vivo) setError(true) }
     }

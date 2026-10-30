@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { INTERVALO_DE_ACTUALIZACION_MS, PAUSA_TRAS_NAVEGAR_MS, debeRefrescar, rutaSeRefresca } from "@/lib/tiempo-real"
+import { INTERVALO_DE_ACTUALIZACION_MS, PAUSA_TRAS_NAVEGAR_MS, debeRefrescar, gruposDeLaPantalla, rutaSeRefresca } from "@/lib/tiempo-real"
 
 /** ¿el cursor está en un campo, o hay un panel de botón abierto (marcado con data-editando)? */
 function estaEscribiendo(): boolean {
@@ -38,7 +38,8 @@ export function ActualizarSolo() {
       try {
         const r = await fetch("/api/pulso", { cache: "no-store" })
         if (!r.ok) return
-        const nueva = String(((await r.json()) as { huella?: string }).huella ?? "")
+        const p = ((await r.json()) as { pulso?: Record<string, string> }).pulso ?? {}
+        const nueva = gruposDeLaPantalla(ruta).map((g) => p[g] ?? "").join("#")
         const cambio = huella !== null && nueva !== huella
         huella = nueva
         marcar()
