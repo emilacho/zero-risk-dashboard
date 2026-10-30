@@ -15,11 +15,11 @@ export default async function NuevoPage() {
   if (!puerta.ok) redirect(puerta.status === 401 ? "/login?next=%2Fnuevo" : "/login?error=forbidden")
   return (
     <CapaNueva>
-      <main data-seccion="nuevo" className="fixed inset-0 z-[60] overflow-hidden bg-[radial-gradient(ellipse_at_60%_30%,#262628_0%,#141415_55%,#0b0b0c_100%)]">
+      <main data-seccion="nuevo" className="fixed inset-0 z-[60] overflow-hidden bg-[#141414]">
         <h1 className="sr-only">Zero Risk · las oficinas</h1>
         <BarraSuperior />
         <MenuLateral />
-        <div className="absolute inset-x-0 bottom-28 top-14 flex items-center justify-center px-4 sm:px-16">
+        <div className="absolute inset-x-0 bottom-40 top-14 flex items-center justify-center px-4 sm:px-16">
           <EscenaNuevo />
         </div>
         <BarraDeChat />

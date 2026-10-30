@@ -34,7 +34,11 @@ const ESTILO = `
 
 export function EscenaNuevo() {
   return (
-    <div className="relative mx-auto aspect-[3264/1766]" style={{ width: "min(100%, calc((100dvh - 12.5rem) * 3264 / 1766))" }}>
+    <div className="relative mx-auto aspect-[3264/1766]" style={{
+      width: "min(100%, 58vw, calc((100dvh - 15rem) * 3264 / 1766))",
+      // los bordes se funden con el fondo: la escena no se ve como un cuadro (viñeta radial)
+      WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)", maskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)",
+    }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/nuevo/escena-2560.jpg" srcSet="/nuevo/escena-1280.jpg 1280w, /nuevo/escena-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1400px"

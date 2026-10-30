@@ -6,7 +6,7 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import {
-  Bell, BookOpen, Books, CaretDown, CirclesFour, CurrencyDollar, Globe, House, List, MagnifyingGlass, PaperPlaneRight, Paperclip, Phone, Plus, Robot, SignOut, SquaresFour, Sun, Waveform,
+  Bell, BookOpen, Books, CaretDown, CurrencyDollar, Flower, Globe, House, List, MagnifyingGlass, PaperPlaneTilt, Paperclip, Plus, Robot, SignOut, SquaresFour, Sun, Waveform,
 } from "@phosphor-icons/react/dist/ssr"
 
 const AMBAR = "#e8731a"
@@ -26,7 +26,8 @@ export function BarraSuperior() {
   return (
     <header className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-3 px-4 sm:px-6">
       <span role="img" aria-label="Menú" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300"><List size={18} /></span>
-      <span className="font-display text-[15px] font-semibold uppercase tracking-[0.22em]" style={{ color: AMBAR }}>Zero Risk</span>
+      {/* la marca como palabra en CONTORNO ámbar (relleno transparente), como la de la referencia */}
+      <span className="font-display text-[17px] font-light uppercase tracking-[0.28em]" style={{ color: "transparent", WebkitTextStroke: `1px ${AMBAR}` }}>Zero Risk</span>
       <span aria-disabled="true" className="ml-1 hidden items-center gap-2 text-[13px] text-zinc-200 sm:flex">Seleccionar cliente <CaretDown size={12} className="text-zinc-400" /></span>
       <div className="pointer-events-none absolute left-1/2 top-1/2 hidden w-[min(34vw,420px)] -translate-x-1/2 -translate-y-1/2 md:block">
         <div aria-disabled="true" className={`flex h-9 items-center gap-2 rounded-lg border ${BORDE} bg-white/[0.04] px-3 text-[13px] text-zinc-400`}>
@@ -45,29 +46,38 @@ export function BarraSuperior() {
   )
 }
 
+/** dos cuadros conectados (el icono de flujo de la referencia; Phosphor no trae uno igual) */
+function IconoFlujo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="13" width="8" height="8" rx="2" /><path d="M7 11v4a2 2 0 0 0 2 2h4" />
+    </svg>
+  )
+}
+
 /** los 8 lugares del menú de la referencia, en su orden; con enlace solo donde ya hay una pantalla equivalente */
 export const MENU: Array<{ etiqueta: string; href?: string; icono: ReactNode }> = [
   { etiqueta: "Inicio", href: "/nuevo", icono: <House size={18} weight="fill" /> },
   { etiqueta: "Oficinas", href: "/oficinas", icono: <SquaresFour size={18} /> },
   { etiqueta: "Guías", icono: <BookOpen size={18} /> },
-  { etiqueta: "Aplicaciones", icono: <CirclesFour size={18} /> },
+  { etiqueta: "Aplicaciones", icono: <Flower size={18} /> },
   { etiqueta: "Piezas", href: "/piezas", icono: <Books size={18} /> },
   { etiqueta: "Empleados", href: "/mapa", icono: <Robot size={18} /> },
-  { etiqueta: "Llamadas", icono: <Phone size={18} /> },
+  { etiqueta: "Flujos", icono: <IconoFlujo /> },
   { etiqueta: "Actividad", icono: <Waveform size={18} /> },
 ]
 
 export function MenuLateral({ actual = "/nuevo" }: { actual?: string }) {
   return (
-    <nav aria-label="Menú" className={`absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-1 rounded-2xl border ${BORDE} bg-[#18181a]/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,.45)] sm:left-5`}>
+    <nav aria-label="Menú" className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-1 rounded-2xl bg-[#232325] p-1.5 sm:left-3">
       {MENU.map((m) => {
         const activo = m.href === actual
         const clase = "flex h-9 w-9 items-center justify-center rounded-lg"
         return m.href ? (
           <Link key={m.etiqueta} href={m.href} aria-label={m.etiqueta} title={m.etiqueta} aria-current={activo ? "page" : undefined}
-            className={`${clase} transition-colors hover:bg-white/[0.07] ${activo ? "bg-white/[0.08]" : "text-zinc-400 hover:text-white"}`} style={activo ? { color: AMBAR } : undefined}>{m.icono}</Link>
+            className={`${clase} transition-colors hover:bg-white/[0.07] ${activo ? "bg-white/[0.08]" : "text-zinc-300 hover:text-white"}`} style={activo ? { color: AMBAR } : undefined}>{m.icono}</Link>
         ) : (
-          <span key={m.etiqueta} role="img" aria-label={m.etiqueta} className={`${clase} text-zinc-500`}>{m.icono}</span>
+          <span key={m.etiqueta} role="img" aria-label={m.etiqueta} className={`${clase} text-zinc-300`}>{m.icono}</span>
         )
       })}
     </nav>
@@ -78,11 +88,13 @@ export function MenuLateral({ actual = "/nuevo" }: { actual?: string }) {
 export function BarraDeChat() {
   return (
     <div aria-label="Chat con tus oficinas (todavía sin función)" aria-disabled="true"
-      className="absolute bottom-6 left-1/2 z-10 w-[min(640px,calc(100vw-7rem))] -translate-x-1/2 rounded-lg border bg-[#141416]/95 px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,.5)]" style={{ borderColor: "rgba(232,115,26,.75)" }}>
-      <p className="text-[13px] text-zinc-400">Habla con tus oficinas…</p>
-      <div className="mt-3 flex items-center gap-3 text-zinc-400">
-        <Paperclip size={16} /> <Globe size={16} />
-        <span className="ml-auto flex h-8 w-9 items-center justify-center rounded-md text-white" style={{ backgroundColor: AMBAR }}><PaperPlaneRight size={16} weight="fill" /></span>
+      className="absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2 rounded-xl border p-[7px]" style={{ borderColor: "rgba(232,115,26,.55)" }}>
+      <div className="rounded-lg bg-[#1b1b1d] px-4 py-3.5">
+        <p className="text-[14px] text-zinc-400">Habla con tus oficinas…</p>
+        <div className="mt-4 flex items-center gap-3 text-zinc-300">
+          <Paperclip size={17} /> <Globe size={17} />
+          <span className="ml-auto flex h-10 w-10 items-center justify-center rounded-lg text-white" style={{ backgroundColor: AMBAR }}><PaperPlaneTilt size={18} weight="regular" /></span>
+        </div>
       </div>
     </div>
   )

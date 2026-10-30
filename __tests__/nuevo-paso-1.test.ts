@@ -40,6 +40,13 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
     const html = renderToStaticMarkup(createElement(MenuLateral))
     expect(enlaces(html).sort()).toEqual(["/mapa", "/nuevo", "/oficinas", "/piezas"])
   })
+  it("adenda 4: riel sin teléfono (con el flujo y la onda al final), logo en contorno, escena con viñeta", () => {
+    expect(MENU.map((m) => m.etiqueta)).toEqual(["Inicio", "Oficinas", "Guías", "Aplicaciones", "Piezas", "Empleados", "Flujos", "Actividad"])
+    const marca = renderToStaticMarkup(createElement(BarraSuperior))
+    expect(marca).toMatch(/-webkit-text-stroke:1px[^;"]*;?/i)
+    expect(marca).toMatch(/color:transparent/)
+    expect(renderToStaticMarkup(createElement(EscenaNuevo))).toMatch(/mask-image:radial-gradient/)
+  })
   it("la barra de chat es SOLO la forma: sin campo de texto, sin formulario, sin envío", () => {
     const html = renderToStaticMarkup(createElement(BarraDeChat))
     expect(html).toContain("Habla con tus oficinas…")
