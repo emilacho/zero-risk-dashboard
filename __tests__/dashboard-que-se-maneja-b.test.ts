@@ -28,9 +28,6 @@ describe("cada acción valida lo que pide", () => {
   const casos: Array<[string, Record<string, unknown>, boolean]> = [
     ["rehacer-pieza", { encargo_id: ID, confirmo_gasto: true }, true],
     ["rehacer-pieza", { encargo_id: "no-es-uuid", confirmo_gasto: true }, false],
-    ["pieza-nueva", { client_id: ID, red: "instagram", formato: "carrusel", brief: "Promo del plato del día", confirmo_gasto: true }, true],
-    ["pieza-nueva", { client_id: ID, red: "myspace", formato: "carrusel", brief: "Promo del plato del día", confirmo_gasto: true }, false],
-    ["pieza-nueva", { client_id: ID, red: "instagram", formato: "carrusel", brief: "corto", confirmo_gasto: true }, false],
     ["plan-aprobar", { campana_id: ID }, true],
     ["plan-aprobar", {}, false],
     ["plan-cambios", { campana_id: ID, comentario: "Menos días de promoción" }, true],
@@ -80,13 +77,13 @@ describe("lo que gasta exige confirmar el tope; el servidor lo comprueba, no sol
     expect(r.cuerpo).toMatchObject({ error: "falta_confirmar_gasto", tope_usd: TOPE_POR_PIEZA_USD })
     expect(p.llamadas).toHaveLength(0)
   })
-  it("con la confirmación, la plataforma recibe el tope y la marca", async () => {
+  it("con la confirmación, rehacer una pieza manda a la plataforma el tope y la marca", async () => {
     const p = plataforma()
-    await ejecutarAccion("pieza-nueva", { client_id: ID, red: "facebook", formato: "kit", brief: "Historias del fin de semana", confirmo_gasto: true }, deps(p))
-    expect(p.llamadas[0].cuerpo).toMatchObject({ client_id: ID, red: "facebook", formato: "kit", confirmo_gasto: true, tope_usd: TOPE_POR_PIEZA_USD, reviewer: "emilio@x.com", origen: "dashboard" })
+    await ejecutarAccion("rehacer-pieza", { encargo_id: ID, confirmo_gasto: true }, deps(p))
+    expect(p.llamadas[0].cuerpo).toMatchObject({ encargo_id: ID, confirmo_gasto: true, tope_usd: TOPE_POR_PIEZA_USD, reviewer: "emilio@x.com", origen: "dashboard" })
   })
-  it("solo gastan las dos acciones de piezas; el resto no puede costar", () => {
-    expect(Object.entries(ACCIONES).filter(([, d]) => d.gasta).map(([n]) => n).sort()).toEqual(["pieza-nueva", "rehacer-pieza"])
+  it("solo gasta «rehacer una pieza de la campaña»; el resto no puede costar", () => {
+    expect(Object.entries(ACCIONES).filter(([, d]) => d.gasta).map(([n]) => n).sort()).toEqual(["rehacer-pieza"])
   })
 })
 
@@ -159,9 +156,16 @@ describe("cada botón que pintan las pantallas nombra una acción que existe, y 
     const todo = PANTALLAS.map(leer).join("\n")
     for (const a of Object.keys(ACCIONES)) expect(todo, a).toContain(`accion="${a}"`)
   })
-  it("las dos acciones que gastan llevan el tope visible en su botón", () => {
+// ADENDA 4 (30-oct): las piezas salen SOLO de la campaña (planeación → brief → oficina). Desde el tablero no se puede crear una fuera de ella.
+  it("no existe ningún camino del tablero para pedir una pieza nueva fuera de la campaña", async () => {
+    expect(Object.keys(ACCIONES)).not.toContain("pieza-nueva")
+    expect(esNombreDeAccion("pieza-nueva")).toBe(false)
     const todo = PANTALLAS.map(leer).join("\n")
-    for (const a of ["rehacer-pieza", "pieza-nueva"]) for (const m of todo.matchAll(new RegExp(`accion="${a}"[^\\n]*`, "g"))) expect(m[0], a).toMatch(/tope_usd=\{TOPE_POR_PIEZA_USD\}/)
+    expect(todo).not.toMatch(/pieza-nueva|Pedir una pieza nueva/)
+  })
+  it("la acción que gasta lleva el tope visible en su botón", () => {
+    const todo = PANTALLAS.map(leer).join("\n")
+    for (const a of ["rehacer-pieza"]) for (const m of todo.matchAll(new RegExp(`accion="${a}"[^\\n]*`, "g"))) expect(m[0], a).toMatch(/tope_usd=\{TOPE_POR_PIEZA_USD\}/)
   })
   it("ni la puerta de acciones ni el botón escriben en la base: nada de supabase ni de .insert/.update", () => {
     for (const f of ["app/api/acciones/[accion]/route.ts", "lib/tablero-acciones.ts", "components/AccionBoton.tsx"]) {

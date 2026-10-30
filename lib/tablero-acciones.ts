@@ -7,7 +7,7 @@
  */
 
 export type NombreDeAccion =
-  | "rehacer-pieza" | "pieza-nueva"
+  | "rehacer-pieza"
   | "plan-aprobar" | "plan-cambios" | "plan-responder"
   | "firmar-tablero"
   | "cliente-editar" | "cliente-nuevo" | "cliente-baja"
@@ -26,7 +26,6 @@ const mal = (detalle: string): Validacion => ({ ok: false, error: "pedido_invali
 /** las que tienen interruptor propio; el cerebro y su portero se manejan por sus pausas, no desde aquí */
 export const OFICINAS_MANEJABLES = ["creativa", "financiera", "jefatura", "planeacion"] as const
 export const REDES = ["instagram", "facebook", "tiktok", "linkedin", "youtube"] as const
-export const FORMATOS_DE_PIEZA = ["carrusel", "kit"] as const
 /** tope por pieza de la mesa creativa (firma de Emilio, 30-oct): se muestra antes de confirmar */
 export const TOPE_POR_PIEZA_USD = 5
 
@@ -46,17 +45,6 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   "rehacer-pieza": {
     gasta: { tope_usd: TOPE_POR_PIEZA_USD },
     validar: (c) => { const id = conId(c, "encargo_id"); return id ? { ok: true, cuerpo: { encargo_id: id, ...(texto(c.comentario) ? { comentario: texto(c.comentario).slice(0, 2000) } : {}) } } : mal("falta la pieza que se rehace") },
-  },
-  "pieza-nueva": {
-    gasta: { tope_usd: TOPE_POR_PIEZA_USD },
-    validar: (c) => {
-      const cliente = conId(c, "client_id"), red = texto(c.red).toLowerCase(), formato = texto(c.formato).toLowerCase(), brief = texto(c.brief)
-      if (!cliente) return mal("elige el cliente")
-      if (!(REDES as readonly string[]).includes(red)) return mal("elige la red")
-      if (!(FORMATOS_DE_PIEZA as readonly string[]).includes(formato)) return mal("elige el formato")
-      if (brief.length < 10 || brief.length > 1500) return mal("el brief debe tener entre 10 y 1.500 caracteres")
-      return { ok: true, cuerpo: { client_id: cliente, red, formato, brief } }
-    },
   },
   "plan-aprobar": { gasta: null, validar: (c) => { const id = conId(c, "campana_id"); return id ? { ok: true, cuerpo: { campana_id: id } } : mal("falta la campaña") } },
   "plan-cambios": {
