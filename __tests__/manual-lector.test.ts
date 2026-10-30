@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { CAMPOS_DEL_LECTOR, leerManual, quienValido, rotuloDeQuienValido } from "../lib/manual-lector"
+import { CAMPOS_DEL_LECTOR, leerManual, quienValido, rotuloDeQuienValido, separarNota } from "../lib/manual-lector"
 
 const fila = (extra: Record<string, unknown> = {}) => ({ human_validated: false, content_text: JSON.stringify({}), provenance_tag: {}, ...extra })
 
@@ -38,9 +38,37 @@ describe("lector del manual (E2)", () => {
     expect(abierto.huecos).toEqual(["sedes"])
     expect(abierto.rotuloVisual).toBeNull()
   })
+  it("la nota de procedencia no se queda pegada al valor: sale como explicación aparte (ADENDA 4 a)", () => {
+    const m = leerManual(fila({ brand_mission: "Náufrago prepara encebollado y ceviche con producto del día. [propuesta del agente — Integra las correcciones del dueño (restaurante + domicilio en Olón), sin atribuir cifras ni premios.]" }))!
+    const c = m.campos.find((x) => x.clave === "mision")!
+    expect(c.valor).toBe("Náufrago prepara encebollado y ceviche con producto del día.")
+    expect(c.valor).not.toMatch(/\[|propuesta del agente/)
+    expect(c.estado).toBe("propuesta")
+    expect(c.explicacion).toBe("Integra las correcciones del dueño (restaurante + domicilio en Olón), sin atribuir cifras ni premios.")
+  })
+  it("separarNota: al principio, en medio, en listas, sin razón y sin nota", () => {
+    expect(separarNota("[propuesta del agente — razón uno] Texto del campo")).toMatchObject({ valor: "Texto del campo", explicacion: "razón uno", propuesta: true })
+    expect(separarNota("Uno [propuesta del agente — a] dos")).toMatchObject({ valor: "Uno dos", explicacion: "a" })
+    expect(separarNota("a [propuesta del agente — x] · b [propuesta del agente — y]")).toMatchObject({ valor: "a · b", explicacion: "x · y" })
+    expect(separarNota("Valor [propuesta del agente]")).toMatchObject({ valor: "Valor", explicacion: null, propuesta: true })
+    expect(separarNota("Valor normal [con corchetes]")).toMatchObject({ valor: "Valor normal [con corchetes]", propuesta: false })
+    expect(separarNota(null)).toMatchObject({ valor: null })
+  })
   it("sin fila no hay manual", () => { expect(leerManual(null)).toBeNull() })
   it("las claves del lector son únicas y cada una apunta a una columna del manual", () => {
     expect(new Set(CAMPOS_DEL_LECTOR.map((c) => c.clave)).size).toBe(CAMPOS_DEL_LECTOR.length)
     expect(CAMPOS_DEL_LECTOR.map((c) => c.columna)).toContain("tagline")
+  })
+})
+
+describe("anotaciones internas pegadas a un elemento de lista", () => {
+  it("«… [canal preferido S1-S4 + diferenciador …]» sale del valor y queda como explicación", () => {
+    const m = leerManual({ human_validated: false, content_text: "{}", provenance_tag: {}, key_messages: ["Pídenos por WhatsApp y te llevamos el sabor a donde estés [canal preferido S1-S4 + diferenciador delivery frente a los competidores]", "Mariscos frescos sin salir del alojamiento"] })!
+    const c = m.campos.find((x) => x.clave === "mensajes_clave")!
+    expect(c.valor).toBe("Pídenos por WhatsApp y te llevamos el sabor a donde estés · Mariscos frescos sin salir del alojamiento")
+    expect(c.explicacion).toMatch(/^canal preferido S1-S4/)
+  })
+  it("un corchete corto del contenido real no se toca", () => {
+    expect(separarNota("Abrimos [24h]")).toMatchObject({ valor: "Abrimos [24h]", explicacion: null })
   })
 })

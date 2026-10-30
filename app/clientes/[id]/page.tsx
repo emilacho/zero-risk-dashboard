@@ -160,7 +160,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
               </div>
               <dl className="grid gap-3">
                 {(lector?.campos ?? []).map((c) => (
-                  <Dato key={c.clave} e={c.etiqueta} v={c.valor ? (<>{c.valor}{c.estado === "propuesta" && <span className="ml-2 text-[11px] text-amber-300">propuesta del agente</span>}</>) : <span className="text-amber-300">{c.nota}</span>} />
+                  <Dato key={c.clave} e={c.etiqueta} v={c.valor ? (<>{c.valor}{c.estado === "propuesta" && <span className="ml-2 text-[11px] text-amber-300">propuesta del agente</span>}{c.explicacion && <details className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]"><summary className="cursor-pointer">Por qué se propone</summary><p className="mt-1">{c.explicacion}</p></details>}</>) : <span className="text-amber-300">{c.nota}</span>} />
                 ))}
                 {f.manual.gate && <Dato e="Revisión de fidelidad" v={revisionDeFidelidadLegible(f.manual.gate)} />}
               </dl>
