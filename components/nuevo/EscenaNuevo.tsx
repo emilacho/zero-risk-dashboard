@@ -4,6 +4,7 @@
  *  · la plataforma de las pantallas y el proyector → «Dept. Marketing» (/nuevo/marketing; sprint 3, 31-oct). Se ilumina en ámbar poco a poco y aparece su rótulo.
  * Las demás plataformas no tienen enlace ni resaltado: se irán activando una por una. El SVG de encima usa las mismas coordenadas de la imagen (ver VISTA).
  */
+import type { ReactNode } from "react"
 export const VISTA = { x: 150, y: 40, w: 1700, h: 920 } // el recorte de la variante-14 (en las coordenadas de 2000×1125 en que se midieron las zonas)
 
 interface Zona { clave: string; nombre: string; href: string; formas: string[]; rotulo?: { x: number; y: number; texto: string } }
@@ -38,7 +39,7 @@ const ESTILO = `
 @media (prefers-reduced-motion:reduce){.nv-zona,.nv-zona polygon,.nv-rotulo{transition:none}}
 `
 
-export function EscenaNuevo({ alAbrirMarketing }: { alAbrirMarketing?: () => void }) {
+export function EscenaNuevo({ alAbrirMarketing, children }: { alAbrirMarketing?: () => void; children?: ReactNode }) {
   return (
     <>
       <style>{ESTILO_ESCENA}</style>
@@ -66,6 +67,7 @@ export function EscenaNuevo({ alAbrirMarketing }: { alAbrirMarketing?: () => voi
             </a>
           ))}
         </svg>
+        {children}
       </div>
     </>
   )
