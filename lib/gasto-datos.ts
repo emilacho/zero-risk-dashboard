@@ -3,6 +3,7 @@
  * el tablero viejo contaba 1.000 llamadas aunque había 1.275). Un error de la base se vuelve excepción: nunca un «0» por error. Si se llega al tope de seguridad, lo dice.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { conCache, TTL_CORTO_MS } from "@/lib/cache-corta"
 import { diaEnEcuador, resumirGasto, type FilaDeCostos, type Invocacion, type PiezaConGasto, type Reparto, type ResumenDeGasto } from "@/lib/gasto"
 import { esDePractica } from "@/lib/clientes"
 
@@ -39,7 +40,12 @@ export function repartoVisible(porCliente: Reparto[], activos: Set<string>): Rep
   return [...visibles, junta].sort((a, b) => b.total - a.total)
 }
 
-export async function leerGasto(supa: SupabaseClient, ahora: Date = new Date()): Promise<LecturaDeGasto> {
+/** con caché corta: Inicio, Gasto, Clientes y la ficha lo piden casi a la vez y paginan hasta 30.000 filas */
+export function leerGasto(supa: SupabaseClient, ahora: Date = new Date()): Promise<LecturaDeGasto> {
+  return conCache("gasto", TTL_CORTO_MS, () => leerGastoSinCache(supa, ahora))
+}
+
+async function leerGastoSinCache(supa: SupabaseClient, ahora: Date): Promise<LecturaDeGasto> {
   const hoy = diaEnEcuador(ahora)
   const primeroDelMes = `${hoy.slice(0, 7)}-01`
   const hace30 = diaEnEcuador(new Date(ahora.getTime() - 29 * 86_400_000))

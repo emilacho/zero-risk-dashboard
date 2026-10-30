@@ -15,6 +15,7 @@
  */
 import { type NextRequest, NextResponse } from "next/server"
 import { getMiddlewareClient } from "@/lib/supabase-session"
+import { rolDe } from "@/lib/rol-cache"
 import { API_PUBLICAS, llaveInternaValida } from "@/lib/api-gate"
 
 const PUBLIC_ROUTES = new Set(["/login", "/auth/callback"])
@@ -36,8 +37,8 @@ export async function middleware(req: NextRequest) {
     const supaApi = getMiddlewareClient(req, resApi)
     const { data: { user: userApi } } = await supaApi.auth.getUser()
     if (!userApi) return NextResponse.json({ ok: false, error: "unauthenticated" }, { status: 401 })
-    const { data: rolApi } = await supaApi.from("app_roles").select("role").eq("user_id", userApi.id).maybeSingle()
-    if (rolApi?.role !== "admin") return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 })
+    const rolApi = await rolDe(userApi.id, async () => ((await supaApi.from("app_roles").select("role").eq("user_id", userApi.id).maybeSingle()).data?.role as "admin" | "client_viewer" | undefined) ?? null)
+    if (rolApi !== "admin") return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 })
     return resApi
   }
 
@@ -56,12 +57,10 @@ export async function middleware(req: NextRequest) {
   }
 
   // Load role
-  const { data: roleRow } = await supa
-    .from("app_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle()
-  const role = (roleRow?.role as "admin" | "client_viewer" | undefined) ?? null
+  const role = await rolDe(user.id, async () => {
+    const { data: roleRow } = await supa.from("app_roles").select("role").eq("user_id", user.id).maybeSingle()
+    return (roleRow?.role as "admin" | "client_viewer" | undefined) ?? null
+  })
 
   // Admin-only prefixes · client_viewer + no-role bounce to their cliente
   if (

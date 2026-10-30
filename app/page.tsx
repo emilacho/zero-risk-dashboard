@@ -5,6 +5,7 @@ import { getServiceRoleClient } from "@/lib/supabase-server"
 import { leerInicio, type Bloque } from "@/lib/inicio-datos"
 import { cuando } from "@/lib/inicio"
 import { usd, type Semaforo } from "@/lib/oficinas"
+import { TrabajoEnVivo } from "@/components/inicio/TrabajoEnVivo"
 import { Barras, Tendencia } from "@/components/inicio/MiniGrafica"
 
 export const dynamic = "force-dynamic"
@@ -107,6 +108,11 @@ export default async function InicioPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="mt-8">
+        <Titulo>Lo que están haciendo ahora</Titulo>
+        {!d.trabajo.ok ? <NoSePudoLeer b={d.trabajo} /> : <TrabajoEnVivo inicial={d.trabajo.valor} />}
       </section>
 
       <section className="mt-8">
