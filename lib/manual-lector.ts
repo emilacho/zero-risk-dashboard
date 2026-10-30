@@ -19,7 +19,7 @@ export const CAMPOS_DEL_LECTOR: readonly CampoDelLector[] = [
 ] as const
 
 export type EstadoDelCampo = 'lleno' | 'propuesta' | 'hueco'
-export interface CampoLeido { clave: string; etiqueta: string; valor: string | null; estado: EstadoDelCampo; nota: string | null }
+export interface CampoLeido { clave: string; etiqueta: string; valor: string | null; estado: EstadoDelCampo; nota: string | null; /** la razón de la propuesta del agente, aparte del valor (para mostrarla discreta) */ explicacion: string | null }
 export interface ManualLeido {
   campos: CampoLeido[]
   /** quién lo validó: la jefatura, el dueño o nadie (propuesta) */
@@ -40,6 +40,26 @@ const texto = (v: unknown): string | null => {
   if (Array.isArray(v)) { const t = v.map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean); return t.length ? t.join(' · ') : null }
   if (typeof v === 'string') { const t = v.trim(); return t && !/^pendiente\b/i.test(t) ? t : null }
   return null
+}
+
+/**
+ * El agente deja su nota de procedencia pegada al valor: «texto [propuesta del agente — razón]». La pantalla muestra SOLO el valor; la nota se separa (todos los campos, todos los clientes).
+ * Se quita cualquier «[propuesta del agente …]» (al final, al principio o en medio) y se junta su razón.
+ */
+export function separarNota(valor: string | null): { valor: string | null; explicacion: string | null; propuesta: boolean } {
+  if (valor == null) return { valor: null, explicacion: null, propuesta: false }
+  const razones: string[] = []
+  const limpio = valor
+    .replace(/\[\s*propuesta del agente\s*(?:[—–:-]\s*)?([^\]]*)\]/gi, (_m, razon: string) => { if (razon.trim()) razones.push(razon.trim()); return ' ' })
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .trim()
+  const propuesta = limpio !== valor.trim()
+  // otras anotaciones internas pegadas al final de un valor o de un elemento de lista («… [canal preferido S1-S4 + diferenciador …]»): también son nota, no contenido
+  const notas: string[] = []
+  const sinNotas = limpio.replace(/\s*\[([^\]]{25,})\](?=\s*·|\s*$)/g, (_m, nota: string) => { notas.push(nota.trim()); return '' }).trim()
+  const todas = [...razones, ...notas]
+  return { valor: sinNotas || null, explicacion: todas.length ? todas.join(' · ') : null, propuesta }
 }
 
 /** quién validó el manual (un manual validado antes de existir `validado_por` lo validó el dueño) */
@@ -66,10 +86,12 @@ export function leerManual(fila: Record<string, unknown> | null): ManualLeido | 
     let valor = texto(fila[c.columna])
     if (valor == null) for (const k of c.borrador) { valor = texto(borrador[k]); if (valor != null) break }
     const m = objeto(meta[c.clave])
-    const esPropuesta = valor != null && (/propuesta del agente/i.test(valor) || m.estado === 'propuesta')
+    const sep = separarNota(valor)
+    valor = sep.valor
+    const esPropuesta = valor != null && (sep.propuesta || m.estado === 'propuesta')
     const estado: EstadoDelCampo = valor == null ? 'hueco' : esPropuesta ? 'propuesta' : 'lleno'
     const nota = estado === 'hueco' ? 'Sin dato: se buscó en lo raspado del sitio, las redes y los mapas' : estado === 'propuesta' ? 'Propuesta del agente, sin validar' : null
-    return { clave: c.clave, etiqueta: c.etiqueta, valor, estado, nota }
+    return { clave: c.clave, etiqueta: c.etiqueta, valor, estado, nota, explicacion: sep.explicacion }
   })
   const faltan = campos.filter((c, i) => CAMPOS_DEL_LECTOR[i].obligatorio && c.estado === 'hueco').map((c) => c.clave)
   const huecos = huecosDeclarados ?? faltan
