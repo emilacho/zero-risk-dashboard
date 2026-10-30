@@ -2,7 +2,10 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
-import { leerOficinas } from "@/lib/oficinas-datos"
+import { leerOficinas, leerParaManejar } from "@/lib/oficinas-datos"
+import { clientesParaElegir } from "@/lib/clientes-datos"
+import { AccionBoton } from "@/components/AccionBoton"
+import { FORMATOS_DE_PIEZA, OFICINAS_MANEJABLES, REDES, TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
 import { peorSemaforo, type Semaforo } from "@/lib/oficinas"
 
 export const dynamic = "force-dynamic"
@@ -14,7 +17,8 @@ const RESUMEN: Record<Semaforo, string> = { verde: "Todas las oficinas están en
 export default async function OficinasPage() {
   const puerta = await exigirAdmin()
   if (!puerta.ok) redirect(puerta.status === 401 ? "/login?next=%2Foficinas" : "/login?error=forbidden")
-  const tarjetas = await leerOficinas(getServiceRoleClient())
+  const supa = getServiceRoleClient()
+  const [tarjetas, manejo, clientes] = await Promise.all([leerOficinas(supa), leerParaManejar(supa).catch(() => null), clientesParaElegir(supa).catch(() => [])])
   const peor = peorSemaforo(tarjetas)
   return (
     <main data-seccion="oficinas" className="mx-auto max-w-[1400px] px-6 pb-16 pl-24 pt-10">
@@ -50,6 +54,30 @@ export default async function OficinasPage() {
                     </div>
                   ))}
                 </dl>
+                {(OFICINAS_MANEJABLES as readonly string[]).includes(t.clave) && manejo && (
+                  <div className="flex flex-wrap items-start gap-2 border-t border-white/10 pt-3">
+                    <AccionBoton
+                      accion="oficina-estado" datos={{ oficina: t.clave, estado: manejo.encendida[t.clave] ? "apagada" : "encendida" }}
+                      etiqueta={manejo.encendida[t.clave] ? "Apagar" : "Encender"} variante={manejo.encendida[t.clave] ? "peligro" : "normal"}
+                      confirmar={manejo.encendida[t.clave] ? `Vas a apagar ${t.nombre}: deja de recibir trabajo nuevo. Lo que ya está en marcha termina.` : `Vas a encender ${t.nombre}: empieza a recibir trabajo.`}
+                    />
+                    <AccionBoton accion="oficina-tope" datos={{ oficina: t.clave }} etiqueta="Ajustar el tope de gasto" variante="suave" confirmar="Cambiar el tope cambia cuánto puede gastar esta oficina antes de frenarse." campos={[{ clave: "tope_usd", etiqueta: "Tope (US$)", tipo: "numero", requerido: true }]} />
+                    {t.clave === "creativa" && (
+                      <AccionBoton
+                        accion="pieza-nueva" etiqueta="Pedir una pieza nueva" tope_usd={TOPE_POR_PIEZA_USD}
+                        campos={[
+                          { clave: "client_id", etiqueta: "Cliente", tipo: "lista", requerido: true, opciones: clientes.map((c) => ({ valor: c.id, texto: c.nombre })) },
+                          { clave: "red", etiqueta: "Red", tipo: "lista", requerido: true, opciones: REDES.map((r) => ({ valor: r, texto: r[0].toUpperCase() + r.slice(1) })) },
+                          { clave: "formato", etiqueta: "Formato", tipo: "lista", requerido: true, opciones: FORMATOS_DE_PIEZA.map((f) => ({ valor: f, texto: f === "kit" ? "Kit de historias" : "Carrusel" })) },
+                          { clave: "brief", etiqueta: "Qué quieres (breve)", tipo: "largo", requerido: true, ayuda: "De 10 a 1.500 letras." },
+                        ]}
+                      />
+                    )}
+                    {t.clave === "financiera" && manejo.sin_firmar.map((s) => (
+                      <AccionBoton key={s.id} accion="firmar-tablero" datos={{ tablero_id: s.id }} etiqueta={`Firmar el tablero de ${s.cliente}`} confirmar="Al firmar, das por bueno este tablero financiero: queda firmado con tu nombre y fecha." />
+                    ))}
+                  </div>
+                )}
                 {t.enlace && (
                   <footer className="mt-auto pt-1 text-[12px]">
                     <Link href={t.enlace.href} className="text-[hsl(var(--primary-glow))] hover:underline">{t.enlace.texto} →</Link>

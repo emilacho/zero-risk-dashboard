@@ -161,3 +161,22 @@ export async function leerOficinas(supa: SupabaseClient, ahora: Date = new Date(
     try { return await l.leer(supa, ahora) } catch (e) { return tarjetaConError(l.clave, l.nombre, QUE_HACE[l.clave], e instanceof Error ? e.message : String(e)) }
   }))
 }
+
+/** lo que hace falta para MANEJAR las oficinas desde la pantalla: tableros por firmar (con el nombre del cliente) y si cada oficina está encendida */
+export interface ParaManejar { sin_firmar: Array<{ id: string; cliente: string }>; encendida: Record<string, boolean> }
+export async function leerParaManejar(supa: SupabaseClient): Promise<ParaManejar> {
+  const tableros = await filas(supa.from("finanzas_tableros").select("id, client_id, estado, vigente").eq("vigente", true).eq("estado", "sin_firma").limit(20), "finanzas_tableros")
+  const ids = [...new Set(tableros.map((t) => String(t.client_id)))]
+  const nombres = ids.length ? await filas(supa.from("clients").select("id, name").in("id", ids), "clients") : []
+  const nombre = new Map(nombres.map((n) => [String(n.id), String(n.name)]))
+  const [fin, jef, cre, cad] = await Promise.all([
+    una(supa.from("finanzas_config").select("estado").eq("id", 1).maybeSingle(), "finanzas_config"),
+    una(supa.from("jefatura_config").select("estado").eq("id", 1).maybeSingle(), "jefatura_config"),
+    una(supa.from("oficina_config").select("estado").eq("id", 1).maybeSingle(), "oficina_config"),
+    filas(supa.from("cadena_config").select("clave, valor").eq("clave", "estado_cadena"), "cadena_config"),
+  ])
+  return {
+    sin_firmar: tableros.map((t) => ({ id: String(t.id), cliente: nombre.get(String(t.client_id)) ?? "un cliente" })),
+    encendida: { financiera: fin?.estado === "encendida", jefatura: jef?.estado === "encendida", creativa: cre?.estado === "encendida", planeacion: cad[0]?.valor === "encendida" },
+  }
+}

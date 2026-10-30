@@ -1,5 +1,5 @@
 /**
- * LA VENTANA DE PIEZAS · el visor se dibuja sin romper con los tres casos que Emilio va a ver: pieza con revisión incompleta (casilla), pieza sin dibujo y fila de otro tipo (solo lectura). US$ 0, sin red.
+ * LA VENTANA DE PIEZAS · el visor se dibuja sin romper con los tres casos que Emilio va a ver: pieza con revisión incompleta (casilla), pieza sin dibujo y fila de otro tipo (con sus botones propios). US$ 0, sin red.
  */
 import { describe, expect, it, vi } from "vitest"
 import { renderToString } from "react-dom/server"
@@ -42,10 +42,12 @@ describe("el visor de piezas se dibuja", () => {
     expect(html).not.toContain("/lamina/1")
     expect(html).not.toContain("juntas")
   })
-  it("fila de otro tipo (competidores): sin botones de aprobar, dice dónde se resuelve", async () => {
+  it("fila de otro tipo (competidores): ya no es solo lectura; lleva sus botones propios, sin los de una pieza", async () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
     const html = dibujar(<VisorDePieza pieza={{ ...base, tipo: "confirm_competitor_list", es_pieza: false, laminas: [], avisos: [] }} siguienteId={null} />)
-    expect(html).toMatch(/solo lectura/)
+    expect(html).not.toMatch(/solo lectura/)
+    expect(html).toContain("Confirmar la lista")
+    expect(html).toContain("Rechazar la lista")
     expect(html).not.toContain("confirm_competitor_list")
     expect(html).not.toContain("Pedir cambios")
   })
