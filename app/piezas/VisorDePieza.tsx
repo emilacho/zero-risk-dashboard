@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation"
 import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
 import { resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible, usdES } from "@/lib/lenguaje"
 import { COMENTARIO_MINIMO, MOTIVO_MINIMO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
+import { botonesDeRevision } from "@/lib/revisiones"
+import { AccionBoton } from "@/components/AccionBoton"
+import { TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
 
 type Pestana = "lamina" | "equipo" | "jefatura"
 type Dialogo = null | "cambios" | "rechazar"
@@ -159,8 +162,22 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
 
       <footer className="border-t-[0.5px] border-white/10 bg-black/30 px-5 py-3">
         {mensaje && <p className={`mb-2 text-[13px] ${mensaje.ok ? "text-emerald-300" : "text-rose-300"}`}>{mensaje.texto}</p>}
-        {!pieza.es_pieza && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">{tipoDeRevisionLegible(pieza.tipo)} · solo lectura.</p>}
-        {pieza.es_pieza && !pendiente && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[pieza.estado]}.</p>}
+        {!pieza.es_pieza && pieza.status === "pending" && (
+          <div className="flex flex-wrap items-start gap-3">
+            <span className="basis-full text-[13px] text-[hsl(var(--muted-foreground))]">{tipoDeRevisionLegible(pieza.tipo)}{botonesDeRevision(pieza.tipo).pista ? ` · ${botonesDeRevision(pieza.tipo).pista}` : ""}</span>
+            <AccionBoton accion="revision-resolver" datos={{ hitl_id: pieza.id, decision: "aprobar" }} etiqueta={botonesDeRevision(pieza.tipo).aprobar} />
+            <AccionBoton accion="revision-resolver" datos={{ hitl_id: pieza.id, decision: "rechazar" }} etiqueta={botonesDeRevision(pieza.tipo).rechazar} variante="peligro" campos={[{ clave: "comentario", etiqueta: "¿Por qué?", tipo: "largo", requerido: true }]} />
+          </div>
+        )}
+        {!pieza.es_pieza && pieza.status !== "pending" && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">{tipoDeRevisionLegible(pieza.tipo)} · ya resuelta.</p>}
+        {pieza.es_pieza && !pendiente && (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[13px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[pieza.estado]}.</span>
+            {pieza.encargo_id && (pieza.estado === "rechazada" || pieza.estado === "otro") && (
+              <AccionBoton accion="rehacer-pieza" datos={{ encargo_id: pieza.encargo_id }} etiqueta="Rehacer esta pieza" tope_usd={TOPE_POR_PIEZA_USD} variante="suave" campos={[{ clave: "comentario", etiqueta: "Qué debe cambiar (opcional)", tipo: "largo" }]} />
+            )}
+          </div>
+        )}
         {pendiente && (
           <div className="flex flex-wrap items-center gap-3">
             {pieza.exige_casilla && (

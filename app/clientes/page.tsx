@@ -7,6 +7,7 @@ import { estadoDeLaLista, visibles, type ResumenDeCliente } from "@/lib/clientes
 import { estadoDeCampanaLegible } from "@/lib/lenguaje"
 import { usdES as usd } from "@/lib/lenguaje"
 import { FilaClicable } from "@/components/FilaClicable"
+import { AccionBoton } from "@/components/AccionBoton"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Clientes" }
@@ -29,6 +30,17 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
     <main data-seccion="clientes" className="mx-auto max-w-[1200px] px-6 pb-16 pl-24 pt-10">
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight">Clientes</h1>
+        <AccionBoton
+          accion="cliente-nuevo" etiqueta="Crear cliente nuevo"
+          campos={[
+            { clave: "nombre", etiqueta: "Nombre del negocio", requerido: true },
+            { clave: "rubro", etiqueta: "Rubro", requerido: true, ayuda: "Por ejemplo: restaurante de mariscos." },
+            { clave: "ciudad", etiqueta: "Ciudad o mercado" },
+            { clave: "sitio", etiqueta: "Sitio web" },
+            { clave: "presupuesto", etiqueta: "Presupuesto mensual (US$)", tipo: "numero" },
+          ]}
+          alTerminar={(r) => (typeof r.client_id === "string" ? `/clientes/${r.client_id}` : null)}
+        />
         {bajas > 0 && (
           <Link href={verBajas ? "/clientes" : "/clientes?bajas=1"} className="text-[12px] text-[hsl(var(--muted-foreground))] underline-offset-2 hover:underline">
             {verBajas ? "Ocultar los dados de baja" : `Ver dados de baja (${bajas})`}

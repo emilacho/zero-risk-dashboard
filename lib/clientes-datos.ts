@@ -30,10 +30,13 @@ export async function listarClientes(supa: SupabaseClient, ahora: Date = new Dat
   }))
 }
 
+export interface FilaDelCalendario { id: string; fecha: string; red: string; formato: string; tema: string; estado: string }
+export interface EsperaDelPlan { id: string; motivo: string; vence_en: string | null }
+
 export interface FichaDeCliente {
   cliente: { id: string; nombre: string; rubro: string | null; estado: string; mercado: string | null; sitio: string | null; creado: string | null }
   piezas: Array<{ id: string; titulo: string; estado: string; pendiente: boolean; creada: string }>
-  plan: null | { campana_estado: string; desde: string | null; hasta: string | null; presupuesto: number | null; version_estrategia: number | null; fases: FasesDelPlan[]; filas_del_calendario: number }
+  plan: null | { campana_id: string; calendario: FilaDelCalendario[]; esperas: EsperaDelPlan[]; campana_estado: string; desde: string | null; hasta: string | null; presupuesto: number | null; version_estrategia: number | null; fases: FasesDelPlan[]; filas_del_calendario: number }
   gasto: { total_30d: number; agentes_30d: number; piezas_30d: number; llamadas_30d: number }
   cerebro: { fichas_vigentes: number; trozos: number }
   manual: null | { version: number | null; proposito: string | null; eslogan: string | null; voz: string | null; auto_generated: boolean; human_validated: boolean; gate: string | null }
@@ -49,7 +52,9 @@ export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date 
   if (camp) {
     const est = await una(supa.from("cadena_estrategias").select("version, contenido").eq("campana_id", camp.id).eq("seco", false).order("version", { ascending: false }).limit(1).maybeSingle(), "cadena_estrategias")
     const nFilas = await contar(supa.from("cadena_calendario_filas").select("*", { count: "exact", head: true }).eq("campana_id", camp.id).eq("seco", false), "cadena_calendario_filas")
-    plan = { campana_estado: String(camp.estado), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, presupuesto: camp.presupuesto_planificacion_usd == null ? null : Number(camp.presupuesto_planificacion_usd), version_estrategia: est ? Number(est.version) : null, fases: fasesDelPlan(est?.contenido), filas_del_calendario: nFilas }
+    const cal = await filas(supa.from("cadena_calendario_filas").select("id, fecha, red, formato, tema, estado").eq("campana_id", camp.id).eq("seco", false).order("fecha", { ascending: true }).limit(200), "cadena_calendario_filas")
+    const esp = await filas(supa.from("cadena_esperas").select("id, motivo, vence_en").eq("campana_id", camp.id).eq("estado", "viva").eq("seco", false).order("vence_en", { ascending: true }).limit(50), "cadena_esperas")
+    plan = { campana_id: String(camp.id), calendario: cal.map((x) => ({ id: String(x.id), fecha: String(x.fecha ?? ""), red: String(x.red ?? ""), formato: String(x.formato ?? ""), tema: String(x.tema ?? ""), estado: String(x.estado ?? "") })), esperas: esp.map((x) => ({ id: String(x.id), motivo: String(x.motivo ?? ""), vence_en: x.vence_en ? String(x.vence_en) : null })), campana_estado: String(camp.estado), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, presupuesto: camp.presupuesto_planificacion_usd == null ? null : Number(camp.presupuesto_planificacion_usd), version_estrategia: est ? Number(est.version) : null, fases: fasesDelPlan(est?.contenido), filas_del_calendario: nFilas }
   }
   const inv = await filas(supa.from("agent_invocations").select("cost_usd").eq("client_id", id).gte("created_at", desde(DIAS_DEL_GASTO, ahora)).limit(10000), "agent_invocations")
   const enc = await filas(supa.from("oficina_encargos").select("gasto_usd, dry_run").eq("client_id", id).gte("creado_en", desde(DIAS_DEL_GASTO, ahora)).limit(1000), "oficina_encargos")
@@ -69,4 +74,13 @@ export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date 
     manual: b ? { version: b.version == null ? null : Number(b.version), proposito: b.brand_purpose ? String(b.brand_purpose) : null, eslogan: b.tagline ? String(b.tagline) : null, voz: b.voice_description ? String(b.voice_description) : null, auto_generated: b.auto_generated === true, human_validated: b.human_validated === true, gate: b.gate_outcome ? String(b.gate_outcome) : null } : null,
     perfiles_de_cliente_ideal: icp,
   }
+}
+
+/** los clientes que se pueden elegir en un formulario (reales, en servicio o nuevos): sin dados de baja ni prácticas */
+export async function clientesParaElegir(supa: SupabaseClient): Promise<Array<{ id: string; nombre: string }>> {
+  const c = await filas(supa.from("clients").select("id, name, industry, status, archived_at").limit(200), "clients")
+  return c
+    .filter((x) => !esDeBaja({ estado: String(x.status ?? ""), archivado: x.archived_at != null, nombre: String(x.name) }) && !esDePractica({ rubro: x.industry ? String(x.industry) : null, nombre: String(x.name) }))
+    .map((x) => ({ id: String(x.id), nombre: String(x.name) }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
 }
