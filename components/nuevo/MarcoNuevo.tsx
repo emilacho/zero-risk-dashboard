@@ -27,7 +27,7 @@ export function BarraSuperior() {
     <header className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-3 px-4 sm:px-6">
       <span role="img" aria-label="Menú" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300"><List size={18} /></span>
       {/* la marca como palabra en CONTORNO ámbar (relleno transparente), como la de la referencia */}
-      <span className="font-display text-[17px] font-light uppercase tracking-[0.28em]" style={{ color: "transparent", WebkitTextStroke: `1px ${AMBAR}` }}>Zero Risk</span>
+      <svg role="img" aria-label="Zero Risk" width="132" height="22" viewBox="0 0 132 22" className="shrink-0"><text x="1" y="16.5" fill="none" stroke={AMBAR} strokeWidth="0.9" fontSize="16" fontWeight="500" letterSpacing="3.4" fontFamily="system-ui, Arial, sans-serif">ZERO RISK</text></svg>
       <span aria-disabled="true" className="ml-1 hidden items-center gap-2 text-[13px] text-zinc-200 sm:flex">Seleccionar cliente <CaretDown size={12} className="text-zinc-400" /></span>
       <div className="pointer-events-none absolute left-1/2 top-1/2 hidden w-[min(34vw,420px)] -translate-x-1/2 -translate-y-1/2 md:block">
         <div aria-disabled="true" className={`flex h-9 items-center gap-2 rounded-lg border ${BORDE} bg-white/[0.04] px-3 text-[13px] text-zinc-400`}>

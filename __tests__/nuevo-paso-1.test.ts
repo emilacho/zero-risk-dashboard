@@ -43,8 +43,8 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
   it("adenda 4: riel sin teléfono (con el flujo y la onda al final), logo en contorno, escena con viñeta", () => {
     expect(MENU.map((m) => m.etiqueta)).toEqual(["Inicio", "Oficinas", "Guías", "Aplicaciones", "Piezas", "Empleados", "Flujos", "Actividad"])
     const marca = renderToStaticMarkup(createElement(BarraSuperior))
-    expect(marca).toMatch(/-webkit-text-stroke:1px[^;"]*;?/i)
-    expect(marca).toMatch(/color:transparent/)
+    expect(marca).toMatch(/<text[^>]*fill="none"[^>]*stroke="#e8731a"/) // solo trazo, interior transparente
+    expect(marca).not.toMatch(/font-display/)
     expect(renderToStaticMarkup(createElement(EscenaNuevo))).toMatch(/mask-image:radial-gradient/)
   })
   it("la barra de chat es SOLO la forma: sin campo de texto, sin formulario, sin envío", () => {

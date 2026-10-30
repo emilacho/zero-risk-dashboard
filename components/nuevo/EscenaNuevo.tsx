@@ -24,6 +24,11 @@ export const ZONAS: Zona[] = [
   },
 ]
 
+const ESTILO_ESCENA = `
+.nv-escena{width:min(100%,58vw,calc((100dvh - 15rem) * 3264 / 1766))}
+@media (max-width:900px){.nv-escena{width:min(100%,calc((100dvh - 15rem) * 3264 / 1766))}}
+`
+
 const ESTILO = `
 .nv-zona{cursor:pointer;outline:none}
 .nv-zona polygon{fill:rgba(255,140,40,0);stroke:rgba(255,160,50,0);stroke-width:2.5;stroke-linejoin:round;transition:fill .2s ease,stroke .2s ease}
@@ -34,8 +39,9 @@ const ESTILO = `
 
 export function EscenaNuevo() {
   return (
-    <div className="relative mx-auto aspect-[3264/1766]" style={{
-      width: "min(100%, 58vw, calc((100dvh - 15rem) * 3264 / 1766))",
+    <>
+      <style>{ESTILO_ESCENA}</style>
+    <div className="nv-escena relative mx-auto aspect-[3264/1766]" style={{
       // los bordes se funden con el fondo: la escena no se ve como un cuadro (viñeta radial)
       WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)", maskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)",
     }}>
@@ -55,5 +61,6 @@ export function EscenaNuevo() {
         ))}
       </svg>
     </div>
+    </>
   )
 }
