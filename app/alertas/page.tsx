@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
@@ -23,6 +24,11 @@ function Fila({ a, conBoton }: { a: Alerta; conBoton: boolean }) {
           {a.repeticiones > 1 ? ` · ${a.repeticiones} veces` : ""}
           {a.cerrada ? " · cerrada" : ""}
         </p>
+        {a.acciones.length > 0 && (
+          <p className="mt-2 flex flex-wrap gap-2">
+            {a.acciones.map((x) => <Link key={x.texto} href={x.href} className="rounded border border-zinc-700 px-2.5 py-1 text-[12px] text-zinc-200 hover:bg-zinc-800">{x.texto}</Link>)}
+          </p>
+        )}
       </div>
       {conBoton && <BotonYaLoVi clave={a.clave} />}
     </li>

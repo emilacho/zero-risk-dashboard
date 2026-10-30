@@ -35,7 +35,7 @@ export function LoginForm({ next }: { next: string }) {
     <Tabs.Root value={tab} onValueChange={(v) => setTab(v as Tab)}>
       <Tabs.List
         className="mb-4 grid grid-cols-2 gap-1 rounded-full border-[0.5px] border-[hsl(var(--primary-glow)/0.18)] bg-[hsl(var(--card)/0.5)] p-1"
-        aria-label="Login method"
+        aria-label="Forma de entrar"
       >
         <Tabs.Trigger
           value="password"
@@ -47,7 +47,7 @@ export function LoginForm({ next }: { next: string }) {
           value="magic"
           className="num rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] transition data-[state=active]:bg-[hsl(var(--primary-glow)/0.12)] data-[state=active]:text-foreground"
         >
-          Magic link
+          Enlace por correo
         </Tabs.Trigger>
       </Tabs.List>
 
@@ -98,7 +98,7 @@ function PasswordForm({ next }: { next: string }) {
 
   async function sendRecovery() {
     if (!email) {
-      setErrMsg("Ingresá tu email primero · usamos ese para enviar el recovery link")
+      setErrMsg("Escribe primero tu correo: a ese te enviamos el enlace para cambiar la contraseña")
       setState("error")
       return
     }
@@ -120,7 +120,7 @@ function PasswordForm({ next }: { next: string }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <Field
-        label="email"
+        label="Correo"
         icon={<Envelope strokeWidth={1.5} className="h-4 w-4" />}
       >
         <input
@@ -128,13 +128,13 @@ function PasswordForm({ next }: { next: string }) {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="emilio@…"
+          placeholder="tu correo"
           disabled={state === "submitting"}
           className="w-full rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.3)] bg-[hsl(var(--card)/0.6)] py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-[hsl(var(--accent)/0.6)]"
         />
       </Field>
       <Field
-        label="password"
+        label="Contraseña"
         icon={<Lock strokeWidth={1.5} className="h-4 w-4" />}
       >
         <input
@@ -168,13 +168,13 @@ function PasswordForm({ next }: { next: string }) {
         className="num self-start text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--accent))] disabled:opacity-50"
       >
         {state === "recovery_sent"
-          ? "Recovery email enviado · revisá inbox ↓"
-          : "¿Olvidaste contraseña? · enviar recovery email →"}
+          ? "Te enviamos un correo · revisa tu bandeja ↓"
+          : "¿Olvidaste tu contraseña? · te enviamos un correo →"}
       </button>
 
       {state === "recovery_sent" ? (
         <div className="rounded-md border-[0.5px] border-[hsl(var(--success)/0.4)] bg-[hsl(var(--success)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--success))]">
-          Email enviado a <code className="font-mono">{email}</code> · tocá el link · vas a quedar redirigido a <code className="font-mono">/auth/update-password</code> para setear una nueva contraseña.
+          Te enviamos un correo a <code className="font-mono">{email}</code>. Abre el enlace y podrás elegir una contraseña nueva.
         </div>
       ) : null}
 
@@ -182,9 +182,6 @@ function PasswordForm({ next }: { next: string }) {
         <ErrorTile msg={errMsg} />
       ) : null}
 
-      <p className="num mt-2 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-        canon 2026-05-17 · admin único = Emilio Pérez · xavier no existe
-      </p>
     </form>
   )
 }
@@ -221,7 +218,7 @@ function MagicLinkForm({ next }: { next: string }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <Field
-        label="email"
+        label="Correo"
         icon={<Envelope strokeWidth={1.5} className="h-4 w-4" />}
       >
         <input
@@ -229,7 +226,7 @@ function MagicLinkForm({ next }: { next: string }) {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="emilio@…"
+          placeholder="tu correo"
           disabled={state === "sending" || state === "sent"}
           className="w-full rounded-md border-[0.5px] border-[hsl(var(--primary-glow)/0.3)] bg-[hsl(var(--card)/0.6)] py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-[hsl(var(--accent)/0.6)]"
         />
@@ -248,25 +245,20 @@ function MagicLinkForm({ next }: { next: string }) {
           <PaperPlaneTilt strokeWidth={1.5} className="h-3.5 w-3.5" />
         )}
         {state === "sent"
-          ? "Magic link enviado"
+          ? "Enlace enviado"
           : state === "sending"
             ? "Enviando..."
-            : "Enviar magic link"}
+            : "Enviarme el enlace"}
       </button>
 
       {state === "sent" ? (
         <div className="rounded-md border-[0.5px] border-[hsl(var(--success)/0.4)] bg-[hsl(var(--success)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--success))]">
-          Revisá el inbox de <code className="font-mono">{email}</code> ·
-          tocá el link · será redirected a <code className="font-mono">{next}</code>.
+          Revisa la bandeja de <code className="font-mono">{email}</code> y abre el enlace: entrarás directo.
         </div>
       ) : null}
 
       {state === "error" && errMsg ? <ErrorTile msg={errMsg} /> : null}
 
-      <p className="num mt-2 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-        Magic link · primera vez · luego setear password en{" "}
-        <code className="font-mono text-[hsl(var(--accent))]">/settings/security</code>
-      </p>
     </form>
   )
 }

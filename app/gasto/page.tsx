@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
@@ -98,7 +99,7 @@ export default async function GastoPage() {
             <tbody>
               {r.piezas.map((p) => (
                 <tr key={p.id} className="border-t border-zinc-800">
-                  <td className="py-1.5 pr-2 text-zinc-300">{familiaLegible(p.familia)}{p.dry_run ? " · prueba" : ""}</td>
+                  <td className="py-1.5 pr-2 text-zinc-300">{p.hitl_queue_id ? <Link href={`/piezas?id=${p.hitl_queue_id}&estado=todas`} className="hover:underline">{familiaLegible(p.familia)}</Link> : familiaLegible(p.familia)}{p.dry_run ? " · prueba" : ""}<span className="block text-[11px] text-zinc-500">{p.cliente ?? "cliente sin ficha"}</span></td>
                   <td className="py-1.5 pr-2 text-zinc-500">{estadoDeLaPiezaLegible(p.estado)}</td>
                   <td className="num py-1.5 text-right text-zinc-100">{usdFino(p.gasto_usd)} <span className="text-zinc-500">de {usd2(p.tope_usd)}</span></td>
                 </tr>

@@ -20,25 +20,45 @@ export interface Alerta {
   ultima_en: string
   cerrada: boolean
   vista_en: string | null
+  /** a dónde lleva cada alerta (30-oct): la pieza, el cliente o el gasto; «Rehacer» lo agrega la pantalla cuando la alerta es de una pieza */
+  acciones: AccionDeAlerta[]
+  /** solo las alertas de una pieza: el encargo que se puede rehacer */
+  encargo_id?: string
 }
+export interface AccionDeAlerta { texto: string; href: string }
 export type AlertaCruda = Omit<Alerta, "vista_en">
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
 
 type Fila = Record<string, unknown>
 const txt = (v: unknown): string => (v == null ? "" : String(v))
 const iso = (v: unknown): string => { const t = new Date(txt(v)).getTime(); return Number.isFinite(t) ? new Date(t).toISOString() : "" }
 
+/** la clave sin el día del final: «aviso-del-dia:<cliente>:2026-10-29» y «…:2026-10-30» son la misma alarma del portero */
+export const claveSinDia = (clave: string): string => clave.replace(/:\d{4}-\d{2}-\d{2}$/, "")
+
+/** las alarmas del cerebro que solo cambian de día se juntan en una: manda la más reciente, las repeticiones se suman */
 export function deCerebro(filas: Fila[]): AlertaCruda[] {
-  return filas.filter((f) => iso(f.ultima_en)).map((f) => ({
-    clave: `cerebro:${txt(f.clave)}`, fuente: "cerebro" as const, titulo: txt(f.titulo) || txt(f.clave), detalle: txt(f.ultimo_detalle),
-    repeticiones: Math.max(1, Number(f.repeticiones) || 1), desde: iso(f.abierto_en) || iso(f.ultima_en), ultima_en: iso(f.ultima_en), cerrada: !!f.cerrado_en,
-  }))
+  const grupos = new Map<string, Fila[]>()
+  for (const f of filas.filter((x) => iso(x.ultima_en))) { const k = claveSinDia(txt(f.clave)); grupos.set(k, [...(grupos.get(k) ?? []), f]) }
+  return [...grupos.entries()].map(([base, fs]) => {
+    const orden = [...fs].sort((a, b) => (iso(b.ultima_en) > iso(a.ultima_en) ? 1 : -1))
+    const f = orden[0]
+    const cliente = UUID.exec(base)?.[0]
+    const desde = fs.map((x) => iso(x.abierto_en) || iso(x.ultima_en)).sort()[0]
+    return {
+      clave: `cerebro:${fs.length > 1 ? base : txt(f.clave)}`, fuente: "cerebro" as const, titulo: txt(f.titulo) || txt(f.clave), detalle: txt(f.ultimo_detalle),
+      repeticiones: fs.reduce((t, x) => t + Math.max(1, Number(x.repeticiones) || 1), 0), desde, ultima_en: iso(f.ultima_en), cerrada: fs.every((x) => !!x.cerrado_en),
+      acciones: cliente ? [{ texto: "Ver el cliente", href: `/clientes/${cliente}` }] : [],
+    }
+  })
 }
 
 export function deCostos(filas: Fila[]): AlertaCruda[] {
   return filas.filter((f) => iso(f.last_fired_at)).map((f) => {
     const valor = Number(f.last_value_usd), techo = Number(f.threshold_usd)
     const cifras = Number.isFinite(valor) && Number.isFinite(techo) ? `llegó a ${usdES(valor)} con un techo de ${usdES(techo)}` : "se disparó"
-    return { clave: `costo:${txt(f.threshold_key)}`, fuente: "costo" as const, titulo: "Se llegó a un tope de costo", detalle: cifras, repeticiones: 1, desde: iso(f.last_fired_at), ultima_en: iso(f.last_fired_at), cerrada: false }
+    return { clave: `costo:${txt(f.threshold_key)}`, fuente: "costo" as const, titulo: "Se llegó a un tope de costo", detalle: cifras, repeticiones: 1, desde: iso(f.last_fired_at), ultima_en: iso(f.last_fired_at), cerrada: false, acciones: [{ texto: "Ver el gasto", href: "/gasto" }] }
   })
 }
 
@@ -65,7 +85,8 @@ export function deOficina(filas: Fila[], ahora: Date): AlertaCruda[] {
     out.push({
       clave: `oficina:${txt(f.id)}`, fuente: "oficina", titulo: tituloDePieza({ familia: f.familia, creada: iso(f.creado_en) || cuando }),
       detalle: `${motivos.join(" y ")} (gastó ${usdES(Number(f.gasto_usd) || 0)} de ${usdES(Number(f.tope_usd) || 0)})`,
-      repeticiones: 1, desde: iso(f.creado_en) || cuando, ultima_en: cuando, cerrada: false,
+      repeticiones: 1, desde: iso(f.creado_en) || cuando, ultima_en: cuando, cerrada: false, encargo_id: txt(f.id),
+      acciones: [{ texto: "Ver la pieza", href: f.hitl_queue_id ? `/piezas?id=${txt(f.hitl_queue_id)}&estado=todas` : "/mapa" }],
     })
   }
   return out

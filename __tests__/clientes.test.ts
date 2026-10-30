@@ -38,7 +38,7 @@ describe("etiquetas y manual", () => {
 })
 
 describe("orden de la lista", () => {
-  const c = (nombre: string, p: number, g: number): ResumenDeCliente => ({ id: nombre, nombre, rubro: null, estado: "active", piezas_por_aprobar: p, gasto_30d: g, trozos_del_cerebro: 0, campana: null })
+  const c = (nombre: string, p: number, g: number): ResumenDeCliente => ({ id: nombre, nombre, rubro: null, estado: "active", piezas_por_aprobar: p, gasto_30d: g, trozos_del_cerebro: 0, campana: null, de_baja: false, de_practica: false })
   it("primero los que tienen piezas por aprobar, luego por gasto, luego por nombre", () => {
     expect(ordenarClientes([c("B", 0, 5), c("A", 0, 5), c("C", 2, 0), c("D", 0, 9)]).map((x) => x.nombre)).toEqual(["C", "D", "A", "B"])
   })

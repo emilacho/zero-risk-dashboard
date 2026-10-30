@@ -26,22 +26,19 @@ export default async function LoginPage({
                 className="num text-[10px] uppercase tracking-[0.22em]"
                 style={{ color: "hsl(var(--accent))" }}
               >
-                Zero Risk · Dashboard
+                Zero Risk
               </p>
               <h1 className="font-display text-2xl font-semibold tracking-tight">
-                Sign in
+                Entrar
               </h1>
             </div>
           </div>
-          <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
-            Single-operator dashboard · Emilio Pérez admin único (canon
-            2026-05-17). Magic link via Supabase Auth · 0 password to
-            remember.
+          <p className="text-[13px] text-[hsl(var(--muted-foreground))]">
+            Entra con tu correo y tu contraseña, o pide un enlace al correo.
           </p>
           {error === "forbidden" ? (
             <p className="rounded-md border-[0.5px] border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-[11px] text-[hsl(var(--danger))]">
-              No autorizado para esa ruta. Sign in con cuenta admin OR
-              cliente-scoped.
+              Esa cuenta no tiene permiso para esa pantalla. Entra con la cuenta de administrador.
             </p>
           ) : null}
           <LoginForm next={next ?? "/"} />

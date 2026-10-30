@@ -62,7 +62,7 @@ export function apifyPorDia(costos: FilaDeCostos[]): Record<string, number> {
 
 export interface DiaDeGasto { dia: string; agentes: number; apify: number; total: number }
 export interface Reparto { clave: string; nombre: string; total: number; llamadas: number }
-export interface PiezaConGasto { id: string; brief_id: string; familia: string; version: number; estado: string; gasto_usd: number; tope_usd: number; dry_run: boolean; creado_en: string }
+export interface PiezaConGasto { client_id?: string | null; cliente?: string | null; hitl_queue_id?: string | null; id: string; brief_id: string; familia: string; version: number; estado: string; gasto_usd: number; tope_usd: number; dry_run: boolean; creado_en: string }
 
 export interface ResumenDeGasto {
   hoy: DiaDeGasto

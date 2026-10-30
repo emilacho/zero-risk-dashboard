@@ -47,13 +47,13 @@ export async function leerGasto(supa: SupabaseClient, ahora: Date = new Date()):
     paginar((a, b) => supa.from("agent_invocations").select("created_at, cost_usd, model, client_id").gte("created_at", inicioDelDia(desdeDia)).order("created_at", { ascending: true }).range(a, b), "agent_invocations"),
     paginar((a, b) => supa.from("costs").select("date, amount_usd, amount_usd_exact, description").gte("date", desdeDia).order("created_at", { ascending: true }).range(a, b), "costs"),
     paginar((a, b) => supa.from("clients").select("id, name, status").range(a, b), "clients"),
-    supa.from("oficina_encargos").select("id, brief_id, familia, version_encargo, estado, gasto_usd, tope_usd, dry_run, creado_en").neq("dry_run", true).order("creado_en", { ascending: false }).limit(12),
+    supa.from("oficina_encargos").select("id, client_id, hitl_queue_id, brief_id, familia, version_encargo, estado, gasto_usd, tope_usd, dry_run, creado_en").neq("dry_run", true).order("creado_en", { ascending: false }).limit(12),
   ])
   if (enc.error) throw new Error(`oficina_encargos: ${enc.error.message}`)
   const clientes: Record<string, string> = {}
   for (const c of cli.filas) clientes[String(c.id)] = String(c.name ?? "")
   const piezas: PiezaConGasto[] = ((enc.data ?? []) as Fila[]).map((e) => ({
-    id: String(e.id), brief_id: String(e.brief_id), familia: String(e.familia), version: Number(e.version_encargo), estado: String(e.estado),
+    id: String(e.id), client_id: e.client_id ? String(e.client_id) : null, cliente: e.client_id ? (clientes[String(e.client_id)] ?? null) : null, hitl_queue_id: e.hitl_queue_id ? String(e.hitl_queue_id) : null, brief_id: String(e.brief_id), familia: String(e.familia), version: Number(e.version_encargo), estado: String(e.estado),
     gasto_usd: Number(e.gasto_usd ?? 0), tope_usd: Number(e.tope_usd ?? 0), dry_run: e.dry_run === true, creado_en: String(e.creado_en),
   }))
   const resumen = resumirGasto({ invocaciones: inv.filas as unknown as Invocacion[], costos: cos.filas as unknown as FilaDeCostos[], clientes, piezas, ahora })

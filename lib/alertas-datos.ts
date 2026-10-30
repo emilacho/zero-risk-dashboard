@@ -19,7 +19,7 @@ export async function leerAlertas(supa: SupabaseClient, ahora: Date = new Date()
   const [cerebro, costos, encargos, marcas] = await Promise.all([
     leer(supa.from("cerebro_alertas").select("clave, titulo, ultimo_detalle, repeticiones, abierto_en, ultima_en, cerrado_en").order("ultima_en", { ascending: false }).limit(200), "cerebro_alertas"),
     leer(supa.from("cost_alerts_state").select("threshold_key, last_fired_at, last_value_usd, threshold_usd").limit(200), "cost_alerts_state"),
-    leer(supa.from("oficina_encargos").select("id, brief_id, familia, version_encargo, estado, con_desacuerdo, gasto_usd, tope_usd, dry_run, prueba, creado_en, cerrado_en").gte("creado_en", desde).order("creado_en", { ascending: false }).limit(200), "oficina_encargos"),
+    leer(supa.from("oficina_encargos").select("id, brief_id, familia, version_encargo, estado, con_desacuerdo, gasto_usd, tope_usd, dry_run, prueba, creado_en, cerrado_en, hitl_queue_id").gte("creado_en", desde).order("creado_en", { ascending: false }).limit(200), "oficina_encargos"),
     leer(supa.from("alertas_vistas").select("clave, visto_en").limit(2000), "alertas_vistas"),
   ])
   const vistas: Record<string, string> = {}
