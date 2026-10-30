@@ -46,7 +46,9 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
   if (!f) notFound()
   const manual = origenDelManual(f.manual)
   const deBaja = esDeBaja({ estado: f.cliente.estado, nombre: f.cliente.nombre })
-  const valorDelManual: Record<string, string> = { proposito: f.manual?.proposito ?? "", eslogan: f.manual?.eslogan ?? "", voz: f.manual?.voz ?? "" }
+  const lector = f.manual?.lector ?? null
+  const del = (clave: string) => lector?.campos.find((c) => c.clave === clave)?.valor ?? ""
+  const valorDelManual: Record<string, string> = { proposito: del("proposito"), eslogan: del("eslogan"), voz: del("voz") }
   return (
     <main data-seccion="clientes" className="mx-auto max-w-[1200px] px-6 pb-16 pl-24 pt-10">
       <Link href="/clientes" className="text-[12px] text-[hsl(var(--muted-foreground))] hover:underline">← Clientes</Link>
@@ -146,13 +148,20 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
         <Bloque titulo="Manual e identidad">
           {!f.manual ? <Vacio>Sin manual de marca.</Vacio> : (
             <>
-              <p className={`w-fit rounded-full border px-2.5 py-0.5 text-[11px] ${manual.propuesta ? "border-amber-500/40 text-amber-200" : "border-white/15"}`}>
-                {manual.texto}
-              </p>
+              <div className="flex flex-wrap gap-2">
+                <p className={`w-fit rounded-full border px-2.5 py-0.5 text-[11px] ${lector && lector.validadoPor === "propuesta" ? "border-amber-500/40 text-amber-200" : "border-white/15"}`}>
+                  {lector ? lector.rotulo : manual.texto}
+                </p>
+                {lector && (
+                  <p className={`w-fit rounded-full border px-2.5 py-0.5 text-[11px] ${lector.completo ? "border-white/15" : "border-amber-500/40 text-amber-200"}`}>
+                    {lector.completo ? (lector.rotuloVisual ?? "Completo") : `Incompleto · faltan ${lector.huecos.length}`}
+                  </p>
+                )}
+              </div>
               <dl className="grid gap-3">
-                <Dato e="Propósito" v={f.manual.proposito ?? <span className="text-amber-300">Falta definirlo</span>} />
-                <Dato e="Eslogan" v={f.manual.eslogan ?? <span className="text-amber-300">Falta definirlo</span>} />
-                <Dato e="Voz de la marca" v={f.manual.voz ?? <span className="text-amber-300">Falta definirla</span>} />
+                {(lector?.campos ?? []).map((c) => (
+                  <Dato key={c.clave} e={c.etiqueta} v={c.valor ? (<>{c.valor}{c.estado === "propuesta" && <span className="ml-2 text-[11px] text-amber-300">propuesta del agente</span>}</>) : <span className="text-amber-300">{c.nota}</span>} />
+                ))}
                 {f.manual.gate && <Dato e="Revisión de fidelidad" v={revisionDeFidelidadLegible(f.manual.gate)} />}
               </dl>
               <div className="flex flex-wrap items-start gap-3">

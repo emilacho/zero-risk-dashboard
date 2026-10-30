@@ -2,6 +2,7 @@
  * CLIENTES · lectura (servidor, solo lectura). Un error de la base nunca se lee como «0»: la lectura lanza y la pantalla lo dice.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { leerManual, type ManualLeido } from "./manual-lector"
 import { DIAS_DEL_GASTO, esDeBaja, esDePractica, fasesDelPlan, gastoReal, ordenarClientes, type FasesDelPlan, type ResumenDeCliente } from "@/lib/clientes"
 import { desde } from "@/lib/oficinas"
 import { leerGasto } from "@/lib/gasto-datos"
@@ -40,7 +41,7 @@ export interface FichaDeCliente {
   plan: null | { campana_id: string; calendario: FilaDelCalendario[]; esperas: EsperaDelPlan[]; campana_estado: string; desde: string | null; hasta: string | null; presupuesto: number | null; version_estrategia: number | null; fases: FasesDelPlan[]; filas_del_calendario: number }
   gasto: { total_30d: number; agentes_30d: number; piezas_30d: number; llamadas_30d: number }
   cerebro: { fichas_vigentes: number; trozos: number }
-  manual: null | { version: number | null; proposito: string | null; eslogan: string | null; voz: string | null; auto_generated: boolean; human_validated: boolean; gate: string | null }
+  manual: null | { version: number | null; proposito: string | null; eslogan: string | null; voz: string | null; auto_generated: boolean; human_validated: boolean; gate: string | null; lector: ManualLeido }
   perfiles_de_cliente_ideal: number
 }
 
@@ -61,7 +62,7 @@ export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date 
   const enc = await filas(supa.from("oficina_encargos").select("gasto_usd, dry_run").eq("client_id", id).gte("creado_en", desde(DIAS_DEL_GASTO, ahora)).limit(1000), "oficina_encargos")
   const fichas = await contar(supa.from("cerebro_fichas").select("*", { count: "exact", head: true }).eq("client_id", id).is("retirada_en", null), "cerebro_fichas")
   const trozos = await contar(supa.from("client_brain_chunks").select("*", { count: "exact", head: true }).eq("client_id", id), "client_brain_chunks")
-  const b = await una(supa.from("client_brand_books").select("version, brand_purpose, tagline, voice_description, auto_generated, human_validated, gate_outcome").eq("client_id", id).order("version", { ascending: false }).limit(1).maybeSingle(), "client_brand_books")
+  const b = await una(supa.from("client_brand_books").select("*").eq("client_id", id).order("version", { ascending: false }).limit(1).maybeSingle(), "client_brand_books")
   const icp = await contar(supa.from("client_icp_documents").select("*", { count: "exact", head: true }).eq("client_id", id), "client_icp_documents")
   const g = await leerGasto(supa, ahora)
   const totalGasto = g.resumen.por_cliente.find((x) => x.clave === id)?.total ?? 0
@@ -72,7 +73,7 @@ export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date 
     plan,
     gasto: { total_30d: totalGasto, agentes_30d: gastoReal(inv, "cost_usd"), piezas_30d: gastoReal(enc, "gasto_usd"), llamadas_30d: inv.length },
     cerebro: { fichas_vigentes: fichas, trozos },
-    manual: b ? { version: b.version == null ? null : Number(b.version), proposito: b.brand_purpose ? String(b.brand_purpose) : null, eslogan: b.tagline ? String(b.tagline) : null, voz: b.voice_description ? String(b.voice_description) : null, auto_generated: b.auto_generated === true, human_validated: b.human_validated === true, gate: b.gate_outcome ? String(b.gate_outcome) : null } : null,
+    manual: b ? { version: b.version == null ? null : Number(b.version), proposito: b.brand_purpose ? String(b.brand_purpose) : null, eslogan: b.tagline ? String(b.tagline) : null, voz: b.voice_description ? String(b.voice_description) : null, auto_generated: b.auto_generated === true, human_validated: b.human_validated === true, gate: b.gate_outcome ? String(b.gate_outcome) : null, lector: leerManual(b as Record<string, unknown>) as ManualLeido } : null,
     perfiles_de_cliente_ideal: icp,
   }
 }
