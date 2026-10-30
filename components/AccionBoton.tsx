@@ -31,8 +31,12 @@ export interface AccionBotonProps {
   variante?: "normal" | "suave" | "peligro"
   /** los campos del panel van dentro de este objeto del cuerpo (`campos`), y solo los que Emilio cambió; una clave «redes.instagram» anida un nivel más */
   anidar?: string
-  /** adónde ir al terminar (por omisión, solo recargar) */
+  /** adónde ir al terminar (por omisión, solo recargar). Una página SERVIDOR no puede pasar funciones a este componente: usa `irA` o `irAConIdDe` */
   alTerminar?: (resultado: Record<string, unknown>) => string | null
+  /** dirección fija a la que ir al terminar */
+  irA?: string
+  /** ir a `prefijo + resultado[clave]` si el resultado trae esa clave (p. ej. la ficha del cliente recién creado) */
+  irAConIdDe?: { clave: string; prefijo: string }
 }
 
 const CLASES: Record<NonNullable<AccionBotonProps["variante"]>, string> = {
@@ -75,7 +79,8 @@ export function AccionBoton(p: AccionBotonProps) {
       const j = (await r.json().catch(() => ({}))) as Record<string, unknown>
       if (r.ok && j.ok) {
         setAviso({ ok: true, texto: "Hecho." }); setAbierto(false)
-        const destino = p.alTerminar?.((j.resultado ?? {}) as Record<string, unknown>)
+        const res = (j.resultado ?? {}) as Record<string, unknown>
+        const destino = p.alTerminar?.(res) ?? p.irA ?? (p.irAConIdDe && typeof res[p.irAConIdDe.clave] === "string" ? `${p.irAConIdDe.prefijo}${res[p.irAConIdDe.clave]}` : null)
         if (destino) router.push(destino); else empezarLectura(() => router.refresh())
       } else {
         const texto = r.status === 501 ? "Todavía no está disponible: la plataforma aún no tiene esta acción. No se cambió nada." : r.status === 401 ? "Tu sesión venció: entra de nuevo." : r.status === 409 ? `Otra decisión se adelantó; se actualizó la pantalla. ${String(j.detalle ?? "")}` : `No se pudo: ${String(j.detalle ?? j.error ?? r.status)}`
