@@ -8,6 +8,7 @@ import {
 import "./globals.css"
 import { RouteTransition } from "@/components/RouteTransition"
 import { Sidebar } from "@/components/Sidebar"
+import { ActualizarSolo } from "@/components/ActualizarSolo"
 // STEP 11 M4 · the floating Phase 3 CoworkChat drawer is DEPRECATED
 // in favor of the inline CoworkPromptBar (embedded per-surface · home
 // + dept/mkt modal + clients/workflows/agents detail pages). Keeping
@@ -68,6 +69,7 @@ export default function RootLayout({
           <div className="pl-[64px]">{children}</div>
         </RouteTransition>
         <Toaster />
+        <ActualizarSolo />
       </body>
     </html>
   )

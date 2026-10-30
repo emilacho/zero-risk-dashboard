@@ -6,6 +6,7 @@ import { DIAS_DEL_GASTO, esDeBaja, esDePractica, fasesDelPlan, gastoReal, ordena
 import { desde } from "@/lib/oficinas"
 import { leerGasto } from "@/lib/gasto-datos"
 import { estadoDeLaPiezaLegible, tituloDePieza } from "@/lib/lenguaje"
+import { estadoDeLaPieza } from "@/lib/piezas"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -46,7 +47,7 @@ export interface FichaDeCliente {
 export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date = new Date()): Promise<FichaDeCliente | null> {
   const c = await una(supa.from("clients").select("id, name, industry, status, market, website_url, created_at").eq("id", id).maybeSingle(), "clients")
   if (!c) return null
-  const piezas = await filas(supa.from("hitl_queue").select("id, title, status, created_at, metadata").eq("client_id", id).eq("type", "content_piece_review").order("created_at", { ascending: false }).limit(20), "hitl_queue")
+  const piezas = await filas(supa.from("hitl_queue").select("id, title, status, created_at, metadata, decision").eq("client_id", id).eq("type", "content_piece_review").order("created_at", { ascending: false }).limit(20), "hitl_queue")
   const camp = await una(supa.from("cadena_campanas").select("id, estado, fecha_inicio, fecha_fin, presupuesto_planificacion_usd").eq("client_id", id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
   let plan: FichaDeCliente["plan"] = null
   if (camp) {
@@ -64,10 +65,10 @@ export async function cargarFicha(supa: SupabaseClient, id: string, ahora: Date 
   const icp = await contar(supa.from("client_icp_documents").select("*", { count: "exact", head: true }).eq("client_id", id), "client_icp_documents")
   const g = await leerGasto(supa, ahora)
   const totalGasto = g.resumen.por_cliente.find((x) => x.clave === id)?.total ?? 0
-  const estado = (s: unknown) => (s === "pending" ? "por aprobar" : s === "approved" ? "aprobada" : s === "rejected" ? "rechazada" : s === "edited" ? "con cambios pedidos" : estadoDeLaPiezaLegible(s))
+  const estado = (s: unknown, d?: unknown) => (s === "pending" ? "por aprobar" : s === "approved" ? "aprobada" : s === "rejected" ? (estadoDeLaPieza("rejected", d) === "superada" ? "superada" : estadoDeLaPieza("rejected", d) === "archivada" ? "archivada" : "rechazada") : s === "edited" ? "con cambios pedidos" : estadoDeLaPiezaLegible(s))
   return {
     cliente: { id: String(c.id), nombre: String(c.name), rubro: c.industry ? String(c.industry) : null, estado: String(c.status ?? ""), mercado: c.market ? String(c.market) : null, sitio: c.website_url ? String(c.website_url) : null, creado: c.created_at ? String(c.created_at) : null },
-    piezas: piezas.map((p) => ({ id: String(p.id), titulo: tituloDePieza({ familia: (p.metadata as Record<string, unknown> | null)?.familia, tituloCrudo: p.title, cliente: null, creada: String(p.created_at) }), estado: estado(p.status), pendiente: p.status === "pending", creada: String(p.created_at) })),
+    piezas: piezas.map((p) => ({ id: String(p.id), titulo: tituloDePieza({ familia: (p.metadata as Record<string, unknown> | null)?.familia, tituloCrudo: p.title, cliente: null, creada: String(p.created_at) }), estado: estado(p.status, p.decision), pendiente: p.status === "pending", creada: String(p.created_at) })),
     plan,
     gasto: { total_30d: totalGasto, agentes_30d: gastoReal(inv, "cost_usd"), piezas_30d: gastoReal(enc, "gasto_usd"), llamadas_30d: inv.length },
     cerebro: { fichas_vigentes: fichas, trozos },

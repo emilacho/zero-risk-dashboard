@@ -12,9 +12,20 @@ export const COMENTARIO_MINIMO = 10
 export const MOTIVO_MINIMO = 5
 export const COMENTARIO_MAXIMO = 2000
 
-export type EstadoPieza = "pendiente" | "aprobada" | "con_cambios" | "rechazada" | "otro"
+export type EstadoPieza = "pendiente" | "aprobada" | "con_cambios" | "rechazada" | "superada" | "archivada" | "otro"
 export const ESTADOS_DE_LA_BANDEJA: Record<string, EstadoPieza> = { pending: "pendiente", approved: "aprobada", edited: "con_cambios", rejected: "rechazada" }
-export const estadoDeLaPieza = (status: string): EstadoPieza => ESTADOS_DE_LA_BANDEJA[status] ?? "otro"
+/**
+ * Una fila «rechazada» que la limpieza o la plataforma marcó como `superada` (la reemplazó otra vigente) o `archivada` (resto de práctica)
+ * NO la rechazó Emilio: se dice lo que es. Solo cambia las rechazadas; ninguna otra fila se reinterpreta.
+ */
+export function estadoDeLaPieza(status: string, decision?: unknown): EstadoPieza {
+  const base = ESTADOS_DE_LA_BANDEJA[status] ?? "otro"
+  if (base !== "rechazada" || typeof decision !== "object" || decision === null) return base
+  const d = decision as Record<string, unknown>
+  if (d.superada === true) return "superada"
+  if (d.archivada === true) return "archivada"
+  return base
+}
 
 /** de dónde sale la imagen de fondo de una lámina: no hay (solo tipografía), la generó la IA, es foto propia del cliente, o hay imagen pero no se sabe cuál */
 export type OrigenDeLaImagen = "tipografia" | "generada" | "propia" | "con_imagen"

@@ -13,7 +13,7 @@ type Pestana = "lamina" | "equipo" | "jefatura"
 type Dialogo = null | "cambios" | "rechazar"
 
 const COLOR_AVISO = { rojo: "border-rose-500/40 bg-rose-500/10 text-rose-200", ambar: "border-amber-500/40 bg-amber-500/10 text-amber-100", info: "border-white/10 bg-white/5" } as const
-const ETIQUETA_ESTADO: Record<string, string> = { pendiente: "Pendiente", aprobada: "Aprobada", con_cambios: "Con cambios pedidos", rechazada: "Rechazada", otro: "Otro" }
+const ETIQUETA_ESTADO: Record<string, string> = { pendiente: "Pendiente", aprobada: "Aprobada", con_cambios: "Con cambios pedidos", rechazada: "Rechazada", superada: "Superada (la reemplazó otra pieza)", archivada: "Archivada", otro: "Otro" }
 const usd = usdES
 
 export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; siguienteId: string | null }) {
