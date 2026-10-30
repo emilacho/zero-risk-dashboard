@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { leerOficinas } from "@/lib/oficinas-datos"
 import { leerGasto } from "@/lib/gasto-datos"
 import { leerTrabajoEnVivo, type TrabajoEnVivo } from "@/lib/trabajo-en-vivo"
+import { esDeBaja, esDePractica } from "@/lib/clientes"
+import { estadoDeLaPieza } from "@/lib/piezas"
 import { leerAlertas } from "@/lib/alertas-datos"
 import { desde, type TarjetaDeOficina } from "@/lib/oficinas"
 import { contarPiezasPorAprobar, listarPiezas } from "@/lib/piezas-datos"
@@ -53,24 +55,26 @@ export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date())
       const [g, enc, cli] = await Promise.all([
         leerGasto(supa, ahora),
         filas(supa.from("oficina_encargos").select("estado, dry_run, cerrado_en").gte("cerrado_en", desde(42, ahora)).limit(2000), "oficina_encargos"),
-        contar(supa.from("clients").select("*", { count: "exact", head: true }).in("status", ["active", "onboarding"]).is("archived_at", null), "clients"),
+        // «clientes en servicio» = reales: sin archivados, dados de baja ni fichas de práctica (la misma regla que la lista de Clientes)
+        filas(supa.from("clients").select("name, industry, status, archived_at").in("status", ["active", "onboarding"]).is("archived_at", null).limit(500), "clients"),
       ])
       const semanas = piezasPorSemana(enc, ahora, 6)
       const hechas = semanas[semanas.length - 1].piezas
-      return { piezas_semana: hechas, gasto_hoy: g.resumen.hoy.total, gasto_mes: g.resumen.mes.total, mes: g.resumen.mes.etiqueta, clientes_activos: cli, gasto_30d: g.resumen.ultimos.dias.map((x) => x.total), semanas }
+      return { piezas_semana: hechas, gasto_hoy: g.resumen.hoy.total, gasto_mes: g.resumen.mes.total, mes: g.resumen.mes.etiqueta, clientes_activos: cli.filter((x) => !esDeBaja({ estado: String(x.status ?? ""), archivado: x.archived_at != null, nombre: String(x.name ?? "") }) && !esDePractica({ rubro: x.industry ? String(x.industry) : null, nombre: String(x.name ?? "") })).length, gasto_30d: g.resumen.ultimos.dias.map((x) => x.total), semanas }
     }),
     bloque(async () => {
       const [enc, rev, camp, dec] = await Promise.all([
         filas(supa.from("oficina_encargos").select("brief_id, familia, estado, cerrado_en, dry_run, hitl_queue_id").not("cerrado_en", "is", null).order("cerrado_en", { ascending: false }).limit(10), "oficina_encargos"),
         filas(supa.from("jefatura_revisiones").select("artifact_type, resultado, cerrado_en, dry_run").not("cerrado_en", "is", null).order("cerrado_en", { ascending: false }).limit(10), "jefatura_revisiones"),
         filas(supa.from("cadena_campanas").select("estado, creada_en, seco").order("creada_en", { ascending: false }).limit(5), "cadena_campanas"),
-        filas(supa.from("hitl_queue").select("id, title, status, decided_at").neq("status", "pending").not("decided_at", "is", null).eq("type", "content_piece_review").order("decided_at", { ascending: false }).limit(10), "hitl_queue"),
+        filas(supa.from("hitl_queue").select("id, title, status, decided_at, decision").neq("status", "pending").not("decided_at", "is", null).eq("type", "content_piece_review").order("decided_at", { ascending: false }).limit(10), "hitl_queue"),
       ])
       const h: Hecho[] = []
       for (const e of enc.filter((x) => x.dry_run !== true)) h.push({ cuando: String(e.cerrado_en), texto: String(e.estado).startsWith("cerrado") ? `Pieza lista: ${familiaLegible(e.familia)}` : `Una pieza (${familiaLegible(e.familia).toLowerCase()}) no se pudo terminar`, href: e.hitl_queue_id ? "/piezas?id=" + String(e.hitl_queue_id) + "&estado=todas" : undefined })
       for (const r of rev.filter((x) => x.dry_run !== true)) h.push({ cuando: String(r.cerrado_en), texto: `La jefatura revisó ${r.artifact_type === "pieza" ? "una pieza" : r.artifact_type === "plan" ? "un plan" : "un trabajo"}: ${resultadoDeJefaturaLegible(r.resultado)}` })
       for (const c of camp.filter((x) => x.seco !== true)) h.push({ cuando: String(c.creada_en), texto: `Se armó una campaña (${estadoDeCampanaLegible(c.estado)})` })
-      for (const d of dec) h.push({ cuando: String(d.decided_at), texto: `Pieza ${d.status === "approved" ? "aprobada" : d.status === "rejected" ? "rechazada" : "con cambios"}: ${String(d.title).replace(/^⚠️\s*/, "").slice(0, 70)}`, href: `/piezas?id=${d.id}&estado=todas` })
+      // una pieza «superada» (la reemplazó otra) o archivada NO la rechazó Emilio: no es un hecho para contar
+      for (const d of dec.filter((x) => { const e = estadoDeLaPieza(String(x.status), x.decision); return e !== "superada" && e !== "archivada" })) h.push({ cuando: String(d.decided_at), texto: `Pieza ${d.status === "approved" ? "aprobada" : d.status === "rejected" ? "rechazada" : "con cambios"}: ${String(d.title).replace(/^⚠️\s*/, "").slice(0, 70)}`, href: `/piezas?id=${d.id}&estado=todas` })
       return ultimosHechos(h, 5)
     }),
     // el mismo número que muestra la pantalla de Alertas (misma lectura, ya sin duplicados)

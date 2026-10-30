@@ -16,6 +16,15 @@ export function rutaSeRefresca(ruta: string | null | undefined): boolean {
   return !RUTAS_SIN_REFRESCO.some((r) => ruta === r || ruta.startsWith(`${r}/`))
 }
 
+export type GrupoDelPulso = "general" | "gasto" | "alertas"
+/** qué huellas del pulso mira cada pantalla: Gasto y Alertas se ponen al día con SUS cambios; el Inicio los ve todos */
+export function gruposDeLaPantalla(ruta: string | null | undefined): GrupoDelPulso[] {
+  if (ruta === "/") return ["general", "gasto", "alertas"]
+  if (ruta === "/gasto" || ruta?.startsWith("/gasto/")) return ["general", "gasto"]
+  if (ruta === "/alertas" || ruta?.startsWith("/alertas/")) return ["general", "alertas"]
+  return ["general"]
+}
+
 /** tras un clic o un cambio de pantalla no se recarga durante este rato: la navegación manda */
 export const PAUSA_TRAS_NAVEGAR_MS = 4_000
 

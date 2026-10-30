@@ -44,7 +44,26 @@ describe("trabajo en vivo · nombres del sistema", () => {
   it("estados y frases sin códigos", () => {
     expect(estadoDelTrabajo("completed")).toBe("listo"); expect(estadoDelTrabajo("running")).toBe("trabajando"); expect(estadoDelTrabajo("error")).toBe("fallo")
     expect(nombreLegible("sales_account_strategist")).toBe("Sales account strategist")
-    expect(queHace("trabajando", "Náufrago")).toBe("trabaja para Náufrago")
-    expect(queHace("fallo", null)).toBe("tuvo un problema")
+    expect(queHace("trabajando", "Náufrago")).toBe("hace una tarea para Náufrago")
+    expect(queHace("fallo", null)).toBe("no pudo hacer una tarea")
+  })
+})
+
+import { gruposDeLaPantalla } from "@/lib/tiempo-real"
+import { tareaDe } from "@/lib/trabajo-en-vivo"
+describe("cierre del dashboard · ADENDA 18:17Z", () => {
+  it("Gasto y Alertas miran SUS huellas del pulso; el Inicio las ve todas", () => {
+    expect(gruposDeLaPantalla("/gasto")).toContain("gasto")
+    expect(gruposDeLaPantalla("/alertas")).toContain("alertas")
+    expect(gruposDeLaPantalla("/")).toEqual(["general", "gasto", "alertas"])
+    expect(gruposDeLaPantalla("/clientes")).toEqual(["general"])
+    expect(gruposDeLaPantalla("/gasto")).not.toContain("alertas")
+  })
+  it("el panel dice QUÉ tarea hizo, sin códigos", () => {
+    expect(queHace("listo", "Náufrago", tareaDe("portero-del-cerebro", "portero.proponer_busquedas"))).toBe("propuso qué buscar afuera sobre un cliente para Náufrago")
+    expect(queHace("fallo", null, tareaDe("content-creator", null))).toBe("no pudo escribir el texto de una pieza")
+    expect(queHace("trabajando", null, tareaDe("paid_media_ppc_strategist", null))).toBe("planea la publicidad pagada")
+    expect(tareaDe("portero-del-cerebro", "portero.razonar.prueba")[3]).toContain("(prueba)")
+    expect(queHace("listo", null, tareaDe("agente-desconocido", null))).toBe("hizo una tarea")
   })
 })
