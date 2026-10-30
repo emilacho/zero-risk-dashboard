@@ -6,7 +6,7 @@
  *  · dice con franqueza el resultado: hecho, no disponible todavía, o por qué falló. Nunca finge.
  */
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 
 export interface CampoDeAccion {
   clave: string
@@ -50,6 +50,7 @@ export function AccionBoton(p: AccionBotonProps) {
   const [abierto, setAbierto] = useState(false)
   const [valores, setValores] = useState<Record<string, string>>(() => Object.fromEntries(campos.map((c) => [c.clave, c.inicial ?? ""])))
   const [estado, setEstado] = useState<"quieto" | "enviando">("quieto")
+  const [leyendo, empezarLectura] = useTransition()
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
   const clase = `rounded-md border px-3 py-1.5 text-[12px] transition disabled:opacity-50 ${CLASES[p.variante ?? "normal"]}`
 
@@ -75,10 +76,11 @@ export function AccionBoton(p: AccionBotonProps) {
       if (r.ok && j.ok) {
         setAviso({ ok: true, texto: "Hecho." }); setAbierto(false)
         const destino = p.alTerminar?.((j.resultado ?? {}) as Record<string, unknown>)
-        if (destino) router.push(destino); else router.refresh()
+        if (destino) router.push(destino); else empezarLectura(() => router.refresh())
       } else {
-        const texto = r.status === 501 ? "Todavía no está disponible: la plataforma aún no tiene esta acción. No se cambió nada." : r.status === 401 ? "Tu sesión venció: entra de nuevo." : r.status === 409 ? `Otra decisión se adelantó: recarga la pantalla. ${String(j.detalle ?? "")}` : `No se pudo: ${String(j.detalle ?? j.error ?? r.status)}`
+        const texto = r.status === 501 ? "Todavía no está disponible: la plataforma aún no tiene esta acción. No se cambió nada." : r.status === 401 ? "Tu sesión venció: entra de nuevo." : r.status === 409 ? `Otra decisión se adelantó; se actualizó la pantalla. ${String(j.detalle ?? "")}` : `No se pudo: ${String(j.detalle ?? j.error ?? r.status)}`
         setAviso({ ok: false, texto })
+        if (r.status === 409) empezarLectura(() => router.refresh())
       }
     } catch (e) {
       setAviso({ ok: false, texto: `No se pudo: ${e instanceof Error ? e.message : String(e)}` })
@@ -87,8 +89,8 @@ export function AccionBoton(p: AccionBotonProps) {
 
   return (
     <span className="inline-flex flex-col items-start gap-1.5 align-top">
-      <button type="button" disabled={estado === "enviando"} className={clase} onClick={() => (necesitaPanel ? setAbierto(!abierto) : enviar())}>
-        {estado === "enviando" ? "Enviando…" : p.etiqueta}
+      <button type="button" disabled={estado === "enviando" || leyendo} className={clase} onClick={() => (necesitaPanel ? setAbierto(!abierto) : enviar())}>
+        {estado === "enviando" ? "Enviando…" : leyendo ? "Actualizando…" : p.etiqueta}
       </button>
       {abierto && (
         <span data-editando className="surface-card block w-[320px] max-w-full space-y-2.5 p-3 text-[12px]">

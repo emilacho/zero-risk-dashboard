@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
+import { estadoTrasDecidir } from "@/lib/reflejo"
+import type { EstadoPieza } from "@/lib/piezas"
 import { resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible, usdES } from "@/lib/lenguaje"
 import { COMENTARIO_MINIMO, MOTIVO_MINIMO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
 import { botonesDeRevision } from "@/lib/revisiones"
@@ -29,9 +31,12 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null)
 
+  // lo que dice la pantalla apenas la base contesta «ok», sin esperar a que la lectura nueva llegue
+  const [resultado, setResultado] = useState<{ id: string; estado: EstadoPieza } | null>(null)
+  const estadoVisto: EstadoPieza = resultado?.id === pieza.id ? resultado.estado : pieza.estado
   const total = pieza.laminas.length
   const lamina = pieza.laminas[n - 1]
-  const pendiente = pieza.status === "pending" && pieza.es_pieza
+  const pendiente = pieza.status === "pending" && pieza.es_pieza && estadoVisto === "pendiente"
   const ir = useCallback((d: number) => { if (total > 0) { setN((x) => ((x - 1 + d + total) % total) + 1); setZoom(false) } }, [total])
 
   useEffect(() => {
@@ -58,9 +63,14 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
         setMensaje({ ok: true, texto: j.simulado ? (j.detalle ?? "Simulado: no se guardó nada") : (j.nota ?? "Listo.") })
         setDialogo(null)
         setComentario("")
+        if (!j.simulado) setResultado({ id: pieza.id, estado: estadoTrasDecidir(accion) })
         if (!j.simulado) router.push(siguienteId ? `/piezas?id=${siguienteId}` : "/piezas")
         router.refresh()
-      } else setMensaje({ ok: false, texto: j.detalle ?? j.error ?? `No se pudo (${r.status})` })
+      } else {
+        // falló (o otra decisión se adelantó): se dice y se vuelve a leer para mostrar lo que de verdad hay en la base
+        setMensaje({ ok: false, texto: (j.detalle ?? j.error ?? `No se pudo (${r.status})`) + (r.status === 409 ? " Se actualizó la pantalla." : "") })
+        if (r.status === 409) router.refresh()
+      }
     } catch {
       setMensaje({ ok: false, texto: "No se pudo contactar al servidor." })
     } finally {
@@ -74,7 +84,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
     <div className="flex h-screen min-h-0 flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b-[0.5px] border-white/10 px-5 py-3">
         <h2 className="font-display text-[16px] font-semibold">{pieza.titulo}</h2>
-        <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[pieza.estado]}</span>
+        <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[estadoVisto]}</span>
         <span className="num text-[11px] text-[hsl(var(--muted-foreground))]">{usd(pieza.gasto_usd)}</span>
         <span className="ml-auto flex items-center gap-2">
           {total > 0 && (
@@ -172,7 +182,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
         {!pieza.es_pieza && pieza.status !== "pending" && <p className="text-[13px] text-[hsl(var(--muted-foreground))]">{tipoDeRevisionLegible(pieza.tipo)} · ya resuelta.</p>}
         {pieza.es_pieza && !pendiente && (
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[13px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[pieza.estado]}.</span>
+            <span className="text-[13px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[estadoVisto]}.</span>
             {pieza.encargo_id && (pieza.estado === "rechazada" || pieza.estado === "otro") && (
               <AccionBoton accion="rehacer-pieza" datos={{ encargo_id: pieza.encargo_id }} etiqueta="Rehacer esta pieza" tope_usd={TOPE_POR_PIEZA_USD} variante="suave" campos={[{ clave: "comentario", etiqueta: "Qué debe cambiar (opcional)", tipo: "largo" }]} />
             )}
