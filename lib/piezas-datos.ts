@@ -19,8 +19,9 @@ import {
   type MapaDeOrigenes,
 } from "@/lib/piezas"
 import { tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
+import { esDePractica } from "@/lib/clientes"
 
-export const COLUMNAS_DE_LA_LISTA = "id, status, client_id, created_at, title, type, agent_name, output_preview, metadata"
+export const COLUMNAS_DE_LA_LISTA = "id, status, client_id, created_at, title, type, agent_name, output_preview, metadata, decision"
 
 export interface FilaDeLaLista {
   id: string
@@ -62,16 +63,21 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
   const filas = (r.data ?? []) as Array<Record<string, unknown>>
   const ids = [...new Set(filas.map((f) => f.client_id).filter((x): x is string => typeof x === "string"))]
   const nombres = new Map<string, string>()
+  const practica = new Set<string>()
   if (ids.length > 0) {
-    const c = await supa.from("clients").select("id, name").in("id", ids)
-    for (const x of (c.data ?? []) as Array<{ id: string; name: string }>) nombres.set(x.id, x.name)
+    const c = await supa.from("clients").select("id, name, industry").in("id", ids)
+    for (const x of (c.data ?? []) as Array<{ id: string; name: string; industry?: string | null }>) {
+      nombres.set(x.id, x.name)
+      if (esDePractica({ rubro: x.industry, nombre: x.name })) practica.add(x.id)
+    }
   }
-  return filas.map((f) => {
+  // las piezas de un cliente de práctica no salen en ninguna lista
+  return filas.filter((f) => !(typeof f.client_id === "string" && practica.has(f.client_id))).map((f) => {
     const meta = (f.metadata ?? {}) as Record<string, unknown>
     const desac = Array.isArray(meta.desacuerdos) ? meta.desacuerdos.length : 0
     return {
       id: String(f.id),
-      estado: estadoDeLaPieza(String(f.status)),
+      estado: estadoDeLaPieza(String(f.status), f.decision),
       status: String(f.status),
       tipo: String(f.type ?? ""),
       es_pieza: f.type === TIPO_PIEZA,
@@ -166,7 +172,7 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
   const opinion = (meta.opinion_externa as { texto?: string } | null | undefined)?.texto ?? null
   return {
     id: String(f.id),
-    estado: estadoDeLaPieza(String(f.status)),
+    estado: estadoDeLaPieza(String(f.status), f.decision),
     status: String(f.status),
     tipo: String(f.type ?? ""),
     es_pieza: f.type === TIPO_PIEZA,

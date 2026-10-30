@@ -91,7 +91,7 @@ export function AccionBoton(p: AccionBotonProps) {
         {estado === "enviando" ? "Enviando…" : p.etiqueta}
       </button>
       {abierto && (
-        <span className="surface-card block w-[320px] max-w-full space-y-2.5 p-3 text-[12px]">
+        <span data-editando className="surface-card block w-[320px] max-w-full space-y-2.5 p-3 text-[12px]">
           {p.confirmar && <span className="block text-zinc-200">{p.confirmar}</span>}
           {campos.map((c) => (
             <label key={c.clave} className="block">

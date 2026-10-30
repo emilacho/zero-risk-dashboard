@@ -9,8 +9,8 @@ import { VisorDePieza } from "./VisorDePieza"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Piezas" }
 
-const PUNTO: Record<string, string> = { pendiente: "bg-amber-400", aprobada: "bg-emerald-400", con_cambios: "bg-sky-400", rechazada: "bg-rose-400", otro: "bg-zinc-500" }
-const ETIQUETA: Record<string, string> = { pendiente: "por aprobar", aprobada: "aprobada", con_cambios: "con cambios pedidos", rechazada: "rechazada", otro: "otro estado" }
+const PUNTO: Record<string, string> = { pendiente: "bg-amber-400", aprobada: "bg-emerald-400", con_cambios: "bg-sky-400", rechazada: "bg-rose-400", superada: "bg-zinc-500", archivada: "bg-zinc-600", otro: "bg-zinc-500" }
+const ETIQUETA: Record<string, string> = { pendiente: "por aprobar", aprobada: "aprobada", con_cambios: "con cambios pedidos", rechazada: "rechazada", superada: "superada", archivada: "archivada", otro: "otro estado" }
 
 export default async function PiezasPage({ searchParams }: { searchParams: Promise<{ id?: string; estado?: string }> }) {
   const puerta = await exigirAdmin()
