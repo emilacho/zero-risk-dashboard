@@ -36,20 +36,21 @@ export function TrabajoEnVivo({ inicial }: { inicial: Datos }) {
     return () => { vivo = false; clearInterval(t); document.removeEventListener("visibilitychange", alVolver) }
   }, [])
 
+  const visibles = filas.slice(0, 4)
   return (
-    <div data-hue="violet" className="surface-card">
-      <p className="px-4 pt-3 text-[11px] text-[hsl(var(--muted-foreground))]">{hoy} tareas de los empleados en las últimas 24 horas{error ? " · sin conexión, reintentando" : ""}</p>
-      {filas.length === 0 ? <p className="px-4 py-4 text-[13px] text-[hsl(var(--muted-foreground))]">Todavía no hay trabajo para mostrar.</p> : (
-        <ul className="divide-y divide-white/5">
-          {filas.map((f) => (
-            <li key={f.id} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${LUZ[f.estado]}`} />
-              <span className="min-w-0 flex-1"><span className="font-medium">{f.agente}</span>{f.oficina ? <span className="text-[hsl(var(--muted-foreground))]"> · {f.oficina}</span> : null} <span>{f.que_hace}</span></span>
-              <span className="w-20 shrink-0 text-right text-[11px] text-[hsl(var(--muted-foreground))]">{f.hace}</span>
-            </li>
+    <div>
+      {visibles.length === 0 ? <p className="surface-card p-4 text-[13px] text-[hsl(var(--muted-foreground))]">Todavía no hay trabajo para mostrar.</p> : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {visibles.map((f) => (
+            <div key={f.id} data-hue={f.estado === "fallo" ? "rose" : f.estado === "trabajando" ? "amber" : "violet"} className="surface-card flex flex-col gap-3 p-3.5">
+              <p className="flex items-center gap-2 text-[13px] font-medium"><span className={`h-2 w-2 shrink-0 rounded-full ${LUZ[f.estado]}`} /><span className="truncate">{f.agente}</span>{f.oficina ? <span className="truncate font-normal text-[hsl(var(--muted-foreground))]">· {f.oficina}</span> : null}</p>
+              <p className="rounded-md border border-white/10 px-2.5 py-2 text-[13px] leading-snug">{f.que_hace}</p>
+              <p className="mt-auto text-right text-[11px] text-[hsl(var(--muted-foreground))]">{f.hace}</p>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
+      <p className="mt-2 text-right text-[11px] text-[hsl(var(--muted-foreground))]">{hoy} tareas en las últimas 24 horas{error ? " · sin conexión, reintentando" : ""}</p>
     </div>
   )
 }
