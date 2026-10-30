@@ -39,7 +39,7 @@ export default async function ClientesPage({ searchParams }: { searchParams: Pro
             { clave: "sitio", etiqueta: "Sitio web" },
             { clave: "presupuesto", etiqueta: "Presupuesto mensual (US$)", tipo: "numero" },
           ]}
-          alTerminar={(r) => (typeof r.client_id === "string" ? `/clientes/${r.client_id}` : null)}
+          irAConIdDe={{ clave: "client_id", prefijo: "/clientes/" }}
         />
         {bajas > 0 && (
           <Link href={verBajas ? "/clientes" : "/clientes?bajas=1"} className="text-[12px] text-[hsl(var(--muted-foreground))] underline-offset-2 hover:underline">

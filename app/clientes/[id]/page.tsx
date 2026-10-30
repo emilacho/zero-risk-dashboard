@@ -68,7 +68,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
           ]}
         />
         {!deBaja && (
-          <AccionBoton accion="cliente-baja" datos={{ client_id: id }} etiqueta="Dar de baja" variante="peligro" confirmar={`Vas a dar de baja a ${f.cliente.nombre}. Deja de aparecer en la lista y se detienen sus piezas nuevas; nada se borra.`} campos={[{ clave: "comentario", etiqueta: "¿Por qué se da de baja?", tipo: "largo", requerido: true }]} alTerminar={() => "/clientes"} />
+          <AccionBoton accion="cliente-baja" datos={{ client_id: id }} etiqueta="Dar de baja" variante="peligro" confirmar={`Vas a dar de baja a ${f.cliente.nombre}. Deja de aparecer en la lista y se detienen sus piezas nuevas; nada se borra.`} campos={[{ clave: "comentario", etiqueta: "¿Por qué se da de baja?", tipo: "largo", requerido: true }]} irA="/clientes" />
         )}
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
