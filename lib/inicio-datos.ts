@@ -8,6 +8,7 @@ import { leerGasto } from "@/lib/gasto-datos"
 import { leerTrabajoEnVivo, type TrabajoEnVivo } from "@/lib/trabajo-en-vivo"
 import { esDeBaja, esDePractica } from "@/lib/clientes"
 import { estadoDeLaPieza } from "@/lib/piezas"
+import { leerActividadDeEmpleados, type DiaDeActividad } from "@/lib/actividad"
 import { leerAlertas } from "@/lib/alertas-datos"
 import { desde, type TarjetaDeOficina } from "@/lib/oficinas"
 import { contarPiezasPorAprobar, listarPiezas } from "@/lib/piezas-datos"
@@ -37,11 +38,13 @@ export interface LecturaDeInicio {
   hechos: Bloque<Hecho[]>
   /** lo que hacen los empleados ahora (primera pintura del panel en vivo) */
   trabajo: Bloque<TrabajoEnVivo>
+  /** tareas de los empleados por día, 14 días */
+  actividad: Bloque<DiaDeActividad[]>
 }
 
 export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date()): Promise<LecturaDeInicio> {
   // 30-oct · todo en paralelo (antes: oficinas → grupo → miniaturas, tres esperas seguidas)
-  const [oficinas, te_necesitan, cifras, hechos, alertasNuevas, miniaturas, trabajo] = await Promise.all([
+  const [oficinas, te_necesitan, cifras, hechos, alertasNuevas, miniaturas, trabajo, actividad] = await Promise.all([
     bloque(() => leerOficinas(supa, ahora)),
     bloque(async () => {
       const [piezas, otras, preguntas] = await Promise.all([
@@ -81,7 +84,8 @@ export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date())
     bloque(async () => (await leerAlertas(supa, ahora)).nuevas.length),
     bloque(async () => (await listarPiezas(supa, { estado: "pendiente", tipo: "piezas", limite: 3 })).map((p) => ({ id: p.id, titulo: p.titulo_legible, tiene_dibujo: p.tiene_dibujo }))),
     bloque(() => leerTrabajoEnVivo(supa, { limite: 8, ahora })),
+    bloque(() => leerActividadDeEmpleados(supa, ahora)),
   ])
   const estado: Bloque<EstadoDelSistema> = oficinas.ok ? { ok: true, valor: estadoDelSistema(oficinas.valor, alertasNuevas.ok ? alertasNuevas.valor : null) } : { ok: false, error: oficinas.error }
-  return { te_necesitan, estado, cifras, oficinas, hechos, miniaturas, trabajo }
+  return { te_necesitan, estado, cifras, oficinas, hechos, miniaturas, trabajo, actividad }
 }
