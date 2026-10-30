@@ -36,6 +36,20 @@ export function origenDelManual(b: { auto_generated?: unknown; human_validated?:
   return { texto: "Escrito a mano · sin validar", propuesta: false }
 }
 
+/** Un cliente «dado de baja» para el tablero: estado churned, archivado, o ficha vieja rotulada «ARCHIVADA…» */
+export function esDeBaja(c: { estado?: string | null; archivado?: boolean; nombre?: string | null }): boolean {
+  return c.estado === "churned" || c.archivado === true || /^\s*ARCHIVADA\b/i.test(c.nombre ?? "")
+}
+/** Una ficha de práctica o de ensayo: rubro «prueba» o nombre de prueba (zz…, Prueba…). Nunca es un cliente real. */
+export function esDePractica(c: { rubro?: string | null; nombre?: string | null }): boolean {
+  return /^\s*prueba\s*$/i.test(c.rubro ?? "") || /^\s*(zz\b|prueba\b|pr[aá]ctica\b)/i.test(c.nombre ?? "")
+}
+/** Lo que dice la lista: un cliente nuevo que ya tiene campaña en marcha ya no está «en preparación» */
+export function estadoDeLaLista(estado: string | null | undefined, campana: string | null | undefined): string {
+  if (estado === "onboarding" && campana === "activa") return "En servicio · campaña en marcha"
+  return etiquetaDelCliente(estado)
+}
+
 export interface ResumenDeCliente {
   id: string
   nombre: string
@@ -45,6 +59,14 @@ export interface ResumenDeCliente {
   gasto_30d: number
   trozos_del_cerebro: number
   campana: string | null
+  /** dado de baja, archivado o ficha vieja: la lista lo esconde salvo que se pida «ver dados de baja» */
+  de_baja: boolean
+  de_practica: boolean
+}
+
+/** la lista que se muestra: sin prácticas nunca; sin dados de baja salvo que se pidan */
+export function visibles(c: ResumenDeCliente[], verBajas: boolean): ResumenDeCliente[] {
+  return c.filter((x) => !x.de_practica && (verBajas || !x.de_baja))
 }
 
 /** primero lo que necesita a Emilio, luego por gasto, luego por nombre */

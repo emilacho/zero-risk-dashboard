@@ -5,7 +5,6 @@ import { getServiceRoleClient } from "@/lib/supabase-server"
 import { leerInicio, type Bloque } from "@/lib/inicio-datos"
 import { cuando } from "@/lib/inicio"
 import { usd, type Semaforo } from "@/lib/oficinas"
-import { ChatConCowork } from "@/components/inicio/ChatConCowork"
 import { Barras, Tendencia } from "@/components/inicio/MiniGrafica"
 
 export const dynamic = "force-dynamic"
@@ -126,9 +125,6 @@ export default async function InicioPage() {
         )}
       </section>
 
-      <div className="mt-8">
-        <ChatConCowork sinRespuesta={d.mensajes_sin_respuesta.ok ? d.mensajes_sin_respuesta.valor : null} />
-      </div>
     </main>
   )
 }

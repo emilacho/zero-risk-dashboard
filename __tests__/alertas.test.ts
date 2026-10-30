@@ -39,7 +39,7 @@ describe("una pieza, una alerta", () => {
 })
 
 describe("«ya lo vi»", () => {
-  const alta = (clave: string, ultima_en: string) => ({ clave, fuente: "cerebro" as const, titulo: clave, detalle: "", repeticiones: 1, desde: ultima_en, ultima_en, cerrada: false })
+  const alta = (clave: string, ultima_en: string) => ({ clave, fuente: "cerebro" as const, titulo: clave, detalle: "", repeticiones: 1, desde: ultima_en, ultima_en, cerrada: false, acciones: [] })
   it("una alerta vista pasa a «vistas»; si ocurre de nuevo DESPUÉS de la marca, vuelve a ser nueva", () => {
     const r = cruzarVistas([alta("cerebro:a", "2026-10-28T00:00:00Z"), alta("cerebro:b", "2026-10-29T12:00:00Z"), alta("cerebro:c", "2026-10-27T00:00:00Z")],
       { "cerebro:a": "2026-10-28T06:00:00Z", "cerebro:b": "2026-10-29T06:00:00Z" })

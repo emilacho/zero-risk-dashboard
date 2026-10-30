@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { leerOficinas } from "@/lib/oficinas-datos"
 import { leerGasto } from "@/lib/gasto-datos"
+import { leerAlertas } from "@/lib/alertas-datos"
 import { desde, type TarjetaDeOficina } from "@/lib/oficinas"
 import { contarPiezasPorAprobar, listarPiezas } from "@/lib/piezas-datos"
 import { familiaLegible, resultadoDeJefaturaLegible, estadoDeCampanaLegible } from "@/lib/lenguaje"
@@ -31,12 +32,11 @@ export interface LecturaDeInicio {
   miniaturas: Bloque<Array<{ id: string; titulo: string; tiene_dibujo: boolean }>>
   oficinas: Bloque<TarjetaDeOficina[]>
   hechos: Bloque<Hecho[]>
-  mensajes_sin_respuesta: Bloque<number>
 }
 
 export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date()): Promise<LecturaDeInicio> {
   const oficinas = await bloque(() => leerOficinas(supa, ahora))
-  const [te_necesitan, cifras, hechos, mensajes_sin_respuesta] = await Promise.all([
+  const [te_necesitan, cifras, hechos, alertasNuevas] = await Promise.all([
     bloque(async () => {
       const [piezas, otras, preguntas] = await Promise.all([
         contarPiezasPorAprobar(supa),
@@ -69,9 +69,10 @@ export async function leerInicio(supa: SupabaseClient, ahora: Date = new Date())
       for (const d of dec) h.push({ cuando: String(d.decided_at), texto: `Pieza ${d.status === "approved" ? "aprobada" : d.status === "rejected" ? "rechazada" : "con cambios"}: ${String(d.title).replace(/^⚠️\s*/, "").slice(0, 70)}`, href: `/piezas?id=${d.id}&estado=todas` })
       return ultimosHechos(h, 5)
     }),
-    bloque(() => contar(supa.from("cowork_messages").select("*", { count: "exact", head: true }).eq("status", "pending"), "cowork_messages")),
+    // el mismo número que muestra la pantalla de Alertas (misma lectura, ya sin duplicados)
+    bloque(async () => (await leerAlertas(supa, ahora)).nuevas.length),
   ])
   const miniaturas = await bloque(async () => (await listarPiezas(supa, { estado: "pendiente", tipo: "piezas", limite: 3 })).map((p) => ({ id: p.id, titulo: p.titulo_legible, tiene_dibujo: p.tiene_dibujo })))
-  const estado: Bloque<EstadoDelSistema> = oficinas.ok ? { ok: true, valor: estadoDelSistema(oficinas.valor, null) } : { ok: false, error: oficinas.error }
-  return { te_necesitan, estado, cifras, oficinas, hechos, mensajes_sin_respuesta, miniaturas }
+  const estado: Bloque<EstadoDelSistema> = oficinas.ok ? { ok: true, valor: estadoDelSistema(oficinas.valor, alertasNuevas.ok ? alertasNuevas.valor : null) } : { ok: false, error: oficinas.error }
+  return { te_necesitan, estado, cifras, oficinas, hechos, miniaturas }
 }

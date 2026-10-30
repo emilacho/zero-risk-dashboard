@@ -2,7 +2,7 @@
  * CLIENTES · lectura (servidor, solo lectura). Un error de la base nunca se lee como «0»: la lectura lanza y la pantalla lo dice.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { DIAS_DEL_GASTO, fasesDelPlan, gastoReal, ordenarClientes, type FasesDelPlan, type ResumenDeCliente } from "@/lib/clientes"
+import { DIAS_DEL_GASTO, esDeBaja, esDePractica, fasesDelPlan, gastoReal, ordenarClientes, type FasesDelPlan, type ResumenDeCliente } from "@/lib/clientes"
 import { desde } from "@/lib/oficinas"
 import { leerGasto } from "@/lib/gasto-datos"
 import { estadoDeLaPiezaLegible, tituloDePieza } from "@/lib/lenguaje"
@@ -18,7 +18,7 @@ async function contar(q: C, que: string): Promise<number> { const r = await q; i
 const por = (f: Fila[], col: string): Map<string, Fila[]> => { const m = new Map<string, Fila[]>(); for (const x of f) { const k = String(x[col] ?? ""); if (k) m.set(k, [...(m.get(k) ?? []), x]) } return m }
 
 export async function listarClientes(supa: SupabaseClient, ahora: Date = new Date()): Promise<ResumenDeCliente[]> {
-  const clientes = await filas(supa.from("clients").select("id, name, industry, status").is("archived_at", null).limit(200), "clients")
+  const clientes = await filas(supa.from("clients").select("id, name, industry, status, archived_at").limit(200), "clients")
   const pend = await filas(supa.from("hitl_queue").select("client_id").eq("status", "pending").eq("type", "content_piece_review").limit(1000), "hitl_queue")
   const gastoTotal = new Map((await leerGasto(supa, ahora)).resumen.por_cliente.map((x) => [x.clave, x.total]))
   const trozos = await filas(supa.from("cerebro_fichas").select("client_id").is("retirada_en", null).limit(10000), "cerebro_fichas")
@@ -26,7 +26,7 @@ export async function listarClientes(supa: SupabaseClient, ahora: Date = new Dat
   const pPend = por(pend, "client_id"), pTrozos = por(trozos, "client_id"), pCamp = por(campanas.filter((c) => c.seco !== true), "client_id")
   return ordenarClientes(clientes.map((c) => {
     const id = String(c.id)
-    return { id, nombre: String(c.name), rubro: c.industry ? String(c.industry) : null, estado: String(c.status ?? ""), piezas_por_aprobar: pPend.get(id)?.length ?? 0, gasto_30d: gastoTotal.get(id) ?? 0, trozos_del_cerebro: pTrozos.get(id)?.length ?? 0, campana: pCamp.get(id)?.[0] ? String(pCamp.get(id)![0].estado) : null }
+    return { id, nombre: String(c.name), rubro: c.industry ? String(c.industry) : null, estado: String(c.status ?? ""), piezas_por_aprobar: pPend.get(id)?.length ?? 0, gasto_30d: gastoTotal.get(id) ?? 0, trozos_del_cerebro: pTrozos.get(id)?.length ?? 0, campana: pCamp.get(id)?.[0] ? String(pCamp.get(id)![0].estado) : null, de_baja: esDeBaja({ estado: String(c.status ?? ""), archivado: c.archived_at != null, nombre: String(c.name) }), de_practica: esDePractica({ rubro: c.industry ? String(c.industry) : null, nombre: String(c.name) }) }
   }))
 }
 

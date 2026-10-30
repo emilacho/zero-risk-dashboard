@@ -56,7 +56,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
     if (!factorId) return
     const raw = code.trim()
     if (!raw) {
-      setError("Ingresá un código")
+      setError("Escribe un código")
       setState("error")
       return
     }
@@ -73,7 +73,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
         const hash = await hashBackupCode(raw)
         const idx = stored.indexOf(hash)
         if (idx < 0) {
-          setError("Backup code inválido o ya usado")
+          setError("Código de respaldo inválido o ya usado")
           setState("error")
           return
         }
@@ -95,7 +95,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
       }
       const numeric = raw.replace(/\D/g, "")
       if (numeric.length !== 6) {
-        setError("Código TOTP debe ser 6 dígitos")
+        setError("El código debe tener 6 dígitos")
         setState("error")
         return
       }
@@ -118,7 +118,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
       router.replace(next)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "verify_failed")
+      setError(err instanceof Error ? err.message : "No se pudo verificar")
       setState("error")
     }
   }
@@ -156,7 +156,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
               : "text-[hsl(var(--muted-foreground))] hover:text-foreground",
           ].join(" ")}
         >
-          TOTP
+          App de códigos
         </button>
         <button
           type="button"
@@ -173,13 +173,13 @@ export function TotpChallengeForm({ next }: { next: string }) {
           ].join(" ")}
         >
           <Lifebuoy strokeWidth={1.5} className="h-3 w-3" />
-          Backup code
+          Código de respaldo
         </button>
       </div>
 
       <label className="flex flex-col gap-1.5">
         <span className="num text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-          {mode === "totp" ? "Código TOTP (6 dígitos)" : "Backup code"}
+          {mode === "totp" ? "Código de la app (6 dígitos)" : "Código de respaldo"}
         </span>
         <input
           type="text"
@@ -227,10 +227,7 @@ export function TotpChallengeForm({ next }: { next: string }) {
       ) : null}
 
       <p className="num text-[10px] text-[hsl(var(--muted-foreground))]">
-        Si perdiste el dispositivo · usá un backup code · cada uno
-        funciona UNA vez · podés generar nuevos en{" "}
-        <code className="font-mono text-[hsl(var(--accent))]">/settings/security</code>
-        .
+        Si perdiste tu teléfono, usa un código de respaldo: cada uno sirve una sola vez.
       </p>
     </form>
   )

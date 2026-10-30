@@ -67,11 +67,9 @@ describe("puertas y chat de Inicio", () => {
     expect(fs.existsSync(path.join(__dirname, "..", "app/api/cowork/message/route.ts"))).toBe(true)
     expect(leer("middleware.ts")).toMatch(/pathname\.startsWith\("\/api\/"\)/)
   })
-  it("el chat avisa que no es en vivo y manda al endpoint existente", () => {
-    const t = leer("components/inicio/ChatConCowork.tsx")
-    expect(t).toMatch(/\/api\/cowork\/message/)
-    expect(t).toMatch(/\/api\/cowork\/messages/)
-    expect(t).toMatch(/No es en vivo/)
+  it("el Inicio ya no trae el chat con Cowork (30-oct: Emilio lo pidió fuera)", () => {
+    expect(leer("app/page.tsx")).not.toMatch(/ChatConCowork|Cowork/)
+    expect(fs.existsSync(path.join(__dirname, "..", "components/inicio/ChatConCowork.tsx"))).toBe(false)
   })
   it("no queda en el Inicio nada del panel viejo (feed en vivo, accesos técnicos, indicadores)", () => {
     const t = leer("app/page.tsx")
