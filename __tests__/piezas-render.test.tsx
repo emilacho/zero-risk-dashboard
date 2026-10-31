@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, refresh:
 
 const base: DetalleDeLaPieza = {
   id: "11111111-1111-1111-1111-111111111111", estado: "pendiente", status: "pending", tipo: "content_piece_review", es_pieza: true, titulo: "⚠️ REVISIÓN INCOMPLETA · Carrusel BRF-0001", cliente: "Zero Risk",
-  creada: "2026-10-28T11:56:00Z", familia: "carrusel_ig_v1", brief_id: "BRF-0001", encargo_id: "enc-1", gasto_usd: 1.84, pie: "Pie de la publicación", version: 3,
+  creada: "2026-10-28T11:56:00Z", familia: "carrusel_ig_v1", brief_id: "BRF-0001", encargo_id: "enc-1", gasto_usd: 1.84, pie: "Pie de la publicación", version: 3, video: null, guion: null,
   laminas: [
     { n: 1, nombre: "a.png", ancho: 1080, alto: 1350, origen: "tipografia", eyebrow: "PARTE 01", titular: "3 cosas", cuerpo: "¿El tuyo las cumple?", pie: "desliza", glifos_riesgosos: false },
     { n: 2, nombre: "b.png", ancho: 1080, alto: 1350, origen: "tipografia", eyebrow: "PARTE 02", titular: "2. MANÓMETRO", cuerpo: "Aguja en zona verde ✔", pie: null, glifos_riesgosos: true },
@@ -50,6 +50,35 @@ describe("el visor de piezas se dibuja", () => {
     expect(html).toContain("Rechazar la lista")
     expect(html).not.toContain("confirm_competitor_list")
     expect(html).not.toContain("Pedir cambios")
+  })
+  it("T8 · pieza de VIDEO: Emilio ve el reproductor (servido por el tablero), el rótulo de generado, el guion y el pie; no dice «Sin dibujo» ni pide láminas", async () => {
+    const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
+    const pieza: DetalleDeLaPieza = {
+      ...base, titulo: "Video corto Instagram · Zero Risk · 12 nov", familia: "video_mesa", laminas: [], exige_casilla: false, jefatura: { resultado: "aprobada", desacuerdos: [], opinion_externa: null, revision_id: null },
+      video: { nombre: "F1-S1-ig-r1_v1.mp4", bytes: 1_200_000, segundos: 12, simulado: false, solo_en_proveedor: false, vence: null },
+      guion: "# Guion · F1-S1-ig-r1\n## Plano 1 · 0–3 s\nSe ve: el pan sale del horno",
+      avisos: [{ nivel: "info", texto: "Video GENERADO por un modelo (no es una grabación real) · sin voces ni narración. Míralo entero antes de aprobar." }],
+    }
+    const html = dibujar(<VisorDePieza pieza={pieza} siguienteId={null} />)
+    expect(html).toMatch(/<video[^>]*src="\/api\/piezas\/11111111-1111-1111-1111-111111111111\/video"/)
+    expect(html).toMatch(/<video[^>]*controls/)
+    expect(html).toContain("12 s")
+    expect(html).toContain("Guion")
+    expect(html).toContain("Se ve: el pan sale del horno")
+    expect(html).toContain("Pie de la publicación")
+    expect(html).toContain("GENERADO por un modelo")
+    expect(html).not.toMatch(/Sin dibujo/)
+    expect(html).not.toContain("/lamina/1")
+    expect(html).not.toContain("juntas")
+    expect(html).toContain("no publica todavía")
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Aprobar/) // sin casilla exigida, Aprobar está libre
+  })
+  it("T8 · video que quedó solo en el proveedor: no hay reproductor, se dice y se puede decidir igual", async () => {
+    const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
+    const html = dibujar(<VisorDePieza pieza={{ ...base, familia: "video_mesa", laminas: [], video: { nombre: null, bytes: null, segundos: 10, simulado: false, solo_en_proveedor: true, vence: "2026-11-02T10:00:00Z" }, guion: null, avisos: [{ nivel: "ambar", texto: "El video quedó solo en el proveedor y vence 2026-11-02T10:00:00Z: no se puede mostrar aquí. Se descarga al aprobar." }] }} siguienteId={null} />)
+    expect(html).not.toContain("<video")
+    expect(html).toMatch(/solo en el proveedor/)
+    expect(html).toContain("Pedir cambios")
   })
   it("una pieza ya aprobada no muestra botones", async () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")

@@ -6,7 +6,7 @@ import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
 import { estadoTrasDecidir } from "@/lib/reflejo"
 import type { EstadoPieza } from "@/lib/piezas"
 import { resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible, usdES } from "@/lib/lenguaje"
-import { COMENTARIO_MINIMO, MOTIVO_MINIMO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
+import { COMENTARIO_MINIMO, MOTIVO_MINIMO, ROTULO_DEL_VIDEO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { AccionBoton } from "@/components/AccionBoton"
 import { TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
@@ -36,6 +36,9 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
   const estadoVisto: EstadoPieza = resultado?.id === pieza.id ? resultado.estado : pieza.estado
   const total = pieza.laminas.length
   const lamina = pieza.laminas[n - 1]
+  // T8 · pieza de video: el mp4 lo sirve el tablero (`/video`); si quedó solo en el proveedor o es un ensayo, no hay reproductor
+  const video = pieza.video
+  const hayReproductor = !!video && !!video.nombre && !video.simulado && !video.solo_en_proveedor
   const pendiente = pieza.status === "pending" && pieza.es_pieza && estadoVisto === "pendiente"
   const ir = useCallback((d: number) => { if (total > 0) { setN((x) => ((x - 1 + d + total) % total) + 1); setZoom(false) } }, [total])
 
@@ -95,9 +98,20 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
 
       <div className="grid min-h-0 flex-1 grid-cols-[1fr_340px]">
         <div className="flex min-h-0 flex-col items-center justify-center gap-3 overflow-auto bg-[hsl(var(--background))] p-4">
-          {total === 0 && (
+          {total === 0 && !video && (
             <div className="max-w-md rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
               Sin dibujo.
+            </div>
+          )}
+          {video && hayReproductor && (
+            <div className="relative h-[calc(100vh-250px)] min-h-[300px] overflow-hidden rounded-xl border border-white/10 bg-black" style={{ aspectRatio: "9/16" }}>
+              <video controls playsInline preload="metadata" src={`/api/piezas/${pieza.id}/video`} className="h-full w-full object-contain" />
+              <span className="num absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-0.5 text-[11px]">{video.segundos != null ? `${video.segundos} s` : "video"}</span>
+            </div>
+          )}
+          {video && !hayReproductor && (
+            <div className="max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+              {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí.` : "Sin archivo de video."}
             </div>
           )}
           {total > 0 && !todas && lamina && (
@@ -133,7 +147,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
 
         <aside className="flex min-h-0 flex-col border-l-[0.5px] border-white/10">
           <nav className="flex border-b-[0.5px] border-white/10 text-[13px]">
-            {([["lamina", "Lámina"], ["equipo", "Equipo"], ["jefatura", "Jefatura"]] as const).map(([k, t]) => (
+            {([["lamina", video ? "Video" : "Lámina"], ["equipo", "Equipo"], ["jefatura", "Jefatura"]] as const).map(([k, t]) => (
               <button key={k} onClick={() => setPestana(k)} className={`px-3.5 py-2.5 ${pestana === k ? "text-white shadow-[inset_0_-2px_hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"}`}>{t}</button>
             ))}
           </nav>
@@ -149,7 +163,14 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
                     </Bloque>
                   </>
                 )}
+                {video && (
+                  <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`}>
+                    <p>{ROTULO_DEL_VIDEO}.</p>
+                    {video.nombre && <p className="text-[hsl(var(--muted-foreground))]">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1)} MB` : ""}</p>}
+                  </Bloque>
+                )}
                 {pieza.pie && <Bloque titulo="Pie de la publicación"><p className="whitespace-pre-wrap">{pieza.pie}</p></Bloque>}
+                {pieza.guion && <Bloque titulo="Guion"><p className="whitespace-pre-wrap text-[12px]">{pieza.guion.slice(0, 6000)}</p></Bloque>}
               </>
             )}
             {pestana === "equipo" && (

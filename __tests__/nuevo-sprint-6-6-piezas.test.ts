@@ -53,6 +53,7 @@ const DETALLE: DetalleDeLaPieza = {
     { n: 2, nombre: "02-de-02.png", ancho: 1080, alto: 1920, origen: "con_imagen", eyebrow: "Tú decides", titular: "¿Encebollado o ceviche hoy?", cuerpo: "Los dos son frescos.", pie: null, glifos_riesgosos: false },
   ],
   pie: "Tú dices. Nosotros lo servimos fresco en Olón\n\n#encebollado #mariscos",
+  video: null, guion: null,
   avisos: [{ nivel: "ambar", texto: "2 desacuerdos abiertos en la revisión." }],
   exige_casilla: true,
   jefatura: { resultado: "limpia", desacuerdos: ["imagen: la foto real elegida para «e01» no cumple el brief", "imagen: la foto real elegida para «e02» no cumple el brief"], opinion_externa: "**Mantendría la idea de interacción, pero no publicaría estas versiones tal como están.**", revision_id: "5c019899-25d0-4289-af06-8103ced212ef" },
