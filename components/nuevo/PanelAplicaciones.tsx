@@ -7,6 +7,7 @@ import { PanelPizarron, textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { PanelManual } from "@/components/nuevo/PanelManual"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
+import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 
 const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
@@ -83,6 +84,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "piezas") return <PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />
+  if (vista === "cerebro") return <PanelCerebro onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (

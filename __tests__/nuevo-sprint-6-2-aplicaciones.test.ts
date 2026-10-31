@@ -29,9 +29,9 @@ const datos: Pizarron = {
 describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
   it("la lista es la que cerró Emilio: seis cuadros, sin oficinas/en vivo ni alertas, y cada uno lleva a algo que ya existe", () => {
     expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Plan de 90 días", "Calendario", "Piezas", "Cerebro", "Gasto"])
-    expect(APLICACIONES.map((a) => a.enlace(CLIENTE))).toEqual([null, null, null, null, `/clientes/${CLIENTE}#cerebro`, "/gasto"]) // 6.3: el manual abre encima · 6.5: el plan · 6.6: las piezas
+    expect(APLICACIONES.map((a) => a.enlace(CLIENTE))).toEqual([null, null, null, null, null, "/gasto"]) // 6.3: el manual abre encima · 6.5: el plan · 6.6: las piezas · 6.8: el cerebro
     // sin cliente elegido, los cuadros de la ficha llevan a la lista de clientes (no a una ficha rota)
-    expect(APLICACIONES.find((a) => a.clave === "cerebro")!.enlace(null)).toBe("/clientes")
+    expect(APLICACIONES.find((a) => a.clave === "gasto")!.enlace(null)).toBe("/gasto")
     for (const a of APLICACIONES) expect(a.nombre).not.toMatch(/oficina|en vivo|alerta/i)
   })
   it("la ficha del cliente tiene los apartados a los que llegan los cuadros (ids reales en la página)", () => {
