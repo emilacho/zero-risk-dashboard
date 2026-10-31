@@ -1,6 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { PanelPizarron } from "@/components/nuevo/PanelPizarron"
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
@@ -161,6 +163,9 @@ const sinMovimiento = () => typeof window !== "undefined" && (window.matchMedia(
 
 export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
   const [fase, setFase] = useState<Fase>(inicial ? "abierto" : "cerrado")
+  const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón de piezas abierto encima de la oficina
+  const tablero = useRef<SVGGElement>(null)
+  const cerrarPizarron = useCallback(() => { setPizarron(false); requestAnimationFrame(() => tablero.current?.focus()) }, [])
   const [sobreLaMiniatura, setSobreLaMiniatura] = useState(false) // 5.12 · la miniatura se aclara un poco al pasar el ratón: avisa que es clicable
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
   const proy = useRef<HTMLDivElement>(null)
@@ -276,7 +281,8 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
               className="nv-tablero-luz pointer-events-none absolute select-none"
               style={{ left: pct(TABLERO.encendido.caja.x, FOTO_MKT.w), top: pct(TABLERO.encendido.caja.y, FOTO_MKT.h), width: pct(TABLERO.encendido.caja.w, FOTO_MKT.w), height: pct(TABLERO.encendido.caja.h, FOTO_MKT.h) }} />
             <svg viewBox={`0 0 ${FOTO_MKT.w} ${FOTO_MKT.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de la oficina de marketing" xmlns="http://www.w3.org/2000/svg">
-              <g className="nv-tablero" data-zona={TABLERO.clave} role="button" tabIndex={0} aria-label={TABLERO.nombre}>
+              <g ref={tablero} className="nv-tablero" data-zona={TABLERO.clave} role="button" tabIndex={0} aria-label={TABLERO.nombre} aria-haspopup="dialog" aria-expanded={pizarron}
+                onClick={(e) => { e.stopPropagation(); setPizarron(true) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPizarron(true) } }}>
                 <polygon points={TABLERO.forma} />
                 <text className="nv-rotulo" x={TABLERO.rotulo.x} y={TABLERO.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO_TABLERO * 0.9 / 16}
                   fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{TABLERO.rotulo.texto}</text>
@@ -286,6 +292,8 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
           </div>
         </div>
       )}
+      {/* sprint 6 · el pizarrón sale al <body> (como «En vivo»): la oficina lleva máscaras que lo desvanecerían */}
+      {pizarron && fase !== "cerrado" && createPortal(<PanelPizarron onCerrar={cerrarPizarron} />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"
           className="fixed left-4 top-16 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] tracking-wide text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a] sm:left-5">
