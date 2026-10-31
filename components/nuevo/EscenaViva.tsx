@@ -15,8 +15,12 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
  */
 // 5.8 · medido con sonda (31-oct): con 650 ms y curva muy «ease-out» la imagen ya tenía el 65 % de su tamaño a los 100 ms y arrancaba invisible (opacidad 0):
 // se leía como «montar la imagen encima». Ahora arranca visible sobre la plataforma y crece parejo, más lento.
-const MS_ENTRADA = 950
-const MS_SALIDA = 650
+// 5.9 (Emilio: «no se ve que la oficina se agranda desde su imagen»): DOS tiempos. Primero la oficina APARECE sobre su plataforma con la escena
+// quieta (fundido · hasta FRACCION_APARECE); recién después crece hasta su sitio mientras la escena se va a la esquina (la escena espera RETARDO_ESCENA_MS).
+const MS_ENTRADA = 1500
+const MS_SALIDA = 950
+export const FRACCION_APARECE = 0.3
+export const RETARDO_ESCENA_MS = Math.round(MS_ENTRADA * FRACCION_APARECE)
 
 // Cambiar la dirección SIN avisarle al enrutador de Next (si no, la transición de rutas reiniciaría la página y se perdería la animación).
 // Con estado nulo, Next ignora el «atrás» y lo atendemos nosotros (popstate).
@@ -33,17 +37,27 @@ export const ANCHO_MARKETING_ABIERTO = "min(120vw, calc((100dvh - 4rem) * 16 / 9
 export const SALA_EN_LA_FOTO = { ancho: 0.766, cx: 0.488, cy: 0.405 }
 /** 5.8 · los bordes de las fotos se funden con el negro de la página: solo un degradado corto arriba y abajo (el centro no se toca) */
 export const FUNDIDO_BORDES = "linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)"
+/** 5.9 · mientras la oficina aparece chica sobre su plataforma, se ve SOLO la sala en un óvalo suave (sin los márgenes negros de la foto, que dibujaban un rectángulo
+ *  sobre el piso gris); la foto completa (con el fundido de arriba/abajo) se funde encima cuando ya creció. Dos copias de la misma imagen: A (óvalo) y B (completa). */
+export const OVALO_SALA = `radial-gradient(ellipse 40% 46% at ${SALA_EN_LA_FOTO.cx * 100}% ${SALA_EN_LA_FOTO.cy * 100}%,#000 55%,transparent 100%)`
 
 const ESTILO = `
 .nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}
-.nv-fondo[data-atenuado="true"]{opacity:${OPACIDAD_FONDO_ABIERTO};transform:scale(${ESCALA_FONDO_ABIERTO});pointer-events:none;position:relative;z-index:6}
+.nv-fondo[data-atenuado="true"]{opacity:${OPACIDAD_FONDO_ABIERTO};transform:scale(${ESCALA_FONDO_ABIERTO});pointer-events:none;position:relative;transition-delay:${RETARDO_ESCENA_MS}ms}
+.nv-fondo[data-abierto="true"]{z-index:6;animation:nvMiniatura .5s ease both}
+@keyframes nvMiniatura{from{opacity:0}to{opacity:${OPACIDAD_FONDO_ABIERTO}}}
 .nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}
-.nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.55,.05,.25,1) both}
-.nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms cubic-bezier(.6,0,.6,.5) both}
-.nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.5) 50%,transparent 58%);background-size:260% 100%;opacity:0}
-.nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido ${MS_ENTRADA + 150}ms ease-out both}
-@keyframes nvEntra{from{opacity:.75;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3));filter:brightness(1.7)}30%{opacity:1}to{opacity:1;transform:none;filter:brightness(1)}}
-@keyframes nvSale{from{opacity:1;transform:none}70%{opacity:1}to{opacity:.6;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}
+.nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.5,.05,.2,1) both}
+.nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms cubic-bezier(.55,0,.6,.6) both}
+.nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}
+.nv-proy[data-fase="entra"] .nv-foto-b{animation:nvFotoBEntra ${MS_ENTRADA}ms linear both}
+.nv-proy[data-fase="sale"] .nv-foto-b{animation:nvFotoBSale ${MS_SALIDA}ms linear both}
+@keyframes nvFotoBEntra{from{opacity:0}45%{opacity:0}to{opacity:1}}
+@keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}
+.nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.22) 50%,transparent 58%);background-size:260% 100%;opacity:0}
+.nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido 800ms ease-out ${RETARDO_ESCENA_MS + 150}ms both}
+@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}${Math.round(FRACCION_APARECE * 100)}%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:1;transform:none}}
+@keyframes nvSale{from{opacity:1;transform:none}${100 - Math.round(FRACCION_APARECE * 100)}%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}
 @keyframes nvBarrido{0%{opacity:.9;background-position:130% 0}100%{opacity:0;background-position:-30% 0}}
 @media (max-width:700px){
   .nv-fondo{transition:opacity .4s ease}
@@ -56,8 +70,10 @@ const ESTILO = `
   .nv-proy[data-fase="entra"]{animation:nvAparece .15s linear both}
   .nv-proy[data-fase="sale"]{animation:nvDesaparece .15s linear both}
   .nv-proy[data-fase="entra"] .nv-barrido{animation:none}
+  .nv-proy[data-fase="entra"] .nv-foto-b,.nv-proy[data-fase="sale"] .nv-foto-b{animation:none}
   @keyframes nvAparece{from{opacity:0}to{opacity:1}}
   @keyframes nvDesaparece{from{opacity:1}to{opacity:0}}
+  .nv-fondo[data-abierto="true"]{animation:none}
 }
 `
 
@@ -135,16 +151,21 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
     <>
       <style>{ESTILO}</style>
       {/* la escena principal: miniatura translúcida en la esquina inferior izquierda mientras el departamento está proyectado */}
-      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
+      {/* 5.9 · orden de capas: MIENTRAS la oficina entra o sale va POR ENCIMA de la escena (si no, la escena, todavía opaca, la tapaba y la salida
+          desde la plataforma no se veía); ya abierta, la miniatura pasa por encima de la foto (que cubre la ventana) con un fundido corto */}
+      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} data-abierto={fase === "abierto"} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
         <EscenaNuevo alAbrirMarketing={() => abrir()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
       {fase !== "cerrado" && (
-        <div className="fixed inset-0 z-[5] flex items-center justify-center" onClick={() => abierta && cerrar()}>
+        <div className="nv-capa fixed inset-0 flex items-center justify-center" style={{ zIndex: fase === "abierto" ? 5 : 7 }} onClick={() => abierta && cerrar()}>
           <div ref={proy} className="nv-proy relative aspect-video shrink-0" data-fase={fase === "sale" ? "sale" : fase === "entra" ? "entra" : "abierto"}
             style={{ width: ANCHO_MARKETING_ABIERTO }} onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/nuevo/marketing-2560.jpg" srcSet="/nuevo/marketing-1280.jpg 1280w, /nuevo/marketing-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1800px"
-              alt="El interior del departamento de marketing" width={2560} height={1440} decoding="async" className="absolute inset-0 h-full w-full select-none" draggable={false} />
+              alt="" aria-hidden width={2560} height={1440} decoding="async" className="nv-foto-a absolute inset-0 h-full w-full select-none" draggable={false} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/nuevo/marketing-2560.jpg" srcSet="/nuevo/marketing-1280.jpg 1280w, /nuevo/marketing-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1800px"
+              alt="El interior del departamento de marketing" width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
             <div className="nv-barrido" />
           </div>
         </div>

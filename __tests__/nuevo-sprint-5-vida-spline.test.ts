@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
-import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, SALA_EN_LA_FOTO, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
+import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FRACCION_APARECE, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -33,21 +33,31 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
   })
   it("5.8 · la imagen de marketing SALE DE ADENTRO de la plataforma en la que se hizo clic, ocupa casi todo el escenario y sus bordes se funden con el negro (sin viñeta radial)", () => {
     const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
-    expect(abierta).not.toMatch(/radial-gradient/)
+    // la foto abierta (B) no lleva viñeta radial: el único radial es el óvalo de la copia A, que solo se ve mientras aparece chica (5.9)
+    expect(abierta.split("radial-gradient").length - 1).toBe(2)
     expect(abierta).toContain("width:min(120vw, calc((100dvh - 4rem) * 16 / 9))")
     expect(ANCHO_MARKETING_ABIERTO).toContain("120vw")
     expect(abierta).toContain(`.nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}`)
     expect(FUNDIDO_BORDES).toBe("linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)")
     // la entrada arranca con la transformación medida en pantalla (variables --nv-x/--nv-y/--nv-s) y termina en su sitio; la salida es la inversa
-    expect(abierta).toContain("@keyframes nvEntra{from{opacity:.75;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))") // arranca VISIBLE sobre la plataforma
-    expect(abierta).toContain("@keyframes nvSale{from{opacity:1;transform:none}70%{opacity:1}to{opacity:.6;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}")
+    // 5.9: dos tiempos: aparece (fundido) QUIETA sobre la plataforma hasta el 30 %, y recién después crece hasta su sitio
+    expect(FRACCION_APARECE).toBe(0.3); expect(RETARDO_ESCENA_MS).toBe(450)
+    expect(abierta).toContain("@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}30%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:1;transform:none}}")
+    expect(abierta).toContain("@keyframes nvSale{from{opacity:1;transform:none}70%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}")
     // geometría: con la imagen final en 0,0 1000×562,5 y la plataforma en 600,200 150×120, la sala (76,6 % del ancho) queda del ancho de la plataforma y centrada en ella
     const t = transformacionDesdeLaPlataforma({ x: 600, y: 200, w: 150, h: 120 }, { x: 0, y: 0, w: 1000, h: 562.5 })
     expect(t.s).toBeCloseTo(150 / (1000 * SALA_EN_LA_FOTO.ancho), 6)
     expect(t.x + t.s * 1000 * SALA_EN_LA_FOTO.cx).toBeCloseTo(675, 6)
     expect(t.y + t.s * 562.5 * SALA_EN_LA_FOTO.cy).toBeCloseTo(260, 6)
     // la capa de la imagen cubre toda la ventana (fixed) para que la foto pueda ser más grande que el hueco de la escena
-    expect(abierta).toContain('<div class="fixed inset-0 z-[5] flex items-center justify-center"')
+    expect(abierta).toContain('class="nv-capa fixed inset-0 flex items-center justify-center"')
+    // 5.9 · dos copias de la foto: A recortada en óvalo suave (lo que se ve mientras aparece chica sobre la plataforma) y B completa que se funde encima al crecer
+    expect(abierta.match(/src="\/nuevo\/marketing-2560\.jpg"/g)?.length).toBe(2)
+    expect(abierta).toContain(`.nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}`)
+    expect(OVALO_SALA).toContain("radial-gradient(ellipse 40% 46% at 48.8% 40.5%")
+    expect(abierta).toContain("@keyframes nvFotoBEntra{from{opacity:0}45%{opacity:0}to{opacity:1}}")
+    expect(abierta).toContain("@keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}")
+    expect(abierta).toMatch(/<img[^>]*alt=""[^>]*class="nv-foto-a/); expect(abierta).toMatch(/<img[^>]*alt="El interior del departamento de marketing"[^>]*class="nv-foto-b/)
   })
   it("5.3/5.4 · al pasar por Dept. Marketing se enciende la ESTRUCTURA ENTERA con una imagen real generada (no una figura pintada); sin campo naranja ni línea dura", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
@@ -91,7 +101,11 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(OPACIDAD_FONDO_ABIERTO).toBeGreaterThan(0.2); expect(OPACIDAD_FONDO_ABIERTO).toBeLessThan(0.5)
     const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
     // 5.8: por encima de la imagen de marketing (que ahora cubre la ventana), para que la miniatura se vea; sigue translúcida y sin recibir clics
-    expect(abierta).toContain('.nv-fondo[data-atenuado="true"]{opacity:0.35;transform:scale(0.3);pointer-events:none;position:relative;z-index:6}')
+    expect(abierta).toContain(`.nv-fondo[data-atenuado="true"]{opacity:0.35;transform:scale(0.3);pointer-events:none;position:relative;transition-delay:${RETARDO_ESCENA_MS}ms}`) // 5.9: la escena espera a que la oficina aparezca
+    // 5.9 · capas: mientras entra/sale, la oficina va por encima (z 7 > escena); ya abierta, la miniatura pasa por encima de la foto (z 6 > 5) con un fundido corto
+    expect(abierta).toContain('.nv-fondo[data-abierto="true"]{z-index:6;animation:nvMiniatura .5s ease both}')
+    expect(abierta).toContain('data-abierto="true"')
+    expect(abierta).toContain('class="nv-capa fixed inset-0 flex items-center justify-center" style="z-index:5"')
     // el origen de la transformación en la esquina inferior izquierda es lo que manda la miniatura ahí al encoger
     expect(abierta).toContain(".nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}")
     expect(abierta).not.toMatch(/blur\(/)
