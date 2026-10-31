@@ -20,7 +20,11 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
 // la opacidad sube de a poco a lo largo del crecimiento (no hay fase de «aparece quieta»). La escena arranca apenas después (RETARDO_ESCENA_MS) para que
 // el crecimiento se lea primero desde la plataforma. (5.9 tenía dos tiempos: aparecía quieta y luego crecía; se leía como aparición instantánea.)
 const MS_ENTRADA = 1700
-const MS_SALIDA = 1000
+// 5.13 (Emilio: «al regresar, el dpto. de marketing se va arriba a la derecha en vez de regresar a su destino natural»): la salida dura lo mismo que la vuelta de la
+// escena (1,2 s) y se calcula CUADRO A CUADRO hacia donde la plataforma ESTÁ en ese instante (la escena viene creciendo desde la esquina), así la oficina
+// acompaña a su plataforma y las dos llegan juntas a su sitio natural. Antes la escena recién volvía cuando la oficina ya había desaparecido, y la oficina se
+// encogía hacia el sitio final fijo (arriba a la derecha), donde la plataforma aún no estaba.
+const MS_SALIDA = 1200
 export const RETARDO_ESCENA_MS = 200
 
 // Cambiar la dirección SIN avisarle al enrutador de Next (si no, la transición de rutas reiniciaría la página y se perdería la animación).
@@ -56,7 +60,7 @@ const ESTILO = `
 .nv-capa{-webkit-mask-image:var(--nv-hueco,none);mask-image:var(--nv-hueco,none)}
 .nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}
 .nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.55,0,.15,1) both}
-.nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms cubic-bezier(.6,0,.4,1) both}
+.nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms linear both}
 .nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}
 .nv-proy[data-fase="entra"] .nv-foto-b{animation:nvFotoBEntra ${MS_ENTRADA}ms linear both}
 .nv-proy[data-fase="sale"] .nv-foto-b{animation:nvFotoBSale ${MS_SALIDA}ms linear both}
@@ -65,12 +69,11 @@ const ESTILO = `
 .nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.22) 50%,transparent 58%);background-size:260% 100%;opacity:0}
 .nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido 800ms ease-out ${RETARDO_ESCENA_MS + 500}ms both}
 @keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}
-@keyframes nvSale{from{opacity:1;transform:none}45%{opacity:.85}80%{opacity:.35}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}
+@keyframes nvSale{from{opacity:1}to{opacity:0}}
 @keyframes nvBarrido{0%{opacity:.9;background-position:130% 0}100%{opacity:0;background-position:-30% 0}}
 @media (max-width:700px){
   .nv-fondo{transition:opacity .4s ease}
   @keyframes nvEntra{from{opacity:0}to{opacity:1}}
-  @keyframes nvSale{from{opacity:1}to{opacity:0}}
   .nv-barrido{display:none}
 }
 @media (prefers-reduced-motion:reduce){
@@ -116,6 +119,24 @@ export const transformacionDesdeLaPlataforma = (plataforma: Caja, final: Caja) =
   return { x, y, s }
 }
 
+/** 5.13 · la curva de la escena (cubic-bezier(.55,0,.15,1)) resuelta en JS, para que la oficina y la escena se muevan con el mismo impulso */
+export const suavizado = (p: number, x1 = 0.55, y1 = 0, x2 = 0.15, y2 = 1) => {
+  if (p <= 0) return 0
+  if (p >= 1) return 1
+  const bez = (t: number, a: number, b: number) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t
+  let lo = 0, hi = 1, t = p
+  for (let i = 0; i < 24; i++) { // bisección sobre x(t) = p
+    const x = bez(t, x1, x2)
+    if (Math.abs(x - p) < 1e-5) break
+    if (x < p) lo = t; else hi = t
+    t = (lo + hi) / 2
+  }
+  return bez(t, y1, y2)
+}
+/** 5.13 · la oficina se mantiene visible mientras vuelve a su plataforma y recién se apaga al llegar (último 10 %) */
+export const opacidadDeSalida = (p: number) => (p >= 1 ? 0 : p < 0.55 ? 1 : p < 0.9 ? 1 - ((p - 0.55) / 0.35) * 0.25 : Math.max(0, 0.75 * (1 - (p - 0.9) / 0.1)))
+const sinMovimiento = () => typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion:reduce)").matches || window.matchMedia("(max-width:700px)").matches)
+
 export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
   const [fase, setFase] = useState<Fase>(inicial ? "abierto" : "cerrado")
   const [sobreLaMiniatura, setSobreLaMiniatura] = useState(false) // 5.12 · la miniatura se aclara un poco al pasar el ratón: avisa que es clicable
@@ -158,13 +179,32 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       capa.style.setProperty("--nv-mini-x", `${(mini.x - c.x).toFixed(1)}px`); capa.style.setProperty("--nv-mini-y", `${(mini.y - c.y).toFixed(1)}px`)
       capa.style.setProperty("--nv-mini-w", `${mini.w.toFixed(1)}px`); capa.style.setProperty("--nv-mini-h", `${mini.h.toFixed(1)}px`)
     }
-    if (fase !== "entra" && fase !== "sale") return
-    const plataforma = origen.current ?? cajaDeLaPlataforma()
-    if (!plataforma) return
-    const t = transformacionDesdeLaPlataforma(plataforma, final)
-    el.style.setProperty("--nv-x", `${t.x.toFixed(1)}px`)
-    el.style.setProperty("--nv-y", `${t.y.toFixed(1)}px`)
-    el.style.setProperty("--nv-s", t.s.toFixed(4))
+    if (fase === "entra") {
+      const plataforma = origen.current ?? cajaDeLaPlataforma()
+      if (!plataforma) return
+      const t = transformacionDesdeLaPlataforma(plataforma, final)
+      el.style.setProperty("--nv-x", `${t.x.toFixed(1)}px`)
+      el.style.setProperty("--nv-y", `${t.y.toFixed(1)}px`)
+      el.style.setProperty("--nv-s", t.s.toFixed(4))
+      return
+    }
+    if (fase !== "sale" || sinMovimiento()) return // sin movimiento: queda el fundido de la hoja de estilo
+    // 5.13 · cuadro a cuadro hacia donde la plataforma ESTÁ ahora (la escena viene volviendo de la esquina): la oficina acompaña a su plataforma hasta su sitio
+    el.style.animation = "none"
+    const inicio = performance.now()
+    let cuadro = 0
+    const paso = (ahora: number) => {
+      const p = Math.min(1, (ahora - inicio) / MS_SALIDA), e = suavizado(p)
+      const plataforma = cajaDeLaPlataforma()
+      if (plataforma) {
+        const t = transformacionDesdeLaPlataforma(plataforma, final)
+        el.style.transform = `translate(${(e * t.x).toFixed(1)}px,${(e * t.y).toFixed(1)}px) scale(${(1 + e * (t.s - 1)).toFixed(4)})`
+      }
+      el.style.opacity = opacidadDeSalida(p).toFixed(3)
+      if (p < 1) cuadro = requestAnimationFrame(paso)
+    }
+    cuadro = requestAnimationFrame(paso)
+    return () => cancelAnimationFrame(cuadro)
   }, [fase])
 
   const abierta = fase !== "cerrado" && fase !== "sale"
@@ -187,7 +227,7 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       <style>{ESTILO}</style>
       {/* la escena principal: miniatura translúcida en la esquina inferior izquierda mientras el departamento está proyectado */}
       {/* la escena principal SIEMPRE debajo de la foto del departamento (una sola transición continua hasta la esquina); la foto la deja ver por su hueco (5.10) */}
-      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} data-resaltada={fase === "abierto" && sobreLaMiniatura} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
+      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase === "entra" || fase === "abierto"} data-resaltada={fase === "abierto" && sobreLaMiniatura} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
         <EscenaNuevo alAbrirMarketing={() => abrir()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
       {fase !== "cerrado" && (
