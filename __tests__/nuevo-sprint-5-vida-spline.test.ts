@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
-import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, cajaDeLaMiniatura, huecoParaLaMiniatura, opacidadDeSalida, suavizado, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
+import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, TABLERO, cajaDeLaMiniatura, huecoParaLaMiniatura, opacidadDeSalida, suavizado, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -94,6 +94,24 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(html).toContain(`<clipPath id="nv-sup-cerebro"><polygon points="${cer.superficie}"`)
     expect(html).toMatch(/polygon\.nv-luz\{[^}]*mix-blend-mode:screen/)
   })
+  it("5.14 · dentro de la oficina, el pizarrón de piezas se enciende al pasar el ratón (recorte con alfa en su lugar exacto) y muestra su rótulo con las letras de la marca", () => {
+    const html = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
+    expect(existsSync("public/nuevo/marketing-tablero-encendido.webp")).toBe(true)
+    expect(statSync("public/nuevo/marketing-tablero-encendido.webp").size).toBeLessThan(60 * 1024)
+    expect(TABLERO.encendido.caja).toEqual({ x: 820, y: 250, w: 320, h: 340 })
+    expect(html).toMatch(/<img[^>]*data-encendido="tablero"[^>]*class="nv-tablero-luz pointer-events-none absolute select-none"[^>]*style="left:32\.0313%;top:17\.3611%;width:12\.5000%;height:23\.6111%"/)
+    expect(html).toContain(".nv-tablero-luz{opacity:0;transition:opacity .45s ease}")
+    expect(html).toContain('.nv-proy:has(.nv-tablero:hover) .nv-tablero-luz,.nv-proy:has(.nv-tablero:focus-visible) .nv-tablero-luz{opacity:1}')
+    expect(html).toMatch(/<g class="nv-tablero" data-zona="tablero" role="button" tabindex="0" aria-label="Pizarrón de piezas"><polygon points="856,392 1098,286 1098,450 856,548"><\/polygon>/)
+    const logo = renderToStaticMarkup(createElement(BarraSuperior)).match(/<text[^>]*>ZERO RISK<\/text>/)![0]
+    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>PIZARRÓN DE PIEZAS<\/text>/)![0]
+    const num = (s: string, k: string) => Number(s.match(new RegExp(`${k}="([\\d.]+)"`))![1])
+    for (const s of [logo, rotulo]) { expect(s).toContain('fill="none"'); expect(s).toContain('stroke="#e8731a"'); expect(s).toContain('font-weight="500"') }
+    expect(num(rotulo, "letter-spacing") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "letter-spacing") / num(logo, "font-size"), 3)
+    expect(num(rotulo, "stroke-width") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "stroke-width") / num(logo, "font-size"), 3)
+    expect(num(rotulo, "font-size") * (1486 / 2560)).toBeCloseTo(26 * (1200 / 1700), 0) // mismo tamaño en pantalla que «DEPT. MARKETING» (1600×900)
+  })
+
   it("5.5 · el rótulo del departamento lleva las MISMAS letras que la marca «ZERO RISK» de la barra: mayúsculas, contorno ámbar sin relleno, peso 500, espaciado y trazo proporcionales", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
     const marca = renderToStaticMarkup(createElement(BarraSuperior))
