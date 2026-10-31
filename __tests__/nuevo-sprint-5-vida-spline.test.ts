@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
+import { ESCALA_FONDO_ABIERTO, EscenaViva, OPACIDAD_FONDO_ABIERTO } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -61,6 +62,14 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(num(rotulo, "letter-spacing") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "letter-spacing") / num(logo, "font-size"), 3)
     expect(num(rotulo, "stroke-width") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "stroke-width") / num(logo, "font-size"), 3)
     expect(rotulo).not.toMatch(/fill="#/)
+  })
+  it("5.6 · con el departamento abierto, la escena principal queda de fondo reducida al 70 % y translúcida, sin desenfoque", () => {
+    expect(ESCALA_FONDO_ABIERTO).toBe(0.7)
+    expect(OPACIDAD_FONDO_ABIERTO).toBeGreaterThan(0.1); expect(OPACIDAD_FONDO_ABIERTO).toBeLessThan(0.35)
+    const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
+    expect(abierta).toMatch(/\.nv-fondo\[data-atenuado="true"\]\{opacity:0\.22;transform:scale\(0\.7\);pointer-events:none\}/)
+    expect(abierta).not.toMatch(/blur\(/)
+    expect(abierta).toMatch(/\.nv-fondo\{transition:opacity \.6s ease,transform \.6s/)
   })
   it("la foto va en su propia capa de composición: con un lienzo WebGL encima Chrome la redibujaba distinta (medido 31-oct) · no quitar", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
