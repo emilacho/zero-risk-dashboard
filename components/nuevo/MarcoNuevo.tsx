@@ -24,18 +24,21 @@ function IconoSuperior({ etiqueta, href, children }: { etiqueta: string; href?: 
 
 export function BarraSuperior() {
   return (
+    // tres grupos en una fila (izquierda · buscador · derecha): el buscador ya no va centrado en absoluto, así nunca se encima con «Seleccionar cliente»
     <header className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-3 px-4 sm:px-6">
-      <span role="img" aria-label="Menú" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300"><List size={18} /></span>
-      {/* la marca como palabra en CONTORNO ámbar (relleno transparente), como la de la referencia */}
-      <svg role="img" aria-label="Zero Risk" width="132" height="22" viewBox="0 0 132 22" className="shrink-0"><text x="1" y="16.5" fill="none" stroke={AMBAR} strokeWidth="0.9" fontSize="16" fontWeight="500" letterSpacing="3.4" fontFamily="system-ui, Arial, sans-serif">ZERO RISK</text></svg>
-      <span aria-disabled="true" className="ml-1 hidden items-center gap-2 text-[13px] text-zinc-200 sm:flex">Seleccionar cliente <CaretDown size={12} className="text-zinc-400" /></span>
-      <div className="pointer-events-none absolute left-1/2 top-1/2 hidden w-[min(34vw,420px)] -translate-x-1/2 -translate-y-1/2 md:block">
-        <div aria-disabled="true" className={`flex h-9 items-center gap-2 rounded-lg border ${BORDE} bg-white/[0.04] px-3 text-[13px] text-zinc-400`}>
+      <div className="flex shrink-0 items-center gap-3">
+        <span role="img" aria-label="Menú" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300"><List size={18} /></span>
+        {/* la marca como palabra en CONTORNO ámbar (relleno transparente), como la de la referencia */}
+        <svg role="img" aria-label="Zero Risk" width="132" height="22" viewBox="0 0 132 22" className="shrink-0"><text x="1" y="16.5" fill="none" stroke={AMBAR} strokeWidth="0.9" fontSize="16" fontWeight="500" letterSpacing="3.4" fontFamily="system-ui, Arial, sans-serif">ZERO RISK</text></svg>
+        <span aria-disabled="true" className="ml-1 hidden items-center gap-2 whitespace-nowrap text-[13px] text-zinc-200 sm:flex">Seleccionar cliente <CaretDown size={12} className="text-zinc-400" /></span>
+      </div>
+      <div className="pointer-events-none mx-auto hidden min-w-0 flex-1 justify-center px-4 md:flex">
+        <div aria-disabled="true" className={`flex h-9 w-full max-w-[420px] items-center gap-2 rounded-lg border ${BORDE} bg-white/[0.04] px-3 text-[13px] text-zinc-400`}>
           <MagnifyingGlass size={15} /> <span className="flex-1">Buscar</span>
           <kbd className="rounded border border-white/15 bg-white/[0.06] px-1.5 text-[11px] text-zinc-300">/</kbd>
         </div>
       </div>
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         <IconoSuperior etiqueta="Nuevo"><Plus size={17} /></IconoSuperior>
         <IconoSuperior etiqueta="Alertas" href="/alertas"><Bell size={17} /></IconoSuperior>
         <IconoSuperior etiqueta="Gasto" href="/gasto"><CurrencyDollar size={17} /></IconoSuperior>
