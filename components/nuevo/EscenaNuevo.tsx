@@ -50,9 +50,11 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
         WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)", maskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)",
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* [transform:translateZ(0)] en la foto: con un lienzo WebGL encima (la capa de vida) Chrome la redibuja con otro filtro y se ve distinta;
+            en su propia capa de composición queda píxel-idéntica a la foto sola (medido 31-oct: 0 píxeles cambiados). No es decorativo: no quitar. */}
         <img
           src="/nuevo/escena-2560.jpg" srcSet="/nuevo/escena-1280.jpg 1280w, /nuevo/escena-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1400px"
-          alt="Las oficinas de Zero Risk" width={2560} height={1385} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full select-none" draggable={false}
+          alt="Las oficinas de Zero Risk" width={2560} height={1385} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full select-none [transform:translateZ(0)]" draggable={false}
         />
         {fondo}
         <svg viewBox={`${VISTA.x} ${VISTA.y} ${VISTA.w} ${VISTA.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de la escena" xmlns="http://www.w3.org/2000/svg">

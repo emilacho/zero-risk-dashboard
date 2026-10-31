@@ -1,10 +1,8 @@
 "use client"
 
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
-import type { Application, SPEObject } from "@splinetool/runtime"
-import {
-  CAMARA_Z, ESCENA_SPLINE, HALOS, NOMBRES, aMundo, conviene, escalaDeBrillo, escalaDeHalo, poseDePolvo, poseDePulso,
-} from "@/lib/vida-spline"
+import type { Application } from "@splinetool/runtime"
+import { CAMARA_Z, ESCENA_SPLINE, NOMBRES, aMundo, conviene, poseDePulso } from "@/lib/vida-spline"
 
 // la biblioteca de Spline solo se baja cuando hace falta (nunca en móvil ni en el servidor)
 const Spline = lazy(() => import("@splinetool/react-spline"))
@@ -24,14 +22,13 @@ const hayWebGL = () => {
 }
 
 /**
- * La capa de VIDA sobre la foto de la escena (sprint 5): un lienzo 3D transparente de Spline, del tamaño exacto de la foto, que no atrapa el ratón
- * (los clics y el hover siguen siendo de las zonas de la foto). Al cargar, esta capa toma los objetos por su nombre y los mueve cuadro a cuadro
- * con las poses de `lib/vida-spline`; el hover de una zona (`data-zona` en la foto) enciende su halo.
+ * La capa de VIDA sobre la foto de la escena (sprint 5 · corrección 5.1): un lienzo 3D transparente de Spline, del tamaño exacto de la foto,
+ * que no atrapa el ratón (los clics y el hover siguen siendo de las zonas de la foto). Al cargar, esta capa toma los diez pulsos por su
+ * nombre y los mueve cuadro a cuadro por los trazos de circuito de la foto con las poses de `lib/vida-spline`. Todo lo demás que quedó en
+ * el archivo de Spline (polvo, brillos, halos, marcas) se OCULTA al cargar: en pantalla solo hay pulsos sobre circuitos.
  */
 export function VidaSpline() {
   const [montar, setMontar] = useState(false)
-  const caja = useRef<HTMLDivElement>(null)
-  const zonaBajoElRaton = useRef<string | null>(null)
   const detener = useRef<(() => void) | null>(null)
 
   useEffect(() => {
@@ -47,23 +44,6 @@ export function VidaSpline() {
     return () => { vivo = false }
   }, [])
 
-  // el hover de las zonas de la foto (hermanas de esta capa) decide qué halo se ve
-  useEffect(() => {
-    if (!montar) return
-    const contenedor = caja.current?.parentElement
-    if (!contenedor) return
-    const zonaDe = (e: Event) => (e.target as Element | null)?.closest?.(".nv-zona")?.getAttribute("data-zona") ?? null
-    const alEntrar = (e: Event) => { const z = zonaDe(e); if (z) zonaBajoElRaton.current = z }
-    const alSalir = (e: Event) => {
-      const zona = (e.target as Element | null)?.closest?.(".nv-zona")
-      const hacia = (e as PointerEvent).relatedTarget as Node | null
-      if (zona && !(hacia && zona.contains(hacia))) zonaBajoElRaton.current = null
-    }
-    contenedor.addEventListener("pointerover", alEntrar)
-    contenedor.addEventListener("pointerout", alSalir)
-    return () => { contenedor.removeEventListener("pointerover", alEntrar); contenedor.removeEventListener("pointerout", alSalir) }
-  }, [montar])
-
   useEffect(() => () => { detener.current?.() }, [])
 
   const alCargar = (app: Application) => {
@@ -73,14 +53,26 @@ export function VidaSpline() {
     const busca = (n: string) => app.findObjectByName(n)
     const camara = busca(NOMBRES.camara)
     if (camara) camara.position.z = CAMARA_Z
+    // todo lo que no es pulso se oculta (quedó en el archivo de Spline, pero en pantalla no va)
+    for (const n of NOMBRES.ocultos) { const o = busca(n); if (o) o.visible = false }
     // las marcas azules de calibración solo se ven si se piden a mano (?marcas=1); en producción nunca
     const verMarcas = typeof window !== "undefined" && /[?&]marcas=1/.test(window.location.search)
     for (const n of NOMBRES.marcas) { const m = busca(n); if (m) m.visible = verMarcas }
+    // los pulsos cuelgan de un grupo del archivo de Spline: si ese grupo trae su propio desplazamiento, giro o escala, las posiciones que
+    // mandamos (relativas al grupo) salen corridas respecto de los circuitos de la foto (medido 31-oct: 30-80 unidades). Se resetea el grupo
+    // y se fija la profundidad de cada pulso en 0 (el plano calibrado de la cámara).
+    for (const n of NOMBRES.grupos) {
+      const g = busca(n)
+      if (!g) continue
+      g.position.x = 0; g.position.y = 0; g.position.z = 0
+      g.rotation.x = 0; g.rotation.y = 0; g.rotation.z = 0
+      g.scale.x = 1; g.scale.y = 1; g.scale.z = 1
+    }
     const pulsos = NOMBRES.pulsos.map(busca)
-    const brillos = NOMBRES.brillos.map(busca)
-    const polvo = NOMBRES.polvo.map(busca).map((o) => (o ? { o, base: { x: o.position.x, y: o.position.y, z: o.position.z } } : null))
-    const halos = new Map<string, SPEObject>()
-    for (const [zona, nombre] of Object.entries(HALOS)) { const h = busca(nombre); if (h) { h.visible = false; halos.set(zona, h) } }
+    if (verMarcas) {
+      const g = busca(NOMBRES.grupos[0]), p1 = pulsos[0]
+      console.info("[vida] grupo", g && { p: g.position, r: g.rotation, s: g.scale }, "pulso 1", p1 && { p: p1.position, s: p1.scale })
+    }
 
     const t0 = performance.now()
     let raf = 0
@@ -91,26 +83,8 @@ export function VidaSpline() {
         if (!o) continue
         const p = poseDePulso(t, i)
         const m = aMundo(p.x, p.y)
-        o.position.x = m.x; o.position.y = m.y
+        o.position.x = m.x; o.position.y = m.y; o.position.z = 0
         o.scale.x = p.s; o.scale.y = p.s; o.scale.z = p.s
-      }
-      for (let i = 0; i < brillos.length; i++) {
-        const o = brillos[i]
-        if (!o) continue
-        const s = escalaDeBrillo(t, i)
-        o.scale.x = s; o.scale.y = s; o.scale.z = s
-      }
-      for (let i = 0; i < polvo.length; i++) {
-        const m = polvo[i]
-        if (!m) continue
-        const p = poseDePolvo(t, i, m.base)
-        m.o.position.x = p.x; m.o.position.y = p.y; m.o.position.z = p.z
-      }
-      const activa = zonaBajoElRaton.current
-      for (const [zona, h] of halos) {
-        const ver = zona === activa
-        if (h.visible !== ver) h.visible = ver
-        if (ver) { const s = escalaDeHalo(t); h.scale.x = 1.4 * s; h.scale.y = 0.75 * s }
       }
       raf = requestAnimationFrame(cuadro)
     }
@@ -120,7 +94,7 @@ export function VidaSpline() {
 
   if (!montar) return null
   return (
-    <div ref={caja} data-vida="spline" aria-hidden="true" className="pointer-events-none absolute inset-0">
+    <div data-vida="spline" aria-hidden="true" className="pointer-events-none absolute inset-0">
       <Suspense fallback={null}>
         <Spline scene={ESCENA_SPLINE} onLoad={alCargar} renderOnDemand={false} style={{ width: "100%", height: "100%" }} />
       </Suspense>
