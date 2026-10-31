@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
-import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FRACCION_APARECE, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
+import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FRACCION_APARECE, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, huecoParaLaMiniatura, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -37,7 +37,6 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(abierta.split("radial-gradient").length - 1).toBe(2)
     expect(abierta).toContain("width:min(120vw, calc((100dvh - 4rem) * 16 / 9))")
     expect(ANCHO_MARKETING_ABIERTO).toContain("120vw")
-    expect(abierta).toContain(`.nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}`)
     expect(FUNDIDO_BORDES).toBe("linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)")
     // la entrada arranca con la transformación medida en pantalla (variables --nv-x/--nv-y/--nv-s) y termina en su sitio; la salida es la inversa
     // 5.9: dos tiempos: aparece (fundido) QUIETA sobre la plataforma hasta el 30 %, y recién después crece hasta su sitio
@@ -50,7 +49,6 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(t.x + t.s * 1000 * SALA_EN_LA_FOTO.cx).toBeCloseTo(675, 6)
     expect(t.y + t.s * 562.5 * SALA_EN_LA_FOTO.cy).toBeCloseTo(260, 6)
     // la capa de la imagen cubre toda la ventana (fixed) para que la foto pueda ser más grande que el hueco de la escena
-    expect(abierta).toContain('class="nv-capa fixed inset-0 flex items-center justify-center"')
     // 5.9 · dos copias de la foto: A recortada en óvalo suave (lo que se ve mientras aparece chica sobre la plataforma) y B completa que se funde encima al crecer
     expect(abierta.match(/src="\/nuevo\/marketing-2560\.jpg"/g)?.length).toBe(2)
     expect(abierta).toContain(`.nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}`)
@@ -102,10 +100,14 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
     // 5.8: por encima de la imagen de marketing (que ahora cubre la ventana), para que la miniatura se vea; sigue translúcida y sin recibir clics
     expect(abierta).toContain(`.nv-fondo[data-atenuado="true"]{opacity:0.35;transform:scale(0.3);pointer-events:none;position:relative;transition-delay:${RETARDO_ESCENA_MS}ms}`) // 5.9: la escena espera a que la oficina aparezca
-    // 5.9 · capas: mientras entra/sale, la oficina va por encima (z 7 > escena); ya abierta, la miniatura pasa por encima de la foto (z 6 > 5) con un fundido corto
-    expect(abierta).toContain('.nv-fondo[data-abierto="true"]{z-index:6;animation:nvMiniatura .5s ease both}')
-    expect(abierta).toContain('data-abierto="true"')
-    expect(abierta).toContain('class="nv-capa fixed inset-0 flex items-center justify-center" style="z-index:5"')
+    // 5.10 · la escena queda SIEMPRE debajo (sin cambio de capa ni salto): la foto la deja ver por un hueco suave en su esquina (segunda capa de máscara, intersección)
+    expect(abierta).not.toContain("data-abierto"); expect(abierta).not.toContain("nvMiniatura")
+    expect(abierta).toContain('class="nv-capa fixed inset-0 z-[5] flex items-center justify-center"')
+    expect(abierta).toContain(".nv-capa{-webkit-mask-image:var(--nv-hueco,none);mask-image:var(--nv-hueco,none)}") // el hueco va en la capa fija, no en la foto que se transforma
+    expect(abierta).toContain(`.nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}`)
+    // geometría del hueco: marco 0,0 1000×600 con la escena 800×450 centrada → encogida al 30 % desde la esquina inferior izquierda queda en x 30..270 · y 442,5..577,5; foto final en 0,0
+    const hueco = huecoParaLaMiniatura({ x: 0, y: 0, w: 1000, h: 600 }, { w: 800, h: 450 }, { x: 0, y: 0, w: 1500, h: 843 })
+    expect(hueco).toBe(`radial-gradient(ellipse ${(120 * 1.45).toFixed(1)}px ${(67.5 * 1.6).toFixed(1)}px at 150.0px 510.0px,transparent 72%,#000 100%)`)
     // el origen de la transformación en la esquina inferior izquierda es lo que manda la miniatura ahí al encoger
     expect(abierta).toContain(".nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}")
     expect(abierta).not.toMatch(/blur\(/)
