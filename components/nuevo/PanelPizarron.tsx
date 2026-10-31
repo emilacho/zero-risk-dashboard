@@ -34,7 +34,7 @@ export function agruparEsperas(esperas: Array<{ motivo: string }>): string[] {
   return [...cuenta.entries()].map(([m, n]) => (n > 1 ? `${m} ×${n}` : m))
 }
 
-export function PanelPizarron({ onCerrar, datosIniciales = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null }) {
+export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 6.6: abrir la pieza encima, en el estilo nuevo; sin esto, enlaza a la ventana de siempre */ onAbrirPieza?: (id: string) => void }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -160,7 +160,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null }: { onCerrar: (
 
           {/* la pieza elegida */}
           <aside className="flex min-h-0 flex-col border-t border-white/10 lg:border-l lg:border-t-0" aria-label="La publicación elegida">
-            {!filaElegida ? <p className="px-4 py-4 text-[13px] text-zinc-500">Haz clic en una casilla para ver la publicación y, si ya hay pieza, abrirla para aprobarla o pedir cambios.</p> : <DetalleDeLaFila f={filaElegida} />}
+            {!filaElegida ? <p className="px-4 py-4 text-[13px] text-zinc-500">Haz clic en una casilla para ver la publicación y, si ya hay pieza, abrirla para aprobarla o pedir cambios.</p> : <DetalleDeLaFila f={filaElegida} onAbrirPieza={onAbrirPieza} />}
           </aside>
         </div>
       </section>
@@ -168,7 +168,9 @@ export function PanelPizarron({ onCerrar, datosIniciales = null }: { onCerrar: (
   )
 }
 
-function DetalleDeLaFila({ f }: { f: FilaDelTablero }) {
+const BOTON_ABRIR = "block w-full rounded-md border border-amber-400/60 bg-amber-400/10 px-3 py-2 text-center text-[13px] font-medium text-amber-100 transition-colors hover:bg-amber-400/20 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400"
+
+function DetalleDeLaFila({ f, onAbrirPieza }: { f: FilaDelTablero; onAbrirPieza?: (id: string) => void }) {
   const red = redDelTablero(f.red)
   const [conLamina, setConLamina] = useState(true)
   useEffect(() => { setConLamina(true) }, [f.pieza?.id])
@@ -194,10 +196,10 @@ function DetalleDeLaFila({ f }: { f: FilaDelTablero }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={`/api/piezas/${f.pieza.id}/lamina/1`} alt="" className="mb-3 w-full rounded-md" onError={() => setConLamina(false)} />
           )}
-          <a href={enlaceDeLaPieza(f.pieza.id)} data-accion="abrir-pieza" className="block rounded-md border border-amber-400/60 bg-amber-400/10 px-3 py-2 text-center text-[13px] font-medium text-amber-100 transition-colors hover:bg-amber-400/20 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-            {f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}
-          </a>
-          <p className="mt-2 text-[11.5px] text-zinc-500">Se abre en su ventana; aquí el pizarrón solo mira.</p>
+          {onAbrirPieza
+            ? <button type="button" onClick={() => onAbrirPieza(f.pieza!.id)} data-accion="abrir-pieza" aria-haspopup="dialog" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</button>
+            : <a href={enlaceDeLaPieza(f.pieza.id)} data-accion="abrir-pieza" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</a>}
+          <p className="mt-2 text-[11.5px] text-zinc-500">{onAbrirPieza ? "Se abre encima, en esta misma oficina; aquí el pizarrón solo mira." : "Se abre en su ventana; aquí el pizarrón solo mira."}</p>
         </div>
       ) : (
         <p className="mt-4 text-[12.5px] text-zinc-500">Todavía no hay pieza para esta publicación.</p>
