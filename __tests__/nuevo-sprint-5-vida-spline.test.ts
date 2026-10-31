@@ -51,6 +51,17 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(html).toContain(`<clipPath id="nv-sup-cerebro"><polygon points="${cer.superficie}"`)
     expect(html).toMatch(/polygon\.nv-luz\{[^}]*mix-blend-mode:screen/)
   })
+  it("5.5 · el rótulo del departamento lleva las MISMAS letras que la marca «ZERO RISK» de la barra: mayúsculas, contorno ámbar sin relleno, peso 500, espaciado y trazo proporcionales", () => {
+    const html = renderToStaticMarkup(createElement(EscenaNuevo))
+    const marca = renderToStaticMarkup(createElement(BarraSuperior))
+    const logo = marca.match(/<text[^>]*>ZERO RISK<\/text>/)![0]
+    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>DEPT\. MARKETING<\/text>/)![0]
+    for (const s of [logo, rotulo]) { expect(s).toContain('fill="none"'); expect(s).toContain('stroke="#e8731a"'); expect(s).toContain('font-weight="500"'); expect(s).toContain('font-family="system-ui, Arial, sans-serif"') }
+    const num = (s: string, a: string) => Number(s.match(new RegExp(`${a}="([0-9.]+)"`))![1])
+    expect(num(rotulo, "letter-spacing") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "letter-spacing") / num(logo, "font-size"), 3)
+    expect(num(rotulo, "stroke-width") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "stroke-width") / num(logo, "font-size"), 3)
+    expect(rotulo).not.toMatch(/fill="#/)
+  })
   it("la foto va en su propia capa de composición: con un lienzo WebGL encima Chrome la redibujaba distinta (medido 31-oct) · no quitar", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
     expect(html).toMatch(/<img[^>]*\[transform:translateZ\(0\)\]/)

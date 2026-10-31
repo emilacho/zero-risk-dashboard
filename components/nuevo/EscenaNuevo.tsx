@@ -33,7 +33,7 @@ export const ZONAS: Zona[] = [
     clave: "marketing", nombre: "Dept. Marketing", href: "/nuevo/marketing",
     formas: ["1160,358 1226,250 1316,214 1404,240 1468,338 1470,374 1310,462"], // la plataforma de arriba a la derecha con el proyector y su pantalla (zona del ratón)
     // sin `superficie` pintada: su versión encendida es una imagen real (ENCENDIDOS · 5.4)
-    rotulo: { x: 1316, y: 188, texto: "Dept. Marketing" },
+    rotulo: { x: 1316, y: 188, texto: "DEPT. MARKETING" },
   },
 ]
 
@@ -100,8 +100,10 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
               {z.formas.map((f, i) => <polygon key={i} points={f} />)}
               {z.superficie && <g clipPath={`url(#nv-sup-${z.clave})`}><polygon className="nv-luz" points={z.superficie} filter="url(#nv-luz-suave)" /></g>}
               {z.rotulo && (
-                <text className="nv-rotulo" x={z.rotulo.x} y={z.rotulo.y} textAnchor="middle" fill="#ffb347" fontSize="26" fontWeight="300" letterSpacing="5"
-                  fontFamily="system-ui, Arial, sans-serif">{z.rotulo.texto}</text>
+                // 5.5 (Emilio, 31-oct): el rótulo con las MISMAS letras que la marca «ZERO RISK» de la barra: mayúsculas, contorno ámbar sin relleno,
+                // peso 500, mismo espaciado proporcional (3,4/16 em) y mismo grosor de trazo proporcional (0,9/16 em)
+                <text className="nv-rotulo" x={z.rotulo.x} y={z.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={26 * 0.9 / 16} fontSize="26" fontWeight="500"
+                  letterSpacing={26 * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{z.rotulo.texto}</text>
               )}
             </a>
           ))}
