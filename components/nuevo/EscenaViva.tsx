@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo, ORIGEN_MARKETING } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
+import { VidaSpline } from "@/components/nuevo/VidaSpline"
 
 /**
  * DASHBOARD NUEVO · SPRINT 3 (31-oct): el departamento de marketing se «proyecta» sobre la escena principal, sin cambiar de página a la vista.
@@ -83,7 +84,7 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       <style>{ESTILO}</style>
       {/* la escena principal: queda detrás en tercer plano mientras el departamento está proyectado */}
       <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
-        <EscenaNuevo alAbrirMarketing={() => abrir()}><TotemEnVivo /></EscenaNuevo>
+        <EscenaNuevo alAbrirMarketing={() => abrir()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
       {fase !== "cerrado" && (
         <div className="absolute inset-0 z-[5] flex items-center justify-center px-4 sm:px-16" onClick={() => abierta && cerrar()}>

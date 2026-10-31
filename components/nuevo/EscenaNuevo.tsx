@@ -1,5 +1,6 @@
 /**
- * DASHBOARD NUEVO · la escena (variante-14, recortada y en versión liviana) con DOS zonas clicables y nada más (firma de Emilio, 30-oct):
+ * DASHBOARD NUEVO · la escena (variante-14, recortada y en versión liviana) con DOS zonas clicables y nada más (firma de Emilio, 30-oct).
+ * Sprint 5 (31-oct, CC5): la escena un 30 % más grande (75 % del ancho en vez de 58 %) y con la capa de vida de Spline encima de la foto (`fondo`).
  *  · el monolito central → `cerebro` (/oficinas#cerebro)
  *  · la plataforma de las pantallas y el proyector → «Dept. Marketing» (/nuevo/marketing; sprint 3, 31-oct). Se ilumina en ámbar poco a poco y aparece su rótulo.
  * Las demás plataformas no tienen enlace ni resaltado: se irán activando una por una. El SVG de encima usa las mismas coordenadas de la imagen (ver VISTA).
@@ -25,7 +26,7 @@ export const ZONAS: Zona[] = [
 export const ORIGEN_MARKETING = { x: ((1316 - VISTA.x) / VISTA.w) * 100, y: ((350 - VISTA.y) / VISTA.h) * 100 }
 
 const ESTILO_ESCENA = `
-.nv-escena{width:min(100%,58vw,calc((100dvh - 15rem) * 3264 / 1766))}
+.nv-escena{width:min(100%,75vw,calc((100dvh - 15rem) * 3264 / 1766))}
 @media (max-width:900px){.nv-escena{width:min(100%,calc((100dvh - 15rem) * 3264 / 1766))}}
 `
 
@@ -39,7 +40,8 @@ const ESTILO = `
 @media (prefers-reduced-motion:reduce){.nv-zona,.nv-zona polygon,.nv-rotulo{transition:none}}
 `
 
-export function EscenaNuevo({ alAbrirMarketing, children }: { alAbrirMarketing?: () => void; children?: ReactNode }) {
+/** `fondo` va ENTRE la foto y las zonas clicables (la capa de vida de Spline, sprint 5): nunca tapa el hover ni los clics */
+export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMarketing?: () => void; fondo?: ReactNode; children?: ReactNode }) {
   return (
     <>
       <style>{ESTILO_ESCENA}</style>
@@ -52,12 +54,13 @@ export function EscenaNuevo({ alAbrirMarketing, children }: { alAbrirMarketing?:
           src="/nuevo/escena-2560.jpg" srcSet="/nuevo/escena-1280.jpg 1280w, /nuevo/escena-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1400px"
           alt="Las oficinas de Zero Risk" width={2560} height={1385} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full select-none" draggable={false}
         />
+        {fondo}
         <svg viewBox={`${VISTA.x} ${VISTA.y} ${VISTA.w} ${VISTA.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de la escena" xmlns="http://www.w3.org/2000/svg">
           <style>{ESTILO}</style>
           {ZONAS.map((z) => (
             // un enlace de SVG: next/link no vive dentro de un <svg>
             // eslint-disable-next-line @next/next/no-html-link-for-pages
-            <a key={z.clave} href={z.href} className="nv-zona" aria-label={z.nombre}
+            <a key={z.clave} href={z.href} className="nv-zona" data-zona={z.clave} aria-label={z.nombre}
               onClick={z.clave === "marketing" && alAbrirMarketing ? (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); alAbrirMarketing() } : undefined}>
               {z.formas.map((f, i) => <polygon key={i} points={f} />)}
               {z.rotulo && (
