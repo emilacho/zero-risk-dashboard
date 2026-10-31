@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { APLICACIONES, type ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
 import { PanelPizarron, textoDeLaFase } from "@/components/nuevo/PanelPizarron"
+import { PanelManual } from "@/components/nuevo/PanelManual"
 
 const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
@@ -48,7 +49,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
-  const [vista, setVista] = useState<"inicio" | "calendario">("inicio")
+  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>("inicio")
   const primero = useRef<HTMLAnchorElement>(null)
 
   useEffect(() => { if (vista === "inicio") primero.current?.focus() }, [vista])
@@ -73,6 +74,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
 
   const volverAlInicio = useCallback(() => setVista("inicio"), [])
   if (vista === "calendario") return <PanelPizarron onCerrar={volverAlInicio} datosIniciales={datos} />
+  if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
@@ -114,7 +116,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
               <li key={a.clave} className="contents">
                 {href
                   ? <a ref={i === 0 ? (primero as RefObject<HTMLAnchorElement>) : undefined} href={href} data-aplicacion={a.clave} data-aviso={d.aviso} className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</a>
-                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => setVista("calendario")} aria-haspopup="dialog" className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</button>}
+                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => setVista(a.clave)} aria-haspopup="dialog" className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</button>}
               </li>
             )
           })}
