@@ -29,9 +29,9 @@ const datos: Pizarron = {
 describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
   it("la lista es la que cerró Emilio: seis cuadros, sin oficinas/en vivo ni alertas, y cada uno lleva a algo que ya existe", () => {
     expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Plan de 90 días", "Calendario", "Piezas", "Cerebro", "Gasto"])
-    expect(APLICACIONES.map((a) => a.enlace(CLIENTE))).toEqual([`/clientes/${CLIENTE}#manual`, `/clientes/${CLIENTE}#plan`, null, "/piezas", `/clientes/${CLIENTE}#cerebro`, "/gasto"])
+    expect(APLICACIONES.map((a) => a.enlace(CLIENTE))).toEqual([null, `/clientes/${CLIENTE}#plan`, null, "/piezas", `/clientes/${CLIENTE}#cerebro`, "/gasto"]) // 6.3: el manual ya abre encima
     // sin cliente elegido, los cuadros de la ficha llevan a la lista de clientes (no a una ficha rota)
-    expect(APLICACIONES.find((a) => a.clave === "manual")!.enlace(null)).toBe("/clientes")
+    expect(APLICACIONES.find((a) => a.clave === "plan")!.enlace(null)).toBe("/clientes")
     for (const a of APLICACIONES) expect(a.nombre).not.toMatch(/oficina|en vivo|alerta/i)
   })
   it("la ficha del cliente tiene los apartados a los que llegan los cuadros (ids reales en la página)", () => {
@@ -46,14 +46,15 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(detalleDelCuadro("piezas", datos)).toEqual({ texto: "1 pieza espera tu aprobación", aviso: true })
     expect(detalleDelCuadro("piezas", { ...datos, filas: [], totales: {} })).toEqual({ texto: "Nada por aprobar ahora", aviso: false })
     expect(detalleDelCuadro("plan", { ...datos, campana: null }).texto).toBe("Sin campaña todavía")
-    expect(detalleDelCuadro("manual", null).texto).toBe("Propósito, misión, voz, eslogan y quién lo validó")
+    expect(detalleDelCuadro("manual", null).texto).toBe("Lo que la marca es, cómo habla y cómo se ve")
     expect(detalleDelCuadro("gasto", datos).texto).toBe("Lo gastado en los últimos 30 días")
   })
   it("el panel dibuja los seis cuadros como enlaces (el calendario como botón que abre encima), el selector de cliente y el aviso en Piezas", () => {
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="aplicaciones"'); expect(html).toContain("Dept. Marketing")
     expect(html.match(/data-aplicacion="/g)?.length).toBe(6)
-    expect(html).toMatch(new RegExp(`<a[^>]*href="/clientes/${CLIENTE}#manual"[^>]*data-aplicacion="manual"`))
+    expect(html).toMatch(/<button type="button" data-aplicacion="manual" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.3: abre encima
+    expect(html).toMatch(new RegExp(`<a[^>]*href="/clientes/${CLIENTE}#plan"[^>]*data-aplicacion="plan"`))
     expect(html).toMatch(/<a[^>]*href="\/piezas"[^>]*data-aplicacion="piezas" data-aviso="true"/)
     expect(html).toMatch(/<button type="button" data-aplicacion="calendario" data-aviso="false"[^>]*aria-haspopup="dialog"/)
     expect(html).toContain("1 pieza espera tu aprobación"); expect(html).toContain("Día 4 · fase senal"); expect(html).toContain("2 publicaciones · calendario v1")
@@ -64,6 +65,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(c).not.toContain('method: "POST"'); expect(c).toContain('window.addEventListener("keydown", tecla, true)') // Esc cierra las aplicaciones y no la oficina
     expect(c).toContain('if (vista !== "inicio") return') // con el calendario encima, su Esc manda y solo vuelve a las aplicaciones
     expect(c).toContain("<PanelPizarron onCerrar={volverAlInicio} datosIniciales={datos} />")
+    expect(c).toContain("<PanelManual onCerrar={volverAlInicio} />")
     expect(c).toContain("@media (prefers-reduced-motion:reduce)")
   })
   it("el tablero de la oficina abre primero las aplicaciones (la escena ya no monta el calendario directo)", () => {
