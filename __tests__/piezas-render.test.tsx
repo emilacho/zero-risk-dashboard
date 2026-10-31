@@ -72,9 +72,11 @@ describe("el visor de piezas se dibuja", () => {
     expect(html).not.toContain("juntas")
     expect(html).toContain("no publica todavía")
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Aprobar/) // sin casilla exigida, Aprobar está libre
-    // C10 (certificación CC3): la pestaña se llama «Video», no «Lámina»
+    // C10 (certificación CC3): la pestaña se llama «Video», no «Lámina», y su bloque lleva el rótulo de generado aunque no haya avisos
     expect(html).toMatch(/<button[^>]*>Video<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Lámina<\/button>/)
+    const sinAvisos = dibujar(<VisorDePieza pieza={{ ...pieza, avisos: [] }} siguienteId={null} />)
+    expect(sinAvisos).toMatch(/Video · 12 s<\/h4>[\s\S]*?Video GENERADO por un modelo \(no es una grabación real\) · sin voces ni narración\./)
   })
   it("T8 · video que quedó solo en el proveedor: no hay reproductor, se dice, lleva el enlace para bajarlo (nunca se reproduce desde ahí) y se puede decidir igual", async () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
@@ -84,6 +86,9 @@ describe("el visor de piezas se dibuja", () => {
     expect(html).toMatch(/Hay que bajarlo/)
     expect(html).not.toMatch(/Se descarga al aprobar/)
     expect(html).toMatch(/<a href="https:\/\/proveedor\.test\/v\.mp4" target="_blank" rel="noopener noreferrer"/)
+    // C18: los DOS enlaces al proveedor (cuerpo y pestaña) llevan noopener; ninguno abre sin él
+    expect(html.match(/<a href="https:\/\/proveedor\.test\/v\.mp4"[^>]*>/g)).toHaveLength(2)
+    for (const a of html.match(/<a href="https:\/\/proveedor\.test\/v\.mp4"[^>]*>/g)!) expect(a).toMatch(/rel="noopener noreferrer"/)
     expect(html).not.toContain("/api/piezas/11111111-1111-1111-1111-111111111111/video")
     expect(html).toContain("Pedir cambios")
   })
