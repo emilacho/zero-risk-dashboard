@@ -127,6 +127,40 @@ export function etiquetaDelHueco(clave: string): string {
   return c?.etiqueta ?? HUECOS_FUERA_DEL_LECTOR[clave] ?? clave.replace(/_/g, " ")
 }
 
+/**
+ * Lo que Emilio puede EDITAR desde el dashboard (sprint 6.4): los campos que la plataforma acepta por `PATCH /api/manual/{client}/campos`
+ * (`clave_del_tablero` en `campos-del-manual.ts` de la plataforma: 7 campos). Misión, visión, personalidad, mensajes clave, propuestas de valor,
+ * productos, sedes y las palabras son editables en la plataforma pero AÚN no tienen clave de tablero: pedirlas es trabajo de la plataforma, no se finge aquí.
+ * `lista`: se escribe una por línea. El sistema versiona (max+1 vigente), marca «escrito por el dueño» y re-indexa el cerebro: el siguiente empleado lee lo nuevo.
+ */
+export const EDITABLES_DESDE_EL_TABLERO: ReadonlyArray<{ clave: string; etiqueta: string; lista: boolean; ayuda: string }> = [
+  { clave: "proposito", etiqueta: "Propósito", lista: false, ayuda: "Para qué existe la marca, en una o dos frases." },
+  { clave: "eslogan", etiqueta: "Eslogan", lista: false, ayuda: "La frase corta que acompaña a la marca." },
+  { clave: "voz", etiqueta: "Voz de la marca", lista: false, ayuda: "Cómo habla: tono, trato, palabras que la distinguen." },
+  { clave: "posicionamiento", etiqueta: "Posicionamiento", lista: false, ayuda: "Qué lugar ocupa frente a las demás y por qué." },
+  { clave: "publico", etiqueta: "Público", lista: false, ayuda: "A quién le habla y qué busca esa gente." },
+  { clave: "valores", etiqueta: "Valores", lista: true, ayuda: "Uno por línea." },
+  { clave: "nunca", etiqueta: "Lo que la marca nunca dice o hace", lista: true, ayuda: "Uno por línea." },
+]
+export const esEditableDesdeElTablero = (clave: string) => EDITABLES_DESDE_EL_TABLERO.some((e) => e.clave === clave)
+
+/** el cuerpo que recibe `POST /api/acciones/manual-campos` (lo valida `lib/tablero-acciones.ts` y lo hace la plataforma) */
+export function cuerpoDeEdicion(clienteId: string, clave: string, texto: string, porque: string): { client_id: string; campos: Record<string, string>; comentario?: string } | { error: string } {
+  const e = EDITABLES_DESDE_EL_TABLERO.find((x) => x.clave === clave)
+  if (!e) return { error: `«${clave}» todavía no se edita desde aquí` }
+  const t = e.lista ? texto.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).join("\n") : texto.trim()
+  if (!t) return { error: "Escribe algo antes de guardar" }
+  if (t.length > 2000) return { error: "Máximo 2.000 caracteres" }
+  const p = porque.trim()
+  return { client_id: clienteId, campos: { [clave]: t }, ...(p ? { comentario: p.slice(0, 1000) } : {}) }
+}
+
+/** lo que se escribe en el cuadro de edición a partir de lo que ya hay (una lista guardada «a · b» vuelve a ser una por línea) */
+export function textoParaEditar(clave: string, valor: string | null): string {
+  if (!valor) return ""
+  return EDITABLES_DESDE_EL_TABLERO.find((x) => x.clave === clave)?.lista ? valor.split(" · ").map((s) => s.trim()).filter(Boolean).join("\n") : valor
+}
+
 /** «hace 3 días» para la fecha del manual, sin librerías */
 export function fechaCortaEC(iso: string | null): string | null {
   if (!iso) return null

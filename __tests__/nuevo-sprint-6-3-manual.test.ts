@@ -116,9 +116,8 @@ describe("sprint 6.3 · el manual de marca en el estilo nuevo", () => {
     expect(html).toMatch(/data-color="#1a0828"[^>]*title="de la hoja de estilo del sitio"/); expect(html).toContain("#51d4b4"); expect(html).toContain("acento"); expect(html).toContain("Inter"); expect(html).toContain("cuerpo de texto")
     expect(html).toContain("Aurora · sin manual"); expect(html).toMatch(/aria-label="Elegir el cliente"/)
     expect(html).not.toMatch(/\/clientes\//) // nada manda al dashboard viejo
-    expect(html).not.toMatch(/Editar el manual|Validar el manual/) // solo lectura este paso
     const c = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
-    expect(c).not.toContain('method: "POST"'); expect(c).toContain('window.addEventListener("keydown", tecla, true)')
+    expect(c).toContain('window.addEventListener("keydown", tecla, true)')
   })
   it("el cuadro «Manual de marca» abre el manual encima (ya no manda a la ficha vieja)", () => {
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, datosIniciales: null }))
