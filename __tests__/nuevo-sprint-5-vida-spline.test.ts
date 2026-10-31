@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
-import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, cajaDeLaMiniatura, huecoParaLaMiniatura, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
+import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, cajaDeLaMiniatura, huecoParaLaMiniatura, opacidadDeSalida, suavizado, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -42,7 +42,17 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     // 5.11: UN solo movimiento continuo: crece y se hace visible a la vez (opacidad escalonada a lo largo del crecimiento), arranque lento con impulso; la escena arranca 200 ms después
     expect(RETARDO_ESCENA_MS).toBe(200)
     expect(abierta).toContain("@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}")
-    expect(abierta).toContain("@keyframes nvSale{from{opacity:1;transform:none}45%{opacity:.85}80%{opacity:.35}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}")
+    // 5.13: la salida ya no es una animación fija hacia el sitio final: se calcula cuadro a cuadro hacia donde la plataforma está (la hoja de estilo solo deja el fundido de respaldo)
+    expect(abierta).toContain("@keyframes nvSale{from{opacity:1}to{opacity:0}}")
+    expect(abierta).toContain('data-atenuado={fase === "entra" || fase === "abierto"}') // la escena vuelve DURANTE la salida, no después
+    expect(abierta).toContain('.nv-proy[data-fase="sale"]{animation:nvSale 1200ms linear both}')
+    expect(abierta).not.toContain("transform:none}45%")
+    // misma curva que la escena: arranca lenta, toma impulso, llega suave; monótona
+    expect(suavizado(0)).toBe(0); expect(suavizado(1)).toBe(1)
+    expect(suavizado(0.1)).toBeLessThan(0.05); expect(suavizado(0.5)).toBeGreaterThan(0.45); expect(suavizado(0.5)).toBeLessThan(0.8); expect(suavizado(0.9)).toBeGreaterThan(0.97)
+    for (let p = 0.05; p < 1; p += 0.05) expect(suavizado(p)).toBeGreaterThan(suavizado(p - 0.05))
+    // visible hasta llegar a la plataforma; se apaga en el último tramo
+    expect(opacidadDeSalida(0)).toBe(1); expect(opacidadDeSalida(0.5)).toBe(1); expect(opacidadDeSalida(0.9)).toBeCloseTo(0.75, 5); expect(opacidadDeSalida(1)).toBe(0)
     expect(abierta).toContain('.nv-proy[data-fase="entra"]{animation:nvEntra 1700ms cubic-bezier(.55,0,.15,1) both}')
     // geometría: con la imagen final en 0,0 1000×562,5 y la plataforma en 600,200 150×120, la sala (76,6 % del ancho) queda del ancho de la plataforma y centrada en ella
     const t = transformacionDesdeLaPlataforma({ x: 600, y: 200, w: 150, h: 120 }, { x: 0, y: 0, w: 1000, h: 562.5 })
