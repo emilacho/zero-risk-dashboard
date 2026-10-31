@@ -42,8 +42,9 @@ describe("dashboard nuevo · sprint 3 · Dept. Marketing proyectado", () => {
     expect(abierta).toContain("marketing-2560.jpg")
     expect(abierta).toContain('data-atenuado="true"')
     expect(abierta).toContain("Volver a la escena")
-    // el interior no tiene zonas clicables propias: los únicos enlaces son los de la escena de fondo
-    expect([...abierta.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/marketing", "/oficinas#cerebro"])
+    // el interior no tiene zonas clicables propias; la escena de fondo la decide el navegador (3D o foto), así que en el servidor no hay enlaces
+    expect([...abierta.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1])).toEqual([])
+    expect([...renderToStaticMarkup(createElement(EscenaNuevo)).matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/marketing", "/oficinas#cerebro"])
   })
   it("vuelve con Esc, con el control y con clic fuera; la dirección cambia sin reiniciar la página", () => {
     const c = leer("components/nuevo/EscenaViva.tsx")
