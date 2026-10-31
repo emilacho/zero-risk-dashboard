@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
-import { ESCALA_FONDO_ABIERTO, EscenaViva, OPACIDAD_FONDO_ABIERTO } from "@/components/nuevo/EscenaViva"
+import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, SALA_EN_LA_FOTO, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -20,11 +20,34 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(html).not.toContain("58vw")
     expect(Math.round(58 * 1.3)).toBe(75)
   })
-  it("5.2 · la iluminación es la de la foto original: sin viñeta que la mezcle con el gris de la página; la escena va sobre negro con un halo negro alrededor", () => {
+  it("5.2/5.8 · la iluminación es la de la foto original: sin viñeta radial; la escena va sobre negro puro y solo sus bordes de arriba y abajo se funden con la página (sin halo)", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
-    expect(html).not.toMatch(/mask-image/)
+    expect(html).not.toMatch(/radial-gradient/)
+    expect(html).not.toMatch(/box-shadow/)
     expect(html).not.toMatch(/<img[^>]*(filter|opacity)/)
-    expect(html).toMatch(/\.nv-escena\{[^}]*background:#000;box-shadow:0 0 140px 100px #000/)
+    expect(html).toContain(".nv-escena{width:min(100%,75vw,calc((100dvh - 15rem) * 3264 / 1766));background:#000;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)}")
+    // la pantalla entera va sobre negro puro (las esquinas de las dos fotos miden 0-2 de 255); antes #141414 y se veían los bordes de las imágenes
+    const pantalla = readFileSync("components/nuevo/PantallaNuevo.tsx", "utf8")
+    expect(pantalla).toContain('className="fixed inset-0 z-[60] overflow-hidden bg-black"')
+    expect(pantalla).not.toContain("#141414")
+  })
+  it("5.8 · la imagen de marketing SALE DE ADENTRO de la plataforma en la que se hizo clic, ocupa casi todo el escenario y sus bordes se funden con el negro (sin viñeta radial)", () => {
+    const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
+    expect(abierta).not.toMatch(/radial-gradient/)
+    expect(abierta).toContain("width:min(120vw, calc((100dvh - 4rem) * 16 / 9))")
+    expect(ANCHO_MARKETING_ABIERTO).toContain("120vw")
+    expect(abierta).toContain(`.nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}`)
+    expect(FUNDIDO_BORDES).toBe("linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)")
+    // la entrada arranca con la transformación medida en pantalla (variables --nv-x/--nv-y/--nv-s) y termina en su sitio; la salida es la inversa
+    expect(abierta).toContain("@keyframes nvEntra{from{opacity:.75;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))") // arranca VISIBLE sobre la plataforma
+    expect(abierta).toContain("@keyframes nvSale{from{opacity:1;transform:none}70%{opacity:1}to{opacity:.6;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}")
+    // geometría: con la imagen final en 0,0 1000×562,5 y la plataforma en 600,200 150×120, la sala (76,6 % del ancho) queda del ancho de la plataforma y centrada en ella
+    const t = transformacionDesdeLaPlataforma({ x: 600, y: 200, w: 150, h: 120 }, { x: 0, y: 0, w: 1000, h: 562.5 })
+    expect(t.s).toBeCloseTo(150 / (1000 * SALA_EN_LA_FOTO.ancho), 6)
+    expect(t.x + t.s * 1000 * SALA_EN_LA_FOTO.cx).toBeCloseTo(675, 6)
+    expect(t.y + t.s * 562.5 * SALA_EN_LA_FOTO.cy).toBeCloseTo(260, 6)
+    // la capa de la imagen cubre toda la ventana (fixed) para que la foto pueda ser más grande que el hueco de la escena
+    expect(abierta).toContain('<div class="fixed inset-0 z-[5] flex items-center justify-center"')
   })
   it("5.3/5.4 · al pasar por Dept. Marketing se enciende la ESTRUCTURA ENTERA con una imagen real generada (no una figura pintada); sin campo naranja ni línea dura", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
@@ -67,7 +90,8 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(ESCALA_FONDO_ABIERTO).toBe(0.3)
     expect(OPACIDAD_FONDO_ABIERTO).toBeGreaterThan(0.2); expect(OPACIDAD_FONDO_ABIERTO).toBeLessThan(0.5)
     const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
-    expect(abierta).toContain('.nv-fondo[data-atenuado="true"]{opacity:0.35;transform:scale(0.3);pointer-events:none}')
+    // 5.8: por encima de la imagen de marketing (que ahora cubre la ventana), para que la miniatura se vea; sigue translúcida y sin recibir clics
+    expect(abierta).toContain('.nv-fondo[data-atenuado="true"]{opacity:0.35;transform:scale(0.3);pointer-events:none;position:relative;z-index:6}')
     // el origen de la transformación en la esquina inferior izquierda es lo que manda la miniatura ahí al encoger
     expect(abierta).toContain(".nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}")
     expect(abierta).not.toMatch(/blur\(/)

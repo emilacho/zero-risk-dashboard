@@ -46,7 +46,10 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
     expect(marca).toMatch(/<text[^>]*fill="none"[^>]*stroke="#e8731a"/) // solo trazo, interior transparente
     expect(marca).not.toMatch(/font-display/)
     // 5.2 (31-oct): la viñeta se quitó a pedido de Emilio («iguala la iluminación a la de la foto original»); ver nuevo-sprint-5-vida-spline.test.ts
-    expect(renderToStaticMarkup(createElement(EscenaNuevo))).not.toMatch(/mask-image/)
+    // 5.8 (31-oct): vuelve UNA máscara, pero solo un fundido corto arriba y abajo (nunca radial) para que los bordes se mezclen con el negro de la página
+    const escena = renderToStaticMarkup(createElement(EscenaNuevo))
+    expect(escena).not.toMatch(/radial-gradient/)
+    expect(escena).toContain("mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)")
   })
   it("la barra de chat es SOLO la forma: sin campo de texto, sin formulario, sin envío", () => {
     const html = renderToStaticMarkup(createElement(BarraDeChat))

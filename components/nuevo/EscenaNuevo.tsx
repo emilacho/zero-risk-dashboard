@@ -41,7 +41,7 @@ export const ZONAS: Zona[] = [
 export const ORIGEN_MARKETING = { x: ((1316 - VISTA.x) / VISTA.w) * 100, y: ((350 - VISTA.y) / VISTA.h) * 100 }
 
 const ESTILO_ESCENA = `
-.nv-escena{width:min(100%,75vw,calc((100dvh - 15rem) * 3264 / 1766));background:#000;box-shadow:0 0 140px 100px #000}
+.nv-escena{width:min(100%,75vw,calc((100dvh - 15rem) * 3264 / 1766));background:#000;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)}
 .nv-encendido{opacity:0;transition:opacity .45s ease}
 .nv-escena:has(.nv-zona[data-zona="marketing"]:hover) .nv-encendido[data-encendido="marketing"],.nv-escena:has(.nv-zona[data-zona="marketing"]:focus-visible) .nv-encendido[data-encendido="marketing"]{opacity:1}
 @media (prefers-reduced-motion:reduce){.nv-encendido{transition:none}}
