@@ -104,3 +104,59 @@ export function cuerpoDeRehacer(encargoId: string, comentario: string): Record<s
 export function proporcionDeLaLamina(l: { ancho: number | null; alto: number | null } | undefined): string {
   return l && l.ancho && l.alto ? `${l.ancho}/${l.alto}` : "1080/1350"
 }
+
+// ───────────────────────── 6.7 · el explorador (de macro a micro) y los campos editables
+
+/** la carpeta de lo que no es pieza (la misma que pone la lectura) */
+export const CARPETA_OTRAS = "Otras revisiones"
+
+export interface CarpetaDeLaBandeja { nombre: string; filas: FilaDeLaLista[]; por_aprobar: number }
+export interface ClienteDeLaBandeja { id: string | null; nombre: string; carpetas: CarpetaDeLaBandeja[]; por_aprobar: number; total: number }
+
+/** Clientes › carpetas (Carrusel Facebook · Historias Instagram · Otras revisiones) › filas, pendientes primero. Los clientes con más por aprobar van arriba; «Otras revisiones» siempre al final. */
+export function arbolDeLaBandeja(piezas: FilaDeLaLista[], otras: FilaDeLaLista[]): ClienteDeLaBandeja[] {
+  const porCliente = new Map<string, { id: string | null; nombre: string; filas: FilaDeLaLista[] }>()
+  for (const f of [...piezas, ...otras]) {
+    const k = f.cliente_id ?? ""
+    if (!porCliente.has(k)) porCliente.set(k, { id: f.cliente_id, nombre: f.cliente ?? "Sin cliente", filas: [] })
+    porCliente.get(k)!.filas.push(f)
+  }
+  const pend = (fs: FilaDeLaLista[]) => fs.filter((f) => f.estado === "pendiente").length
+  return [...porCliente.values()].map((c) => {
+    const nombres = [...new Set(c.filas.map((f) => f.carpeta))].sort((a, b) => (a === CARPETA_OTRAS ? 1 : b === CARPETA_OTRAS ? -1 : a.localeCompare(b, "es")))
+    const carpetas = nombres.map((n) => { const filas = filtrarBandeja(c.filas.filter((f) => f.carpeta === n), null); return { nombre: n, filas, por_aprobar: pend(filas) } })
+    return { id: c.id, nombre: c.nombre, carpetas, por_aprobar: pend(c.filas), total: c.filas.length }
+  }).sort((a, b) => b.por_aprobar - a.por_aprobar || a.nombre.localeCompare(b.nombre, "es"))
+}
+
+/** «2 por aprobar · 6 en total» / «6 piezas» */
+export function cuentaDeLaCarpeta(o: { por_aprobar: number; total: number }): string {
+  return o.por_aprobar ? `${o.por_aprobar} por aprobar · ${o.total} en total` : o.total === 1 ? "1 pieza" : `${o.total} piezas`
+}
+
+export type CampoEditable = "encabezado" | "titular" | "cuerpo" | "pie"
+export const CAMPO_LEGIBLE: Record<CampoEditable, string> = { encabezado: "Encabezado", titular: "Titular", cuerpo: "Cuerpo", pie: "Pie de la publicación" }
+
+/** un texto que Emilio cambió a mano; como la lámina ya va dibujada, la oficina la vuelve a dibujar con el texto nuevo (es un pedido de cambios) */
+export interface Edicion { lamina: number | null; campo: CampoEditable; antes: string | null; despues: string }
+
+/** agrega o reemplaza la edición del mismo campo de la misma lámina; una edición igual al texto original se descarta */
+export function conEdicion(lista: Edicion[], e: Edicion): Edicion[] {
+  const sin = lista.filter((x) => !(x.lamina === e.lamina && x.campo === e.campo))
+  const d = e.despues.trim()
+  if (!d || d === (e.antes ?? "").trim()) return sin
+  return [...sin, { ...e, despues: d }].sort((a, b) => (a.lamina ?? 99) - (b.lamina ?? 99))
+}
+
+/** las láminas que tocan las ediciones (el pie no es de una lámina) */
+export const laminasDeLasEdiciones = (lista: Edicion[]): number[] => [...new Set(lista.map((e) => e.lamina).filter((n): n is number => n != null))].sort((a, b) => a - b)
+
+/** el pedido de cambios que la oficina lee, con cada texto exacto; cabe en el límite del servidor o se dice */
+export function comentarioDeEdiciones(lista: Edicion[], libre: string): { comentario: string } | { error: string } {
+  const lineas = lista.map((e) => `${e.lamina != null ? `Lámina ${e.lamina} · ` : ""}${CAMPO_LEGIBLE[e.campo]}: ${e.antes ? `cambiar «${e.antes}» por «${e.despues}»` : `poner «${e.despues}»`}`)
+  const partes = [lineas.length ? `Cambios de texto pedidos por el dueño (el texto final va exacto, sin reinterpretar):\n${lineas.map((l) => `- ${l}`).join("\n")}` : "", libre.trim() ? (lineas.length ? `Además: ${libre.trim()}` : libre.trim()) : ""].filter(Boolean)
+  const comentario = partes.join("\n")
+  if (comentario.length < COMENTARIO_MINIMO) return { error: `Cuenta qué quieres distinto (al menos ${COMENTARIO_MINIMO} letras) o edita un texto.` }
+  if (comentario.length > COMENTARIO_MAXIMO) return { error: `El pedido pasa de ${COMENTARIO_MAXIMO} caracteres: acorta los textos o mándalo en dos rondas.` }
+  return { comentario }
+}
