@@ -11,9 +11,9 @@ const enlaces = (html: string) => [...html.matchAll(/<a [^>]*?href="([^"]+)"/g)]
 describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
   it("de la escena solo son clicables DOS cosas: el monolito (cerebro) y las pantallas y el proyector (oficinas)", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
-    expect(enlaces(html).sort()).toEqual(["/oficinas", "/oficinas#cerebro"])
-    expect(ZONAS.map((z) => z.clave)).toEqual(["cerebro", "oficinas"])
-    expect(ZONAS[1].formas.length).toBe(4) // el proyector y las tres pantallas
+    expect(enlaces(html).sort()).toEqual(["/nuevo/marketing", "/oficinas#cerebro"])
+    expect(ZONAS.map((z) => z.clave)).toEqual(["cerebro", "marketing"])
+    expect(ZONAS[1].formas.length).toBe(1) // la plataforma de marketing (la pantalla de pie queda libre para «En vivo»)
   })
   it("las zonas caen dentro del recorte de la imagen (si no, el clic no coincidiría con el dibujo)", () => {
     for (const z of ZONAS) for (const f of z.formas) for (const par of f.split(" ")) {
@@ -53,10 +53,10 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
     expect(html).not.toMatch(/<input|<textarea|<form|<button|onSubmit|href=/)
   })
   it("es dibujo propio y de servidor: sin recursos externos ni JavaScript de navegador; la marca es la nuestra", () => {
-    const todo = ["components/nuevo/EscenaNuevo.tsx", "components/nuevo/MarcoNuevo.tsx", "app/nuevo/page.tsx"].map(leer).join("\n")
+    const todo = ["components/nuevo/EscenaNuevo.tsx", "components/nuevo/MarcoNuevo.tsx", "app/nuevo/page.tsx", "app/nuevo/marketing/page.tsx", "components/nuevo/PantallaNuevo.tsx"].map(leer).join("\n")
     expect(todo).not.toContain('"use client"')
     expect(todo.replace(/xmlns="http:\/\/www\.w3\.org\/2000\/svg"/g, "")).not.toMatch(/https?:\/\//i)
-    const html = [EscenaNuevo, BarraSuperior, MenuLateral, BarraDeChat].map((c) => renderToStaticMarkup(createElement(c))).join("")
+    const html = [createElement(EscenaNuevo), createElement(BarraSuperior), createElement(MenuLateral), createElement(BarraDeChat)].map((e) => renderToStaticMarkup(e)).join("")
     expect(html).not.toMatch(/airrived/i)
     expect(html).toContain("Zero Risk")
   })
