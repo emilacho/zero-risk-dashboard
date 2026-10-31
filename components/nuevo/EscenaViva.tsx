@@ -43,12 +43,16 @@ export const FUNDIDO_BORDES = "linear-gradient(to bottom,transparent 0,#000 8%,#
 /** 5.10 · la foto grande lleva un HUECO suave en su esquina inferior izquierda (ahí solo tiene margen negro) para que la miniatura de la escena, que queda
  *  debajo, se vea todo el tiempo mientras se encoge y se atenúa: sin cambios de capa ni saltos. El hueco se calcula en píxeles sobre la miniatura real
  *  y va en la CAPA fija (coordenadas de ventana), no en la foto, para que no se mueva ni se encoja con ella mientras crece. */
-export const HOLGURA_HUECO = { x: 1.45, y: 1.6, nitido: 0.72 }
+/** 5.12 · el hueco es apenas mayor que la miniatura y se cierra de a poco desde el 55 %: la franja exterior de la miniatura queda cubierta por la propia foto
+ *  (su margen oscuro), así que sus bordes rectos no se ven; las plataformas (el 70 % central) quedan en la zona limpia. */
+export const HOLGURA_HUECO = { x: 1.12, y: 1.15, nitido: 0.55 }
 export const OVALO_SALA = `radial-gradient(ellipse 40% 46% at ${SALA_EN_LA_FOTO.cx * 100}% ${SALA_EN_LA_FOTO.cy * 100}%,#000 55%,transparent 100%)`
 
 const ESTILO = `
 .nv-fondo{transition:opacity 1.1s ease,transform 1.2s cubic-bezier(.55,0,.15,1);transform-origin:0% 100%}
 .nv-fondo[data-atenuado="true"]{opacity:${OPACIDAD_FONDO_ABIERTO};transform:scale(${ESCALA_FONDO_ABIERTO});pointer-events:none;position:relative;transition-delay:${RETARDO_ESCENA_MS}ms}
+.nv-fondo[data-atenuado="true"][data-resaltada="true"]{opacity:.6;transition:opacity .3s ease}
+.nv-volver{background:transparent;border:0;padding:0;cursor:pointer}
 .nv-capa{-webkit-mask-image:var(--nv-hueco,none);mask-image:var(--nv-hueco,none)}
 .nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}
 .nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.55,0,.15,1) both}
@@ -93,9 +97,12 @@ const cajaDeLaPlataforma = (): Caja | null => {
 
 /** 5.10 · el hueco de la foto grande: dónde va a quedar la miniatura (la escena encogida a ESCALA_FONDO_ABIERTO desde la esquina inferior izquierda de su marco),
  *  en coordenadas de la capa fija, con holgura; se usa como máscara de la capa (lo de adentro del óvalo queda transparente) */
-export const huecoParaLaMiniatura = (marco: Caja, escena: { w: number; h: number }, final: Caja, escala = ESCALA_FONDO_ABIERTO) => {
+export const cajaDeLaMiniatura = (marco: Caja, escena: { w: number; h: number }, escala = ESCALA_FONDO_ABIERTO): Caja => {
   const ex = marco.x + (marco.w - escena.w) / 2, ey = marco.y + (marco.h - escena.h) / 2 // la escena centrada en su marco, sin transformar
-  const mini = { x: marco.x + (ex - marco.x) * escala, y: marco.y + marco.h - (marco.y + marco.h - ey) * escala, w: escena.w * escala, h: escena.h * escala }
+  return { x: marco.x + (ex - marco.x) * escala, y: marco.y + marco.h - (marco.y + marco.h - ey) * escala, w: escena.w * escala, h: escena.h * escala }
+}
+export const huecoParaLaMiniatura = (marco: Caja, escena: { w: number; h: number }, final: Caja, escala = ESCALA_FONDO_ABIERTO) => {
+  const mini = cajaDeLaMiniatura(marco, escena, escala)
   const cx = mini.x + mini.w / 2 - final.x, cy = mini.y + mini.h / 2 - final.y
   const rx = (mini.w / 2) * HOLGURA_HUECO.x, ry = (mini.h / 2) * HOLGURA_HUECO.y
   return `radial-gradient(ellipse ${rx.toFixed(1)}px ${ry.toFixed(1)}px at ${cx.toFixed(1)}px ${cy.toFixed(1)}px,transparent ${Math.round(HOLGURA_HUECO.nitido * 100)}%,#000 100%)`
@@ -111,6 +118,7 @@ export const transformacionDesdeLaPlataforma = (plataforma: Caja, final: Caja) =
 
 export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
   const [fase, setFase] = useState<Fase>(inicial ? "abierto" : "cerrado")
+  const [sobreLaMiniatura, setSobreLaMiniatura] = useState(false) // 5.12 · la miniatura se aclara un poco al pasar el ratón: avisa que es clicable
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
   const proy = useRef<HTMLDivElement>(null)
   const origen = useRef<Caja | null>(null)
@@ -145,6 +153,10 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       const marco = { x: m.x + fondo.offsetLeft, y: m.y + fondo.offsetTop, w: fondo.offsetWidth, h: fondo.offsetHeight }
       const capa = el.parentElement as HTMLElement; const c = capa.getBoundingClientRect()
       capa.style.setProperty("--nv-hueco", huecoParaLaMiniatura(marco, { w: escena.offsetWidth, h: escena.offsetHeight }, { x: c.x, y: c.y, w: c.width, h: c.height }))
+      // 5.12 · dónde queda la miniatura, para el botón invisible que la hace clicable (vuelve a la sala principal)
+      const mini = cajaDeLaMiniatura(marco, { w: escena.offsetWidth, h: escena.offsetHeight })
+      capa.style.setProperty("--nv-mini-x", `${(mini.x - c.x).toFixed(1)}px`); capa.style.setProperty("--nv-mini-y", `${(mini.y - c.y).toFixed(1)}px`)
+      capa.style.setProperty("--nv-mini-w", `${mini.w.toFixed(1)}px`); capa.style.setProperty("--nv-mini-h", `${mini.h.toFixed(1)}px`)
     }
     if (fase !== "entra" && fase !== "sale") return
     const plataforma = origen.current ?? cajaDeLaPlataforma()
@@ -175,11 +187,19 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       <style>{ESTILO}</style>
       {/* la escena principal: miniatura translúcida en la esquina inferior izquierda mientras el departamento está proyectado */}
       {/* la escena principal SIEMPRE debajo de la foto del departamento (una sola transición continua hasta la esquina); la foto la deja ver por su hueco (5.10) */}
-      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
+      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} data-resaltada={fase === "abierto" && sobreLaMiniatura} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
         <EscenaNuevo alAbrirMarketing={() => abrir()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
       {fase !== "cerrado" && (
         <div className="nv-capa fixed inset-0 z-[5] flex items-center justify-center" onClick={() => abierta && cerrar()}>
+          {/* 5.12 · la miniatura es clicable: un botón invisible justo encima de ella (medido en el mismo efecto que el hueco) vuelve a la sala principal */}
+          {fase === "abierto" && (
+            <button type="button" className="nv-volver fixed z-[6] rounded-lg focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a]"
+              style={{ left: "var(--nv-mini-x)", top: "var(--nv-mini-y)", width: "var(--nv-mini-w)", height: "var(--nv-mini-h)" }}
+              aria-label="Volver a la sala principal" title="Volver a la sala principal"
+              onMouseEnter={() => setSobreLaMiniatura(true)} onMouseLeave={() => setSobreLaMiniatura(false)}
+              onClick={(e) => { e.stopPropagation(); setSobreLaMiniatura(false); cerrar() }} />
+          )}
           <div ref={proy} className="nv-proy relative aspect-video shrink-0" data-fase={fase === "sale" ? "sale" : fase === "entra" ? "entra" : "abierto"}
             style={{ width: ANCHO_MARKETING_ABIERTO }} onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
-import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, huecoParaLaMiniatura, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
+import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, cajaDeLaMiniatura, huecoParaLaMiniatura, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -108,7 +108,13 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(abierta).toContain(`.nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}`)
     // geometría del hueco: marco 0,0 1000×600 con la escena 800×450 centrada → encogida al 30 % desde la esquina inferior izquierda queda en x 30..270 · y 442,5..577,5; foto final en 0,0
     const hueco = huecoParaLaMiniatura({ x: 0, y: 0, w: 1000, h: 600 }, { w: 800, h: 450 }, { x: 0, y: 0, w: 1500, h: 843 })
-    expect(hueco).toBe(`radial-gradient(ellipse ${(120 * 1.45).toFixed(1)}px ${(67.5 * 1.6).toFixed(1)}px at 150.0px 510.0px,transparent 72%,#000 100%)`)
+    expect(cajaDeLaMiniatura({ x: 0, y: 0, w: 1000, h: 600 }, { w: 800, h: 450 })).toEqual({ x: 30, y: 442.5, w: 240, h: 135 })
+    // 5.12: hueco apenas mayor que la miniatura (1,12× · 1,15×) y que se cierra desde el 55 %: la foto cubre la franja exterior de la miniatura y no se le ven los bordes
+    expect(hueco).toBe(`radial-gradient(ellipse ${(120 * 1.12).toFixed(1)}px ${(67.5 * 1.15).toFixed(1)}px at 150.0px 510.0px,transparent 55%,#000 100%)`)
+    // 5.12: la miniatura es clicable y vuelve a la sala principal (botón invisible encima, con sus medidas por variables), y se aclara al pasar el ratón
+    expect(abierta).toMatch(/<button[^>]*class="nv-volver fixed z-\[6\][^"]*"[^>]*aria-label="Volver a la sala principal"/)
+    expect(abierta).toContain("left:var(--nv-mini-x);top:var(--nv-mini-y);width:var(--nv-mini-w);height:var(--nv-mini-h)")
+    expect(abierta).toContain('.nv-fondo[data-atenuado="true"][data-resaltada="true"]{opacity:.6;transition:opacity .3s ease}')
     // el origen de la transformación en la esquina inferior izquierda es lo que manda la miniatura ahí al encoger
     expect(abierta).toContain(".nv-fondo{transition:opacity 1.1s ease,transform 1.2s cubic-bezier(.55,0,.15,1);transform-origin:0% 100%}") // 5.11: mismo impulso que la oficina
     expect(abierta).not.toMatch(/blur\(/)
