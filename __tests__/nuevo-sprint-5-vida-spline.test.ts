@@ -44,7 +44,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(abierta).toContain("@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}")
     // 5.13: la salida ya no es una animación fija hacia el sitio final: se calcula cuadro a cuadro hacia donde la plataforma está (la hoja de estilo solo deja el fundido de respaldo)
     expect(abierta).toContain("@keyframes nvSale{from{opacity:1}to{opacity:0}}")
-    expect(abierta).toContain('data-atenuado={fase === "entra" || fase === "abierto"}') // la escena vuelve DURANTE la salida, no después
+    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('data-atenuado={fase === "entra" || fase === "abierto"}') // la escena vuelve DURANTE la salida, no después (se lee la fuente: la fase «sale» no se renderiza en servidor)
     expect(abierta).toContain('.nv-proy[data-fase="sale"]{animation:nvSale 1200ms linear both}')
     expect(abierta).not.toContain("transform:none}45%")
     // misma curva que la escena: arranca lenta, toma impulso, llega suave; monótona
