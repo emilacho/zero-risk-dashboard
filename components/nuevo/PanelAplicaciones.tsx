@@ -5,6 +5,7 @@ import type { Pizarron } from "@/lib/pizarron-datos"
 import { APLICACIONES, type ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
 import { PanelPizarron, textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { PanelManual } from "@/components/nuevo/PanelManual"
+import { PanelPlan } from "@/components/nuevo/PanelPlan"
 
 const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
@@ -74,7 +75,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
 
   const volverAlInicio = useCallback(() => setVista("inicio"), [])
   if (vista === "calendario") return <PanelPizarron onCerrar={volverAlInicio} datosIniciales={datos} />
-  if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} />
+  if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (

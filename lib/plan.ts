@@ -1,0 +1,289 @@
+/**
+ * PLAN DE 90 DÍAS (CC5 · 31-oct · sprint 6.5 de /nuevo · Emilio: «ya no uses el dashboard viejo… así con todo»). Lógica PURA (sin red ni base).
+ * El plan de un cliente vive en tres sitios reales y aquí se leen los tres sin rellenar nada:
+ *  · el DOCUMENTO que escribió la oficina de planeación (`client_historical_outputs` · `output_type = campaign_plan_90d`): `content_text` es un bloque de
+ *    datos dentro de una cerca ```json (meta semanal · zonas · horario · canales con peso · producción · marca · lo que no se sabe · la decisión de
+ *    equilibrio) y `provenance_tag` trae el estado del plan y las marcas del chequeo (P3, P4, P9, P10b…);
+ *  · la ESTRATEGIA versionada de la cadena (`cadena_estrategias.contenido`: fases · redes con rol y frecuencia · pilares · patrón semanal · pendientes ·
+ *    alertas · dependencias · fechas que importan · hitos · piezas fijas · excluidos);
+ *  · la CAMPAÑA (`cadena_campanas`: estado y motivo · ventana · sedes · tope de planeación) y lo que ESPERA (`cadena_esperas`).
+ * La decisión sobre un plan «con puntos por resolver» es una fila de la bandeja (`hitl_queue` · `plan_con_pendientes`) y se resuelve por la acción del
+ * tablero `revision-resolver` (la misma que usa la bandeja de siempre): aquí solo se arma el cuerpo que ese servidor valida.
+ */
+import type { FasesDelPlan } from "@/lib/clientes"
+import { fasesDelPlan } from "@/lib/clientes"
+import { DIAS_DE_LA_SEMANA } from "@/lib/pizarron"
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const texto = (v: unknown): string => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "")
+const numero = (v: unknown): number | null => { if (v === null || v === undefined || v === "") return null; const n = Number(v); return Number.isFinite(n) ? n : null }
+const objeto = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
+const lista = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x)) : [])
+const textos = (v: unknown): string[] => (Array.isArray(v) ? v.map(texto).filter(Boolean) : texto(v) ? [texto(v)] : [])
+
+// ── el documento del plan ──
+export interface CanalDelPlan { canal: string; peso: number | null; activo: boolean; condicion: string | null }
+export interface PlanLeido {
+  meta_por_semana: number | null
+  /** qué se cuenta («visita al local») */
+  evento: string | null
+  zonas: string[]
+  horario: string | null
+  dias_activos_por_semana: number | null
+  canales: CanalDelPlan[]
+  /** fracción del esfuerzo que va a producción y a marca (0–1) */
+  produccion_fraccion: number | null
+  marca_fraccion: number | null
+  /** lo que el plan declara que no sabe */
+  no_se: string[]
+  equilibrio: { decision: string | null; motivo: string | null } | null
+  /** claves del bloque que esta lectura no interpreta (se dicen, no se esconden) */
+  otras_claves: string[]
+}
+const CLAVES_LEIDAS = new Set(["meta_por_semana", "evento", "zonas", "dias_y_horarios", "canales", "produccion", "marca", "no_se", "equilibrio_respuesta"])
+
+/** quita la cerca ```json … ``` si la hay y devuelve el JSON o null */
+function jsonDeLaCerca(t: string): unknown | null {
+  const m = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const cuerpo = (m ? m[1] : t).trim()
+  if (!cuerpo.startsWith("{") && !cuerpo.startsWith("[")) return null
+  try { return JSON.parse(cuerpo) } catch { return null }
+}
+
+/** el texto guardado del plan: un bloque de datos (lo normal) o prosa (se devuelve tal cual) */
+export function planDelTexto(contenido: unknown): { plan: PlanLeido | null; prosa: string | null } {
+  const t = texto(contenido)
+  if (!t) return { plan: null, prosa: null }
+  const j = jsonDeLaCerca(t)
+  if (!j || typeof j !== "object" || Array.isArray(j)) return { plan: null, prosa: t }
+  const o = j as Record<string, unknown>
+  const dh = objeto(o.dias_y_horarios)
+  const eq = objeto(o.equilibrio_respuesta)
+  return {
+    prosa: null,
+    plan: {
+      meta_por_semana: numero(o.meta_por_semana),
+      evento: texto(o.evento) || null,
+      zonas: textos(o.zonas),
+      horario: texto(dh.horario) || null,
+      dias_activos_por_semana: numero(dh.dias_activos_por_semana),
+      canales: lista(o.canales).map((c) => ({ canal: texto(c.canal), peso: numero(c.peso), activo: c.activo !== false, condicion: texto(c.condicion) || null })).filter((c) => c.canal),
+      produccion_fraccion: numero(objeto(o.produccion).fraccion),
+      marca_fraccion: numero(o.marca),
+      no_se: textos(o.no_se),
+      equilibrio: Object.keys(eq).length ? { decision: texto(eq.decision) || null, motivo: texto(eq.motivo) || null } : null,
+      otras_claves: Object.keys(o).filter((k) => !CLAVES_LEIDAS.has(k)),
+    },
+  }
+}
+
+/** los canales del plan (nombres internos de la planeación) en palabras */
+export function canalDelPlanLegible(canal: unknown): string {
+  switch (texto(canal)) {
+    case "meta_ig": return "Instagram y Facebook (Meta)"
+    case "busqueda_local": return "Búsqueda local (Google y mapas)"
+    case "video_corto": return "Video corto (reels, TikTok, shorts)"
+    case "base_propia": return "Base propia (WhatsApp y clientes que vuelven)"
+    case "influencers": return "Influencers"
+    case "email": return "Correo"
+    case "pauta": return "Pauta pagada"
+    default: { const s = texto(canal).replace(/_/g, " "); return s ? s[0].toUpperCase() + s.slice(1) : "—" }
+  }
+}
+export const decisionDeEquilibrioLegible = (d: unknown): string => {
+  switch (texto(d)) {
+    case "mantengo_la_meta": return "Se mantiene la meta"
+    case "subo_la_meta": return "Se sube la meta"
+    case "bajo_la_meta": return "Se baja la meta"
+    default: { const s = texto(d).replace(/_/g, " "); return s ? s[0].toUpperCase() + s.slice(1) : "Sin decisión declarada" }
+  }
+}
+/** «20 %» de una fracción 0–1 (o de un porcentaje ya en 0–100) */
+export function porcentaje(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—"
+  const p = v <= 1 ? v * 100 : v
+  return `${Math.round(p * 10) / 10 === Math.round(p) ? Math.round(p) : (Math.round(p * 10) / 10).toLocaleString("es-EC")} %`
+}
+/** «115 visitas al local por semana» con lo que el plan declara como evento; si no lo dice, solo la cifra */
+export function textoDeLaMeta(p: Pick<PlanLeido, "meta_por_semana" | "evento">): string | null {
+  if (p.meta_por_semana == null) return null
+  const e = p.evento ? ` · ${p.evento}` : ""
+  return `${p.meta_por_semana.toLocaleString("es-EC")} por semana${e}`
+}
+
+// ── la estrategia ──
+export interface RedDeLaEstrategia { red: string; rol: string; motivo: string; formatos: string[]; feed_semana: number; historias_semana: number; anuncios_semana: number }
+export interface PilarDeLaEstrategia { clave: string; nombre: string; pct: number }
+export interface HitoDeLaEstrategia { clave: string; dia: number; tipo: string; cita_plan: string }
+export interface DependenciaDeLaEstrategia { antes: string; despues: string; regla: string }
+export interface FechaQueImporta { tipo: string; ambito: string; origen: string; motivo: string }
+export interface SlotSemanal { slot: string; dia_semana: number; hora: string; red: string; formato: string; pilar: string; sede: string | null; requiere_abierto: boolean }
+export interface PiezaFijaDeLaEstrategia { clave: string; semana: number; slot: string; tema: string }
+export interface PendienteDeLaEstrategia { clave: string; que_falta: string; desbloquea: string[]; pedir_a: string }
+export interface AlertaDeLaEstrategia { texto: string; ref: string }
+export interface EstrategiaLeida {
+  fases: FasesDelPlan[]
+  redes: RedDeLaEstrategia[]
+  excluidos: Array<{ red: string; cita_plan: string }>
+  pilares: PilarDeLaEstrategia[]
+  hitos: HitoDeLaEstrategia[]
+  dependencias: DependenciaDeLaEstrategia[]
+  fechas_que_importan: FechaQueImporta[]
+  patron_semanal: SlotSemanal[]
+  piezas_fijas: PiezaFijaDeLaEstrategia[]
+  pendientes: PendienteDeLaEstrategia[]
+  alertas: AlertaDeLaEstrategia[]
+}
+
+/** el contenido de `cadena_estrategias` leído con tolerancia: lo que falta queda vacío (y la pantalla lo dice), nada se inventa */
+export function estrategiaDelContenido(contenido: unknown): EstrategiaLeida {
+  const c = objeto(contenido)
+  const n0 = (v: unknown) => numero(v) ?? 0
+  return {
+    fases: fasesDelPlan(c),
+    redes: lista(c.canales).map((x) => { const f = objeto(x.frecuencia); return { red: texto(x.red), rol: texto(x.rol), motivo: texto(x.motivo), formatos: textos(x.formatos), feed_semana: n0(f.feed_semana), historias_semana: n0(f.historias_semana), anuncios_semana: n0(f.anuncios_semana) } }).filter((x) => x.red),
+    excluidos: lista(c.excluidos).map((x) => ({ red: texto(x.red), cita_plan: texto(x.cita_plan) })).filter((x) => x.red),
+    pilares: lista(c.pilares).map((x) => ({ clave: texto(x.clave), nombre: texto(x.nombre) || texto(x.clave), pct: n0(x.pct) })).filter((x) => x.clave),
+    hitos: lista(c.hitos).map((x) => ({ clave: texto(x.clave), dia: n0(x.dia), tipo: texto(x.tipo), cita_plan: texto(x.cita_plan) })).filter((x) => x.clave),
+    dependencias: lista(c.dependencias).map((x) => ({ antes: texto(x.antes), despues: texto(x.despues), regla: texto(x.regla) })).filter((x) => x.antes || x.despues),
+    fechas_que_importan: lista(c.fechas_que_importan).map((x) => ({ tipo: texto(x.tipo), ambito: texto(x.ambito), origen: texto(x.origen), motivo: texto(x.motivo) })).filter((x) => x.tipo),
+    patron_semanal: lista(c.patron_semanal).map((x) => ({ slot: texto(x.slot), dia_semana: n0(x.dia_semana), hora: texto(x.hora), red: texto(x.red), formato: texto(x.formato), pilar: texto(x.pilar), sede: texto(x.sede) || null, requiere_abierto: x.requiere_abierto === true })).filter((x) => x.dia_semana >= 1 && x.dia_semana <= 7).sort((a, b) => a.dia_semana - b.dia_semana || a.hora.localeCompare(b.hora)),
+    piezas_fijas: lista(c.piezas_fijas).map((x) => ({ clave: texto(x.clave), semana: n0(x.semana), slot: texto(x.slot), tema: texto(x.tema) })).filter((x) => x.clave),
+    pendientes: lista(c.pendientes).map((x) => ({ clave: texto(x.clave), que_falta: texto(x.que_falta), desbloquea: textos(x.desbloquea), pedir_a: texto(x.pedir_a) })).filter((x) => x.que_falta),
+    alertas: lista(c.alertas).map((x) => ({ texto: texto(x.texto), ref: texto(x.ref) })).filter((x) => x.texto),
+  }
+}
+
+export function rolDeLaRedLegible(rol: unknown): string {
+  switch (texto(rol)) { case "principal": return "principal"; case "replica": return "réplica"; case "no": return "no se usa"; default: return texto(rol) || "—" }
+}
+/** a quién se le pide un dato que falta: nunca al dueño del negocio (regla de la cadena) */
+export function pedirALegible(p: unknown): string {
+  switch (texto(p)) { case "portero": return "lo busca el cerebro del cliente"; case "sistema": return "lo investiga el sistema con fuente"; default: return texto(p) ? texto(p).replace(/_/g, " ") : "sin asignar" }
+}
+export function tipoDeHitoLegible(t: unknown): string {
+  switch (texto(t)) { case "revision": return "revisión de resultados"; case "lanzamiento": return "lanzamiento"; case "corte": return "corte"; default: return texto(t).replace(/_/g, " ") || "hito" }
+}
+export function origenDeLaFechaLegible(o: unknown): string {
+  switch (texto(o)) { case "plan": return "la trae el plan"; case "estrategia": return "la puso la estrategia"; case "alta": return "firmada en el alta"; default: return texto(o) || "—" }
+}
+/** la referencia de una alerta («sede:uuid» · «manual:uuid») en palabras: de dónde salió */
+export function fuenteDeLaAlertaLegible(ref: unknown): string {
+  const r = texto(ref)
+  if (/^sede:/i.test(r)) return "por una sede"
+  if (/^manual:/i.test(r)) return "por el manual de marca"
+  if (/^plan:/i.test(r)) return "por el plan"
+  if (/^trozo:|^ficha:/i.test(r)) return "por el cerebro"
+  return r ? "por una fuente del cliente" : ""
+}
+export const diaDeLaSemanaLegible = (n: number): string => DIAS_DE_LA_SEMANA[n - 1] ?? "—"
+/** la semana del patrón, de lunes a domingo, con sus huecos (un día sin publicaciones se ve vacío, no desaparece) */
+export function semanaDelPatron(slots: SlotSemanal[]): Array<{ dia: number; nombre: string; slots: SlotSemanal[] }> {
+  return DIAS_DE_LA_SEMANA.map((nombre, i) => ({ dia: i + 1, nombre, slots: slots.filter((s) => s.dia_semana === i + 1) }))
+}
+/** cuántas publicaciones por semana suma la estrategia (feed + historias + anuncios de todas las redes) */
+export function publicacionesPorSemana(redes: RedDeLaEstrategia[]): { feed: number; historias: number; anuncios: number; total: number } {
+  const t = { feed: 0, historias: 0, anuncios: 0, total: 0 }
+  for (const r of redes) { t.feed += r.feed_semana; t.historias += r.historias_semana; t.anuncios += r.anuncios_semana }
+  t.total = t.feed + t.historias + t.anuncios
+  return t
+}
+
+// ── el estado del plan, el chequeo y la jefatura (de `provenance_tag` del documento) ──
+export interface MarcaDelChequeo { codigo: string; texto: string }
+/** «P3 · lleva nombres internos · P4 · presupuesto incompleto (…) · P9 · …» → una marca por código; lo que no empieza por un código se pega al anterior */
+export function marcasDelChequeo(pendientes: unknown): MarcaDelChequeo[] {
+  const t = texto(pendientes)
+  if (!t) return []
+  const partes = t.split(" · ").map((s) => s.trim()).filter(Boolean)
+  const out: MarcaDelChequeo[] = []
+  for (const p of partes) {
+    if (/^P\d+[a-z]?$/i.test(p)) out.push({ codigo: p.toUpperCase(), texto: "" })
+    else if (out.length) out[out.length - 1].texto = out[out.length - 1].texto ? `${out[out.length - 1].texto} · ${p}` : p
+    else out.push({ codigo: "", texto: p })
+  }
+  return out
+}
+export function estadoDelPlanLegible(e: unknown): string {
+  switch (texto(e)) {
+    case "con_pendientes": return "Con puntos por resolver"
+    case "listo": case "limpio": return "Sin puntos por resolver"
+    case "aprobado": return "Aprobado"
+    case "rechazado": return "Con cambios pedidos"
+    default: return texto(e) ? texto(e).replace(/_/g, " ") : "Sin estado declarado"
+  }
+}
+export function resultadoDeJefaturaDelPlanLegible(r: unknown): string {
+  switch (texto(r)) {
+    case "con_desacuerdo": return "La jefatura dejó desacuerdos"
+    case "limpia": case "sin_desacuerdo": return "La jefatura no objetó"
+    case "pendiente": return "La jefatura todavía revisa"
+    default: return texto(r) ? `Jefatura: ${texto(r).replace(/_/g, " ")}` : "Sin revisión de la jefatura"
+  }
+}
+/** el aviso del chequeo del sistema (un bloque con encabezado «## Revisión del plan…» y una viñeta larga separada por « · ») → una lista de puntos */
+export function puntosDelAviso(aviso: unknown): string[] {
+  const t = texto(aviso)
+  if (!t) return []
+  const sinTitulos = t.split("\n").filter((l) => !/^\s*#{1,6}\s/.test(l)).join("\n")
+  const sinPrefijo = sinTitulos.replace(/^\s*-\s*/gm, "").replace(/^\s*Antes de enviarlo al cliente hay que revisar:\s*/i, "").trim()
+  return sinPrefijo.split(/\s·\s|\n+/).map((s) => s.trim()).filter(Boolean)
+}
+/** «## Lo que NO se buscó y por qué…\n- a · b · c\n- …» → una línea por punto, sin el encabezado */
+export function puntosDeLoNoBuscado(bloque: unknown): string[] {
+  const t = texto(bloque)
+  if (!t) return []
+  return t.split("\n").filter((l) => !/^\s*#{1,6}\s/.test(l)).map((l) => l.replace(/^\s*-\s*/, "").trim()).filter(Boolean)
+}
+
+// ── lo que espera la campaña ──
+export interface EsperaCruda { objeto_tipo: string; motivo: string | null; vence_en: string | null; estado: string }
+export interface GrupoDeEsperas { tipo: string; etiqueta: string; n: number; vence_primero: string | null }
+export function tipoDeEsperaLegible(tipo: unknown, motivo?: string | null): string {
+  switch (texto(tipo)) {
+    case "espera_video": return "publicaciones que esperan el brazo de video (aún no construido)"
+    case "dato_en_investigacion": return "datos de publicaciones que se investigan con fuente"
+    case "aprobacion_bandeja": return "piezas que esperan tu aprobación en la bandeja"
+    case "campana_pausada": return "la campaña está en pausa: se revisa en el resumen semanal"
+    case "fecha_inicio_propuesta": return "la fecha de inicio queda firme el día anterior"
+    case "necesita_humano": return "necesita a una persona"
+    case "estrategia": return "la estrategia espera revisión"
+    case "calendario": return "el calendario espera revisión"
+    default: return texto(motivo) || texto(tipo).replace(/_/g, " ") || "espera"
+  }
+}
+/** solo las vivas, agrupadas por tipo, de más a menos; cada grupo dice cuándo vence la primera */
+export function agruparEsperas(esperas: EsperaCruda[]): GrupoDeEsperas[] {
+  const m = new Map<string, GrupoDeEsperas>()
+  for (const e of esperas) {
+    if (e.estado !== "viva") continue
+    const g = m.get(e.objeto_tipo) ?? { tipo: e.objeto_tipo, etiqueta: tipoDeEsperaLegible(e.objeto_tipo, e.motivo), n: 0, vence_primero: null }
+    g.n += 1
+    if (e.vence_en && (!g.vence_primero || e.vence_en < g.vence_primero)) g.vence_primero = e.vence_en
+    m.set(e.objeto_tipo, g)
+  }
+  return [...m.values()].sort((a, b) => b.n - a.n || a.etiqueta.localeCompare(b.etiqueta, "es"))
+}
+
+// ── la decisión sobre el plan (bandeja `plan_con_pendientes` · acción `revision-resolver`) ──
+export const BOTONES_DEL_PLAN = { aprobar: "Aprobar el plan así", rechazar: "Pedir cambios al plan" } as const
+/** el cuerpo que valida el servidor del tablero: la revisión, la decisión y el porqué (obligatorio al pedir cambios, de 5 a 1.000 caracteres) */
+export function cuerpoDeResolucion(hitlId: string | null, decision: "aprobar" | "rechazar", comentario: string): { hitl_id: string; decision: "aprobar" | "rechazar"; comentario?: string } | { error: string } {
+  if (!hitlId || !UUID.test(hitlId)) return { error: "No hay una revisión del plan que decidir" }
+  const t = comentario.trim()
+  if (t.length > 1000) return { error: "Máximo 1.000 caracteres" }
+  if (decision === "rechazar" && t.length < 5) return { error: "Cuenta qué debe cambiar (al menos 5 caracteres)" }
+  return { hitl_id: hitlId, decision, ...(t ? { comentario: t } : {}) }
+}
+/** la decisión ya tomada (columna `decision` de la bandeja) en palabras */
+export function decisionDelPlanLegible(status: unknown, decision: unknown): string | null {
+  const s = texto(status)
+  if (s === "pending" || !s) return null
+  const d = objeto(decision)
+  const r = texto(d.resultado)
+  if (r) return r[0].toUpperCase() + r.slice(1)
+  return s === "approved" ? "Aprobado" : s === "rejected" ? "Cambios pedidos" : s === "edited" ? "Con cambios" : s
+}
+/** las sedes y zonas de la campaña («olon» · «olon_santa_elena» · «guayaquil») en palabras: las claves conocidas con su tilde, el resto con mayúscula */
+const SEDES_CONOCIDAS: Record<string, string> = { olon: "Olón", olon_santa_elena: "Olón (Santa Elena)", guayaquil: "Guayaquil", quito: "Quito", cuenca: "Cuenca", manta: "Manta", montanita: "Montañita", salinas: "Salinas" }
+export const sedeLegible = (s: unknown): string => { const k = texto(s).toLowerCase(); if (SEDES_CONOCIDAS[k]) return SEDES_CONOCIDAS[k]; const t = k.replace(/_/g, " "); return t ? t[0].toUpperCase() + t.slice(1) : "—" }
