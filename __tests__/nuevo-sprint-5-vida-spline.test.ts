@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync, statSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
-import { EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
+import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
@@ -25,23 +25,31 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(html).not.toMatch(/<img[^>]*(filter|opacity)/)
     expect(html).toMatch(/\.nv-escena\{[^}]*background:#000;box-shadow:0 0 140px 100px #000/)
   })
-  it("5.3 · al pasar por un departamento se ilumina SOLO la superficie de su plataforma: luz suave recortada a la cara, sin campo naranja ni línea dura alrededor", () => {
+  it("5.3/5.4 · al pasar por Dept. Marketing se enciende la ESTRUCTURA ENTERA con una imagen real generada (no una figura pintada); sin campo naranja ni línea dura", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
     expect(html).not.toMatch(/drop-shadow/)
     expect(html).not.toMatch(/stroke:rgba\(255,1[67]0/)
     expect(html).toMatch(/\.nv-zona polygon\{[^}]*stroke:none/)
-    expect(html).toMatch(/polygon\.nv-luz\{[^}]*mix-blend-mode:screen/)
-    for (const z of ZONAS) {
-      expect(html).toContain(`<clipPath id="nv-sup-${z.clave}"><polygon points="${z.superficie}"`)
-      expect(html).toContain(`<g clip-path="url(#nv-sup-${z.clave})"><polygon class="nv-luz" points="${z.superficie}" filter="url(#nv-luz-suave)"`)
-      for (const par of z.superficie.split(" ")) { const [x, y] = par.split(",").map(Number); expect(dentro(x, y)).toBe(true) }
+    // la versión encendida: un recorte con alfa en su lugar exacto, oculto hasta el hover (CSS :has, sin JavaScript)
+    const mkt = ENCENDIDOS.find((e) => e.zona === "marketing")!
+    expect(mkt.src).toBe("/nuevo/marketing-encendido.webp")
+    expect(existsSync("public" + mkt.src)).toBe(true)
+    expect(statSync("public" + mkt.src).size).toBeLessThan(400 * 1024)
+    expect(mkt.caja.x).toBeGreaterThanOrEqual(0); expect(mkt.caja.y).toBeGreaterThanOrEqual(0); expect(mkt.caja.x + mkt.caja.w).toBeLessThanOrEqual(2560); expect(mkt.caja.y + mkt.caja.h).toBeLessThanOrEqual(1385)
+    expect(html).toMatch(/<img[^>]*data-encendido="marketing"[^>]*class="nv-encendido pointer-events-none absolute select-none \[transform:translateZ\(0\)\]"[^>]*style="left:56\.7969%;top:14\.0794%;width:23\.4375%;height:36\.6065%"/)
+    expect(html).toMatch(/\.nv-encendido\{opacity:0;transition:opacity \.45s/)
+    expect(html).toMatch(/\.nv-escena:has\(\.nv-zona\[data-zona="marketing"\]:hover\) \.nv-encendido\[data-encendido="marketing"\][^{]*\{opacity:1\}/)
+    // la caja encendida cubre la zona del ratón de Marketing (en píxeles de la foto)
+    const z = ZONAS.find((zz) => zz.clave === "marketing")!
+    for (const par of z.formas[0].split(" ")) {
+      const [vx, vy] = par.split(",").map(Number); const px = ((vx - VISTA.x) * 2560) / VISTA.w, py = ((vy - VISTA.y) * 1385) / VISTA.h
+      expect(px).toBeGreaterThanOrEqual(mkt.caja.x - 1); expect(px).toBeLessThanOrEqual(mkt.caja.x + mkt.caja.w + 1); expect(py).toBeGreaterThanOrEqual(mkt.caja.y - 1); expect(py).toBeLessThanOrEqual(mkt.caja.y + mkt.caja.h + 1)
     }
-    // la cara superior de la losa de Marketing cabe dentro de su zona del ratón (el hexágono de siempre)
-    const mkt = ZONAS.find((z) => z.clave === "marketing")!
-    const hit = mkt.formas[0].split(" ").map((p) => p.split(",").map(Number)), sup = mkt.superficie.split(" ").map((p) => p.split(",").map(Number))
-    const [hx0, hx1] = [Math.min(...hit.map((p) => p[0])), Math.max(...hit.map((p) => p[0]))], [hy0, hy1] = [Math.min(...hit.map((p) => p[1])), Math.max(...hit.map((p) => p[1]))]
-    for (const [x, y] of sup) { expect(x).toBeGreaterThanOrEqual(hx0); expect(x).toBeLessThanOrEqual(hx1); expect(y).toBeGreaterThanOrEqual(hy0); expect(y).toBeLessThanOrEqual(hy1) }
-    expect(sup).toHaveLength(4) // un paralelogramo: la cara superior de la losa
+    expect(z.superficie).toBeUndefined() // Marketing ya no lleva luz pintada
+    // el cerebro conserva su luz suave recortada al monolito
+    const cer = ZONAS.find((zz) => zz.clave === "cerebro")!
+    expect(html).toContain(`<clipPath id="nv-sup-cerebro"><polygon points="${cer.superficie}"`)
+    expect(html).toMatch(/polygon\.nv-luz\{[^}]*mix-blend-mode:screen/)
   })
   it("la foto va en su propia capa de composición: con un lienzo WebGL encima Chrome la redibujaba distinta (medido 31-oct) · no quitar", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))

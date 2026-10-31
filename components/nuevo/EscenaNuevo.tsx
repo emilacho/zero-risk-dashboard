@@ -8,7 +8,20 @@
 import type { ReactNode } from "react"
 export const VISTA = { x: 150, y: 40, w: 1700, h: 920 } // el recorte de la variante-14 (en las coordenadas de 2000×1125 en que se midieron las zonas)
 
-interface Zona { clave: string; nombre: string; href: string; formas: string[]; superficie: string; rotulo?: { x: number; y: number; texto: string } }
+interface Zona { clave: string; nombre: string; href: string; formas: string[]; superficie?: string; rotulo?: { x: number; y: number; texto: string } }
+
+/**
+ * 5.4 (Emilio, 31-oct: «no hiciste que se ilumine la estructura entera»): la versión ENCENDIDA de una plataforma no se pinta en el navegador;
+ * la generó el mismo generador de la foto (edición de la foto original sin máscara, «cambia solo la luz de esa plataforma»), y aquí se guarda
+ * solo el recorte de esa zona con borde difuminado (alfa) en `public/nuevo/`. Al pasar el ratón, el recorte aparece encima de la foto en su
+ * lugar exacto (caja en píxeles de la foto 2560×1385) y la estructura entera se ve iluminada: losa, lados, borde, objetos y el derrame al piso.
+ * Fuera de la caja la foto no cambia. Medido: desplazamiento 0,2 px entre la foto y la versión encendida.
+ */
+export const ENCENDIDOS: { zona: string; src: string; caja: { x: number; y: number; w: number; h: number } }[] = [
+  { zona: "marketing", src: "/nuevo/marketing-encendido.webp", caja: { x: 1454, y: 195, w: 600, h: 507 } },
+]
+const FOTO = { w: 2560, h: 1385 }
+const pct = (v: number, total: number) => `${((v / total) * 100).toFixed(4)}%`
 
 export const ZONAS: Zona[] = [
   {
@@ -19,7 +32,7 @@ export const ZONAS: Zona[] = [
   {
     clave: "marketing", nombre: "Dept. Marketing", href: "/nuevo/marketing",
     formas: ["1160,358 1226,250 1316,214 1404,240 1468,338 1470,374 1310,462"], // la plataforma de arriba a la derecha con el proyector y su pantalla (zona del ratón)
-    superficie: "1165,334 1295,279 1460,365 1330,420", // la cara superior de la losa: lo ÚNICO que se ilumina al pasar (5.3, Emilio 31-oct)
+    // sin `superficie` pintada: su versión encendida es una imagen real (ENCENDIDOS · 5.4)
     rotulo: { x: 1316, y: 188, texto: "Dept. Marketing" },
   },
 ]
@@ -29,6 +42,9 @@ export const ORIGEN_MARKETING = { x: ((1316 - VISTA.x) / VISTA.w) * 100, y: ((35
 
 const ESTILO_ESCENA = `
 .nv-escena{width:min(100%,75vw,calc((100dvh - 15rem) * 3264 / 1766));background:#000;box-shadow:0 0 140px 100px #000}
+.nv-encendido{opacity:0;transition:opacity .45s ease}
+.nv-escena:has(.nv-zona[data-zona="marketing"]:hover) .nv-encendido[data-encendido="marketing"],.nv-escena:has(.nv-zona[data-zona="marketing"]:focus-visible) .nv-encendido[data-encendido="marketing"]{opacity:1}
+@media (prefers-reduced-motion:reduce){.nv-encendido{transition:none}}
 @media (max-width:900px){.nv-escena{width:min(100%,calc((100dvh - 15rem) * 3264 / 1766))}}
 `
 
@@ -60,6 +76,12 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
           src="/nuevo/escena-2560.jpg" srcSet="/nuevo/escena-1280.jpg 1280w, /nuevo/escena-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1400px"
           alt="Las oficinas de Zero Risk" width={2560} height={1385} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full select-none [transform:translateZ(0)]" draggable={false}
         />
+        {ENCENDIDOS.map((e) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={e.zona} src={e.src} alt="" aria-hidden="true" data-encendido={e.zona} decoding="async" draggable={false}
+            className="nv-encendido pointer-events-none absolute select-none [transform:translateZ(0)]"
+            style={{ left: pct(e.caja.x, FOTO.w), top: pct(e.caja.y, FOTO.h), width: pct(e.caja.w, FOTO.w), height: pct(e.caja.h, FOTO.h) }} />
+        ))}
         {fondo}
         <svg viewBox={`${VISTA.x} ${VISTA.y} ${VISTA.w} ${VISTA.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de la escena" xmlns="http://www.w3.org/2000/svg">
           <style>{ESTILO}</style>
@@ -68,7 +90,7 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
               <stop offset="0%" stopColor="rgba(255,178,86,0.6)" /><stop offset="55%" stopColor="rgba(255,152,52,0.32)" /><stop offset="100%" stopColor="rgba(255,140,40,0.1)" />
             </radialGradient>
             <filter id="nv-luz-suave" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="6" /></filter>
-            {ZONAS.map((z) => <clipPath key={z.clave} id={`nv-sup-${z.clave}`}><polygon points={z.superficie} /></clipPath>)}
+            {ZONAS.filter((z) => z.superficie).map((z) => <clipPath key={z.clave} id={`nv-sup-${z.clave}`}><polygon points={z.superficie} /></clipPath>)}
           </defs>
           {ZONAS.map((z) => (
             // un enlace de SVG: next/link no vive dentro de un <svg>
@@ -76,7 +98,7 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
             <a key={z.clave} href={z.href} className="nv-zona" data-zona={z.clave} aria-label={z.nombre}
               onClick={z.clave === "marketing" && alAbrirMarketing ? (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); alAbrirMarketing() } : undefined}>
               {z.formas.map((f, i) => <polygon key={i} points={f} />)}
-              <g clipPath={`url(#nv-sup-${z.clave})`}><polygon className="nv-luz" points={z.superficie} filter="url(#nv-luz-suave)" /></g>
+              {z.superficie && <g clipPath={`url(#nv-sup-${z.clave})`}><polygon className="nv-luz" points={z.superficie} filter="url(#nv-luz-suave)" /></g>}
               {z.rotulo && (
                 <text className="nv-rotulo" x={z.rotulo.x} y={z.rotulo.y} textAnchor="middle" fill="#ffb347" fontSize="26" fontWeight="300" letterSpacing="5"
                   fontFamily="system-ui, Arial, sans-serif">{z.rotulo.texto}</text>
