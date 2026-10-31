@@ -95,15 +95,13 @@ describe("sprint 6.7 · el panel", () => {
     expect(c).toContain("aprobar no los aplica") // aprobar con ediciones pendientes avisa que no se aplican
     expect(c).not.toMatch(/PATCH|laminas_armadas|\.update\(/) // ninguna escritura directa: solo la puerta de decidir
   })
-  it("el explorador: árbol a la izquierda con cuentas, barra de ruta, carpetas y tarjetas a la derecha; la pieza elegida ubica la ruta en su cliente y su carpeta", () => {
-    const raiz = dibujar({ piezaInicialDatos: null })
-    expect(raiz).toContain('data-nodo="raiz"'); expect([...raiz.matchAll(/data-nodo-cliente="([^"]*)"/g)].map((m) => m[1])).toEqual([NAUFRAGO, PEREZ, ""])
-    expect(raiz).toContain('data-vista="clientes"'); expect(raiz).toContain("Un cliente por carpeta."); expect(raiz).toContain("2 por aprobar · 3 en total"); expect(raiz).toContain("Sin cliente")
+  it("el explorador: árbol a la izquierda (el cliente enfocado y sus carpetas, con cuentas), barra de ruta, carpetas y tarjetas a la derecha; la pieza elegida ubica la ruta en su carpeta", () => {
     const carpeta = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Facebook" })
+    expect(carpeta).toContain('data-nodo="cliente"'); expect(carpeta).not.toContain("data-nodo-cliente="); expect(carpeta).not.toContain("Todos los clientes") // el cliente lo elige la oficina, no este panel
     expect(carpeta).toContain('data-vista="piezas"'); expect([...carpeta.matchAll(/data-pieza="([^"]+)"/g)].map((m) => m[1])).toEqual(["p2", "a1", "s1"])
     expect(carpeta).toContain('data-nodo-carpeta="Carrusel Facebook" aria-current="true"'); expect(carpeta).toContain("Abre una para verla lámina por lámina.")
     const pieza = dibujar()
-    expect(pieza).toMatch(/data-miga="raiz"[^>]*>Todos los clientes<\/button>.*data-miga="cliente"[^>]*>Náufrago<\/button>.*data-miga="carpeta"[^>]*>Historias Instagram<\/button>.*data-miga="pieza"[^>]*>Historias Instagram · Náufrago · 31 oct<\/span>.*data-miga="lamina"[^>]*>lámina 1 de 2</s)
+    expect(pieza).toMatch(/data-miga="cliente"[^>]*>Náufrago<\/button>.*data-miga="carpeta"[^>]*>Historias Instagram<\/button>.*data-miga="pieza"[^>]*>Historias Instagram · Náufrago · 31 oct<\/span>.*data-miga="lamina"[^>]*>lámina 1 de 2</s)
     expect(pieza).toContain('data-accion="volver-a-la-carpeta"'); expect(pieza).not.toContain('data-vista=')
     const c = readFileSync("components/nuevo/PanelPiezas.tsx", "utf8")
     expect(c).toContain("@media (prefers-reduced-motion:reduce)"); expect(c).toContain('window.addEventListener("keydown", tecla, true)')

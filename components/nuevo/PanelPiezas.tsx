@@ -16,8 +16,6 @@ const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
 type RespuestaPieza = { ok: true; pieza: DetalleDeLaPieza } | { ok: false; error: string }
 type Dialogo = null | "aprobar" | "cambios" | "rechazar" | "rehacer"
-/** dónde está parado el explorador: cliente (null = la raíz · "" = sin cliente) y carpeta */
-interface Nivel { cliente: string | null; carpeta: string | null }
 
 const ESTILO = `
 .pi-entra{animation:piEntra .4s cubic-bezier(.2,.8,.2,1) both}
@@ -125,7 +123,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   /** lecturas ya hechas (pruebas) */
   bandejaInicial?: Bandeja | null
   piezaInicialDatos?: DetalleDeLaPieza | null
-  /** abrir el explorador en este cliente (el Dept. Marketing lo pasa); null = la raíz con todos los clientes */
+  /** el cliente en el que está enfocada la oficina (lo pasa el Dept. Marketing). El explorador NO cambia de cliente: para eso está la ventana de selección (Emilio, 31-oct) */
   clienteInicial?: string | null
   /** abrir dentro de esta carpeta del cliente (tipo de pieza) */
   carpetaInicial?: string | null
@@ -140,11 +138,11 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const [errorBandeja, setErrorBandeja] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!bandejaInicial)
   const [filtro, setFiltro] = useState<FiltroDeLaBandeja>(bandejaInicial?.estado ?? (piezaInicial ? "todas" : "pendiente"))
-  const [nivel, setNivel] = useState<Nivel>(() => {
-    // si ya viene la bandeja y una pieza elegida, el explorador arranca parado en su cliente y su carpeta
+  const [carpeta, setCarpeta] = useState<string | null>(() => {
+    // si ya viene la bandeja y una pieza elegida, el explorador arranca parado en su carpeta
     const id = piezaInicial ?? piezaInicialDatos?.id ?? null
     const f = bandejaInicial && id ? [...bandejaInicial.piezas, ...bandejaInicial.otras].find((x) => x.id === id) : null
-    return f ? { cliente: f.cliente_id ?? "", carpeta: f.carpeta } : { cliente: clienteInicial, carpeta: clienteInicial != null ? carpetaInicial : null }
+    return f ? f.carpeta : carpetaInicial
   })
   const [elegida, setElegida] = useState<string | null>(piezaInicial ?? piezaInicialDatos?.id ?? null)
   const [pieza, setPieza] = useState<DetalleDeLaPieza | null>(piezaInicialDatos)
@@ -195,14 +193,18 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const arbol = useMemo(() => (bandeja ? arbolDeLaBandeja(bandeja.piezas, bandeja.otras) : []), [bandeja])
   const todas = useMemo(() => (bandeja ? [...bandeja.piezas, ...bandeja.otras] : []), [bandeja])
   const filaElegida = elegida ? todas.find((f) => f.id === elegida) ?? null : null
-  // la pieza que llega de afuera (calendario) ubica el explorador en su cliente y su carpeta
-  useEffect(() => { if (filaElegida && (nivel.cliente !== (filaElegida.cliente_id ?? "") || nivel.carpeta !== filaElegida.carpeta)) setNivel({ cliente: filaElegida.cliente_id ?? "", carpeta: filaElegida.carpeta }) }, [filaElegida, nivel.cliente, nivel.carpeta])
-  const clienteActual: ClienteDeLaBandeja | null = nivel.cliente == null ? null : arbol.find((c) => (c.id ?? "") === nivel.cliente) ?? null
-  const carpetaActual = clienteActual && nivel.carpeta ? clienteActual.carpetas.find((k) => k.nombre === nivel.carpeta) ?? null : null
-  const nombreDelClienteElegido = nivel.cliente ? bandeja?.clientes.find((c) => c.id === nivel.cliente)?.nombre ?? clienteActual?.nombre ?? null : nivel.cliente === "" ? "Sin cliente" : null
-  const otrasPendientes = bandeja ? bandeja.otras.filter((o) => o.estado === "pendiente").length : 0
+  // la pieza que llega de afuera (calendario) ubica el explorador en su carpeta
+  useEffect(() => { if (filaElegida && carpeta !== filaElegida.carpeta) setCarpeta(filaElegida.carpeta) }, [filaElegida, carpeta])
+  // el cliente lo decide la oficina (ventana de selección); aquí no se cambia
+  const clienteId = clienteInicial ?? filaElegida?.cliente_id ?? arbol[0]?.id ?? null
+  const clienteActual: ClienteDeLaBandeja | null = arbol.find((c) => (c.id ?? "") === (clienteId ?? "")) ?? null
+  const carpetaActual = clienteActual && carpeta ? clienteActual.carpetas.find((k) => k.nombre === carpeta) ?? null : null
+  const nombreDelCliente = bandeja?.clientes.find((c) => c.id === clienteId)?.nombre ?? clienteActual?.nombre ?? filaElegida?.cliente ?? pieza?.cliente ?? "Cliente"
+  const filasDelCliente = clienteActual ? clienteActual.carpetas.flatMap((k) => k.filas) : []
+  const porAprobarDelCliente = filasDelCliente.filter((f) => f.estado === "pendiente" && f.es_pieza).length
+  const otrasPendientes = filasDelCliente.filter((f) => f.estado === "pendiente" && !f.es_pieza).length
 
-  const irA = (cliente: string | null, carpeta: string | null) => { setNivel({ cliente, carpeta }); setElegida(null); setPieza(null); setErrorPieza(null) }
+  const irA = (k: string | null) => { setCarpeta(k); setElegida(null); setPieza(null); setErrorPieza(null) }
   const verTodas = () => { setFiltro("todas"); if (!bandejaInicial) void leerLaBandeja("todas") }
 
   const total = pieza?.laminas.length ?? 0
@@ -291,8 +293,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
       <section role="dialog" aria-modal="true" aria-labelledby="piezas-titulo" data-seccion="piezas" className="relative flex h-full max-h-full w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
-          {bandeja && <Chip tono={bandeja.por_aprobar > 0 ? "ambar" : "neutro"}>{resumenDeLaBandeja({ por_aprobar: bandeja.por_aprobar, otras_pendientes: otrasPendientes })}</Chip>}
-          <p className="hidden text-[12px] text-zinc-500 xl:block">Lo que la oficina creativa entregó, por cliente y por tipo · aquí se aprueba, se piden cambios o se rechaza</p>
+          {bandeja && <Chip tono={porAprobarDelCliente > 0 ? "ambar" : "neutro"}>{resumenDeLaBandeja({ por_aprobar: porAprobarDelCliente, otras_pendientes: otrasPendientes })}</Chip>}
+          <p className="hidden text-[12px] text-zinc-500 xl:block">Lo que la oficina creativa entregó para {nombreDelCliente}, por tipo de pieza · aquí se aprueba, se piden cambios o se rechaza</p>
           <div role="group" aria-label="Qué piezas ver" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
             {(["pendiente", "todas"] as const).map((f) => (
               <button key={f} type="button" data-filtro={f} aria-pressed={filtro === f} onClick={() => { setFiltro(f); if (!bandejaInicial) void leerLaBandeja(f) }}
@@ -305,11 +307,10 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           </button>
         </header>
 
-        {/* la barra de dirección: de macro a micro */}
+        {/* la barra de dirección: de macro a micro, dentro del cliente enfocado */}
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 bg-black/30 px-4 py-2 sm:px-5">
-          <button type="button" data-miga="raiz" onClick={() => irA(null, null)} aria-current={nivel.cliente == null ? "page" : undefined} className={`${MIGA} ${nivel.cliente == null ? "text-amber-200" : ""}`}>Todos los clientes</button>
-          {nivel.cliente != null && <><Sep /><button type="button" data-miga="cliente" onClick={() => irA(nivel.cliente, null)} aria-current={!nivel.carpeta ? "page" : undefined} className={`${MIGA} ${!nivel.carpeta ? "text-amber-200" : ""}`}>{nombreDelClienteElegido ?? "Cliente"}</button></>}
-          {nivel.carpeta && <><Sep /><button type="button" data-miga="carpeta" onClick={() => irA(nivel.cliente, nivel.carpeta)} aria-current={!elegida ? "page" : undefined} className={`${MIGA} ${!elegida ? "text-amber-200" : ""}`}>{nivel.carpeta}</button></>}
+          <button type="button" data-miga="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "page" : undefined} className={`${MIGA} ${!carpeta ? "text-amber-200" : ""}`}>{nombreDelCliente}</button>
+          {carpeta && <><Sep /><button type="button" data-miga="carpeta" onClick={() => irA(carpeta)} aria-current={!elegida ? "page" : undefined} className={`${MIGA} ${!elegida ? "text-amber-200" : ""}`}>{carpeta}</button></>}
           {elegida && <><Sep /><span data-miga="pieza" aria-current="page" className="px-1.5 text-[12.5px] text-amber-200">{pieza?.titulo ?? filaElegida?.titulo_legible ?? "Pieza"}</span></>}
           {elegida && total > 0 && <><Sep /><span data-miga="lamina" className="px-1.5 text-[12.5px] text-zinc-400">{juntas ? `${total} láminas` : `lámina ${n} de ${total}`}</span></>}
         </nav>
@@ -318,58 +319,32 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
         {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-5 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
 
         <div className="grid min-h-0 flex-1 grid-cols-[250px_minmax(0,1fr)]">
-          {/* el árbol, como el panel izquierdo de un explorador */}
-          <aside aria-label="El árbol de la bandeja" className="min-h-0 overflow-y-auto border-r border-white/10 py-2">
-            <button type="button" data-nodo="raiz" onClick={() => irA(null, null)} aria-current={nivel.cliente == null ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] text-zinc-200 hover:bg-white/[0.04]"><IconoCarpetaChica /> Todos los clientes</button>
-            {bandeja && arbol.length === 0 && <p className="px-4 py-3 text-[12px] text-zinc-500">{filtro === "pendiente" ? "Nada por aprobar ahora." : "La bandeja está vacía."}</p>}
+          {/* el árbol, como el panel izquierdo de un explorador: el cliente enfocado y sus carpetas por tipo de pieza */}
+          <aside aria-label="Las carpetas del cliente" className="min-h-0 overflow-y-auto border-r border-white/10 py-2">
+            <button type="button" data-nodo="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] text-zinc-200 hover:bg-white/[0.04]"><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>{porAprobarDelCliente + otrasPendientes > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{porAprobarDelCliente + otrasPendientes}</span>}</button>
+            {bandeja && !clienteActual && <p className="px-4 py-3 text-[12px] text-zinc-500">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
             <ul>
-              {arbol.map((c) => {
-                const k = c.id ?? ""; const abierto = nivel.cliente === k
-                return (
-                  <li key={k}>
-                    <button type="button" data-nodo-cliente={k} onClick={() => irA(k, null)} aria-current={abierto && !nivel.carpeta ? "true" : undefined} aria-expanded={abierto} className="pi-nodo flex w-full items-center gap-2 py-1.5 pl-6 pr-3 text-left text-[12.5px] text-zinc-200 hover:bg-white/[0.04]">
-                      <span className="text-[10px] text-zinc-500" aria-hidden>{abierto ? "▾" : "▸"}</span><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{c.nombre}</span>
-                      {c.por_aprobar > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{c.por_aprobar}</span>}
-                    </button>
-                    {abierto && (
-                      <ul>
-                        {c.carpetas.map((k2) => (
-                          <li key={k2.nombre}>
-                            <button type="button" data-nodo-carpeta={k2.nombre} onClick={() => irA(k, k2.nombre)} aria-current={nivel.carpeta === k2.nombre ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 py-1.5 pl-12 pr-3 text-left text-[12px] text-zinc-300 hover:bg-white/[0.04]">
-                              <IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{k2.nombre}</span><span className="num text-[10.5px] text-zinc-500">{k2.filas.length}</span>
-                              {k2.por_aprobar > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{k2.por_aprobar}</span>}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                )
-              })}
+              {clienteActual?.carpetas.map((k2) => (
+                <li key={k2.nombre}>
+                  <button type="button" data-nodo-carpeta={k2.nombre} onClick={() => irA(k2.nombre)} aria-current={carpeta === k2.nombre ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 py-1.5 pl-8 pr-3 text-left text-[12px] text-zinc-300 hover:bg-white/[0.04]">
+                    <IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{k2.nombre}</span><span className="num text-[10.5px] text-zinc-500">{k2.filas.length}</span>
+                    {k2.por_aprobar > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{k2.por_aprobar}</span>}
+                  </button>
+                </li>
+              ))}
             </ul>
           </aside>
 
-          {/* el panel derecho: clientes → carpetas → piezas → la pieza */}
+          {/* el panel derecho: carpetas → piezas → la pieza */}
           <section aria-label="El contenido" className="flex min-h-0 flex-col">
-            {!elegida && bandeja && nivel.cliente == null && (
-              <div className="pi-entra overflow-y-auto p-5" data-vista="clientes">
-                <p className="mb-3 text-[12px] text-zinc-500">{arbol.length ? "Un cliente por carpeta. Entra para ver sus piezas por tipo." : filtro === "pendiente" ? "Nada por aprobar ahora. Cambia a «Todas» para ver el historial." : "La bandeja está vacía."}</p>
-                <ul className={CUADRICULA} aria-label="Los clientes">
-                  {arbol.map((c) => (
-                    <li key={c.id ?? ""}><button type="button" data-cliente={c.id ?? ""} onClick={() => irA(c.id ?? "", null)} className={CARPETA}>
-                      <IconoCarpeta /><span className="text-[14px] font-medium text-zinc-100">{c.nombre}</span><span className="text-[11.5px] text-zinc-400">{cuentaDeLaCarpeta(c)}</span></button></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {!elegida && bandeja && nivel.cliente != null && !nivel.carpeta && (
+            {!elegida && bandeja && !carpeta && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="carpetas">
-                {!clienteActual ? <p className="text-[13px] text-zinc-400">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelClienteElegido ?? "este cliente"}. ` : `${nombreDelClienteElegido ?? "Este cliente"} no tiene piezas. `}<button type="button" data-accion="ver-todos-los-clientes" onClick={() => irA(null, null)} className="underline decoration-dotted hover:text-amber-200">Ver todos los clientes</button>{filtro === "pendiente" ? <> · <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-amber-200">ver también las ya decididas</button></> : null}</p> : (
+                {!clienteActual ? <p className="text-[13px] text-zinc-400">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-amber-200">Ver también las ya decididas</button></> : null}</p> : (
                   <>
-                    <p className="mb-3 text-[12px] text-zinc-500">Las piezas de {clienteActual.nombre}, por tipo.</p>
+                    <p className="mb-3 text-[12px] text-zinc-500">Las piezas de {clienteActual.nombre}, por tipo. Entra a una carpeta.</p>
                     <ul className={CUADRICULA} aria-label="Las carpetas">
                       {clienteActual.carpetas.map((k2) => (
-                        <li key={k2.nombre}><button type="button" data-carpeta={k2.nombre} onClick={() => irA(nivel.cliente, k2.nombre)} className={CARPETA}>
+                        <li key={k2.nombre}><button type="button" data-carpeta={k2.nombre} onClick={() => irA(k2.nombre)} className={CARPETA}>
                           <IconoCarpeta /><span className="text-[14px] font-medium text-zinc-100">{k2.nombre}</span><span className="text-[11.5px] text-zinc-400">{cuentaDeLaCarpeta({ por_aprobar: k2.por_aprobar, total: k2.filas.length })}</span></button></li>
                       ))}
                     </ul>
@@ -385,13 +360,13 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                 </ul>
               </div>
             )}
-            {!elegida && bandeja && nivel.carpeta && !carpetaActual && clienteActual && <p className="p-5 text-[13px] text-zinc-400">Esa carpeta ya no tiene piezas con este filtro. <button type="button" onClick={() => irA(nivel.cliente, null)} className="underline decoration-dotted hover:text-amber-200">Volver a {clienteActual.nombre}</button></p>}
+            {!elegida && bandeja && carpeta && !carpetaActual && <p className="p-5 text-[13px] text-zinc-400">Esa carpeta ya no tiene piezas con este filtro. <button type="button" onClick={() => irA(null)} className="underline decoration-dotted hover:text-amber-200">Volver a las carpetas de {nombreDelCliente}</button></p>}
             {elegida && !pieza && <p className={`p-6 text-[13px] ${errorPieza && !cargandoPieza ? "text-rose-300" : "text-zinc-500"}`}>{cargandoPieza ? "Leyendo la pieza…" : errorPieza ?? "Leyendo la pieza…"}</p>}
 
             {pieza && estadoVisto && (
               <>
                 <div className="pi-entra flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-5" key={pieza.id}>
-                  <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(nivel.cliente, nivel.carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
+                  <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
                   <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
                   {pieza.gasto_usd != null && <Chip>costó {usdES(pieza.gasto_usd)}</Chip>}
