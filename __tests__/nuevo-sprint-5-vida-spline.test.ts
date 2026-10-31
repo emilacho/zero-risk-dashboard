@@ -25,6 +25,24 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(html).not.toMatch(/<img[^>]*(filter|opacity)/)
     expect(html).toMatch(/\.nv-escena\{[^}]*background:#000;box-shadow:0 0 140px 100px #000/)
   })
+  it("5.3 · al pasar por un departamento se ilumina SOLO la superficie de su plataforma: luz suave recortada a la cara, sin campo naranja ni línea dura alrededor", () => {
+    const html = renderToStaticMarkup(createElement(EscenaNuevo))
+    expect(html).not.toMatch(/drop-shadow/)
+    expect(html).not.toMatch(/stroke:rgba\(255,1[67]0/)
+    expect(html).toMatch(/\.nv-zona polygon\{[^}]*stroke:none/)
+    expect(html).toMatch(/polygon\.nv-luz\{[^}]*mix-blend-mode:screen/)
+    for (const z of ZONAS) {
+      expect(html).toContain(`<clipPath id="nv-sup-${z.clave}"><polygon points="${z.superficie}"`)
+      expect(html).toContain(`<g clip-path="url(#nv-sup-${z.clave})"><polygon class="nv-luz" points="${z.superficie}" filter="url(#nv-luz-suave)"`)
+      for (const par of z.superficie.split(" ")) { const [x, y] = par.split(",").map(Number); expect(dentro(x, y)).toBe(true) }
+    }
+    // la cara superior de la losa de Marketing cabe dentro de su zona del ratón (el hexágono de siempre)
+    const mkt = ZONAS.find((z) => z.clave === "marketing")!
+    const hit = mkt.formas[0].split(" ").map((p) => p.split(",").map(Number)), sup = mkt.superficie.split(" ").map((p) => p.split(",").map(Number))
+    const [hx0, hx1] = [Math.min(...hit.map((p) => p[0])), Math.max(...hit.map((p) => p[0]))], [hy0, hy1] = [Math.min(...hit.map((p) => p[1])), Math.max(...hit.map((p) => p[1]))]
+    for (const [x, y] of sup) { expect(x).toBeGreaterThanOrEqual(hx0); expect(x).toBeLessThanOrEqual(hx1); expect(y).toBeGreaterThanOrEqual(hy0); expect(y).toBeLessThanOrEqual(hy1) }
+    expect(sup).toHaveLength(4) // un paralelogramo: la cara superior de la losa
+  })
   it("la foto va en su propia capa de composición: con un lienzo WebGL encima Chrome la redibujaba distinta (medido 31-oct) · no quitar", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
     expect(html).toMatch(/<img[^>]*\[transform:translateZ\(0\)\]/)

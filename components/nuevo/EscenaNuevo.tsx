@@ -8,16 +8,18 @@
 import type { ReactNode } from "react"
 export const VISTA = { x: 150, y: 40, w: 1700, h: 920 } // el recorte de la variante-14 (en las coordenadas de 2000×1125 en que se midieron las zonas)
 
-interface Zona { clave: string; nombre: string; href: string; formas: string[]; rotulo?: { x: number; y: number; texto: string } }
+interface Zona { clave: string; nombre: string; href: string; formas: string[]; superficie: string; rotulo?: { x: number; y: number; texto: string } }
 
 export const ZONAS: Zona[] = [
   {
     clave: "cerebro", nombre: "Cerebro", href: "/oficinas#cerebro",
     formas: ["936,352 1010,306 1084,338 1084,507 1010,552 936,517"],
+    superficie: "936,352 1010,306 1084,338 1084,507 1010,552 936,517", // el monolito mismo
   },
   {
     clave: "marketing", nombre: "Dept. Marketing", href: "/nuevo/marketing",
-    formas: ["1160,358 1226,250 1316,214 1404,240 1468,338 1470,374 1310,462"], // la plataforma de arriba a la derecha con el proyector y su pantalla
+    formas: ["1160,358 1226,250 1316,214 1404,240 1468,338 1470,374 1310,462"], // la plataforma de arriba a la derecha con el proyector y su pantalla (zona del ratón)
+    superficie: "1165,334 1295,279 1460,365 1330,420", // la cara superior de la losa: lo ÚNICO que se ilumina al pasar (5.3, Emilio 31-oct)
     rotulo: { x: 1316, y: 188, texto: "Dept. Marketing" },
   },
 ]
@@ -30,14 +32,17 @@ const ESTILO_ESCENA = `
 @media (max-width:900px){.nv-escena{width:min(100%,calc((100dvh - 15rem) * 3264 / 1766))}}
 `
 
+/* 5.3 (Emilio, 31-oct): al pasar el ratón NO hay campo naranja ni línea dura alrededor; lo único que se ilumina es la SUPERFICIE de la plataforma
+   (`superficie`), con una luz suave recortada a esa cara (clipPath + desenfoque hacia adentro) que se funde con la foto (mix-blend-mode: screen).
+   Las `formas` siguen siendo la zona del ratón, invisibles. */
 const ESTILO = `
-.nv-zona{cursor:pointer;outline:none;transition:filter .45s ease}
-.nv-zona polygon{fill:rgba(255,140,40,0);stroke:rgba(255,160,50,0);stroke-width:2.5;stroke-linejoin:round;transition:fill .45s ease,stroke .45s ease}
-.nv-zona:hover polygon,.nv-zona:focus-visible polygon{fill:rgba(255,140,40,.16);stroke:rgba(255,170,60,.95)}
-.nv-zona:hover,.nv-zona:focus-visible{filter:drop-shadow(0 0 10px rgba(255,140,40,.6))}
+.nv-zona{cursor:pointer;outline:none}
+.nv-zona polygon{fill:rgba(255,140,40,0);stroke:none;transition:fill .45s ease}
+.nv-zona polygon.nv-luz{fill:url(#nv-luz-grad);opacity:0;mix-blend-mode:screen;pointer-events:none;transition:opacity .45s ease}
+.nv-zona:hover polygon.nv-luz,.nv-zona:focus-visible polygon.nv-luz{opacity:1}
 .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
 .nv-zona:hover .nv-rotulo,.nv-zona:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
-@media (prefers-reduced-motion:reduce){.nv-zona,.nv-zona polygon,.nv-rotulo{transition:none}}
+@media (prefers-reduced-motion:reduce){.nv-zona polygon,.nv-rotulo{transition:none}}
 `
 
 /** `fondo` va ENTRE la foto y las zonas clicables (la capa de vida de Spline, sprint 5): nunca tapa el hover ni los clics */
@@ -58,12 +63,20 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
         {fondo}
         <svg viewBox={`${VISTA.x} ${VISTA.y} ${VISTA.w} ${VISTA.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de la escena" xmlns="http://www.w3.org/2000/svg">
           <style>{ESTILO}</style>
+          <defs>
+            <radialGradient id="nv-luz-grad" cx="50%" cy="50%" r="62%">
+              <stop offset="0%" stopColor="rgba(255,178,86,0.6)" /><stop offset="55%" stopColor="rgba(255,152,52,0.32)" /><stop offset="100%" stopColor="rgba(255,140,40,0.1)" />
+            </radialGradient>
+            <filter id="nv-luz-suave" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="6" /></filter>
+            {ZONAS.map((z) => <clipPath key={z.clave} id={`nv-sup-${z.clave}`}><polygon points={z.superficie} /></clipPath>)}
+          </defs>
           {ZONAS.map((z) => (
             // un enlace de SVG: next/link no vive dentro de un <svg>
             // eslint-disable-next-line @next/next/no-html-link-for-pages
             <a key={z.clave} href={z.href} className="nv-zona" data-zona={z.clave} aria-label={z.nombre}
               onClick={z.clave === "marketing" && alAbrirMarketing ? (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); alAbrirMarketing() } : undefined}>
               {z.formas.map((f, i) => <polygon key={i} points={f} />)}
+              <g clipPath={`url(#nv-sup-${z.clave})`}><polygon className="nv-luz" points={z.superficie} filter="url(#nv-luz-suave)" /></g>
               {z.rotulo && (
                 <text className="nv-rotulo" x={z.rotulo.x} y={z.rotulo.y} textAnchor="middle" fill="#ffb347" fontSize="26" fontWeight="300" letterSpacing="5"
                   fontFamily="system-ui, Arial, sans-serif">{z.rotulo.texto}</text>
