@@ -8,7 +8,8 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
 
 /**
  * DASHBOARD NUEVO · SPRINT 3 (31-oct): el departamento de marketing se «proyecta» sobre la escena principal, sin cambiar de página a la vista.
- * La escena queda al fondo reducida al 70 % y translúcida (5.6; antes: desenfocada); el interior (marketing-2) entra desde la plataforma con un leve zoom + fundido + un barrido ámbar fino (~650 ms).
+ * La escena se va a la esquina inferior izquierda como miniatura (reducida un 70 %, al 30 % de su tamaño) y translúcida (5.7; antes 5.6: centrada al 70 %; antes: desenfocada);
+ * el interior (marketing-2) entra desde la plataforma con un leve zoom + fundido + un barrido ámbar fino (~650 ms) y pasa a ser la imagen principal.
  * Volver: Esc, el control «Escena» o clic fuera → animación inversa. La dirección sí cambia (/nuevo/marketing) para que atrás y los enlaces funcionen.
  */
 const MS_ENTRADA = 650
@@ -18,13 +19,13 @@ const MS_SALIDA = 450
 // Con estado nulo, Next ignora el «atrás» y lo atendemos nosotros (popstate).
 const cambiarDireccion = (url: string) => History.prototype.pushState.call(window.history, null, "", url)
 
-/** 5.6 (Emilio, 31-oct): al abrir el departamento, la escena principal queda de fondo REDUCIDA (al 70 % de su tamaño) y translúcida, sin desenfoque,
- *  para no hacer ruido sobre la imagen del departamento que pasa a ser la principal. */
-export const ESCALA_FONDO_ABIERTO = 0.7
-export const OPACIDAD_FONDO_ABIERTO = 0.22
+/** 5.6/5.7 (Emilio, 31-oct): al abrir el departamento, la escena principal se va a la ESQUINA INFERIOR IZQUIERDA como miniatura,
+ *  reducida UN 70 % (queda al 30 % de su tamaño) y translúcida, sin desenfoque, para no hacer ruido sobre la imagen del departamento que pasa a ser la principal. */
+export const ESCALA_FONDO_ABIERTO = 0.3
+export const OPACIDAD_FONDO_ABIERTO = 0.35
 
 const ESTILO = `
-.nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:50% 50%}
+.nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}
 .nv-fondo[data-atenuado="true"]{opacity:${OPACIDAD_FONDO_ABIERTO};transform:scale(${ESCALA_FONDO_ABIERTO});pointer-events:none}
 .nv-proy{transform-origin:${ORIGEN_MARKETING.x.toFixed(1)}% ${ORIGEN_MARKETING.y.toFixed(1)}%;will-change:transform,opacity}
 .nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.2,.8,.2,1) both}
@@ -87,7 +88,7 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
   return (
     <>
       <style>{ESTILO}</style>
-      {/* la escena principal: queda detrás en tercer plano mientras el departamento está proyectado */}
+      {/* la escena principal: miniatura translúcida en la esquina inferior izquierda mientras el departamento está proyectado */}
       <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
         <EscenaNuevo alAbrirMarketing={() => abrir()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
