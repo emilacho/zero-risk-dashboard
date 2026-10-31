@@ -47,7 +47,13 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
   const versionesPorCliente = new Map<string, number>()
   for (const l of libros) { const k = String(l.client_id); versionesPorCliente.set(k, (versionesPorCliente.get(k) ?? 0) + 1) }
   const clientes = elegibles.map((c) => ({ ...c, con_manual: versionesPorCliente.has(c.id) }))
-  const elegido = (o.cliente && clientes.find((c) => c.id === o.cliente)) || clientes.find((c) => c.con_manual) || clientes[0] || null
+  let elegido: { id: string; nombre: string } | null = (o.cliente && clientes.find((c) => c.id === o.cliente)) || null
+  if (!elegido && o.cliente) {
+    // pedido a propósito y fuera de la lista (ficha de práctica o dada de baja): se lee igual, sin agregarla a la lista
+    const c = await una(supa.from("clients").select("id, name").eq("id", o.cliente).maybeSingle(), "clients")
+    if (c) elegido = { id: String(c.id), nombre: String(c.name) }
+  }
+  if (!elegido) elegido = clientes.find((c) => c.con_manual) || clientes[0] || null
   const base = { clientes, leido_en: ahora.toISOString() }
   if (!elegido) return { ...base, cliente: null, manual: null }
   const cliente = { id: elegido.id, nombre: elegido.nombre }
