@@ -78,6 +78,8 @@ export async function decidirConcepto(hitlId: string, raw: unknown, d: DepsDeDec
     const txt = await r.text().catch(() => "")
     let j: Record<string, unknown> = {}
     try { j = txt ? (JSON.parse(txt) as Record<string, unknown>) : {} } catch { j = { detalle: txt.slice(0, 400) } }
+    // reserva 2 de CC3 (T4): un 404 CON `code: E-CAMPANA` es la cadena diciendo que no conoce la campaña, no una ruta sin publicar
+    if (r.status === 404 && String(j.code ?? "") === "E-CAMPANA") return { status: 404, cuerpo: { ok: false, error: "campana_inexistente", detalle: String(j.detalle ?? "la cadena no conoce la campaña de esta tarjeta"), plataforma_status: 404 } }
     if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "cadena_no_publicada", detalle: "la plataforma todavía no tiene la ruta de la gran idea (se publica en T9): no se envió nada" } }
     if (r.status === 409) return { status: 409, cuerpo: { ok: false, error: String(j.error ?? "la_cadena_dijo_que_no"), detalle: String(j.detalle ?? txt.slice(0, 400)), plataforma_status: 409 } }
     if (!r.ok) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: r.status, detalle: String(j.detalle ?? j.error ?? txt.slice(0, 400)) } }

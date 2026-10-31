@@ -139,6 +139,24 @@ describe("la decisión: la regla es la de la plataforma y la aplica la plataform
     const r404 = await decidirConcepto(HITL, { accion: "aprobar" }, deps(base({ hitl: hitl(), concepto: concepto() }), respuesta(404, {})))
     expect(r404).toMatchObject({ status: 501, cuerpo: { error: "cadena_no_publicada" } })
   })
+  // reservas de CC3 (certificación T4): un rechazo de la plataforma NUNCA se muestra como aprobado; el 404 de campaña se rotula bien; `siguiente` y `ya_decidido` se conservan
+  it("🔴 un 403 o un 500 de la plataforma es 502 «la_plataforma_rechazo» con su status, nunca ok; un 404 con code E-CAMPANA es 404 «campana_inexistente», no «no publicada»", async () => {
+    const r403 = await decidirConcepto(HITL, { accion: "aprobar" }, deps(base({ hitl: hitl(), concepto: concepto() }), respuesta(403, { error: "e_workflow_desconocido", code: "E-WORKFLOW-DESCONOCIDO", detalle: "el tablero solo puede DECIDIR" })))
+    expect(r403).toEqual({ status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: 403, detalle: "el tablero solo puede DECIDIR" } })
+    const r500 = await decidirConcepto(HITL, { accion: "cambios", nota: "más barrio, menos producto", apunta_a: "concepto" }, deps(base({ hitl: hitl(), concepto: concepto() }), respuesta(500, { error: "se_rompio" })))
+    expect(r500).toEqual({ status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: 500, detalle: "se_rompio" } })
+    const rCampana = await decidirConcepto(HITL, { accion: "aprobar" }, deps(base({ hitl: hitl(), concepto: concepto() }), respuesta(404, { error: "e_campana", code: "E-CAMPANA", detalle: "no existe la campaña" })))
+    expect(rCampana).toEqual({ status: 404, cuerpo: { ok: false, error: "campana_inexistente", plataforma_status: 404, detalle: "no existe la campaña" } })
+    for (const r of [r403, r500, rCampana]) expect(r.cuerpo.ok).toBe(false)
+  })
+  it("🔴 la respuesta conserva `siguiente` y `ya_decidido` de la plataforma (la pantalla sabe qué viene y no vuelve a decidir)", async () => {
+    const r = await decidirConcepto(HITL, { accion: "aprobar" }, deps(base({ hitl: hitl(), concepto: concepto() }), respuesta(200, { decision: "aprobar", version: 1, ya_decidido: true, siguiente: "calendario" })))
+    expect(r.status).toBe(200)
+    expect(r.cuerpo).toMatchObject({ ok: true, ya_decidido: true, siguiente: "calendario", version: 1 })
+    const sin = await decidirConcepto(HITL, { accion: "aprobar" }, deps(base({ hitl: hitl(), concepto: concepto() }), respuesta(200, { decision: "aprobar", version: 1 })))
+    expect(sin.cuerpo.ya_decidido).toBe(false)
+    expect("siguiente" in sin.cuerpo).toBe(false)
+  })
   it("🔴 no se manda nada si: la tarjeta no existe o no es de gran idea (404) · ya no está pendiente (409) · la pantalla estaba vieja (409) · el pedido no vale (400) · la tarjeta no apunta a una campaña (409)", async () => {
     const f = respuesta(200, {})
     expect((await decidirConcepto(HITL, { accion: "aprobar" }, deps(base({ hitl: null }), f))).status).toBe(404)
