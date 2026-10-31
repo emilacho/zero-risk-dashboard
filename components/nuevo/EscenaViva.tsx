@@ -66,6 +66,12 @@ const ESTILO = `
 .nv-proy[data-fase="sale"] .nv-foto-b{animation:nvFotoBSale ${MS_SALIDA}ms linear both}
 @keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}
 @keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}
+.nv-tablero-luz{opacity:0;transition:opacity .45s ease}
+.nv-proy:has(.nv-tablero:hover) .nv-tablero-luz,.nv-proy:has(.nv-tablero:focus-visible) .nv-tablero-luz{opacity:1}
+.nv-tablero{cursor:pointer;outline:none}
+.nv-tablero polygon{fill:rgba(255,140,40,0);stroke:none}
+.nv-tablero .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
+.nv-tablero:hover .nv-rotulo,.nv-tablero:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
 .nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.22) 50%,transparent 58%);background-size:260% 100%;opacity:0}
 .nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido 800ms ease-out ${RETARDO_ESCENA_MS + 500}ms both}
 @keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}
@@ -82,10 +88,26 @@ const ESTILO = `
   .nv-proy[data-fase="sale"]{animation:nvDesaparece .15s linear both}
   .nv-proy[data-fase="entra"] .nv-barrido{animation:none}
   .nv-proy[data-fase="entra"] .nv-foto-b,.nv-proy[data-fase="sale"] .nv-foto-b{animation:none}
+  .nv-tablero-luz,.nv-tablero .nv-rotulo{transition:none}
   @keyframes nvAparece{from{opacity:0}to{opacity:1}}
   @keyframes nvDesaparece{from{opacity:1}to{opacity:0}}
 }
 `
+
+/** 5.14 (Emilio, 31-oct): dentro de la oficina, el tablero de pantallas del fondo es el PIZARRÓN DE PIEZAS: al pasar el ratón se encienden sus pantallas
+ *  (recorte con alfa hecho de los propios píxeles grises de las baldosas de la foto · sin generador · `marketing-tablero-encendido.webp`) y aparece el rótulo
+ *  encima, con las mismas letras que «DEPT. MARKETING». Coordenadas en píxeles de la foto (2560×1440). Uso propuesto: el tablero de producción de la oficina
+ *  (cada pantalla = una pieza de la semana con su estado: en producción · en revisión · para tu aprobación · publicada). */
+export const TABLERO = {
+  clave: "tablero",
+  nombre: "Pizarrón de piezas",
+  rotulo: { x: 977, y: 250, texto: "PIZARRÓN DE PIEZAS" },
+  forma: "856,392 1098,286 1098,450 856,548", // la cara del tablero (zona del ratón)
+  encendido: { src: "/nuevo/marketing-tablero-encendido.webp", caja: { x: 820, y: 250, w: 320, h: 340 } },
+}
+const FOTO_MKT = { w: 2560, h: 1440 }
+const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
+const TAM_ROTULO_TABLERO = 32 // la foto se muestra al 58 % y la escena al 71 %: 32 px aquí ≈ 26 px allá en pantalla
 
 type Fase = "cerrado" | "entra" | "abierto" | "sale"
 type Caja = { x: number; y: number; w: number; h: number }
@@ -248,6 +270,18 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/nuevo/marketing-2560.jpg" srcSet="/nuevo/marketing-1280.jpg 1280w, /nuevo/marketing-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1800px"
               alt="El interior del departamento de marketing" width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
+            {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={TABLERO.encendido.src} alt="" aria-hidden data-encendido={TABLERO.clave} decoding="async" draggable={false}
+              className="nv-tablero-luz pointer-events-none absolute select-none"
+              style={{ left: pct(TABLERO.encendido.caja.x, FOTO_MKT.w), top: pct(TABLERO.encendido.caja.y, FOTO_MKT.h), width: pct(TABLERO.encendido.caja.w, FOTO_MKT.w), height: pct(TABLERO.encendido.caja.h, FOTO_MKT.h) }} />
+            <svg viewBox={`0 0 ${FOTO_MKT.w} ${FOTO_MKT.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de la oficina de marketing" xmlns="http://www.w3.org/2000/svg">
+              <g className="nv-tablero" data-zona={TABLERO.clave} role="button" tabIndex={0} aria-label={TABLERO.nombre}>
+                <polygon points={TABLERO.forma} />
+                <text className="nv-rotulo" x={TABLERO.rotulo.x} y={TABLERO.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO_TABLERO * 0.9 / 16}
+                  fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{TABLERO.rotulo.texto}</text>
+              </g>
+            </svg>
             <div className="nv-barrido" />
           </div>
         </div>
