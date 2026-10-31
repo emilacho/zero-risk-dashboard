@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { PanelPizarron } from "@/components/nuevo/PanelPizarron"
+import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
@@ -163,7 +163,7 @@ const sinMovimiento = () => typeof window !== "undefined" && (window.matchMedia(
 
 export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
   const [fase, setFase] = useState<Fase>(inicial ? "abierto" : "cerrado")
-  const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón de piezas abierto encima de la oficina
+  const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón abierto encima de la oficina (6.2: la pantalla de aplicaciones; el calendario se abre desde ahí)
   const tablero = useRef<SVGGElement>(null)
   const cerrarPizarron = useCallback(() => { setPizarron(false); requestAnimationFrame(() => tablero.current?.focus()) }, [])
   const [sobreLaMiniatura, setSobreLaMiniatura] = useState(false) // 5.12 · la miniatura se aclara un poco al pasar el ratón: avisa que es clicable
@@ -293,7 +293,7 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
         </div>
       )}
       {/* sprint 6 · el pizarrón sale al <body> (como «En vivo»): la oficina lleva máscaras que lo desvanecerían */}
-      {pizarron && fase !== "cerrado" && createPortal(<PanelPizarron onCerrar={cerrarPizarron} />, document.body)}
+      {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"
           className="fixed left-4 top-16 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] tracking-wide text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a] sm:left-5">
