@@ -63,13 +63,14 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(num(rotulo, "stroke-width") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "stroke-width") / num(logo, "font-size"), 3)
     expect(rotulo).not.toMatch(/fill="#/)
   })
-  it("5.6 · con el departamento abierto, la escena principal queda de fondo reducida al 70 % y translúcida, sin desenfoque", () => {
-    expect(ESCALA_FONDO_ABIERTO).toBe(0.7)
-    expect(OPACIDAD_FONDO_ABIERTO).toBeGreaterThan(0.1); expect(OPACIDAD_FONDO_ABIERTO).toBeLessThan(0.35)
+  it("5.6/5.7 · con el departamento abierto, la escena principal se va a la esquina inferior izquierda, reducida un 70 % (al 30 %) y translúcida, sin desenfoque", () => {
+    expect(ESCALA_FONDO_ABIERTO).toBe(0.3)
+    expect(OPACIDAD_FONDO_ABIERTO).toBeGreaterThan(0.2); expect(OPACIDAD_FONDO_ABIERTO).toBeLessThan(0.5)
     const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
-    expect(abierta).toMatch(/\.nv-fondo\[data-atenuado="true"\]\{opacity:0\.22;transform:scale\(0\.7\);pointer-events:none\}/)
+    expect(abierta).toContain('.nv-fondo[data-atenuado="true"]{opacity:0.35;transform:scale(0.3);pointer-events:none}')
+    // el origen de la transformación en la esquina inferior izquierda es lo que manda la miniatura ahí al encoger
+    expect(abierta).toContain(".nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}")
     expect(abierta).not.toMatch(/blur\(/)
-    expect(abierta).toMatch(/\.nv-fondo\{transition:opacity \.6s ease,transform \.6s/)
   })
   it("la foto va en su propia capa de composición: con un lienzo WebGL encima Chrome la redibujaba distinta (medido 31-oct) · no quitar", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
