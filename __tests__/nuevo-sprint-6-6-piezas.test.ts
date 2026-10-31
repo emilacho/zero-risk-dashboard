@@ -153,15 +153,12 @@ describe("sprint 6.6 · la lectura de la bandeja", () => {
 })
 
 describe("sprint 6.6 · el panel", () => {
-  it("el explorador va de macro a micro: clientes como carpetas con su cuenta › tipos de pieza › piezas como tarjetas › la pieza con sus láminas", () => {
-    const raiz = dibujar({ piezaInicialDatos: null })
-    expect(raiz).toContain('role="dialog"'); expect(raiz).toContain('data-seccion="piezas"'); expect(raiz).toContain("2 por aprobar · 1 otra revisión espera")
-    expect([...raiz.matchAll(/data-cliente="([^"]+)"/g)].map((m) => m[1])).toEqual([NAUFRAGO, PEREZ]) // el que más espera decisión, primero
-    expect(raiz).toContain("2 por aprobar · 2 en total"); expect(raiz).toContain("1 por aprobar · 4 en total")
-    expect(raiz).toContain(`data-nodo-cliente="${NAUFRAGO}"`); expect(raiz).toContain('data-miga="raiz"'); expect(raiz).not.toContain("data-pieza=")
+  it("el explorador va de macro a micro DENTRO del cliente enfocado en la oficina: carpetas por tipo de pieza › piezas como tarjetas › la pieza con sus láminas", () => {
     const carpetas = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ })
+    expect(carpetas).toContain('role="dialog"'); expect(carpetas).toContain('data-seccion="piezas"'); expect(carpetas).toContain("1 por aprobar") // la cuenta es la del cliente enfocado
+    expect(carpetas).not.toContain("data-cliente="); expect(carpetas).not.toContain("Todos los clientes") // de cliente se cambia en la ventana de selección, no aquí (Emilio 31-oct)
     expect([...carpetas.matchAll(/data-carpeta="([^"]+)"/g)].map((m) => m[1])).toEqual(["Carrusel Facebook", "Carrusel Instagram", "Otras revisiones"]) // las otras revisiones, al final
-    expect(carpetas).toContain("2 piezas"); expect(carpetas).toContain("1 por aprobar · 1 en total"); expect(carpetas).toContain('data-miga="cliente"'); expect(carpetas).toContain('data-nodo-carpeta="Carrusel Instagram"')
+    expect(carpetas).toContain("2 piezas"); expect(carpetas).toContain("1 por aprobar · 1 en total"); expect(carpetas).toContain('data-miga="cliente"'); expect(carpetas).toContain(">Zero Risk Seguridad Industrial</button>"); expect(carpetas).toContain('data-nodo-carpeta="Carrusel Instagram"')
     const tarjetas = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Facebook" })
     expect([...tarjetas.matchAll(/data-pieza="([^"]+)" data-estado="([^"]+)"/g)].map((m) => [m[1], m[2]])).toEqual([[PIEZAS[1].id, "aprobada"], [PIEZAS[3].id, "superada"]])
     expect(tarjetas).toContain(`src="/api/piezas/${PIEZAS[1].id}/lamina/1"`); expect(tarjetas).toContain("superada (la reemplazó otra pieza)"); expect(tarjetas).toContain("US$ 2,05"); expect(tarjetas).toContain('data-miga="carpeta"')
@@ -171,7 +168,7 @@ describe("sprint 6.6 · el panel", () => {
     expect(otras).toContain(`data-pieza="${OTRAS[1].id}" data-estado="archivada"`); expect(otras).toContain("Revisión del editor")
     // la pieza abierta: la ruta dice dónde está y el visor muestra todo lo que acompaña
     const html = dibujar()
-    expect(html).toContain('data-miga="cliente"'); expect(html).toContain(">Historias Instagram</button>"); expect(html).toContain('data-miga="pieza"'); expect(html).toContain("lámina 1 de 2")
+    expect(html).toContain(">Náufrago</button>"); expect(html).toContain(">Historias Instagram</button>"); expect(html).toContain('data-miga="pieza"'); expect(html).toContain("lámina 1 de 2")
     expect(html).toContain('aria-current="true"'); expect(html).not.toContain("data-cliente=")
     expect(html).toContain("Historias Instagram · Náufrago · 31 oct"); expect(html).toContain("versión 1"); expect(html).toContain("jefatura sin observaciones")
     expect(html).toContain(`src="/api/piezas/${PIEZA}/lamina/1"`); expect(html).toContain('alt="Lámina 1 de 2"'); expect(html).toContain("aspect-ratio:1080/1920"); expect(html).toContain("Ver las 2 juntas")
@@ -208,12 +205,11 @@ describe("sprint 6.6 · el panel", () => {
     const resuelta = dibujar({ piezaInicialDatos: { ...DETALLE, id: OTRAS[1].id, tipo: "editor_escalation", es_pieza: false, estado: "archivada", status: "rejected", laminas: [], avisos: [], exige_casilla: false } })
     expect(resuelta).toContain("Revisión del editor · ya resuelta (archivada)."); expect(resuelta).not.toContain('data-accion="revision-aprobar"')
   })
-  it("abrir en un cliente: se ven solo sus carpetas y, si no queda nada por aprobar, se ofrece ver todos los clientes o las ya decididas", () => {
+  it("en un cliente sin nada por aprobar lo dice y ofrece ver las ya decididas; nunca ofrece cambiar de cliente", () => {
     const html = dibujar({ clienteInicial: NAUFRAGO, piezaInicialDatos: null })
-    expect(html).not.toContain("data-cliente="); expect([...html.matchAll(/data-carpeta="([^"]+)"/g)].map((m) => m[1])).toEqual(["Historias Instagram", "Otras revisiones"])
-    expect(html).toContain('data-miga="cliente"'); expect(html).toContain(">Náufrago</button>"); expect(html).toContain("Todos los clientes")
+    expect([...html.matchAll(/data-carpeta="([^"]+)"/g)].map((m) => m[1])).toEqual(["Historias Instagram", "Otras revisiones"]); expect(html).toContain(">Náufrago</button>")
     const sinNada = dibujar({ bandejaInicial: { ...BANDEJA, estado: "pendiente", piezas: PIEZAS.filter((p) => p.cliente_id === PEREZ), otras: [] }, piezaInicialDatos: null, clienteInicial: NAUFRAGO })
-    expect(sinNada).toContain("No hay piezas por aprobar de Náufrago."); expect(sinNada).toContain('data-accion="ver-todos-los-clientes"'); expect(sinNada).toContain("ver también las ya decididas")
+    expect(sinNada).toContain("No hay piezas por aprobar de Náufrago."); expect(sinNada).toContain('data-accion="ver-todas"'); expect(sinNada).not.toContain("Todos los clientes"); expect(sinNada).not.toContain("data-carpeta=")
   })
   it("el cuadro «Piezas» abre encima (ya no enlaza a la ventana vieja) y el calendario abre la pieza encima cuando le dan cómo", () => {
     expect(APLICACIONES.find((a) => a.clave === "piezas")!.enlace(NAUFRAGO)).toBeNull()
