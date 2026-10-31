@@ -26,7 +26,7 @@ export const ZONAS: Zona[] = [
 export const ORIGEN_MARKETING = { x: ((1316 - VISTA.x) / VISTA.w) * 100, y: ((350 - VISTA.y) / VISTA.h) * 100 }
 
 const ESTILO_ESCENA = `
-.nv-escena{width:min(100%,75vw,calc((100dvh - 15rem) * 3264 / 1766))}
+.nv-escena{width:min(100%,75vw,calc((100dvh - 15rem) * 3264 / 1766));background:#000;box-shadow:0 0 140px 100px #000}
 @media (max-width:900px){.nv-escena{width:min(100%,calc((100dvh - 15rem) * 3264 / 1766))}}
 `
 
@@ -45,10 +45,9 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
   return (
     <>
       <style>{ESTILO_ESCENA}</style>
-      <div className="nv-escena relative mx-auto aspect-[3264/1766]" style={{
-        // los bordes se funden con el fondo: la escena no se ve como un cuadro (viñeta radial)
-        WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)", maskImage: "radial-gradient(ellipse 50% 50% at 50% 50%, #000 52%, transparent 100%)",
-      }}>
+      {/* SIN viñeta (5.2, Emilio: «iguala la iluminación a la de la foto original»): la máscara radial de antes mezclaba más de la mitad de la foto
+          con el gris de la página (anillo medio al 91 % de brillo, bordes al 223 %). La foto se muestra tal cual; el negro de alrededor lo pone .nv-escena. */}
+      <div className="nv-escena relative mx-auto aspect-[3264/1766]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {/* [transform:translateZ(0)] en la foto: con un lienzo WebGL encima (la capa de vida) Chrome la redibuja con otro filtro y se ve distinta;
             en su propia capa de composición queda píxel-idéntica a la foto sola (medido 31-oct: 0 píxeles cambiados). No es decorativo: no quitar. */}

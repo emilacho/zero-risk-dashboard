@@ -19,6 +19,12 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(html).not.toContain("58vw")
     expect(Math.round(58 * 1.3)).toBe(75)
   })
+  it("5.2 · la iluminación es la de la foto original: sin viñeta que la mezcle con el gris de la página; la escena va sobre negro con un halo negro alrededor", () => {
+    const html = renderToStaticMarkup(createElement(EscenaNuevo))
+    expect(html).not.toMatch(/mask-image/)
+    expect(html).not.toMatch(/<img[^>]*(filter|opacity)/)
+    expect(html).toMatch(/\.nv-escena\{[^}]*background:#000;box-shadow:0 0 140px 100px #000/)
+  })
   it("la foto va en su propia capa de composición: con un lienzo WebGL encima Chrome la redibujaba distinta (medido 31-oct) · no quitar", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
     expect(html).toMatch(/<img[^>]*\[transform:translateZ\(0\)\]/)

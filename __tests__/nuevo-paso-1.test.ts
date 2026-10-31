@@ -40,12 +40,13 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
     const html = renderToStaticMarkup(createElement(MenuLateral))
     expect(enlaces(html).sort()).toEqual(["/mapa", "/nuevo", "/oficinas", "/piezas"])
   })
-  it("adenda 4: riel sin teléfono (con el flujo y la onda al final), logo en contorno, escena con viñeta", () => {
+  it("adenda 4: riel sin teléfono (con el flujo y la onda al final), logo en contorno, escena ya sin viñeta (5.2)", () => {
     expect(MENU.map((m) => m.etiqueta)).toEqual(["Inicio", "Oficinas", "Guías", "Aplicaciones", "Piezas", "Empleados", "Flujos", "Actividad"])
     const marca = renderToStaticMarkup(createElement(BarraSuperior))
     expect(marca).toMatch(/<text[^>]*fill="none"[^>]*stroke="#e8731a"/) // solo trazo, interior transparente
     expect(marca).not.toMatch(/font-display/)
-    expect(renderToStaticMarkup(createElement(EscenaNuevo))).toMatch(/mask-image:radial-gradient/)
+    // 5.2 (31-oct): la viñeta se quitó a pedido de Emilio («iguala la iluminación a la de la foto original»); ver nuevo-sprint-5-vida-spline.test.ts
+    expect(renderToStaticMarkup(createElement(EscenaNuevo))).not.toMatch(/mask-image/)
   })
   it("la barra de chat es SOLO la forma: sin campo de texto, sin formulario, sin envío", () => {
     const html = renderToStaticMarkup(createElement(BarraDeChat))
