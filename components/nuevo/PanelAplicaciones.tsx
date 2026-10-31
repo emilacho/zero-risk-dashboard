@@ -6,6 +6,7 @@ import { APLICACIONES, type ClaveDeAplicacion } from "@/lib/aplicaciones-marketi
 import { PanelPizarron, textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { PanelManual } from "@/components/nuevo/PanelManual"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
+import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 
 const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
@@ -51,6 +52,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
   const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>("inicio")
+  // una pieza abierta desde el calendario: al cerrarla se vuelve al calendario, no a los cuadros
+  const [piezaAbierta, setPiezaAbierta] = useState<{ id: string; desde: "calendario" | "inicio" } | null>(null)
   const primero = useRef<HTMLAnchorElement>(null)
 
   useEffect(() => { if (vista === "inicio") primero.current?.focus() }, [vista])
@@ -74,9 +77,12 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   useEffect(() => { if (!datosIniciales) void leer(null) }, [leer, datosIniciales])
 
   const volverAlInicio = useCallback(() => setVista("inicio"), [])
-  if (vista === "calendario") return <PanelPizarron onCerrar={volverAlInicio} datosIniciales={datos} />
+  const abrirPieza = useCallback((id: string) => { setPiezaAbierta({ id, desde: "calendario" }); setVista("piezas") }, [])
+  const cerrarPiezas = useCallback(() => { setVista(piezaAbierta?.desde === "calendario" ? "calendario" : "inicio"); setPiezaAbierta(null) }, [piezaAbierta])
+  if (vista === "calendario") return <PanelPizarron onCerrar={volverAlInicio} datosIniciales={datos} onAbrirPieza={abrirPieza} />
   if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "piezas") return <PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
