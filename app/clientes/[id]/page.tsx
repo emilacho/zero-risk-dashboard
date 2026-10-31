@@ -15,9 +15,10 @@ export const metadata = { title: "Cliente" }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const dia = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", year: "numeric" }) : "—")
 
-function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+/** `id` = el apartado al que llegan los cuadros del Dept. Marketing de la pantalla nueva (`/clientes/<id>#manual`, `#plan`, `#cerebro`…) */
+function Bloque({ titulo, id, children }: { titulo: string; id?: string; children: React.ReactNode }) {
   return (
-    <section className="surface-card flex flex-col gap-3 p-5">
+    <section id={id} className="surface-card flex scroll-mt-24 flex-col gap-3 p-5">
       <h2 className="font-display text-[16px] font-semibold">{titulo}</h2>
       {children}
     </section>
@@ -73,7 +74,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
         )}
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Bloque titulo="Piezas">
+        <Bloque titulo="Piezas" id="piezas">
           {f.piezas.length === 0 ? <Vacio>Sin piezas.</Vacio> : (
             <ul className="space-y-1.5 text-[13px]">
               {f.piezas.map((p) => (
@@ -85,7 +86,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
             </ul>
           )}
         </Bloque>
-        <Bloque titulo="Plan de 90 días">
+        <Bloque titulo="Plan de 90 días" id="plan">
           {!f.plan ? <Vacio>Sin plan.</Vacio> : (
             <>
               <dl className="grid grid-cols-2 gap-3">
@@ -133,20 +134,20 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
             </>
           )}
         </Bloque>
-        <Bloque titulo="Gasto (30 días)">
+        <Bloque titulo="Gasto (30 días)" id="gasto">
           <dl className="grid grid-cols-2 gap-3">
             <Dato e="Total" v={usd(f.gasto.total_30d)} />
             <Dato e="Empleados AI" v={usd(f.gasto.agentes_30d)} />
           </dl>
         </Bloque>
-        <Bloque titulo="Cerebro">
+        <Bloque titulo="Cerebro" id="cerebro">
           <dl className="grid grid-cols-2 gap-3">
             <Dato e="Fichas vigentes" v={f.cerebro.fichas_vigentes} />
             <Dato e="Trozos" v={f.cerebro.trozos} />
             <Dato e="Perfiles de cliente" v={f.perfiles_de_cliente_ideal} />
           </dl>
         </Bloque>
-        <Bloque titulo="Manual e identidad">
+        <Bloque titulo="Manual e identidad" id="manual">
           {!f.manual ? <Vacio>Sin manual de marca.</Vacio> : (
             <>
               <div className="flex flex-wrap gap-2">
