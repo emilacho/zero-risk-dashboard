@@ -111,7 +111,8 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
           )}
           {video && !hayReproductor && (
             <div className="max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
-              {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí.` : "Sin archivo de video."}
+              {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
+              {video.solo_en_proveedor && video.url_proveedor && <a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="mt-2 block underline">Abrir en el proveedor</a>}
             </div>
           )}
           {total > 0 && !todas && lamina && (
@@ -167,6 +168,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
                   <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`}>
                     <p>{ROTULO_DEL_VIDEO}.</p>
                     {video.nombre && <p className="text-[hsl(var(--muted-foreground))]">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1)} MB` : ""}</p>}
+                    {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{video.vence ? ` antes de ${video.vence}` : ""}</p>}
                   </Bloque>
                 )}
                 {pieza.pie && <Bloque titulo="Pie de la publicación"><p className="whitespace-pre-wrap">{pieza.pie}</p></Bloque>}

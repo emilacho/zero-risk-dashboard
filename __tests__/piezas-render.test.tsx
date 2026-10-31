@@ -55,7 +55,7 @@ describe("el visor de piezas se dibuja", () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
     const pieza: DetalleDeLaPieza = {
       ...base, titulo: "Video corto Instagram · Zero Risk · 12 nov", familia: "video_mesa", laminas: [], exige_casilla: false, jefatura: { resultado: "aprobada", desacuerdos: [], opinion_externa: null, revision_id: null },
-      video: { nombre: "F1-S1-ig-r1_v1.mp4", bytes: 1_200_000, segundos: 12, simulado: false, solo_en_proveedor: false, vence: null },
+      video: { nombre: "F1-S1-ig-r1_v1.mp4", bytes: 1_200_000, segundos: 12, simulado: false, solo_en_proveedor: false, vence: null, url_proveedor: null },
       guion: "# Guion · F1-S1-ig-r1\n## Plano 1 · 0–3 s\nSe ve: el pan sale del horno",
       avisos: [{ nivel: "info", texto: "Video GENERADO por un modelo (no es una grabación real) · sin voces ni narración. Míralo entero antes de aprobar." }],
     }
@@ -72,13 +72,27 @@ describe("el visor de piezas se dibuja", () => {
     expect(html).not.toContain("juntas")
     expect(html).toContain("no publica todavía")
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Aprobar/) // sin casilla exigida, Aprobar está libre
+    // C10 (certificación CC3): la pestaña se llama «Video», no «Lámina»
+    expect(html).toMatch(/<button[^>]*>Video<\/button>/)
+    expect(html).not.toMatch(/<button[^>]*>Lámina<\/button>/)
   })
-  it("T8 · video que quedó solo en el proveedor: no hay reproductor, se dice y se puede decidir igual", async () => {
+  it("T8 · video que quedó solo en el proveedor: no hay reproductor, se dice, lleva el enlace para bajarlo (nunca se reproduce desde ahí) y se puede decidir igual", async () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
-    const html = dibujar(<VisorDePieza pieza={{ ...base, familia: "video_mesa", laminas: [], video: { nombre: null, bytes: null, segundos: 10, simulado: false, solo_en_proveedor: true, vence: "2026-11-02T10:00:00Z" }, guion: null, avisos: [{ nivel: "ambar", texto: "El video quedó solo en el proveedor y vence 2026-11-02T10:00:00Z: no se puede mostrar aquí. Se descarga al aprobar." }] }} siguienteId={null} />)
+    const html = dibujar(<VisorDePieza pieza={{ ...base, familia: "video_mesa", laminas: [], video: { nombre: null, bytes: null, segundos: 10, simulado: false, solo_en_proveedor: true, vence: "2026-11-02T10:00:00Z", url_proveedor: "https://proveedor.test/v.mp4" }, guion: null, avisos: [{ nivel: "ambar", texto: "El video quedó solo en el proveedor y vence 2026-11-02T10:00:00Z: no se puede mostrar aquí. Hay que bajarlo del proveedor antes de que venza (enlace en la pestaña Video)." }] }} siguienteId={null} />)
     expect(html).not.toContain("<video")
     expect(html).toMatch(/solo en el proveedor/)
+    expect(html).toMatch(/Hay que bajarlo/)
+    expect(html).not.toMatch(/Se descarga al aprobar/)
+    expect(html).toMatch(/<a href="https:\/\/proveedor\.test\/v\.mp4" target="_blank" rel="noopener noreferrer"/)
+    expect(html).not.toContain("/api/piezas/11111111-1111-1111-1111-111111111111/video")
     expect(html).toContain("Pedir cambios")
+  })
+  it("T8 · video SIMULADO (ensayo): no hay reproductor y lo dice en el cuerpo (C09)", async () => {
+    const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")
+    const html = dibujar(<VisorDePieza pieza={{ ...base, familia: "video_mesa", laminas: [], video: { nombre: "x.mp4", bytes: 10, segundos: 10, simulado: true, solo_en_proveedor: false, vence: null, url_proveedor: null }, guion: null, avisos: [] }} siguienteId={null} />)
+    expect(html).not.toContain("<video")
+    expect(html).toMatch(/Ensayo: el video es simulado/)
+    expect(html).not.toMatch(/Sin dibujo/)
   })
   it("una pieza ya aprobada no muestra botones", async () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")

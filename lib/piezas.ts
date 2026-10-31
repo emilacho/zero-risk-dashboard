@@ -93,6 +93,8 @@ export interface VideoDeLaPieza {
   /** el archivo no se pudo copiar al almacén: solo existe en el proveedor (vence) y no se puede mostrar aquí */
   solo_en_proveedor: boolean
   vence: string | null
+  /** el enlace del proveedor (solo https), para que una persona lo baje antes de que venza cuando quedó solo allá; nunca se reproduce desde ahí */
+  url_proveedor: string | null
 }
 /** lo que el manifiesto de una entrega de video dice de sí mismo (`manifest.json`.meta) */
 export interface MetaDelManifiesto { video_generado?: boolean; simulado?: boolean; video_expires_at?: string | null; video_url_proveedor?: string | null; expires_at?: string | null }
@@ -111,6 +113,7 @@ export function videoDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undefin
     simulado: meta?.simulado === true,
     solo_en_proveedor: !a && generado,
     vence: meta?.video_expires_at ?? meta?.expires_at ?? null,
+    url_proveedor: typeof meta?.video_url_proveedor === "string" && /^https:\/\//i.test(meta.video_url_proveedor) ? meta.video_url_proveedor : null,
   }
 }
 
@@ -150,7 +153,8 @@ export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: V
   if (video) {
     out.push({ nivel: "info", texto: `${ROTULO_DEL_VIDEO}. Míralo entero antes de aprobar.` })
     if (video.simulado) out.push({ nivel: "ambar", texto: "Ensayo: el video es simulado (el brazo no filmó nada real). No hay archivo que mirar." })
-    else if (video.solo_en_proveedor) out.push({ nivel: "ambar", texto: `El video quedó solo en el proveedor${video.vence ? ` y vence ${video.vence}` : ""}: no se puede mostrar aquí. Se descarga al aprobar.` })
+    // la descarga NO es automática: la hoja de publicación de la oficina pide que una persona lo baje del proveedor antes de que venza
+    else if (video.solo_en_proveedor) out.push({ nivel: "ambar", texto: `El video quedó solo en el proveedor${video.vence ? ` y vence ${video.vence}` : ""}: no se puede mostrar aquí. Hay que bajarlo del proveedor antes de que venza${video.url_proveedor ? " (enlace en la pestaña Video)" : ""}.` })
     else if (video.vence) out.push({ nivel: "info", texto: `El archivo del video vence ${video.vence}.` })
   } else if (laminas.length === 0) {
     out.push(esFamiliaDeVideo(meta.familia)
