@@ -24,10 +24,8 @@ describe("el tótem", () => {
     expect([...html.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/marketing", "/oficinas#cerebro"])
     expect(html).not.toContain('role="dialog"') // cerrado de entrada: la capa no existe hasta el clic
   })
-  it("la página pone el tótem dentro de la escena (en la foto de respaldo; en el 3D el tótem es una pieza propia que abre el mismo panel)", () => {
-    expect(readFileSync("components/nuevo/EscenaPrincipal.tsx", "utf8")).toMatch(/<EscenaNuevo [^\n]*>\s*<TotemEnVivo \/>\s*<\/EscenaNuevo>/)
-    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toMatch(/<EscenaPrincipal /)
-    expect(readFileSync("components/nuevo/Escena3D.tsx", "utf8")).toMatch(/<PanelEnVivo onCerrar/)
+  it("la página pone el tótem dentro de la escena", () => {
+    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toMatch(/<EscenaNuevo [^\n]*>\s*<TotemEnVivo \/>\s*<\/EscenaNuevo>/)
   })
 })
 
