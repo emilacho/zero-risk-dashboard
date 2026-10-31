@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
+import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
@@ -14,6 +15,8 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
  * 5.8: el interior (marketing-2) SALE DE ADENTRO de la plataforma en la que se hizo clic (se mide dónde está en pantalla y crece desde ahí · ~650 ms),
  * ocupa casi todo el escenario y pasa a ser la imagen principal; al volver se mete otra vez en la plataforma.
  * Volver: Esc, el control «Escena» o clic fuera → animación inversa. La dirección sí cambia (/nuevo/marketing) para que atrás y los enlaces funcionen.
+ * 6.9 (Emilio, 1-nov): el CEREBRO es la otra estructura de la sala principal: el monolito del centro abre el explorador del Cerebro encima de la escena
+ * (dirección /nuevo/cerebro, atrás y adelante funcionan), con su propio selector de cliente porque aquí no hay departamento que lo enfoque.
  */
 // 5.8 · medido con sonda (31-oct): con 650 ms y curva muy «ease-out» la imagen ya tenía el 65 % de su tamaño a los 100 ms y arrancaba invisible (opacidad 0):
 // se leía como «montar la imagen encima». Ahora arranca visible sobre la plataforma y crece parejo, más lento.
@@ -96,14 +99,15 @@ const ESTILO = `
 }
 `
 
-/** 5.14 (Emilio, 31-oct): dentro de la oficina, el tablero de pantallas del fondo es el PIZARRÓN DE PIEZAS: al pasar el ratón se encienden sus pantallas
+/** 5.14 (Emilio, 31-oct): dentro de la oficina, el tablero de pantallas del fondo es el CENTRO DE CAMPAÑA (6.9, Emilio 1-nov: «pizarrón de piezas no le hace
+ *  justicia a la función» · encargo 01-nov: «Centro de campaña»): la pantalla de inicio de todo lo que marketing tiene del cliente, en el orden de la cadena: al pasar el ratón se encienden sus pantallas
  *  (recorte con alfa hecho de los propios píxeles grises de las baldosas de la foto · sin generador · `marketing-tablero-encendido.webp`) y aparece el rótulo
  *  encima, con las mismas letras que «DEPT. MARKETING». Coordenadas en píxeles de la foto (2560×1440). Uso propuesto: el tablero de producción de la oficina
  *  (cada pantalla = una pieza de la semana con su estado: en producción · en revisión · para tu aprobación · publicada). */
 export const TABLERO = {
   clave: "tablero",
-  nombre: "Pizarrón de piezas",
-  rotulo: { x: 977, y: 250, texto: "PIZARRÓN DE PIEZAS" },
+  nombre: "Centro de campaña",
+  rotulo: { x: 977, y: 250, texto: "CENTRO DE CAMPAÑA" },
   forma: "856,392 1098,286 1098,450 856,548", // la cara del tablero (zona del ratón)
   encendido: { src: "/nuevo/marketing-tablero-encendido.webp", caja: { x: 820, y: 250, w: 320, h: 340 } },
 }
@@ -161,8 +165,12 @@ export const suavizado = (p: number, x1 = 0.55, y1 = 0, x2 = 0.15, y2 = 1) => {
 export const opacidadDeSalida = (p: number) => (p >= 1 ? 0 : p < 0.55 ? 1 : p < 0.9 ? 1 - ((p - 0.55) / 0.35) * 0.25 : Math.max(0, 0.75 * (1 - (p - 0.9) / 0.1)))
 const sinMovimiento = () => typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion:reduce)").matches || window.matchMedia("(max-width:700px)").matches)
 
-export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
+export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicial?: boolean; cerebroInicial?: boolean }) {
   const [fase, setFase] = useState<Fase>(inicial ? "abierto" : "cerrado")
+  // 6.9 · el Cerebro abierto sobre la sala principal (sale al <body>, como las aplicaciones); `montado` porque el portal no existe en el servidor
+  const [cerebro, setCerebro] = useState(cerebroInicial)
+  const [montado, setMontado] = useState(false)
+  useEffect(() => { setMontado(true) }, [])
   const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón abierto encima de la oficina (6.2: la pantalla de aplicaciones; el calendario se abre desde ahí)
   const tablero = useRef<SVGGElement>(null)
   const cerrarPizarron = useCallback(() => { setPizarron(false); requestAnimationFrame(() => tablero.current?.focus()) }, [])
@@ -184,6 +192,8 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
     if (temporizador.current) clearTimeout(temporizador.current)
     temporizador.current = setTimeout(() => setFase("cerrado"), MS_SALIDA)
   }, [])
+  const abrirCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
+  const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
 
   // 5.8 · antes de pintar la entrada o la salida, se fija desde dónde sale (o hacia dónde vuelve) la imagen: la plataforma, medida en pantalla
   useLayoutEffect(() => {
@@ -242,11 +252,14 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       const enMarketing = window.location.pathname.startsWith("/nuevo/marketing")
       if (enMarketing && !abierta) abrir(false)
       else if (!enMarketing && abierta) cerrar(false)
+      const enCerebro = window.location.pathname.startsWith("/nuevo/cerebro")
+      if (enCerebro && !cerebro) abrirCerebro(false)
+      else if (!enCerebro && cerebro) cerrarCerebro(false)
     }
     window.addEventListener("keydown", alTeclear)
     window.addEventListener("popstate", alVolver)
     return () => { window.removeEventListener("keydown", alTeclear); window.removeEventListener("popstate", alVolver) }
-  }, [abierta, abrir, cerrar])
+  }, [abierta, abrir, cerrar, cerebro, abrirCerebro, cerrarCerebro])
   useEffect(() => () => { if (temporizador.current) clearTimeout(temporizador.current) }, [])
 
   return (
@@ -255,7 +268,7 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       {/* la escena principal: miniatura translúcida en la esquina inferior izquierda mientras el departamento está proyectado */}
       {/* la escena principal SIEMPRE debajo de la foto del departamento (una sola transición continua hasta la esquina); la foto la deja ver por su hueco (5.10) */}
       <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase === "entra" || fase === "abierto"} data-resaltada={fase === "abierto" && sobreLaMiniatura} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
-        <EscenaNuevo alAbrirMarketing={() => abrir()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
+        <EscenaNuevo alAbrirMarketing={() => abrir()} alAbrirCerebro={() => abrirCerebro()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
       {fase !== "cerrado" && (
         <div className="nv-capa fixed inset-0 z-[5] flex items-center justify-center" onClick={() => abierta && cerrar()}>
@@ -294,6 +307,8 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
       )}
       {/* sprint 6 · el pizarrón sale al <body> (como «En vivo»): la oficina lleva máscaras que lo desvanecerían */}
       {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)}
+      {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
+      {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"
           className="fixed left-4 top-16 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] tracking-wide text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a] sm:left-5">

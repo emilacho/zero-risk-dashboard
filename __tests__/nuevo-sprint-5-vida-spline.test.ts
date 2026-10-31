@@ -102,9 +102,9 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(html).toMatch(/<img[^>]*data-encendido="tablero"[^>]*class="nv-tablero-luz pointer-events-none absolute select-none"[^>]*style="left:32\.0313%;top:17\.3611%;width:12\.5000%;height:23\.6111%"/)
     expect(html).toContain(".nv-tablero-luz{opacity:0;transition:opacity .45s ease}")
     expect(html).toContain('.nv-proy:has(.nv-tablero:hover) .nv-tablero-luz,.nv-proy:has(.nv-tablero:focus-visible) .nv-tablero-luz{opacity:1}')
-    expect(html).toMatch(/<g class="nv-tablero" data-zona="tablero" role="button" tabindex="0" aria-label="Pizarrón de piezas"[^>]*><polygon points="856,392 1098,286 1098,450 856,548"><\/polygon>/)
+    expect(html).toMatch(/<g class="nv-tablero" data-zona="tablero" role="button" tabindex="0" aria-label="Centro de campaña"[^>]*><polygon points="856,392 1098,286 1098,450 856,548"><\/polygon>/)
     const logo = renderToStaticMarkup(createElement(BarraSuperior)).match(/<text[^>]*>ZERO RISK<\/text>/)![0]
-    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>PIZARRÓN DE PIEZAS<\/text>/)![0]
+    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>CENTRO DE CAMPAÑA<\/text>/)![0]
     const num = (s: string, k: string) => Number(s.match(new RegExp(`${k}="([\\d.]+)"`))![1])
     for (const s of [logo, rotulo]) { expect(s).toContain('fill="none"'); expect(s).toContain('stroke="#e8731a"'); expect(s).toContain('font-weight="500"') }
     expect(num(rotulo, "letter-spacing") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "letter-spacing") / num(logo, "font-size"), 3)

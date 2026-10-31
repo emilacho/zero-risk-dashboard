@@ -43,7 +43,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
   const cerrar = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cerrar.current?.focus() }, [])
-  // Esc cierra el pizarrón y NO la oficina: se atiende en captura y se detiene ahí
+  // Esc cierra el calendario y NO la oficina: se atiende en captura y se detiene ahí
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
     window.addEventListener("keydown", tecla, true)
@@ -55,7 +55,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
     try {
       const r = await fetch(`/api/pizarron${id ? `?cliente=${encodeURIComponent(id)}` : ""}`, { cache: "no-store" })
       const j = (await r.json().catch(() => null)) as Respuesta | null
-      if (!r.ok || !j || !j.ok) throw new Error(r.status === 401 || r.status === 403 ? "Necesitas una sesión de administrador para ver el pizarrón." : (j && !j.ok && j.error) || `No pude leer el pizarrón (${r.status}).`)
+      if (!r.ok || !j || !j.ok) throw new Error(r.status === 401 || r.status === 403 ? "Necesitas una sesión de administrador para ver el calendario." : (j && !j.ok && j.error) || `No pude leer el calendario (${r.status}).`)
       setDatos(j); setCliente(j.cliente?.id ?? null); setElegida(null)
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
@@ -72,7 +72,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
       <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" className="relative flex max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <span aria-hidden className={`h-2 w-2 rounded-full ${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}`} />
-          <h2 id="pizarron-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Pizarrón de piezas</h2>
+          <h2 id="pizarron-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Calendario</h2>
           <p className="hidden text-[12px] text-zinc-500 md:block">La campaña del cliente, publicación por publicación · solo lectura</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
@@ -91,7 +91,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden">
           <div className="min-h-0 overflow-y-auto px-4 py-4 sm:px-6">
-            {!datos && !error && <p className="text-[13px] text-zinc-500">Leyendo el pizarrón…</p>}
+            {!datos && !error && <p className="text-[13px] text-zinc-500">Leyendo el calendario…</p>}
             {datos && !datos.campana && <p className="text-[13px] text-zinc-400">{datos.cliente ? `${datos.cliente.nombre} todavía no tiene una campaña en la cadena.` : "No hay clientes para mostrar."}</p>}
             {datos && datos.campana && (
               <>
@@ -118,7 +118,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
                 </section>
 
                 {/* leyenda */}
-                <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11.5px] text-zinc-400" aria-label="Colores del pizarrón">
+                <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11.5px] text-zinc-400" aria-label="Colores del calendario">
                   {ESTADOS_DEL_TABLERO.filter((e) => (datos.totales[e.clave] ?? 0) > 0 || ["idea", "mesa", "jefatura", "emilio", "aprobada", "vencida"].includes(e.clave)).map((e) => (
                     <li key={e.clave} className="flex items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: e.color }} />{e.nombre}<span className="text-zinc-600">{datos.totales[e.clave] ?? 0}</span></li>
                   ))}
@@ -199,7 +199,7 @@ function DetalleDeLaFila({ f, onAbrirPieza }: { f: FilaDelTablero; onAbrirPieza?
           {onAbrirPieza
             ? <button type="button" onClick={() => onAbrirPieza(f.pieza!.id)} data-accion="abrir-pieza" aria-haspopup="dialog" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</button>
             : <a href={enlaceDeLaPieza(f.pieza.id)} data-accion="abrir-pieza" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</a>}
-          <p className="mt-2 text-[11.5px] text-zinc-500">{onAbrirPieza ? "Se abre encima, en esta misma oficina; aquí el pizarrón solo mira." : "Se abre en su ventana; aquí el pizarrón solo mira."}</p>
+          <p className="mt-2 text-[11.5px] text-zinc-500">{onAbrirPieza ? "Se abre encima, en esta misma oficina; aquí el calendario solo mira." : "Se abre en su ventana; aquí el calendario solo mira."}</p>
         </div>
       ) : (
         <p className="mt-4 text-[12.5px] text-zinc-500">Todavía no hay pieza para esta publicación.</p>

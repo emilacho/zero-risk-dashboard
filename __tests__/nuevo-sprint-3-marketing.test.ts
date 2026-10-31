@@ -43,7 +43,7 @@ describe("dashboard nuevo · sprint 3 · Dept. Marketing proyectado", () => {
     expect(abierta).toContain('data-atenuado="true"')
     expect(abierta).toContain("Volver a la escena")
     // el interior no tiene zonas clicables propias: los únicos enlaces son los de la escena de fondo
-    expect([...abierta.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/marketing", "/oficinas#cerebro"])
+    expect([...abierta.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/cerebro", "/nuevo/marketing"]) // 6.9: el monolito abre el Cerebro nuevo, ya no el dashboard viejo
   })
   it("vuelve con Esc, con el control y con clic fuera; la dirección cambia sin reiniciar la página", () => {
     const c = leer("components/nuevo/EscenaViva.tsx")

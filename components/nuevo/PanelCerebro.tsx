@@ -134,8 +134,10 @@ function FormularioDelDueno({ f, sedes, enviando, error, onCambiar, onEnviar, on
   )
 }
 
-export function PanelCerebro({ onCerrar, datosIniciales = null, clienteInicial = null, carpetaInicial = null, fetchImpl = fetch, ahora: ahoraFija }: {
+export function PanelCerebro({ onCerrar, datosIniciales = null, clienteInicial = null, carpetaInicial = null, elegirCliente = false, fetchImpl = fetch, ahora: ahoraFija }: {
   onCerrar: () => void
+  /** 6.9 · abierto desde la SALA PRINCIPAL (el monolito): no hay departamento que enfoque al cliente, así que el selector va aquí, como en el Dept. Marketing */
+  elegirCliente?: boolean
   /** lectura ya hecha (pruebas) */
   datosIniciales?: CerebroDelCliente | null
   /** el cliente en el que está enfocada la oficina (lo pasa el Dept. Marketing). El explorador NO cambia de cliente: para eso está la ventana de selección */
@@ -217,7 +219,17 @@ export function PanelCerebro({ onCerrar, datosIniciales = null, clienteInicial =
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <h2 id="cerebro-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Cerebro</h2>
           <p className="hidden text-[12px] text-zinc-500 md:block">Lo que el sistema sabe de {nombre}{resumen ? ` · ${resumen}` : ""}</p>
-          <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar el cerebro" className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
+          {elegirCliente && (
+            <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
+              <span>Cliente</span>
+              <select value={clienteId ?? ""} onChange={(e) => { irA(null); void leer(e.target.value || null) }} disabled={!datos || cargando} aria-label="Elegir el cliente" data-elegir-cliente
+                className="rounded-md border border-white/15 bg-black/60 px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
+                {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                {!datos && <option value="">Leyendo…</option>}
+              </select>
+            </label>
+          )}
+          <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar el cerebro" className={`${elegirCliente ? "" : "ml-auto "}rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400`}>Cerrar · Esc</button>
         </header>
         {/* la ruta, como un explorador: cliente › carpeta › ficha */}
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 px-4 py-2 sm:px-6">

@@ -11,7 +11,7 @@ const enlaces = (html: string) => [...html.matchAll(/<a [^>]*?href="([^"]+)"/g)]
 describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
   it("de la escena solo son clicables DOS cosas: el monolito (cerebro) y las pantallas y el proyector (oficinas)", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
-    expect(enlaces(html).sort()).toEqual(["/nuevo/marketing", "/oficinas#cerebro"])
+    expect(enlaces(html).sort()).toEqual(["/nuevo/cerebro", "/nuevo/marketing"]) // 6.9: el monolito abre el Cerebro nuevo, ya no el dashboard viejo
     expect(ZONAS.map((z) => z.clave)).toEqual(["cerebro", "marketing"])
     expect(ZONAS[1].formas.length).toBe(1) // la plataforma de marketing (la pantalla de pie queda libre para «En vivo»)
   })
