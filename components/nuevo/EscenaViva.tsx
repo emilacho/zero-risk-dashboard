@@ -39,13 +39,16 @@ export const SALA_EN_LA_FOTO = { ancho: 0.766, cx: 0.488, cy: 0.405 }
 export const FUNDIDO_BORDES = "linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)"
 /** 5.9 · mientras la oficina aparece chica sobre su plataforma, se ve SOLO la sala en un óvalo suave (sin los márgenes negros de la foto, que dibujaban un rectángulo
  *  sobre el piso gris); la foto completa (con el fundido de arriba/abajo) se funde encima cuando ya creció. Dos copias de la misma imagen: A (óvalo) y B (completa). */
+/** 5.10 · la foto grande lleva un HUECO suave en su esquina inferior izquierda (ahí solo tiene margen negro) para que la miniatura de la escena, que queda
+ *  debajo, se vea todo el tiempo mientras se encoge y se atenúa: sin cambios de capa ni saltos. El hueco se calcula en píxeles sobre la miniatura real
+ *  y va en la CAPA fija (coordenadas de ventana), no en la foto, para que no se mueva ni se encoja con ella mientras crece. */
+export const HOLGURA_HUECO = { x: 1.45, y: 1.6, nitido: 0.72 }
 export const OVALO_SALA = `radial-gradient(ellipse 40% 46% at ${SALA_EN_LA_FOTO.cx * 100}% ${SALA_EN_LA_FOTO.cy * 100}%,#000 55%,transparent 100%)`
 
 const ESTILO = `
 .nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}
 .nv-fondo[data-atenuado="true"]{opacity:${OPACIDAD_FONDO_ABIERTO};transform:scale(${ESCALA_FONDO_ABIERTO});pointer-events:none;position:relative;transition-delay:${RETARDO_ESCENA_MS}ms}
-.nv-fondo[data-abierto="true"]{z-index:6;animation:nvMiniatura .5s ease both}
-@keyframes nvMiniatura{from{opacity:0}to{opacity:${OPACIDAD_FONDO_ABIERTO}}}
+.nv-capa{-webkit-mask-image:var(--nv-hueco,none);mask-image:var(--nv-hueco,none)}
 .nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}
 .nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.5,.05,.2,1) both}
 .nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms cubic-bezier(.55,0,.6,.6) both}
@@ -73,7 +76,6 @@ const ESTILO = `
   .nv-proy[data-fase="entra"] .nv-foto-b,.nv-proy[data-fase="sale"] .nv-foto-b{animation:none}
   @keyframes nvAparece{from{opacity:0}to{opacity:1}}
   @keyframes nvDesaparece{from{opacity:1}to{opacity:0}}
-  .nv-fondo[data-abierto="true"]{animation:none}
 }
 `
 
@@ -86,6 +88,16 @@ const cajaDeLaPlataforma = (): Caja | null => {
   if (!el) return null
   const r = el.getBoundingClientRect()
   return r.width > 0 ? { x: r.x, y: r.y, w: r.width, h: r.height } : null
+}
+
+/** 5.10 · el hueco de la foto grande: dónde va a quedar la miniatura (la escena encogida a ESCALA_FONDO_ABIERTO desde la esquina inferior izquierda de su marco),
+ *  en coordenadas de la capa fija, con holgura; se usa como máscara de la capa (lo de adentro del óvalo queda transparente) */
+export const huecoParaLaMiniatura = (marco: Caja, escena: { w: number; h: number }, final: Caja, escala = ESCALA_FONDO_ABIERTO) => {
+  const ex = marco.x + (marco.w - escena.w) / 2, ey = marco.y + (marco.h - escena.h) / 2 // la escena centrada en su marco, sin transformar
+  const mini = { x: marco.x + (ex - marco.x) * escala, y: marco.y + marco.h - (marco.y + marco.h - ey) * escala, w: escena.w * escala, h: escena.h * escala }
+  const cx = mini.x + mini.w / 2 - final.x, cy = mini.y + mini.h / 2 - final.y
+  const rx = (mini.w / 2) * HOLGURA_HUECO.x, ry = (mini.h / 2) * HOLGURA_HUECO.y
+  return `radial-gradient(ellipse ${rx.toFixed(1)}px ${ry.toFixed(1)}px at ${cx.toFixed(1)}px ${cy.toFixed(1)}px,transparent ${Math.round(HOLGURA_HUECO.nitido * 100)}%,#000 100%)`
 }
 
 /** 5.8 · la transformación con la que la imagen abierta (en su sitio final) coincide con la plataforma: la sala de la foto, centrada en la plataforma y de su ancho */
@@ -118,14 +130,24 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
 
   // 5.8 · antes de pintar la entrada o la salida, se fija desde dónde sale (o hacia dónde vuelve) la imagen: la plataforma, medida en pantalla
   useLayoutEffect(() => {
-    if (fase !== "entra" && fase !== "sale") return
+    if (fase === "cerrado") return
     const el = proy.current
     if (!el) return
     const padre = el.offsetParent as HTMLElement | null
     const base = padre ? padre.getBoundingClientRect() : { x: 0, y: 0 }
     const final = { x: base.x + el.offsetLeft, y: base.y + el.offsetTop, w: el.offsetWidth, h: el.offsetHeight } // medidas de maqueta: sin la animación
+    if (final.w === 0) return
+    // 5.10 · el hueco para la miniatura (también al entrar directo a /nuevo/marketing, ya abierta)
+    const fondo = document.querySelector<HTMLElement>(".nv-fondo"); const escena = fondo?.querySelector<HTMLElement>(".nv-escena")
+    if (fondo && escena && fondo.offsetParent) {
+      const m = fondo.offsetParent.getBoundingClientRect()
+      const marco = { x: m.x + fondo.offsetLeft, y: m.y + fondo.offsetTop, w: fondo.offsetWidth, h: fondo.offsetHeight }
+      const capa = el.parentElement as HTMLElement; const c = capa.getBoundingClientRect()
+      capa.style.setProperty("--nv-hueco", huecoParaLaMiniatura(marco, { w: escena.offsetWidth, h: escena.offsetHeight }, { x: c.x, y: c.y, w: c.width, h: c.height }))
+    }
+    if (fase !== "entra" && fase !== "sale") return
     const plataforma = origen.current ?? cajaDeLaPlataforma()
-    if (!plataforma || final.w === 0) return
+    if (!plataforma) return
     const t = transformacionDesdeLaPlataforma(plataforma, final)
     el.style.setProperty("--nv-x", `${t.x.toFixed(1)}px`)
     el.style.setProperty("--nv-y", `${t.y.toFixed(1)}px`)
@@ -151,13 +173,12 @@ export function EscenaViva({ inicial = false }: { inicial?: boolean }) {
     <>
       <style>{ESTILO}</style>
       {/* la escena principal: miniatura translúcida en la esquina inferior izquierda mientras el departamento está proyectado */}
-      {/* 5.9 · orden de capas: MIENTRAS la oficina entra o sale va POR ENCIMA de la escena (si no, la escena, todavía opaca, la tapaba y la salida
-          desde la plataforma no se veía); ya abierta, la miniatura pasa por encima de la foto (que cubre la ventana) con un fundido corto */}
-      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} data-abierto={fase === "abierto"} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
+      {/* la escena principal SIEMPRE debajo de la foto del departamento (una sola transición continua hasta la esquina); la foto la deja ver por su hueco (5.10) */}
+      <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase !== "cerrado"} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
         <EscenaNuevo alAbrirMarketing={() => abrir()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
       {fase !== "cerrado" && (
-        <div className="nv-capa fixed inset-0 flex items-center justify-center" style={{ zIndex: fase === "abierto" ? 5 : 7 }} onClick={() => abierta && cerrar()}>
+        <div className="nv-capa fixed inset-0 z-[5] flex items-center justify-center" onClick={() => abierta && cerrar()}>
           <div ref={proy} className="nv-proy relative aspect-video shrink-0" data-fase={fase === "sale" ? "sale" : fase === "entra" ? "entra" : "abierto"}
             style={{ width: ANCHO_MARKETING_ABIERTO }} onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
