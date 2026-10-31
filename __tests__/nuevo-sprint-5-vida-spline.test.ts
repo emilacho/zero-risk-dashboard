@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import { ENCENDIDOS, EscenaNuevo, VISTA, ZONAS } from "@/components/nuevo/EscenaNuevo"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
-import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FRACCION_APARECE, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, huecoParaLaMiniatura, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
+import { ANCHO_MARKETING_ABIERTO, ESCALA_FONDO_ABIERTO, EscenaViva, FUNDIDO_BORDES, OPACIDAD_FONDO_ABIERTO, OVALO_SALA, RETARDO_ESCENA_MS, SALA_EN_LA_FOTO, huecoParaLaMiniatura, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import {
   CAMARA_Z, DESFASES, ESCENA_SPLINE, NOMBRES, PERIODOS, RUTAS, aMundo, conviene, deFoto, distanciaARuta, largoRuta, poseDePulso, puntoEnRuta,
 } from "@/lib/vida-spline"
@@ -39,10 +39,11 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(ANCHO_MARKETING_ABIERTO).toContain("120vw")
     expect(FUNDIDO_BORDES).toBe("linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)")
     // la entrada arranca con la transformación medida en pantalla (variables --nv-x/--nv-y/--nv-s) y termina en su sitio; la salida es la inversa
-    // 5.9: dos tiempos: aparece (fundido) QUIETA sobre la plataforma hasta el 30 %, y recién después crece hasta su sitio
-    expect(FRACCION_APARECE).toBe(0.3); expect(RETARDO_ESCENA_MS).toBe(450)
-    expect(abierta).toContain("@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}30%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:1;transform:none}}")
-    expect(abierta).toContain("@keyframes nvSale{from{opacity:1;transform:none}70%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}")
+    // 5.11: UN solo movimiento continuo: crece y se hace visible a la vez (opacidad escalonada a lo largo del crecimiento), arranque lento con impulso; la escena arranca 200 ms después
+    expect(RETARDO_ESCENA_MS).toBe(200)
+    expect(abierta).toContain("@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}")
+    expect(abierta).toContain("@keyframes nvSale{from{opacity:1;transform:none}45%{opacity:.85}80%{opacity:.35}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}")
+    expect(abierta).toContain('.nv-proy[data-fase="entra"]{animation:nvEntra 1700ms cubic-bezier(.55,0,.15,1) both}')
     // geometría: con la imagen final en 0,0 1000×562,5 y la plataforma en 600,200 150×120, la sala (76,6 % del ancho) queda del ancho de la plataforma y centrada en ella
     const t = transformacionDesdeLaPlataforma({ x: 600, y: 200, w: 150, h: 120 }, { x: 0, y: 0, w: 1000, h: 562.5 })
     expect(t.s).toBeCloseTo(150 / (1000 * SALA_EN_LA_FOTO.ancho), 6)
@@ -53,7 +54,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(abierta.match(/src="\/nuevo\/marketing-2560\.jpg"/g)?.length).toBe(2)
     expect(abierta).toContain(`.nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}`)
     expect(OVALO_SALA).toContain("radial-gradient(ellipse 40% 46% at 48.8% 40.5%")
-    expect(abierta).toContain("@keyframes nvFotoBEntra{from{opacity:0}45%{opacity:0}to{opacity:1}}")
+    expect(abierta).toContain("@keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}")
     expect(abierta).toContain("@keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}")
     expect(abierta).toMatch(/<img[^>]*alt=""[^>]*class="nv-foto-a/); expect(abierta).toMatch(/<img[^>]*alt="El interior del departamento de marketing"[^>]*class="nv-foto-b/)
   })
@@ -109,7 +110,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     const hueco = huecoParaLaMiniatura({ x: 0, y: 0, w: 1000, h: 600 }, { w: 800, h: 450 }, { x: 0, y: 0, w: 1500, h: 843 })
     expect(hueco).toBe(`radial-gradient(ellipse ${(120 * 1.45).toFixed(1)}px ${(67.5 * 1.6).toFixed(1)}px at 150.0px 510.0px,transparent 72%,#000 100%)`)
     // el origen de la transformación en la esquina inferior izquierda es lo que manda la miniatura ahí al encoger
-    expect(abierta).toContain(".nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}")
+    expect(abierta).toContain(".nv-fondo{transition:opacity 1.1s ease,transform 1.2s cubic-bezier(.55,0,.15,1);transform-origin:0% 100%}") // 5.11: mismo impulso que la oficina
     expect(abierta).not.toMatch(/blur\(/)
   })
   it("la foto va en su propia capa de composición: con un lienzo WebGL encima Chrome la redibujaba distinta (medido 31-oct) · no quitar", () => {

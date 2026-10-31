@@ -15,12 +15,13 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
  */
 // 5.8 · medido con sonda (31-oct): con 650 ms y curva muy «ease-out» la imagen ya tenía el 65 % de su tamaño a los 100 ms y arrancaba invisible (opacidad 0):
 // se leía como «montar la imagen encima». Ahora arranca visible sobre la plataforma y crece parejo, más lento.
-// 5.9 (Emilio: «no se ve que la oficina se agranda desde su imagen»): DOS tiempos. Primero la oficina APARECE sobre su plataforma con la escena
-// quieta (fundido · hasta FRACCION_APARECE); recién después crece hasta su sitio mientras la escena se va a la esquina (la escena espera RETARDO_ESCENA_MS).
-const MS_ENTRADA = 1500
-const MS_SALIDA = 950
-export const FRACCION_APARECE = 0.3
-export const RETARDO_ESCENA_MS = Math.round(MS_ENTRADA * FRACCION_APARECE)
+// 5.11 (Emilio: «no debería aparecer instantáneamente… ir paulatinamente agrandando y dando visibilidad a la imagen, efecto de aparición de acuerdo al momentum»):
+// UN solo movimiento continuo desde la plataforma: la oficina crece y se hace visible A LA VEZ, arrancando lento y tomando impulso (curva con salida suave);
+// la opacidad sube de a poco a lo largo del crecimiento (no hay fase de «aparece quieta»). La escena arranca apenas después (RETARDO_ESCENA_MS) para que
+// el crecimiento se lea primero desde la plataforma. (5.9 tenía dos tiempos: aparecía quieta y luego crecía; se leía como aparición instantánea.)
+const MS_ENTRADA = 1700
+const MS_SALIDA = 1000
+export const RETARDO_ESCENA_MS = 200
 
 // Cambiar la dirección SIN avisarle al enrutador de Next (si no, la transición de rutas reiniciaría la página y se perdería la animación).
 // Con estado nulo, Next ignora el «atrás» y lo atendemos nosotros (popstate).
@@ -46,21 +47,21 @@ export const HOLGURA_HUECO = { x: 1.45, y: 1.6, nitido: 0.72 }
 export const OVALO_SALA = `radial-gradient(ellipse 40% 46% at ${SALA_EN_LA_FOTO.cx * 100}% ${SALA_EN_LA_FOTO.cy * 100}%,#000 55%,transparent 100%)`
 
 const ESTILO = `
-.nv-fondo{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1);transform-origin:0% 100%}
+.nv-fondo{transition:opacity 1.1s ease,transform 1.2s cubic-bezier(.55,0,.15,1);transform-origin:0% 100%}
 .nv-fondo[data-atenuado="true"]{opacity:${OPACIDAD_FONDO_ABIERTO};transform:scale(${ESCALA_FONDO_ABIERTO});pointer-events:none;position:relative;transition-delay:${RETARDO_ESCENA_MS}ms}
 .nv-capa{-webkit-mask-image:var(--nv-hueco,none);mask-image:var(--nv-hueco,none)}
 .nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}
-.nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.5,.05,.2,1) both}
-.nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms cubic-bezier(.55,0,.6,.6) both}
+.nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.55,0,.15,1) both}
+.nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms cubic-bezier(.6,0,.4,1) both}
 .nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}
 .nv-proy[data-fase="entra"] .nv-foto-b{animation:nvFotoBEntra ${MS_ENTRADA}ms linear both}
 .nv-proy[data-fase="sale"] .nv-foto-b{animation:nvFotoBSale ${MS_SALIDA}ms linear both}
-@keyframes nvFotoBEntra{from{opacity:0}45%{opacity:0}to{opacity:1}}
+@keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}
 @keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}
 .nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.22) 50%,transparent 58%);background-size:260% 100%;opacity:0}
-.nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido 800ms ease-out ${RETARDO_ESCENA_MS + 150}ms both}
-@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}${Math.round(FRACCION_APARECE * 100)}%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:1;transform:none}}
-@keyframes nvSale{from{opacity:1;transform:none}${100 - Math.round(FRACCION_APARECE * 100)}%{opacity:1;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}
+.nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido 800ms ease-out ${RETARDO_ESCENA_MS + 500}ms both}
+@keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}
+@keyframes nvSale{from{opacity:1;transform:none}45%{opacity:.85}80%{opacity:.35}to{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}}
 @keyframes nvBarrido{0%{opacity:.9;background-position:130% 0}100%{opacity:0;background-position:-30% 0}}
 @media (max-width:700px){
   .nv-fondo{transition:opacity .4s ease}
