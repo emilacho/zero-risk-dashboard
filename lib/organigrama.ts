@@ -7,6 +7,10 @@
  * FUENTE: `raw/tasks/2026-11-01-MAPA-LENOVO-departamento-de-marketing-completo-por-etapas.md` (sección final) + FIRMAS 31-oct/01-nov. HOY `oficina_directorio` NO tiene
  * columna de equipo (sonda 1-nov): mientras no exista, el equipo sale de aquí («según el mapa firmado») y el directorio aporta rol, especialidad y pertinencia; cuando la
  * plataforma la agregue (nota para CC1 en el MAPA), el dato manda y esta tabla queda de respaldo. Lo firmado y no instalado se muestra «por instalar», nunca como presente.
+ * 6.11 (ADENDA 7.1 · CC1 01-nov 00:54Z): el equipo YA ES UN DATO: tabla `oficina_equipos` (6 filas: clave · nombre · sistema · descripción · etapa · bloqueo · orden) +
+ * columna `oficina_directorio.equipo`. Cuando la lectura trae esa tabla, `armarEquipos` deja de leer este mapa: los equipos salen de la tabla, la gente de su tarjeta del
+ * directorio, y lo que no tiene tarjeta se lista aparte SIN inventarle equipo (el directorio es el de la oficina de marketing, no el censo de los 69 agentes). El mapa queda
+ * de respaldo solo si la tabla no está.
  */
 export type ClaveDeEquipo = "direccion" | "estrategia" | "creativo" | "web" | "medios" | "relaciones" | "proveedores" | "otros"
 export type EtapaDeEquipo = "activo" | "segunda_etapa" | "fuera"
@@ -107,6 +111,20 @@ export const equipoDelAgente = (nombre: unknown): ClaveDeEquipo => equiposDelAge
 export const equipoPorClave = (k: ClaveDeEquipo): Equipo => EQUIPOS.find((e) => e.clave === k)!
 export const EQUIPOS_DE_MARKETING: ClaveDeEquipo[] = ["direccion", "estrategia", "creativo", "web", "medios", "relaciones"]
 
+/** ─── 6.11 · el equipo como dato de la plataforma (`oficina_equipos`) ─── */
+export interface FilaDeEquipoDelDato { clave: string; nombre: string | null; sistema: string | null; descripcion: string | null; etapa: string | null; bloqueo: string | null; orden: number | null }
+export const FUENTE_DEL_DATO = "oficina_equipos + oficina_directorio.equipo (dato de la plataforma, 01-nov)"
+const COLOR_POR_CLAVE: Record<string, string> = Object.fromEntries(EQUIPOS.map((e) => [e.clave, e.color]))
+/** «campaign-brief-agent» → «Campaign brief agent» (cuando el directorio nombra a alguien que no tiene ficha en `agents`) */
+export const nombreLegibleDelAgente = (slug: string): string => { const s = slug.replace(/[-_]+/g, " ").trim(); return s ? s[0].toUpperCase() + s.slice(1) : slug }
+/** las filas de la tabla → equipos del organigrama (un área única «Integrantes»; el color sigue siendo el de la escena) */
+export function equiposDesdeElDato(filas: FilaDeEquipoDelDato[]): Equipo[] {
+  return [...filas].sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99)).map((f) => {
+    const clave = nombreCanonico(f.clave).replace(/-/g, "_") as ClaveDeEquipo
+    return { clave, nombre: f.nombre || f.clave, sistema: f.sistema ?? "", descripcion: f.descripcion ?? "", etapa: f.etapa === "activo" ? "activo" : "segunda_etapa", bloqueo: f.bloqueo || null, color: COLOR_POR_CLAVE[clave] ?? "#8a8a8a", areas: [area("integrantes", "Integrantes", null, null, [])], fuente: FUENTE_DEL_DATO }
+  })
+}
+
 export function etapaLegible(e: EtapaDeEquipo): string {
   return e === "activo" ? "Activo" : e === "segunda_etapa" ? "Segunda etapa · por activar" : "Fuera del departamento"
 }
@@ -179,7 +197,9 @@ export interface EquipoArmado extends Equipo {
   origen: "directorio" | "mapa"
 }
 
-export function armarEquipos(agentes: FilaDeAgente[], directorio: FilaDeDirectorio[], invocaciones: Invocacion[], o: { cliente?: string | null; ahora: Date }): EquipoArmado[] {
+export function armarEquipos(agentes: FilaDeAgente[], directorio: FilaDeDirectorio[], invocaciones: Invocacion[], o: { cliente?: string | null; ahora: Date; equiposDelDato?: FilaDeEquipoDelDato[] | null }): EquipoArmado[] {
+  // 6.11: con la tabla de equipos de la plataforma, el dato manda y el mapa no se lee
+  if (o.equiposDelDato?.length) return armarDesdeElDato(equiposDesdeElDato(o.equiposDelDato), agentes, directorio, invocaciones, o)
   const dir = new Map(directorio.map((d) => [nombreCanonico(d.agente), d]))
   const miembro = (a: FilaDeAgente, instalado: boolean): Miembro => {
     const d = dir.get(nombreCanonico(a.name))
@@ -216,6 +236,36 @@ export function armarEquipos(agentes: FilaDeAgente[], directorio: FilaDeDirector
   otros.areas[0] = { ...otros.areas[0], miembros: sueltos }; otros.miembros = sueltos; otros.trabajando = sueltos.filter((m) => m.actividad.estado === "trabajando").length
   return equipos
 }
+/**
+ * 6.11 · el organigrama desde el DATO: equipos = `oficina_equipos` · gente = tarjetas de `oficina_directorio` con `equipo` · sin equipo a propósito (el portero) = proveedores ·
+ * lo instalado (o visto trabajar) sin tarjeta = aparte, sin inventarle equipo. Nada sale del mapa.
+ */
+function armarDesdeElDato(equiposDato: Equipo[], agentes: FilaDeAgente[], directorio: FilaDeDirectorio[], invocaciones: Invocacion[], o: { cliente?: string | null; ahora: Date }): EquipoArmado[] {
+  const instalados = new Map(agentes.map((a) => [nombreCanonico(a.name), a]))
+  const claveDe = (equipo: string | null | undefined): ClaveDeEquipo | null => (equipo ? (nombreCanonico(equipo).replace(/-/g, "_") as ClaveDeEquipo) : null)
+  const desdeAgente = (a: FilaDeAgente, d: FilaDeDirectorio | undefined, instalado: boolean): Miembro => ({
+    nombre: a.name, nombre_visible: a.display_name || nombreLegibleDelAgente(a.name), modelo: a.model, activo: a.is_active !== false && a.status !== "inactive", instalado, en_directorio: !!d,
+    rol_en_sesion: rolLegible(d?.rol), especialidad: d?.especialidad ?? null, sabe_hacer: d?.sabe_hacer ?? [], necesita: d?.necesita ?? [], entrega: d?.entrega ?? [], pertinente_en: d?.pertinente_en ?? [],
+    equipos: claveDe(d?.equipo) ? [claveDe(d?.equipo)!] : [], actividad: actividadDelAgente(a.name, invocaciones, o),
+  })
+  const desdeDirectorio = (d: FilaDeDirectorio): Miembro => {
+    const a = instalados.get(nombreCanonico(d.agente))
+    return a ? desdeAgente(a, d, true) : desdeAgente({ name: d.agente, display_name: null, role: null, model: null, is_active: d.activo, status: null }, d, false)
+  }
+  const armado = (e: Equipo, miembros: Miembro[]): EquipoArmado => ({ ...e, areas: [{ ...e.areas[0], miembros }], miembros, trabajando: miembros.filter((m) => m.actividad.estado === "trabajando").length, por_instalar_total: 0, origen: "directorio" })
+  const equipos = equiposDato.map((e) => armado(e, ordenar(directorio.filter((d) => claveDe(d.equipo) === e.clave).map(desdeDirectorio))))
+  const conocidas = new Set(equiposDato.map((e) => e.clave))
+  // el directorio sin equipo (el portero, a propósito) o con un equipo que la tabla no trae: proveedores del departamento
+  const sinEquipo = ordenar(directorio.filter((d) => !claveDe(d.equipo) || !conocidas.has(claveDe(d.equipo)!)).map(desdeDirectorio))
+  const proveedores = armado({ clave: "proveedores", nombre: "Proveedores", sistema: "directorio sin equipo", descripcion: "En el directorio de la oficina sin equipo, a propósito: le sirven al departamento desde afuera (el portero del cerebro)", etapa: "fuera", bloqueo: null, color: COLOR_POR_CLAVE.proveedores ?? "#8a8a8a", areas: [area("sin-equipo", "Sin equipo en el directorio", null, null, [])], fuente: FUENTE_DEL_DATO }, sinEquipo)
+  // lo instalado (o visto trabajar en 7 días) que no tiene tarjeta en el directorio de la oficina: se lista, no se le inventa equipo
+  const enDirectorio = new Set(directorio.map((d) => nombreCanonico(d.agente)))
+  const fantasmas: FilaDeAgente[] = [...new Set(invocaciones.map((i) => i.agent_name))].filter((n) => n && !instalados.has(nombreCanonico(n)) && !enDirectorio.has(nombreCanonico(n))).map((n) => ({ name: n, display_name: null, role: null, model: null, is_active: true, status: null }))
+  const sinTarjeta = ordenar([...agentes.filter((a) => !enDirectorio.has(nombreCanonico(a.name))).map((a) => desdeAgente(a, undefined, true)), ...fantasmas.map((a) => desdeAgente(a, undefined, false))])
+  const otros = armado({ clave: "otros", nombre: "Sin tarjeta en el directorio", sistema: "agents · agent_invocations", descripcion: "Empleados instalados que no tienen tarjeta en el directorio de la oficina de marketing (otros departamentos, jefatura, alta de clientes…): el directorio es el de la oficina, no el censo de todos", etapa: "fuera", bloqueo: null, color: COLOR_POR_CLAVE.otros ?? "#8a8a8a", areas: [area("sin-tarjeta", "Sin tarjeta en el directorio", null, null, [])], fuente: FUENTE_DEL_DATO }, sinTarjeta)
+  return [...equipos, proveedores, otros]
+}
+
 const ordenar = (xs: Miembro[]) => [...xs].sort((a, b) => (a.rol_en_sesion === "Dirige la sesión" ? -1 : b.rol_en_sesion === "Dirige la sesión" ? 1 : 0) || (a.actividad.estado === "trabajando" ? -1 : b.actividad.estado === "trabajando" ? 1 : 0) || a.nombre_visible.localeCompare(b.nombre_visible, "es"))
 
 export const resumenDelEquipo = (equipos: EquipoArmado[]) => {
