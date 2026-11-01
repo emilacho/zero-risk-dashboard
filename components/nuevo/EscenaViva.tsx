@@ -317,7 +317,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
               alt={d.alt} width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
-            {/* 6.14 · el arco de pantallas de tu oficina: cada una un centro de comando distinto, abierto encima */}
+            {/* 6.14 · el arco de pantallas de tu oficina: solo animación (6.14b: sin centros asignados; qué abre cada una lo decide Emilio) */}
             {depto === "oficina" && <PantallasDelArco />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
