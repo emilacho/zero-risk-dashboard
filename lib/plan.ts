@@ -286,6 +286,8 @@ export interface CicloDelPlan {
   compuerta: null | { estado: string; decidido_por: string | null; decidido_en: string | null; despertado: boolean | null; despertar_detalle: string | null }
   /** el pedido de cambios abierto sobre esta versión (pendiente o en reescritura) */
   pedido: null | { id: string; estado: string; texto: string; vuelta: number | null; despertado: boolean | null; despertar_detalle: string | null }
+  /** el avance del último pedido sobre esta versión (abierto o fallido), paso a paso; null si no hay */
+  avance: AvanceDelPedido | null
 }
 
 /** la versión de una fila del plan y si sigue vigente, de su `provenance_tag` (contrato: versión ausente = 1; vigente salvo `vigente:false` o `superseded_por`) */
@@ -309,7 +311,7 @@ export interface LecturaDelCiclo {
 }
 export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPlan): LecturaDelCiclo {
   const avisos: string[] = []
-  if (!ciclo.disponible) avisos.push("El ciclo del plan todavía no está abierto en la plataforma: los botones responden «aún no disponible» hasta que se abra. No se cambia nada ni se gasta.")
+  if (!ciclo.disponible) avisos.push("El ciclo del plan se abre pronto: hasta entonces los botones responden «aún no disponible». No se cambia nada ni se gasta.")
   const cp = ciclo.compuerta, pd = ciclo.pedido
   if (statusDelDocumento === "approved" || cp?.estado === "aprobado") {
     const sinDespertar = cp?.estado === "aprobado" && cp.despertado === false
@@ -333,6 +335,67 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
   return { estado: "esperando_decision", titulo: "Esperando tu decisión", detalle: `Versión ${ciclo.version}: apruébala para que pase al brief, o pide cambios para que el jefe de marketing la reescriba.`, puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
 }
 
+
+// ── el avance de un pedido de cambios (CC6 · 01-nov · ADENDA 1 de Emilio: «quiero VER que se está haciendo algo») ──
+// Pasos: Recibido → El jefe de marketing está reescribiendo → Controles automáticos → La jefatura revisa → Listo para ti. Cada paso se enciende con su hora.
+// Fuentes (solo lectura): la fila del pedido (`plan_cambios`), los despachos e invocaciones de su corrida (`workflow_execution_id`), la versión nueva
+// (`client_historical_outputs` con `provenance_tag.plan_cambio_id`), su revisión de la jefatura (`jefatura_revisiones`) y su compuerta (`plan_aprobaciones`).
+export type EstadoDelPaso = "hecho" | "en_curso" | "pendiente" | "fallo"
+export interface PasoDelPedido { clave: "recibido" | "reescribiendo" | "controles" | "jefatura" | "listo"; nombre: string; estado: EstadoDelPaso; hora: string | null; detalle: string | null }
+export interface AvanceCrudo {
+  pedido: { id: string; estado: string; creado_en: string | null; actualizado_en: string | null; despertado: boolean | null; despertar_detalle: string | null }
+  despachos: Array<{ status: string; creado_en: string | null; empezo_en: string | null; termino_en: string | null }>
+  invocaciones: Array<{ status: string; creado_en: string | null }>
+  version_nueva: null | { id: string; creado_en: string | null }
+  jefatura: null | { estado: string; resultado: string | null; creado_en: string | null; cerrado_en: string | null }
+  compuerta_nueva: null | { estado: string; creado_en: string | null }
+}
+export interface AvanceDelPedido { pasos: PasoDelPedido[]; minutos: number | null; estimado: string; nota: string | null; fallo: null | { texto: string; que_hacer: string } }
+export const MINUTOS_ESTIMADOS = { min: 15, max: 30 } as const
+const minDe = (iso: string | null) => (iso ? Date.parse(iso) : NaN)
+const primera = (xs: Array<string | null>): string | null => xs.filter((x): x is string => !!x).sort()[0] ?? null
+export function avanceDelPedido(a: AvanceCrudo, ahora: Date): AvanceDelPedido {
+  const p = a.pedido
+  const terminado = p.estado === "aplicado"
+  const fallido = p.estado === "fallido" || p.estado === "cancelado"
+  const sinDespertar = p.despertado === false
+  const empezo = primera([...a.despachos.map((d) => d.empezo_en ?? d.creado_en), ...a.invocaciones.map((i) => i.creado_en)]) ?? (p.estado === "en_reescritura" ? p.actualizado_en : null)
+  const redactorListo = a.invocaciones.some((i) => i.status === "completed") || a.despachos.some((d) => d.status === "completed") || !!a.version_nueva
+  const jefaturaCerrada = !!a.jefatura?.cerrado_en || !!a.compuerta_nueva
+  const listo = terminado || a.compuerta_nueva?.estado === "pendiente"
+  const pasos: PasoDelPedido[] = [
+    { clave: "recibido", nombre: "Recibido", estado: "hecho", hora: p.creado_en, detalle: null },
+    { clave: "reescribiendo", nombre: "El jefe de marketing está reescribiendo", estado: redactorListo ? "hecho" : empezo ? "en_curso" : "pendiente", hora: empezo, detalle: null },
+    { clave: "controles", nombre: "Controles automáticos", estado: a.version_nueva ? "hecho" : redactorListo ? "en_curso" : "pendiente", hora: a.version_nueva?.creado_en ?? null, detalle: null },
+    { clave: "jefatura", nombre: "La jefatura revisa", estado: jefaturaCerrada ? "hecho" : a.version_nueva ? "en_curso" : "pendiente", hora: a.jefatura?.cerrado_en ?? a.jefatura?.creado_en ?? null, detalle: null },
+    { clave: "listo", nombre: "Listo para ti", estado: listo ? "hecho" : "pendiente", hora: a.compuerta_nueva?.creado_en ?? (terminado ? p.actualizado_en : null), detalle: null },
+  ]
+  let fallo: AvanceDelPedido["fallo"] = null
+  if (sinDespertar && !empezo) {
+    const paso = pasos[1]
+    paso.estado = "fallo"; paso.detalle = `No se pudo avisar a la oficina de planeación${p.despertar_detalle ? ` (${p.despertar_detalle})` : ""}.`
+    fallo = { texto: "El pedido quedó guardado, pero la oficina de planeación no recibió el aviso. No se gastó nada.", que_hacer: "Usa «Reintentar»: repite el aviso con el mismo tope." }
+  } else if (fallido) {
+    const paso = pasos.find((x) => x.estado !== "hecho") ?? pasos[pasos.length - 1]
+    paso.estado = "fallo"; paso.hora = p.actualizado_en; paso.detalle = p.estado === "cancelado" ? "El pedido se canceló." : "La reescritura no terminó."
+    fallo = { texto: p.estado === "cancelado" ? "El pedido de cambios se canceló: el plan sigue como estaba." : "La reescritura no terminó: el plan sigue como estaba (la versión actual no cambió).", que_hacer: "Puedes pedir cambios otra vez (vuelve a gastar, con su tope) o aprobar la versión actual." }
+  }
+  for (let i = 1; i < pasos.length; i++) if (pasos[i].estado !== "pendiente" && pasos[i - 1].estado === "pendiente") pasos[i - 1].estado = "hecho" // nunca un paso posterior encendido con uno anterior apagado
+  const minutos = p.creado_en && !Number.isNaN(minDe(p.creado_en)) ? Math.max(0, Math.round((ahora.getTime() - minDe(p.creado_en)) / 60000)) : null
+  const nota = !fallo && !listo && minutos != null && minutos > 45 ? `Lleva ${minutos} min: más de lo esperado. Si no avanza, puede que la corrida se haya cortado (todavía no hay vigía que lo marque).` : null
+  const estimado = listo ? "Terminó" : fallo ? "Se detuvo" : `Suele tardar ≈ ${MINUTOS_ESTIMADOS.min}–${MINUTOS_ESTIMADOS.max} min${minutos != null ? ` · van ${minutos} min` : ""}`
+  return { pasos, minutos, estimado, nota, fallo }
+}
+
+/** «QUÉ CAMBIÓ EN ESTA VERSIÓN» del texto del plan (la reescritura abre con ese apartado): su contenido, sin el título; null si no está */
+export function queCambioDelTexto(contenido: unknown): string | null {
+  const t = texto(contenido)
+  if (!t) return null
+  const m = t.match(/(?:^|\n)\s*(?:#{1,6}\s*)?\**\s*QU[ÉE]\s+CAMBI[ÓO]\s+EN\s+ESTA\s+VERSI[ÓO]N\s*\**\s*:?\s*\n?([\s\S]*?)(?=\n\s*#{1,6}\s|\n\s*```|\n\s*\*\*[A-ZÁÉÍÓÚÑ ]{6,}\*\*|$)/i)
+  const cuerpo = m ? m[1].trim() : ""
+  return cuerpo ? cuerpo.slice(0, 3000) : null
+}
+
 /** el cuerpo de «Pedir cambios» (contrato: texto de 5 a 4.000, confirmación del gasto y tope ≤ 8) */
 export function cuerpoDePedirCambios(planId: string | null, observaciones: string): { plan_id: string; texto: string; confirmo_gasto: true; tope_usd: number } | { error: string } {
   if (!planId || !UUID.test(planId)) return { error: "No hay un plan sobre el que pedir cambios" }
@@ -350,7 +413,7 @@ export function cuerpoDeAprobar(planId: string | null, comentario: string): { pl
 }
 
 /** lo que devolvió la puerta del tablero (`/api/acciones/{accion}`), dicho en palabras: nunca un código crudo */
-export interface RespuestaDelCiclo { ok: boolean; texto: string; reintentar: boolean; releer: boolean }
+export interface RespuestaDelCiclo { ok: boolean; texto: string; reintentar: boolean; releer: boolean; /** «info»: no es un error (el ciclo todavía no está abierto); se dice sin rojo */ tono?: "info" }
 const MOTIVOS_DEL_CICLO: Record<string, string> = {
   plan_en_revision: "La jefatura todavía revisa este plan: decides cuando termine. No se cambió nada.",
   no_es_el_vigente: "Este ya no es el plan vigente: hay una versión más nueva. Vuelvo a leer.",
@@ -366,7 +429,7 @@ const MOTIVOS_DEL_CICLO: Record<string, string> = {
   tope_demasiado_alto: `El tope pasa de US$ ${TOPE_REESCRITURA_USD}. No se gastó nada.`,
 }
 const RELEER_TRAS = ["no_es_el_vigente", "plan_ya_aprobado", "plan_inexistente", "reescritura_en_curso", "plan_en_revision"]
-const NO_DISPONIBLE = "Aún no disponible: el ciclo del plan todavía no está abierto en la plataforma. No se cambió nada ni se gastó."
+const NO_DISPONIBLE = "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada ni se gastó."
 const PUEDE_NO_ESTAR = "No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada ni se gastó."
 export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", status: number, cuerpo: unknown): RespuestaDelCiclo {
   const c = objeto(cuerpo)
@@ -385,7 +448,7 @@ export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", s
     if (r.reanuda === false) return { ok: true, texto: `${re}Plan aprobado${cual}. No se reanudó nada${motivo ? `: ${motivo}` : ""}.`, reintentar: false, releer: true }
     return { ok: true, texto: `${re}Plan aprobado${cual}: pasa al PDF, a la sala y al brief.`, reintentar: false, releer: true }
   }
-  if (status === 501) return { ok: false, texto: NO_DISPONIBLE, reintentar: false, releer: false }
+  if (status === 501) return { ok: false, texto: NO_DISPONIBLE, reintentar: false, releer: false, tono: "info" }
   if (status === 401) return { ok: false, texto: "Tu sesión venció: entra de nuevo. No se cambió nada.", reintentar: false, releer: false }
   if (status === 403) return { ok: false, texto: "Necesitas una sesión de administrador. No se cambió nada.", reintentar: false, releer: false }
   const plat = objeto(c.plataforma)
@@ -403,9 +466,9 @@ export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", s
   // de la base: un solo texto sirve para ambos casos, y el detalle técnico NO se muestra al dueño
   const platErr = texto(c.plataforma_error)
   const detalle = texto(c.detalle)
-  if (platErr === "planes_error" || detalle === "planes_error") return { ok: false, texto: PUEDE_NO_ESTAR, reintentar: false, releer: false }
+  if (platErr === "planes_error" || detalle === "planes_error") return { ok: false, texto: PUEDE_NO_ESTAR, reintentar: false, releer: false, tono: "info" }
   // la plataforma tiene la puerta pero aún no sus tablas: igual, sin detalle técnico
-  if (/schema cache|does not exist|PGRST20[45]|42P01|plan_aprobaciones|plan_cambios/i.test(detalle)) return { ok: false, texto: PUEDE_NO_ESTAR, reintentar: false, releer: false }
+  if (/schema cache|does not exist|PGRST20[45]|42P01|plan_aprobaciones|plan_cambios/i.test(detalle)) return { ok: false, texto: PUEDE_NO_ESTAR, reintentar: false, releer: false, tono: "info" }
   // un fallo de la plataforma (5xx) no se cuenta con su texto técnico; un rechazo con motivo legible, sí
   const plataformaStatus = numero(c.plataforma_status)
   if (plataformaStatus != null && plataformaStatus >= 500) return { ok: false, texto: "No se pudo completar: la plataforma tuvo un problema. No se cambió nada.", reintentar: false, releer: false }
