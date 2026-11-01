@@ -83,10 +83,16 @@ describe("la fase activa y la cuadrícula", () => {
     expect(hoyEnEcuador(new Date("2026-11-01T03:30:00Z"))).toBe("2026-10-31") // a las 22:30 de Ecuador todavía es 31
   })
   it("el texto de arriba", () => {
-    const base = { campana: { id: "c", estado: "pausada", desde: "2026-11-02", hasta: null, version_calendario: 1, version_estrategia: 1 } }
-    expect(textoDeLaFase({ ...base, fase_activa: faseActiva(fases, "2026-11-02", "2026-10-31") })).toBe("Empieza en 2 días (2 nov) · primera fase: senal")
-    expect(textoDeLaFase({ ...base, fase_activa: faseActiva(fases, "2026-11-02", "2026-11-01") })).toBe("Empieza mañana (2 nov) · primera fase: senal")
-    expect(textoDeLaFase({ ...base, fase_activa: faseActiva(fases, "2026-11-02", "2026-11-20") })).toBe("Día 19 · fase senal")
+    const base = { campana: { id: "c", estado: "activa", desde: "2026-11-02", hasta: null, version_calendario: 1, version_estrategia: 1 } }
+    expect(textoDeLaFase({ ...base, fase_activa: faseActiva(fases, "2026-11-02", "2026-10-31") })).toBe("Empieza en 2 días (2 nov) · primera fase: Señal") // con tilde
+    expect(textoDeLaFase({ ...base, fase_activa: faseActiva(fases, "2026-11-02", "2026-11-01") })).toBe("Empieza mañana (2 nov) · primera fase: Señal")
+    expect(textoDeLaFase({ ...base, fase_activa: faseActiva(fases, "2026-11-02", "2026-11-20") })).toBe("Día 19 · fase Señal")
+    // 01-nov (Lenovo 21:14Z): con la campaña en pausa NO dice «Empieza mañana»: dice el estado real y el momento del plan VIGENTE
+    const pausada = { ...base.campana, estado: "pausada" }
+    const antes = faseActiva(fases, "2026-11-02", "2026-11-01")
+    expect(textoDeLaFase({ campana: pausada, fase_activa: antes })).toBe("Campaña en pausa")
+    expect(textoDeLaFase({ campana: { ...pausada, momento_del_plan: "plan esperando tu decisión" }, fase_activa: antes })).toBe("Campaña en pausa · plan esperando tu decisión")
+    expect(textoDeLaFase({ campana: { ...base.campana, del_plan_anterior: true, momento_del_plan: "plan en reescritura" }, fase_activa: antes })).toBe("Plan en reescritura")
   })
   it("semanas de lunes a domingo desde la primera fecha hasta la última; cada día con sus publicaciones por hora; el total por estado", () => {
     const f = (id: string, fecha: string, hora: string | null, tablero: FilaDelTablero["tablero"]): FilaDelTablero => ({ id, fecha, hora, red: "instagram", formato: "foto", pilar: null, tema: id, sede: null, pieza_fija: false, tanda: 1, semana: 1, estado_fila: "validada", avisos: [], pendientes: [], encargo: null, jefatura: null, pieza: null, tablero, motivo: "" })
@@ -184,7 +190,7 @@ describe("la puerta y el dibujo", () => {
     }
     const html = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain(">Calendario<"); // 6.9 (Emilio): el nombre «pizarrón» se retira; el cuadro se llama Calendario expect(html).toContain("Campaña de Náufrago"); expect(html).toContain("en pausa")
-    expect(html).toContain(GRAN_IDEA_SIN_TABLA.nota); expect(html).toContain("Día 4 · fase senal"); expect(html).toContain('aria-current="step"')
+    expect(html).toContain(GRAN_IDEA_SIN_TABLA.nota); expect(html).toContain("Campaña en pausa"); expect(html).toContain('aria-current="step"')
     expect(html).toContain("La campaña espera: espera la revisión")
     expect(agruparEsperas([{ motivo: "a" }, { motivo: "b" }, { motivo: "a" }])).toEqual(["a ×2", "b"])
     expect(html).toContain("Esperando tu aprobación"); expect(html).toMatch(/<button[^>]*class="pz-casilla[^"]*"[^>]*data-estado="emilio" data-destacada="true"/)

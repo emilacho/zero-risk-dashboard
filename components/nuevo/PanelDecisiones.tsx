@@ -5,7 +5,7 @@ import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import {
-  NOMBRE_DEL_TIPO, TIPOS_DE_DECISION, dondeSeDecide, haceCuanto, prioridadLegible, tituloLimpio,
+  NOMBRE_DEL_TIPO, TIPOS_DE_DECISION, dondeSeDecide, haceCuanto, prioridadLegible, resumenDeDecisiones, tituloLimpio,
   type Decision, type Decisiones, type TipoDeDecision,
 } from "@/lib/direccion-decisiones"
 
@@ -127,9 +127,11 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     if (donde.panel === "piezas") return <PanelPiezas onCerrar={volver} clienteInicial={abierta.client_id} piezaInicial={abierta.id} />
   }
 
-  const total = datos?.total ?? 0
+  const total = datos ? resumenDeDecisiones(datos).total : 0 // solo lo que se firma desde aquí
+  const fuera = datos ? datos.total - total : 0
   const porTipo = TIPOS_DE_DECISION.map((t) => ({ t, n: (datos?.decisiones ?? []).filter((d) => d.tipo === t).length })).filter((x) => x.n > 0)
-  const resumen = !datos ? "" : total ? `${plural(total, "decisión espera", "decisiones esperan")} tu firma${datos.completo ? "" : " · la lista puede estar incompleta"}` : datos.completo ? "Nada espera tu firma ahora" : "No se pudo leer todo: la lista puede estar incompleta"
+  const aparte = fuera ? ` · ${plural(fuera, "más se atiende", "más se atienden")} fuera de este tablero` : ""
+  const resumen = !datos ? "" : total ? `${plural(total, "decisión espera", "decisiones esperan")} tu firma${aparte}${datos.completo ? "" : " · la lista puede estar incompleta"}` : fuera ? `Nada espera tu firma aquí${aparte}` : datos.completo ? "Nada espera tu firma ahora" : "No se pudo leer todo: la lista puede estar incompleta"
   const detras = n > 1 ? [1, 2, 3].filter((k) => k < n).map((k) => lista[(Math.min(i, n - 1) + k) % n]) : []
   const faltan = (datos?.fuentes ?? []).filter((f) => f.estado === "error" || f.estado === "sin_credencial")
 

@@ -50,6 +50,8 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
     const tipo = TIPOS_DE_DECISION.find((t) => t === d.tipo)
     const id = txt(d.id), titulo = txt(d.titulo)
     if (!tipo || !id || !titulo) { descartadas++; continue }
+    // una decisión que la plataforma marca «reemplazada» ya no espera nada: no se muestra (no es un error de lectura)
+    if (/reemplazad|superseded/i.test(`${txt(d.estado) ?? ""} ${txt(d.subtipo) ?? ""} ${txt(d.status) ?? ""}`) || d.reemplazada === true || d.vigente === false) continue
     const dec = (d.decidir && typeof d.decidir === "object" ? d.decidir : {}) as Record<string, unknown>
     decisiones.push({
       id, tipo, titulo,
@@ -139,8 +141,16 @@ export function haceCuanto(desde: string | null, ahora: number = Date.now()): st
 /** lo que necesita la pantalla del arco: cuántas, si alguna apremia y si la lista está entera */
 export interface ResumenDeDecisiones { total: number; apremia: boolean; completo: boolean }
 export function resumenDeDecisiones(d: Decisiones): ResumenDeDecisiones {
-  return { total: d.total, apremia: d.decisiones.some((x) => x.vencida || prioridadLegible(x.prioridad).nivel === 3), completo: d.completo }
+  // «esperan tu firma» cuenta solo lo que se puede firmar desde el tablero nuevo; lo demás se atiende fuera y no infla el número
+  return { total: d.decisiones.filter((x) => dondeSeDecide(x).panel !== null).length, apremia: d.decisiones.some((x) => x.vencida || prioridadLegible(x.prioridad).nivel === 3), completo: d.completo }
 }
 
 /** el título limpio para mostrar (la base trae marcas como «⚠️» al inicio) */
-export const tituloLimpio = (t: string): string => t.replace(/^[\s⚠️❗‼️]+/u, "").trim()
+export const tituloLimpio = (t: string): string => {
+  const sinCodigos = t.replace(/^[\s⚠️❗‼️]+/u, "")
+    .replace(/\(\s*(?:P\d+[a-z]?|v(?:ersi[oó]n)?\s?\d+|[A-Z]{2,5}-\d{2,})\s*\)/giu, " ") // «(P3)», «(versión 2)», «(BRF-0001)»
+    .replace(/(?<![\p{L}\p{N}])(?:versi[oó]n|v)\s?\d+(?![\p{L}\p{N}])/giu, " ")
+    .replace(/(?<![\p{L}\p{N}])[A-Z]{2,5}-\d{2,}(?![\p{L}\p{N}])/gu, " ") // BRF-0001
+    .replace(/(?<![\p{L}\p{N}])P\d+[a-z]?(?![\p{L}\p{N}])/gu, " ") // P3 · P4 · P10b
+  return sinCodigos.replace(/\s+([:,;.])/g, "$1").replace(/([·:—-])\s*(?=[·:—-])/g, "").replace(/\s{2,}/g, " ").replace(/^[\s·:—-]+|[\s·:—-]+$/g, "").trim()
+}

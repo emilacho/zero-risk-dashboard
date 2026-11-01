@@ -74,6 +74,11 @@ describe("6.20 · dónde se decide cada una (tablero nuevo, nunca el viejo)", ()
     const ahora = Date.parse("2026-11-01T12:00:00Z")
     expect(haceCuanto("2026-10-30T12:00:00Z", ahora)).toBe("hace 2 días"); expect(haceCuanto("2026-11-01T09:00:00Z", ahora)).toBe("hace 3 horas"); expect(haceCuanto(null)).toBe("sin fecha")
     expect(tituloLimpio("⚠️ REVISIÓN INCOMPLETA · x")).toBe("REVISIÓN INCOMPLETA · x")
+    // 01-nov (Lenovo 21:14Z): sin códigos ni versiones a la vista
+    for (const [crudo, limpio] of [
+      ["Plan de 90 días (P3) · versión 2", "Plan de 90 días"], ["P10b · Aprobación de calendario", "Aprobación de calendario"], ["BRF-0001 · Brief de Náufrago", "Brief de Náufrago"],
+      ["Plan v2 de Náufrago", "Plan de Náufrago"], ["Aprobar el plan P4 de Náufrago", "Aprobar el plan de Náufrago"],
+    ] as const) { const r = tituloLimpio(crudo); expect(r, crudo).toBe(limpio); expect(r).not.toMatch(/P\d|BRF-|versi[oó]n \d|v\d/i) }
   })
 })
 
@@ -81,7 +86,7 @@ describe("6.20 · la mesa del director (panel)", () => {
   const datos = normalizarDecisiones(CRUDO)
   it("la pila: la primera al frente con todo para decidir, las siguientes asomando detrás; índice por tipo; «sin dato» declarado", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('data-seccion="decisiones"'); expect(html).toContain("3 decisiones esperan tu firma")
+    expect(html).toContain('data-seccion="decisiones"'); expect(html).toContain("2 decisiones esperan tu firma"); expect(html).toContain("1 más se atiende fuera de este tablero") // la que no se firma aquí no infla el número
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe("f4d46f59-1d22-4780-9e40-252e74fa53b4")
     expect((html.match(/data-detras="/g) ?? []).length).toBe(2)
     expect(html).toContain("La firma del tablero financiero todavía no está en el tablero nuevo."); expect(html).not.toContain("data-decidir=")
@@ -99,11 +104,11 @@ describe("6.20 · la mesa del director (panel)", () => {
 describe("6.20 · la pantalla 5 del arco con datos y los títulos más grandes", () => {
   it("dice cuántas esperan (con «+?» si la lista está incompleta), late si alguna apremia, y se abre al tocarla", () => {
     const r = resumenDeDecisiones(normalizarDecisiones(CRUDO))
-    expect(r).toEqual({ total: 3, apremia: true, completo: true })
+    expect(r).toEqual({ total: 2, apremia: true, completo: true }) // solo lo que se firma desde el tablero nuevo
     const html = renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: r, alAbrirDecisiones: () => {} }))
-    expect(html).toContain('data-decisiones="3"'); expect(html).toMatch(/<text data-cuantas[^>]*>3<\/text>/)
+    expect(html).toContain('data-decisiones="2"'); expect(html).toMatch(/<text data-cuantas[^>]*>2<\/text>/)
     expect(html).toContain('data-abre="decisiones" role="button" tabindex="0" aria-label="Abrir tus decisiones"')
-    expect(renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: { ...r, completo: false } }))).toMatch(/<text data-cuantas[^>]*>3\+\?<\/text>/)
+    expect(renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: { ...r, completo: false } }))).toMatch(/<text data-cuantas[^>]*>2\+\?<\/text>/)
     expect(renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: { total: 0, apremia: false, completo: true } }))).toContain(">al día</text>")
     const sinLectura = renderToStaticMarkup(createElement(PantallasDelArco))
     expect(sinLectura).toContain('data-decisiones="sin-lectura"'); expect(sinLectura).not.toContain("data-abre=") // sin lectura: el dibujo, y sin toque si no hay quien abra
@@ -121,5 +126,16 @@ describe("6.20 · la pantalla 5 del arco con datos y los títulos más grandes",
     const e = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
     expect(e).toContain('fetch("/api/direccion/decisiones", { cache: "no-store" })'); expect(e).toContain("if (!document.hidden) { void leerDecisiones(); void leerRiesgos(); void leerCorridas() }"); expect(e).toContain("60_000")
     expect(e).toContain('const oficinaAbierta = depto === "oficina" && fase !== "cerrado"')
+  })
+})
+
+describe("6.20 · lo reemplazado ya no espera tu firma", () => {
+  it("una decisión «reemplazada» no se muestra ni cuenta, y no marca la lista como incompleta", () => {
+    const d = normalizarDecisiones({ ok: true, completo: true, decisiones: [
+      { id: "a", tipo: "plan", titulo: "Plan vigente", estado: "reemplazada" },
+      { id: "b", tipo: "plan", titulo: "Plan nuevo" },
+      { id: "c", tipo: "plan", titulo: "Plan viejo", vigente: false },
+    ], fuentes: [], sin_fuente: [] })
+    expect(d.decisiones.map((x) => x.id)).toEqual(["b"]); expect(d.completo).toBe(true); expect(resumenDeDecisiones(d).total).toBe(1)
   })
 })

@@ -136,12 +136,12 @@ export function estadoDeLaMesa(m: Pick<MesaViva, "trabajando" | "fallando" | "et
 /** los puestos del equipo de una mesa: personas sentadas en fila junto al escritorio, del lado de la silla de la foto (como en una oficina isométrica), de a PASO_ENTRE_PUESTOS;
  *  los que no caben se dicen «+N» y la lista completa sigue al tocar la mesa. El de más a la izquierda es el primero (quien trabaja se ordena primero) */
 export const FILA_DE_PUESTOS = 4
-export const PASO_ENTRE_PUESTOS = 46
+export const PASO_ENTRE_PUESTOS = 52
 export const MAXIMO_DE_PUESTOS = FILA_DE_PUESTOS
 export function puestosDeLaMesa(m: Pick<Mesa, "centro">, n: number): Punto[] {
   const k = Math.min(Math.max(n, 0), MAXIMO_DE_PUESTOS)
   return Array.from({ length: k }, (_, i) => {
-    const u = -64, v = (i - (k - 1) / 2) * PASO_ENTRE_PUESTOS
+    const u = -70, v = (i - (k - 1) / 2) * PASO_ENTRE_PUESTOS
     return { x: Math.round(m.centro.x + u * U.x + v * V.x), y: Math.round(m.centro.y + u * U.y + v * V.y) }
   })
 }

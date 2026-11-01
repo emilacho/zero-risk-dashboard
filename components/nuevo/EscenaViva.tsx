@@ -84,8 +84,8 @@ export const OVALO_SALA = ovaloDeLaSala(SALA_EN_LA_FOTO)
 export type ClaveDeDepartamento = "marketing" | "oficina"
 export interface Departamento { clave: ClaveDeDepartamento; url: string; nombre: string; alt: string; src: string; src1280: string; sala: { ancho: number; cx: number; cy: number }; ovalo: string }
 export const DEPARTAMENTOS: Record<ClaveDeDepartamento, Departamento> = {
-  marketing: { clave: "marketing", url: "/nuevo/marketing", nombre: "Dept. Marketing", alt: "El interior del departamento de marketing", src: "/nuevo/marketing-2560.jpg", src1280: "/nuevo/marketing-1280.jpg", sala: SALA_EN_LA_FOTO, ovalo: OVALO_SALA },
-  oficina: { clave: "oficina", url: "/nuevo/oficina", nombre: "Tu oficina", alt: "Tu oficina: el centro de comando", src: "/nuevo/oficina-2560.jpg", src1280: "/nuevo/oficina-1280.jpg", sala: SALA_EN_LA_OFICINA, ovalo: ovaloDeLaSala(SALA_EN_LA_OFICINA, 46, 48) },
+  marketing: { clave: "marketing", url: "/nuevo/marketing", nombre: "Dept. Marketing", alt: "El interior del departamento de marketing", src: "/nuevo/marketing-2560.webp", src1280: "/nuevo/marketing-1280.webp", sala: SALA_EN_LA_FOTO, ovalo: OVALO_SALA },
+  oficina: { clave: "oficina", url: "/nuevo/oficina", nombre: "Tu oficina", alt: "Tu oficina: el centro de comando", src: "/nuevo/oficina-2560.webp", src1280: "/nuevo/oficina-1280.webp", sala: SALA_EN_LA_OFICINA, ovalo: ovaloDeLaSala(SALA_EN_LA_OFICINA, 46, 48) },
 }
 export const departamentoDeLaRuta = (ruta: string): ClaveDeDepartamento | null => (ruta.startsWith("/nuevo/marketing") ? "marketing" : ruta.startsWith("/nuevo/oficina") ? "oficina" : null)
 

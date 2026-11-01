@@ -9,6 +9,8 @@ import { fasesDelPlan, type FasesDelPlan } from "@/lib/clientes"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { estadoDeLaPieza } from "@/lib/piezas"
 import { versionDelTag } from "@/lib/plan"
+import { leerPlanDelCliente } from "@/lib/plan-datos"
+import { momentoDeLaCampana } from "@/lib/escena-avatares"
 import { estadoDelTablero, faseActiva, hoyEnEcuador, semanasDelTablero, totalesDelTablero, type EncargoDelTablero, type FaseActiva, type FilaDelTablero, type PiezaDelTablero, type RevisionDelTablero, type SemanaDelTablero, type EstadoDelTablero } from "@/lib/pizarron"
 
 type Fila = Record<string, unknown>
@@ -21,7 +23,7 @@ const textos = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => (typeo
 export interface Pizarron {
   clientes: Array<{ id: string; nombre: string; con_campana: boolean }>
   cliente: { id: string; nombre: string } | null
-  campana: null | { id: string; estado: string; desde: string | null; hasta: string | null; version_calendario: number | null; version_estrategia: number | null; /** el calendario se armó con un plan que ya no es el vigente */ del_plan_anterior?: boolean }
+  campana: null | { id: string; estado: string; desde: string | null; hasta: string | null; version_calendario: number | null; version_estrategia: number | null; /** el calendario se armó con un plan que ya no es el vigente */ del_plan_anterior?: boolean; /** en qué momento está el plan vigente («plan esperando tu decisión»); null si no se pudo leer */ momento_del_plan?: string | null }
   fases: FasesDelPlan[]
   fase_activa: FaseActiva
   /** no existe en ninguna tabla todavía; se dice así */
@@ -106,9 +108,15 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
     }
   })
   const fases = fasesDelPlan(est?.contenido)
+  // en qué momento está el plan VIGENTE (no el de la campaña): para la tarjeta «Plan de 90 días» y para no contar como pendiente lo del plan anterior
+  let momentoDelPlan: string | null = null
+  try {
+    const plan = await leerPlanDelCliente(supa, { cliente: cliente.id, ahora })
+    if (plan.documento && plan.ciclo) momentoDelPlan = momentoDeLaCampana(plan)?.momento ?? null
+  } catch { /* sin dato: la tarjeta dice solo el estado de la campaña */ }
   return {
     clientes, cliente,
-    campana: { id: campId, estado: String(camp.estado ?? ""), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, version_calendario: version, version_estrategia: est ? Number(est.version) : null, del_plan_anterior: delPlanAnterior },
+    campana: { id: campId, estado: String(camp.estado ?? ""), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, version_calendario: version, version_estrategia: est ? Number(est.version) : null, del_plan_anterior: delPlanAnterior, momento_del_plan: momentoDelPlan },
     fases, fase_activa: faseActiva(fases, camp.fecha_inicio ? String(camp.fecha_inicio) : null, hoy),
     gran_idea: GRAN_IDEA_SIN_TABLA,
     esperas: esperas.map((e) => ({ motivo: String(e.motivo ?? ""), vence_en: e.vence_en ? String(e.vence_en) : null })),

@@ -15,7 +15,7 @@ const dentro = (x: number, y: number) => x >= VISTA.x && x <= VISTA.x + VISTA.w 
 describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la imagen no cambia)", () => {
   it("la foto es la misma de siempre y la escena se agranda un 30 % (58 % → 75 % del ancho), no a pantalla completa", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
-    expect(html).toContain("/nuevo/escena-2560.jpg")
+    expect(html).toContain("/nuevo/escena-2560.webp")
     expect(html).toContain("width:min(100%,75vw,")
     expect(html).not.toContain("58vw")
     expect(Math.round(58 * 1.3)).toBe(75)
@@ -61,7 +61,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(t.y + t.s * 562.5 * SALA_EN_LA_FOTO.cy).toBeCloseTo(260, 6)
     // la capa de la imagen cubre toda la ventana (fixed) para que la foto pueda ser más grande que el hueco de la escena
     // 5.9 · dos copias de la foto: A recortada en óvalo suave (lo que se ve mientras aparece chica sobre la plataforma) y B completa que se funde encima al crecer
-    expect(abierta.match(/src="\/nuevo\/marketing-2560\.jpg"/g)?.length).toBe(2)
+    expect(abierta.match(/src="\/nuevo\/marketing-2560\.webp"/g)?.length).toBe(2)
     expect(abierta).toContain(".nv-foto-a{-webkit-mask-image:var(--nv-ovalo);mask-image:var(--nv-ovalo)}"); expect(abierta).toContain(`--nv-ovalo:${OVALO_SALA}`) // 6.12: el óvalo de cada departamento viaja como variable
     expect(OVALO_SALA).toContain("radial-gradient(ellipse 40% 46% at 48.8% 40.5%")
     expect(abierta).toContain("@keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}")

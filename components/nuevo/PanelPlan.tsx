@@ -281,7 +281,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 <div className="mt-2 flex flex-wrap gap-2">
                   {c && <Chip tono={c.estado === "activa" ? "verde" : c.estado === "pausada" || c.estado === "necesita_humano" ? "ambar" : "neutro"}>campaña {estadoDeCampanaLegible(c.estado)}</Chip>}
                   {c && (c.desde || c.hasta) && <Chip>{c.desde ? diaDelCalendario(c.desde) : "—"} → {c.hasta ? diaDelCalendario(c.hasta) : "—"}</Chip>}
-                  {c && (() => { const sujeto = inicioSujetoAReanudar(c.estado, datos.fase_activa, c.desde); return sujeto ? <Chip tono="ambar">{sujeto}</Chip> : datos.fase_activa.situacion !== "sin_fecha" ? <Chip>{textoDeLaFase({ fase_activa: datos.fase_activa, campana: { desde: c.desde } as never })}</Chip> : null })()}
+                  {c && (() => { const sujeto = inicioSujetoAReanudar(c.estado, datos.fase_activa, c.desde); return sujeto ? <Chip tono="ambar">{sujeto}</Chip> : c.estado === "activa" && datos.fase_activa.situacion !== "sin_fecha" ? <Chip>{textoDeLaFase({ fase_activa: datos.fase_activa, campana: { estado: c.estado, desde: c.desde } as never })}</Chip> : null })()}
                   {e && <Chip>estrategia {estadoDeLaEstrategia(e.estado)}{c?.del_plan_anterior ? " · del plan anterior" : ""}</Chip>}
                   {d && <Chip>plan escrito {d.creado_en ? fechaCortaEC(d.creado_en) : ""}</Chip>}
                   {d && <Chip tono={d.estado_del_plan === "con_pendientes" ? "ambar" : "neutro"}>{estadoDelPlanLegible(d.estado_del_plan)}{d.marcas.length ? ` · ${d.marcas.length}` : ""}</Chip>}

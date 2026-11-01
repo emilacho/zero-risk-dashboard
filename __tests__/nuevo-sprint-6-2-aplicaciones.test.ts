@@ -42,7 +42,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     for (const a of APLICACIONES) { const m = a.enlace(CLIENTE)?.match(/#(\w+)$/); if (m) expect(APARTADOS_DE_LA_FICHA).toContain(m[1]) }
   })
   it("la segunda línea de cada cuadro sale de la lectura real cuando la hay", () => {
-    expect(detalleDelCuadro("plan", datos).texto).toBe("Día 4 · fase senal")
+    expect(detalleDelCuadro("plan", datos).texto).toBe("Campaña en pausa")
     expect(detalleDelCuadro("calendario", datos).texto).toBe("2 publicaciones")
     expect(detalleDelCuadro("piezas", datos)).toEqual({ texto: "1 pieza espera tu aprobación", aviso: true })
     expect(detalleDelCuadro("piezas", { ...datos, filas: [], totales: {} })).toEqual({ texto: "Nada por aprobar ahora", aviso: false })
@@ -58,7 +58,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(html).toMatch(/<button type="button" data-aplicacion="plan" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.5: abre encima
     expect(html).toMatch(/<button type="button" data-aplicacion="piezas" data-aviso="true"[^>]*aria-haspopup="dialog"/) // 6.6: abre encima, con el punto de aviso
     expect(html).toMatch(/<button type="button" data-aplicacion="calendario" data-aviso="false"[^>]*aria-haspopup="dialog"/)
-    expect(html).toContain("1 pieza espera tu aprobación"); expect(html).toContain("Día 4 · fase senal"); expect(html).toContain("2 publicaciones"); expect(html).not.toContain("calendario v1")
+    expect(html).toContain("1 pieza espera tu aprobación"); expect(html).toContain("Campaña en pausa"); expect(html).toContain("2 publicaciones"); expect(html).not.toContain("calendario v1")
     expect(html).toMatch(/aria-label="Elegir el cliente"/); expect(html).toContain(`<option value="${CLIENTE}"`); expect(html).toContain("Otro · sin campaña")
     expect(html).not.toContain('data-seccion="pizarron"') // el calendario no está abierto de entrada
     expect(html).not.toMatch(/decidir|aprobar\b/i)
