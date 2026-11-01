@@ -27,6 +27,8 @@ const mal = (detalle: string): Validacion => ({ ok: false, error: "pedido_invali
 /** las que tienen interruptor propio; el cerebro y su portero se manejan por sus pausas, no desde aquí */
 export const OFICINAS_MANEJABLES = ["creativa", "financiera", "jefatura", "planeacion"] as const
 export const REDES = ["instagram", "facebook", "tiktok", "linkedin", "youtube"] as const
+/** tope de un pedido de cambios al plan (contrato CC1: ≤ 8 · el panel lo muestra y lo confirma) */
+export const TOPE_PEDIR_CAMBIOS_USD = 8
 /** tope por pieza de la mesa creativa (firma de Emilio, 30-oct): se muestra antes de confirmar */
 export const TOPE_POR_PIEZA_USD = 5
 
@@ -47,10 +49,31 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
     gasta: { tope_usd: TOPE_POR_PIEZA_USD },
     validar: (c) => { const id = conId(c, "encargo_id"); return id ? { ok: true, cuerpo: { encargo_id: id, ...(texto(c.comentario) ? { comentario: texto(c.comentario).slice(0, 2000) } : {}) } } : mal("falta la pieza que se rehace") },
   },
-  "plan-aprobar": { gasta: null, validar: (c) => { const id = conId(c, "campana_id"); return id ? { ok: true, cuerpo: { campana_id: id } } : mal("falta la campaña") } },
-  "plan-cambios": {
+  // CICLO DEL PLAN (CC6 · 01-nov · contrato certificado de CC1 §2): con `plan_id` van las puertas nuevas. Sin él queda la forma vieja (`campana_id`, la ficha del
+  // cliente en el tablero de siempre), tal cual estaba: esa página no se toca y la plataforma la rechaza con 400 sin cambiar nada (ADENDA 1 de CC1).
+  "plan-aprobar": {
     gasta: null,
-    validar: (c) => { const id = conId(c, "campana_id"), t = comentario(c, 5); return !id ? mal("falta la campaña") : !t ? mal("cuenta qué quieres cambiar (de 5 a 2.000 caracteres)") : { ok: true, cuerpo: { campana_id: id, comentario: t } } },
+    validar: (c) => {
+      const plan = conId(c, "plan_id")
+      if (plan) { const t = texto(c.comentario); return t.length > 1000 ? mal("el comentario pasa de 1.000 caracteres") : { ok: true, cuerpo: { plan_id: plan, ...(t ? { comentario: t } : {}) } } }
+      const id = conId(c, "campana_id"); return id ? { ok: true, cuerpo: { campana_id: id } } : mal("falta el plan")
+    },
+  },
+  "plan-cambios": {
+    // GASTA cuando va con `plan_id` (el jefe de marketing reescribe y la jefatura revisa): el servidor exige la confirmación y el tope, no solo la pantalla
+    gasta: null,
+    validar: (c) => {
+      const plan = conId(c, "plan_id")
+      if (plan) {
+        const t = texto(c.texto), tope = Number(c.tope_usd)
+        if (t.length < 5 || t.length > 4000) return mal("cuenta qué debe cambiar (de 5 a 4.000 caracteres)")
+        if (c.confirmo_gasto !== true) return { ok: false, error: "falta_confirmar_gasto", detalle: `pedir cambios gasta (tope hasta US$ ${TOPE_PEDIR_CAMBIOS_USD}): confírmalo antes` }
+        if (!Number.isFinite(tope) || tope <= 0) return mal("falta el tope del gasto")
+        if (tope > TOPE_PEDIR_CAMBIOS_USD) return mal(`el tope pasa de US$ ${TOPE_PEDIR_CAMBIOS_USD}`)
+        return { ok: true, cuerpo: { plan_id: plan, texto: t, confirmo_gasto: true, tope_usd: tope } }
+      }
+      const id = conId(c, "campana_id"), t = comentario(c, 5); return !id ? mal("falta el plan") : !t ? mal("cuenta qué quieres cambiar (de 5 a 2.000 caracteres)") : { ok: true, cuerpo: { campana_id: id, comentario: t } }
+    },
   },
   "plan-responder": {
     gasta: null,

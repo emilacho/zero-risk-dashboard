@@ -68,6 +68,7 @@ const datos: PlanDelCliente = {
   fase_activa: faseActiva(estrategia.fases, "2026-11-02", "2026-11-05"),
   documento: { id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", titulo: "Plan de 90 dias · 2026-10-30", creado_en: "2026-10-30T23:13:22Z", actualizado_en: null, status: "draft", estado_del_plan: "con_pendientes", marcas: marcasDelChequeo(PROVENANCE.pendientes), aviso_del_chequeo: puntosDelAviso(PROVENANCE.registro_interno.aviso_del_chequeo), no_se_busco: puntosDeLoNoBuscado(PROVENANCE.registro_interno.no_se_busco_del_sistema), jefatura: { resultado: "con_desacuerdo", marcado_en: "2026-10-30T23:39:50Z" }, plan: planDelTexto(TEXTO_DEL_PLAN).plan, prosa: null, caracteres: 1485 },
   revision: { id: REVISION, titulo: "Plan de 90 días de Náufrago con pendientes", creada_en: "2026-10-30T23:40:00Z", status: "pending", decision: null, vence_en: null },
+  ciclo: { disponible: true, version: 1, historial: [], con_compuerta: false, compuerta: null, pedido: null },
   esperas: { vivas: 3, grupos: agruparEsperas([{ objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-31T13:30:00Z", estado: "viva" }, { objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-30T13:30:00Z", estado: "viva" }, { objeto_tipo: "aprobacion_bandeja", motivo: "la pieza espera la aprobación de Emilio", vence_en: null, estado: "viva" }, { objeto_tipo: "necesita_humano", motivo: "x", vence_en: null, estado: "resuelta" }]) },
   leido_en: "x",
 }
@@ -135,6 +136,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     expect(p.fase_activa).toMatchObject({ situacion: "en_curso", dia: 4 })
     expect(p.documento).toMatchObject({ id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", estado_del_plan: "con_pendientes", caracteres: TEXTO_DEL_PLAN.length }); expect(p.documento!.marcas.map((m) => m.codigo)).toEqual(["P3", "P4", "P10B"]); expect(p.documento!.plan!.meta_por_semana).toBe(115)
     expect(p.revision).toMatchObject({ id: REVISION, status: "pending", decision: null })
+    expect(p.ciclo).toMatchObject({ disponible: true, version: 1, con_compuerta: false, compuerta: null, pedido: null }) // CC6 · ciclo del plan sobre la versión vigente
     expect(p.esperas).toEqual({ vivas: 1, grupos: [{ tipo: "espera_video", etiqueta: tipoDeEsperaLegible("espera_video"), n: 1, vence_primero: "2026-10-31T13:30:00Z" }] })
     const r = b.registro.join("\n")
     expect(r).toContain('cadena_campanas.eq("seco",false)'); expect(r).toContain('client_historical_outputs.eq("output_type","campaign_plan_90d")'); expect(r).toContain('client_historical_outputs.eq("id","3dfcc12f-993e-478a-b884-f7df45ceaf77")') // el documento que señala la campaña, no «el último»
@@ -167,14 +169,15 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     expect(html).toContain('aria-label="La semana tipo"'); expect(html).toContain("08:00 IG"); expect(html).toContain("Esta estrategia no fija hitos."); expect(html).toContain("lo busca el cerebro del cliente"); expect(html).toContain("por una sede")
     expect(html).toContain('data-espera="espera_video"'); expect(html).toContain("3 esperas vivas en total"); expect(html).toContain("Lo que no se buscó, y por qué"); expect(html).toContain("competidores precio")
     expect(html).not.toMatch(/meta_ig|con_pendientes|espera_video(?![^<]*")|mantengo_la_meta/) // nada crudo de la base en el texto visible
-    // sin revisión pendiente (ya decidida): se dice la decisión y no hay botones
-    const decidido = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, revision: { ...datos.revision!, status: "approved", decision: "Aprobado así" } } }))
-    expect(decidido).not.toContain('data-accion="plan-aprobar-asi"'); expect(decidido).toContain("Aprobado así")
+    // CC6 · ciclo del plan: un plan ya aprobado dice su estado y no ofrece botones (la nota vieja de la bandeja se sigue mostrando como dato)
+    const decidido = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, documento: { ...datos.documento!, status: "approved" }, revision: { ...datos.revision!, status: "approved", decision: "Aprobado así" } } }))
+    expect(decidido).not.toContain('data-accion="plan-aprobar-asi"'); expect(decidido).toContain("Aprobado → pasa al brief"); expect(decidido).toContain("Aprobado así")
     // sin nada: se dice
     const nada = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, campana: null, estrategia: null, documento: null, revision: null, esperas: { vivas: 0, grupos: [] } } }))
     expect(nada).toContain("todavía no tiene plan de 90 días ni campaña")
     const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
-    expect(c).toContain('enviar.accion("revision-resolver", cuerpo)') // decide SOLO por la acción del tablero (servidor valida · plataforma hace)
+    expect(c).toContain("await enviar(accion, cuerpo)") // CC6 · decide SOLO por las puertas del ciclo vía el tablero (servidor valida · plataforma hace)
+    expect(c).not.toContain("el plan en sí no cambia por esto")
     expect(c).not.toMatch(/supabase|service_role|from\("hitl_queue"\)|method: "POST"/) // el panel no toca la base ni arma POSTs propios
     expect(c).toContain("void leer(cliente)") // tras decidir se relee
     expect(c).toContain('window.addEventListener("keydown", tecla, true)') // Esc cierra el plan y no la oficina
