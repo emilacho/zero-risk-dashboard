@@ -16,16 +16,20 @@ export interface Corrida {
   workflow_execution_id: string; workflow_id: string | null; nombre: string; nombre_tecnico: string | null; interno: boolean; client_id: string | null; cliente: string | null
   inicio: string | null; fin: string | null; duracion_ms: number | null; costo_usd: number; tokens: number
   pasos: number; despachos: number; fallos: number; ramas: string[]; estado: EstadoCorrida
+  /** 6.28 · si la fila es UN pedido: las ejecuciones que lo forman */
+  miembros?: string[]
 }
 export interface Tokens { entrada: number; salida: number; cache_lectura: number; cache_escritura: number }
 export interface Paso {
-  id: string; origen: "invocacion" | "despacho"; agente: string | null; modelo: string | null; inicio: string | null; fin: string | null
+  id: string; origen: "invocacion" | "despacho" | "registro"; agente: string | null; modelo: string | null; inicio: string | null; fin: string | null
   duracion_ms: number | null; costo_usd: number; tokens: Tokens; tokens_total: number; turnos: number | null; estado: string; error: string | null; despacho: string | null
   /** 6.27 · lo que entró y lo que salió del empleado (la base guarda los primeros 2.000 caracteres de cada lado) */
   entrada: string | null; entrada_recortada: boolean; salida: string | null; salida_total: number | null
+  /** 6.28 · quién y qué hizo, cuando se sabe (pasos de un pedido) */
+  nombre?: string | null
 }
 export interface Rama { rama: string | null; costo_usd: number; pasos: Paso[] }
-export interface ListaDeCorridas { generado_en: string | null; completo: boolean; dias: number; total: number; corridas: Corrida[]; sin_enlace_a_trazas: string | null }
+export interface ListaDeCorridas { generado_en: string | null; completo: boolean; dias: number; total: number; corridas: Corrida[]; sin_enlace_a_trazas: string | null; agrupado?: boolean }
 export interface DetalleDeCorrida { generado_en: string | null; completo: boolean; corrida: Corrida; arbol: Rama[]; sin_enlace_a_trazas: string | null }
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
@@ -96,11 +100,13 @@ function corrida(v: unknown, nombres: Map<string, string>): Corrida | null {
   if (!id) return null
   const estado = ESTADOS.includes(o.estado as EstadoCorrida) ? (o.estado as EstadoCorrida) : "sin_cierre"
   const workflow_id = txt(o.workflow_id)
-  const nombre = nombreDeLaCorrida(workflow_id, id, nombres)
+  const grupo = /^(pedido|encargo):/.test(id)
+  const nombre = grupo && txt(o.nombre) ? (txt(o.nombre) as string) : nombreDeLaCorrida(workflow_id, id, nombres)
   return {
-    workflow_execution_id: id, workflow_id, nombre, nombre_tecnico: nombreTecnico(workflow_id, nombres), interno: esInterno(workflow_id, nombre), client_id: txt(o.client_id), cliente: txt(o.cliente),
+    workflow_execution_id: id, workflow_id, nombre, nombre_tecnico: grupo ? txt(o.nombre_tecnico) : nombreTecnico(workflow_id, nombres), interno: grupo ? false : esInterno(workflow_id, nombre), client_id: txt(o.client_id), cliente: txt(o.cliente),
     inicio: txt(o.inicio), fin: txt(o.fin), duracion_ms: num(o.duracion_ms), costo_usd: num(o.costo_usd) ?? 0, tokens: num(o.tokens) ?? 0,
     pasos: num(o.pasos) ?? 0, despachos: num(o.despachos) ?? 0, fallos: num(o.fallos) ?? 0, ramas: (Array.isArray(o.ramas) ? o.ramas : []).flatMap((x) => (txt(x) ? [txt(x) as string] : [])), estado,
+    ...(Array.isArray(o.miembros) ? { miembros: o.miembros.flatMap((x) => (txt(x) ? [txt(x) as string] : [])) } : {}),
   }
 }
 function paso(v: unknown): Paso | null {
@@ -108,10 +114,11 @@ function paso(v: unknown): Paso | null {
   if (!id) return null
   const t = obj(o.tokens)
   return {
-    id, origen: o.origen === "despacho" ? "despacho" : "invocacion", agente: txt(o.agente), modelo: txt(o.modelo), inicio: txt(o.inicio), fin: txt(o.fin),
+    id, origen: o.origen === "despacho" ? "despacho" : o.origen === "registro" ? "registro" : "invocacion", agente: txt(o.agente), modelo: txt(o.modelo), inicio: txt(o.inicio), fin: txt(o.fin),
     duracion_ms: num(o.duracion_ms), costo_usd: num(o.costo_usd) ?? 0, tokens: { entrada: num(t.entrada) ?? 0, salida: num(t.salida) ?? 0, cache_lectura: num(t.cache_lectura) ?? 0, cache_escritura: num(t.cache_escritura) ?? 0 },
     tokens_total: num(o.tokens_total) ?? 0, turnos: num(o.turnos), estado: txt(o.estado) ?? "sin dato", error: txt(o.error), despacho: txt(o.despacho),
     entrada: typeof o.entrada === "string" && o.entrada ? o.entrada : null, entrada_recortada: o.entrada_recortada === true, salida: typeof o.salida === "string" && o.salida ? o.salida : null, salida_total: num(o.salida_total),
+    ...(txt(o.nombre) ? { nombre: txt(o.nombre) } : {}),
   }
 }
 const sinEnlace = (j: Record<string, unknown>) => { const b = obj(j.braintrust); return txt(b.enlace) ? null : txt(b.motivo) }
@@ -119,7 +126,7 @@ const sinEnlace = (j: Record<string, unknown>) => { const b = obj(j.braintrust);
 export function normalizarLista(j: unknown, nombres: Map<string, string> = new Map()): ListaDeCorridas {
   const o = obj(j)
   const corridas = (Array.isArray(o.corridas) ? o.corridas : []).flatMap((c) => { const x = corrida(c, nombres); return x ? [x] : [] })
-  return { generado_en: txt(o.generado_en), completo: o.completo === true, dias: num(o.dias) ?? 7, total: num(o.total) ?? corridas.length, corridas, sin_enlace_a_trazas: sinEnlace(o) }
+  return { generado_en: txt(o.generado_en), completo: o.completo === true, dias: num(o.dias) ?? 7, total: num(o.total) ?? corridas.length, corridas, sin_enlace_a_trazas: sinEnlace(o), ...(o.agrupado === true ? { agrupado: true } : {}) }
 }
 export function normalizarDetalle(j: unknown, nombres: Map<string, string> = new Map()): DetalleDeCorrida | null {
   const o = obj(j), c = corrida(o.corrida, nombres)
@@ -138,7 +145,7 @@ const durDe = (p: Paso): number | null => p.duracion_ms ?? (p.inicio && p.fin ? 
 export function arbolDeNodos(d: DetalleDeCorrida): Nodo[] {
   const c = d.corrida
   const raiz: Nodo = { clave: "corrida", tipo: "corrida", nombre: c.nombre, sub: c.cliente, nivel: 0, inicio: c.inicio, fin: c.fin, duracion_ms: c.duracion_ms, tokens: c.tokens, costo_usd: c.costo_usd, estado: c.estado, error: null, paso: null, rama: null }
-  const deUnPaso = (p: Paso, nivel: number, rama: string | null): Nodo => ({ clave: `p:${p.id}`, tipo: "paso", nombre: p.agente ? mayuscula(palabras(p.agente)) : "Empleado sin nombre", sub: rama && nivel === 1 ? nombreDeLaRama(rama) : null, nivel, inicio: p.inicio, fin: finDe(p), duracion_ms: durDe(p), tokens: p.tokens_total, costo_usd: p.costo_usd, estado: estadoDelPaso(p), error: p.error, paso: p, rama })
+  const deUnPaso = (p: Paso, nivel: number, rama: string | null): Nodo => ({ clave: `p:${p.id}`, tipo: "paso", nombre: p.nombre ?? (p.agente ? mayuscula(palabras(p.agente)) : "Empleado sin nombre"), sub: rama && nivel === 1 ? nombreDeLaRama(rama) : null, nivel, inicio: p.inicio, fin: finDe(p), duracion_ms: durDe(p), tokens: p.tokens_total, costo_usd: p.costo_usd, estado: estadoDelPaso(p), error: p.error, paso: p, rama })
   type Bloque = { inicio: string; nodos: Nodo[] }
   const bloques: Bloque[] = []
   for (const r of d.arbol) {
