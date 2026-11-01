@@ -128,7 +128,7 @@ describe("sprint 6.8 · el cerebro como explorador dentro del cliente", () => {
     const w = readFileSync("app/api/cerebro/dueno/route.ts", "utf8")
     expect(w).not.toMatch(/getServiceRoleClient|\.from\(/); expect(w).toContain("guardarDatoDelDueno")
     expect(readFileSync("lib/cerebro-dueno.ts", "utf8")).not.toMatch(/\.from\(|supabase/i)
-    expect(APLICACIONES.find((a) => a.clave === "cerebro")!.enlace(NAUFRAGO)).toBeNull() // el cuadro abre encima
+    expect(APLICACIONES.some((a) => (a.clave as string) === "cerebro")).toBe(false) // 6.9: el Cerebro ya no es un cuadro del departamento, es estructura de la sala principal (el monolito)
   })
   it("el panel dibuja el explorador dentro del cliente enfocado: ruta, árbol con cuentas, carpetas con detalle; sin nivel de clientes ni selector", () => {
     const html = renderToStaticMarkup(createElement(PanelCerebro, { onCerrar: () => {}, datosIniciales: DATOS, ahora: AHORA }))

@@ -21,7 +21,7 @@ describe("el tótem", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo, null, createElement(TotemEnVivo)))
     expect(html).toContain('role="button"')
     expect(html).toContain('aria-label="En vivo"')
-    expect([...html.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/marketing", "/oficinas#cerebro"])
+    expect([...html.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/cerebro", "/nuevo/marketing"]) // 6.9: el monolito abre el Cerebro nuevo, ya no el dashboard viejo
     expect(html).not.toContain('role="dialog"') // cerrado de entrada: la capa no existe hasta el clic
   })
   it("la página pone el tótem dentro de la escena", () => {

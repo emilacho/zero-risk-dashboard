@@ -7,7 +7,7 @@ import { PanelPizarron, textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { PanelManual } from "@/components/nuevo/PanelManual"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
-import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
+import { PanelInformes } from "@/components/nuevo/PanelInformes"
 
 const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
@@ -30,7 +30,7 @@ function Icono({ clave }: { clave: ClaveDeAplicacion }) {
     case "plan": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M5 26h22M8 26V14M16 26V8M24 26v-9" /><path {...p} d="M8 14l8-6 8 3" /><circle cx="8" cy="14" r="1.6" {...p} /><circle cx="16" cy="8" r="1.6" {...p} /><circle cx="24" cy="11" r="1.6" {...p} /></svg>
     case "calendario": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><rect x="5" y="7" width="22" height="20" rx="2.5" {...p} /><path {...p} d="M5 12.5h22M11 4.5v5M21 4.5v5" /><path {...p} d="M9.5 17h3v3h-3zM14.5 17h3v3h-3zM19.5 17h3v3h-3zM9.5 22h3v3h-3zM14.5 22h3v3h-3z" /></svg>
     case "piezas": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><rect x="4" y="9" width="18" height="18" rx="2" {...p} /><path {...p} d="M10 5h16a2 2 0 0 1 2 2v16" /><path {...p} d="M4 22l5-5 4 4 3-3 6 6" /><circle cx="16" cy="14" r="1.8" {...p} /></svg>
-    case "cerebro": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M13 6a4 4 0 0 0-4 4 4 4 0 0 0-3 6.5A4 4 0 0 0 8 23a4 4 0 0 0 5 3.5V6ZM19 6a4 4 0 0 1 4 4 4 4 0 0 1 3 6.5A4 4 0 0 1 24 23a4 4 0 0 1-5 3.5V6Z" /><path {...p} d="M13 12h-2.5M13 18h-3M19 12h2.5M19 18h3M16 6v20" /></svg>
+    case "informes": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M8 4h11l6 6v18H8V4Z" /><path {...p} d="M19 4v6h6" /><path {...p} d="M12 22v-4M16 22v-7M20 22v-5" /><path {...p} d="M12 13h3" /></svg>
     case "gasto": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><circle cx="16" cy="16" r="11" {...p} /><path {...p} d="M16 9.5v13M19.5 12.5c0-1.5-1.5-2.5-3.5-2.5s-3.5 1-3.5 2.5 1.5 2.3 3.5 2.6 3.5 1.2 3.5 2.7-1.5 2.7-3.5 2.7-3.5-1-3.5-2.5" /></svg>
   }
 }
@@ -84,7 +84,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "piezas") return <PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />
-  if (vista === "cerebro") return <PanelCerebro onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "informes") return <PanelInformes onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
@@ -92,8 +92,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="aplicaciones-titulo" data-seccion="aplicaciones" className="relative w-full max-w-[780px] text-zinc-200">
         <header className="mb-5 flex flex-wrap items-center gap-3 px-1">
-          <h2 id="aplicaciones-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.3em]" style={{ color: AMBAR }}>Dept. Marketing</h2>
-          <p className="hidden text-[12px] text-zinc-400 md:block">Todo lo que marketing ya tiene de este cliente</p>
+          <h2 id="aplicaciones-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.3em]" style={{ color: AMBAR }}>Centro de campaña</h2>
+          <p className="hidden text-[12px] text-zinc-400 md:block">Dept. Marketing · todo lo que ya tiene de este cliente, en el orden de la cadena</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
             <select value={cliente ?? ""} onChange={(e) => void leer(e.target.value || null)} disabled={!datos || cargando} aria-label="Elegir el cliente"
