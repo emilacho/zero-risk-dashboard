@@ -15,6 +15,7 @@
 import { EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico } from "@/lib/organigrama"
 import { haceCuanto } from "@/lib/oficinas"
 import { nombreLegible } from "@/lib/trabajo-en-vivo"
+import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
 
 export const FOTO = { w: 2560, h: 1440 } as const
 export type ClaveDeMesa = "direccion" | "estrategia" | "creativo" | "web" | "medios" | "relaciones"
@@ -125,7 +126,7 @@ export const HORAS_RECIENTE = 24
 
 export interface Despacho { id: string; agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; running_at: string | null; completed_at: string | null; created_at: string | null }
 export interface InvocacionViva { agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; started_at: string | null; ended_at: string | null; cost_usd: number | null; step_name: string | null; task_text: string | null }
-export interface TarjetaDelDirectorio { agente: string; equipo: string | null }
+export interface TarjetaDelDirectorio { agente: string; equipo: string | null; /** `direccion` = dirige la sesión (S3 · la cabecera de la sala) */ rol?: string | null }
 export interface NombreDeAgente { name: string; display_name: string | null }
 export type EstadoDelAsiento = "trabajando" | "fallo"
 export type EstadoDelMiembro = EstadoDelAsiento | "reciente" | "quieto"
@@ -159,6 +160,8 @@ export interface EscenaDatos {
   sin_mesa: Sentado[]
   /** despachos «running» más viejos que el tope: no se sientan, se dicen */
   sin_fin_registrado: number
+  /** S3 · la sala de reuniones: la sesión de varios empleados en curso (o recién terminada) */
+  sala?: SalaDeReuniones
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
@@ -214,6 +217,9 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   const hora = e.ahora.toISOString().slice(11, 16) + "Z"
   const fuente = `agent_dispatches + agent_invocations · leído ${hora}`
   const etapas = new Map((e.equipos ?? []).map((q) => [nombreCanonico(q.clave).replace(/-/g, "_"), q]))
+  // S3 · la sala de reuniones primero: quien está en una reunión en curso se sienta en la sala, no en su mesa
+  const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo, mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora })
+  const enLaSala = agentesEnLaSala(sala)
 
   const sentados: Sentado[] = []
   const sinMesa: Sentado[] = [] // sentados sin mesa conocida (se listan aparte, no se sientan en ninguna)
@@ -226,6 +232,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
     if (!Number.isFinite(ini)) continue
     if (e.invocaciones.some((i) => invocacionCierraElDespacho(d, i))) continue
     if (t - ini > MINUTOS_TOPE * 60_000) { sinFin++; continue }
+    if (enLaSala.has(nombreCanonico(d.agent_name))) continue
     const k = nombreCanonico(d.agent_name) + "|" + (d.workflow_execution_id ?? "")
     if (yaSentado.has(k)) continue
     yaSentado.add(k)
@@ -245,7 +252,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   for (const i of e.invocaciones) { const c = i.ended_at ?? i.started_at; if (esFallo(i.status) && c && t - ms(c) < MINUTOS_FALLO * 60_000) fallos.push({ agente: i.agent_name, cuando: c, i }) }
   for (const f of fallos.sort((a, b) => (a.cuando < b.cuando ? 1 : -1))) {
     const k = nombreCanonico(f.agente)
-    if (sentados.some((s) => nombreCanonico(s.agente) === k)) continue
+    if (sentados.some((s) => nombreCanonico(s.agente) === k) || enLaSala.has(k)) continue
     const m = mesaDelAgente(f.agente, e.directorio)
     const s: Sentado = {
       agente: f.agente, nombre: nombre(f.agente), mesa: m?.mesa ?? "direccion", estado: "fallo", cliente: cliente(f.d?.client_id ?? f.i?.client_id ?? null),
@@ -271,13 +278,13 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
       const ultima = mias.map((i) => i.ended_at ?? i.started_at).filter((x): x is string => !!x).sort().at(-1) ?? null
       const abiertoViejo = e.despachos.find((d) => nombreCanonico(d.agent_name) === nombreCanonico(a) && String(d.status ?? "").toLowerCase() === "running" && !e.invocaciones.some((i) => invocacionCierraElDespacho(d, i)) && t - ms(d.running_at ?? d.created_at) > MINUTOS_TOPE * 60_000)
       const estado: EstadoDelMiembro = sentado ? sentado.estado : ultima && t - ms(ultima) < HORAS_RECIENTE * 3_600_000 ? "reciente" : "quieto"
-      equipo.push({ agente: a, nombre: nombre(a), estado, ultima, hace: ultima ? haceCuanto(ultima, e.ahora) : "sin trabajo en la ventana leída", nota: abiertoViejo ? `despacho abierto ${haceCuanto(abiertoViejo.running_at ?? abiertoViejo.created_at, e.ahora)} sin fin registrado` : null, origen_de_la_mesa: pm.origen })
+      equipo.push({ agente: a, nombre: nombre(a), estado, ultima, hace: ultima ? haceCuanto(ultima, e.ahora) : "sin trabajo en la ventana leída", nota: enLaSala.has(nombreCanonico(a)) ? `en la sala de reuniones · ${sala.reunion?.titulo ?? ""}` : abiertoViejo ? `despacho abierto ${haceCuanto(abiertoViejo.running_at ?? abiertoViejo.created_at, e.ahora)} sin fin registrado` : null, origen_de_la_mesa: pm.origen })
     }
     const orden = (x: MiembroDeMesa) => (x.estado === "trabajando" ? 0 : x.estado === "fallo" ? 1 : x.estado === "reciente" ? 2 : 3)
     equipo.sort((a, b) => orden(a) - orden(b) || a.nombre.localeCompare(b.nombre, "es"))
     return { ...base, sentados: misSentados, equipo, trabajando: misSentados.filter((s) => s.estado === "trabajando").length, fallando: misSentados.filter((s) => s.estado === "fallo").length }
   })
-  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin }
+  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala }
 }
 
 /** las líneas de la ficha al pasar el cursor, en este orden; nunca se rellena: lo que no hay dice «sin dato» */

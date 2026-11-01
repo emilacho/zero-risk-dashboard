@@ -21,12 +21,12 @@ async function directorio(supa: SupabaseClient) {
     const [ag, cl, dir, eq] = await Promise.all([
       supa.from("agents").select("name, display_name").limit(1000),
       supa.from("clients").select("id, name").limit(1000),
-      supa.from("oficina_directorio").select("agente, equipo").limit(500),
+      supa.from("oficina_directorio").select("agente, equipo, rol").limit(500),
       supa.from("oficina_equipos").select("clave, nombre, etapa").limit(50),
     ])
     const agentes: NombreDeAgente[] = ((ag.data ?? []) as Fila[]).map((a) => ({ name: String(a.name), display_name: s(a.display_name) }))
     const clientes = ((cl.data ?? []) as Fila[]).map((c) => ({ id: String(c.id), nombre: String(c.name ?? "") + (esDePractica({ nombre: String(c.name ?? "") }) ? " (práctica)" : "") }))
-    const tarjetas: TarjetaDelDirectorio[] = ((dir.data ?? []) as Fila[]).map((d) => ({ agente: String(d.agente), equipo: s(d.equipo) }))
+    const tarjetas: TarjetaDelDirectorio[] = ((dir.data ?? []) as Fila[]).map((d) => ({ agente: String(d.agente), equipo: s(d.equipo), rol: s(d.rol) }))
     // la tabla de equipos puede no estar en una base vieja: entonces manda la tabla MESAS
     const equipos = eq.error ? null : ((eq.data ?? []) as Fila[]).map((q) => ({ clave: String(q.clave), nombre: s(q.nombre), etapa: s(q.etapa) }))
     return { agentes, clientes, tarjetas, equipos }

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
+import { ESTILO_SALA, lineasDelParticipante, PanelDeLaSala, SalaEnLaFoto } from "@/components/nuevo/escena/SalaDeReuniones"
+import { SALA } from "@/lib/escena-sala"
 import {
   asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, tableroDeLaMesa,
   type ClaveDeMesa, type EscenaDatos, type Mesa, type MesaViva,
@@ -55,6 +57,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
   const [ficha, setFicha] = useState<string | null>(null) // «mesa|agente» de la figura bajo el cursor
   const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
+  const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
+  const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leer = useCallback(async () => {
@@ -84,6 +88,16 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
     return () => { window.removeEventListener("keydown", alTeclear, true); window.removeEventListener("click", alClic, true) }
   }, [mesaAbierta])
 
+  // Esc o clic fuera cierran el panel de la sala
+  useEffect(() => {
+    if (!salaAbierta) return
+    const alTeclear = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setSalaAbierta(false) } }
+    const alClic = (e: MouseEvent) => { if (!(e.target as Element | null)?.closest?.(".nv-sala-panel,.nv-sala-rotulo")) setSalaAbierta(false) }
+    window.addEventListener("keydown", alTeclear, true)
+    window.addEventListener("click", alClic, true)
+    return () => { window.removeEventListener("keydown", alTeclear, true); window.removeEventListener("click", alClic, true) }
+  }, [salaAbierta])
+
   const mesas: MesaViva[] = useMemo(() => (datos ? datos.mesas : MESAS.map(vacia)), [datos])
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
@@ -93,7 +107,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
 
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
-      <style>{ESTILO + ESTILO_PANTALLAS}</style>
+      <style>{ESTILO + ESTILO_PANTALLAS + ESTILO_SALA}</style>
       {hayFiguras && <FigurasSpline colocaciones={colocaciones} />}
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Las mesas de la oficina de marketing y quién trabaja ahora" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -138,6 +152,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
             </g>
           )
         })}
+        {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
+        <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} onFoco={setEnSala} onTocar={(a) => setFichaDe(a)} />
         {/* trabajando ahora sin mesa conocida: se dice, no se inventa una mesa */}
         {datos && datos.sin_mesa.length > 0 && (
           <text x={560} y={1120} fill="#bdb3a4" fontSize={18} fontFamily="system-ui, Arial, sans-serif" data-sin-mesa>sin mesa conocida · {datos.sin_mesa.map((s) => `${s.nombre} (${s.estado})`).join(" · ")}</text>
@@ -150,6 +166,24 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           {lineasDeLaFicha(enFicha.s, enFicha.m).map((l, i) => (
             <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : i === lineasDeLaFicha(enFicha.s, enFicha.m).length - 1 ? "mt-1 text-[11px] text-zinc-500" : undefined}>{l}</div>
           ))}
+        </div>
+      )}
+      {/* S3 · la ficha corta de un participante de la sala */}
+      {(() => {
+        const p = enSala ? datos?.sala?.reunion?.participantes.find((x) => x.agente === enSala) : null
+        if (!p?.silla) return null
+        return (
+          <div role="tooltip" data-ficha-sala={p.agente} className="nv-av-ficha absolute z-[3] w-max max-w-[20rem] -translate-y-full rounded-xl border border-amber-400/60 bg-[#0e0c0a]/95 px-3 py-2 text-[12px] leading-[1.45] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
+            style={{ left: pct(p.silla.x + 26, FOTO.w), top: pct(p.silla.y - 60, FOTO.h) }}>
+            {lineasDelParticipante(p).map((l, i) => <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : undefined}>{l}</div>)}
+            <div className="mt-1 text-[10px] text-zinc-500">toca para ver su ficha</div>
+          </div>
+        )
+      })()}
+      {salaAbierta && (
+        <div role="dialog" aria-label="La reunión de la sala" className="nv-av-lista nv-sala-panel absolute z-[4] w-[24rem] max-h-[60%] overflow-auto rounded-xl border border-white/15 bg-[#121110]/95 p-3 text-[12px] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
+          style={{ left: pct(SALA.mesa.x + 190, FOTO.w), top: pct(SALA.rotulo.y - 40, FOTO.h) }} onClick={(e) => e.stopPropagation()}>
+          <PanelDeLaSala sala={datos?.sala} onCerrar={() => setSalaAbierta(false)} onTocar={(a) => setFichaDe(a)} />
         </div>
       )}
       {/* el equipo de la mesa, al tocarla: todos, con su estado real; los que trabajan ahora primero */}
