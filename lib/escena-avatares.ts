@@ -30,9 +30,9 @@ export interface Mesa {
   monitor: Punto
   /** dónde va el rótulo del equipo */
   rotulo: Punto
-  /** la mesa existe en la foto (1-4) o se dibuja punteada sobre el piso libre (5-6, boceto de CC5 aprobado por Emilio) */
+  /** la mesa está en la foto original (1-4) o es una de las 2 copias idénticas de la capa `MESAS_EXTRA` (5-6) */
   en_la_foto: boolean
-  /** centro del tablero de la mesa (para la zona del ratón y el dibujo punteado) */
+  /** centro del tablero de la mesa (para la zona del ratón) */
   centro: Punto
   color: string
 }
@@ -41,21 +41,33 @@ export interface Mesa {
 export const U = { x: 0.866, y: -0.5 } as const
 export const V = { x: 0.866, y: 0.5 } as const
 const mesa = (clave: ClaveDeMesa, nombre: string, orden: number, etapa: EtapaDeMesa, silla: Punto, monitor: Punto, en_la_foto: boolean, centro: Punto, color: string): Mesa =>
-  ({ clave, nombre, orden, etapa, silla, monitor, rotulo: { x: en_la_foto ? monitor.x : centro.x, y: (en_la_foto ? monitor.y : centro.y) - 95 }, en_la_foto, centro, color })
+  ({ clave, nombre, orden, etapa, silla, monitor, rotulo: { x: monitor.x, y: monitor.y - 95 }, en_la_foto, centro, color })
 
 /**
  * LAS 6 MESAS del boceto de CC5 (`2026-11-01-BOCETO-CC5-oficina-de-marketing-6-equipos.md`, aprobado por Emilio 01-nov): Dirección · Estrategia · Creativo encendidas en 3 de las
- * 4 mesas de la foto; Web y búsqueda en la 4.ª; Medios y Performance y Relaciones en 2 mesas NUEVAS iguales, punteadas, sobre el piso libre de abajo a la izquierda.
- * Sillas y monitores medidos sobre `marketing-2560.jpg` (boceto v1, 01-nov); las dos mesas nuevas, del boceto de CC5 (1600×900 → ×1,6). Colores de `lib/organigrama.ts`.
+ * 4 mesas de la foto; Web y búsqueda en la 4.ª; Medios y Performance y Relaciones en 2 mesas NUEVAS idénticas (pedido de Emilio 01-nov: «2 mesas extras idénticas a las que
+ * ya se ven», sin las punteadas): copias píxel a píxel de la mesa Creativo, en el único cuarto libre de la plataforma (detrás de Dirección, junto al tablero), en una imagen
+ * aparte encima de la foto (`MESAS_EXTRA`); la foto original no se toca. Sus sillas/monitores = los de Creativo trasladados. Colores de `lib/organigrama.ts`.
  */
 export const MESAS: Mesa[] = [
   mesa("direccion", "Dirección", 1, "activo", { x: 1038, y: 628 }, { x: 1102, y: 552 }, true, { x: 1078, y: 585 }, "#f5a524"),
   mesa("estrategia", "Estrategia", 2, "activo", { x: 836, y: 728 }, { x: 895, y: 650 }, true, { x: 872, y: 684 }, "#e8731a"),
   mesa("creativo", "Creativo", 3, "activo", { x: 1024, y: 836 }, { x: 1088, y: 758 }, true, { x: 1064, y: 792 }, "#ffb86b"),
   mesa("web", "Web y búsqueda", 4, "segunda_etapa", { x: 1222, y: 930 }, { x: 1275, y: 855 }, true, { x: 1255, y: 888 }, "#9a7b5a"),
-  mesa("medios", "Medios y Performance", 5, "segunda_etapa", { x: 700, y: 890 }, { x: 762, y: 812 }, false, { x: 740, y: 850 }, "#8c8c8c"),
-  mesa("relaciones", "Relaciones", 6, "segunda_etapa", { x: 882, y: 1016 }, { x: 944, y: 940 }, false, { x: 924, y: 980 }, "#a08cff"),
+  mesa("medios", "Medios y Performance", 5, "segunda_etapa", { x: 1166, y: 464 }, { x: 1230, y: 386 }, false, { x: 1206, y: 420 }, "#8c8c8c"),
+  mesa("relaciones", "Relaciones", 6, "segunda_etapa", { x: 1294, y: 526 }, { x: 1358, y: 448 }, false, { x: 1334, y: 482 }, "#a08cff"),
 ]
+
+/**
+ * La capa de las 2 mesas nuevas: `public/nuevo/marketing-mesas-extra.webp` (con transparencia), hecha recortando la mesa Creativo de `marketing-2560.jpg` y pegándola
+ * 2 veces (traslados `traslados`); la parte de Relaciones que queda detrás del vidrio de la sala de reuniones se ve a través del vidrio, como en la foto.
+ * `caja` = dónde va, en píxeles de la foto. Generada por `.cc6/mesas-extra.py` (CC6, 01-nov).
+ */
+export const MESAS_EXTRA = {
+  src: "/nuevo/marketing-mesas-extra.webp",
+  caja: { x: 1112, y: 328, w: 353, h: 277 },
+  traslados: { medios: { x: 142, y: -372 }, relaciones: { x: 270, y: -310 } },
+} as const
 export const mesaPorClave = (k: string): Mesa | undefined => MESAS.find((m) => m.clave === k)
 
 /** el tablero de una mesa como polígono (puntos «x,y x,y …» para SVG): un paralelogramo isométrico de 200 × 84 alrededor de su centro */

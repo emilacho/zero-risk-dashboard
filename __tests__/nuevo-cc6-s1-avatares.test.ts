@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import {
-  alSuelo, armarEscena, asientosDeLaMesa, CAMARA, colocarFiguras, FOTO, giroHaciaElMonitor, invocacionCierraElDespacho, lineasDeLaFicha, MAXIMO_DE_FIGURAS, MAXIMO_POR_MESA, MESAS, mesaDelAgente,
+  alSuelo, armarEscena, asientosDeLaMesa, CAMARA, colocarFiguras, FOTO, giroHaciaElMonitor, invocacionCierraElDespacho, lineasDeLaFicha, MAXIMO_DE_FIGURAS, MAXIMO_POR_MESA, MESAS, MESAS_EXTRA, mesaDelAgente,
   MINUTOS_FALLO, MINUTOS_TOPE, NOMBRES_SPLINE, nombreDelFlujo, pasoDe, proyectar, tableroDeLaMesa, type Despacho, type EntradaDeLaEscena, type InvocacionViva,
 } from "@/lib/escena-avatares"
 import { leerEscenaViva, LIMITE_DE_INVOCACIONES } from "@/lib/escena-avatares-datos"
@@ -24,12 +24,21 @@ const base = (extra: Partial<EntradaDeLaEscena> = {}): EntradaDeLaEscena => ({
 })
 
 describe("las 6 mesas del boceto aprobado", () => {
-  it("son 6, en el orden del organigrama: 3 activas en la foto, Web en la 4.ª, y Medios y Relaciones punteadas sobre el piso libre", () => {
+  it("son 6, en el orden del organigrama: 3 activas en la foto, Web en la 4.ª, y Medios y Relaciones copias idénticas de Creativo en el cuarto libre", () => {
     expect(MESAS.map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo", "web", "medios", "relaciones"])
     expect(MESAS.filter((m) => m.etapa === "activo").map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo"])
     expect(MESAS.filter((m) => !m.en_la_foto).map((m) => m.clave)).toEqual(["medios", "relaciones"])
     for (const m of MESAS) for (const p of [m.silla, m.monitor, m.rotulo, m.centro]) { expect(p.x).toBeGreaterThan(0); expect(p.x).toBeLessThan(FOTO.w); expect(p.y).toBeGreaterThan(0); expect(p.y).toBeLessThan(FOTO.h) }
     expect(tableroDeLaMesa(MESAS[0]).split(" ")).toHaveLength(4)
+    // las 2 nuevas son Creativo trasladada: silla, monitor y centro con el mismo traslado de la capa de imagen
+    const creativo = MESAS[2]
+    for (const k of ["medios", "relaciones"] as const) {
+      const m = MESAS.find((x) => x.clave === k)!, d = MESAS_EXTRA.traslados[k]
+      for (const c of ["silla", "monitor", "centro"] as const) expect(m[c]).toEqual({ x: creativo[c].x + d.x, y: creativo[c].y + d.y })
+      // y caen dentro de la caja de la imagen
+      expect(m.monitor.x).toBeGreaterThan(MESAS_EXTRA.caja.x); expect(m.monitor.x).toBeLessThan(MESAS_EXTRA.caja.x + MESAS_EXTRA.caja.w)
+      expect(m.silla.y).toBeGreaterThan(MESAS_EXTRA.caja.y); expect(m.silla.y).toBeLessThan(MESAS_EXTRA.caja.y + MESAS_EXTRA.caja.h)
+    }
   })
   it("un solo sentado va en la silla; varios se reparten a lo largo de la mesa; nunca más de MAXIMO_POR_MESA", () => {
     const m = MESAS[1]
@@ -192,13 +201,14 @@ describe("la lectura y la ruta", () => {
     expect(escena).toContain('import { Avatares } from "@/components/nuevo/escena/Avatares"')
     expect(escena).toMatch(/depto === "marketing" && \(<>[\s\S]*<Avatares \/>[\s\S]*<\/>\)\}/)
   })
-  it("antes del dato la capa dibuja las 6 mesas vacías (2 punteadas), sin sentados ni fichas", () => {
+  it("antes del dato la capa dibuja las 6 mesas vacías (2 de ellas en la capa de mesas nuevas, sin punteado), sin sentados ni fichas", () => {
     const html = renderToStaticMarkup(createElement(Avatares))
     expect(html.match(/data-mesa="/g)).toHaveLength(6)
-    expect(html.match(/class="nv-av-punteada"/g)).toHaveLength(2)
-    // el punteado debe ganarle en especificidad a la regla general `.nv-av-zona polygon{stroke:none}` (defecto visto en el arnés del 01-nov: las mesas por activar no se veían)
-    expect(html).toContain(".nv-av .nv-av-zona polygon.nv-av-punteada{")
-    expect(html.indexOf(".nv-av .nv-av-zona polygon{")).toBeLessThan(html.indexOf(".nv-av .nv-av-zona polygon.nv-av-punteada{"))
+    // pedido de Emilio 01-nov: nada de mesas punteadas; las 2 nuevas son una imagen aparte (copia idéntica) que entra y sale con la foto
+    expect(html).not.toContain("nv-av-punteada")
+    expect(html).not.toContain("stroke-dasharray")
+    expect(html).toContain('src="/nuevo/marketing-mesas-extra.webp"')
+    expect(html).toMatch(/class="nv-foto-b nv-av-mesas-extra[^"]*"/)
     expect(html).not.toContain('class="nv-av-asiento"')
     expect(html).not.toContain('role="tooltip"')
     expect(html).toContain("MEDIOS Y PERFORMANCE")
