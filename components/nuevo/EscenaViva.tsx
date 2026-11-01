@@ -20,8 +20,10 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
  * 6.12 (Emilio, 1-nov: «el monolito central va a ser la oficina del humano; al darle clic, igual que el Dept. Marketing, se expande la oficina; una imagen con el mismo
  * estilo pero que parezca un centro de comando, una nave espacial moderna con pantallas, sencillo y sofisticado»): el monolito proyecta TU OFICINA (/nuevo/oficina) con la
  * MISMA mecánica que el departamento (crece desde el monolito, miniatura, Esc/atrás). La imagen `oficina-2560.jpg` la hizo el mismo generador que las otras dos
- * (edición con la escena y el departamento como referencias de estilo · 1-nov · US$ 0,26 por 2 candidatas). El Cerebro no se pierde: es el arco de pantallas
- * de tu oficina (`PANTALLAS`): se enciende al pasar el ratón y el clic abre el explorador encima (sin cambiar la dirección, como el Centro de campaña en marketing).
+ * (edición con la escena y el departamento como referencias de estilo · 1-nov · US$ 0,26 por 2 candidatas).
+ * 6.12b (Emilio, 1-nov: «no necesito el Cerebro en mi oficina, va a tener su propia estructura; esta oficina es el centro de HITL»): el Cerebro YA NO está en tu oficina
+ * (queda su dirección directa /nuevo/cerebro hasta que tenga estructura propia en la sala). Tu oficina = el centro de revisión humana: cada pantalla del arco abrirá
+ * un centro de comando distinto y las pantallas chicas del escritorio, el orquestador (la del frente) y la música (la de la izquierda). Se cablean una por una.
  */
 // 5.8 · medido con sonda (31-oct): con 650 ms y curva muy «ease-out» la imagen ya tenía el 65 % de su tamaño a los 100 ms y arrancaba invisible (opacidad 0):
 // se leía como «montar la imagen encima». Ahora arranca visible sobre la plataforma y crece parejo, más lento.
@@ -94,12 +96,6 @@ const ESTILO = `
 .nv-tablero polygon{fill:rgba(255,140,40,0);stroke:none}
 .nv-tablero .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
 .nv-tablero:hover .nv-rotulo,.nv-tablero:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
-.nv-pantallas{cursor:pointer;outline:none}
-.nv-pantallas polygon{fill:rgba(255,140,40,0);stroke:none}
-.nv-pantallas polygon.nv-luz{fill:url(#nv-luz-oficina);opacity:0;mix-blend-mode:screen;pointer-events:none;transition:opacity .45s ease}
-.nv-pantallas:hover polygon.nv-luz,.nv-pantallas:focus-visible polygon.nv-luz{opacity:1}
-.nv-pantallas .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
-.nv-pantallas:hover .nv-rotulo,.nv-pantallas:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
 .nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.22) 50%,transparent 58%);background-size:260% 100%;opacity:0}
 .nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido 800ms ease-out ${RETARDO_ESCENA_MS + 500}ms both}
 @keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}
@@ -116,7 +112,7 @@ const ESTILO = `
   .nv-proy[data-fase="sale"]{animation:nvDesaparece .15s linear both}
   .nv-proy[data-fase="entra"] .nv-barrido{animation:none}
   .nv-proy[data-fase="entra"] .nv-foto-b,.nv-proy[data-fase="sale"] .nv-foto-b{animation:none}
-  .nv-tablero-luz,.nv-tablero .nv-rotulo,.nv-pantallas polygon.nv-luz,.nv-pantallas .nv-rotulo{transition:none}
+  .nv-tablero-luz,.nv-tablero .nv-rotulo{transition:none}
   @keyframes nvAparece{from{opacity:0}to{opacity:1}}
   @keyframes nvDesaparece{from{opacity:1}to{opacity:0}}
 }
@@ -133,15 +129,6 @@ export const TABLERO = {
   rotulo: { x: 977, y: 250, texto: "CENTRO DE CAMPAÑA" },
   forma: "856,392 1098,286 1098,450 856,548", // la cara del tablero (zona del ratón)
   encendido: { src: "/nuevo/marketing-tablero-encendido.webp", caja: { x: 820, y: 250, w: 320, h: 340 } },
-}
-/** 6.12 · dentro de TU OFICINA, el arco de pantallas es el CEREBRO: al pasar el ratón se enciende suave (luz recortada a su cara, como las plataformas de la sala) y aparece
- *  su rótulo con las letras de la marca; el clic abre el explorador del Cerebro encima (con selector de cliente). Píxeles de la foto 2560×1440 (medido 1-nov: el arco va de
- *  x 900 a 1680 y de y 246 a 480). Sin recorte encendido del generador: la luz es la misma de la sala principal (gradiente + desenfoque, costo US$ 0). */
-export const PANTALLAS = {
-  clave: "cerebro",
-  nombre: "Cerebro",
-  rotulo: { x: 1290, y: 214, texto: "CEREBRO" },
-  forma: "900,350 1000,290 1140,258 1290,246 1440,254 1580,284 1680,340 1680,470 1580,440 1440,410 1290,400 1140,408 1000,440 900,480",
 }
 const FOTO_MKT = { w: 2560, h: 1440 } // las dos fotos proyectadas miden lo mismo
 const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
@@ -204,8 +191,6 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const d = DEPARTAMENTOS[depto]
   // 6.9 · el Cerebro abierto sobre la sala principal (sale al <body>, como las aplicaciones); `montado` porque el portal no existe en el servidor
   const [cerebro, setCerebro] = useState(cerebroInicial)
-  // 6.12 · si el Cerebro se abrió con su propia dirección (/nuevo/cerebro: desde la sala o entrada directa) o encima de tu oficina sin tocar la dirección
-  const cerebroConUrl = useRef(cerebroInicial)
   const [montado, setMontado] = useState(false)
   useEffect(() => { setMontado(true) }, [])
   const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón abierto encima de la oficina (6.2: la pantalla de aplicaciones; el calendario se abre desde ahí)
@@ -230,8 +215,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
     if (temporizador.current) clearTimeout(temporizador.current)
     temporizador.current = setTimeout(() => setFase("cerrado"), MS_SALIDA)
   }, [])
-  const abrirCerebro = useCallback((cambiarUrl = true, conUrl = true) => { cerebroConUrl.current = conUrl; if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
-  const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl && cerebroConUrl.current) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
+  const abrirCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
+  const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
 
   // 5.8 · antes de pintar la entrada o la salida, se fija desde dónde sale (o hacia dónde vuelve) la imagen: la plataforma, medida en pantalla
   useLayoutEffect(() => {
@@ -327,25 +312,6 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={d.src} srcSet={`${d.src1280} 1280w, ${d.src} 2560w`} sizes="(max-width: 900px) 100vw, 1800px"
               alt={d.alt} width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
-            {/* 6.12 · dentro de TU OFICINA: el arco de pantallas es el Cerebro (luz suave + rótulo al pasar el ratón; el clic abre el explorador encima sin cambiar la dirección) */}
-            {depto === "oficina" && (
-              <svg viewBox={`0 0 ${FOTO_MKT.w} ${FOTO_MKT.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de tu oficina" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <radialGradient id="nv-luz-oficina" cx="50%" cy="50%" r="62%">
-                    <stop offset="0%" stopColor="rgba(255,178,86,0.55)" /><stop offset="55%" stopColor="rgba(255,152,52,0.3)" /><stop offset="100%" stopColor="rgba(255,140,40,0.08)" />
-                  </radialGradient>
-                  <filter id="nv-luz-suave-oficina" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="9" /></filter>
-                  <clipPath id="nv-sup-pantallas"><polygon points={PANTALLAS.forma} /></clipPath>
-                </defs>
-                <g className="nv-pantallas" data-zona={PANTALLAS.clave} role="button" tabIndex={0} aria-label={PANTALLAS.nombre} aria-haspopup="dialog" aria-expanded={cerebro}
-                  onClick={(e) => { e.stopPropagation(); abrirCerebro(false, false) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirCerebro(false, false) } }}>
-                  <polygon points={PANTALLAS.forma} />
-                  <g clipPath="url(#nv-sup-pantallas)"><polygon className="nv-luz" points={PANTALLAS.forma} filter="url(#nv-luz-suave-oficina)" /></g>
-                  <text className="nv-rotulo" x={PANTALLAS.rotulo.x} y={PANTALLAS.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO_TABLERO * 0.9 / 16}
-                    fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{PANTALLAS.rotulo.texto}</text>
-                </g>
-              </svg>
-            )}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
