@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import {
-  asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, MESAS_EXTRA, tableroDeLaMesa,
+  asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, tableroDeLaMesa,
   type ClaveDeMesa, type EscenaDatos, type Mesa, type MesaViva,
 } from "@/lib/escena-avatares"
 
 /**
  * LA ESCENA VIVA · AVATARES (CC6 · Sprint 1 · 01-nov): la capa que va ENCIMA de la foto de la oficina de marketing, dentro de la proyección de `EscenaViva`.
- * - Las 6 MESAS en rejilla simétrica de 3 filas × 2 columnas (3 de la foto + 3 copias idénticas); la sala de reuniones encierra solo la mesa redonda y el mueble; todo lo que cambia va en una imagen aparte encima de la foto.
+ * - Las 6 MESAS de la foto regenerada (01-nov): rejilla de 2 filas × 3 columnas, cada una en su celda; la sala de reuniones encierra solo la mesa redonda y el mueble.
  * - En la silla de cada mesa se SIENTA SOLO quien está trabajando ahora (dato real de `agent_dispatches`); si trabajan varios, se sientan a lo largo de la mesa.
  *   Mesa sin nadie trabajando = vacía y quieta. Al tocar la mesa se ve el equipo completo con su estado. Nunca hay avatares de relleno.
  * - Estados por el monitor de la FOTO: trabajando = brilla ámbar y late · en espera = como en la foto · falló = en rojo.
@@ -91,11 +91,6 @@ export function Avatares() {
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
       <style>{ESTILO}</style>
-      {/* la oficina reordenada (mesas copiadas, vidrio nuevo, pantalla afuera); usa la clase de la foto (`nv-foto-b`) para entrar y salir con ella */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={MESAS_EXTRA.src} alt="" aria-hidden width={MESAS_EXTRA.caja.w} height={MESAS_EXTRA.caja.h} decoding="async" draggable={false} data-mesas-extra
-        className="nv-foto-b nv-av-mesas-extra pointer-events-none absolute select-none"
-        style={{ left: pct(MESAS_EXTRA.caja.x, FOTO.w), top: pct(MESAS_EXTRA.caja.y, FOTO.h), width: pct(MESAS_EXTRA.caja.w, FOTO.w), height: pct(MESAS_EXTRA.caja.h, FOTO.h) }} />
       {hayFiguras && <FigurasSpline colocaciones={colocaciones} />}
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Las mesas de la oficina de marketing y quién trabaja ahora" xmlns="http://www.w3.org/2000/svg">
         <defs>

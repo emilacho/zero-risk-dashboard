@@ -30,7 +30,7 @@ export interface Mesa {
   monitor: Punto
   /** dónde va el rótulo del equipo */
   rotulo: Punto
-  /** la mesa está en la foto original (Dirección, Estrategia, Creativo) o es una copia idéntica de la capa `MESAS_EXTRA` (Web, Medios, Relaciones) */
+  /** la mesa está en la foto (desde la foto regenerada del 01-nov, las 6) */
   en_la_foto: boolean
   /** centro del tablero de la mesa (para la zona del ratón) */
   centro: Punto
@@ -44,33 +44,24 @@ const mesa = (clave: ClaveDeMesa, nombre: string, orden: number, etapa: EtapaDeM
   ({ clave, nombre, orden, etapa, silla, monitor, rotulo: { x: monitor.x, y: monitor.y - 95 }, en_la_foto, centro, color })
 
 /**
- * LAS 6 MESAS (pedidos de Emilio 01-nov: «2 mesas extras idénticas a las que ya se ven», «deja dentro del vidrio solo el mueble y la mesa, pon afuera la pantalla
- * vertical y organiza las 6 mesas de manera simétrica y bien espaciada, sin perder las líneas naranjas del piso»): rejilla de 3 filas × 2 columnas con el mismo paso
- * que las mesas de la foto (medido por registro de imagen: columnas +191,+113 · filas +211,−105). Delante Estrategia y Creativo (sus mesas de la foto), en medio Dirección (la suya) y Web y búsqueda, al fondo Medios y Performance y
- * Relaciones. Web, Medios y Relaciones son copias píxel a píxel de la mesa Creativo en la capa `MESAS_EXTRA` (sus sillas/monitores = los de Creativo trasladados).
- * La foto original no se toca. Colores de `lib/organigrama.ts`.
+ * LAS 6 MESAS (Emilio 01-nov: «empieza de cero: coge la original y genera una nueva dándole instrucción al generador de que la cree con 6 mesas»). La foto
+ * `marketing-2560.jpg` se REGENERÓ con el mismo generador y la misma receta de la original (edición de la foto original · gpt-image-2.5-flare): 6 mesas idénticas
+ * en rejilla de 2 filas × 3 columnas, cada una en su celda de líneas naranjas; la sala de reuniones con vidrio encierra solo la mesa redonda y el mueble; la
+ * pantalla vertical queda afuera. Ya no hay capas de retoque: las 6 mesas están EN la foto. Monitores medidos sobre la foto nueva (centro de cada pantalla
+ * encendida); silla y centro con el mismo desplazamiento en las 6. Fila de atrás: Dirección · Estrategia · Creativo; fila de adelante: Web y búsqueda ·
+ * Medios y Performance · Relaciones. Colores de `lib/organigrama.ts`.
  */
+const SILLA = { x: -55, y: 68 }, CENTRO = { x: -5, y: 40 }
+const enLaFoto = (clave: ClaveDeMesa, nombre: string, orden: number, etapa: EtapaDeMesa, monitor: Punto, color: string): Mesa =>
+  mesa(clave, nombre, orden, etapa, { x: monitor.x + SILLA.x, y: monitor.y + SILLA.y }, monitor, true, { x: monitor.x + CENTRO.x, y: monitor.y + CENTRO.y }, color)
 export const MESAS: Mesa[] = [
-  mesa("direccion", "Dirección", 1, "activo", { x: 1044, y: 618 }, { x: 1108, y: 540 }, true, { x: 1084, y: 574 }, "#f5a524"),
-  mesa("estrategia", "Estrategia", 2, "activo", { x: 833, y: 723 }, { x: 897, y: 645 }, true, { x: 873, y: 679 }, "#e8731a"),
-  mesa("creativo", "Creativo", 3, "activo", { x: 1024, y: 836 }, { x: 1088, y: 758 }, true, { x: 1064, y: 792 }, "#ffb86b"),
-  mesa("web", "Web y búsqueda", 4, "segunda_etapa", { x: 1235, y: 731 }, { x: 1299, y: 653 }, false, { x: 1275, y: 687 }, "#9a7b5a"),
-  mesa("medios", "Medios y Performance", 5, "segunda_etapa", { x: 1255, y: 513 }, { x: 1319, y: 435 }, false, { x: 1295, y: 469 }, "#8c8c8c"),
-  mesa("relaciones", "Relaciones", 6, "segunda_etapa", { x: 1446, y: 626 }, { x: 1510, y: 548 }, false, { x: 1486, y: 582 }, "#a08cff"),
+  enLaFoto("direccion", "Dirección", 1, "activo", { x: 1120, y: 560 }, "#f5a524"),
+  enLaFoto("estrategia", "Estrategia", 2, "activo", { x: 1325, y: 671 }, "#e8731a"),
+  enLaFoto("creativo", "Creativo", 3, "activo", { x: 1545, y: 791 }, "#ffb86b"),
+  enLaFoto("web", "Web y búsqueda", 4, "segunda_etapa", { x: 901, y: 665 }, "#9a7b5a"),
+  enLaFoto("medios", "Medios y Performance", 5, "segunda_etapa", { x: 1104, y: 790 }, "#8c8c8c"),
+  enLaFoto("relaciones", "Relaciones", 6, "segunda_etapa", { x: 1318, y: 912 }, "#a08cff"),
 ]
-
-/**
- * La capa de la oficina reordenada: `public/nuevo/marketing-oficina-simetrica.webp` (con transparencia: solo los píxeles que cambian). Quita el vidrio viejo, la mesa
- * Web de la foto y la pantalla vertical (el piso se rehace liso con su grano y se redibujan los tramos de línea naranja que tapaban; los rombos se conservan); pone
- * las 3 mesas copiadas (`traslados` desde la mesa Creativo), un vidrio nuevo por las líneas del piso desde el rombo junto a la mesa redonda que encierra solo la mesa
- * y el mueble, y la pantalla vertical afuera, en la celda delantera derecha. `caja` = dónde va, en píxeles de la foto.
- * Generada por `.cc6/oficina-simetrica.py … --capa` (CC6, 01-nov · copia del guion en zr-vault/raw/evidencia/dashboard-nuevo/cc6/oficina-simetrica/).
- */
-export const MESAS_EXTRA = {
-  src: "/nuevo/marketing-oficina-simetrica.webp",
-  caja: { x: 1146, y: 381, w: 523, h: 642 },
-  traslados: { web: { x: 211, y: -105 }, medios: { x: 231, y: -323 }, relaciones: { x: 422, y: -210 } },
-} as const
 export const mesaPorClave = (k: string): Mesa | undefined => MESAS.find((m) => m.clave === k)
 
 /** el tablero de una mesa como polígono (puntos «x,y x,y …» para SVG): un paralelogramo isométrico de 200 × 84 alrededor de su centro */
