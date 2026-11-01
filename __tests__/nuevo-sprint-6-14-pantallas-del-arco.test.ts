@@ -24,7 +24,7 @@ describe("6.14 · las pantallas del arco (lógica pura)", () => {
     expect(PANTALLAS_DEL_ARCO.every((p) => p.tono !== null && p.animacion !== null)).toBe(true) // 6.17: todas animadas
     // 6.17 · «la última pantalla tiene una animación dorada pálida excelente: haz las negras del mismo estilo, cambiando de manera mínima el diseño»
     const diez = PANTALLAS_VIVAS.find((p) => p.indice === 10)!
-    expect(PANTALLAS_EN_NEGRO.map((p) => [p.indice, p.animacion])).toEqual([[2, "rutas"], [5, "constelacion"], [6, "senales"], [8, "trayecto"]])
+    expect(PANTALLAS_EN_NEGRO.map((p) => [p.indice, p.animacion])).toEqual([[2, "bus"], [5, "chip"], [6, "meandro"], [8, "trayecto"]])
     for (const p of PANTALLAS_EN_NEGRO) { expect(p.tono).toBe(diez.tono); expect(p.nombreDelTono).toBe("durazno") }
     expect(ARCO_ANIMADO.map((p) => p.indice)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     expect(new Set(ARCO_ANIMADO.map((p) => p.animacion)).size).toBe(10)
@@ -106,7 +106,7 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
     expect((html.match(/class="nv-tinte"/g) ?? []).length).toBe(15); expect((html.match(/class="nv-sombra"/g) ?? []).length).toBe(15)
     // 6.15 · las líneas NO van en el tono del vidrio: van en una luz clara, con el tono solo como resplandor
     expect(LUZ_DE_LA_INTERFAZ).toBe("#fff3e2"); expect(matizYSaturacion(LUZ_DE_LA_INTERFAZ).saturacion).toBeGreaterThan(0.5) // cálida…
-    expect(html).toContain(`.nv-pantalla .nv-hud{color:${LUZ_DE_LA_INTERFAZ};filter:drop-shadow(0 0 1.2px var(--tono)) drop-shadow(0 0 3px var(--tono))}`)
+    expect(html).toContain(`.nv-pantalla .nv-hud{color:${LUZ_DE_LA_INTERFAZ};opacity:.78;filter:drop-shadow(0 0 1px var(--tono)) drop-shadow(0 0 2px var(--tono))}`)
     expect(html).not.toMatch(/\.nv-hud\{color:var\(--tono\)/)
     // 6.16 · tableros de empresa (ni átomos, ni radares, ni giros): barras, nodos y enlaces, tarjetas, curva, etapas del embudo, trama del mapa…
     expect(html).not.toMatch(/animateTransform/)
@@ -122,8 +122,11 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
     // movimiento: CSS (crece · llena · traza · marca · respira · aparece · destella · enciende · señal · desfila · recorre · avanza) + SMIL para lo que viaja por un atributo (pulsos de la red · cabezal de la pista); todo quieto con «menos movimiento»
     for (const a of ["crece", "llena", "traza", "marca", "respira", "aparece", "destella", "enciende", "senal", "desfila", "recorre", "avanza", "avanza-y-vuelve"]) expect(html).toContain(`data-anima="${a}"`)
     expect((html.match(/<animate attributeName="(cx|cy|opacity)"/g) ?? []).length).toBe(9 * 3 + 1 + 2) // 9 pulsos (cx, cy, opacidad) + el cabezal + la luz del trayecto (6.17)
+    // 6.17b · el circuito del microchip: chispas de corriente que recorren cada pista (4 del bus + 8 del chip + 2 del meandro), y todo más tenue
+    expect((html.match(/data-anima="corriente"/g) ?? []).length).toBe(4 + 8 + 2 + 1) // + la regla del estilo
+    expect(html).toContain('.nv-pantalla[data-tono="durazno"] .nv-hud{opacity:.62}')
     expect(html).toContain("@media (prefers-reduced-motion:reduce){.nv-pantalla .nv-hud [data-anima]{animation:none}}")
-    expect((html.match(/pathLength="1" stroke-dashoffset="0"/g) ?? []).length).toBe(3 + 1 + 3 + 1) // + la ruta de la pantalla 2 (6.17) // trazos que se dibujan: 3 curvas, la de crecimiento, 3 marcas; en reposo, dibujados
+    expect((html.match(/pathLength="1" stroke-dashoffset="0"/g) ?? []).length).toBe(3 + 1 + 3) // (6.17b: las chispas del circuito van aparte) // trazos que se dibujan: 3 curvas, la de crecimiento, 3 marcas; en reposo, dibujados
     // líneas finas de luz: el grosor sale del tamaño de cada vidrio (legible también en las chicas); sin framer-motion (6.16: sus componentes saltan al último cuadro en esta app)
     const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
     expect(c).toContain("const g = Math.max(1.3, Math.min(w, h) * 0.035)"); expect(c).toContain("lienzoDelMarco(marcoDeLaForma(p.forma))"); expect(c).toContain('transform={`matrix(${marcoDeLaForma(p.forma).matriz'); expect(c).not.toMatch(/from "framer-motion"/)
