@@ -7,9 +7,13 @@
  * (2560×1440 · 1-nov), cuáles están ENCENDIDAS y, para cada encendida, un MATIZ distinto de la familia de los naranjas y una animación distinta de interfaz.
  * Qué abre cada pantalla lo decide Emilio después.
  */
+/**
+ * 6.16 (Emilio, 1-nov): «las animaciones no me gustan: una es un átomo, otra un radar, otra un pulso cardíaco, otra un nivel de volumen; debe ser tema tecnología
+ * del futuro mezclado con empresa; primero la parte visual, después decidiremos qué función tiene cada una». Tema: tableros de una empresa vistos desde el futuro.
+ */
 export type Animacion =
-  | "radar" | "escaner" | "columnas" | "orbita" | "pulso" | "malla" // el arco (6)
-  | "espectro" | "telemetria" | "anillo" | "reticula" | "cadena" // el escritorio (5)
+  | "ventas" | "red" | "indicadores" | "crecimiento" | "embudo" | "mapa" // el arco (6): barras de ventas · red de la empresa · tablero de indicadores · curva de crecimiento · embudo · mapa de mercados
+  | "cotizaciones" | "pista" | "agenda" | "participacion" | "tareas" // el escritorio (5): cinta de cotizaciones · pista de reproducción (música) · agenda del día · participación · lista de tareas
 
 export interface Pantalla {
   /** arco: 1 = extremo izquierdo … 10 = extremo derecho · escritorio: 1 = extremo izquierdo … 5 = extremo derecho */
@@ -29,16 +33,16 @@ export type PantallaDelArco = Pantalla
 
 /** EL ARCO · medidas 1-nov sobre oficina-2560.jpg (x 900-1680 · y 246-480) */
 export const PANTALLAS_DEL_ARCO: readonly Pantalla[] = [
-  { indice: 1, forma: "932,356 972,338 972,466 932,470", encendida: true, tono: "#f7c233", nombreDelTono: "dorado", animacion: "columnas" },
+  { indice: 1, forma: "932,356 972,338 972,466 932,470", encendida: true, tono: "#f7c233", nombreDelTono: "dorado", animacion: "ventas" },
   { indice: 2, forma: "986,330 1040,312 1040,438 986,426", encendida: false, tono: null, nombreDelTono: null, animacion: null },
-  { indice: 3, forma: "1052,312 1110,296 1110,406 1052,416", encendida: true, tono: "#ffad1f", nombreDelTono: "ámbar", animacion: "orbita" },
-  { indice: 4, forma: "1124,291 1182,276 1182,387 1124,394", encendida: true, tono: "#e8731a", nombreDelTono: "naranja de la marca", animacion: "radar" },
+  { indice: 3, forma: "1052,312 1110,296 1110,406 1052,416", encendida: true, tono: "#ffad1f", nombreDelTono: "ámbar", animacion: "red" },
+  { indice: 4, forma: "1124,291 1182,276 1182,387 1124,394", encendida: true, tono: "#e8731a", nombreDelTono: "naranja de la marca", animacion: "indicadores" },
   { indice: 5, forma: "1202,273 1276,268 1276,380 1202,382", encendida: false, tono: null, nombreDelTono: null, animacion: null },
   { indice: 6, forma: "1286,268 1360,273 1360,382 1286,380", encendida: false, tono: null, nombreDelTono: null, animacion: null },
-  { indice: 7, forma: "1372,276 1432,291 1432,394 1372,387", encendida: true, tono: "#ff5e1f", nombreDelTono: "zanahoria", animacion: "pulso" },
+  { indice: 7, forma: "1372,276 1432,291 1432,394 1372,387", encendida: true, tono: "#ff5e1f", nombreDelTono: "zanahoria", animacion: "crecimiento" },
   { indice: 8, forma: "1450,296 1508,312 1508,416 1450,406", encendida: false, tono: null, nombreDelTono: null, animacion: null },
-  { indice: 9, forma: "1522,316 1576,336 1576,438 1522,424", encendida: true, tono: "#e03d1a", nombreDelTono: "teja", animacion: "escaner" },
-  { indice: 10, forma: "1590,342 1630,358 1630,460 1590,446", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "malla" },
+  { indice: 9, forma: "1522,316 1576,336 1576,438 1522,424", encendida: true, tono: "#e03d1a", nombreDelTono: "teja", animacion: "embudo" },
+  { indice: 10, forma: "1590,342 1630,358 1630,460 1590,446", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "mapa" },
 ]
 
 /**
@@ -47,11 +51,11 @@ export const PANTALLAS_DEL_ARCO: readonly Pantalla[] = [
  * La 3 (frente a la silla) queda libre. Cinco matices repartidos por la familia (≥5° entre ellos), intercalados con los del arco.
  */
 export const PANTALLAS_DEL_ESCRITORIO: readonly Pantalla[] = [
-  { indice: 1, forma: "1074,468 1113,462 1116,486 1077,490", encendida: true, tono: "#ffc94a", nombreDelTono: "miel", animacion: "telemetria" },
-  { indice: 2, forma: "1139,447 1197,440 1199,465 1142,472", encendida: true, tono: "#ff6d1a", nombreDelTono: "mandarina", animacion: "espectro" },
-  { indice: 3, forma: "1240,429 1314,427 1315,455 1241,457", encendida: true, tono: "#ff871a", nombreDelTono: "calabaza", animacion: "reticula" },
-  { indice: 4, forma: "1368,443 1423,437 1425,462 1371,468", encendida: true, tono: "#e8491a", nombreDelTono: "ladrillo", animacion: "anillo" },
-  { indice: 5, forma: "1450,468 1487,464 1489,486 1452,490", encendida: true, tono: "#e8911a", nombreDelTono: "caramelo", animacion: "cadena" },
+  { indice: 1, forma: "1074,468 1113,462 1116,486 1077,490", encendida: true, tono: "#ffc94a", nombreDelTono: "miel", animacion: "cotizaciones" },
+  { indice: 2, forma: "1139,447 1197,440 1199,465 1142,472", encendida: true, tono: "#ff6d1a", nombreDelTono: "mandarina", animacion: "pista" },
+  { indice: 3, forma: "1240,429 1314,427 1315,455 1241,457", encendida: true, tono: "#ff871a", nombreDelTono: "calabaza", animacion: "agenda" },
+  { indice: 4, forma: "1368,443 1423,437 1425,462 1371,468", encendida: true, tono: "#e8491a", nombreDelTono: "ladrillo", animacion: "participacion" },
+  { indice: 5, forma: "1450,468 1487,464 1489,486 1452,490", encendida: true, tono: "#e8911a", nombreDelTono: "caramelo", animacion: "tareas" },
 ]
 
 export interface Caja { x: number; y: number; w: number; h: number; cx: number; cy: number }
@@ -62,6 +66,12 @@ export function cajaDeLaForma(forma: string): Caja {
   const xs = puntos.map((p) => p[0]), ys = puntos.map((p) => p[1])
   const x = Math.min(...xs), y = Math.min(...ys), w = Math.max(...xs) - x, h = Math.max(...ys) - y
   return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 }
+}
+
+/** el lienzo útil dentro del vidrio (márgenes del 10 % a los lados y 12 % arriba/abajo): ahí se encaja cada dibujo, sea alto (arco) o apaisado (escritorio) */
+export function lienzoDeLaForma(forma: string): Caja {
+  const c = cajaDeLaForma(forma), mx = c.w * 0.1, my = c.h * 0.12
+  return { x: c.x + mx, y: c.y + my, w: c.w - 2 * mx, h: c.h - 2 * my, cx: c.cx, cy: c.cy }
 }
 
 export type PantallaViva = Pantalla & { tono: string; nombreDelTono: string; animacion: Animacion }
