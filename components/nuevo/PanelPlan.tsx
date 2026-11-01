@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
-import { BOTONES_DEL_PLAN, COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
@@ -17,7 +17,9 @@ const ESTILO = `
 .pl-barra{transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .pl-fase[aria-current="step"]{box-shadow:0 0 0 1px rgba(245,165,36,.7),0 0 18px rgba(245,165,36,.25)}
 @keyframes plEntra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.pl-seccion{animation:none}.pl-barra{transition:none}}
+.nv-pl-paso-vivo{animation:nvPlPaso 1.6s ease-in-out infinite}
+@keyframes nvPlPaso{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.0)}50%{box-shadow:0 0 0 6px rgba(245,165,36,.25)}}
+@media (prefers-reduced-motion:reduce){.nv-pl-paso-vivo{animation:none}.pl-seccion{animation:none}.pl-barra{transition:none}}
 `
 
 function Chip({ children, tono = "neutro" }: { children: React.ReactNode; tono?: "neutro" | "ambar" | "verde" | "rojo" }) {
@@ -49,6 +51,32 @@ function Barra({ nombre, pct, detalle }: { nombre: string; pct: number; detalle?
   )
 }
 
+const COLOR_PASO: Record<string, string> = { hecho: "border-amber-300 bg-amber-400 text-black", en_curso: "nv-pl-paso-vivo border-amber-300 bg-amber-400/25 text-amber-100", pendiente: "border-white/20 bg-transparent text-zinc-500", fallo: "border-rose-400 bg-rose-500/80 text-white" }
+/** LA BARRA DE PROGRESO del pedido de cambios (ADENDA 1 de Emilio, 01-nov): cinco pasos con su hora, el tiempo estimado y, si falla, el paso en rojo con qué hacer */
+function BarraDelPedido({ avance }: { avance: AvanceDelPedido }) {
+  return (
+    <div data-barra-del-pedido data-fallo={avance.fallo ? "si" : "no"} className="mt-4 rounded-lg border border-white/10 bg-black/30 p-4" role="group" aria-label="El avance de tu pedido de cambios">
+      <ol className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+        {avance.pasos.map((p, i) => (
+          <li key={p.clave} data-paso={p.clave} data-estado={p.estado} className="flex items-start gap-2 sm:flex-col sm:items-center sm:text-center">
+            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold ${COLOR_PASO[p.estado]}`}>{p.estado === "hecho" ? "✓" : p.estado === "fallo" ? "!" : i + 1}</span>
+            <span className="min-w-0">
+              <span className={`block text-[12.5px] ${p.estado === "pendiente" ? "text-zinc-500" : p.estado === "fallo" ? "text-rose-200" : "text-zinc-100"}`}>{p.nombre}</span>
+              <span className="block text-[11px] text-zinc-500">{p.hora ? horaCortaEC(p.hora) : p.estado === "en_curso" ? "en curso" : "—"}</span>
+              {p.detalle && <span className="block text-[11px] text-rose-300">{p.detalle}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 text-[12px] text-zinc-400" data-estimado>{avance.estimado}</p>
+      {avance.nota && <p className="mt-1 text-[12px] text-amber-200">{avance.nota}</p>}
+      {avance.fallo && <p role="alert" className="mt-2 rounded-md border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-100">{avance.fallo.texto} <span className="text-rose-200/80">{avance.fallo.que_hacer}</span></p>}
+    </div>
+  )
+}
+/** la hora (Ecuador) de un instante: «15:42» */
+const horaCortaEC = (iso: string): string => { try { return new Date(iso).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" }) } catch { return "—" } }
+
 type EnviarAlCiclo = typeof enviarAlCiclo
 const ESTADO_CICLO_COLOR: Record<EstadoDelCiclo, string> = {
   en_revision: "border-sky-400/50 bg-sky-400/10 text-sky-100",
@@ -64,7 +92,7 @@ const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibol
  * tope, y se confirma. «Aprobar» no cuesta. Si la última llamada no despertó al flujo (no se gastó nada) se ofrece «Reintentar». Las versiones anteriores
  * quedan en segundo plano («corregido N veces · ver historial»).
  */
-function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
+function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
   const lectura = leerElCiclo(statusDelDocumento, ciclo)
   const [modo, setModo] = useState<"quieto" | "escribir" | "confirmar_cambios" | "confirmar_aprobar">("quieto")
   const [ocupado, setOcupado] = useState(false)
@@ -106,7 +134,14 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
           </button>
         )}
       </div>
+      {queCambio && ciclo.version > 1 && (
+        <div data-que-cambio className="mt-3 rounded-lg border border-amber-400/40 bg-black/30 p-3">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-300">Qué cambió en esta versión</p>
+          <p className="mt-1 whitespace-pre-wrap text-[13.5px] leading-relaxed text-zinc-100">{queCambio}</p>
+        </div>
+      )}
       <p className="mt-2 text-[14px] leading-relaxed text-zinc-100">{lectura.detalle}</p>
+      {ciclo.avance && <BarraDelPedido avance={ciclo.avance} />}
       {lectura.estado === "reescribiendo" && ciclo.pedido?.texto && (
         <blockquote className="mt-2 border-l-2 border-violet-400/50 pl-3 text-[12.5px] italic text-zinc-300">Lo que pediste: {ciclo.pedido.texto}</blockquote>
       )}
@@ -206,7 +241,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? clienteInicial)
-  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string; tono?: "info" } | null>(null)
   const cerrar = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cerrar.current?.focus() }, [])
@@ -217,8 +252,8 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
     return () => window.removeEventListener("keydown", tecla, true)
   }, [onCerrar])
 
-  const leer = useCallback(async (id: string | null) => {
-    setCargando(true); setError(null)
+  const leer = useCallback(async (id: string | null, silencioso = false) => {
+    if (!silencioso) { setCargando(true); setError(null) }
     try {
       const r = await fetch(`/api/plan${id ? `?cliente=${encodeURIComponent(id)}` : ""}`, { cache: "no-store" })
       const j = (await r.json().catch(() => null)) as Respuesta | null
@@ -227,10 +262,17 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
   useEffect(() => { if (!datosIniciales) void leer(clienteInicial) }, [leer, datosIniciales, clienteInicial])
+  // mientras el plan se reescribe o la jefatura lo revisa, el panel se actualiza solo (sin recargar) cada 15 s
+  const enMarcha = !!datos?.ciclo && (datos.ciclo.pedido !== null || (datos.ciclo.con_compuerta && !datos.ciclo.compuerta))
+  useEffect(() => {
+    if (!enMarcha) return
+    const t = window.setInterval(() => { if (document.visibilityState === "visible") void leer(cliente, true) }, 15_000)
+    return () => window.clearInterval(t)
+  }, [enMarcha, leer, cliente])
 
   // después de decidir: se dice qué pasó, en palabras, y se vuelve a leer cuando el estado del ciclo cambió
   const alResultado = (r: RespuestaDelCiclo) => {
-    setAviso({ ok: r.ok, texto: r.texto })
+    setAviso({ ok: r.ok, texto: r.texto, tono: r.tono })
     if (r.releer) void leer(cliente)
   }
 
@@ -261,7 +303,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
         </header>
 
         {error && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-6">{error}</p>}
-        {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
+        {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : aviso.tono === "info" ? "info" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : aviso.tono === "info" ? "border-white/10 bg-white/[0.04] text-zinc-300" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {!datos && !error && <p className="text-[13px] text-zinc-500">Leyendo el plan…</p>}
@@ -293,7 +335,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
 
               {/* la decisión sobre el plan: para TODO plan, con el estado del ciclo a la vista y los dos botones grandes */}
               {d && datos.ciclo && (
-                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado}>
+                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio}>
                   {d.marcas.length > 0 && (
                     <div className="mt-3">
                       <p className="text-[12.5px] text-zinc-300">El chequeo del sistema marcó estos puntos antes de darlo por bueno:</p>

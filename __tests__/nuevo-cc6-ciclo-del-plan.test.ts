@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import {
-  COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
+  COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, avanceDelPedido, queCambioDelTexto, type AvanceCrudo, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
 } from "@/lib/plan"
 import { leerPlanDelCliente, type PlanDelCliente } from "@/lib/plan-datos"
 import { enviarAlCiclo } from "@/lib/plan-ciclo"
@@ -20,7 +20,7 @@ const PLAN = "3dfcc12f-993e-478a-b884-f7df45ceaf77"
 const PLAN_V2 = "6b1d2a40-1111-4c22-8d33-5e6f7a8b9c0d"
 const CLIENTE = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 const CAMPANA = "c0c0c0c0-1111-4222-8333-444455556666"
-const base: CicloDelPlan = { disponible: true, version: 1, historial: [], con_compuerta: false, compuerta: null, pedido: null }
+const base: CicloDelPlan = { disponible: true, version: 1, historial: [], con_compuerta: false, compuerta: null, pedido: null, avance: null }
 
 describe("CC6 · el estado del ciclo del plan", () => {
   it("cada estado sale de lo real: aprobado · reescribiendo · en revisión · esperando tu decisión (con sus botones)", () => {
@@ -36,7 +36,7 @@ describe("CC6 · el estado del ciclo del plan", () => {
     expect(leerElCiclo("draft", base).avisos.join(" ")).toContain("de antes del ciclo")
     const tope = leerElCiclo("draft", { ...base, version: 4, con_compuerta: true, compuerta: { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null } })
     expect(tope).toMatchObject({ puede_aprobar: true, puede_pedir_cambios: false }); expect(tope.avisos.join(" ")).toContain("Ya van 3 reescrituras")
-    expect(leerElCiclo("draft", { ...base, disponible: false }).avisos[0]).toContain("todavía no está abierto en la plataforma")
+    expect(leerElCiclo("draft", { ...base, disponible: false }).avisos[0]).toContain("El ciclo del plan se abre pronto")
     expect(leerElCiclo("draft", { ...base, pedido: { id: "p", estado: "pendiente", texto: "x", vuelta: 1, despertado: false, despertar_detalle: "sin llave de despacho" } })).toMatchObject({ reintentar: "plan-cambios" })
     expect(leerElCiclo("draft", { ...base, compuerta: { estado: "aprobado", decidido_por: null, decidido_en: null, despertado: false, despertar_detalle: null } })).toMatchObject({ estado: "aprobado", reintentar: "plan-aprobar" })
   })
@@ -166,7 +166,7 @@ describe("CC6 · la lectura del ciclo (solo lectura)", () => {
     expect(p.ciclo).toMatchObject({ disponible: true, version: 2, con_compuerta: true, compuerta: { estado: "pendiente" }, pedido: null })
     expect(p.ciclo!.historial).toEqual([{ id: PLAN, version: 1, creado_en: "2026-10-30T23:13:22Z", status: "draft", reemplaza_a: null, superseded_por: PLAN_V2 }])
     const r = b.registro.join("\n")
-    expect(r).toContain(`plan_aprobaciones.eq("plan_id","${PLAN_V2}")`); expect(r).toContain('plan_cambios.in("estado",["pendiente","en_reescritura"])')
+    expect(r).toContain(`plan_aprobaciones.eq("plan_id","${PLAN_V2}")`); expect(r).toContain('plan_cambios.order("creado_en",{"ascending":false})') // el último pedido sobre la versión
     expect(leerElCiclo(p.documento!.status, p.ciclo!)).toMatchObject({ estado: "esperando_decision", puede_aprobar: true, puede_pedir_cambios: true })
   })
   it("si las tablas del ciclo aún no existen, el plan se lee igual y el ciclo dice «no disponible»; cualquier otro error lanza", async () => {
@@ -181,7 +181,7 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
   const datos = (ciclo: CicloDelPlan, status = "draft"): PlanDelCliente => ({
     clientes: [{ id: CLIENTE, nombre: "Náufrago", con_campana: false }], cliente: { id: CLIENTE, nombre: "Náufrago" }, hoy: "2026-11-01",
     campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [] }, leido_en: "x",
-    documento: { id: PLAN_V2, titulo: "Plan v2", creado_en: "2026-11-01T15:00:00Z", actualizado_en: null, status, estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: "Prosa", caracteres: 5 },
+    documento: { id: PLAN_V2, titulo: "Plan v2", creado_en: "2026-11-01T15:00:00Z", actualizado_en: null, status, estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: "Prosa", caracteres: 5, que_cambio: null },
     ciclo,
   })
   const pinta = (d: PlanDelCliente) => renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d }))
@@ -202,7 +202,7 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
     const ap = pinta(datos(base, "approved"))
     expect(ap).toContain("Aprobado → pasa al brief"); expect(ap).not.toContain('data-accion="plan-aprobar-asi"')
     const cerrado = pinta(datos({ ...base, disponible: false }))
-    expect(cerrado).toContain("todavía no está abierto en la plataforma"); expect(cerrado).toContain('data-accion="plan-aprobar-asi"') // se ofrece y responde «aún no disponible»
+    expect(cerrado).toContain("El ciclo del plan se abre pronto"); expect(cerrado).toContain('data-accion="plan-aprobar-asi"') // se ofrece y responde «aún no disponible»
   })
   it("la confirmación de «Pedir cambios» dice qué pasa, el costo estimado y el tope antes de gastar", () => {
     const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
@@ -210,5 +210,56 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
     expect(c).toContain("El jefe de marketing reescribe la versión"); expect(c).toContain("la jefatura la revisa")
     expect(c).toContain('mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones))') // solo desde la confirmación
     expect(c).not.toMatch(/supabase|service_role|method: "POST"/)
+  })
+})
+
+describe("CC6 · ADENDA 1 · la barra de progreso del pedido de cambios", () => {
+  const AHORA = new Date("2026-11-01T16:30:00Z")
+  const ped = (x: Partial<AvanceCrudo["pedido"]> = {}): AvanceCrudo["pedido"] => ({ id: "pc", estado: "pendiente", creado_en: "2026-11-01T16:20:00Z", actualizado_en: "2026-11-01T16:20:00Z", despertado: true, despertar_detalle: null, ...x })
+  const vacio = (x: Partial<AvanceCrudo> = {}): AvanceCrudo => ({ pedido: ped(), despachos: [], invocaciones: [], version_nueva: null, jefatura: null, compuerta_nueva: null, ...x })
+  const estados = (a: AvanceCrudo) => avanceDelPedido(a, AHORA).pasos.map((p) => `${p.clave}:${p.estado}`).join(" ")
+  it("cada paso se enciende con lo real: recibido → reescribiendo → controles → jefatura → listo", () => {
+    expect(estados(vacio())).toBe("recibido:hecho reescribiendo:pendiente controles:pendiente jefatura:pendiente listo:pendiente")
+    const corriendo = vacio({ pedido: ped({ estado: "en_reescritura" }), despachos: [{ status: "running", creado_en: "2026-11-01T16:21:00Z", empezo_en: "2026-11-01T16:21:10Z", termino_en: null }] })
+    expect(estados(corriendo)).toBe("recibido:hecho reescribiendo:en_curso controles:pendiente jefatura:pendiente listo:pendiente")
+    expect(avanceDelPedido(corriendo, AHORA).pasos[1].hora).toBe("2026-11-01T16:21:10Z")
+    expect(estados({ ...corriendo, invocaciones: [{ status: "completed", creado_en: "2026-11-01T16:33:00Z" }] })).toBe("recibido:hecho reescribiendo:hecho controles:en_curso jefatura:pendiente listo:pendiente")
+    const guardado = { ...corriendo, version_nueva: { id: "v2", creado_en: "2026-11-01T16:35:00Z" } }
+    expect(estados(guardado)).toBe("recibido:hecho reescribiendo:hecho controles:hecho jefatura:en_curso listo:pendiente")
+    const listo = { ...guardado, pedido: ped({ estado: "aplicado" }), jefatura: { estado: "cerrada", resultado: "limpia", creado_en: "2026-11-01T16:36:00Z", cerrado_en: "2026-11-01T16:40:00Z" }, compuerta_nueva: { estado: "pendiente", creado_en: "2026-11-01T16:41:00Z" } }
+    expect(estados(listo)).toBe("recibido:hecho reescribiendo:hecho controles:hecho jefatura:hecho listo:hecho")
+    expect(avanceDelPedido(listo, AHORA).estimado).toBe("Terminó")
+    expect(avanceDelPedido(corriendo, AHORA).estimado).toBe("Suele tardar ≈ 15–30 min · van 10 min")
+  })
+  it("si falla: el paso en rojo con el motivo en palabras y qué hacer; sin despertar → reintentar sin gasto; muy largo → nota", () => {
+    const fallo = avanceDelPedido(vacio({ pedido: ped({ estado: "fallido", actualizado_en: "2026-11-01T16:29:00Z" }), invocaciones: [{ status: "completed", creado_en: "2026-11-01T16:33:00Z" }] }), AHORA)
+    expect(fallo.pasos.map((p) => p.estado)).toEqual(["hecho", "hecho", "fallo", "pendiente", "pendiente"])
+    expect(fallo.fallo!.texto).toContain("el plan sigue como estaba"); expect(fallo.fallo!.que_hacer).toContain("pedir cambios otra vez")
+    const dormido = avanceDelPedido(vacio({ pedido: ped({ despertado: false, despertar_detalle: "sin llave de despacho" }) }), AHORA)
+    expect(dormido.pasos[1]).toMatchObject({ estado: "fallo", detalle: "No se pudo avisar a la oficina de planeación (sin llave de despacho)." }); expect(dormido.fallo!.que_hacer).toContain("Reintentar")
+    expect(avanceDelPedido(vacio({ pedido: ped({ estado: "en_reescritura", creado_en: "2026-11-01T15:30:00Z" }) }), AHORA).nota).toContain("Lleva 60 min")
+  })
+  it("«QUÉ CAMBIÓ EN ESTA VERSIÓN» sale del texto del plan; sin el apartado, nada", () => {
+    expect(queCambioDelTexto("## QUÉ CAMBIÓ EN ESTA VERSIÓN\n- La meta sube a 130.\n- Guayaquil pasa a la fase 2.\n\n## La meta\n...")).toBe("- La meta sube a 130.\n- Guayaquil pasa a la fase 2.")
+    expect(queCambioDelTexto("**QUE CAMBIO EN ESTA VERSION**\nSe quitó TikTok.\n```json\n{}\n```")).toBe("Se quitó TikTok.")
+    expect(queCambioDelTexto("Un plan sin ese apartado.")).toBeNull()
+  })
+  it("el panel dibuja la barra y, en la versión nueva, «qué cambió» arriba", () => {
+    const corriendo = avanceDelPedido(vacio({ pedido: ped({ estado: "en_reescritura" }), despachos: [{ status: "running", creado_en: "2026-11-01T16:21:00Z", empezo_en: "2026-11-01T16:21:10Z", termino_en: null }] }), AHORA)
+    const d: PlanDelCliente = {
+      clientes: [{ id: CLIENTE, nombre: "Náufrago", con_campana: false }], cliente: { id: CLIENTE, nombre: "Náufrago" }, hoy: "2026-11-01",
+      campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [] }, leido_en: "x",
+      documento: { id: PLAN_V2, titulo: "Plan v2", creado_en: null, actualizado_en: null, status: "draft", estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: "Prosa", caracteres: 5, que_cambio: "- La meta sube a 130." },
+      ciclo: { ...base, version: 2, pedido: { id: "pc", estado: "en_reescritura", texto: "Sube la meta", vuelta: 2, despertado: true, despertar_detalle: null }, avance: corriendo },
+    }
+    const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d }))
+    expect(html).toContain("data-barra-del-pedido"); expect(html).toContain('data-paso="reescribiendo" data-estado="en_curso"'); expect(html).toContain("El jefe de marketing está reescribiendo"); expect(html).toContain("Suele tardar ≈ 15–30 min")
+    expect(html).toContain("data-que-cambio"); expect(html).toContain("Qué cambió en esta versión"); expect(html).toContain("La meta sube a 130.")
+    const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
+    expect(c).toContain("15_000"); expect(c).toContain('document.visibilityState === "visible"') // se actualiza solo, sin recargar
+  })
+  it("sin la ventana abierta el aviso es informativo, sin rojo", () => {
+    expect(palabrasDeLaRespuesta("plan-aprobar", 501, { ok: false, error: "todavia_no_disponible" })).toMatchObject({ tono: "info", texto: "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada ni se gastó." })
+    expect(readFileSync("components/nuevo/PanelPlan.tsx", "utf8")).toContain('aviso.tono === "info" ? "info"')
   })
 })

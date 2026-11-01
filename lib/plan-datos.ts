@@ -11,7 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { faseActiva, hoyEnEcuador, type FaseActiva } from "@/lib/pizarron"
-import { agruparEsperas, decisionDelPlanLegible, estrategiaDelContenido, marcasDelChequeo, planDelTexto, puntosDeLoNoBuscado, puntosDelAviso, versionDelTag, type CicloDelPlan, type EstrategiaLeida, type GrupoDeEsperas, type MarcaDelChequeo, type PlanLeido } from "@/lib/plan"
+import { agruparEsperas, decisionDelPlanLegible, estrategiaDelContenido, marcasDelChequeo, planDelTexto, puntosDeLoNoBuscado, puntosDelAviso, avanceDelPedido, queCambioDelTexto, versionDelTag, type CicloDelPlan, type EstrategiaLeida, type GrupoDeEsperas, type MarcaDelChequeo, type PlanLeido } from "@/lib/plan"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -43,6 +43,8 @@ export interface PlanDelCliente {
     estado_del_plan: string | null; marcas: MarcaDelChequeo[]; aviso_del_chequeo: string[]; no_se_busco: string[]
     jefatura: { resultado: string | null; marcado_en: string | null } | null
     plan: PlanLeido | null; prosa: string | null; caracteres: number
+    /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» (la reescritura abre con ese apartado); null si no está */
+    que_cambio: string | null
   }
   /** la última revisión del plan en la bandeja (pendiente o ya decidida) */
   revision: null | { id: string; titulo: string; creada_en: string; status: string; decision: string | null; vence_en: string | null }
@@ -67,21 +69,46 @@ const detalleCorto = (v: unknown): string | null => {
 }
 const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null)
 
-async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[]): Promise<CicloDelPlan | null> {
+async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[], ahora: Date): Promise<CicloDelPlan | null> {
   if (!d) return null
   const id = String(d.id)
   const tag = versionDelTag(d.provenance_tag)
   const [ap, pc] = await Promise.all([
     opcional(supa.from("plan_aprobaciones").select("*").eq("plan_id", id).limit(1).maybeSingle(), "plan_aprobaciones"),
-    opcional(supa.from("plan_cambios").select("*").eq("plan_id", id).in("estado", ["pendiente", "en_reescritura"]).limit(1).maybeSingle(), "plan_cambios"),
+    // el ÚLTIMO pedido sobre esta versión (abierto, fallido o cancelado): el abierto bloquea los botones; cualquiera muestra su avance
+    opcional(supa.from("plan_cambios").select("*").eq("plan_id", id).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "plan_cambios"),
   ])
+  const ult = pc.fila
+  const abierto = ult && (ult.estado === "pendiente" || ult.estado === "en_reescritura") ? ult : null
+  let avance: CicloDelPlan["avance"] = null
+  if (ult && ult.estado !== "aplicado") {
+    const wfe = t(ult.workflow_execution_id)
+    const [desp, invs, nueva] = await Promise.all([
+      wfe ? filas(supa.from("agent_dispatches").select("status, created_at, running_at, completed_at").eq("workflow_execution_id", wfe).limit(50), "agent_dispatches") : Promise.resolve([] as Fila[]),
+      wfe ? filas(supa.from("agent_invocations").select("status, created_at").eq("workflow_execution_id", wfe).limit(50), "agent_invocations") : Promise.resolve([] as Fila[]),
+      una(supa.from("client_historical_outputs").select("id, created_at").eq("provenance_tag->>plan_cambio_id", String(ult.id)).order("created_at", { ascending: false }).limit(1).maybeSingle(), "client_historical_outputs"),
+    ])
+    const [jef, cpn] = nueva ? await Promise.all([
+      opcional(supa.from("jefatura_revisiones").select("estado, resultado, creado_en, cerrado_en").eq("artifact_id", String(nueva.id)).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "jefatura_revisiones"),
+      opcional(supa.from("plan_aprobaciones").select("estado, creado_en").eq("plan_id", String(nueva.id)).limit(1).maybeSingle(), "plan_aprobaciones"),
+    ]) : [{ falta: false, fila: null }, { falta: false, fila: null }]
+    avance = avanceDelPedido({
+      pedido: { id: String(ult.id), estado: String(ult.estado ?? ""), creado_en: t(ult.creado_en), actualizado_en: t(ult.actualizado_en), despertado: bool(ult.despertado), despertar_detalle: detalleCorto(ult.despertar_detalle) },
+      despachos: desp.map((x) => ({ status: String(x.status ?? ""), creado_en: t(x.created_at), empezo_en: t(x.running_at), termino_en: t(x.completed_at) })),
+      invocaciones: invs.map((x) => ({ status: String(x.status ?? ""), creado_en: t(x.created_at) })),
+      version_nueva: nueva ? { id: String(nueva.id), creado_en: t(nueva.created_at) } : null,
+      jefatura: jef.fila ? { estado: String(jef.fila.estado ?? ""), resultado: t(jef.fila.resultado), creado_en: t(jef.fila.creado_en), cerrado_en: t(jef.fila.cerrado_en) } : null,
+      compuerta_nueva: cpn.fila ? { estado: String(cpn.fila.estado ?? ""), creado_en: t(cpn.fila.creado_en) } : null,
+    }, ahora)
+  }
   return {
     disponible: !ap.falta && !pc.falta,
     version: tag.version,
     con_compuerta: tag.con_compuerta,
     historial: versiones.filter((v) => String(v.id) !== id).map((v) => { const x = versionDelTag(v.provenance_tag); return { id: String(v.id), version: x.version, creado_en: t(v.created_at), status: t(v.status), reemplaza_a: x.reemplaza_a, superseded_por: x.superseded_por } }),
     compuerta: ap.fila ? { estado: String(ap.fila.estado ?? ""), decidido_por: t(ap.fila.decidido_por), decidido_en: t(ap.fila.decidido_en), despertado: bool(ap.fila.despertado), despertar_detalle: detalleCorto(ap.fila.despertar_detalle) } : null,
-    pedido: pc.fila ? { id: String(pc.fila.id), estado: String(pc.fila.estado ?? ""), texto: String(pc.fila.texto ?? ""), vuelta: pc.fila.vuelta == null ? null : Number(pc.fila.vuelta), despertado: bool(pc.fila.despertado), despertar_detalle: detalleCorto(pc.fila.despertar_detalle) } : null,
+    pedido: abierto ? { id: String(abierto.id), estado: String(abierto.estado ?? ""), texto: String(abierto.texto ?? ""), vuelta: abierto.vuelta == null ? null : Number(abierto.vuelta), despertado: bool(abierto.despertado), despertar_detalle: detalleCorto(abierto.despertar_detalle) } : null,
+    avance,
   }
 }
 
@@ -121,7 +148,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     qDoc = planId ? qDoc.eq("id", planId) : qDoc.order("created_at", { ascending: false })
     return una(qDoc.limit(1).maybeSingle(), "client_historical_outputs")
   })
-  const cicloP = Promise.all([docP, versionesP]).then(([d, versiones]) => leerCiclo(supa, d, versiones))
+  const cicloP = Promise.all([docP, versionesP]).then(([d, versiones]) => leerCiclo(supa, d, versiones, ahora))
 
   if (!camp) {
     const [d, ciclo] = await Promise.all([docP, cicloP])
@@ -169,6 +196,6 @@ function documentoLeido(d: Fila | null): PlanDelCliente["documento"] {
     id: String(d.id), titulo: String(d.title ?? "Plan de 90 días"), creado_en: t(d.created_at), actualizado_en: t(d.updated_at), status: t(d.status),
     estado_del_plan: t(pt.estado_del_plan), marcas: marcasDelChequeo(pt.pendientes), aviso_del_chequeo: puntosDelAviso(reg.aviso_del_chequeo), no_se_busco: puntosDeLoNoBuscado(reg.no_se_busco_del_sistema),
     jefatura: Object.keys(jef).length ? { resultado: t(jef.resultado), marcado_en: t(jef.marcado_en) } : null,
-    plan: leido.plan, prosa: leido.prosa, caracteres: texto.length,
+    plan: leido.plan, prosa: leido.prosa, caracteres: texto.length, que_cambio: queCambioDelTexto(texto),
   }
 }
