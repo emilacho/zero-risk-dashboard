@@ -69,7 +69,8 @@ const datos: PlanDelCliente = {
   documento: { id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", titulo: "Plan de 90 dias · 2026-10-30", creado_en: "2026-10-30T23:13:22Z", actualizado_en: null, status: "draft", estado_del_plan: "con_pendientes", marcas: marcasDelChequeo(PROVENANCE.pendientes), aviso_del_chequeo: puntosDelAviso(PROVENANCE.registro_interno.aviso_del_chequeo), no_se_busco: puntosDeLoNoBuscado(PROVENANCE.registro_interno.no_se_busco_del_sistema), jefatura: { resultado: "con_desacuerdo", marcado_en: "2026-10-30T23:39:50Z" }, plan: planDelTexto(TEXTO_DEL_PLAN).plan, prosa: null, caracteres: 1485, que_cambio: null },
   revision: { id: REVISION, titulo: "Plan de 90 días de Náufrago con pendientes", creada_en: "2026-10-30T23:40:00Z", status: "pending", decision: null, vence_en: null },
   ciclo: { disponible: true, version: 1, historial: [], con_compuerta: false, compuerta: null, pedido: null, avance: null },
-  esperas: { vivas: 3, grupos: agruparEsperas([{ objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-31T13:30:00Z", estado: "viva" }, { objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-30T13:30:00Z", estado: "viva" }, { objeto_tipo: "aprobacion_bandeja", motivo: "la pieza espera la aprobación de Emilio", vence_en: null, estado: "viva" }, { objeto_tipo: "necesita_humano", motivo: "x", vence_en: null, estado: "resuelta" }]) },
+  topes: [{ tramo: "oficina", nombre: "Mesa de análisis", usd: 1.5, version: 1, desde: "2026-10-15T14:24:08Z" }, { tramo: "redaccion", nombre: "Redactor del plan", usd: 0.8, version: 1, desde: "2026-10-15T14:24:08Z" }],
+  esperas: { vivas: 3, grupos: agruparEsperas([{ objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-31T13:30:00Z", estado: "viva" }, { objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-30T13:30:00Z", estado: "viva" }, { objeto_tipo: "aprobacion_bandeja", motivo: "la pieza espera la aprobación de Emilio", vence_en: null, estado: "viva" }, { objeto_tipo: "necesita_humano", motivo: "x", vence_en: null, estado: "resuelta" }]), vencidas: { n: 0, grupos: [] } },
   leido_en: "x",
 }
 
@@ -126,7 +127,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
       client_historical_outputs: [{ id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", title: "Plan de 90 dias · 2026-10-30", status: "draft", content_text: TEXTO_DEL_PLAN, content: null, provenance_tag: PROVENANCE, created_at: "2026-10-30T23:13:22Z", updated_at: null }],
       cadena_estrategias: [{ version: 1, estado: "validada", contenido: CONTENIDO, texto_md: null, costo_usd: "0.2499", creada_en: "2026-10-30T23:40:37Z" }],
       cadena_calendario_filas: (f: string[]) => (f.some((x) => x.includes("calendario_version")) ? [{ calendario_version: 1 }] : [{ id: "a" }, { id: "b" }]),
-      cadena_esperas: [{ objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-31T13:30:00Z", estado: "viva" }],
+      cadena_esperas: (f: string[]) => (f.some((x) => x.includes('"vencida"')) ? [] : [{ objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-31T13:30:00Z", estado: "viva" }]),
       hitl_queue: [{ id: REVISION, title: "Plan con pendientes", status: "pending", decision: null, created_at: "2026-10-30T23:40:00Z", expires_at: null }],
     })
     const p = await leerPlanDelCliente(b, { cliente: CLIENTE, ahora: new Date("2026-11-05T15:00:00Z") })
@@ -137,7 +138,9 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     expect(p.documento).toMatchObject({ id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", estado_del_plan: "con_pendientes", caracteres: TEXTO_DEL_PLAN.length }); expect(p.documento!.marcas.map((m) => m.codigo)).toEqual(["P3", "P4", "P10B"]); expect(p.documento!.plan!.meta_por_semana).toBe(115)
     expect(p.revision).toMatchObject({ id: REVISION, status: "pending", decision: null })
     expect(p.ciclo).toMatchObject({ disponible: true, version: 1, con_compuerta: false, compuerta: null, pedido: null }) // CC6 · ciclo del plan sobre la versión vigente
-    expect(p.esperas).toEqual({ vivas: 1, grupos: [{ tipo: "espera_video", etiqueta: tipoDeEsperaLegible("espera_video"), n: 1, vence_primero: "2026-10-31T13:30:00Z" }] })
+    // errores 4: la espera vencía el 31-oct y se lee el 5-nov → va aparte, como vencida (no se mezcla con las pendientes)
+    expect(p.esperas).toEqual({ vivas: 0, grupos: [], vencidas: { n: 1, grupos: [{ tipo: "espera_video", etiqueta: tipoDeEsperaLegible("espera_video"), n: 1, vence_primero: "2026-10-31T13:30:00Z" }] } })
+    expect(b.registro.join("\n")).toContain('cadena_esperas.eq("estado","vencida")'); expect(b.registro.join("\n")).toContain('plan_catalogo_topes.eq("vigente",true)')
     const r = b.registro.join("\n")
     expect(r).toContain('cadena_campanas.eq("seco",false)'); expect(r).toContain('client_historical_outputs.eq("output_type","campaign_plan_90d")'); expect(r).toContain('client_historical_outputs.eq("id","3dfcc12f-993e-478a-b884-f7df45ceaf77")') // el documento que señala la campaña, no «el último»
     expect(r).toContain('cadena_estrategias.order("version",{"ascending":false})'); expect(r).toContain('cadena_esperas.eq("estado","viva")'); expect(r).toContain('hitl_queue.eq("type","plan_con_pendientes")')
@@ -156,7 +159,8 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="plan"'); expect(html).toContain("Plan de 90 días"); expect(html).toContain("Náufrago")
     expect(html).toContain("campaña en pausa"); expect(html).toContain("pausa de pruebas por decisión del dueño"); expect(html).toContain("Día 4 · fase senal"); expect(html).toContain("estrategia v1 · validada"); expect(html).toContain("Con puntos por resolver · 3")
-    expect(html).toContain("Tope de planeación"); expect(html).toContain("US$ 6,00"); expect(html).toContain("136"); expect(html).toContain("Guayaquil · Olón")
+    expect(html).toContain("Topes de la planeación"); expect(html).toContain("Mesa de análisis"); expect(html).toContain("US$ 1,50"); expect(html).not.toContain("Tope de planeación"); // errores 3: topes del catálogo, no fijos
+     expect(html).toContain("136"); expect(html).toContain("Guayaquil · Olón")
     // la decisión pendiente: las marcas del chequeo y los dos botones con las palabras de la bandeja
     expect(html).toContain('data-apartado="decision"'); expect(html).toContain(">P3<"); expect(html).toContain("lleva nombres internos"); expect(html).toContain("La jefatura dejó desacuerdos")
     expect(html).toContain('data-accion="plan-aprobar-asi"'); expect(html).toContain("Aprobar el plan así"); expect(html).toContain('data-accion="plan-pedir-cambios"'); expect(html).toContain("Pedir cambios al plan")
@@ -173,7 +177,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     const decidido = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, documento: { ...datos.documento!, status: "approved" }, revision: { ...datos.revision!, status: "approved", decision: "Aprobado así" } } }))
     expect(decidido).not.toContain('data-accion="plan-aprobar-asi"'); expect(decidido).toContain("Aprobado → pasa al brief"); expect(decidido).toContain("Aprobado así")
     // sin nada: se dice
-    const nada = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, campana: null, estrategia: null, documento: null, revision: null, esperas: { vivas: 0, grupos: [] } } }))
+    const nada = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, campana: null, estrategia: null, documento: null, revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [] } }))
     expect(nada).toContain("todavía no tiene plan de 90 días ni campaña")
     const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
     expect(c).toContain("await enviar(accion, cuerpo)") // CC6 · decide SOLO por las puertas del ciclo vía el tablero (servidor valida · plataforma hace)
