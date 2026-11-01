@@ -102,8 +102,9 @@ function Lista({ lista, dias, setDias, cliente, setCliente, clientes, estado, se
       {lista && (
         <div data-sin-dato className="border-t border-white/10 px-4 py-2 text-[12px] leading-relaxed text-zinc-500 sm:px-6">
           <span style={NUM}>Mostrando {visibles.length} de {lista.total} corridas</span>
-          {lista.total > corridas.length && <> · la plataforma entrega las {corridas.length} más recientes por lectura</>}
+          {lista.total > corridas.length && <> · las más antiguas no entran: la plataforma entrega 200 ejecuciones por lectura</>}
           {!lista.completo && <> · lectura incompleta: alguna fuente no respondió entera</>}
+          {lista.agrupado && <> · una fila por pedido</>}
           <> · horas en la zona de tu equipo · entrada y salida de cada paso: los primeros {TOPE_DEL_TEXTO.toLocaleString("es-EC")} caracteres</>
         </div>
       )}
@@ -137,6 +138,11 @@ function Traza({ detalle, volver }: { detalle: DetalleDeCorrida; volver: () => v
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         <div className="flex min-h-0 min-w-0 flex-col border-b border-white/10 lg:border-b-0 lg:border-r">
+          {c.estado === "atascada" && (
+            <div data-atascada role="status" className="border-b border-orange-500/30 bg-orange-500/10 px-4 py-2 text-[12.5px] text-orange-100 sm:px-6">
+              Atascada: el trabajo se encargó y nunca dio señales de vida (no dejó fila en el libro de los empleados). También aparece en Riesgos.
+            </div>
+          )}
           {errores.length > 0 && (
             <div data-errores role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 sm:px-6">
               <p className="text-[12.5px] font-medium text-rose-200">{errores.length} {errores.length === 1 ? "paso con error" : "pasos con error"}</p>
@@ -188,7 +194,7 @@ function Detalle({ nodo, corrida, pestana, setPestana }: { nodo: Nodo; corrida: 
       ["Empleado", p.agente ? <>{mayuscula(palabras(p.agente))} <span className="text-zinc-500">({p.agente})</span></> : "sin nombre"], ["Modelo", p.modelo ?? "sin dato"], ["Estado", <Estado key="e" estado={nodo.estado} />],
       ["Inicio", cuando(p.inicio)], ["Fin", cuando(nodo.fin)], ["Duración", duracion(nodo.duracion_ms)], ["Tokens de entrada", miles(p.tokens.entrada)], ["Tokens de salida", miles(p.tokens.salida)],
       ["Tokens leídos de la caché", miles(p.tokens.cache_lectura)], ["Tokens escritos en la caché", miles(p.tokens.cache_escritura)], ["Tokens en total", miles(p.tokens_total)], ["Turnos", p.turnos ?? "sin dato"],
-      ["Costo", costoComoDato(p.costo_usd)], ["Rama", nodo.rama ? nombreDeLaRama(nodo.rama) : "principal"], ["Registro", p.origen === "despacho" ? "solo el encargo (el empleado no dejó fila)" : "libro de los empleados"],
+      ["Costo", costoComoDato(p.costo_usd)], ["Rama", nodo.rama ? nombreDeLaRama(nodo.rama) : "principal"], ["Registro", p.origen === "despacho" ? "solo el encargo (el empleado no dejó fila)" : p.origen === "registro" ? "paso del proceso (tablas de la jefatura, la oficina o el plan)" : "libro de los empleados"],
       ["Identificador", <span key="i" className="break-all">{p.id}</span>], ["Encargo", p.despacho ? <span key="d" className="break-all">{p.despacho}</span> : "sin dato"],
     ]
     : nodo.tipo === "rama"
@@ -196,7 +202,7 @@ function Detalle({ nodo, corrida, pestana, setPestana }: { nodo: Nodo; corrida: 
       : [
         ["Proceso", corrida.nombre], ["Nombre técnico", <span key="t" className="break-all">{corrida.nombre_tecnico ?? "sin dato"}</span>], ["Cliente", clienteVisible(corrida) ?? "sin cliente"], ["Estado", <Estado key="e" estado={corrida.estado} />], ["Inicio", cuando(corrida.inicio)], ["Fin", cuando(corrida.fin)],
         ["Duración", duracion(corrida.duracion_ms)], ["Pasos de empleados", corrida.pasos], ["Encargos", corrida.despachos], ["Ramas", corrida.ramas.length ? corrida.ramas.map(nombreDeLaRama).join(" · ") : "ninguna"],
-        ["Tokens", miles(corrida.tokens)], ["Costo", costoComoDato(corrida.costo_usd)], ["Ejecución", corrida.workflow_execution_id], ["Proceso (identificador)", corrida.workflow_id ?? "sin dato"],
+        ["Tokens", miles(corrida.tokens)], ["Costo", costoComoDato(corrida.costo_usd)], [corrida.miembros ? "Ejecuciones del pedido" : "Ejecución", corrida.miembros ? corrida.miembros.join(" · ") : corrida.workflow_execution_id], ["Proceso (identificador)", corrida.workflow_id ?? "sin dato"],
       ]
   return (
     <aside data-detalle={nodo.clave} className="flex min-h-0 min-w-0 flex-col">
@@ -235,7 +241,9 @@ function Texto({ nodo, pestana }: { nodo: Nodo; pestana: "entrada" | "salida" })
   if (!texto) {
     const motivo = nodo.tipo !== "paso"
       ? "La entrada y la salida se ven en cada paso: elige un empleado del árbol."
-      : p?.origen === "despacho"
+      : p?.origen === "registro"
+        ? "Este paso lo hace el proceso, no un empleado AI: no tiene texto propio."
+        : p?.origen === "despacho"
         ? "Este encargo no dejó fila en el libro de los empleados, así que no hay texto que mostrar."
         : pestana === "entrada"
           ? "Este empleado no guarda lo que se le pidió: su registro solo trae la respuesta y las cifras."

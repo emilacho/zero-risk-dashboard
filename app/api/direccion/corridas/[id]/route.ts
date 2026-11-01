@@ -5,6 +5,7 @@ import { NextResponse } from "next/server"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { conTextos, leerCorrida, leerTextosDePasos } from "@/lib/direccion-corridas"
 import { getServiceRoleClient } from "@/lib/supabase-server"
+import { esClaveDeGrupo, leerDatosDelPedido, trazaDelPedido, type BaseDeLectura } from "@/lib/direccion-pedidos"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -15,6 +16,17 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params
   let ejecucion: string
   try { ejecucion = decodeURIComponent(id) } catch { return NextResponse.json({ ok: false, error: "pedido_invalido" }, { status: 400 }) }
+  // 6.28 · un pedido entero (revisión de la jefatura o encargo de la oficina): su traza junta todas sus ejecuciones
+  if (esClaveDeGrupo(ejecucion)) {
+    let db: BaseDeLectura
+    try { db = getServiceRoleClient() as unknown as BaseDeLectura } catch { return NextResponse.json({ ok: false, error: "El tablero no puede leer la base." }, { status: 503 }) }
+    const datos = await leerDatosDelPedido(db, ejecucion, async (e) => { const x = await leerCorrida(e); return x.ok ? x.datos : null })
+    if (!datos) return NextResponse.json({ ok: false, error: "Ese pedido no existe o no se pudo leer." }, { status: 404, headers: { "Cache-Control": "no-store" } })
+    const traza = trazaDelPedido(datos)
+    const ids = traza.arbol.flatMap((x) => x.pasos.filter((p) => p.origen === "invocacion").map((p) => p.id))
+    const textos = await leerTextosDePasos(db as unknown as Parameters<typeof leerTextosDePasos>[0], ids).catch(() => null)
+    return NextResponse.json({ ok: true, ...(textos ? conTextos(traza, textos) : traza), textos: textos ? "leidos" : "sin_lectura" }, { headers: { "Cache-Control": "no-store" } })
+  }
   const r = await leerCorrida(ejecucion)
   if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: r.status, headers: { "Cache-Control": "no-store" } })
   // 6.27 · la entrada y la salida de cada paso se leen del libro de los empleados (la plataforma no las entrega en su ruta)

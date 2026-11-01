@@ -6,6 +6,8 @@
 import { NextResponse } from "next/server"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { leerCorridas } from "@/lib/direccion-corridas"
+import { agruparLista, leerAgrupacion, type BaseDeLectura } from "@/lib/direccion-pedidos"
+import { getServiceRoleClient } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -21,5 +23,9 @@ export async function GET(req: Request) {
   if (cliente && !UUID.test(cliente)) return NextResponse.json({ ok: false, error: "pedido_invalido" }, { status: 400 })
   const r = await leerCorridas({ dias, client_id: cliente, conNombres: q.get("resumen") !== "1" })
   if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: r.status, headers: { "Cache-Control": "no-store" } })
-  return NextResponse.json({ ok: true, ...r.datos }, { headers: { "Cache-Control": "no-store" } })
+  // 6.28 · una fila por pedido (como LangSmith): las ejecuciones que nacen del mismo pedido se juntan; si no se puede leer cómo se encadenan, la lista queda suelta y lo dice
+  let agrupacion: Awaited<ReturnType<typeof leerAgrupacion>> = null
+  try { agrupacion = await leerAgrupacion(getServiceRoleClient() as unknown as BaseDeLectura, r.datos.corridas.map((x) => x.workflow_execution_id)) } catch { agrupacion = null }
+  const datos = agrupacion ? agruparLista(r.datos, agrupacion) : r.datos
+  return NextResponse.json({ ok: true, ...datos, agrupado: !!agrupacion }, { headers: { "Cache-Control": "no-store" } })
 }
