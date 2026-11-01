@@ -368,3 +368,21 @@ describe("versión guardada sin poder compararla con la anterior (CC2 · adenda 
     expect(leerElCiclo(null, base).avisos.join(" ")).not.toMatch(/comparar/)
   })
 })
+
+describe("«no se pudo comparar» de punta a punta (pedido de CC3 al certificar #138)", () => {
+  const conTag = (tag: Record<string, unknown>) => leerPlanDelCliente(baseFalsa({
+    clients: CLIENTES, cadena_campanas: [], hitl_queue: [], cadena_esperas: [], plan_catalogo_topes: [], plan_aprobaciones: [], plan_cambios: [],
+    client_historical_outputs: [{ ...V2, provenance_tag: { ...V2.provenance_tag, ...tag } }, V1],
+  }), { cliente: CLIENTE })
+  it("un tag real con la marca llega como aviso del ciclo (lector de la base → lectura del ciclo → panel)", async () => {
+    const p = await conTag({ comparacion_fallo: true })
+    expect(p.ciclo?.comparacion_fallo).toBe(true)
+    const l = leerElCiclo(p.documento?.status ?? null, p.ciclo!)
+    expect(l.avisos[0]).toMatch(/^No se pudo comparar esta versión con la anterior/) // va primero
+    expect(renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: p }))).toContain("No se pudo comparar esta versión con la anterior")
+  })
+  it("solo cuenta el verdadero de verdad: un texto o un «sí» no es la marca", async () => {
+    for (const raro of ["true", "si", 1]) expect((await conTag({ comparacion_fallo: raro })).ciclo?.comparacion_fallo).toBe(false)
+    expect((await conTag({})).ciclo?.comparacion_fallo).toBe(false)
+  })
+})
