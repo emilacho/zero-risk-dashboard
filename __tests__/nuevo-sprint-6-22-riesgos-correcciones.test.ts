@@ -118,7 +118,7 @@ describe("6.22 · el panel", () => {
 
 describe("6.22 · REGLA GENERAL · el chat de abajo siempre visible en todo /nuevo", () => {
   it("el chat se marca y la regla reserva su alto debajo de todo panel", () => {
-    expect(readFileSync("components/nuevo/MarcoNuevo.tsx", "utf8")).toContain("data-chat-de-oficinas")
+    expect(readFileSync("components/nuevo/ChatDeOficinas.tsx", "utf8")).toContain("data-chat-de-oficinas")
     const css = readFileSync("app/globals.css", "utf8")
     expect(css).toContain("--nv-chat-reserva: 156px")
     expect(css).toContain("body:has([data-chat-de-oficinas]) .nv-panel { bottom: var(--nv-chat-reserva); }")
