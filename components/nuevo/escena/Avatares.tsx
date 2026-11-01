@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
-import { ESTILO_SALA, lineasDelParticipante, PanelDeLaSala, SalaEnLaFoto } from "@/components/nuevo/escena/SalaDeReuniones"
+import { ESTILO_SALA, globoVisible, PanelDeLaSala, SalaEnLaFoto } from "@/components/nuevo/escena/SalaDeReuniones"
+import { AporteCompleto } from "@/components/nuevo/escena/AporteCompleto"
 import { SALA } from "@/lib/escena-sala"
 import {
   colocarFiguras, ESCENA_AVATARES, estadoDeLaMesa, FOTO, lineasDeLaFicha, lineasDelMiembro, MESAS, puestosDeLaMesa, tableroDeLaMesa,
@@ -87,6 +88,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
   const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
   const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
+  const [aporteDe, setAporteDe] = useState<string | null>(null) // S4 · el participante cuyo aporte completo está abierto
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leer = useCallback(async () => {
@@ -187,7 +189,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           )
         })}
         {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
-        <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} onFoco={setEnSala} onTocar={(a) => setFichaDe(a)} />
+        <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} />
         {/* trabajando ahora sin mesa conocida: se dice, no se inventa una mesa */}
         {datos && datos.sin_mesa.length > 0 && (
           <text x={560} y={1120} fill="#bdb3a4" fontSize={18} fontFamily="system-ui, Arial, sans-serif" data-sin-mesa>sin equipo asignado · {datos.sin_mesa.map((s) => `${s.nombre} (${s.estado === "trabajando" ? "trabajando" : "falló"})`).join(" · ")}</text>
@@ -202,22 +204,22 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           ))}
         </div>
       )}
-      {/* S3 · la ficha corta de un participante de la sala */}
+      {/* S4 · el globo de la sala: el aporte del que está bajo el cursor, del que habla, o el resultado al centro al cerrar */}
       {(() => {
-        const p = enSala ? datos?.sala?.reunion?.participantes.find((x) => x.agente === enSala) : null
-        if (!p?.silla) return null
+        const g = globoVisible(datos?.sala?.reunion, enSala)
+        if (!g) return null
         return (
-          <div role="tooltip" data-ficha-sala={p.agente} className="nv-av-ficha absolute z-[3] w-max max-w-[20rem] -translate-y-full rounded-xl border border-amber-400/60 bg-[#0e0c0a]/95 px-3 py-2 text-[12px] leading-[1.45] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
-            style={{ left: pct(p.silla.x + 26, FOTO.w), top: pct(p.silla.y - 60, FOTO.h) }}>
-            {lineasDelParticipante(p).map((l, i) => <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : undefined}>{l}</div>)}
-            <div className="mt-1 text-[10px] text-zinc-500">toca para ver su ficha</div>
+          <div role="status" data-globo={g.tipo === "participante" ? g.p.agente : "resultado"} className={`nv-av-ficha absolute z-[3] w-max max-w-[19rem] ${g.tipo === "resultado" ? "" : "-translate-x-1/2 -translate-y-full"} rounded-2xl border px-3 py-2 text-[11.5px] leading-[1.45] shadow-[0_8px_30px_rgba(0,0,0,.6)] ${g.tipo === "resultado" ? "border-amber-300/70 bg-[#1a140c]/95 text-amber-50" : "border-amber-400/50 bg-[#0e0c0a]/95 text-zinc-200"}`}
+            style={{ left: pct(g.ancla.x, FOTO.w), top: pct(g.ancla.y - 14, FOTO.h), pointerEvents: "none" }}>
+            {g.lineas.map((l, i) => <div key={i} className={i === 0 ? "text-[12px] font-semibold text-amber-100" : i === g.lineas.length - 1 && g.tipo === "participante" ? "mt-0.5 text-[10.5px] text-zinc-400" : undefined}>{l}</div>)}
+            {g.tipo === "participante" && <div className="mt-0.5 text-[10px] text-zinc-500">toca su avatar para leer el aporte completo</div>}
           </div>
         )
       })()}
       {salaAbierta && (
         <div role="dialog" aria-label="La reunión de la sala" className="nv-av-lista nv-sala-panel absolute z-[4] w-[24rem] max-h-[60%] overflow-auto rounded-xl border border-white/15 bg-[#121110]/95 p-3 text-[12px] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
           style={{ left: pct(SALA.mesa.x + 190, FOTO.w), top: pct(SALA.rotulo.y - 40, FOTO.h) }} onClick={(e) => e.stopPropagation()}>
-          <PanelDeLaSala sala={datos?.sala} onCerrar={() => setSalaAbierta(false)} onTocar={(a) => setFichaDe(a)} />
+          <PanelDeLaSala sala={datos?.sala} onCerrar={() => setSalaAbierta(false)} onTocar={(a) => setAporteDe(a)} />
         </div>
       )}
       {/* el equipo de la mesa, al tocarla: todos, con su estado real; los que trabajan ahora primero */}
@@ -250,6 +252,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
       {/* en qué se trabaja: el cliente y el momento de su campaña, discreto, abajo a la izquierda */}
       {datos?.contexto && <p data-contexto className="pointer-events-none absolute bottom-[3.2%] left-[2.6%] max-w-[44%] text-[12px] tracking-wide text-zinc-400/85">{datos.contexto.cliente}<span className="mx-1.5 text-zinc-600">·</span>{datos.contexto.momento}</p>}
       {error && <span className="sr-only" data-error-lectura>{error}</span>}
+      {(() => { const p = aporteDe ? datos?.sala?.reunion?.participantes.find((x) => x.agente === aporteDe) : null; return p ? <AporteCompleto p={p} onCerrar={() => setAporteDe(null)} onFicha={() => { setAporteDe(null); setFichaDe(p.agente) }} /> : null })()}
       {fichaDe && <FichaDelEmpleado agente={fichaDe} onCerrar={() => setFichaDe(null)} />}
     </div>
   )

@@ -47,7 +47,16 @@ export interface ParticipanteDeLaSala {
   ultima: string | null
   hace: string
   silla: Punto | null
+  /** su última corrida (`workflow_execution_id`, p. ej. «210273:analisis-mercado»): para pedir el aporte completo */
+  corrida: string | null
+  /** S4 · su aporte (lo llena el lector con `conAportes`; sin lector, null) */
+  aporte?: AporteEnLaSala | null
 }
+/** S4 · qué pasó con el aporte al cerrar: el de quien dirige es el RESULTADO; un informe que entró al cerebro se USÓ (de ahí lo recibe quien dirige);
+ *  uno que no entró se APAGA; la jefatura REVISA; para el resto no hay dato de si se usó (no se inventa) */
+export type UsoDelAporte = "resultado" | "usado" | "apagado" | "revision" | "sin_dato"
+export interface AporteEnLaSala { resumen: string | null; recortado: boolean; uso: UsoDelAporte; motivo: string }
+export interface ResultadoDeLaReunion { titulo: string | null; usados: number; informes: number; revision: string | null }
 export interface FaseDeLaSala { nombre: string; agentes: string[]; estado: "hecha" | "en_curso" | "fallo"; desde: string | null; hasta: string | null }
 export interface ReunionDeLaSala {
   /** las raíces de corrida que la forman (la primera es la principal) */
@@ -66,6 +75,9 @@ export interface ReunionDeLaSala {
   fases: FaseDeLaSala[]
   /** los que no caben en las 8 sillas */
   de_mas: number
+  cliente_id: string | null
+  /** S4 · lo que quedó al centro de la mesa (lo llena `conAportes`) */
+  resultado?: ResultadoDeLaReunion | null
 }
 export interface SalaDeReuniones {
   reunion: ReunionDeLaSala | null
@@ -207,10 +219,11 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
     const ultima = mias.map(cuando).filter((x): x is string => !!x).sort().at(-1) ?? null
     const habla = abiertosAqui.some((d) => nombreCanonico(d.agent_name) === nombreCanonico(a))
     const ultimaFila = [...mias].sort((x, y) => ms(cuando(y)) - ms(cuando(x)))[0]
+    const corrida = ultimaFila?.workflow_execution_id ?? abiertosAqui.find((d) => nombreCanonico(d.agent_name) === nombreCanonico(a))?.workflow_execution_id ?? null
     const estado: EstadoEnLaSala = habla ? "hablando" : ultimaFila ? (esFallo(ultimaFila.status) ? "fallo" : "hablo") : "espera"
     const m = e.mesaDelAgente(a, e.directorio)
     const equipo = esRevisorDeLaJefatura(a) ? (m ? `Jefatura · ${e.nombreDeLaMesa(m.mesa)}` : "Jefatura") : m ? e.nombreDeLaMesa(m.mesa) : "sin mesa conocida"
-    return { agente: a, nombre: nombre(a), mesa: m?.mesa ?? null, equipo, cabecera: k === 0, fase: faseDelAgente.get(nombreCanonico(a)) ?? "sin paso registrado", estado, ultima, hace: ultima ? haceCuanto(ultima, e.ahora) : habla ? "hablando ahora" : "sin fila", silla: SILLAS_DE_LA_SALA[k] ?? null }
+    return { agente: a, nombre: nombre(a), mesa: m?.mesa ?? null, equipo, cabecera: k === 0, fase: faseDelAgente.get(nombreCanonico(a)) ?? "sin paso registrado", estado, ultima, hace: ultima ? haceCuanto(ultima, e.ahora) : habla ? "hablando ahora" : "sin fila", silla: SILLAS_DE_LA_SALA[k] ?? null, corrida }
   })
 
   const hasta = Math.max(g.hasta, ...jefatura.map((j) => j.hasta))
@@ -225,7 +238,7 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
     equipo: md ? e.nombreDeLaMesa(md.mesa) : participantes[0]?.equipo ?? "sin equipo", dirige: nombre(dirige),
     estado: enCurso ? "en_curso" : "terminada",
     desde: Number.isFinite(g.desde) ? new Date(g.desde).toISOString() : null, hasta: hastaIso, hace: hastaIso ? haceCuanto(hastaIso, e.ahora) : "sin dato",
-    participantes, fases, de_mas: Math.max(participantes.length - SILLAS_DE_LA_SALA.length, 0),
+    participantes, fases, de_mas: Math.max(participantes.length - SILLAS_DE_LA_SALA.length, 0), cliente_id: g.cliente,
   }
 }
 
@@ -242,4 +255,76 @@ export function lineasDeLaSala(s: SalaDeReuniones | null | undefined): string[] 
   const enFase = r.fases.find((f) => f.estado === "en_curso")?.nombre
   const estado = r.estado === "en_curso" ? `en curso${enFase ? ` · ${enFase}` : ""}` : `terminó ${r.hace}`
   return ["SALA DE REUNIONES", r.titulo, `dirige ${r.dirige} (${r.equipo}) · ${r.participantes.length} en la mesa · ${estado}${s.otras_en_curso ? ` · +${s.otras_en_curso} reunión(es) más en curso` : ""}`]
+}
+
+// ── S4 · los aportes ──
+/** el paso de la mesa de análisis de una corrida: «210273:analisis-voz_del_publico» → «voz_del_publico» */
+export const pasoDeAnalisis = (corrida: string | null | undefined): string | null => { const p = pasoCrudo(corrida); const m = p?.match(/^an[aá]lisis[-_](.+)$/i); return m ? m[1] : null }
+/** el aporte en pocas palabras: sin el encabezado «[informe de análisis · … · PROPUESTA…]», sin marcas de formato, recortado */
+export function resumenDelAporte(texto: string | null | undefined, n = 220): string | null {
+  let t = String(texto ?? "").replace(/^\s*```(?:json)?/i, "").replace(/^\s*\[informe de an[aá]lisis[^\]]*\]\s*/i, "")
+  // la revisión de la jefatura llega como JSON de observaciones («fichas»): se dice cuántas y la primera, nunca el JSON crudo
+  if (/^\s*\{\s*"fichas"\s*:/.test(t)) {
+    const ques = [...t.matchAll(/"que"\s*:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1].replace(/\\"/g, "\""))
+    const bloquean = (t.match(/"gravedad"\s*:\s*"bloquea"/g) ?? []).length
+    const enteras = String(texto ?? "").length < LARGO_GUARDADO
+    if (!ques.length) return enteras ? "sin observaciones" : "observaciones (el texto guardado está recortado)"
+    t = `${enteras ? "" : "al menos "}${ques.length} ${ques.length === 1 ? "observación" : "observaciones"}${bloquean ? `, ${bloquean} bloquea${bloquean === 1 ? "" : "n"}` : ""}. La primera: ${ques[0]}`
+  }
+  t = t.replace(/-{3,}/g, " ").replace(/[#*_>`|]+/g, " ").replace(/\[(?:ficha:)?[0-9a-f]{6,}[^\]]*\]/gi, "").replace(/\s+/g, " ").trim()
+  if (!t) return null
+  return t.length > n ? `${t.slice(0, n - 1).replace(/\s+\S*$/, "")}…` : t
+}
+/** «# PLAN DE CAMPAÑA 90 DÍAS · NÁUFRAGO» → el título del resultado (el primer encabezado) */
+export const tituloDelResultado = (texto: string | null | undefined): string | null => String(texto ?? "").match(/^\s*#{1,3}\s*(.+)$/m)?.[1]?.trim() ?? null
+/** el resumen de la revisión de la jefatura: cuántas observaciones y cuántas bloquean (de `jefatura_revisiones.estado_del_motor.fichas`) */
+export function resumenDeLaRevision(estadoDelMotor: unknown): string | null {
+  const f = (estadoDelMotor as { fichas?: unknown } | null)?.fichas
+  if (!Array.isArray(f)) return null
+  const bloquean = f.filter((x) => (x as { gravedad?: unknown })?.gravedad === "bloquea").length
+  return `${f.length} ${f.length === 1 ? "observación" : "observaciones"}${bloquean ? `, ${bloquean} bloquea${bloquean === 1 ? "" : "n"}` : ""}`
+}
+export interface EntradaDeAportes {
+  /** la salida guardada de cada corrida del participante (`agent_invocations.output_summary`, recortada a 2.000 caracteres en la base) */
+  salidas: Array<{ agent_name: string; workflow_execution_id: string | null; output_summary: string | null }>
+  /** los informes que entraron al cerebro del cliente durante la reunión (`cerebro_fichas.ref` «informe:<paso>:…») */
+  informesEnElCerebro: string[]
+  /** la última revisión de la jefatura del cliente en la ventana de la reunión */
+  revision: { estado_del_motor: unknown } | null
+}
+export const LARGO_GUARDADO = 2000
+export function conAportes(r: ReunionDeLaSala, e: EntradaDeAportes): ReunionDeLaSala {
+  const salida = (p: ParticipanteDeLaSala) => e.salidas.find((x) => nombreCanonico(x.agent_name) === nombreCanonico(p.agente) && x.workflow_execution_id === p.corrida)?.output_summary ?? null
+  let usados = 0, informes = 0
+  const participantes = r.participantes.map((p): ParticipanteDeLaSala => {
+    const texto = salida(p)
+    const base = { resumen: p.estado === "hablando" ? null : resumenDelAporte(texto), recortado: (texto ?? "").length >= LARGO_GUARDADO }
+    let aporte: AporteEnLaSala
+    const paso = pasoDeAnalisis(p.corrida)
+    if (p.cabecera) aporte = { ...base, uso: "resultado", motivo: p.estado === "hablando" ? "está escribiendo el resultado" : "su trabajo es el resultado de la reunión" }
+    else if (esRevisorDeLaJefatura(p.agente)) aporte = { ...base, uso: "revision", motivo: "revisó el resultado" }
+    else if (paso) {
+      informes++
+      const entro = e.informesEnElCerebro.some((ref) => ref.startsWith(`informe:${paso}:`))
+      if (entro) usados++
+      const sinDato = /^sin dato(?![a-záéíóúñ])/i.test(base.resumen ?? "")
+      aporte = entro ? { ...base, uso: "usado", motivo: "su informe entró al cerebro y de ahí lo recibe quien dirige" }
+        : { ...base, uso: "apagado", motivo: sinDato ? "dijo «sin dato» y su informe no entró al cerebro" : "su informe no entró al cerebro (sin motivo registrado)" }
+    } else aporte = { ...base, uso: "sin_dato", motivo: "no hay dato de si su aporte se usó" }
+    return { ...p, aporte }
+  })
+  const lider = participantes.find((p) => p.cabecera)
+  return { ...r, participantes, resultado: { titulo: lider && lider.estado !== "hablando" ? tituloDelResultado(salida(lider)) : null, usados, informes, revision: e.revision ? resumenDeLaRevision(e.revision.estado_del_motor) : null } }
+}
+/** el texto del globo de un participante (lo que se lee sin tocar) */
+export function globoDe(p: ParticipanteDeLaSala): string {
+  if (p.estado === "hablando") return p.cabecera ? "escribiendo el resultado…" : "preparando su aporte…"
+  if (!p.aporte) return "aporte · sin leer"
+  return p.aporte.resumen ?? "aporte · sin texto guardado"
+}
+/** las líneas del centro de la mesa al cerrar */
+export function lineasDelResultado(r: ReunionDeLaSala): string[] {
+  const x = r.resultado
+  if (!x) return []
+  return [x.titulo ? `Resultado · ${x.titulo}` : "Resultado · sin texto guardado", ...(x.informes ? [`usó ${x.usados} de ${x.informes} informes de la mesa de análisis`] : []), ...(x.revision ? [`revisión de la jefatura · ${x.revision}`] : [])]
 }

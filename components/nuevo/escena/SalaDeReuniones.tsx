@@ -1,13 +1,14 @@
 "use client"
 
 import type { CSSProperties } from "react"
-import { lineasDeLaSala, SALA, type ParticipanteDeLaSala, type SalaDeReuniones } from "@/lib/escena-sala"
+import { globoDe, lineasDeLaSala, lineasDelResultado, SALA, type ParticipanteDeLaSala, type ReunionDeLaSala, type SalaDeReuniones, type UsoDelAporte } from "@/lib/escena-sala"
 import { mesaPorClave } from "@/lib/escena-avatares"
 
 /**
  * LA SALA DE REUNIONES en la foto (CC6 · S3): dentro del SVG de la escena. Cada participante de la reunión real se sienta en una silla de la mesa redonda
  * (la cabecera para el que dirige); el que habla ahora late en ámbar; el que falló, en rojo. Sin reunión, la sala queda vacía y el rótulo lo dice.
- * Solo LECTURA. Tocar a alguien abre su ficha; tocar el rótulo abre las fases de la reunión.
+ * S4 · cada uno tiene su burbuja de aporte: se enciende cuando habla; al cerrar, lo usado viaja al centro de la mesa y lo que no se usó se apaga.
+ * Solo LECTURA. Tocar a alguien abre su aporte completo; tocar el rótulo abre las fases de la reunión.
  */
 export const ESTILO_SALA = `
 .nv-sala-p{pointer-events:auto;cursor:pointer;outline:none}
@@ -17,14 +18,38 @@ export const ESTILO_SALA = `
 .nv-sala-rotulo{pointer-events:auto;cursor:pointer;outline:none}
 .nv-sala-rotulo:hover .nv-sala-t1,.nv-sala-rotulo:focus-visible .nv-sala-t1{stroke:#ffb86b}
 .nv-sala-luz{animation:nvAvLate 2.6s ease-in-out infinite}
+.nv-sala-burbuja{transition:transform 1.4s cubic-bezier(.4,0,.2,1),opacity 1s ease}
+.nv-sala-burbuja[data-luz="habla"] rect{animation:nvSalaHabla 1.4s ease-in-out infinite}
 @keyframes nvSalaHabla{0%,100%{opacity:.85}50%{opacity:.25}}
-@media (prefers-reduced-motion:reduce){.nv-sala-p[data-estado="hablando"] .nv-sala-halo,.nv-sala-luz{animation:none}}
+@media (prefers-reduced-motion:reduce){.nv-sala-p[data-estado="hablando"] .nv-sala-halo,.nv-sala-luz,.nv-sala-burbuja[data-luz="habla"] rect{animation:none}.nv-sala-burbuja{transition:none}}
 `
 const FUENTE = "system-ui, Arial, sans-serif"
 /** «Jefe de Marketing» → «JM» (sin «de», «del», «la», «y»…; primera y última palabra) */
 export const inicialesDe = (nombre: string): string => { const p = nombre.split(/[\s/·-]+/).filter((w) => w && !/^(de|del|la|las|el|los|y|en)$/i.test(w)); return ((p[0]?.[0] ?? "") + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase() }
 const colorDe = (p: ParticipanteDeLaSala) => (p.mesa ? mesaPorClave(p.mesa)?.color ?? "#bbb" : p.equipo.startsWith("Jefatura") ? "#f5a524" : "#9a9a9a")
 export const estadoLegible = (p: ParticipanteDeLaSala) => (p.estado === "hablando" ? "hablando ahora" : p.estado === "fallo" ? `falló ${p.hace}` : p.estado === "hablo" ? `aportó ${p.hace}` : "en espera")
+
+export const usoLegible = (u: UsoDelAporte): string => (u === "resultado" ? "resultado" : u === "usado" ? "usado" : u === "apagado" ? "no se usó" : u === "revision" ? "revisión" : "sin dato de uso")
+/** S4 · la luz de la burbuja: «habla» (encendida, late) · «ultimo» (el último que habló, mientras la reunión sigue) · «normal» · al cerrar: «centro» (usado o
+ *  resultado: viaja al centro) · «apagado» (no se usó) · «quieto» (revisión o sin dato: se queda en su silla) */
+export type LuzDeLaBurbuja = "habla" | "ultimo" | "normal" | "centro" | "apagado" | "quieto"
+export function luzDeLaBurbuja(p: ParticipanteDeLaSala, r: ReunionDeLaSala): LuzDeLaBurbuja {
+  if (p.estado === "hablando") return "habla"
+  if (r.estado === "en_curso") {
+    if (r.participantes.some((x) => x.estado === "hablando")) return "normal"
+    const ultimo = [...r.participantes].filter((x) => x.ultima).sort((a, b) => (b.ultima ?? "").localeCompare(a.ultima ?? ""))[0]
+    return ultimo?.agente === p.agente ? "ultimo" : "normal"
+  }
+  const u = p.aporte?.uso
+  return u === "usado" || u === "resultado" ? "centro" : u === "apagado" ? "apagado" : "quieto"
+}
+/** dónde queda cada burbuja que viaja al centro: en un anillo chico alrededor del centro de la mesa (el resultado, en el medio) */
+export function destinoEnElCentro(i: number, n: number, esResultado: boolean): { x: number; y: number } {
+  if (esResultado) return { x: SALA.mesa.x, y: SALA.mesa.y - 18 }
+  const a = (2 * Math.PI * i) / Math.max(n, 1) - Math.PI / 2
+  return { x: Math.round(SALA.mesa.x + 42 * Math.cos(a)), y: Math.round(SALA.mesa.y - 8 + 22 * Math.sin(a)) }
+}
+export const posBurbuja = (s: { x: number; y: number }) => ({ x: s.x + 14, y: s.y - 66 })
 
 export function SalaEnLaFoto({ sala, abierta, onAbrir, onFoco, onTocar }: {
   sala: SalaDeReuniones | null | undefined
@@ -52,7 +77,7 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, onFoco, onTocar }: {
         const aro = p.estado === "fallo" ? "#ff5a4a" : p.cabecera ? "#ffb347" : c
         return (
           <g key={p.agente} className="nv-sala-p" data-agente={p.agente} data-estado={p.estado} data-cabecera={p.cabecera} opacity={terminada ? 0.6 : 1} role="button" tabIndex={0}
-            aria-label={`${p.nombre}${p.cabecera ? ", dirige" : ""}. ${p.equipo}. ${p.fase}. ${estadoLegible(p)}. Ver su ficha`}
+            aria-label={`${p.nombre}${p.cabecera ? ", dirige" : ""}. ${p.equipo}. ${p.fase}. ${estadoLegible(p)}. Ver su aporte completo`}
             onMouseEnter={() => onFoco(p.agente)} onMouseLeave={() => onFoco(null)} onFocus={() => onFoco(p.agente)} onBlur={() => onFoco(null)}
             onClick={(e) => { e.stopPropagation(); onTocar(p.agente) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTocar(p.agente) } }}>
             <ellipse cx={s.x} cy={s.y + 4} rx={16} ry={6} fill="rgba(0,0,0,.45)" />
@@ -64,14 +89,47 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, onFoco, onTocar }: {
           </g>
         )
       })}
+      {/* S4 · las burbujas de aporte (encima de las figuras): la que habla se enciende; al cerrar, lo usado viaja al centro y lo que no se usó se apaga */}
+      {r && (() => {
+        const viajan = r.participantes.filter((p) => p.silla && !p.cabecera && luzDeLaBurbuja(p, r) === "centro")
+        return r.participantes.filter((p) => p.silla).map((p) => {
+          const luz = luzDeLaBurbuja(p, r)
+          const b = posBurbuja(p.silla!)
+          const destino = luz === "centro" ? destinoEnElCentro(viajan.indexOf(p), viajan.length, p.cabecera) : null
+          const d = destino ? { x: destino.x - b.x, y: destino.y - b.y } : { x: 0, y: 0 }
+          const color = luz === "apagado" ? "#5a5550" : luz === "habla" || luz === "ultimo" || luz === "centro" ? "#ffb347" : "#c9b89f"
+          const fondo = luz === "apagado" ? "#1c1a18" : "#211b14"
+          return (
+            <g key={`b-${p.agente}`} className="nv-sala-burbuja" data-burbuja={p.agente} data-luz={luz} data-uso={p.aporte?.uso ?? ""} pointerEvents="none"
+              style={{ transform: `translate(${d.x}px, ${d.y}px)`, opacity: luz === "apagado" ? 0.28 : luz === "normal" || luz === "quieto" ? 0.75 : 1 } as CSSProperties}>
+              {(luz === "habla" || luz === "centro") && <circle cx={b.x} cy={b.y} r={20} fill="url(#nv-av-ambar)" />}
+              <rect x={b.x - 11} y={b.y - 8} width={22} height={15} rx={5} fill={fondo} stroke={color} strokeWidth={1.6} />
+              <path d={`M ${b.x - 5} ${b.y + 7} l -3 6 l 8 -6 z`} fill={fondo} stroke={color} strokeWidth={1.2} strokeLinejoin="round" />
+              {[-5, 0, 5].map((k) => <circle key={k} cx={b.x + k} cy={b.y - 0.5} r={1.5} fill={color} />)}
+            </g>
+          )
+        })
+      })()}
       {r && r.de_mas > 0 && <text x={SALA.mesa.x + 95} y={SALA.mesa.y + 70} fill="#ffd9a0" fontSize={18} fontFamily={FUENTE}>+{r.de_mas}</text>}
     </g>
   )
 }
 
-/** la ficha corta al pasar por un participante (HTML, encima de la foto) */
-export function lineasDelParticipante(p: ParticipanteDeLaSala): string[] {
-  return [p.nombre + (p.cabecera ? " · dirige" : ""), p.equipo, p.fase, estadoLegible(p)]
+/** S4 · el GLOBO que se lee sin tocar: el del que está bajo el cursor; si no, el del que habla (o el último que habló) mientras la reunión sigue;
+ *  al cerrar, el resultado al centro de la mesa */
+export type Globo = { tipo: "participante"; p: ParticipanteDeLaSala; ancla: { x: number; y: number }; lineas: string[] } | { tipo: "resultado"; ancla: { x: number; y: number }; lineas: string[] }
+export function globoVisible(r: ReunionDeLaSala | null | undefined, foco: string | null): Globo | null {
+  if (!r) return null
+  const deP = (p: ParticipanteDeLaSala): Globo => ({ tipo: "participante", p, ancla: posBurbuja(p.silla!), lineas: [`${p.nombre}${p.cabecera ? " · dirige" : ""} · ${p.fase}`, globoDe(p), r.estado === "terminada" && p.aporte ? `${usoLegible(p.aporte.uso)} · ${p.aporte.motivo}` : estadoLegible(p)] })
+  const f = foco ? r.participantes.find((p) => p.agente === foco && p.silla) : null
+  if (f) return deP(f)
+  if (r.estado === "en_curso") {
+    const x = r.participantes.find((p) => p.silla && luzDeLaBurbuja(p, r) === "habla") ?? r.participantes.find((p) => p.silla && luzDeLaBurbuja(p, r) === "ultimo")
+    return x ? deP(x) : null
+  }
+  const l = lineasDelResultado(r)
+  // a la derecha de la sala (no tapa la mesa ni las burbujas que llegaron al centro)
+  return l.length ? { tipo: "resultado", ancla: { x: SALA.mesa.x + 100, y: SALA.mesa.y - 60 }, lineas: l } : null
 }
 
 /** el panel de la reunión al tocar el rótulo: fases, participantes (tocar = su ficha) y de dónde sale el dato */
