@@ -297,20 +297,8 @@ export function agruparEsperas(esperas: EsperaCruda[]): GrupoDeEsperas[] {
 // ── el ciclo del plan (CC6 · 01-nov · contrato certificado de CC1: `PLAN-CC1-ciclo-del-plan-tramo-2-diseno-y-contrato.md` §2 + ADENDA 1) ──
 // «Pedir cambios» → `plan-cambios` (GASTA: el jefe de marketing reescribe sobre este plan y la jefatura revisa) · «Aprobar» → `plan-aprobar` (US$ 0: pasa al PDF y al brief).
 export const BOTONES_DEL_PLAN = { aprobar: "Aprobar el plan así", rechazar: "Pedir cambios al plan" } as const
-/** tope por pedido de cambios (contrato: ≤ 8) y lo que suele costar (redactor ≈ 1 + jefatura 1–3) */
+/** tope por pedido de cambios (contrato: ≤ 8): va en el cuerpo, NO se muestra (Emilio 01-nov: sin avisos de gasto; lo cuida la plataforma) */
 export const TOPE_REESCRITURA_USD = 8
-export const COSTO_ESTIMADO_REESCRITURA = "US$ 1–3"
-/** DALE de Emilio (01-nov 16:23Z, punto 2): aprobar un plan con compuerta INICIA la campaña (levanta la pausa de pruebas y arranca brief → gran idea, que se
- *  detiene en la tarjeta de la gran idea). Su clic en «Aprobar» es el «dale» de ese gasto: el panel lo dice ANTES del clic (PRESUPUESTO-CC2-brief-y-gran-idea). */
-export const COSTO_ESTIMADO_CAMPANA = "US$ 4,5–8"
-export const TOPE_CAMPANA_USD = 10
-export const DURACION_ESTIMADA_CAMPANA = "≈ 1–2 h"
-/** lo que hace «Aprobar» sobre ESTE plan, dicho antes del clic: con compuerta arranca la campaña (gasta); sin ella (plan de antes del ciclo) no reanuda nada */
-export function queHaceAprobar(conCompuerta: boolean): { gasta: boolean; texto: string } {
-  return conCompuerta
-    ? { gasta: true, texto: `Aprobar inicia la campaña: brief y gran idea · ${COSTO_ESTIMADO_CAMPANA} estimado · tope US$ ${TOPE_CAMPANA_USD} · ${DURACION_ESTIMADA_CAMPANA}. Se levanta la pausa de pruebas; se detiene en la tarjeta de la gran idea.` }
-    : { gasta: false, texto: "Este plan es de antes del ciclo: aprobarlo lo deja firme sin reanudar nada. No cuesta nada." }
-}
 /** después de 3 reescrituras (versión 4) solo se aprueba; lo demás se decide a mano */
 export const VUELTAS_MAXIMAS = 3
 
@@ -351,20 +339,20 @@ export interface LecturaDelCiclo {
 }
 export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPlan): LecturaDelCiclo {
   const avisos: string[] = []
-  if (!ciclo.disponible) avisos.push("El ciclo del plan se abre pronto: hasta entonces los botones responden «aún no disponible». No se cambia nada ni se gasta.")
+  if (!ciclo.disponible) avisos.push("El ciclo del plan se abre pronto: hasta entonces los botones responden «aún no disponible». No se cambia nada.")
   const cp = ciclo.compuerta, pd = ciclo.pedido
   if (statusDelDocumento === "approved" || cp?.estado === "aprobado") {
     const sinDespertar = cp?.estado === "aprobado" && cp.despertado === false
     const quien = cp?.decidido_por ? ` por ${cp.decidido_por}` : ""
     const detalle = sinDespertar
-      ? `Quedó aprobado, pero no se pudo avisar para seguir al PDF y al brief${cp?.despertar_detalle ? ` (${cp.despertar_detalle})` : ""}. No se gastó nada.`
+      ? `Quedó aprobado, pero no se pudo avisar para seguir al PDF y al brief${cp?.despertar_detalle ? ` (${cp.despertar_detalle})` : ""}. No se cambió nada.`
       : `Versión ${ciclo.version} aprobada${quien}: sigue el PDF, la sala y el brief.`
     return { estado: "aprobado", titulo: "Aprobado → pasa al brief", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-aprobar" : null, avisos }
   }
   if (pd && (pd.estado === "pendiente" || pd.estado === "en_reescritura")) {
     const sinDespertar = pd.despertado === false
     const detalle = sinDespertar
-      ? `Tu pedido quedó guardado, pero no se pudo avisar a la oficina de planeación${pd.despertar_detalle ? ` (${pd.despertar_detalle})` : ""}. No se gastó nada.`
+      ? `Tu pedido quedó guardado, pero no se pudo avisar a la oficina de planeación${pd.despertar_detalle ? ` (${pd.despertar_detalle})` : ""}. No se cambió nada.`
       : `El jefe de marketing rehace el plan sobre la versión ${ciclo.version} con tus observaciones${pd.vuelta ? ` (vuelta ${pd.vuelta} de ${VUELTAS_MAXIMAS})` : ""}; después lo revisa la jefatura.`
     return { estado: "reescribiendo", titulo: "Reescribiendo", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-cambios" : null, avisos }
   }
@@ -414,11 +402,11 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date): AvanceDelPedido {
   if (sinDespertar && !empezo) {
     const paso = pasos[1]
     paso.estado = "fallo"; paso.detalle = `No se pudo avisar a la oficina de planeación${p.despertar_detalle ? ` (${p.despertar_detalle})` : ""}.`
-    fallo = { texto: "El pedido quedó guardado, pero la oficina de planeación no recibió el aviso. No se gastó nada.", que_hacer: "Usa «Reintentar»: repite el aviso con el mismo tope." }
+    fallo = { texto: "El pedido quedó guardado, pero la oficina de planeación no recibió el aviso.", que_hacer: "Usa «Reintentar»: repite el aviso." }
   } else if (fallido) {
     const paso = pasos.find((x) => x.estado !== "hecho") ?? pasos[pasos.length - 1]
     paso.estado = "fallo"; paso.hora = p.actualizado_en; paso.detalle = p.estado === "cancelado" ? "El pedido se canceló." : "La reescritura no terminó."
-    fallo = { texto: p.estado === "cancelado" ? "El pedido de cambios se canceló: el plan sigue como estaba." : "La reescritura no terminó: el plan sigue como estaba (la versión actual no cambió).", que_hacer: "Puedes pedir cambios otra vez (vuelve a gastar, con su tope) o aprobar la versión actual." }
+    fallo = { texto: p.estado === "cancelado" ? "El pedido de cambios se canceló: el plan sigue como estaba." : "La reescritura no terminó: el plan sigue como estaba (la versión actual no cambió).", que_hacer: "Puedes pedir cambios otra vez o aprobar la versión actual." }
   }
   for (let i = 1; i < pasos.length; i++) if (pasos[i].estado !== "pendiente" && pasos[i - 1].estado === "pendiente") pasos[i - 1].estado = "hecho" // nunca un paso posterior encendido con uno anterior apagado
   const minutos = p.creado_en && !Number.isNaN(minDe(p.creado_en)) ? Math.max(0, Math.round((ahora.getTime() - minDe(p.creado_en)) / 60000)) : null
@@ -462,15 +450,15 @@ const MOTIVOS_DEL_CICLO: Record<string, string> = {
   reescritura_en_curso: "Ya hay un pedido de cambios en curso: espera la versión nueva.",
   tope_de_vueltas: `Ya van ${VUELTAS_MAXIMAS} reescrituras: desde aquí solo se puede aprobar; lo demás se decide a mano.`,
   plan_inexistente: "La plataforma no encuentra este plan. Vuelvo a leer.",
-  entrada_invalida: "La plataforma no aceptó el pedido tal como iba. No se gastó nada.",
-  falta_confirmar_el_gasto: "Falta confirmar el gasto. No se gastó nada.",
-  falta_confirmar_gasto: "Falta confirmar el gasto. No se gastó nada.",
-  falta_el_tope: "Falta el tope del gasto. No se gastó nada.",
-  tope_demasiado_alto: `El tope pasa de US$ ${TOPE_REESCRITURA_USD}. No se gastó nada.`,
+  entrada_invalida: "La plataforma no aceptó el pedido tal como iba. No se cambió nada.",
+  falta_confirmar_el_gasto: "La plataforma rechazó el pedido (falta una confirmación interna). No se cambió nada.",
+  falta_confirmar_gasto: "La plataforma rechazó el pedido (falta una confirmación interna). No se cambió nada.",
+  falta_el_tope: "La plataforma rechazó el pedido (falta un dato interno). No se cambió nada.",
+  tope_demasiado_alto: "La plataforma rechazó el pedido (tope). No se cambió nada.",
 }
 const RELEER_TRAS = ["no_es_el_vigente", "plan_ya_aprobado", "plan_inexistente", "reescritura_en_curso", "plan_en_revision"]
-const NO_DISPONIBLE = "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada ni se gastó."
-const PUEDE_NO_ESTAR = "No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada ni se gastó."
+const NO_DISPONIBLE = "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada."
+const PUEDE_NO_ESTAR = "No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada."
 export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", status: number, cuerpo: unknown): RespuestaDelCiclo {
   const c = objeto(cuerpo)
   if (status === 200 && c.ok === true) {
@@ -478,9 +466,9 @@ export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", s
     const re = r.reintento === true ? "Reintento: " : ""
     const motivo = texto(r.motivo_sin_despertar) || texto(r.motivo)
     if (accion === "plan-cambios") {
-      if (r.despertado === false) return { ok: false, texto: `${re}Tu pedido quedó guardado, pero no se pudo avisar a la oficina de planeación${motivo ? ` (${motivo})` : ""}. No se gastó nada: usa «Reintentar».`, reintentar: true, releer: true }
-      const vuelta = numero(r.vuelta), nueva = numero(r.version_nueva), tope = numero(r.tope_usd) ?? TOPE_REESCRITURA_USD
-      return { ok: true, texto: `${re}Pedido enviado${vuelta ? ` (vuelta ${vuelta} de ${VUELTAS_MAXIMAS})` : ""}: el jefe de marketing reescribe${nueva ? ` la versión ${nueva}` : " el plan"} y la jefatura la revisa · tope US$ ${tope}.`, reintentar: false, releer: true }
+      if (r.despertado === false) return { ok: false, texto: `${re}Tu pedido quedó guardado, pero no se pudo avisar a la oficina de planeación${motivo ? ` (${motivo})` : ""}. Usa «Reintentar».`, reintentar: true, releer: true }
+      const vuelta = numero(r.vuelta), nueva = numero(r.version_nueva)
+      return { ok: true, texto: `${re}Pedido enviado${vuelta ? ` (vuelta ${vuelta} de ${VUELTAS_MAXIMAS})` : ""}: el jefe de marketing reescribe${nueva ? ` la versión ${nueva}` : " el plan"} y la jefatura la revisa.`, reintentar: false, releer: true }
     }
     const v = numero(r.version)
     const cual = v ? ` (versión ${v})` : ""
@@ -499,7 +487,7 @@ export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", s
   // `detalle` de la plataforma TAL CUAL y NO se ofrece reintento (el panel no tiene cómo reanudar ni cerrar una campaña)
   if (codigo === "campana_detenida") {
     const d = texto(plat.detalle) || texto(c.detalle)
-    return { ok: false, texto: `La campaña de este plan está detenida${d && d !== "campana_detenida" ? `: ${d}` : ""}. No se cambió nada ni se gastó.`, reintentar: false, releer: false }
+    return { ok: false, texto: `La campaña de este plan está detenida${d && d !== "campana_detenida" ? `: ${d}` : ""}. No se cambió nada.`, reintentar: false, releer: false }
   }
   if (MOTIVOS_DEL_CICLO[codigo]) return { ok: false, texto: MOTIVOS_DEL_CICLO[codigo], reintentar: false, releer: RELEER_TRAS.includes(codigo) }
   // NOTA de CC1 (01-nov): antes de la «ventana» las dos puertas responden 500 `planes_error` (sus tablas no existen) y después ese código sería un fallo real
