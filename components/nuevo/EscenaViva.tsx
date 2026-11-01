@@ -10,6 +10,7 @@ import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
 import { VidaSpline } from "@/components/nuevo/VidaSpline"
+import { Avatares } from "@/components/nuevo/escena/Avatares"
 
 /**
  * DASHBOARD NUEVO · SPRINT 3 (31-oct): el departamento de marketing se «proyecta» sobre la escena principal, sin cambiar de página a la vista.
@@ -333,6 +334,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
                   fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{TABLERO.rotulo.texto}</text>
               </g>
             </svg>
+            {/* CC6 · Sprint 1 · la escena viva: 6 mesas, el que trabaja ahora sentado en su mesa (figura 3D de Spline), luz del monitor por estado, ficha y equipo al tocar la mesa */}
+            <Avatares />
             </>)}
             <div className="nv-barrido" />
           </div>
