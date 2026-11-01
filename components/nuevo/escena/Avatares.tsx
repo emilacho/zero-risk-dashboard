@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import {
-  asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, tableroDeLaMesa,
+  asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, MESAS_EXTRA, tableroDeLaMesa,
   type ClaveDeMesa, type EscenaDatos, type Mesa, type MesaViva,
 } from "@/lib/escena-avatares"
 
 /**
  * LA ESCENA VIVA · AVATARES (CC6 · Sprint 1 · 01-nov): la capa que va ENCIMA de la foto de la oficina de marketing, dentro de la proyección de `EscenaViva`.
- * - Las 6 MESAS del boceto de CC5 aprobado por Emilio: 4 de la foto + 2 punteadas sobre el piso libre (Medios y Performance · Relaciones, atenuadas).
+ * - Las 6 MESAS del boceto de CC5 aprobado por Emilio: 4 de la foto + 2 mesas idénticas nuevas en el cuarto libre del fondo (Medios y Performance · Relaciones), en una imagen aparte encima de la foto.
  * - En la silla de cada mesa se SIENTA SOLO quien está trabajando ahora (dato real de `agent_dispatches`); si trabajan varios, se sientan a lo largo de la mesa.
  *   Mesa sin nadie trabajando = vacía y quieta. Al tocar la mesa se ve el equipo completo con su estado. Nunca hay avatares de relleno.
  * - Estados por el monitor de la FOTO: trabajando = brilla ámbar y late · en espera = como en la foto · falló = en rojo.
@@ -27,8 +27,6 @@ const ESTILO = `
 .nv-av .nv-av-zona{pointer-events:auto;cursor:pointer;outline:none}
 .nv-av .nv-av-zona polygon{fill:rgba(255,140,40,0);stroke:none;transition:fill .3s ease}
 .nv-av .nv-av-zona:hover polygon,.nv-av .nv-av-zona:focus-visible polygon,.nv-av .nv-av-zona[aria-expanded="true"] polygon{fill:rgba(255,140,40,.06)}
-.nv-av .nv-av-zona:hover polygon.nv-av-punteada,.nv-av .nv-av-zona:focus-visible polygon.nv-av-punteada,.nv-av .nv-av-zona[aria-expanded="true"] polygon.nv-av-punteada{fill:rgba(255,140,40,.06);stroke:rgba(230,170,90,.6)}
-.nv-av .nv-av-zona polygon.nv-av-punteada{fill:rgba(140,140,140,.05);stroke:rgba(170,170,170,.45);stroke-width:2;stroke-dasharray:10 9}
 .nv-av .nv-av-rotulo{opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
 .nv-av .nv-av-zona:hover .nv-av-rotulo,.nv-av .nv-av-zona:focus-visible .nv-av-rotulo,.nv-av .nv-av-zona[aria-expanded="true"] .nv-av-rotulo,.nv-av .nv-av-mesa[data-ocupada="true"] .nv-av-rotulo{opacity:1;transform:none}
 .nv-av .nv-av-luz{opacity:0;transition:opacity .6s ease}
@@ -93,6 +91,11 @@ export function Avatares() {
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
       <style>{ESTILO}</style>
+      {/* las 2 mesas nuevas (Medios y Performance · Relaciones): copia idéntica de una mesa de la foto; usa la clase de la foto (`nv-foto-b`) para entrar y salir con ella */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={MESAS_EXTRA.src} alt="" aria-hidden width={MESAS_EXTRA.caja.w} height={MESAS_EXTRA.caja.h} decoding="async" draggable={false} data-mesas-extra
+        className="nv-foto-b nv-av-mesas-extra pointer-events-none absolute select-none"
+        style={{ left: pct(MESAS_EXTRA.caja.x, FOTO.w), top: pct(MESAS_EXTRA.caja.y, FOTO.h), width: pct(MESAS_EXTRA.caja.w, FOTO.w), height: pct(MESAS_EXTRA.caja.h, FOTO.h) }} />
       {hayFiguras && <FigurasSpline colocaciones={colocaciones} />}
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Las mesas de la oficina de marketing y quién trabaja ahora" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -113,7 +116,7 @@ export function Avatares() {
               <g className="nv-av-zona" role="button" tabIndex={0} aria-label={`${m.nombre}: ${subtitulo}. Ver el equipo`} aria-haspopup="dialog" aria-expanded={mesaAbierta === m.clave}
                 onClick={(e) => { e.stopPropagation(); setMesaAbierta((k) => (k === m.clave ? null : m.clave)) }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMesaAbierta((k) => (k === m.clave ? null : m.clave)) } }}>
-                <polygon points={tableroDeLaMesa(m)} className={m.en_la_foto ? undefined : "nv-av-punteada"} />
+                <polygon points={tableroDeLaMesa(m)} />
                 <g className="nv-av-rotulo">
                   <text x={m.rotulo.x} y={m.rotulo.y} textAnchor="middle" fill="none" stroke={m.etapa === "activo" ? "#e8731a" : "#9a9a9a"} strokeWidth={(TAM_ROTULO * 0.9) / 16} fontSize={TAM_ROTULO} fontWeight="500" letterSpacing={(TAM_ROTULO * 3.4) / 16} fontFamily="system-ui, Arial, sans-serif">{m.nombre.toUpperCase()}</text>
                   <text x={m.rotulo.x} y={m.rotulo.y + 24} textAnchor="middle" fill={m.sentados.length ? "#ffd9a0" : "#9a9a9a"} fontSize={17} fontFamily="system-ui, Arial, sans-serif">{subtitulo}</text>
