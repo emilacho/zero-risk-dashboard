@@ -29,6 +29,8 @@ const componentes: Components = {
   pre: ({ children }) => <pre className="mb-2 overflow-x-auto whitespace-pre-wrap font-mono text-[13px] text-white/90">{children}</pre>,
   blockquote: ({ children }) => <div className="mb-2 pl-3 text-white/80">{children}</div>,
   hr: () => <div className="my-2" />,
+  // una imagen del texto NUNCA se carga (el navegador pediría una dirección ajena: rastreo / sacar datos por la dirección): solo se muestra su texto alternativo
+  img: ({ alt }) => (alt ? <span>{alt}</span> : null),
   table: ({ children }) => <div className="mb-2 overflow-x-auto"><table className="text-left text-[13px]">{children}</table></div>,
   th: ({ children }) => <th className="pr-4 pb-1 font-semibold">{children}</th>,
   td: ({ children }) => <td className="pr-4 py-0.5 align-top">{children}</td>,
