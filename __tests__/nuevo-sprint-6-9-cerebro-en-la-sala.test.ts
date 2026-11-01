@@ -24,7 +24,7 @@ const NAUFRAGO = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312"
 const OTRO = "11111111-1111-1111-1111-111111111111"
 
 describe("6.9 · el Cerebro es una estructura de la sala principal (el monolito)", () => {
-  it("6.12: el monolito es TU OFICINA (/nuevo/oficina); el Cerebro vive en el arco de pantallas de adentro y en /nuevo/cerebro; nada enlaza ya al dashboard viejo", () => {
+  it("6.12: el monolito es TU OFICINA (/nuevo/oficina); el Cerebro tendrá estructura propia (hoy solo /nuevo/cerebro); nada enlaza ya al dashboard viejo", () => {
     expect(ZONAS.some((x) => x.clave === "cerebro")).toBe(false)
     const z = ZONAS.find((x) => x.clave === "oficina")!
     expect(z.href).toBe("/nuevo/oficina")
@@ -34,15 +34,14 @@ describe("6.9 · el Cerebro es una estructura de la sala principal (el monolito)
     expect(html).toContain(">TU OFICINA</text>")
     expect(html).not.toContain("/oficinas#cerebro")
     const oficina = renderToStaticMarkup(createElement(EscenaViva, { inicial: "oficina" }))
-    expect(oficina).toContain(">CEREBRO</text>"); expect(oficina).toContain('aria-label="Cerebro"')
+    expect(oficina).not.toContain(">CEREBRO</text>"); expect(oficina).not.toContain('aria-label="Cerebro"') // 6.12b: el Cerebro NO está en tu oficina
   })
   it("la escena viva lo abre encima como portal (con selector de cliente), cambia la dirección y atiende atrás/adelante; la entrada directa existe y pide administrador", () => {
     const v = leer("components/nuevo/EscenaViva.tsx")
     expect(v).toContain('createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)')
     expect(v).toContain('cambiarDireccion("/nuevo/cerebro")')
     expect(v).toContain('window.location.pathname.startsWith("/nuevo/cerebro")')
-    expect(v).toContain('alAbrirOficina={() => abrir("oficina")}') // 6.12: el monolito abre tu oficina; el Cerebro se abre desde sus pantallas sin cambiar la dirección
-    expect(v).toContain("abrirCerebro(false, false)")
+    expect(v).toContain('alAbrirOficina={() => abrir("oficina")}') // 6.12: el monolito abre tu oficina
     const p = leer("app/nuevo/cerebro/page.tsx")
     expect(p).toContain("exigirAdmin()"); expect(p).toContain("<PantallaNuevo cerebro />")
     expect(leer("components/nuevo/PantallaNuevo.tsx")).toContain("cerebroInicial={cerebro}")

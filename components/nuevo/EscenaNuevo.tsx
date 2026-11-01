@@ -3,7 +3,7 @@
  * Sprint 5 (31-oct, CC5): la escena un 30 % más grande (75 % del ancho en vez de 58 %) y con la capa de vida de Spline encima de la foto (`fondo`).
  *  · el monolito central → `oficina`: 6.12 (Emilio, 1-nov: «el monolito central va a ser la oficina del humano; al darle clic, igual que el Dept. Marketing, se expande
  *    la oficina») se expande como el departamento (/nuevo/oficina) con la imagen del centro de comando. Entre 6.9 y 6.12 abría el explorador del Cerebro directo
- *    (/nuevo/cerebro); el Cerebro sigue existiendo: vive en el arco de pantallas DENTRO de tu oficina (`PANTALLAS` en EscenaViva) y en su dirección directa.
+ *    (/nuevo/cerebro); el Cerebro tendrá su PROPIA estructura en la sala (Emilio, 1-nov); mientras, queda su dirección directa /nuevo/cerebro.
  *  · la plataforma de las pantallas y el proyector → «Dept. Marketing» (/nuevo/marketing; sprint 3, 31-oct). Se ilumina en ámbar poco a poco y aparece su rótulo.
  * Las demás plataformas no tienen enlace ni resaltado: se irán activando una por una. El SVG de encima usa las mismas coordenadas de la imagen (ver VISTA).
  */

@@ -3,15 +3,15 @@
  * crea una imagen con el mismo estilo pero que parezca un centro de comando, algo como una nave espacial moderna con pantallas, sin perder el estilo sencillo y sofisticado».
  *  · el monolito es la zona «Tu oficina» (/nuevo/oficina) y se proyecta con la MISMA mecánica que el departamento (crece desde el monolito, miniatura, Esc/atrás).
  *  · la imagen `oficina-2560.jpg` (+ 1280) existe y es liviana; su encaje (`SALA_EN_LA_OFICINA`) está medido.
- *  · el Cerebro no se pierde: es el arco de pantallas DENTRO de tu oficina (`PANTALLAS`): luz suave + rótulo al pasar el ratón; el clic abre el explorador encima
- *    sin cambiar la dirección (como el Centro de campaña dentro de marketing). La dirección directa /nuevo/cerebro sigue existiendo.
+ *  · 6.12b (Emilio, 1-nov): el Cerebro NO está en tu oficina (tendrá estructura propia); tu oficina es el centro de revisión humana y sus pantallas se cablean una por una.
+ *    La dirección directa /nuevo/cerebro sigue existiendo.
  */
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { EscenaNuevo, ZONAS } from "@/components/nuevo/EscenaNuevo"
-import { DEPARTAMENTOS, EscenaViva, PANTALLAS, SALA_EN_LA_FOTO, SALA_EN_LA_OFICINA, departamentoDeLaRuta, ovaloDeLaSala, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
+import { DEPARTAMENTOS, EscenaViva, SALA_EN_LA_FOTO, SALA_EN_LA_OFICINA, departamentoDeLaRuta, ovaloDeLaSala, transformacionDesdeLaPlataforma } from "@/components/nuevo/EscenaViva"
 import { BarraSuperior } from "@/components/nuevo/MarcoNuevo"
 
 const leer = (p: string) => readFileSync(p, "utf8")
@@ -52,26 +52,16 @@ describe("6.12 · el monolito es TU OFICINA", () => {
     expect(departamentoDeLaRuta("/nuevo/oficina")).toBe("oficina"); expect(departamentoDeLaRuta("/nuevo/marketing")).toBe("marketing")
     expect(departamentoDeLaRuta("/nuevo")).toBeNull(); expect(departamentoDeLaRuta("/nuevo/cerebro")).toBeNull()
   })
-  it("tu oficina abierta: la foto del centro de comando (no la de marketing), el óvalo de SU sala, el arco de pantallas = Cerebro con rótulo; sin el tablero de marketing y sin enlaces propios", () => {
+  it("tu oficina abierta: la foto del centro de comando (no la de marketing), el óvalo de SU sala; sin el Cerebro, sin el tablero de marketing y sin enlaces propios", () => {
     const html = renderToStaticMarkup(createElement(EscenaViva, { inicial: "oficina" }))
     expect(html).toContain("/nuevo/oficina-2560.jpg"); expect(html).toContain("/nuevo/oficina-1280.jpg 1280w"); expect(html).not.toContain("marketing-2560.jpg")
     expect(html).toContain('data-departamento="oficina"'); expect(html).toContain('data-atenuado="true"'); expect(html).toContain("Volver a la escena")
     expect(html).toContain(`--nv-ovalo:${DEPARTAMENTOS.oficina.ovalo}`); expect(html).toContain(".nv-foto-a{-webkit-mask-image:var(--nv-ovalo);mask-image:var(--nv-ovalo)}")
     expect(html).toContain('alt="Tu oficina: el centro de comando"')
-    expect(html).toMatch(new RegExp(`<g class="nv-pantallas" data-zona="cerebro" role="button" tabindex="0" aria-label="Cerebro" aria-haspopup="dialog" aria-expanded="false"[^>]*><polygon points="${PANTALLAS.forma}"><\\/polygon>`))
-    expect(html).toContain(">CEREBRO</text>"); expect(html).toContain('<radialGradient id="nv-luz-oficina"')
-    expect(html).toMatch(/\.nv-pantallas polygon\.nv-luz\{[^}]*mix-blend-mode:screen[^}]*transition:opacity \.45s/)
-    expect(html).toContain(".nv-pantallas:hover polygon.nv-luz,.nv-pantallas:focus-visible polygon.nv-luz{opacity:1}")
+    // 6.12b: el Cerebro NO está en tu oficina (tendrá estructura propia); todavía no hay zonas adentro
+    expect(html).not.toContain("nv-pantallas"); expect(html).not.toContain(">CEREBRO</text>"); expect(html).not.toContain('aria-label="Cerebro"')
     expect(html).not.toContain('class="nv-tablero"'); expect(html).not.toContain("CENTRO DE CAMPAÑA"); expect(html).not.toContain("marketing-tablero-encendido")
     expect(enlaces(html)).toEqual(["/nuevo/marketing", "/nuevo/oficina"]) // los únicos enlaces son los de la escena de fondo
-    // el arco de pantallas cae dentro de la foto y sobre su mitad superior (donde están las pantallas)
-    for (const par of PANTALLAS.forma.split(" ")) { const [x, y] = par.split(",").map(Number); expect(x).toBeGreaterThan(800); expect(x).toBeLessThan(1800); expect(y).toBeGreaterThan(200); expect(y).toBeLessThan(560) }
-    // el rótulo «CEREBRO» con las letras de la marca
-    const logo = renderToStaticMarkup(createElement(BarraSuperior)).match(/<text[^>]*>ZERO RISK<\/text>/)![0]
-    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>CEREBRO<\/text>/)![0]
-    const num = (s: string, k: string) => Number(s.match(new RegExp(`${k}="([\\d.]+)"`))![1])
-    expect(num(rotulo, "letter-spacing") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "letter-spacing") / num(logo, "font-size"), 3)
-    expect(num(rotulo, "stroke-width") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "stroke-width") / num(logo, "font-size"), 3)
   })
   it("marketing abierto sigue igual: su foto, su tablero, su óvalo; sin el arco de pantallas (que es de tu oficina). `inicial: true` = marketing (compatibilidad)", () => {
     for (const inicial of [true, "marketing"] as const) {
@@ -81,17 +71,15 @@ describe("6.12 · el monolito es TU OFICINA", () => {
     }
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))).not.toContain('class="nv-proy') // cerrada: no hay proyección
   })
-  it("el cableado: el monolito abre tu oficina; el Cerebro se abre desde sus pantallas SIN cambiar la dirección y Esc lo cierra primero; la dirección directa y atrás/adelante distinguen los dos departamentos", () => {
+  it("el cableado: el monolito abre tu oficina; la dirección directa y atrás/adelante distinguen los dos departamentos; el Cerebro queda solo en /nuevo/cerebro", () => {
     const v = leer("components/nuevo/EscenaViva.tsx")
     expect(v).toContain('alAbrirMarketing={() => abrir("marketing")} alAbrirOficina={() => abrir("oficina")}')
     expect(v).toContain("if (cambiarUrl) cambiarDireccion(DEPARTAMENTOS[clave].url)")
     expect(v).toContain("origen.current = cajaDeLaPlataforma(clave)") // crece desde el monolito (o la plataforma), medido en pantalla
     expect(v).toContain("const ruta = departamentoDeLaRuta(window.location.pathname)")
     expect(v).toContain("if (ruta && (!abierta || ruta !== depto)) abrir(ruta, false)")
-    expect(v).toContain("abrirCerebro(false, false)") // desde tu oficina: sin tocar la dirección (como el Centro de campaña dentro de marketing)
-    expect(v).toContain("if (cambiarUrl && cerebroConUrl.current) cambiarDireccion(\"/nuevo\")") // al cerrarlo solo vuelve a /nuevo si él puso /nuevo/cerebro
-    expect(v).toContain('createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)') // el mismo explorador, con selector de cliente
-    expect(leer("components/nuevo/PanelCerebro.tsx")).toMatch(/if \(e\.key !== "Escape"\) return\s*\n\s*e\.stopPropagation\(\)/) // Esc cierra el Cerebro y NO la oficina
+    expect(v).not.toContain("PANTALLAS"); expect(v).not.toContain("cerebroConUrl") // 6.12b: nada del Cerebro dentro de tu oficina
+    expect(v).toContain('createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)') // el explorador sigue para /nuevo/cerebro
     const e = leer("components/nuevo/EscenaNuevo.tsx")
     expect(e).toContain('z.clave === "oficina" ? alAbrirOficina'); expect(e).not.toContain("alAbrirCerebro")
     const p = leer("app/nuevo/oficina/page.tsx")
