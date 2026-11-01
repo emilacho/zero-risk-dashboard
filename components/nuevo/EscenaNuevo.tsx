@@ -1,7 +1,8 @@
 /**
  * DASHBOARD NUEVO · la escena (variante-14, recortada y en versión liviana) con DOS zonas clicables y nada más (firma de Emilio, 30-oct).
  * Sprint 5 (31-oct, CC5): la escena un 30 % más grande (75 % del ancho en vez de 58 %) y con la capa de vida de Spline encima de la foto (`fondo`).
- *  · el monolito central → `cerebro` (/oficinas#cerebro)
+ *  · el monolito central → `cerebro`: 6.9 (Emilio, 1-nov: «el cerebro es la estructura central de la página principal, tal cual Dept. Marketing») abre el explorador
+ *    del Cerebro ENCIMA de la sala (/nuevo/cerebro); antes llevaba al dashboard viejo (/oficinas#cerebro), que ya no se usa.
  *  · la plataforma de las pantallas y el proyector → «Dept. Marketing» (/nuevo/marketing; sprint 3, 31-oct). Se ilumina en ámbar poco a poco y aparece su rótulo.
  * Las demás plataformas no tienen enlace ni resaltado: se irán activando una por una. El SVG de encima usa las mismas coordenadas de la imagen (ver VISTA).
  */
@@ -25,9 +26,10 @@ const pct = (v: number, total: number) => `${((v / total) * 100).toFixed(4)}%`
 
 export const ZONAS: Zona[] = [
   {
-    clave: "cerebro", nombre: "Cerebro", href: "/oficinas#cerebro",
+    clave: "cerebro", nombre: "Cerebro", href: "/nuevo/cerebro",
     formas: ["936,352 1010,306 1084,338 1084,507 1010,552 936,517"],
     superficie: "936,352 1010,306 1084,338 1084,507 1010,552 936,517", // el monolito mismo
+    rotulo: { x: 1010, y: 284, texto: "CEREBRO" },
   },
   {
     clave: "marketing", nombre: "Dept. Marketing", href: "/nuevo/marketing",
@@ -62,7 +64,7 @@ const ESTILO = `
 `
 
 /** `fondo` va ENTRE la foto y las zonas clicables (la capa de vida de Spline, sprint 5): nunca tapa el hover ni los clics */
-export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMarketing?: () => void; fondo?: ReactNode; children?: ReactNode }) {
+export function EscenaNuevo({ alAbrirMarketing, alAbrirCerebro, fondo, children }: { alAbrirMarketing?: () => void; alAbrirCerebro?: () => void; fondo?: ReactNode; children?: ReactNode }) {
   return (
     <>
       <style>{ESTILO_ESCENA}</style>
@@ -92,11 +94,13 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
             <filter id="nv-luz-suave" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="6" /></filter>
             {ZONAS.filter((z) => z.superficie).map((z) => <clipPath key={z.clave} id={`nv-sup-${z.clave}`}><polygon points={z.superficie} /></clipPath>)}
           </defs>
-          {ZONAS.map((z) => (
+          {ZONAS.map((z) => {
+            const abrir = z.clave === "marketing" ? alAbrirMarketing : z.clave === "cerebro" ? alAbrirCerebro : undefined
+            return (
             // un enlace de SVG: next/link no vive dentro de un <svg>
             // eslint-disable-next-line @next/next/no-html-link-for-pages
             <a key={z.clave} href={z.href} className="nv-zona" data-zona={z.clave} aria-label={z.nombre}
-              onClick={z.clave === "marketing" && alAbrirMarketing ? (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); alAbrirMarketing() } : undefined}>
+              onClick={abrir ? (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); abrir() } : undefined}>
               {z.formas.map((f, i) => <polygon key={i} points={f} />)}
               {z.superficie && <g clipPath={`url(#nv-sup-${z.clave})`}><polygon className="nv-luz" points={z.superficie} filter="url(#nv-luz-suave)" /></g>}
               {z.rotulo && (
@@ -106,7 +110,8 @@ export function EscenaNuevo({ alAbrirMarketing, fondo, children }: { alAbrirMark
                   letterSpacing={26 * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{z.rotulo.texto}</text>
               )}
             </a>
-          ))}
+            )
+          })}
         </svg>
         {children}
       </div>

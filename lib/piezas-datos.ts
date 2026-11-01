@@ -22,8 +22,11 @@ import {
   type MapaDeOrigenes,
   type VideoDeLaPieza,
 } from "@/lib/piezas"
-import { tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
+import { familiaLegible, redLegible, tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
 import { esDePractica } from "@/lib/clientes"
+
+/** la carpeta de lo que no es pieza */
+export const CARPETA_OTRAS = "Otras revisiones"
 
 export const COLUMNAS_DE_LA_LISTA = "id, status, client_id, created_at, title, type, agent_name, output_preview, metadata, decision"
 
@@ -37,6 +40,8 @@ export interface FilaDeLaLista {
   titulo: string
   /** «Carrusel Facebook · Zero Risk Seguridad Industrial · 29 oct» */
   titulo_legible: string
+  /** la carpeta del explorador (6.7): «Carrusel Facebook» · «Historias Instagram» · «Otras revisiones» */
+  carpeta: string
   cliente_id: string | null
   cliente: string | null
   creada: string
@@ -89,6 +94,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       titulo_legible: f.type === TIPO_PIEZA
         ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null, creada: String(f.created_at) })
         : [tipoDeRevisionLegible(f.type), f.client_id ? nombres.get(String(f.client_id)) : null].filter(Boolean).join(" · "),
+      carpeta: f.type === TIPO_PIEZA ? [familiaLegible(meta.familia), redLegible(f.title)].filter(Boolean).join(" ") : CARPETA_OTRAS,
       cliente_id: (f.client_id as string | null) ?? null,
       cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null,
       creada: String(f.created_at),

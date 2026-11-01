@@ -30,17 +30,17 @@ const PLAN = "0d333a57-4bb5-411b-beaf-0dc163ed5409"
 /** filas con la forma REAL de la bandeja (lectura 31-oct) */
 const fila = (x: Partial<FilaDeLaLista> & Pick<FilaDeLaLista, "id" | "estado" | "status">): FilaDeLaLista => ({
   tipo: "content_piece_review", es_pieza: true, titulo: "crudo", titulo_legible: "Historias Instagram · Náufrago · 31 oct", cliente_id: NAUFRAGO, cliente: "Náufrago", creada: "2026-10-31T13:38:01.926Z",
-  gasto_usd: 1.02988, incompleta: false, desacuerdos: 2, tiene_dibujo: true, ...x,
+  gasto_usd: 1.02988, incompleta: false, desacuerdos: 2, tiene_dibujo: true, carpeta: "Historias Instagram", ...x,
 })
 const PIEZAS: FilaDeLaLista[] = [
   fila({ id: PIEZA, estado: "pendiente", status: "pending" }),
-  fila({ id: "aa677fad-2222-4222-8222-222222222222", estado: "aprobada", status: "approved", titulo_legible: "Carrusel Facebook · Zero Risk Seguridad Industrial · 30 oct", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", desacuerdos: 0, gasto_usd: 2.051572 }),
-  fila({ id: OTRA, estado: "pendiente", status: "pending", titulo_legible: "Carrusel Instagram · Zero Risk Seguridad Industrial · 28 oct", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", desacuerdos: 9, incompleta: true, gasto_usd: 1.840811 }),
-  fila({ id: "353067d1-3333-4333-8333-333333333333", estado: "superada", status: "rejected", titulo_legible: "Carrusel Facebook · Zero Risk Seguridad Industrial · 29 oct", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", desacuerdos: 3, incompleta: true }),
+  fila({ id: "aa677fad-2222-4222-8222-222222222222", estado: "aprobada", status: "approved", titulo_legible: "Carrusel Facebook · Zero Risk Seguridad Industrial · 30 oct", carpeta: "Carrusel Facebook", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", desacuerdos: 0, gasto_usd: 2.051572 }),
+  fila({ id: OTRA, estado: "pendiente", status: "pending", titulo_legible: "Carrusel Instagram · Zero Risk Seguridad Industrial · 28 oct", carpeta: "Carrusel Instagram", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", desacuerdos: 9, incompleta: true, gasto_usd: 1.840811 }),
+  fila({ id: "353067d1-3333-4333-8333-333333333333", estado: "superada", status: "rejected", titulo_legible: "Carrusel Facebook · Zero Risk Seguridad Industrial · 29 oct", carpeta: "Carrusel Facebook", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", desacuerdos: 3, incompleta: true }),
 ]
 const OTRAS: FilaDeLaLista[] = [
-  fila({ id: PLAN, estado: "pendiente", status: "pending", tipo: "plan_con_pendientes", es_pieza: false, titulo_legible: "Plan con puntos por resolver · Náufrago", gasto_usd: null, desacuerdos: 0, tiene_dibujo: false }),
-  fila({ id: "81f97487-4444-4444-8444-444444444444", estado: "archivada", status: "rejected", tipo: "editor_escalation", es_pieza: false, titulo_legible: "Revisión del editor · Zero Risk Seguridad Industrial", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", gasto_usd: null, desacuerdos: 0, tiene_dibujo: false }),
+  fila({ id: PLAN, estado: "pendiente", status: "pending", tipo: "plan_con_pendientes", es_pieza: false, titulo_legible: "Plan con puntos por resolver · Náufrago", carpeta: "Otras revisiones", gasto_usd: null, desacuerdos: 0, tiene_dibujo: false }),
+  fila({ id: "81f97487-4444-4444-8444-444444444444", estado: "archivada", status: "rejected", tipo: "editor_escalation", es_pieza: false, titulo_legible: "Revisión del editor · Zero Risk Seguridad Industrial", carpeta: "Otras revisiones", cliente_id: PEREZ, cliente: "Zero Risk Seguridad Industrial", gasto_usd: null, desacuerdos: 0, tiene_dibujo: false }),
 ]
 const BANDEJA: Bandeja = { estado: "todas", por_aprobar: 2, piezas: PIEZAS, otras: OTRAS, clientes: [{ id: NAUFRAGO, nombre: "Náufrago" }, { id: PEREZ, nombre: "Zero Risk Seguridad Industrial" }], leido_en: "2026-10-31T21:11:00.000Z" }
 
@@ -154,15 +154,23 @@ describe("sprint 6.6 · la lectura de la bandeja", () => {
 })
 
 describe("sprint 6.6 · el panel", () => {
-  it("dibuja la lista (pendientes primero, estado en palabras, avisos de la fila), las otras revisiones aparte y el visor de la pieza elegida", () => {
+  it("el explorador va de macro a micro DENTRO del cliente enfocado en la oficina: carpetas por tipo de pieza › piezas como tarjetas › la pieza con sus láminas", () => {
+    const carpetas = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ })
+    expect(carpetas).toContain('role="dialog"'); expect(carpetas).toContain('data-seccion="piezas"'); expect(carpetas).toContain("1 por aprobar") // la cuenta es la del cliente enfocado
+    expect(carpetas).not.toContain("data-cliente="); expect(carpetas).not.toContain("Todos los clientes") // de cliente se cambia en la ventana de selección, no aquí (Emilio 31-oct)
+    expect([...carpetas.matchAll(/data-carpeta="([^"]+)"/g)].map((m) => m[1])).toEqual(["Carrusel Facebook", "Carrusel Instagram", "Otras revisiones"]) // las otras revisiones, al final
+    expect(carpetas).toContain("2 piezas"); expect(carpetas).toContain("1 por aprobar · 1 en total"); expect(carpetas).toContain('data-miga="cliente"'); expect(carpetas).toContain(">Zero Risk Seguridad Industrial</button>"); expect(carpetas).toContain('data-nodo-carpeta="Carrusel Instagram"')
+    const tarjetas = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Facebook" })
+    expect([...tarjetas.matchAll(/data-pieza="([^"]+)" data-estado="([^"]+)"/g)].map((m) => [m[1], m[2]])).toEqual([[PIEZAS[1].id, "aprobada"], [PIEZAS[3].id, "superada"]])
+    expect(tarjetas).toContain(`src="/api/piezas/${PIEZAS[1].id}/lamina/1"`); expect(tarjetas).toContain("superada (la reemplazó otra pieza)"); expect(tarjetas).toContain("US$ 2,05"); expect(tarjetas).toContain('data-miga="carpeta"')
+    const incompleta = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Instagram" })
+    expect(incompleta).toContain("revisión de la jefatura incompleta · 9 desacuerdos"); expect(incompleta).toContain("por aprobar")
+    const otras = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Otras revisiones" })
+    expect(otras).toContain(`data-pieza="${OTRAS[1].id}" data-estado="archivada"`); expect(otras).toContain("Revisión del editor")
+    // la pieza abierta: la ruta dice dónde está y el visor muestra todo lo que acompaña
     const html = dibujar()
-    expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="piezas"'); expect(html).toContain("2 por aprobar · 1 otra revisión espera")
-    const filas = [...html.matchAll(/data-pieza="([^"]+)" data-estado="([^"]+)"/g)].map((m) => [m[1], m[2]])
-    expect(filas).toEqual([[PIEZA, "pendiente"], [OTRA, "pendiente"], [PIEZAS[1].id, "aprobada"], [PIEZAS[3].id, "superada"]])
-    expect(html).toContain('aria-current="true"'); expect(html).toContain("· por aprobar"); expect(html).toContain("· superada (la reemplazó otra pieza)")
-    expect(html).toContain("revisión de la jefatura incompleta · 9 desacuerdos"); expect(html).toContain("US$ 1,03")
-    expect(html).toContain("Otras revisiones, no son piezas (2 · 1 por decidir)"); expect(html).toContain(`data-revision="${PLAN}"`)
-    // el visor: título, estado, láminas, lo que acompaña
+    expect(html).toContain(">Náufrago</button>"); expect(html).toContain(">Historias Instagram</button>"); expect(html).toContain('data-miga="pieza"'); expect(html).toContain("lámina 1 de 2")
+    expect(html).toContain('aria-current="true"'); expect(html).not.toContain("data-cliente=")
     expect(html).toContain("Historias Instagram · Náufrago · 31 oct"); expect(html).toContain("versión 1"); expect(html).toContain("jefatura sin observaciones")
     expect(html).toContain(`src="/api/piezas/${PIEZA}/lamina/1"`); expect(html).toContain('alt="Lámina 1 de 2"'); expect(html).toContain("aspect-ratio:1080/1920"); expect(html).toContain("Ver las 2 juntas")
     expect(html).toContain("Lámina 1 · con imagen de fondo"); expect(html).toContain("¿Qué lleva el encebollado?"); expect(html).toContain("#encebollado #mariscos")
@@ -171,15 +179,16 @@ describe("sprint 6.6 · el panel", () => {
     // nada crudo de la base
     expect(html).not.toMatch(/content_piece_review|con_imagen|kit_historias|pending"?>/)
   })
-  it("una pieza pendiente ofrece Aprobar · Pedir cambios · Rechazar; la casilla «entiendo» se exige cuando la jefatura dejó desacuerdos; ninguna decisión sale al dibujar", () => {
+  it("una pieza pendiente ofrece Aprobar · Pedir cambios · Rechazar en botones grandes; la casilla «entiendo» se exige cuando la jefatura dejó desacuerdos; ninguna decisión sale al dibujar", () => {
     const html = dibujar()
     expect(html).toContain('data-accion="pieza-aprobar"'); expect(html).toContain('data-accion="pieza-pedir-cambios"'); expect(html).toContain('data-accion="pieza-rechazar"')
     expect(html).toContain("Aprobar no publica todavía"); expect(html).toContain('data-decision="quieto"')
     expect(html).not.toContain('data-editor="pieza-aprobar"') // la confirmación (con la casilla) aparece solo al pulsar
     const c = readFileSync("components/nuevo/PanelPiezas.tsx", "utf8")
+    expect(c).toContain('const GRANDE = `${BOTON} px-6 py-3 text-[15px] font-medium`') // los tres botones de la decisión, grandes (Emilio 31-oct)
     expect(c).toContain('data-casilla="entiendo"'); expect(c).toContain("disabled={enviando || (pieza.exige_casilla && !casilla)}")
-    expect(c).toContain("cuerpoDeDecisionDePieza({ accion: a, comentario, laminas: marcadas, casilla, total, exige_casilla: pieza.exige_casilla, estado_visto: pieza.status })")
-    expect(c).toContain("siguientePendiente(piezasVisibles, pieza.id)") // tras decidir, pasa a la siguiente pendiente
+    expect(c).toContain('cuerpoDeDecisionDePieza({ accion: a, comentario: texto, laminas: a === "cambios" ? laminasDelPedido : marcadas, casilla, total, exige_casilla: pieza.exige_casilla, estado_visto: pieza.status })')
+    expect(c).toContain("siguientePendiente(carpetaActual?.filas ?? [], pieza.id)") // tras decidir, pasa a la siguiente pendiente de la misma carpeta
   })
   it("una pieza ya resuelta no ofrece decidir; si fue rechazada y tiene encargo, ofrece rehacerla con el gasto a la vista", () => {
     const aprobada = dibujar({ piezaInicialDatos: { ...DETALLE, id: PIEZAS[1].id, estado: "aprobada", status: "approved" } })
@@ -193,16 +202,15 @@ describe("sprint 6.6 · el panel", () => {
     const plan = dibujar({ piezaInicialDatos: { ...DETALLE, id: PLAN, tipo: "plan_con_pendientes", es_pieza: false, titulo: "Plan con puntos por resolver · Náufrago", laminas: [], pie: null, avisos: [], exige_casilla: false, encargo_id: null, gasto_usd: null, version: null, jefatura: { resultado: null, desacuerdos: [], opinion_externa: null, revision_id: null } } })
     expect(plan).toContain("Aprobar el plan así"); expect(plan).toContain("Pedir cambios al plan…"); expect(plan).toContain("También la ves en el Plan de 90 días.")
     expect(plan).toContain('data-accion="revision-aprobar"'); expect(plan).not.toContain('data-accion="pieza-aprobar"'); expect(plan).toContain("Esta revisión no lleva láminas"); expect(plan).not.toContain("Sin dibujo"); expect(plan).not.toContain('data-bloque="jefatura"'); expect(plan).toContain("Lo que dice la bandeja")
-    expect(plan).toContain('<details data-grupo="otras" open=""') // la lista abre el grupo donde está la elegida
+    expect(plan).toContain(">Otras revisiones</button>"); expect(plan).toContain('data-miga="pieza"') // la ruta ubica la elegida en su carpeta
     const resuelta = dibujar({ piezaInicialDatos: { ...DETALLE, id: OTRAS[1].id, tipo: "editor_escalation", es_pieza: false, estado: "archivada", status: "rejected", laminas: [], avisos: [], exige_casilla: false } })
     expect(resuelta).toContain("Revisión del editor · ya resuelta (archivada)."); expect(resuelta).not.toContain('data-accion="revision-aprobar"')
   })
-  it("filtrar por cliente: con Náufrago elegido se ven solo sus filas y, si no queda nada por aprobar, se ofrece ver todos los clientes", () => {
-    const html = dibujar({ clienteInicial: NAUFRAGO })
-    expect([...html.matchAll(/data-pieza="([^"]+)"/g)].map((m) => m[1])).toEqual([PIEZA])
-    expect(html).toContain(`<option value="${NAUFRAGO}" selected="">`); expect(html).toContain("Todos los clientes")
-    const sinNada = dibujar({ bandejaInicial: { ...BANDEJA, estado: "pendiente", piezas: PIEZAS.filter((p) => p.cliente_id === PEREZ) }, piezaInicialDatos: null, clienteInicial: NAUFRAGO })
-    expect(sinNada).toContain("No hay piezas por aprobar de Náufrago."); expect(sinNada).toContain("Ver las de todos los clientes (3)")
+  it("en un cliente sin nada por aprobar lo dice y ofrece ver las ya decididas; nunca ofrece cambiar de cliente", () => {
+    const html = dibujar({ clienteInicial: NAUFRAGO, piezaInicialDatos: null })
+    expect([...html.matchAll(/data-carpeta="([^"]+)"/g)].map((m) => m[1])).toEqual(["Historias Instagram", "Otras revisiones"]); expect(html).toContain(">Náufrago</button>")
+    const sinNada = dibujar({ bandejaInicial: { ...BANDEJA, estado: "pendiente", piezas: PIEZAS.filter((p) => p.cliente_id === PEREZ), otras: [] }, piezaInicialDatos: null, clienteInicial: NAUFRAGO })
+    expect(sinNada).toContain("No hay piezas por aprobar de Náufrago."); expect(sinNada).toContain('data-accion="ver-todas"'); expect(sinNada).not.toContain("Todos los clientes"); expect(sinNada).not.toContain("data-carpeta=")
   })
   it("el cuadro «Piezas» abre encima (ya no enlaza a la ventana vieja) y el calendario abre la pieza encima cuando le dan cómo", () => {
     expect(APLICACIONES.find((a) => a.clave === "piezas")!.enlace(NAUFRAGO)).toBeNull()
