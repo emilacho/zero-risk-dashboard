@@ -10,6 +10,7 @@ import { diaYHora, plural, usdFinoES } from "@/lib/lenguaje"
  * Creativo (activos) · Web y búsqueda · Medios y Performance · Relaciones (segunda etapa, atenuados). Cada agente en SU equipo, con lo que está haciendo AHORA
  * (corridas reales de los últimos 7 días). SOLO LECTURA. Lo firmado y no instalado se ve «por instalar»; lo que ningún equipo nombra va a «Otros departamentos».
  * Mismo explorador que informes y cerebro: ruta arriba · equipos a la izquierda · tarjetas → la persona abierta. Sin selector de cliente (lo enfoca la oficina).
+ * 6.11 (ADENDA 7.1): el equipo de cada uno viene del DATO (`oficina_equipos` + `oficina_directorio.equipo`); lo que no tiene tarjeta en el directorio se lista aparte, sin inventarle equipo.
  */
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & EquipoDelCliente) | { ok: false; error: string }
@@ -167,7 +168,7 @@ export function PanelEquipo({ onCerrar, datosIniciales = null, clienteInicial = 
             {datos && !equipo && (
               <div data-vista="organigrama" className="eq-entra space-y-5">
                 <div className="flex flex-wrap items-baseline gap-3">
-                  <h3 className="text-[15px] font-medium text-zinc-100">Los 6 equipos del departamento</h3>
+                  <h3 className="text-[15px] font-medium text-zinc-100">Los {marketing.length} equipos del departamento</h3>
                   <span className="text-[12px] text-zinc-500">Lo que hace cada uno sale de corridas reales de los últimos 7 días{datos.ventana.corridas ? ` (${datos.ventana.corridas} corridas miradas)` : ""}</span>
                 </div>
                 <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -208,7 +209,7 @@ export function PanelEquipo({ onCerrar, datosIniciales = null, clienteInicial = 
                     </ul>
                   </div>
                 )}
-                <p className="text-[11.5px] text-zinc-500">{datos.equipos[0]?.origen === "directorio" ? "El equipo de cada empleado viene del directorio de la oficina." : "El equipo de cada empleado sale del mapa firmado el 1 de noviembre; cuando el directorio de la oficina traiga el equipo, manda el dato."}</p>
+                <p className="text-[11.5px] text-zinc-500" data-origen={datos.equipos[0]?.origen}>{datos.equipos[0]?.origen === "directorio" ? "El equipo de cada empleado viene del directorio de la oficina (dato de la plataforma). Quien no tiene tarjeta ahí se lista aparte, sin inventarle equipo." : "El equipo de cada empleado sale del mapa firmado el 1 de noviembre; cuando el directorio de la oficina traiga el equipo, manda el dato."}</p>
               </div>
             )}
 
@@ -233,7 +234,7 @@ export function PanelEquipo({ onCerrar, datosIniciales = null, clienteInicial = 
                     {a.miembros.length > 0 ? (
                       <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">{a.miembros.map((m) => <TarjetaDeMiembro key={m.nombre} m={m} color={equipo.color} onAbrir={() => setMiembroNombre(m.nombre)} />)}</ul>
                     ) : (
-                      <p className="text-[12.5px] text-zinc-500">{a.por_instalar.length ? "Todavía sin nadie instalado." : "Sin empleados asignados."}</p>
+                      <p className="text-[12.5px] text-zinc-500" data-sin-gente>{a.por_instalar.length ? "Todavía sin nadie instalado." : equipo.origen === "directorio" ? "El directorio de la oficina todavía no tiene tarjetas en este equipo (sus empleados llegan con el diseño de cada etapa)." : "Sin empleados asignados."}</p>
                     )}
                     {a.por_instalar.length > 0 && (
                       <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Por instalar" data-por-instalar>

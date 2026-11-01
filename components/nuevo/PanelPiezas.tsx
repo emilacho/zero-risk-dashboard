@@ -5,6 +5,8 @@ import type { Bandeja } from "@/lib/bandeja-datos"
 import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
 import { CAMPO_LEGIBLE, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, alcanceDeLosCambios, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuentaDeLaCarpeta, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono } from "@/lib/bandeja"
 import type { AccionDeLaPieza, EstadoPieza } from "@/lib/piezas"
+import { Kanban } from "@/components/nuevo/Kanban"
+import { armarKanban, tarjetaDePieza } from "@/lib/kanban"
 import { estadoTrasDecidir } from "@/lib/reflejo"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
@@ -16,6 +18,8 @@ const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
 type RespuestaPieza = { ok: true; pieza: DetalleDeLaPieza } | { ok: false; error: string }
 type Dialogo = null | "aprobar" | "cambios" | "rechazar" | "rehacer"
+/** 6.11 (ADENDA 3): las piezas como carpetas (lista) o como Kanban por columnas */
+export type VistaDePiezas = "lista" | "kanban"
 
 const ESTILO = `
 .pi-entra{animation:piEntra .4s cubic-bezier(.2,.8,.2,1) both}
@@ -118,7 +122,7 @@ function TarjetaDePieza({ p, onAbrir }: { p: FilaDeLaLista; onAbrir: () => void 
   )
 }
 
-export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch }: {
+export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista" }: {
   onCerrar: () => void
   /** lecturas ya hechas (pruebas) */
   bandejaInicial?: Bandeja | null
@@ -133,11 +137,14 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   accion?: typeof llamarAccion
   /** cómo se llama a `POST /api/piezas/{id}/decidir` (pruebas) */
   fetchImpl?: typeof fetch
+  /** 6.11: abrir como lista (carpetas) o como Kanban */
+  vistaInicial?: VistaDePiezas
 }) {
   const [bandeja, setBandeja] = useState<Bandeja | null>(bandejaInicial)
   const [errorBandeja, setErrorBandeja] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!bandejaInicial)
   const [filtro, setFiltro] = useState<FiltroDeLaBandeja>(bandejaInicial?.estado ?? (piezaInicial ? "todas" : "pendiente"))
+  const [vista, setVista] = useState<VistaDePiezas>(vistaInicial)
   const [carpeta, setCarpeta] = useState<string | null>(() => {
     // si ya viene la bandeja y una pieza elegida, el explorador arranca parado en su carpeta
     const id = piezaInicial ?? piezaInicialDatos?.id ?? null
@@ -206,6 +213,10 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
   const irA = (k: string | null) => { setCarpeta(k); setElegida(null); setPieza(null); setErrorPieza(null) }
   const verTodas = () => { setFiltro("todas"); if (!bandejaInicial) void leerLaBandeja("todas") }
+  // el Kanban muestra TODAS las piezas del cliente (decididas incluidas): entrar a él pasa el filtro a «todas»
+  const verComo = (v: VistaDePiezas) => { setVista(v); if (v === "kanban") { setElegida(null); setPieza(null); if (filtro !== "todas") verTodas() } }
+  // solo piezas (lo que no es pieza —plan con pendientes, revisión del editor— sigue en «Otras revisiones» de las carpetas)
+  const kanbanDePiezas = vista === "kanban" ? armarKanban(filasDelCliente.filter((f) => f.es_pieza).map(tarjetaDePieza)) : []
 
   const total = pieza?.laminas.length ?? 0
   const ir = useCallback((d: number) => { if (total > 0) { setN((x) => ((x - 1 + d + total) % total) + 1); setZoom(false) } }, [total])
@@ -295,7 +306,13 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
           {bandeja && <Chip tono={porAprobarDelCliente > 0 ? "ambar" : "neutro"}>{resumenDeLaBandeja({ por_aprobar: porAprobarDelCliente, otras_pendientes: otrasPendientes })}</Chip>}
           <p className="hidden text-[12px] text-zinc-500 xl:block">Lo que la oficina creativa entregó para {nombreDelCliente}, por tipo de pieza · aquí se aprueba, se piden cambios o se rechaza</p>
-          <div role="group" aria-label="Qué piezas ver" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
+          <div role="group" aria-label="Cómo ver las piezas" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
+            {(["lista", "kanban"] as const).map((v) => (
+              <button key={v} type="button" data-vista-piezas={v} aria-pressed={vista === v} onClick={() => verComo(v)}
+                className={`rounded px-2.5 py-1 transition ${vista === v ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{v === "lista" ? "Carpetas" : "Kanban"}</button>
+            ))}
+          </div>
+          <div role="group" aria-label="Qué piezas ver" className="flex rounded-md border border-white/10 p-0.5 text-[11px]">
             {(["pendiente", "todas"] as const).map((f) => (
               <button key={f} type="button" data-filtro={f} aria-pressed={filtro === f} onClick={() => { setFiltro(f); if (!bandejaInicial) void leerLaBandeja(f) }}
                 className={`rounded px-2.5 py-1 transition ${filtro === f ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{f === "pendiente" ? "Por aprobar" : "Todas"}</button>
@@ -337,7 +354,13 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
           {/* el panel derecho: carpetas → piezas → la pieza */}
           <section aria-label="El contenido" className="flex min-h-0 flex-col">
-            {!elegida && bandeja && !carpeta && (
+            {!elegida && bandeja && vista === "kanban" && (
+              <div className="pi-entra overflow-y-auto p-5" data-vista="kanban">
+                <p className="mb-3 text-[12px] text-zinc-500">Las piezas de {nombreDelCliente} por columna, según dónde están de verdad. Lo que todavía se está haciendo o revisando antes de llegar a esta bandeja se ve en el Kanban del Centro de campaña (Calendario → Kanban). Toca una tarjeta para abrir la pieza.</p>
+                <Kanban columnas={kanbanDePiezas} onElegir={(id) => setElegida(id)} etiqueta="Las piezas por columna" />
+              </div>
+            )}
+            {!elegida && bandeja && vista === "lista" && !carpeta && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="carpetas">
                 {!clienteActual ? <p className="text-[13px] text-zinc-400">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-amber-200">Ver también las ya decididas</button></> : null}</p> : (
                   <>
@@ -352,7 +375,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                 )}
               </div>
             )}
-            {!elegida && bandeja && carpetaActual && (
+            {!elegida && bandeja && vista === "lista" && carpetaActual && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="piezas">
                 <p className="mb-3 text-[12px] text-zinc-500">{carpetaActual.nombre} de {clienteActual?.nombre} · {cuentaDeLaCarpeta({ por_aprobar: carpetaActual.por_aprobar, total: carpetaActual.filas.length })}. Abre una para verla lámina por lámina.</p>
                 <ul className={CUADRICULA} aria-label="Las piezas">
@@ -360,7 +383,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                 </ul>
               </div>
             )}
-            {!elegida && bandeja && carpeta && !carpetaActual && <p className="p-5 text-[13px] text-zinc-400">Esa carpeta ya no tiene piezas con este filtro. <button type="button" onClick={() => irA(null)} className="underline decoration-dotted hover:text-amber-200">Volver a las carpetas de {nombreDelCliente}</button></p>}
+            {!elegida && bandeja && vista === "lista" && carpeta && !carpetaActual && <p className="p-5 text-[13px] text-zinc-400">Esa carpeta ya no tiene piezas con este filtro. <button type="button" onClick={() => irA(null)} className="underline decoration-dotted hover:text-amber-200">Volver a las carpetas de {nombreDelCliente}</button></p>}
             {elegida && !pieza && <p className={`p-6 text-[13px] ${errorPieza && !cargandoPieza ? "text-rose-300" : "text-zinc-500"}`}>{cargandoPieza ? "Leyendo la pieza…" : errorPieza ?? "Leyendo la pieza…"}</p>}
 
             {pieza && estadoVisto && (

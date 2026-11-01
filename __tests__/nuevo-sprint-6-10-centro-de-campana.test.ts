@@ -139,7 +139,7 @@ describe("6.10 · el organigrama: 6 equipos del MAPA firmado (01-nov)", () => {
   })
   it("el panel Equipo pinta el organigrama con los 6 equipos (los de segunda etapa atenuados) y sin selector de cliente", () => {
     const eq = armarEquipos([{ name: "jefe-marketing", display_name: "Jefe de marketing", role: null, model: null, is_active: true, status: null }], [], [], { cliente: NAUFRAGO, ahora: AHORA })
-    const datos: EquipoDelCliente = { clientes: [CLIENTE], cliente: CLIENTE, equipos: eq, resumen: resumenDelEquipo(eq), ventana: { desde: "x", corridas: 0 }, leido_en: "x" }
+    const datos: EquipoDelCliente = { clientes: [CLIENTE], cliente: CLIENTE, equipos: eq, origen: "mapa", resumen: resumenDelEquipo(eq), ventana: { desde: "x", corridas: 0 }, leido_en: "x" }
     const html = renderToStaticMarkup(createElement(PanelEquipo, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('data-seccion="equipo"'); expect(html).toContain('data-vista="organigrama"')
     for (const k of EQUIPOS_DE_MARKETING) expect(html).toContain(`data-equipo="${k}"`)
@@ -187,11 +187,12 @@ describe("6.10 · Gran idea (botón 5) · solo lectura hasta que la cadena publi
     expect(detalleDeGranIdea({ publicado: true, campana: null, tarjetas: [] }).texto).toBe("Sin campaña todavía")
     expect(detalleDeGranIdea({ publicado: true, campana: { id: "c" }, tarjetas: [] }).texto).toBe("La mesa de creativos todavía no sesionó")
   })
-  it("el panel dice «la sala creativa aún no abre» cuando no hay tabla ni tarjetas; NO tiene botones de decisión (nada que escribe se publica sin certificar)", () => {
+  it("el panel dice «la sala creativa aún no abre» cuando no hay tabla ni tarjetas, sin botones de decisión; la decisión (6.11) va SOLO por la ruta de CC#1, nunca directo a la plataforma", () => {
     const html = renderToStaticMarkup(createElement(PanelGranIdea, { onCerrar: () => {}, datosIniciales: { clientes: [CLIENTE], cliente: CLIENTE, campana: { id: "c", estado: "pausada" }, publicado: false, tarjetas: [], detalle: null, leido_en: "x" } }))
     expect(html).toContain('data-vista="no-publicado"'); expect(html).toContain("La sala creativa aún no abre")
+    expect(html).not.toContain("data-accion=\"aprobar-gran-idea\"")
     const src = leer("components/nuevo/PanelGranIdea.tsx")
-    expect(src).not.toMatch(/method:\s*"POST"/); expect(src).not.toContain("/api/cadena/concepto"); expect(src).not.toContain("gran-idea/decidir")
+    expect(src).not.toContain("/api/cadena/concepto"); expect(src).toContain("rutaDeDecisionDeGranIdea(") // la ruta del tablero de CC#1 (PR #77), reutilizada tal cual
     expect(leer("lib/concepto-datos.ts")).toContain('export const TIPO_CONCEPTO = "concepto_review"') // el lector de CC#1 (PR #77) reutilizado tal cual
   })
 })

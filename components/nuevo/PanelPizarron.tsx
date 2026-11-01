@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, type FilaDelTablero } from "@/lib/pizarron"
 import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible, usdES } from "@/lib/lenguaje"
+import { Kanban } from "@/components/nuevo/Kanban"
+import { armarKanban, tarjetaDeFila } from "@/lib/kanban"
+
+/** 6.11 (ADENDA 3): las mismas publicaciones, como calendario (semanas × días) o como Kanban (columnas genéricas) */
+export type VistaDelTablero = "calendario" | "kanban"
 
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
@@ -34,12 +39,13 @@ export function agruparEsperas(esperas: Array<{ motivo: string }>): string[] {
   return [...cuenta.entries()].map(([m, n]) => (n > 1 ? `${m} ×${n}` : m))
 }
 
-export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 6.6: abrir la pieza encima, en el estilo nuevo; sin esto, enlaza a la ventana de siempre */ onAbrirPieza?: (id: string) => void }) {
+export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, vistaInicial = "calendario" }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 6.6: abrir la pieza encima, en el estilo nuevo; sin esto, enlaza a la ventana de siempre */ onAbrirPieza?: (id: string) => void; vistaInicial?: VistaDelTablero }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
   const [elegida, setElegida] = useState<string | null>(null)
+  const [vista, setVista] = useState<VistaDelTablero>(vistaInicial)
   const cerrar = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cerrar.current?.focus() }, [])
@@ -65,16 +71,22 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
   const porAprobar = datos?.totales.emilio ?? 0
   const fases = datos?.fases ?? []
   const faseActiva = datos?.fase_activa.situacion === "en_curso" ? datos.fase_activa.fase?.clave : null
+  const kanban = useMemo(() => armarKanban((datos?.filas ?? []).map(tarjetaDeFila)), [datos])
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{ESTILO}</style>
-      <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" className="relative flex max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" data-vista-activa={vista} className="relative flex max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <span aria-hidden className={`h-2 w-2 rounded-full ${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}`} />
           <h2 id="pizarron-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Calendario</h2>
           <p className="hidden text-[12px] text-zinc-500 md:block">La campaña del cliente, publicación por publicación · solo lectura</p>
-          <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
+          <div role="group" aria-label="Cómo ver la campaña" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
+            {(["calendario", "kanban"] as const).map((v) => (
+              <button key={v} type="button" data-vista-tablero={v} aria-pressed={vista === v} onClick={() => setVista(v)} className={`rounded px-2.5 py-1 transition ${vista === v ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{v === "calendario" ? "Calendario" : "Kanban"}</button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
             <select value={cliente ?? ""} onChange={(e) => void leer(e.target.value || null)} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
@@ -125,7 +137,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
                 </ul>
 
                 {/* la cuadrícula: semanas × días */}
-                {datos.semanas.length === 0 ? <p className="text-[13px] text-zinc-500">El calendario de esta campaña todavía no tiene publicaciones.</p> : (
+                {vista === "kanban" ? <Kanban columnas={kanban} elegida={elegida} onElegir={(id) => setElegida(id === elegida ? null : id)} etiqueta="Las publicaciones de la campaña por columna" /> : datos.semanas.length === 0 ? <p className="text-[13px] text-zinc-500">El calendario de esta campaña todavía no tiene publicaciones.</p> : (
                   <div role="grid" aria-label="Publicaciones del calendario por semana" className="overflow-x-auto">
                     <div role="row" className="grid min-w-[760px] grid-cols-[5.5rem_repeat(7,minmax(0,1fr))] gap-1 px-0.5 pb-1 text-[11px] uppercase tracking-wider text-zinc-500">
                       <span role="columnheader">Semana</span>{DIAS_DE_LA_SEMANA.map((d) => <span key={d} role="columnheader">{d}</span>)}
@@ -160,7 +172,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza }:
 
           {/* la pieza elegida */}
           <aside className="flex min-h-0 flex-col border-t border-white/10 lg:border-l lg:border-t-0" aria-label="La publicación elegida">
-            {!filaElegida ? <p className="px-4 py-4 text-[13px] text-zinc-500">Haz clic en una casilla para ver la publicación y, si ya hay pieza, abrirla para aprobarla o pedir cambios.</p> : <DetalleDeLaFila f={filaElegida} onAbrirPieza={onAbrirPieza} />}
+            {!filaElegida ? <p className="px-4 py-4 text-[13px] text-zinc-500">Haz clic en una casilla o en una tarjeta para ver la publicación y, si ya hay pieza, abrirla para aprobarla o pedir cambios.</p> : <DetalleDeLaFila f={filaElegida} onAbrirPieza={onAbrirPieza} />}
           </aside>
         </div>
       </section>
