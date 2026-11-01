@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import {
-  COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, queHaceAprobar, avanceDelPedido, inicioSujetoAReanudar, nombreDelTramo, separarEsperas, queCambioDelTexto, type AvanceCrudo, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
+  TOPE_REESCRITURA_USD, avanceDelPedido, inicioSujetoAReanudar, nombreDelTramo, separarEsperas, queCambioDelTexto, type AvanceCrudo, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
 } from "@/lib/plan"
 import { leerPlanDelCliente, type PlanDelCliente } from "@/lib/plan-datos"
 import { enviarAlCiclo } from "@/lib/plan-ciclo"
@@ -51,7 +51,7 @@ describe("CC6 · el estado del ciclo del plan", () => {
 describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor del tablero", () => {
   it("pedir cambios lleva el texto (5–4.000), la confirmación del gasto y el tope ≤ 8; aprobar, el comentario opcional", () => {
     expect(cuerpoDePedirCambios(PLAN, "  Sube la meta a 130 visitas  ")).toEqual({ plan_id: PLAN, texto: "Sube la meta a 130 visitas", confirmo_gasto: true, tope_usd: TOPE_REESCRITURA_USD })
-    expect(TOPE_REESCRITURA_USD).toBeLessThanOrEqual(8); expect(COSTO_ESTIMADO_REESCRITURA).toBe("US$ 1–3")
+    expect(TOPE_REESCRITURA_USD).toBeLessThanOrEqual(8)
     expect(cuerpoDePedirCambios(PLAN, "no")).toEqual({ error: "Cuenta qué debe cambiar (al menos 5 caracteres)" })
     expect(cuerpoDePedirCambios(PLAN, "x".repeat(4001))).toEqual({ error: "Máximo 4.000 caracteres" })
     expect(cuerpoDePedirCambios("no-es-uuid", "Sube la meta")).toHaveProperty("error")
@@ -77,7 +77,7 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
     const r = await ejecutarAccion("plan-cambios", cuerpoDePedirCambios(PLAN, "Sube la meta a 130"), { revisor: "emilio", plataformaUrl: "https://plataforma.test", llave: "llave-de-prueba", fetchImpl: fetchFalso })
     expect(r.status).toBe(200)
     expect(llamadas).toEqual([{ url: "https://plataforma.test/api/tablero/plan-cambios", cuerpo: { plan_id: PLAN, texto: "Sube la meta a 130", confirmo_gasto: true, tope_usd: 8, reviewer: "emilio", origen: "dashboard" }, llave: "llave-de-prueba" }])
-    expect(palabrasDeLaRespuesta("plan-cambios", r.status, r.cuerpo).texto).toBe("Pedido enviado (vuelta 1 de 3): el jefe de marketing reescribe la versión 2 y la jefatura la revisa · tope US$ 8.")
+    expect(palabrasDeLaRespuesta("plan-cambios", r.status, r.cuerpo).texto).toBe("Pedido enviado (vuelta 1 de 3): el jefe de marketing reescribe la versión 2 y la jefatura la revisa.")
     // la plataforma responde 409 plan_en_revision → en palabras, sin código crudo
     const conflicto = (async () => new Response(JSON.stringify({ ok: false, error: "plan_en_revision" }), { status: 409 })) as unknown as typeof fetch
     const r2 = await ejecutarAccion("plan-aprobar", cuerpoDeAprobar(PLAN, ""), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: conflicto })
@@ -87,7 +87,7 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
     const detenida = (async () => new Response(JSON.stringify({ ok: false, error: "campana_detenida", detalle: "campaña pausada: pausa de pruebas por decisión del dueño 31-oct" }), { status: 409 })) as unknown as typeof fetch
     const r409 = await ejecutarAccion("plan-cambios", cuerpoDePedirCambios(PLAN, "Sube la meta a 130"), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: detenida })
     expect(r409.status).toBe(409)
-    expect(palabrasDeLaRespuesta("plan-cambios", r409.status, r409.cuerpo)).toEqual({ ok: false, texto: "La campaña de este plan está detenida: campaña pausada: pausa de pruebas por decisión del dueño 31-oct. No se cambió nada ni se gastó.", reintentar: false, releer: false })
+    expect(palabrasDeLaRespuesta("plan-cambios", r409.status, r409.cuerpo)).toEqual({ ok: false, texto: "La campaña de este plan está detenida: campaña pausada: pausa de pruebas por decisión del dueño 31-oct. No se cambió nada.", reintentar: false, releer: false })
     // con la ventana abierta, un 404 CON motivo (`plan_inexistente`) se dice como tal, no como «aún no disponible» (sonda de CC6 en producción, 01-nov 15:44Z)
     const inexistente = (async () => new Response(JSON.stringify({ ok: false, error: "plan_inexistente" }), { status: 404 })) as unknown as typeof fetch
     const r404 = await ejecutarAccion("plan-aprobar", cuerpoDeAprobar(PLAN, ""), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: inexistente })
@@ -101,7 +101,7 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
     const r4 = await ejecutarAccion("plan-cambios", cuerpoDePedirCambios(PLAN, "Sube la meta a 130"), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: planesError })
     expect(r4.status).toBe(502); expect(r4.cuerpo).toMatchObject({ plataforma_error: "planes_error", plataforma_status: 500 })
     const palabras = palabrasDeLaRespuesta("plan-cambios", r4.status, r4.cuerpo).texto
-    expect(palabras).toBe("No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada ni se gastó."); expect(palabras).not.toMatch(/relation|plan_cambios|planes_error/)
+    expect(palabras).toBe("No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada."); expect(palabras).not.toMatch(/relation|plan_cambios|planes_error/)
   })
 })
 
@@ -120,9 +120,9 @@ describe("CC6 · las respuestas de la puerta en palabras", () => {
     }
     for (const codigo of ["entrada_invalida", "falta_confirmar_el_gasto", "falta_el_tope", "tope_demasiado_alto"]) {
       const r = palabrasDeLaRespuesta("plan-cambios", 502, { ok: false, error: "la_plataforma_rechazo", plataforma_status: 400, detalle: codigo })
-      expect(r.texto).not.toContain(codigo); expect(r.texto).toContain("No se gastó nada")
+      expect(r.texto).not.toContain(codigo); expect(r.texto).toContain("No se cambió nada"); expect(r.texto).not.toMatch(/gast|US\$/) // Emilio: sin avisos de gasto
     }
-    expect(palabrasDeLaRespuesta("plan-cambios", 502, { ok: false, error: "la_plataforma_rechazo", detalle: "Could not find the table 'public.plan_cambios' in the schema cache" }).texto).toBe("No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada ni se gastó.")
+    expect(palabrasDeLaRespuesta("plan-cambios", 502, { ok: false, error: "la_plataforma_rechazo", detalle: "Could not find the table 'public.plan_cambios' in the schema cache" }).texto).toBe("No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada.")
     expect(palabrasDeLaRespuesta("plan-aprobar", 502, { ok: false, error: "la_plataforma_rechazo", plataforma_status: 500, detalle: "timeout de la base" }).texto).not.toContain("timeout") // un 5xx no se cuenta con su texto técnico
     expect(palabrasDeLaRespuesta("plan-aprobar", 401, {}).texto).toContain("sesión venció")
   })
@@ -190,7 +190,7 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
     expect(html).toContain('data-ciclo="esperando_decision"'); expect(html).toContain("Esperando tu decisión")
     expect(html).toContain('data-accion="plan-aprobar-asi"'); expect(html).toContain('data-accion="plan-pedir-cambios"'); expect(html).toMatch(/min-h-\[56px\][^"]*text-\[16px\]/) // grandes
     expect(html).toContain("Versión 2 · corregido 1 vez"); expect(html).toContain('data-accion="ver-historial"')
-    expect(html).not.toContain("el plan en sí no cambia"); expect(html).not.toContain('data-confirmar="plan-cambios"') // la confirmación se abre al pedir
+    expect(html).not.toContain("el plan en sí no cambia"); expect(html).not.toContain("data-confirmar") // sin confirmaciones de gasto
   })
   it("en revisión y reescribiendo no ofrecen botones; un pedido que no despertó ofrece «Reintentar» con su tope; aprobado lo dice; ciclo cerrado lo avisa", () => {
     const rev = pinta(datos({ ...base, con_compuerta: true }))
@@ -198,17 +198,18 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
     const re = pinta(datos({ ...base, version: 2, pedido: { id: "p", estado: "en_reescritura", texto: "Sube la meta a 130", vuelta: 1, despertado: true, despertar_detalle: null } }))
     expect(re).toContain("Reescribiendo"); expect(re).toContain("Lo que pediste: Sube la meta a 130"); expect(re).not.toContain('data-accion="plan-pedir-cambios"')
     const sin = pinta(datos({ ...base, pedido: { id: "p", estado: "pendiente", texto: "Sube la meta a 130", vuelta: 1, despertado: false, despertar_detalle: "sin llave" } }))
-    expect(sin).toContain('data-accion="reintentar"'); expect(sin).toContain("Reintentar el pedido (hasta US$ 8)")
+    expect(sin).toContain('data-accion="reintentar"'); expect(sin).toContain("Reintentar el pedido"); expect(sin).not.toContain("US$")
     const ap = pinta(datos(base, "approved"))
     expect(ap).toContain("Aprobado → pasa al brief"); expect(ap).not.toContain('data-accion="plan-aprobar-asi"')
     const cerrado = pinta(datos({ ...base, disponible: false }))
     expect(cerrado).toContain("El ciclo del plan se abre pronto"); expect(cerrado).toContain('data-accion="plan-aprobar-asi"') // se ofrece y responde «aún no disponible»
   })
-  it("la confirmación de «Pedir cambios» dice qué pasa, el costo estimado y el tope antes de gastar", () => {
+  it("Emilio 01-nov 16:27Z: sin avisos de gasto · Aprobar = un clic · Pedir cambios = escribir y enviar", () => {
     const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
-    expect(c).toContain('data-confirmar="plan-cambios"'); expect(c).toContain("data-costo-estimado"); expect(c).toContain("{COSTO_ESTIMADO_REESCRITURA}"); expect(c).toContain("data-tope")
-    expect(c).toContain("El jefe de marketing reescribe la versión"); expect(c).toContain("la jefatura la revisa")
-    expect(c).toContain('mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones))') // solo desde la confirmación
+    expect(c).not.toMatch(/data-confirmar|costo-estimado|COSTO_ESTIMADO|TOPE_REESCRITURA|hasta US\$|Antes de enviar/)
+    expect(c).toContain('onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, ""))}') // un clic
+    expect(c).toContain('void mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones))') // escribir y enviar
+    expect(cuerpoDePedirCambios(PLAN, "Sube la meta a 130")).toMatchObject({ confirmo_gasto: true, tope_usd: 8 }) // el cuerpo sigue con lo que la puerta exige
     expect(c).not.toMatch(/supabase|service_role|method: "POST"/)
   })
 })
@@ -259,7 +260,7 @@ describe("CC6 · ADENDA 1 · la barra de progreso del pedido de cambios", () => 
     expect(c).toContain("15_000"); expect(c).toContain('document.visibilityState === "visible"') // se actualiza solo, sin recargar
   })
   it("sin la ventana abierta el aviso es informativo, sin rojo", () => {
-    expect(palabrasDeLaRespuesta("plan-aprobar", 501, { ok: false, error: "todavia_no_disponible" })).toMatchObject({ tono: "info", texto: "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada ni se gastó." })
+    expect(palabrasDeLaRespuesta("plan-aprobar", 501, { ok: false, error: "todavia_no_disponible" })).toMatchObject({ tono: "info", texto: "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada." })
     expect(readFileSync("components/nuevo/PanelPlan.tsx", "utf8")).toContain('aviso.tono === "info" ? "info"')
   })
 })
@@ -287,22 +288,3 @@ describe("CC6 · errores 3–5 del panel del plan (ENCARGO Lenovo 01-nov)", () =
   })
 })
 
-describe("CC6 · DALE de Emilio punto 2 · «Aprobar» avisa el gasto ANTES del clic", () => {
-  it("con compuerta, aprobar inicia la campaña (brief y gran idea, ≈ US$ 4,5–8, tope 10); sin ella, no cuesta", () => {
-    expect(queHaceAprobar(true)).toEqual({ gasta: true, texto: "Aprobar inicia la campaña: brief y gran idea · US$ 4,5–8 estimado · tope US$ 10 · ≈ 1–2 h. Se levanta la pausa de pruebas; se detiene en la tarjeta de la gran idea." })
-    expect(queHaceAprobar(false).gasta).toBe(false)
-  })
-  it("el aviso se ve bajo los botones sin hacer clic y la confirmación lo repite", () => {
-    const d = (conCompuerta: boolean): PlanDelCliente => ({
-      clientes: [{ id: CLIENTE, nombre: "Náufrago", con_campana: false }], cliente: { id: CLIENTE, nombre: "Náufrago" }, hoy: "2026-11-01",
-      campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [], leido_en: "x",
-      documento: { id: PLAN_V2, titulo: "Plan v2", creado_en: null, actualizado_en: null, status: "draft", estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: "Prosa", caracteres: 5, que_cambio: null },
-      ciclo: { ...base, version: 2, con_compuerta: conCompuerta, compuerta: conCompuerta ? { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null } : null },
-    })
-    const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d(true) }))
-    expect(html).toContain('data-que-hace-aprobar="gasta"'); expect(html).toContain("Aprobar inicia la campaña: brief y gran idea"); expect(html).toContain("tope US$ 10")
-    expect(renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d(false) }))).toContain('data-que-hace-aprobar="no_gasta"')
-    const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
-    expect(c).toContain("data-confirmar-gasto"); expect(c).toContain("Sí, aprobar e iniciar la campaña (tope US$ 10)"); expect(c).not.toContain("No cuesta nada.</span>")
-  })
-})

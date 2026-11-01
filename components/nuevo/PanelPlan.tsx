@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
-import { BOTONES_DEL_PLAN, COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, queHaceAprobar, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
@@ -88,37 +88,35 @@ const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibol
 
 /**
  * LA DECISIÓN SOBRE EL PLAN (CC6 · 01-nov · ciclo del plan de CC1): para TODO plan, la versión vigente con su estado a la vista (en revisión · reescribiendo ·
- * esperando tu decisión · aprobado → pasa al brief) y los dos botones grandes. «Pedir cambios» GASTA: antes de enviar se dice qué pasa, el costo estimado y el
- * tope, y se confirma. «Aprobar» no cuesta. Si la última llamada no despertó al flujo (no se gastó nada) se ofrece «Reintentar». Las versiones anteriores
+ * esperando tu decisión · aprobado → pasa al brief) y los dos botones grandes. Sin avisos ni confirmaciones de gasto (Emilio, 01-nov 16:27Z): «Aprobar» es un
+ * clic y «Pedir cambios» es escribir y enviar; el gasto se verá en el panel de gastos de la oficina y en Dinero. Si la última llamada no despertó al flujo se ofrece «Reintentar». Las versiones anteriores
  * quedan en segundo plano («corregido N veces · ver historial»).
  */
 function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
   const lectura = leerElCiclo(statusDelDocumento, ciclo)
-  const [modo, setModo] = useState<"quieto" | "escribir" | "confirmar_cambios" | "confirmar_aprobar">("quieto")
-  const [ocupado, setOcupado] = useState(false)
+  // Emilio (01-nov 16:27Z): sin avisos ni confirmaciones de gasto. Aprobar = un clic; Pedir cambios = escribir y enviar. El cuerpo sigue llevando lo que la
+  // puerta exige (`confirmo_gasto:true`, `tope_usd:8`): el tope lo cuida la plataforma; el gasto se verá en el panel de gastos de la oficina y en Dinero
+  const [modo, setModo] = useState<"quieto" | "escribir">("quieto")
+  const [ocupado, setOcupado] = useState<null | "plan-aprobar" | "plan-cambios">(null)
   const [observaciones, setObservaciones] = useState("")
-  const [comentario, setComentario] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [verHistorial, setVerHistorial] = useState(false)
   const corregido = ciclo.version - 1
-  const alAprobar = queHaceAprobar(ciclo.con_compuerta)
 
   async function mandar(accion: PuertaDelCiclo, cuerpo: Record<string, unknown> | { error: string }) {
     setError(null)
     if ("error" in cuerpo) { setError(String(cuerpo.error)); return }
-    setOcupado(true)
+    setOcupado(accion)
     const r = await enviar(accion, cuerpo)
-    setOcupado(false)
+    setOcupado(null)
     setModo("quieto")
     // la respuesta se dice una sola vez, arriba del panel (el aviso); aquí abajo solo quedan los errores de lo que se escribió
-    if (r.ok) { setObservaciones(""); setComentario("") }
+    if (r.ok) setObservaciones("")
     onResultado(r)
   }
-  const revisarCambios = () => { const c = cuerpoDePedirCambios(planId, observaciones); if ("error" in c) { setError(c.error); return } setError(null); setModo("confirmar_cambios") }
   const reintentar = () => {
     if (lectura.reintentar === "plan-aprobar") { void mandar("plan-aprobar", cuerpoDeAprobar(planId, "")); return }
-    // reintentar un pedido de cambios vuelve a GASTAR cuando despierte: se confirma otra vez con su tope
-    setObservaciones(ciclo.pedido?.texto ?? ""); setModo("confirmar_cambios")
+    void mandar("plan-cambios", cuerpoDePedirCambios(planId, ciclo.pedido?.texto ?? ""))
   }
 
   return (
@@ -154,21 +152,20 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
 
       {modo === "quieto" && (lectura.puede_aprobar || lectura.puede_pedir_cambios) && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {lectura.puede_aprobar && <p data-que-hace-aprobar={alAprobar.gasta ? "gasta" : "no_gasta"} className={`order-last w-full text-[12.5px] ${alAprobar.gasta ? "text-amber-200" : "text-zinc-400"}`}>{alAprobar.texto}</p>}
-          {lectura.puede_aprobar && <button type="button" data-accion="plan-aprobar-asi" onClick={() => { setError(null); setModo("confirmar_aprobar") }} className={`${BOTON_GRANDE} border border-amber-300/80 bg-amber-400/90 text-black hover:bg-amber-300`}>{BOTONES_DEL_PLAN.aprobar}</button>}
-          {lectura.puede_pedir_cambios && <button type="button" data-accion="plan-pedir-cambios" onClick={() => { setError(null); setModo("escribir") }} className={`${BOTON_GRANDE} border border-white/25 bg-white/[0.06] text-zinc-50 hover:border-violet-300/70 hover:bg-violet-400/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
+          {lectura.puede_aprobar && <button type="button" data-accion="plan-aprobar-asi" disabled={!!ocupado} onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, ""))} className={`${BOTON_GRANDE} border border-amber-300/80 bg-amber-400/90 text-black hover:bg-amber-300`}>{ocupado === "plan-aprobar" ? "Aprobando…" : BOTONES_DEL_PLAN.aprobar}</button>}
+          {lectura.puede_pedir_cambios && <button type="button" data-accion="plan-pedir-cambios" disabled={!!ocupado} onClick={() => { setError(null); setModo("escribir") }} className={`${BOTON_GRANDE} border border-white/25 bg-white/[0.06] text-zinc-50 hover:border-violet-300/70 hover:bg-violet-400/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
         </div>
       )}
       {modo === "quieto" && lectura.reintentar && (
         <div className="mt-4">
-          <button type="button" data-accion="reintentar" onClick={reintentar} className={`${BOTON_GRANDE} border border-amber-300/70 bg-black/40 text-amber-100 hover:bg-amber-400/15`}>
-            {lectura.reintentar === "plan-cambios" ? `Reintentar el pedido (hasta US$ ${TOPE_REESCRITURA_USD})` : "Reintentar: seguir al brief"}
+          <button type="button" data-accion="reintentar" disabled={!!ocupado} onClick={reintentar} className={`${BOTON_GRANDE} border border-amber-300/70 bg-black/40 text-amber-100 hover:bg-amber-400/15`}>
+            {ocupado ? "Enviando…" : lectura.reintentar === "plan-cambios" ? "Reintentar el pedido" : "Reintentar: seguir al brief"}
           </button>
         </div>
       )}
 
       {modo === "escribir" && (
-        <form data-editor="plan-cambios" className="mt-4 rounded-lg border border-violet-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); revisarCambios() }}>
+        <form data-editor="plan-cambios" className="mt-4 rounded-lg border border-violet-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); void mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones)) }}>
           <label className="block">
             <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar? (el jefe de marketing lo lee y reescribe sobre la versión {ciclo.version})</span>
             <textarea value={observaciones} onChange={(ev) => setObservaciones(ev.target.value)} rows={4} maxLength={4000} aria-label="Qué debe cambiar en el plan" autoFocus
@@ -176,50 +173,10 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
           </label>
           <p className="mt-1 text-[11px] text-zinc-500">{observaciones.trim().length}/4000</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="submit" data-accion="revisar-pedido" className="rounded-md border border-violet-300/60 bg-violet-400/15 px-4 py-2 text-[13px] text-violet-50 hover:bg-violet-400/25">Revisar antes de enviar</button>
-            <button type="button" onClick={() => setModo("quieto")} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
+            <button type="submit" data-accion="enviar-pedido" disabled={!!ocupado} className="rounded-md border border-violet-300/60 bg-violet-500/70 px-5 py-2 text-[13.5px] font-medium text-white hover:bg-violet-500 disabled:opacity-50">{ocupado === "plan-cambios" ? "Enviando…" : "Enviar el pedido"}</button>
+            <button type="button" disabled={!!ocupado} onClick={() => setModo("quieto")} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
           </div>
         </form>
-      )}
-
-      {modo === "confirmar_cambios" && (
-        <div data-confirmar="plan-cambios" className="mt-4 rounded-lg border border-violet-400/40 bg-black/40 p-4">
-          <p className="text-[14px] font-medium text-zinc-50">Antes de enviar</p>
-          <dl className="mt-2 grid gap-2 text-[13px] sm:grid-cols-[9rem_minmax(0,1fr)]">
-            <dt className="text-zinc-500">Qué pasa</dt>
-            <dd className="text-zinc-200">El jefe de marketing reescribe la versión {ciclo.version} con tus observaciones y la jefatura la revisa. Sale la versión {ciclo.version + 1}; la actual queda en el historial.</dd>
-            <dt className="text-zinc-500">Costo estimado</dt>
-            <dd className="text-zinc-200" data-costo-estimado>{COSTO_ESTIMADO_REESCRITURA}</dd>
-            <dt className="text-zinc-500">Tope</dt>
-            <dd className="text-zinc-200" data-tope>US$ {TOPE_REESCRITURA_USD}: no se gasta más que eso</dd>
-            <dt className="text-zinc-500">Tus observaciones</dt>
-            <dd className="whitespace-pre-wrap text-zinc-300">{observaciones.trim()}</dd>
-          </dl>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="button" data-accion="confirmar-pedir-cambios" disabled={ocupado} onClick={() => void mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones))} className={`${BOTON_GRANDE} border border-violet-300/70 bg-violet-500/80 text-white hover:bg-violet-500`}>
-              {ocupado ? "Enviando…" : `Confirmar y pedir cambios (hasta US$ ${TOPE_REESCRITURA_USD})`}
-            </button>
-            <button type="button" disabled={ocupado} onClick={() => setModo("escribir")} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Volver a editar</button>
-          </div>
-        </div>
-      )}
-
-      {modo === "confirmar_aprobar" && (
-        <div data-confirmar="plan-aprobar" className="mt-4 rounded-lg border border-amber-400/50 bg-black/40 p-4">
-          <p className="text-[14px] text-zinc-100">Apruebas la versión {ciclo.version}: el plan queda firme.</p>
-          <p data-confirmar-gasto={alAprobar.gasta ? "si" : "no"} className={`mt-1 text-[13.5px] ${alAprobar.gasta ? "font-medium text-amber-200" : "text-zinc-400"}`}>{alAprobar.texto}</p>
-          <label className="mt-2 block">
-            <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">Comentario (opcional)</span>
-            <textarea value={comentario} onChange={(ev) => setComentario(ev.target.value)} rows={2} maxLength={1000} aria-label="Comentario al aprobar"
-              className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
-          </label>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="button" data-accion="confirmar-aprobar-plan" disabled={ocupado} onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, comentario))} className={`${BOTON_GRANDE} border border-amber-300/80 bg-amber-400/90 text-black hover:bg-amber-300`}>
-              {ocupado ? "Enviando…" : alAprobar.gasta ? `Sí, aprobar e iniciar la campaña (tope US$ 10)` : `Sí, aprobar la versión ${ciclo.version}`}
-            </button>
-            <button type="button" disabled={ocupado} onClick={() => setModo("quieto")} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
-          </div>
-        </div>
       )}
 
       {error && <p role="alert" className="mt-3 text-[13px] text-rose-300">{error}</p>}
@@ -509,7 +466,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
             </>
           )}
         </div>
-        <footer className="border-t border-white/10 px-4 py-2 text-[11.5px] text-zinc-500 sm:px-6">Aprobar un plan nuevo inicia la campaña: brief y gran idea (gasta, con tope de US$ 10). Pedir cambios hace que el jefe de marketing reescriba el plan y la jefatura lo revise (gasta, con tope). Cada decisión queda registrada; el plan lo escribe la oficina de planeación.</footer>
+        <footer className="border-t border-white/10 px-4 py-2 text-[11.5px] text-zinc-500 sm:px-6">Aprobar deja el plan firme y arranca la campaña (brief y gran idea). Pedir cambios hace que el jefe de marketing reescriba el plan y la jefatura lo revise. Cada decisión queda registrada; el plan lo escribe la oficina de planeación.</footer>
       </section>
     </div>
   )
