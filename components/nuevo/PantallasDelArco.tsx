@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type CSSProperties } from "react"
-import { GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, lienzoDeLaForma, type Animacion, type Caja } from "@/lib/pantallas-de-la-oficina"
+import { GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, lienzoDelMarco, marcoDeLaForma, type Animacion, type Caja } from "@/lib/pantallas-de-la-oficina"
 
 /**
  * LAS PANTALLAS DE TU OFICINA (sprint 6.14 → 6.16 · Emilio, 1-nov): las 6 pantallas encendidas del ARCO y las 5 chicas del ESCRITORIO, cada una con su MATIZ de
@@ -13,7 +13,8 @@ import { GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, lienzoDeLaForma, type Animacio
  * Movimiento con animaciones CSS (trazos que se dibujan con `pathLength`, bloques que crecen, luces que respiran) y SMIL para lo que viaja por un atributo (los
  * pulsos de la red, el cabezal de la pista). Se probó framer-motion (6.16): en esta app sus componentes `motion.*` saltan al último cuadro sin animar (el motor
  * imperativo sí anima); CSS+SMIL ya estaban comprobados en el navegador real (6.14b). Con «menos movimiento» del sistema, el CSS se apaga por media query y los
- * SMIL no se montan: todo queda quieto en su estado final visible. Cada dibujo se encaja en el LIENZO de su vidrio (con márgenes), sea alto o apaisado.
+ * SMIL no se montan: todo queda quieto en su estado final visible. Cada dibujo se encaja en el LIENZO de su vidrio (con márgenes), sea alto o apaisado, y
+ * (6.16b) se dibuja en el plano propio del vidrio: una matriz lo inclina con la perspectiva de la foto para que quede cuadrado con sus bordes.
  * Tres capas: el tinte (un svg propio con mezcla «matiz» contra la FOTO: dentro de un mismo svg la mezcla solo vería el propio svg y saldría plana), una sombra
  * que apaga un poco el vidrio para que las líneas claras contrasten, y la interfaz recortada a cada vidrio. Coordenadas en píxeles de la foto 2560×1440.
  */
@@ -261,7 +262,8 @@ export function PantallasDelArco() {
         <defs>{todas.map(({ id, p }) => <clipPath key={id} id={`nv-pantalla-${id}`}><polygon points={p.forma} /></clipPath>)}</defs>
         {todas.map(({ id, grupo, p }) => (
           <g key={id} className="nv-pantalla" data-grupo={grupo} data-pantalla={p.indice} data-animacion={p.animacion} data-tono={p.nombreDelTono} style={{ "--tono": p.tono } as CSSProperties} clipPath={`url(#nv-pantalla-${id})`}>
-            <g className="nv-hud"><Tablero animacion={p.animacion} l={lienzoDeLaForma(p.forma)} quieto={quieto} /></g>
+            {/* 6.16b · el dibujo se hace en el plano propio del vidrio y la matriz lo lleva a su perspectiva: cuadrado con sus bordes, no recto contra la foto */}
+            <g className="nv-hud" transform={`matrix(${marcoDeLaForma(p.forma).matriz.map((v) => v.toFixed(5)).join(" ")})`}><Tablero animacion={p.animacion} l={lienzoDelMarco(marcoDeLaForma(p.forma))} quieto={quieto} /></g>
           </g>
         ))}
       </svg>

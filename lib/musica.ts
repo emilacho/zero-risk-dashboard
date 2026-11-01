@@ -81,7 +81,7 @@ export const PANTALLA_MUSICA = {
   clave: "musica",
   nombre: "Música",
   rotulo: { x: 1168, y: 435, texto: "MÚSICA" }, // 6.15: letras al 30 % → el rótulo baja a pegarse al borde superior de la pantalla
-  forma: "1139,447 1197,440 1199,465 1142,472", // 6.15: afinada sobre el vidrio
+  forma: "1141,450 1190,438 1200,460 1150,470", // 6.16b: re-medida sobre la foto ampliada con cuadrícula (la vieja quedaba corrida)
   /** dónde aparece el reproductor (fracción de la foto): sobre la losa vacía a la izquierda, debajo de la consola */
   caja: { x: 0.245, y: 0.40, w: 0.205 },
 } as const

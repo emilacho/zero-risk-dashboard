@@ -31,18 +31,18 @@ export interface Pantalla {
 /** @deprecated nombre viejo (6.14) */
 export type PantallaDelArco = Pantalla
 
-/** EL ARCO · medidas 1-nov sobre oficina-2560.jpg (x 900-1680 · y 246-480) */
+/** EL ARCO · medidas 1-nov sobre oficina-2560.jpg (x 900-1680 · y 246-480) · 6.16b: las 6 encendidas re-medidas sobre la foto ampliada con cuadrícula de 10 px (las de 6.14 estaban corridas hasta 9 px) */
 export const PANTALLAS_DEL_ARCO: readonly Pantalla[] = [
-  { indice: 1, forma: "932,356 972,338 972,466 932,470", encendida: true, tono: "#f7c233", nombreDelTono: "dorado", animacion: "ventas" },
+  { indice: 1, forma: "928,369 971,345 970,450 928,471", encendida: true, tono: "#f7c233", nombreDelTono: "dorado", animacion: "ventas" },
   { indice: 2, forma: "986,330 1040,312 1040,438 986,426", encendida: false, tono: null, nombreDelTono: null, animacion: null },
-  { indice: 3, forma: "1052,312 1110,296 1110,406 1052,416", encendida: true, tono: "#ffad1f", nombreDelTono: "ámbar", animacion: "red" },
-  { indice: 4, forma: "1124,291 1182,276 1182,387 1124,394", encendida: true, tono: "#e8731a", nombreDelTono: "naranja de la marca", animacion: "indicadores" },
+  { indice: 3, forma: "1051,311 1111,294 1111,396 1052,416", encendida: true, tono: "#ffad1f", nombreDelTono: "ámbar", animacion: "red" },
+  { indice: 4, forma: "1126,291 1191,277 1191,380 1126,393", encendida: true, tono: "#e8731a", nombreDelTono: "naranja de la marca", animacion: "indicadores" },
   { indice: 5, forma: "1202,273 1276,268 1276,380 1202,382", encendida: false, tono: null, nombreDelTono: null, animacion: null },
   { indice: 6, forma: "1286,268 1360,273 1360,382 1286,380", encendida: false, tono: null, nombreDelTono: null, animacion: null },
-  { indice: 7, forma: "1372,276 1432,291 1432,394 1372,387", encendida: true, tono: "#ff5e1f", nombreDelTono: "zanahoria", animacion: "crecimiento" },
+  { indice: 7, forma: "1371,278 1436,290 1436,391 1371,380", encendida: true, tono: "#ff5e1f", nombreDelTono: "zanahoria", animacion: "crecimiento" },
   { indice: 8, forma: "1450,296 1508,312 1508,416 1450,406", encendida: false, tono: null, nombreDelTono: null, animacion: null },
-  { indice: 9, forma: "1522,316 1576,336 1576,438 1522,424", encendida: true, tono: "#e03d1a", nombreDelTono: "teja", animacion: "embudo" },
-  { indice: 10, forma: "1590,342 1630,358 1630,460 1590,446", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "mapa" },
+  { indice: 9, forma: "1523,318 1575,338 1575,444 1523,420", encendida: true, tono: "#e03d1a", nombreDelTono: "teja", animacion: "embudo" },
+  { indice: 10, forma: "1586,345 1624,364 1623,470 1586,450", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "mapa" },
 ]
 
 /**
@@ -51,11 +51,11 @@ export const PANTALLAS_DEL_ARCO: readonly Pantalla[] = [
  * La 3 (frente a la silla) queda libre. Cinco matices repartidos por la familia (≥5° entre ellos), intercalados con los del arco.
  */
 export const PANTALLAS_DEL_ESCRITORIO: readonly Pantalla[] = [
-  { indice: 1, forma: "1074,468 1113,462 1116,486 1077,490", encendida: true, tono: "#ffc94a", nombreDelTono: "miel", animacion: "cotizaciones" },
-  { indice: 2, forma: "1139,447 1197,440 1199,465 1142,472", encendida: true, tono: "#ff6d1a", nombreDelTono: "mandarina", animacion: "pista" },
-  { indice: 3, forma: "1240,429 1314,427 1315,455 1241,457", encendida: true, tono: "#ff871a", nombreDelTono: "calabaza", animacion: "agenda" },
-  { indice: 4, forma: "1368,443 1423,437 1425,462 1371,468", encendida: true, tono: "#e8491a", nombreDelTono: "ladrillo", animacion: "participacion" },
-  { indice: 5, forma: "1450,468 1487,464 1489,486 1452,490", encendida: true, tono: "#e8911a", nombreDelTono: "caramelo", animacion: "tareas" },
+  { indice: 1, forma: "1075,479 1108,464 1120,479 1078,493", encendida: true, tono: "#ffc94a", nombreDelTono: "miel", animacion: "cotizaciones" },
+  { indice: 2, forma: "1141,450 1190,438 1200,460 1150,470", encendida: true, tono: "#ff6d1a", nombreDelTono: "mandarina", animacion: "pista" },
+  { indice: 3, forma: "1237,428 1311,428 1311,451 1237,451", encendida: true, tono: "#ff871a", nombreDelTono: "calabaza", animacion: "agenda" },
+  { indice: 4, forma: "1370,436 1423,450 1414,471 1361,458", encendida: true, tono: "#e8491a", nombreDelTono: "ladrillo", animacion: "participacion" },
+  { indice: 5, forma: "1456,464 1482,476 1478,491 1442,480", encendida: true, tono: "#e8911a", nombreDelTono: "caramelo", animacion: "tareas" },
 ]
 
 export interface Caja { x: number; y: number; w: number; h: number; cx: number; cy: number }
@@ -72,6 +72,33 @@ export function cajaDeLaForma(forma: string): Caja {
 export function lienzoDeLaForma(forma: string): Caja {
   const c = cajaDeLaForma(forma), mx = c.w * 0.1, my = c.h * 0.12
   return { x: c.x + mx, y: c.y + my, w: c.w - 2 * mx, h: c.h - 2 * my, cx: c.cx, cy: c.cy }
+}
+
+/**
+ * 6.16b (Emilio, 1-nov: «casi todos están descuadrados»): los vidrios de la foto están en PERSPECTIVA (bordes de arriba y abajo inclinados), y un dibujo recto
+ * dentro de la caja que los envuelve queda torcido y cortado. El MARCO de cada pantalla es un plano propio de W×H (los largos medios de sus bordes) y la matriz
+ * afín que mejor lleva ese plano a las 4 esquinas del vidrio (mínimos cuadrados: el centro coincide exacto y cada esquina se desvía solo la mitad de lo que sus
+ * bordes no son paralelos). La forma va en el orden de la foto: arriba-izquierda, arriba-derecha, abajo-derecha, abajo-izquierda.
+ */
+export interface Marco { W: number; H: number; matriz: [number, number, number, number, number, number] }
+export function marcoDeLaForma(forma: string): Marco {
+  const [ai, ad, bd, bi] = forma.split(" ").map((p) => p.split(",").map(Number) as [number, number])
+  const largo = (p: [number, number], q: [number, number]) => Math.hypot(q[0] - p[0], q[1] - p[1])
+  const W = (largo(ai, ad) + largo(bi, bd)) / 2, H = (largo(ai, bi) + largo(ad, bd)) / 2
+  const a = (ad[0] + bd[0] - ai[0] - bi[0]) / (2 * W), b = (ad[1] + bd[1] - ai[1] - bi[1]) / (2 * W)
+  const c = (bi[0] + bd[0] - ai[0] - ad[0]) / (2 * H), d = (bi[1] + bd[1] - ai[1] - ad[1]) / (2 * H)
+  const mx = (ai[0] + ad[0] + bd[0] + bi[0]) / 4, my = (ai[1] + ad[1] + bd[1] + bi[1]) / 4
+  return { W, H, matriz: [a, b, c, d, mx - a * W / 2 - c * H / 2, my - b * W / 2 - d * H / 2] }
+}
+/** el lienzo útil dentro del plano propio del vidrio (márgenes del 10 % a los lados y 12 % arriba/abajo), en coordenadas del marco */
+export function lienzoDelMarco(m: Marco): Caja {
+  const mx = m.W * 0.1, my = m.H * 0.12
+  return { x: mx, y: my, w: m.W - 2 * mx, h: m.H - 2 * my, cx: m.W / 2, cy: m.H / 2 }
+}
+/** lleva un punto del marco a la foto */
+export function alaFoto(m: Marco, u: number, v: number): [number, number] {
+  const [a, b, c, d, e, f] = m.matriz
+  return [a * u + c * v + e, b * u + d * v + f]
 }
 
 export type PantallaViva = Pantalla & { tono: string; nombreDelTono: string; animacion: Animacion }
