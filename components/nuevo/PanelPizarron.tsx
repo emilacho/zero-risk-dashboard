@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, type FilaDelTablero } from "@/lib/pizarron"
-import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible, usdES } from "@/lib/lenguaje"
+import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible } from "@/lib/lenguaje"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDeFila } from "@/lib/kanban"
 
@@ -197,7 +197,7 @@ function DetalleDeLaFila({ f, onAbrirPieza }: { f: FilaDelTablero; onAbrirPieza?
         {f.pilar && pilarLegible(f.pilar) ? <div><dt className="inline text-zinc-500">Pilar · </dt><dd className="inline">{pilarLegible(f.pilar)}</dd></div> : f.pilar ? <div><dt className="inline text-zinc-500">Pilar · </dt><dd className="inline">{f.pilar}</dd></div> : null}
         {f.sede && <div><dt className="inline text-zinc-500">Sede · </dt><dd className="inline">{f.sede}</dd></div>}
         <div><dt className="inline text-zinc-500">En el calendario · </dt><dd className="inline">{estadoDeFilaLegible(f.estado_fila)}{f.tanda != null ? ` · tanda ${f.tanda}` : ""}{f.pieza_fija ? " · pieza fija" : ""}</dd></div>
-        {f.encargo && <div><dt className="inline text-zinc-500">Oficina · </dt><dd className="inline">{familiaLegible(f.encargo.familia)} · {f.encargo.estado.startsWith("cerrado") ? "entregada" : f.encargo.estado === "fallido" ? "falló" : f.encargo.estado === "aprobada" ? "aprobada" : "en proceso"} · {usdES(f.encargo.gasto_usd)}</dd></div>}
+        {f.encargo && <div><dt className="inline text-zinc-500">Oficina · </dt><dd className="inline">{familiaLegible(f.encargo.familia)} · {f.encargo.estado.startsWith("cerrado") ? "entregada" : f.encargo.estado === "fallido" ? "falló" : f.encargo.estado === "aprobada" ? "aprobada" : "en proceso"}</dd></div>}
         {f.jefatura && <div><dt className="inline text-zinc-500">Jefatura · </dt><dd className="inline">{f.jefatura.estado === "cerrada" ? resultadoDeJefaturaDePiezaLegible(f.jefatura.resultado) : "revisando"}</dd></div>}
       </dl>
       {f.pendientes.length > 0 && <div className="mt-3"><p className="text-zinc-500">Pendientes</p><ul className="mt-1 list-disc space-y-0.5 pl-4 text-zinc-300">{f.pendientes.map((p, i) => <li key={i}>{p}</li>)}</ul></div>}

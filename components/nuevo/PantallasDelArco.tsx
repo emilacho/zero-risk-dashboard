@@ -5,6 +5,7 @@ import { GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, lienzoDelMarco, marcoDeLaForma
 import { ESTILO_DE_DIRECCION, LIENZO_DE_DIRECCION, TableroDeDireccionVivo } from "@/components/nuevo/TablerosDeDireccion"
 import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import type { ResumenDeRiesgos } from "@/lib/direccion-riesgos"
+import type { ResumenDeDinero } from "@/lib/direccion-dinero"
 
 /**
  * LAS PANTALLAS DE TU OFICINA (sprint 6.14 → 6.16 · Emilio, 1-nov): las 6 pantallas encendidas del ARCO y las 5 chicas del ESCRITORIO, cada una con su MATIZ de
@@ -167,12 +168,14 @@ function Tablero({ animacion, l, quieto }: { animacion: Animacion; l: Caja; quie
   }
 }
 
-/** 6.20/6.21 · las pantallas del arco que se abren al tocarlas (Decisiones, la 5 · Riesgos, la 6; las demás llegan una por ciclo) */
+/** 6.20/6.21 · las pantallas del arco que se abren al tocarlas (Dinero, la 4 · Decisiones, la 5 · Riesgos, la 6; las demás llegan una por ciclo) */
 export const PANTALLA_DE_DECISIONES = "arco-5"
 export const PANTALLA_DE_RIESGOS = "arco-6"
-export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void }) {
+export const PANTALLA_DE_DINERO = "arco-4"
+export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos, dinero = null, alAbrirDinero }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void; dinero?: ResumenDeDinero | null; alAbrirDinero?: () => void }) {
   const abre: Record<string, { que: string; etiqueta: string; abrir: () => void } | undefined> = {
     [PANTALLA_DE_DECISIONES]: alAbrirDecisiones && { que: "decisiones", etiqueta: "Abrir tus decisiones", abrir: alAbrirDecisiones },
+    [PANTALLA_DE_DINERO]: alAbrirDinero && { que: "dinero", etiqueta: "Abrir el dinero", abrir: alAbrirDinero },
     [PANTALLA_DE_RIESGOS]: alAbrirRiesgos && { que: "riesgos", etiqueta: "Abrir los riesgos y alarmas", abrir: alAbrirRiesgos },
   }
   const [quieto, setQuieto] = useState(false) // «menos movimiento» del sistema: sin SMIL (el CSS se apaga solo por media query)
@@ -207,7 +210,7 @@ export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos
             {/* 6.16b · el dibujo se hace en el plano propio del vidrio y la matriz lo lleva a su perspectiva: cuadrado con sus bordes, no recto contra la foto */}
             <g className="nv-hud" transform={`matrix(${marcoDeLaForma(p.forma).matriz.map((v) => v.toFixed(5)).join(" ")})`}>
               {p.titulo
-                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} decisiones={decisiones} riesgos={riesgos} /></g>
+                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} decisiones={decisiones} riesgos={riesgos} dinero={dinero} /></g>
                 : <Tablero animacion={p.animacion} l={lienzoDelMarco(marcoDeLaForma(p.forma))} quieto={quieto} />}
             </g>
           </g>

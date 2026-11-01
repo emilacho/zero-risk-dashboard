@@ -222,7 +222,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
                   ...(vacios.length ? [`${vacios.map((x) => NOMBRE_DEL_SECTOR[x].nombre.toLowerCase()).join(", ")}: el sistema todavía no tiene de dónde leerlos`] : []),
                 ].join(" · ")}</p>
                 {avisos.map((f) => <p key={`a-${f.fuente}`} className="mt-1">{ORIGEN_DEL_RIESGO[f.fuente] ?? "Una fuente"}: {(f.detalle ?? "").replace(/\bn8n\b/g, "el sistema de procesos")}</p>)}
-                {datos.caducados > 0 && <p className="mt-1">{datos.caducados === 1 ? "1 aviso viejo de gasto caducó solo" : `${datos.caducados} avisos viejos de gasto caducaron solos`}</p>}
+                {datos.caducados > 0 && <p className="mt-1">{datos.caducados === 1 ? "1 aviso viejo caducó solo" : `${datos.caducados} avisos viejos caducaron solos`}</p>}
               </div>
             ) : null}
           </div>

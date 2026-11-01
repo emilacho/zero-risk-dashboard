@@ -128,7 +128,7 @@ function FormularioDelDueno({ f, sedes, enviando, error, onCambiar, onEnviar, on
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="submit" disabled={enviando} data-accion="guardar-dato-del-dueno" className={B_AMBAR}>{enviando ? "Guardando…" : "Guardar en el cerebro"}</button>
         <button type="button" onClick={onCancelar} disabled={enviando} className={B_SUAVE}>Cancelar</button>
-        <span className="ml-auto text-[11px] text-zinc-500">Sin costo · reemplaza lo anterior del mismo tema · el siguiente empleado lo lee así</span>
+        <span className="ml-auto text-[11px] text-zinc-500">Reemplaza lo anterior del mismo tema · el siguiente empleado lo lee así</span>
       </div>
     </form>
   )
