@@ -1,66 +1,93 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { GLOBO, SOMBREADOR_DE_COLOR, SOMBREADOR_DE_VERTICES, cajaDelGlobo } from "@/lib/globo-de-la-oficina"
+import { GLOBO, TRAZO_DEL_GLOBO, cajaDelGlobo, giroDelGlobo } from "@/lib/globo-de-la-oficina"
 
 /**
- * 6.18 · el globo holográfico de tu oficina gira despacio sobre su eje (cuenta y razones en `lib/globo-de-la-oficina.ts`). Un lienzo WebGL justo encima del
- * globo de la foto toma sus propios píxeles y los hace correr sobre la esfera. Arranca en el ángulo 0 (idéntico a la foto) y aparece con un fundido, así
- * no hay salto. Sin WebGL, con «menos movimiento» o con la pestaña oculta, no gira: se ve la foto tal cual. Solo decoración: no se toca, no lee nada.
+ * 6.18b · el globo holográfico de tu oficina gira despacio sobre su eje, redibujado con un mapa del mundo real en el estilo del holograma (razones en
+ * `lib/globo-de-la-oficina.ts`). Capas dentro del lienzo: la iluminación de la propia foto muy desenfocada · la cara de atrás tenue (transparencia) · tierras ·
+ * costas · cuadrícula, con halo cálido · y un fundido hacia la foto en el borde, para que el borde brillante y el anillo sigan siendo los de la foto.
+ * El mapa (world-atlas 1:110m, ~55 kB) se carga aparte, solo dentro de tu oficina. Con «menos movimiento» se dibuja quieto; con la pestaña oculta no se dibuja.
+ * Hasta tener el primer cuadro el lienzo es invisible (se ve la foto). Solo decoración: no se toca, no lee nada del sistema.
  */
 const FOTO = { w: 2560, h: 1440, src: "/nuevo/oficina-2560.jpg" }
 const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
+const ESCALA = 3 // píxeles del lienzo por píxel de la foto (nítido también en pantallas grandes)
 
 export function GloboQueGira() {
   const lienzo = useRef<HTMLCanvasElement>(null)
   const [listo, setListo] = useState(false)
   useEffect(() => {
     const cv = lienzo.current
-    if (!cv || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    const gl = cv.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: false })
-    if (!gl) return
+    const ctx = cv?.getContext("2d")
+    if (!cv || !ctx) return
     let vivo = true, cuadro = 0
-    const compilar = (tipo: number, fuente: string) => { const s = gl.createShader(tipo)!; gl.shaderSource(s, fuente); gl.compileShader(s); return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null }
-    const vs = compilar(gl.VERTEX_SHADER, SOMBREADOR_DE_VERTICES), fs = compilar(gl.FRAGMENT_SHADER, SOMBREADOR_DE_COLOR)
-    if (!vs || !fs) return
-    const prog = gl.createProgram()!; gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog)
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return
-    gl.useProgram(prog)
-    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
-    const aPos = gl.getAttribLocation(prog, "a_pos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
-    const u = (n: string) => gl.getUniformLocation(prog, n)
-    gl.uniform1f(u("u_margen"), GLOBO.margen); gl.uniform2f(u("u_tam"), FOTO.w, FOTO.h); gl.uniform3f(u("u_globo"), GLOBO.cx, GLOBO.cy, GLOBO.r)
-    gl.uniform1f(u("u_inclinacion"), GLOBO.inclinacion); gl.uniform2f(u("u_fundido"), GLOBO.fundido.desde, GLOBO.fundido.hasta); gl.uniform1f(u("u_nitido"), GLOBO.nitido); gl.uniform1f(u("u_empalme"), GLOBO.empalme)
-    const uTheta = u("u_theta")
-    const img = new Image()
-    img.decoding = "async"
-    img.onload = () => {
-      if (!vivo) return
-      const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img)
-      gl.viewport(0, 0, cv.width, cv.height)
-      let angulo = 0, antes = performance.now()
-      const velocidad = (2 * Math.PI) / GLOBO.segundosPorVuelta
+    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ;(async () => {
+      const [{ geoOrthographic, geoPath, geoGraticule }, { feature }, mundo] = await Promise.all([
+        import("d3-geo"), import("topojson-client"), import("world-atlas/land-110m.json"),
+      ])
+      const img = new Image(); img.decoding = "async"; img.src = FOTO.src
+      await img.decode().catch(() => undefined)
+      if (!vivo || !img.naturalWidth) return
+      const topo = (mundo as { default?: unknown }).default ?? mundo
+      const tierra = feature(topo as never, (topo as { objects: { land: never } }).objects.land)
+      const cuadricula = geoGraticule().step([GLOBO.paso, GLOBO.paso])()
+      const W = cv.width, c = W / 2, R = W / 2 / GLOBO.margen
+      // la iluminación: la propia foto del globo, muy desenfocada (queda el color y la luz, no las líneas viejas)
+      const base = document.createElement("canvas"); base.width = W; base.height = W
+      const b = base.getContext("2d")!
+      const caja = cajaDelGlobo()
+      b.filter = `blur(${GLOBO.desenfoque * ESCALA}px) brightness(${GLOBO.brilloDeLaBase}) saturate(${GLOBO.saturacionDeLaBase})`
+      b.drawImage(img, caja.x, caja.y, caja.w, caja.h, 0, 0, W, W)
+      b.filter = "none"
+      const frente = geoOrthographic().translate([c, c]).scale(R).clipAngle(90).precision(0.3)
+      const atras = geoOrthographic().translate([c, c]).scale(R).clipAngle(90).precision(0.3)
+      const pF = geoPath(frente, ctx), pA = geoPath(atras, ctx)
+      const T = TRAZO_DEL_GLOBO
+      const pintar = (segundos: number) => {
+        const [l, f, g] = giroDelGlobo(segundos)
+        frente.rotate([l, f, g])
+        atras.rotate([l + 180, -f, g]) // la cara de atrás, vista a través del holograma (en espejo)
+        ctx.save()
+        ctx.clearRect(0, 0, W, W)
+        ctx.beginPath(); ctx.arc(c, c, R, 0, Math.PI * 2); ctx.clip()
+        ctx.drawImage(base, 0, 0)
+        ctx.lineJoin = "round"; ctx.lineCap = "round"
+        ctx.save(); ctx.globalAlpha = T.atras; ctx.translate(W, 0); ctx.scale(-1, 1)
+        ctx.beginPath(); pA(cuadricula); ctx.strokeStyle = T.cuadricula; ctx.lineWidth = T.grosorCuadricula * ESCALA; ctx.stroke()
+        ctx.beginPath(); pA(tierra); ctx.strokeStyle = T.costa; ctx.lineWidth = T.grosorCosta * ESCALA; ctx.stroke()
+        ctx.restore()
+        ctx.shadowColor = T.halo; ctx.shadowBlur = T.radioHalo * ESCALA
+        ctx.beginPath(); pF(tierra); ctx.fillStyle = T.tierra; ctx.fill()
+        ctx.shadowBlur = T.radioHalo * 0.5 * ESCALA; ctx.strokeStyle = T.costa; ctx.lineWidth = T.grosorCosta * ESCALA; ctx.stroke(); ctx.shadowBlur = T.radioHalo * ESCALA
+        ctx.beginPath(); pF(cuadricula); ctx.strokeStyle = T.cuadricula; ctx.lineWidth = T.grosorCuadricula * ESCALA; ctx.stroke()
+        // el haz vertical del pedestal: quieto, como en la foto
+        const haz = ctx.createLinearGradient(0, c - R, 0, c + R); haz.addColorStop(0, T.haz.arriba); haz.addColorStop(1, T.haz.abajo)
+        ctx.beginPath(); ctx.moveTo(c, c - R); ctx.lineTo(c, c + R); ctx.strokeStyle = haz; ctx.lineWidth = T.haz.ancho * ESCALA; ctx.stroke()
+        ctx.restore()
+        ctx.save(); ctx.globalCompositeOperation = "destination-in"
+        const m = ctx.createRadialGradient(c, c, R * GLOBO.fundido.desde, c, c, R * GLOBO.fundido.hasta)
+        m.addColorStop(0, "rgba(0,0,0,1)"); m.addColorStop(1, "rgba(0,0,0,0)")
+        ctx.fillStyle = m; ctx.fillRect(0, 0, W, W); ctx.restore()
+      }
+      const t0 = performance.now()
+      let ultimo = 0
       const dibujar = (ahora: number) => {
         if (!vivo) return
-        if (!document.hidden) angulo += (Math.min(ahora - antes, 100) / 1000) * velocidad // tras una pausa larga no salta
-        antes = ahora
-        gl.uniform1f(uTheta, angulo)
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
         cuadro = requestAnimationFrame(dibujar)
+        if (document.hidden || ahora - ultimo < 1000 / GLOBO.cuadros) return
+        ultimo = ahora
+        pintar((ahora - t0) / 1000)
       }
-      gl.uniform1f(uTheta, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); setListo(true)
-      cuadro = requestAnimationFrame(dibujar)
-    }
-    img.src = FOTO.src
+      pintar(0); setListo(true)
+      if (!quieto) cuadro = requestAnimationFrame(dibujar)
+    })().catch(() => undefined)
     return () => { vivo = false; cancelAnimationFrame(cuadro) }
   }, [])
   const c = cajaDelGlobo()
   return (
-    <canvas ref={lienzo} className="nv-globo pointer-events-none absolute" aria-hidden="true" data-listo={listo} width={Math.round(c.w * 2)} height={Math.round(c.h * 2)}
+    <canvas ref={lienzo} className="nv-globo pointer-events-none absolute" aria-hidden="true" data-listo={listo} width={Math.round(c.w * ESCALA)} height={Math.round(c.w * ESCALA)}
       style={{ left: pct(c.x, FOTO.w), top: pct(c.y, FOTO.h), width: pct(c.w, FOTO.w), height: pct(c.h, FOTO.h), opacity: listo ? 1 : 0, transition: "opacity .6s ease" }} />
   )
 }

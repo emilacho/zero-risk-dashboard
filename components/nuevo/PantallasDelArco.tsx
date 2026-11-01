@@ -61,6 +61,7 @@ const ESTILO = `
 .nv-toque polygon.nv-zona-toque{fill:rgba(255,140,40,0);stroke:none;pointer-events:all;cursor:default}
 .nv-toque polygon.nv-luz{fill:url(#nv-luz-pantalla);opacity:0;mix-blend-mode:screen;pointer-events:none;transition:opacity .45s ease}
 .nv-toque:hover polygon.nv-luz,.nv-toque:active polygon.nv-luz{opacity:1}
+.nv-toque:not([data-tono="durazno"]) polygon.nv-luz{fill:url(#nv-luz-clara);stroke:rgba(255,243,226,.8);stroke-width:1.1;stroke-linejoin:round;filter:drop-shadow(0 0 2px rgba(255,236,200,.85))}/* 6.18b · en los vidrios naranjas la luz cálida se perdía: una luz más clara y un filo de luz en el borde, sutil */
 @media (prefers-reduced-motion:reduce){.nv-toque polygon.nv-luz,.nv-pantalla .nv-hud{transition:none}}
 `
 /** 6.18 (Emilio, 1-nov: «al tocar cada pantalla que se ilumine tal cual la oficina de marketing hiciste con el pizarrón»): al pasar el ratón (o tocar) cada
@@ -341,9 +342,12 @@ export function PantallasDelArco() {
           <radialGradient id="nv-luz-pantalla" cx="50%" cy="50%" r="70%">
             <stop offset="0%" stopColor="rgba(255,196,120,0.75)" /><stop offset="60%" stopColor="rgba(255,160,70,0.4)" /><stop offset="100%" stopColor="rgba(255,140,40,0.1)" />
           </radialGradient>
+          <radialGradient id="nv-luz-clara" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stopColor="rgba(255,240,215,0.42)" /><stop offset="60%" stopColor="rgba(255,218,170,0.2)" /><stop offset="100%" stopColor="rgba(255,196,130,0.08)" />
+          </radialGradient>
         </defs>
         {todas.filter(({ id }) => id !== "escritorio-2").map(({ id, p }) => (
-          <g key={id} className="nv-toque" data-id={id}>
+          <g key={id} className="nv-toque" data-id={id} data-tono={p.nombreDelTono}>
             <polygon className="nv-zona-toque" points={p.forma} />
             <polygon className="nv-luz" points={p.forma} />
           </g>
