@@ -325,15 +325,18 @@ export interface CicloDelPlan {
   compuerta: null | { estado: string; decidido_por: string | null; decidido_en: string | null; despertado: boolean | null; despertar_detalle: string | null }
   /** el pedido de cambios abierto sobre esta versión (pendiente o en reescritura) */
   pedido: null | { id: string; estado: string; texto: string; vuelta: number | null; despertado: boolean | null; despertar_detalle: string | null }
-  /** el avance del último pedido sobre esta versión (abierto o fallido), paso a paso; null si no hay */
+  /** el avance del último pedido sobre esta versión (abierto o fallido), paso a paso; o el del pedido que CREÓ esta versión mientras no se decida sobre ella
+   *  (CC6 · 01-nov · encargo «la barra se cierra»: la versión nueva se guarda a los segundos y la barra no debe desaparecer mientras la corrida sigue); null si no hay */
   avance: AvanceDelPedido | null
+  /** de qué pedido es el avance: el abierto sobre esta versión, o el que la creó */
+  avance_de?: "esta_version" | "pedido_que_la_creo" | null
 }
 
 /** la versión de una fila del plan y si sigue vigente, de su `provenance_tag` (contrato: versión ausente = 1; vigente salvo `vigente:false` o `superseded_por`) */
-export function versionDelTag(tag: unknown): { version: number; vigente: boolean; reemplaza_a: string | null; superseded_por: string | null; con_compuerta: boolean } {
+export function versionDelTag(tag: unknown): { version: number; vigente: boolean; reemplaza_a: string | null; superseded_por: string | null; con_compuerta: boolean; plan_cambio_id: string | null } {
   const t = objeto(tag)
   const v = numero(t.version)
-  return { version: v && v >= 1 ? Math.floor(v) : 1, vigente: t.vigente !== false && !texto(t.superseded_por), reemplaza_a: texto(t.reemplaza_a) || null, superseded_por: texto(t.superseded_por) || null, con_compuerta: t.compuerta === true }
+  return { version: v && v >= 1 ? Math.floor(v) : 1, vigente: t.vigente !== false && !texto(t.superseded_por), reemplaza_a: texto(t.reemplaza_a) || null, superseded_por: texto(t.superseded_por) || null, con_compuerta: t.compuerta === true, plan_cambio_id: texto(t.plan_cambio_id) || null }
 }
 
 export type EstadoDelCiclo = "en_revision" | "reescribiendo" | "esperando_decision" | "aprobado"
@@ -367,7 +370,15 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
       : `El jefe de marketing rehace el plan con tus observaciones${pd.vuelta ? ` (vuelta ${pd.vuelta} de ${VUELTAS_MAXIMAS})` : ""}; después lo revisa la jefatura.`
     return { estado: "reescribiendo", titulo: "Reescribiendo", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-cambios" : null, avisos }
   }
-  if (ciclo.con_compuerta && !cp) return { estado: "en_revision", titulo: "En revisión", detalle: "La jefatura está revisando esta versión: decides cuando termine.", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos }
+  if (ciclo.con_compuerta && !cp) {
+    // el paso REAL (CC6 · 01-nov): la reescritura sigue con el redactor y la jefatura en vueltas; se dice quién trabaja ahora, no siempre «la jefatura»
+    const av = ciclo.avance && !ciclo.avance.listo && !ciclo.avance.fallo ? ciclo.avance : null
+    const ahora = av?.ahora ?? null
+    if (ahora?.quien === "redactor") return { estado: "reescribiendo", titulo: "Reescribiendo", detalle: `${ahora.texto} con tus observaciones; después lo revisa la jefatura. Decides cuando termine.`, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos }
+    const enCurso = av?.pasos.find((x) => x.estado === "en_curso")
+    const detalle = ahora ? `${ahora.texto}: decides cuando termine.` : enCurso ? `Ahora: ${enCurso.nombre.charAt(0).toLowerCase()}${enCurso.nombre.slice(1)}. Decides cuando termine.` : "La jefatura está revisando esta versión: decides cuando termine."
+    return { estado: "en_revision", titulo: "En revisión", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos }
+  }
   const alTope = ciclo.version > VUELTAS_MAXIMAS
   if (alTope) avisos.push(`Ya van ${VUELTAS_MAXIMAS} reescrituras: desde aquí solo se puede aprobar; lo demás se decide a mano.`)
   if (ciclo.disponible && !ciclo.con_compuerta && !cp) avisos.push("Este plan es de antes del ciclo: aprobarlo lo deja firme sin reanudar nada (su brief ya salió). Pedir cambios crea la versión siguiente, con su revisión.")
@@ -388,8 +399,29 @@ export interface AvanceCrudo {
   version_nueva: null | { id: string; creado_en: string | null }
   jefatura: null | { estado: string; resultado: string | null; creado_en: string | null; cerrado_en: string | null }
   compuerta_nueva: null | { estado: string; creado_en: string | null }
+  /** los despachos ABIERTOS del cliente desde el pedido (de cualquier corrida: la reescritura corre con otros números de ejecución) */
+  trabajando?: Array<{ agente: string; desde: string | null }>
 }
-export interface AvanceDelPedido { pasos: PasoDelPedido[]; minutos: number | null; estimado: string; nota: string | null; fallo: null | { texto: string; que_hacer: string } }
+export type QuienTrabaja = "redactor" | "jefatura" | "otro"
+export interface AvanceDelPedido {
+  pasos: PasoDelPedido[]; minutos: number | null; estimado: string; nota: string | null; fallo: null | { texto: string; que_hacer: string }
+  /** terminó: la versión nueva espera la decisión del dueño */
+  listo?: boolean
+  /** quién trabaja en este momento (despacho abierto, dentro del tope de 20 min) y desde cuándo */
+  ahora?: null | { quien: QuienTrabaja; texto: string; desde: string | null }
+}
+/** los agentes de la jefatura (ADR-020: los 3 jefes) y su revisor externo */
+const JEFATURA = new Set(["editor-en-jefe", "editor_en_jefe", "brand-strategist", "brand_strategist", "jefe-client-success", "jefe_client_success", "revisor-externo-gpt"])
+const MINUTOS_TOPE_DESPACHO = 20
+export function quienTrabajaAhora(trabajando: AvanceCrudo["trabajando"], ahora: Date): AvanceDelPedido["ahora"] {
+  const vivos = (trabajando ?? []).filter((x) => x.desde && ahora.getTime() - Date.parse(x.desde) <= MINUTOS_TOPE_DESPACHO * 60_000).sort((a, b) => (b.desde ?? "").localeCompare(a.desde ?? ""))
+  const x = vivos[0]
+  if (!x) return null
+  const k = x.agente.trim().toLowerCase()
+  if (k === "jefe-marketing" || k === "jefe_marketing") return { quien: "redactor", texto: "El jefe de marketing está reescribiendo el plan", desde: x.desde }
+  if (JEFATURA.has(k)) return { quien: "jefatura", texto: "La jefatura está revisando la versión nueva", desde: x.desde }
+  return { quien: "otro", texto: `Trabajando: ${x.agente}`, desde: x.desde }
+}
 export const MINUTOS_ESTIMADOS = { min: 15, max: 30 } as const
 const minDe = (iso: string | null) => (iso ? Date.parse(iso) : NaN)
 const primera = (xs: Array<string | null>): string | null => xs.filter((x): x is string => !!x).sort()[0] ?? null
@@ -423,7 +455,7 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date): AvanceDelPedido {
   const minutos = p.creado_en && !Number.isNaN(minDe(p.creado_en)) ? Math.max(0, Math.round((ahora.getTime() - minDe(p.creado_en)) / 60000)) : null
   const nota = !fallo && !listo && minutos != null && minutos > 45 ? `Lleva ${minutos} min: más de lo esperado. Si no avanza, puede que la corrida se haya cortado (todavía no hay vigía que lo marque).` : null
   const estimado = listo ? "Terminó" : fallo ? "Se detuvo" : `Suele tardar ≈ ${MINUTOS_ESTIMADOS.min}–${MINUTOS_ESTIMADOS.max} min${minutos != null ? ` · van ${minutos} min` : ""}`
-  return { pasos, minutos, estimado, nota, fallo }
+  return { pasos, minutos, estimado, nota, fallo, listo, ahora: listo || fallo ? null : quienTrabajaAhora(a.trabajando, ahora) }
 }
 
 /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» del texto del plan (la reescritura abre con ese apartado): su contenido, sin el título; null si no está */
@@ -431,7 +463,8 @@ export function queCambioDelTexto(contenido: unknown): string | null {
   const t = texto(contenido)
   if (!t) return null
   const m = t.match(/(?:^|\n)\s*(?:#{1,6}\s*)?\**\s*QU[ÉE]\s+CAMBI[ÓO]\s+EN\s+ESTA\s+VERSI[ÓO]N(?:\s*\(v\d+\))?\s*\**\s*:?\s*\n?([\s\S]*?)(?=\n\s*#{1,6}\s|\n\s*```|\n\s*\*\*[A-ZÁÉÍÓÚÑ ]{6,}\*\*|$)/i)
-  const cuerpo = m ? m[1].trim() : ""
+  // sin marcas de formato a la vista (Emilio veía «**» y «---»): negritas fuera, la raya final fuera
+  const cuerpo = m ? m[1].replace(/\*\*/g, "").replace(/\n\s*-{3,}\s*$/, "").trim() : ""
   return cuerpo ? cuerpo.slice(0, 3000) : null
 }
 
@@ -535,3 +568,9 @@ export function decisionDelPlanLegible(status: unknown, decision: unknown): stri
 /** las sedes y zonas de la campaña («olon» · «olon_santa_elena» · «guayaquil») en palabras: las claves conocidas con su tilde, el resto con mayúscula */
 const SEDES_CONOCIDAS: Record<string, string> = { olon: "Olón", olon_santa_elena: "Olón (Santa Elena)", guayaquil: "Guayaquil", quito: "Quito", cuenca: "Cuenca", manta: "Manta", montanita: "Montañita", salinas: "Salinas" }
 export const sedeLegible = (s: unknown): string => { const k = texto(s).toLowerCase(); if (SEDES_CONOCIDAS[k]) return SEDES_CONOCIDAS[k]; const t = k.replace(/_/g, " "); return t ? t[0].toUpperCase() + t.slice(1) : "—" }
+
+/** el rótulo del texto del plan mientras se rehace (CC6 · 01-nov): lo que se ve abajo es la versión de antes, no la nueva */
+export function rotuloDelTextoMientrasSeRehace(ciclo: Pick<CicloDelPlan, "avance"> | null | undefined): string | null {
+  const a = ciclo?.avance
+  return a && !a.listo && !a.fallo ? "versión anterior · se está reescribiendo" : null
+}
