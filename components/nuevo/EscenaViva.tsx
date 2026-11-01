@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
@@ -17,6 +17,11 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
  * Volver: Esc, el control «Escena» o clic fuera → animación inversa. La dirección sí cambia (/nuevo/marketing) para que atrás y los enlaces funcionen.
  * 6.9 (Emilio, 1-nov): el CEREBRO es la otra estructura de la sala principal: el monolito del centro abre el explorador del Cerebro encima de la escena
  * (dirección /nuevo/cerebro, atrás y adelante funcionan), con su propio selector de cliente porque aquí no hay departamento que lo enfoque.
+ * 6.12 (Emilio, 1-nov: «el monolito central va a ser la oficina del humano; al darle clic, igual que el Dept. Marketing, se expande la oficina; una imagen con el mismo
+ * estilo pero que parezca un centro de comando, una nave espacial moderna con pantallas, sencillo y sofisticado»): el monolito proyecta TU OFICINA (/nuevo/oficina) con la
+ * MISMA mecánica que el departamento (crece desde el monolito, miniatura, Esc/atrás). La imagen `oficina-2560.jpg` la hizo el mismo generador que las otras dos
+ * (edición con la escena y el departamento como referencias de estilo · 1-nov · US$ 0,26 por 2 candidatas). El Cerebro no se pierde: es el arco de pantallas
+ * de tu oficina (`PANTALLAS`): se enciende al pasar el ratón y el clic abre el explorador encima (sin cambiar la dirección, como el Centro de campaña en marketing).
  */
 // 5.8 · medido con sonda (31-oct): con 650 ms y curva muy «ease-out» la imagen ya tenía el 65 % de su tamaño a los 100 ms y arrancaba invisible (opacidad 0):
 // se leía como «montar la imagen encima». Ahora arranca visible sobre la plataforma y crece parejo, más lento.
@@ -45,6 +50,8 @@ export const OPACIDAD_FONDO_ABIERTO = 0.35
 export const ANCHO_MARKETING_ABIERTO = "min(120vw, calc((100dvh - 4rem) * 16 / 9))"
 /** dentro de marketing-2560.jpg la sala ocupa x 270-2230 de 2560 y y 0-1165 de 1440 (medido 31-oct): su ancho y su centro, en fracción de la imagen */
 export const SALA_EN_LA_FOTO = { ancho: 0.766, cx: 0.488, cy: 0.405 }
+/** 6.12 · dentro de oficina-2560.jpg el centro de comando (losa + satélites) ocupa x 120-2445 de 2560 y y 0-1167 de 1440 (medido 1-nov) */
+export const SALA_EN_LA_OFICINA = { ancho: 0.908, cx: 0.501, cy: 0.405 }
 /** 5.8 · los bordes de las fotos se funden con el negro de la página: solo un degradado corto arriba y abajo (el centro no se toca) */
 export const FUNDIDO_BORDES = "linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)"
 /** 5.9 · mientras la oficina aparece chica sobre su plataforma, se ve SOLO la sala en un óvalo suave (sin los márgenes negros de la foto, que dibujaban un rectángulo
@@ -55,7 +62,17 @@ export const FUNDIDO_BORDES = "linear-gradient(to bottom,transparent 0,#000 8%,#
 /** 5.12 · el hueco es apenas mayor que la miniatura y se cierra de a poco desde el 55 %: la franja exterior de la miniatura queda cubierta por la propia foto
  *  (su margen oscuro), así que sus bordes rectos no se ven; las plataformas (el 70 % central) quedan en la zona limpia. */
 export const HOLGURA_HUECO = { x: 1.12, y: 1.15, nitido: 0.55 }
-export const OVALO_SALA = `radial-gradient(ellipse 40% 46% at ${SALA_EN_LA_FOTO.cx * 100}% ${SALA_EN_LA_FOTO.cy * 100}%,#000 55%,transparent 100%)`
+export const ovaloDeLaSala = (sala: { cx: number; cy: number }, rx = 40, ry = 46) => `radial-gradient(ellipse ${rx}% ${ry}% at ${sala.cx * 100}% ${sala.cy * 100}%,#000 55%,transparent 100%)`
+export const OVALO_SALA = ovaloDeLaSala(SALA_EN_LA_FOTO)
+
+/** 6.12 · lo que se proyecta sobre la escena: el departamento de marketing (desde su plataforma) o tu oficina (desde el monolito). Misma mecánica, otra foto y otro encaje. */
+export type ClaveDeDepartamento = "marketing" | "oficina"
+export interface Departamento { clave: ClaveDeDepartamento; url: string; nombre: string; alt: string; src: string; src1280: string; sala: { ancho: number; cx: number; cy: number }; ovalo: string }
+export const DEPARTAMENTOS: Record<ClaveDeDepartamento, Departamento> = {
+  marketing: { clave: "marketing", url: "/nuevo/marketing", nombre: "Dept. Marketing", alt: "El interior del departamento de marketing", src: "/nuevo/marketing-2560.jpg", src1280: "/nuevo/marketing-1280.jpg", sala: SALA_EN_LA_FOTO, ovalo: OVALO_SALA },
+  oficina: { clave: "oficina", url: "/nuevo/oficina", nombre: "Tu oficina", alt: "Tu oficina: el centro de comando", src: "/nuevo/oficina-2560.jpg", src1280: "/nuevo/oficina-1280.jpg", sala: SALA_EN_LA_OFICINA, ovalo: ovaloDeLaSala(SALA_EN_LA_OFICINA, 46, 48) },
+}
+export const departamentoDeLaRuta = (ruta: string): ClaveDeDepartamento | null => (ruta.startsWith("/nuevo/marketing") ? "marketing" : ruta.startsWith("/nuevo/oficina") ? "oficina" : null)
 
 const ESTILO = `
 .nv-fondo{transition:opacity 1.1s ease,transform 1.2s cubic-bezier(.55,0,.15,1);transform-origin:0% 100%}
@@ -66,7 +83,7 @@ const ESTILO = `
 .nv-proy{transform-origin:0 0;will-change:transform,opacity;-webkit-mask-image:${FUNDIDO_BORDES};mask-image:${FUNDIDO_BORDES}}
 .nv-proy[data-fase="entra"]{animation:nvEntra ${MS_ENTRADA}ms cubic-bezier(.55,0,.15,1) both}
 .nv-proy[data-fase="sale"]{animation:nvSale ${MS_SALIDA}ms linear both}
-.nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}
+.nv-foto-a{-webkit-mask-image:var(--nv-ovalo);mask-image:var(--nv-ovalo)}
 .nv-proy[data-fase="entra"] .nv-foto-b{animation:nvFotoBEntra ${MS_ENTRADA}ms linear both}
 .nv-proy[data-fase="sale"] .nv-foto-b{animation:nvFotoBSale ${MS_SALIDA}ms linear both}
 @keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}
@@ -77,6 +94,12 @@ const ESTILO = `
 .nv-tablero polygon{fill:rgba(255,140,40,0);stroke:none}
 .nv-tablero .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
 .nv-tablero:hover .nv-rotulo,.nv-tablero:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
+.nv-pantallas{cursor:pointer;outline:none}
+.nv-pantallas polygon{fill:rgba(255,140,40,0);stroke:none}
+.nv-pantallas polygon.nv-luz{fill:url(#nv-luz-oficina);opacity:0;mix-blend-mode:screen;pointer-events:none;transition:opacity .45s ease}
+.nv-pantallas:hover polygon.nv-luz,.nv-pantallas:focus-visible polygon.nv-luz{opacity:1}
+.nv-pantallas .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
+.nv-pantallas:hover .nv-rotulo,.nv-pantallas:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
 .nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.22) 50%,transparent 58%);background-size:260% 100%;opacity:0}
 .nv-proy[data-fase="entra"] .nv-barrido{animation:nvBarrido 800ms ease-out ${RETARDO_ESCENA_MS + 500}ms both}
 @keyframes nvEntra{from{opacity:0;transform:translate(var(--nv-x,0px),var(--nv-y,0px)) scale(var(--nv-s,.3))}20%{opacity:.35}55%{opacity:.85}to{opacity:1;transform:none}}
@@ -93,7 +116,7 @@ const ESTILO = `
   .nv-proy[data-fase="sale"]{animation:nvDesaparece .15s linear both}
   .nv-proy[data-fase="entra"] .nv-barrido{animation:none}
   .nv-proy[data-fase="entra"] .nv-foto-b,.nv-proy[data-fase="sale"] .nv-foto-b{animation:none}
-  .nv-tablero-luz,.nv-tablero .nv-rotulo{transition:none}
+  .nv-tablero-luz,.nv-tablero .nv-rotulo,.nv-pantallas polygon.nv-luz,.nv-pantallas .nv-rotulo{transition:none}
   @keyframes nvAparece{from{opacity:0}to{opacity:1}}
   @keyframes nvDesaparece{from{opacity:1}to{opacity:0}}
 }
@@ -111,16 +134,25 @@ export const TABLERO = {
   forma: "856,392 1098,286 1098,450 856,548", // la cara del tablero (zona del ratón)
   encendido: { src: "/nuevo/marketing-tablero-encendido.webp", caja: { x: 820, y: 250, w: 320, h: 340 } },
 }
-const FOTO_MKT = { w: 2560, h: 1440 }
+/** 6.12 · dentro de TU OFICINA, el arco de pantallas es el CEREBRO: al pasar el ratón se enciende suave (luz recortada a su cara, como las plataformas de la sala) y aparece
+ *  su rótulo con las letras de la marca; el clic abre el explorador del Cerebro encima (con selector de cliente). Píxeles de la foto 2560×1440 (medido 1-nov: el arco va de
+ *  x 900 a 1680 y de y 246 a 480). Sin recorte encendido del generador: la luz es la misma de la sala principal (gradiente + desenfoque, costo US$ 0). */
+export const PANTALLAS = {
+  clave: "cerebro",
+  nombre: "Cerebro",
+  rotulo: { x: 1290, y: 214, texto: "CEREBRO" },
+  forma: "900,350 1000,290 1140,258 1290,246 1440,254 1580,284 1680,340 1680,470 1580,440 1440,410 1290,400 1140,408 1000,440 900,480",
+}
+const FOTO_MKT = { w: 2560, h: 1440 } // las dos fotos proyectadas miden lo mismo
 const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
 const TAM_ROTULO_TABLERO = 32 // la foto se muestra al 58 % y la escena al 71 %: 32 px aquí ≈ 26 px allá en pantalla
 
 type Fase = "cerrado" | "entra" | "abierto" | "sale"
 type Caja = { x: number; y: number; w: number; h: number }
 
-/** dónde está la plataforma de marketing en la pantalla ahora mismo (la zona del ratón del SVG) */
-const cajaDeLaPlataforma = (): Caja | null => {
-  const el = document.querySelector('.nv-zona[data-zona="marketing"] polygon')
+/** dónde está la plataforma del departamento (o el monolito de tu oficina) en la pantalla ahora mismo (la zona del ratón del SVG) */
+const cajaDeLaPlataforma = (clave: ClaveDeDepartamento = "marketing"): Caja | null => {
+  const el = document.querySelector(`.nv-zona[data-zona="${clave}"] polygon`)
   if (!el) return null
   const r = el.getBoundingClientRect()
   return r.width > 0 ? { x: r.x, y: r.y, w: r.width, h: r.height } : null
@@ -140,10 +172,10 @@ export const huecoParaLaMiniatura = (marco: Caja, escena: { w: number; h: number
 }
 
 /** 5.8 · la transformación con la que la imagen abierta (en su sitio final) coincide con la plataforma: la sala de la foto, centrada en la plataforma y de su ancho */
-export const transformacionDesdeLaPlataforma = (plataforma: Caja, final: Caja) => {
-  const s = plataforma.w / (final.w * SALA_EN_LA_FOTO.ancho)
-  const x = plataforma.x + plataforma.w / 2 - (final.x + s * final.w * SALA_EN_LA_FOTO.cx)
-  const y = plataforma.y + plataforma.h / 2 - (final.y + s * final.h * SALA_EN_LA_FOTO.cy)
+export const transformacionDesdeLaPlataforma = (plataforma: Caja, final: Caja, sala = SALA_EN_LA_FOTO) => {
+  const s = plataforma.w / (final.w * sala.ancho)
+  const x = plataforma.x + plataforma.w / 2 - (final.x + s * final.w * sala.cx)
+  const y = plataforma.y + plataforma.h / 2 - (final.y + s * final.h * sala.cy)
   return { x, y, s }
 }
 
@@ -165,10 +197,15 @@ export const suavizado = (p: number, x1 = 0.55, y1 = 0, x2 = 0.15, y2 = 1) => {
 export const opacidadDeSalida = (p: number) => (p >= 1 ? 0 : p < 0.55 ? 1 : p < 0.9 ? 1 - ((p - 0.55) / 0.35) * 0.25 : Math.max(0, 0.75 * (1 - (p - 0.9) / 0.1)))
 const sinMovimiento = () => typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion:reduce)").matches || window.matchMedia("(max-width:700px)").matches)
 
-export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicial?: boolean; cerebroInicial?: boolean }) {
+/** `inicial`: `true` (= marketing, compatibilidad) o la clave del departamento ya proyectado (entrada directa a /nuevo/marketing o /nuevo/oficina) */
+export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicial?: boolean | ClaveDeDepartamento; cerebroInicial?: boolean }) {
   const [fase, setFase] = useState<Fase>(inicial ? "abierto" : "cerrado")
+  const [depto, setDepto] = useState<ClaveDeDepartamento>(inicial === true || !inicial ? "marketing" : inicial) // 6.12 · cuál se proyecta
+  const d = DEPARTAMENTOS[depto]
   // 6.9 · el Cerebro abierto sobre la sala principal (sale al <body>, como las aplicaciones); `montado` porque el portal no existe en el servidor
   const [cerebro, setCerebro] = useState(cerebroInicial)
+  // 6.12 · si el Cerebro se abrió con su propia dirección (/nuevo/cerebro: desde la sala o entrada directa) o encima de tu oficina sin tocar la dirección
+  const cerebroConUrl = useRef(cerebroInicial)
   const [montado, setMontado] = useState(false)
   useEffect(() => { setMontado(true) }, [])
   const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón abierto encima de la oficina (6.2: la pantalla de aplicaciones; el calendario se abre desde ahí)
@@ -179,9 +216,10 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const proy = useRef<HTMLDivElement>(null)
   const origen = useRef<Caja | null>(null)
 
-  const abrir = useCallback((cambiarUrl = true) => {
-    origen.current = cajaDeLaPlataforma() // antes de que la escena empiece a irse a la esquina
-    if (cambiarUrl) cambiarDireccion("/nuevo/marketing")
+  const abrir = useCallback((clave: ClaveDeDepartamento = "marketing", cambiarUrl = true) => {
+    origen.current = cajaDeLaPlataforma(clave) // antes de que la escena empiece a irse a la esquina
+    setDepto(clave)
+    if (cambiarUrl) cambiarDireccion(DEPARTAMENTOS[clave].url)
     setFase("entra")
     if (temporizador.current) clearTimeout(temporizador.current)
     temporizador.current = setTimeout(() => setFase("abierto"), MS_ENTRADA)
@@ -192,8 +230,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
     if (temporizador.current) clearTimeout(temporizador.current)
     temporizador.current = setTimeout(() => setFase("cerrado"), MS_SALIDA)
   }, [])
-  const abrirCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
-  const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
+  const abrirCerebro = useCallback((cambiarUrl = true, conUrl = true) => { cerebroConUrl.current = conUrl; if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
+  const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl && cerebroConUrl.current) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
 
   // 5.8 · antes de pintar la entrada o la salida, se fija desde dónde sale (o hacia dónde vuelve) la imagen: la plataforma, medida en pantalla
   useLayoutEffect(() => {
@@ -216,10 +254,11 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       capa.style.setProperty("--nv-mini-x", `${(mini.x - c.x).toFixed(1)}px`); capa.style.setProperty("--nv-mini-y", `${(mini.y - c.y).toFixed(1)}px`)
       capa.style.setProperty("--nv-mini-w", `${mini.w.toFixed(1)}px`); capa.style.setProperty("--nv-mini-h", `${mini.h.toFixed(1)}px`)
     }
+    const sala = DEPARTAMENTOS[depto].sala
     if (fase === "entra") {
-      const plataforma = origen.current ?? cajaDeLaPlataforma()
+      const plataforma = origen.current ?? cajaDeLaPlataforma(depto)
       if (!plataforma) return
-      const t = transformacionDesdeLaPlataforma(plataforma, final)
+      const t = transformacionDesdeLaPlataforma(plataforma, final, sala)
       el.style.setProperty("--nv-x", `${t.x.toFixed(1)}px`)
       el.style.setProperty("--nv-y", `${t.y.toFixed(1)}px`)
       el.style.setProperty("--nv-s", t.s.toFixed(4))
@@ -232,9 +271,9 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
     let cuadro = 0
     const paso = (ahora: number) => {
       const p = Math.min(1, (ahora - inicio) / MS_SALIDA), e = suavizado(p)
-      const plataforma = cajaDeLaPlataforma()
+      const plataforma = cajaDeLaPlataforma(depto)
       if (plataforma) {
-        const t = transformacionDesdeLaPlataforma(plataforma, final)
+        const t = transformacionDesdeLaPlataforma(plataforma, final, sala)
         el.style.transform = `translate(${(e * t.x).toFixed(1)}px,${(e * t.y).toFixed(1)}px) scale(${(1 + e * (t.s - 1)).toFixed(4)})`
       }
       el.style.opacity = opacidadDeSalida(p).toFixed(3)
@@ -242,16 +281,16 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
     }
     cuadro = requestAnimationFrame(paso)
     return () => cancelAnimationFrame(cuadro)
-  }, [fase])
+  }, [fase, depto])
 
   const abierta = fase !== "cerrado" && fase !== "sale"
   // Esc cierra; el «atrás» y «adelante» del navegador abren o cierran según la dirección
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent) => { if (e.key === "Escape" && abierta) cerrar() }
     const alVolver = () => {
-      const enMarketing = window.location.pathname.startsWith("/nuevo/marketing")
-      if (enMarketing && !abierta) abrir(false)
-      else if (!enMarketing && abierta) cerrar(false)
+      const ruta = departamentoDeLaRuta(window.location.pathname) // 6.12 · marketing u oficina (o ninguno)
+      if (ruta && (!abierta || ruta !== depto)) abrir(ruta, false)
+      else if (!ruta && abierta) cerrar(false)
       const enCerebro = window.location.pathname.startsWith("/nuevo/cerebro")
       if (enCerebro && !cerebro) abrirCerebro(false)
       else if (!enCerebro && cerebro) cerrarCerebro(false)
@@ -259,7 +298,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
     window.addEventListener("keydown", alTeclear)
     window.addEventListener("popstate", alVolver)
     return () => { window.removeEventListener("keydown", alTeclear); window.removeEventListener("popstate", alVolver) }
-  }, [abierta, abrir, cerrar, cerebro, abrirCerebro, cerrarCerebro])
+  }, [abierta, abrir, cerrar, cerebro, abrirCerebro, cerrarCerebro, depto])
   useEffect(() => () => { if (temporizador.current) clearTimeout(temporizador.current) }, [])
 
   return (
@@ -268,7 +307,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {/* la escena principal: miniatura translúcida en la esquina inferior izquierda mientras el departamento está proyectado */}
       {/* la escena principal SIEMPRE debajo de la foto del departamento (una sola transición continua hasta la esquina); la foto la deja ver por su hueco (5.10) */}
       <div className="nv-fondo flex h-full w-full items-center justify-center" data-atenuado={fase === "entra" || fase === "abierto"} data-resaltada={fase === "abierto" && sobreLaMiniatura} aria-hidden={fase !== "cerrado"} inert={fase !== "cerrado"}>
-        <EscenaNuevo alAbrirMarketing={() => abrir()} alAbrirCerebro={() => abrirCerebro()} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
+        <EscenaNuevo alAbrirMarketing={() => abrir("marketing")} alAbrirOficina={() => abrir("oficina")} fondo={<VidaSpline />}><TotemEnVivo /></EscenaNuevo>
       </div>
       {fase !== "cerrado" && (
         <div className="nv-capa fixed inset-0 z-[5] flex items-center justify-center" onClick={() => abierta && cerrar()}>
@@ -280,14 +319,34 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
               onMouseEnter={() => setSobreLaMiniatura(true)} onMouseLeave={() => setSobreLaMiniatura(false)}
               onClick={(e) => { e.stopPropagation(); setSobreLaMiniatura(false); cerrar() }} />
           )}
-          <div ref={proy} className="nv-proy relative aspect-video shrink-0" data-fase={fase === "sale" ? "sale" : fase === "entra" ? "entra" : "abierto"}
-            style={{ width: ANCHO_MARKETING_ABIERTO }} onClick={(e) => e.stopPropagation()}>
+          <div ref={proy} className="nv-proy relative aspect-video shrink-0" data-fase={fase === "sale" ? "sale" : fase === "entra" ? "entra" : "abierto"} data-departamento={depto}
+            style={{ width: ANCHO_MARKETING_ABIERTO, "--nv-ovalo": d.ovalo } as CSSProperties} onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/nuevo/marketing-2560.jpg" srcSet="/nuevo/marketing-1280.jpg 1280w, /nuevo/marketing-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1800px"
+            <img src={d.src} srcSet={`${d.src1280} 1280w, ${d.src} 2560w`} sizes="(max-width: 900px) 100vw, 1800px"
               alt="" aria-hidden width={2560} height={1440} decoding="async" className="nv-foto-a absolute inset-0 h-full w-full select-none" draggable={false} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/nuevo/marketing-2560.jpg" srcSet="/nuevo/marketing-1280.jpg 1280w, /nuevo/marketing-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1800px"
-              alt="El interior del departamento de marketing" width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
+            <img src={d.src} srcSet={`${d.src1280} 1280w, ${d.src} 2560w`} sizes="(max-width: 900px) 100vw, 1800px"
+              alt={d.alt} width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
+            {/* 6.12 · dentro de TU OFICINA: el arco de pantallas es el Cerebro (luz suave + rótulo al pasar el ratón; el clic abre el explorador encima sin cambiar la dirección) */}
+            {depto === "oficina" && (
+              <svg viewBox={`0 0 ${FOTO_MKT.w} ${FOTO_MKT.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Zonas de tu oficina" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="nv-luz-oficina" cx="50%" cy="50%" r="62%">
+                    <stop offset="0%" stopColor="rgba(255,178,86,0.55)" /><stop offset="55%" stopColor="rgba(255,152,52,0.3)" /><stop offset="100%" stopColor="rgba(255,140,40,0.08)" />
+                  </radialGradient>
+                  <filter id="nv-luz-suave-oficina" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="9" /></filter>
+                  <clipPath id="nv-sup-pantallas"><polygon points={PANTALLAS.forma} /></clipPath>
+                </defs>
+                <g className="nv-pantallas" data-zona={PANTALLAS.clave} role="button" tabIndex={0} aria-label={PANTALLAS.nombre} aria-haspopup="dialog" aria-expanded={cerebro}
+                  onClick={(e) => { e.stopPropagation(); abrirCerebro(false, false) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirCerebro(false, false) } }}>
+                  <polygon points={PANTALLAS.forma} />
+                  <g clipPath="url(#nv-sup-pantallas)"><polygon className="nv-luz" points={PANTALLAS.forma} filter="url(#nv-luz-suave-oficina)" /></g>
+                  <text className="nv-rotulo" x={PANTALLAS.rotulo.x} y={PANTALLAS.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO_TABLERO * 0.9 / 16}
+                    fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{PANTALLAS.rotulo.texto}</text>
+                </g>
+              </svg>
+            )}
+            {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={TABLERO.encendido.src} alt="" aria-hidden data-encendido={TABLERO.clave} decoding="async" draggable={false}
@@ -301,6 +360,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
                   fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{TABLERO.rotulo.texto}</text>
               </g>
             </svg>
+            </>)}
             <div className="nv-barrido" />
           </div>
         </div>

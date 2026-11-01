@@ -1,8 +1,9 @@
 /**
  * DASHBOARD NUEVO · la escena (variante-14, recortada y en versión liviana) con DOS zonas clicables y nada más (firma de Emilio, 30-oct).
  * Sprint 5 (31-oct, CC5): la escena un 30 % más grande (75 % del ancho en vez de 58 %) y con la capa de vida de Spline encima de la foto (`fondo`).
- *  · el monolito central → `cerebro`: 6.9 (Emilio, 1-nov: «el cerebro es la estructura central de la página principal, tal cual Dept. Marketing») abre el explorador
- *    del Cerebro ENCIMA de la sala (/nuevo/cerebro); antes llevaba al dashboard viejo (/oficinas#cerebro), que ya no se usa.
+ *  · el monolito central → `oficina`: 6.12 (Emilio, 1-nov: «el monolito central va a ser la oficina del humano; al darle clic, igual que el Dept. Marketing, se expande
+ *    la oficina») se expande como el departamento (/nuevo/oficina) con la imagen del centro de comando. Entre 6.9 y 6.12 abría el explorador del Cerebro directo
+ *    (/nuevo/cerebro); el Cerebro sigue existiendo: vive en el arco de pantallas DENTRO de tu oficina (`PANTALLAS` en EscenaViva) y en su dirección directa.
  *  · la plataforma de las pantallas y el proyector → «Dept. Marketing» (/nuevo/marketing; sprint 3, 31-oct). Se ilumina en ámbar poco a poco y aparece su rótulo.
  * Las demás plataformas no tienen enlace ni resaltado: se irán activando una por una. El SVG de encima usa las mismas coordenadas de la imagen (ver VISTA).
  */
@@ -26,10 +27,10 @@ const pct = (v: number, total: number) => `${((v / total) * 100).toFixed(4)}%`
 
 export const ZONAS: Zona[] = [
   {
-    clave: "cerebro", nombre: "Cerebro", href: "/nuevo/cerebro",
+    clave: "oficina", nombre: "Tu oficina", href: "/nuevo/oficina",
     formas: ["936,352 1010,306 1084,338 1084,507 1010,552 936,517"],
     superficie: "936,352 1010,306 1084,338 1084,507 1010,552 936,517", // el monolito mismo
-    rotulo: { x: 1010, y: 284, texto: "CEREBRO" },
+    rotulo: { x: 1010, y: 284, texto: "TU OFICINA" },
   },
   {
     clave: "marketing", nombre: "Dept. Marketing", href: "/nuevo/marketing",
@@ -64,7 +65,7 @@ const ESTILO = `
 `
 
 /** `fondo` va ENTRE la foto y las zonas clicables (la capa de vida de Spline, sprint 5): nunca tapa el hover ni los clics */
-export function EscenaNuevo({ alAbrirMarketing, alAbrirCerebro, fondo, children }: { alAbrirMarketing?: () => void; alAbrirCerebro?: () => void; fondo?: ReactNode; children?: ReactNode }) {
+export function EscenaNuevo({ alAbrirMarketing, alAbrirOficina, fondo, children }: { alAbrirMarketing?: () => void; alAbrirOficina?: () => void; fondo?: ReactNode; children?: ReactNode }) {
   return (
     <>
       <style>{ESTILO_ESCENA}</style>
@@ -95,7 +96,7 @@ export function EscenaNuevo({ alAbrirMarketing, alAbrirCerebro, fondo, children 
             {ZONAS.filter((z) => z.superficie).map((z) => <clipPath key={z.clave} id={`nv-sup-${z.clave}`}><polygon points={z.superficie} /></clipPath>)}
           </defs>
           {ZONAS.map((z) => {
-            const abrir = z.clave === "marketing" ? alAbrirMarketing : z.clave === "cerebro" ? alAbrirCerebro : undefined
+            const abrir = z.clave === "marketing" ? alAbrirMarketing : z.clave === "oficina" ? alAbrirOficina : undefined
             return (
             // un enlace de SVG: next/link no vive dentro de un <svg>
             // eslint-disable-next-line @next/next/no-html-link-for-pages
