@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { ESCRITORIO_VIVO, GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, PANTALLAS_DEL_ARCO, PANTALLAS_DEL_ESCRITORIO, PANTALLAS_VIVAS, cajaDeLaForma, lienzoDeLaForma, matizDe, matizYSaturacion } from "@/lib/pantallas-de-la-oficina"
+import { ESCRITORIO_VIVO, GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, PANTALLAS_DEL_ARCO, PANTALLAS_DEL_ESCRITORIO, PANTALLAS_VIVAS, alaFoto, cajaDeLaForma, lienzoDeLaForma, lienzoDelMarco, marcoDeLaForma, matizDe, matizYSaturacion } from "@/lib/pantallas-de-la-oficina"
 import { PANTALLA_MUSICA } from "@/lib/musica"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
 import { EscenaViva } from "@/components/nuevo/EscenaViva"
@@ -64,6 +64,15 @@ describe("6.15 · las 5 pantallas chicas del escritorio (lógica pura)", () => {
       expect(l.x).toBeCloseTo(c.x + c.w * 0.1, 5); expect(l.w).toBeCloseTo(c.w * 0.8, 5); expect(l.y).toBeCloseTo(c.y + c.h * 0.12, 5); expect(l.h).toBeCloseTo(c.h * 0.76, 5)
       expect(l.cx).toBe(c.cx); expect(l.cy).toBe(c.cy)
     }
+    // 6.16b · «casi todos están descuadrados»: el dibujo va en el plano propio del vidrio y una matriz lo lleva a la perspectiva de la foto
+    const dentro = (pt: [number, number], q: Array<[number, number]>) => q.every((a, i) => { const b = q[(i + 1) % 4]; return (b[0] - a[0]) * (pt[1] - a[1]) - (b[1] - a[1]) * (pt[0] - a[0]) >= 0 })
+    for (const p of [...PANTALLAS_DEL_ESCRITORIO, ...PANTALLAS_VIVAS]) {
+      const q = p.forma.split(" ").map((s) => s.split(",").map(Number) as [number, number]), m = marcoDeLaForma(p.forma), l = lienzoDelMarco(m)
+      const esquinas: Array<[number, number]> = [[0, 0], [m.W, 0], [m.W, m.H], [0, m.H]]
+      esquinas.forEach(([u, v], i) => { const [x, y] = alaFoto(m, u, v); expect(Math.hypot(x - q[i][0], y - q[i][1])).toBeLessThan(Math.max(m.W, m.H) * 0.08) }) // cada esquina cae casi en la suya
+      const [cx, cy] = alaFoto(m, m.W / 2, m.H / 2); expect(cx).toBeCloseTo(q.reduce((s, v) => s + v[0], 0) / 4, 6); expect(cy).toBeCloseTo(q.reduce((s, v) => s + v[1], 0) / 4, 6) // centro exacto
+      for (const [u, v] of [[l.x, l.y], [l.x + l.w, l.y], [l.x + l.w, l.y + l.h], [l.x, l.y + l.h]]) expect(dentro(alaFoto(m, u, v), q)).toBe(true) // el lienzo entero cae dentro del vidrio
+    }
   })
   it("sus 5 tonos son naranjas distintos entre sí (≥ 5° entre vecinos) y repartidos por la familia", () => {
     const escritorio = ESCRITORIO_VIVO.map((p) => matizDe(p.tono)), arco = PANTALLAS_VIVAS.map((p) => matizDe(p.tono))
@@ -110,7 +119,7 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
     expect((html.match(/pathLength="1" stroke-dashoffset="0"/g) ?? []).length).toBe(3 + 1 + 3) // trazos que se dibujan: 3 curvas, la de crecimiento, 3 marcas; en reposo, dibujados
     // líneas finas de luz: el grosor sale del tamaño de cada vidrio (legible también en las chicas); sin framer-motion (6.16: sus componentes saltan al último cuadro en esta app)
     const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
-    expect(c).toContain("const g = Math.max(1.3, Math.min(w, h) * 0.035)"); expect(c).toContain("lienzoDeLaForma(p.forma)"); expect(c).not.toMatch(/from "framer-motion"/)
+    expect(c).toContain("const g = Math.max(1.3, Math.min(w, h) * 0.035)"); expect(c).toContain("lienzoDelMarco(marcoDeLaForma(p.forma))"); expect(c).toContain('transform={`matrix(${marcoDeLaForma(p.forma).matriz'); expect(c).not.toMatch(/from "framer-motion"/)
   })
   it("no lee nada, no abre nada, no enlaza nada", () => {
     const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
