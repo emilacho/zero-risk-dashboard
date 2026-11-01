@@ -84,10 +84,10 @@ describe("punto 1 · todos en su puesto", () => {
     expect(creativo.equipo[0]).toMatchObject({ agente: "content-creator", estado: "trabajando" })
     expect(creativo.equipo.slice(1).every((p) => p.estado !== "trabajando")).toBe(true)
   })
-  it("los puestos caben: dos filas al frente del escritorio, sin salirse de la celda de la mesa", () => {
+  it("los puestos caben: en fila al frente del escritorio, sin salirse de la celda de la mesa", () => {
     for (const m of MESAS) {
       const pts = puestosDeLaMesa(m, MAXIMO_DE_PUESTOS)
-      expect(pts).toHaveLength(MAXIMO_DE_PUESTOS); expect(FILA_DE_PUESTOS * 2).toBe(MAXIMO_DE_PUESTOS)
+      expect(pts).toHaveLength(MAXIMO_DE_PUESTOS); expect(FILA_DE_PUESTOS).toBe(MAXIMO_DE_PUESTOS)
       for (const p of pts) { expect(Math.abs(p.x - m.centro.x)).toBeLessThan(160); expect(p.y).toBeGreaterThan(0) }
       expect(new Set(pts.map((p) => `${p.x},${p.y}`)).size).toBe(pts.length) // nadie encima de nadie
     }
@@ -98,8 +98,8 @@ describe("punto 1 · todos en su puesto", () => {
     const datos = armarEscena(entrada({ despachos: [{ id: "d1", agent_name: "content-creator", client_id: NAUFRAGO, workflow_id: null, workflow_execution_id: "210300", status: "running", running_at: hace(3), completed_at: null, created_at: hace(3) }] }))
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: datos }))
     const figuras = html.match(/class="nv-av-fig"/g)!.length
-    expect(figuras).toBe(datos.mesas.reduce((n, m) => n + m.equipo.length, 0)) // una por empleado, ni más ni menos
-    expect(figuras).toBeGreaterThanOrEqual(12 + 6 + 2) // Creativo 12 · Estrategia 6 · Dirección (jefe-marketing y spell-check)
+    expect(figuras).toBe(datos.mesas.reduce((n, m) => n + Math.min(m.equipo.length, MAXIMO_DE_PUESTOS), 0)) // las que caben, sin amontonar
+    expect(html).toMatch(/>\+8</) // Creativo tiene 12 y caben 4: el resto se dice «+8»
     expect(html).toContain('data-estado="trabajando"')
   })
 })
