@@ -11,12 +11,16 @@ import {
   exigeCasilla,
   gastoDeLaFila,
   laminasDeLaPieza,
+  esMp4,
+  videoDeLaPieza,
   type ArchivoDelManifiesto,
   type Aviso,
   type EstadoPieza,
   type Lamina,
+  type MetaDelManifiesto,
   type SlideDeLaOficina,
   type MapaDeOrigenes,
+  type VideoDeLaPieza,
 } from "@/lib/piezas"
 import { familiaLegible, redLegible, tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
 import { esDePractica } from "@/lib/clientes"
@@ -119,6 +123,9 @@ export interface DetalleDeLaPieza {
   gasto_usd: number | null
   laminas: Lamina[]
   pie: string | null
+  /** T8 · pieza de video: el mp4 de la entrega (o la constancia de que no está) y el guion con que se filmó (`_guion.md`) */
+  video: VideoDeLaPieza | null
+  guion: string | null
   avisos: Aviso[]
   exige_casilla: boolean
   jefatura: { resultado: string | null; desacuerdos: string[]; opinion_externa: string | null; revision_id: string | null }
@@ -129,19 +136,23 @@ export interface DetalleDeLaPieza {
 
 export interface DepsDeLectura { fetchImpl?: typeof fetch; urlBase?: string }
 
-/** el manifiesto vive en el almacén de la oficina; solo se baja si la dirección cuelga de él */
-export async function leerManifiesto(enlace: Record<string, unknown> | null | undefined, deps: DepsDeLectura = {}): Promise<ArchivoDelManifiesto[]> {
+/** el manifiesto vive en el almacén de la oficina; solo se baja si la dirección cuelga de él. Devuelve los archivos y lo que el manifiesto dice de sí (`meta`: video generado, simulado, vencimiento) */
+export async function leerManifiestoCompleto(enlace: Record<string, unknown> | null | undefined, deps: DepsDeLectura = {}): Promise<{ archivos: ArchivoDelManifiesto[]; meta: MetaDelManifiesto }> {
   const url = typeof enlace?.["manifest.json"] === "string" ? (enlace["manifest.json"] as string) : null
   const base = deps.urlBase ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
-  if (!url || !direccionDeLaLamina(url, "x.png", base)) return []
+  const nada = { archivos: [], meta: {} }
+  if (!url || !direccionDeLaLamina(url, "x.png", base)) return nada
   try {
     const r = await (deps.fetchImpl ?? fetch)(url, { cache: "no-store" })
-    if (!r.ok) return []
-    const j = (await r.json()) as { archivos?: ArchivoDelManifiesto[] }
-    return Array.isArray(j.archivos) ? j.archivos : []
+    if (!r.ok) return nada
+    const j = (await r.json()) as { archivos?: ArchivoDelManifiesto[]; meta?: MetaDelManifiesto }
+    return { archivos: Array.isArray(j.archivos) ? j.archivos : [], meta: j.meta && typeof j.meta === "object" ? j.meta : {} }
   } catch {
-    return []
+    return nada
   }
+}
+export async function leerManifiesto(enlace: Record<string, unknown> | null | undefined, deps: DepsDeLectura = {}): Promise<ArchivoDelManifiesto[]> {
+  return (await leerManifiestoCompleto(enlace, deps)).archivos
 }
 
 export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDeLectura = {}): Promise<DetalleDeLaPieza | null> {
@@ -155,12 +166,18 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
   let cliente: string | null = null
   if (f.client_id) cliente = ((await supa.from("clients").select("name").eq("id", f.client_id as string).maybeSingle()).data as { name?: string } | null)?.name ?? null
 
-  const archivos = await leerManifiesto(meta.enlace_entrega as Record<string, unknown> | undefined, deps)
+  const { archivos, meta: man } = await leerManifiestoCompleto(meta.enlace_entrega as Record<string, unknown> | undefined, deps)
 
   let slides: SlideDeLaOficina[] = []
   let version: number | null = null
   let aportes: AporteDelLibro[] = []
+  let segundos: number | null = null
   if (encargoId) {
+    // la duración del video la sabe el pedido que la oficina mandó al brazo (`pedido_video`); si no está, no se inventa
+    const pv = await supa.from("oficina_artefactos").select("contenido").eq("encargo_id", encargoId).eq("tipo", "pedido_video").order("version", { ascending: false }).limit(1)
+    const cp = (((pv.data ?? [])[0] ?? null) as { contenido?: { pedido?: { segundos?: unknown }; segundos?: unknown } } | null)?.contenido
+    const s = Number(cp?.pedido?.segundos ?? cp?.segundos)
+    segundos = Number.isFinite(s) && s > 0 ? s : null
     const a = await supa.from("oficina_artefactos").select("version, contenido").eq("encargo_id", encargoId).eq("tipo", "laminas_armadas").order("version", { ascending: false }).limit(1)
     const c = ((a.data ?? [])[0] ?? null) as { version?: number; contenido?: { slides?: SlideDeLaOficina[] } } | null
     slides = c?.contenido?.slides ?? []
@@ -175,6 +192,7 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     for (const v of Object.values(por)) if (v?.url && v.origen) origenes[v.url] = v.origen
   }
   const laminas = laminasDeLaPieza(archivos, slides, origenes)
+  const video = videoDeLaPieza(archivos, man, segundos)
   const opinion = (meta.opinion_externa as { texto?: string } | null | undefined)?.texto ?? null
   return {
     id: String(f.id),
@@ -190,8 +208,10 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     encargo_id: encargoId,
     gasto_usd: gastoDeLaFila(meta),
     laminas,
-    pie: await leerPie(meta.enlace_entrega as Record<string, unknown> | undefined, deps),
-    avisos: avisosDeLaPieza({ output_preview: (f.output_preview as string | null) ?? null, metadata: meta }, laminas),
+    pie: await leerArchivoDeTexto(meta.enlace_entrega as Record<string, unknown> | undefined, /_texto\.txt$/, 4000, deps),
+    video,
+    guion: video ? await leerArchivoDeTexto(meta.enlace_entrega as Record<string, unknown> | undefined, /_guion\.md$/, 8000, deps) : null,
+    avisos: avisosDeLaPieza({ output_preview: (f.output_preview as string | null) ?? null, metadata: meta }, laminas, video),
     exige_casilla: exigeCasilla({ metadata: meta }),
     jefatura: {
       resultado: (meta.jefatura_resultado as string | undefined) ?? null,
@@ -205,18 +225,29 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
   }
 }
 
-/** el pie de la publicación es el `_texto.txt` de la entrega */
-async function leerPie(enlace: Record<string, unknown> | undefined, deps: DepsDeLectura): Promise<string | null> {
+/** un archivo de texto de la entrega, por su nombre: el pie de la publicación es el `_texto.txt`; el guion del video, el `_guion.md`. Solo si cuelga del almacén de la oficina */
+async function leerArchivoDeTexto(enlace: Record<string, unknown> | undefined, patron: RegExp, maximo: number, deps: DepsDeLectura): Promise<string | null> {
   const base = deps.urlBase ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
-  const nombre = enlace ? Object.keys(enlace).find((k) => /_texto\.txt$/.test(k)) : undefined
+  const nombre = enlace ? Object.keys(enlace).find((k) => patron.test(k)) : undefined
   const url = nombre && typeof enlace?.[nombre] === "string" ? (enlace[nombre] as string) : null
   if (!url || !direccionDeLaLamina(url, "x.png", base)) return null
   try {
     const r = await (deps.fetchImpl ?? fetch)(url, { cache: "no-store" })
-    return r.ok ? (await r.text()).slice(0, 4000) : null
+    return r.ok ? (await r.text()).slice(0, maximo) : null
   } catch {
     return null
   }
+}
+
+/** el archivo mp4 de una pieza de video, ya validado contra el almacén; null si no hay (ensayo, o quedó solo en el proveedor) */
+export async function direccionDelVideoDeUnaPieza(supa: SupabaseClient, id: string, deps: DepsDeLectura = {}): Promise<string | null> {
+  const r = await supa.from("hitl_queue").select("metadata").eq("id", id).maybeSingle()
+  const meta = ((r.data as { metadata?: Record<string, unknown> } | null)?.metadata ?? {}) as Record<string, unknown>
+  const enlace = meta.enlace_entrega as Record<string, unknown> | undefined
+  const a = (await leerManifiesto(enlace, deps)).find(esMp4)
+  const manifiesto = typeof enlace?.["manifest.json"] === "string" ? (enlace["manifest.json"] as string) : null
+  if (!a) return null
+  return direccionDeLaLamina(manifiesto, a.nombre, deps.urlBase ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL)
 }
 
 /** el archivo de la lámina `n` (1…) de una pieza, ya validado contra el almacén; null si no hay */

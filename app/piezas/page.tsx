@@ -5,6 +5,8 @@ import { getServiceRoleClient } from "@/lib/supabase-server"
 import { cargarPieza, contarPiezasPorAprobar, listarPiezas, type FiltroDeEstado } from "@/lib/piezas-datos"
 import { diaYHora } from "@/lib/lenguaje"
 import { VisorDePieza } from "./VisorDePieza"
+import { cargarConcepto, TIPO_CONCEPTO } from "@/lib/concepto-datos"
+import { VisorDeConcepto } from "./VisorDeConcepto"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Piezas" }
@@ -25,6 +27,8 @@ export default async function PiezasPage({ searchParams }: { searchParams: Promi
   ])
   const elegida = sp.id ?? piezas[0]?.id ?? otras[0]?.id ?? null
   const detalle = elegida ? await cargarPieza(supa, elegida) : null
+  // T4 (31-oct): la tarjeta «Gran idea» de la cadena vive en la misma bandeja (en «Otras revisiones») y se enseña con su propio visor
+  const concepto = detalle?.tipo === TIPO_CONCEPTO ? await cargarConcepto(supa, detalle.id) : null
   const siguiente = piezas.find((p) => p.estado === "pendiente" && p.id !== elegida)?.id ?? null
   const enlace = (id: string) => `/piezas?id=${id}${estado === "todas" ? "&estado=todas" : ""}`
 
@@ -70,7 +74,7 @@ export default async function PiezasPage({ searchParams }: { searchParams: Promi
         </div>
       </aside>
       <section className="min-w-0 flex-1">
-        {detalle ? <VisorDePieza key={detalle.id} pieza={detalle} siguienteId={siguiente} /> : <p className="p-8 text-sm text-[hsl(var(--muted-foreground))]">Elige una pieza.</p>}
+        {concepto ? <VisorDeConcepto key={concepto.hitl_id} concepto={concepto} /> : detalle ? <VisorDePieza key={detalle.id} pieza={detalle} siguienteId={siguiente} /> : <p className="p-8 text-sm text-[hsl(var(--muted-foreground))]">Elige una pieza.</p>}
       </section>
     </div>
   )

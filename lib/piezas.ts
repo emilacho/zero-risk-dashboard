@@ -46,7 +46,8 @@ export interface Lamina {
   glifos_riesgosos: boolean
 }
 
-export interface ArchivoDelManifiesto { nombre: string; ancho?: number; alto?: number; tipo?: string }
+/** una entrada de `manifest.json`.archivos tal como la escribe la oficina (un mp4 trae ancho/alto/tipo en null) */
+export interface ArchivoDelManifiesto { nombre: string; bytes?: number; ancho?: number | null; alto?: number | null; tipo?: string | null }
 export interface SlideDeLaOficina { eyebrow?: string | null; headline?: string | null; body?: string | null; pie?: string | null; cta?: string | null; background_image_url?: string | null }
 
 /** ✔ ✗ y cualquier emoji: el dibujo de la oficina los pinta como cuadros «NO GLYPH» */
@@ -81,6 +82,43 @@ export function laminasDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undef
   })
 }
 
+// ───────────────────────── el VIDEO de una pieza (T8 · 31-oct): el mp4 que la oficina dejó en la entrega, o la constancia de que quedó solo en el proveedor
+export interface VideoDeLaPieza {
+  /** el archivo en la entrega (null si el video quedó solo en el proveedor) */
+  nombre: string | null
+  bytes: number | null
+  segundos: number | null
+  /** ensayo: el brazo no filmó nada real */
+  simulado: boolean
+  /** el archivo no se pudo copiar al almacén: solo existe en el proveedor (vence) y no se puede mostrar aquí */
+  solo_en_proveedor: boolean
+  vence: string | null
+  /** el enlace del proveedor (solo https), para que una persona lo baje antes de que venza cuando quedó solo allá; nunca se reproduce desde ahí */
+  url_proveedor: string | null
+}
+/** lo que el manifiesto de una entrega de video dice de sí mismo (`manifest.json`.meta) */
+export interface MetaDelManifiesto { video_generado?: boolean; simulado?: boolean; video_expires_at?: string | null; video_url_proveedor?: string | null; expires_at?: string | null }
+
+export const esMp4 = (a: ArchivoDelManifiesto): boolean => /\.mp4$/i.test(a.nombre)
+export const esFamiliaDeVideo = (familia: unknown): boolean => /^(reel|video|short|tiktok)/i.test(String(familia ?? ""))
+
+export function videoDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undefined, meta: MetaDelManifiesto | null | undefined, segundos: number | null = null): VideoDeLaPieza | null {
+  const a = (archivos ?? []).find(esMp4)
+  const generado = meta?.video_generado === true
+  if (!a && !generado) return null
+  return {
+    nombre: a?.nombre ?? null,
+    bytes: typeof a?.bytes === "number" ? a.bytes : null,
+    segundos,
+    simulado: meta?.simulado === true,
+    solo_en_proveedor: !a && generado,
+    vence: meta?.video_expires_at ?? meta?.expires_at ?? null,
+    url_proveedor: typeof meta?.video_url_proveedor === "string" && /^https:\/\//i.test(meta.video_url_proveedor) ? meta.video_url_proveedor : null,
+  }
+}
+
+export const ROTULO_DEL_VIDEO = "Video GENERADO por un modelo (no es una grabación real) · sin voces ni narración"
+
 export const ROTULO_DE_ORIGEN: Record<OrigenDeLaImagen, string> = {
   tipografia: "Solo tipografía de marca · sin foto ni imagen generada",
   generada: "Imagen de fondo generada con IA",
@@ -103,15 +141,26 @@ export function resumenDiceImagenesGeneradas(preview: string | null | undefined)
   return m ? Number(m[1]) : 0
 }
 
-export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[]): Aviso[] {
+export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: VideoDeLaPieza | null = null): Aviso[] {
   const meta = fila.metadata ?? {}
   const out: Aviso[] = []
   const conImagen = laminas.filter((l) => l.origen !== "tipografia").length
   const generadas = laminas.filter((l) => l.origen === "generada").length
   const dice = resumenDiceImagenesGeneradas(fila.output_preview)
-  if (dice > 0 && conImagen === 0) out.push({ nivel: "rojo", texto: `El resumen de la bandeja decía «${dice} imágenes generadas con IA», pero la pieza no trae ninguna: las láminas son solo tipografía.` })
-  else if (dice > 0 && dice !== conImagen && dice !== generadas) out.push({ nivel: "rojo", texto: `El resumen de la bandeja dice ${dice} imágenes generadas y la pieza muestra ${generadas > 0 ? generadas : conImagen}.` })
-  if (laminas.length === 0) out.push({ nivel: "rojo", texto: "Sin dibujo: esta pieza no tiene láminas dibujadas (un ensayo, o el dibujo falló). No hay nada que mirar." })
+  if (dice > 0 && conImagen === 0 && !video) out.push({ nivel: "rojo", texto: `El resumen de la bandeja decía «${dice} imágenes generadas con IA», pero la pieza no trae ninguna: las láminas son solo tipografía.` })
+  else if (dice > 0 && dice !== conImagen && dice !== generadas && !video) out.push({ nivel: "rojo", texto: `El resumen de la bandeja dice ${dice} imágenes generadas y la pieza muestra ${generadas > 0 ? generadas : conImagen}.` })
+  // una pieza de video no tiene láminas: lo que falta (o no) es el video
+  if (video) {
+    out.push({ nivel: "info", texto: `${ROTULO_DEL_VIDEO}. Míralo entero antes de aprobar.` })
+    if (video.simulado) out.push({ nivel: "ambar", texto: "Ensayo: el video es simulado (el brazo no filmó nada real). No hay archivo que mirar." })
+    // la descarga NO es automática: la hoja de publicación de la oficina pide que una persona lo baje del proveedor antes de que venza
+    else if (video.solo_en_proveedor) out.push({ nivel: "ambar", texto: `El video quedó solo en el proveedor${video.vence ? ` y vence ${video.vence}` : ""}: no se puede mostrar aquí. Hay que bajarlo del proveedor antes de que venza${video.url_proveedor ? " (enlace en la pestaña Video)" : ""}.` })
+    else if (video.vence) out.push({ nivel: "info", texto: `El archivo del video vence ${video.vence}.` })
+  } else if (laminas.length === 0) {
+    out.push(esFamiliaDeVideo(meta.familia)
+      ? { nivel: "rojo", texto: "Sin video: esta pieza no tiene archivo de video (un ensayo, o el brazo de video falló). No hay nada que mirar." }
+      : { nivel: "rojo", texto: "Sin dibujo: esta pieza no tiene láminas dibujadas (un ensayo, o el dibujo falló). No hay nada que mirar." })
+  }
   if (meta.revision_incompleta === true || meta.jefatura_resultado === "incompleta_por_tope") out.push({ nivel: "ambar", texto: "La revisión de la jefatura no terminó: se cortó por el límite de gasto." })
   const desac = lista(meta.desacuerdos)
   if (desac.length > 0) out.push({ nivel: "ambar", texto: `${desac.length} desacuerdo${desac.length === 1 ? "" : "s"} abierto${desac.length === 1 ? "" : "s"} en la revisión.` })

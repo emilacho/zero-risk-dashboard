@@ -40,6 +40,7 @@ const DETALLE: DetalleDeLaPieza = {
   ],
   pie: "Tú dices. Nosotros lo servimos fresco en Olón", avisos: [], exige_casilla: true,
   jefatura: { resultado: "limpia", desacuerdos: ["imagen: no cumple el brief"], opinion_externa: null, revision_id: "r" }, aportes: [], version: 1, resumen_de_la_bandeja: "x",
+  video: null, guion: null,
 }
 const dibujar = (props: Partial<Parameters<typeof PanelPiezas>[0]> = {}) => renderToStaticMarkup(createElement(PanelPiezas, { onCerrar: () => {}, bandejaInicial: BANDEJA, piezaInicialDatos: DETALLE, ...props }))
 
