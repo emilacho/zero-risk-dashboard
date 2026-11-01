@@ -26,7 +26,8 @@ const ESTILO = `
 .nv-tintes .nv-tinte{fill:var(--tono)}
 .nv-sombras{mix-blend-mode:multiply;opacity:.34}
 .nv-sombras .nv-sombra{fill:#241206}
-.nv-pantalla .nv-hud{color:${LUZ_DE_LA_INTERFAZ};filter:drop-shadow(0 0 1.2px var(--tono)) drop-shadow(0 0 3px var(--tono))}
+.nv-pantalla .nv-hud{color:${LUZ_DE_LA_INTERFAZ};opacity:.78;filter:drop-shadow(0 0 1px var(--tono)) drop-shadow(0 0 2px var(--tono))}
+.nv-pantalla[data-tono="durazno"] .nv-hud{opacity:.62}/* 6.17b «muy sutil»: menos brillo en todas, y aún menos en los vidrios negros */
 .nv-pantalla .nv-hud [data-anima]{animation-timing-function:ease-in-out;animation-iteration-count:infinite;transform-box:fill-box}/* ojo: con fill-box, un atributo transform="rotate(a cx cy)" gira alrededor de otro centro: los segmentos del anillo vuelven a view-box */
 .nv-pantalla .nv-hud [data-anima="crece"]{animation-name:nvCrece;animation-duration:8s;transform-origin:bottom}
 .nv-pantalla .nv-hud [data-anima="llena"]{animation-name:nvCrece;animation-duration:8s;transform-origin:top}
@@ -36,6 +37,7 @@ const ESTILO = `
 .nv-pantalla .nv-hud [data-anima="aparece"]{animation-name:nvAparece;animation-duration:9s}
 .nv-pantalla .nv-hud [data-anima="destella"]{animation-name:nvDestella;animation-duration:9s}
 .nv-pantalla .nv-hud [data-anima="enciende"]{animation-name:nvEnciende;animation-duration:9s;transform-box:view-box;transform-origin:0 0}
+.nv-pantalla .nv-hud [data-anima="corriente"]{animation-name:nvCorriente;animation-duration:7s;animation-timing-function:linear}
 .nv-pantalla .nv-hud [data-anima="senal"]{animation-name:nvSenal;animation-duration:3.3s;animation-timing-function:ease-out;transform-origin:center}
 .nv-pantalla .nv-hud [data-anima="desfila"]{animation-name:nvDesfila;animation-duration:14s;animation-timing-function:linear;transform-box:view-box}
 .nv-pantalla .nv-hud [data-anima="recorre"]{animation-name:nvDesfila;animation-duration:10s;animation-timing-function:linear;transform-box:view-box}
@@ -48,7 +50,8 @@ const ESTILO = `
 @keyframes nvAparece{0%,34%{opacity:0}48%,90%{opacity:.18}100%{opacity:0}}
 @keyframes nvDestella{0%,40%{opacity:0}50%{opacity:1}65%{opacity:.4}88%{opacity:1}100%{opacity:0}}
 @keyframes nvEnciende{0%{opacity:.15}16%,90%{opacity:var(--op)}100%{opacity:.15}}
-@keyframes nvSenal{0%{transform:scale(1);opacity:.9}78%,100%{transform:scale(4.5);opacity:0}}
+@keyframes nvSenal{0%{transform:scale(1);opacity:.55}78%,100%{transform:scale(3);opacity:0}}
+@keyframes nvCorriente{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 @keyframes nvDesfila{from{transform:translateX(0)}to{transform:translateX(var(--recorrido))}}
 @keyframes nvAvanza{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes nvAvanzaYVuelve{0%{transform:scaleX(0)}24%,90%{transform:scaleX(1)}100%{transform:scaleX(0)}}
@@ -57,6 +60,68 @@ const ESTILO = `
 
 const seg = (s: number) => `${s.toFixed(2)}s`
 const retraso = (s: number): CSSProperties => ({ animationDelay: seg(s) })
+
+/** el mapa dorado: una trama de puntos (la «tierra» cambia con la semilla) y señales que se expanden; variantes mínimas: rutas que se trazan entre señales,
+ *  una constelación fija que las une, o una luz que viaja de una a otra */
+function Mapa({ l, g, quieto, semilla, senales, extra }: { l: Caja; g: number; quieto: boolean; semilla: number; senales: ReadonlyArray<readonly [number, number]>; extra?: "trayecto" }) {
+  const { x, y, w, h } = l
+  const cols = 7, filas = 11, px = w / (cols - 1), py = (h * 0.9) / (filas - 1)
+  const hay = (c: number, f: number) => ((c * 7 + f * 13 + semilla * 3) % 10) > 2 && !(f < 2 && (semilla % 2 ? c < 2 : c > 4)) && !(f > 8 && (semilla % 2 ? c > 4 : c < 2))
+  const pt = senales.map(([c, f]) => [x + c * px, y + f * py] as const)
+  const camino = `M${pt.map(([a, b]) => `${a.toFixed(1)},${b.toFixed(1)}`).join(" L")}`
+  return (
+    <g fill="currentColor" stroke="currentColor">
+      {Array.from({ length: cols * filas }, (_, i) => { const c = i % cols, f = Math.floor(i / cols); return hay(c, f) ? <circle key={i} cx={x + c * px} cy={y + f * py} r={g * 0.55} stroke="none" opacity={0.42} /> : null })}
+      {extra === "trayecto" && <path d={camino} fill="none" strokeWidth={g * 0.45} strokeDasharray={`${g} ${g * 1.5}`} opacity={0.4} />}
+      {extra === "trayecto" && !quieto && (
+        <circle r={g * 1.2} stroke="none" opacity={0.95}>
+          <animate attributeName="cx" values={[...pt, pt[0]].map((p) => p[0].toFixed(1)).join(";")} dur="9s" repeatCount="indefinite" />
+          <animate attributeName="cy" values={[...pt, pt[0]].map((p) => p[1].toFixed(1)).join(";")} dur="9s" repeatCount="indefinite" />
+        </circle>
+      )}
+      {pt.map(([sx, sy], i) => (
+        <g key={i}>
+          <circle cx={sx} cy={sy} r={g * 1.1} stroke="none" opacity={0.95} />
+          <circle cx={sx} cy={sy} r={g * 1.1} fill="none" strokeWidth={g * 0.7} opacity={quieto ? 0.4 : 0.9} data-anima="senal" style={retraso(i * (3.3 / senales.length) + semilla * 0.4)} />
+        </g>
+      ))}
+    </g>
+  )
+}
+
+/** el circuito de un microchip: pistas en ángulo recto y a 45°, cada una con su contacto al final, y por cada pista una chispa de corriente que la recorre
+ *  despacio, en su turno (en coordenadas 0-1 del lienzo). Muy sutil: pistas tenues, la chispa apenas más clara. */
+type Pista = ReadonlyArray<readonly [number, number]>
+const BUS: Pista[] = [0.2, 0.4, 0.6, 0.8].map((u, i) => [[u, 0.02], [u, 0.42 + i * 0.04], [0.14 + i * 0.24, 0.66 + i * 0.04], [0.14 + i * 0.24, 0.95]] as const)
+const CHIP: Pista[] = [
+  [[0.36, 0.38], [0.36, 0.2], [0.14, 0.06]], [[0.5, 0.38], [0.5, 0.04]], [[0.64, 0.38], [0.64, 0.24], [0.86, 0.1]],
+  [[0.36, 0.62], [0.36, 0.78], [0.12, 0.94]], [[0.5, 0.62], [0.5, 0.96]], [[0.64, 0.62], [0.64, 0.8], [0.88, 0.92]],
+  [[0.3, 0.5], [0.06, 0.5]], [[0.7, 0.5], [0.94, 0.5]],
+]
+const MEANDRO: Pista[] = [
+  [[0.12, 0.03], [0.12, 0.14], [0.86, 0.14], [0.86, 0.3], [0.14, 0.3], [0.14, 0.46], [0.86, 0.46], [0.86, 0.62], [0.14, 0.62], [0.14, 0.78], [0.5, 0.78], [0.5, 0.97]],
+  [[0.94, 0.06], [0.94, 0.86], [0.74, 0.96]],
+]
+function Circuito({ l, g, quieto, trazas, nucleo }: { l: Caja; g: number; quieto: boolean; trazas: Pista[]; nucleo?: boolean }) {
+  const { x, y, w, h } = l
+  const a = (u: number, v: number) => `${(x + u * w).toFixed(1)},${(y + v * h).toFixed(1)}`
+  return (
+    <g fill="none" stroke="currentColor" strokeLinejoin="round" strokeLinecap="round">
+      {nucleo && <rect x={x + w * 0.3} y={y + h * 0.38} width={w * 0.4} height={h * 0.24} rx={g * 0.8} strokeWidth={g * 0.6} opacity={0.4} />}
+      {nucleo && <rect x={x + w * 0.38} y={y + h * 0.44} width={w * 0.24} height={h * 0.12} rx={g * 0.5} fill="currentColor" stroke="none" opacity={0.18} data-anima="respira" />}
+      {trazas.map((t, i) => {
+        const d = `M${t.map(([u, v]) => a(u, v)).join(" L")}`, [fu, fv] = t[t.length - 1]
+        return (
+          <g key={i}>
+            <path d={d} strokeWidth={g * 0.5} opacity={0.24} />
+            <circle cx={x + fu * w} cy={y + fv * h} r={g * 0.9} strokeWidth={g * 0.5} opacity={0.4} />
+            {!quieto && <path d={d} pathLength={1} strokeDasharray="0.06 0.94" strokeWidth={g * 0.8} opacity={0.75} data-anima="corriente" style={{ animationDelay: seg(-(i * 7) / trazas.length), animationDuration: seg(6 + (i % 3)) }} />}
+          </g>
+        )
+      })}
+    </g>
+  )
+}
 
 /* ─── los tableros: cada uno dentro del lienzo de su pantalla (en reposo, cada dibujo muestra su estado final visible) ─── */
 function Tablero({ animacion, l, quieto }: { animacion: Animacion; l: Caja; quieto: boolean }) {
@@ -148,25 +213,14 @@ function Tablero({ animacion, l, quieto }: { animacion: Animacion; l: Caja; quie
         </g>
       )
     }
-    case "mapa": { // el mapa de mercados: una trama de puntos con señales que se expanden en distintos lugares
-      const cols = 7, filas = 11, px = w / (cols - 1), py = (h * 0.9) / (filas - 1)
-      const hay = (c: number, f: number) => ((c * 7 + f * 13) % 10) > 2 && !(f < 2 && c > 4) && !(f > 8 && c < 2) // una «tierra» irregular y fija
-      const señales = [[1, 3], [5, 5], [3, 8]] as const
-      return (
-        <g fill="currentColor" stroke="currentColor">
-          {Array.from({ length: cols * filas }, (_, i) => { const c = i % cols, f = Math.floor(i / cols); return hay(c, f) ? <circle key={i} cx={x + c * px} cy={y + f * py} r={g * 0.55} stroke="none" opacity={0.42} /> : null })}
-          {señales.map(([c, f], i) => {
-            const sx = x + c * px, sy = y + f * py
-            return (
-              <g key={i}>
-                <circle cx={sx} cy={sy} r={g * 1.1} stroke="none" opacity={0.95} />
-                <circle cx={sx} cy={sy} r={g * 1.1} fill="none" strokeWidth={g * 0.7} opacity={quieto ? 0.4 : 0.9} data-anima="senal" style={retraso(i * 1.1)} />
-              </g>
-            )
-          })}
-        </g>
-      )
-    }
+    /* 6.17 (Emilio, 1-nov: «la última pantalla del arco tiene una animación dorada pálida excelente: haz las otras pantallas negras del mismo estilo, cambiando
+       de manera mínima el diseño»): el mapa de mercados y sus 4 variantes para los vidrios negros, todas en el mismo tono durazno sobre vidrio apagado. */
+    case "mapa": return <Mapa l={l} g={g} quieto={quieto} semilla={0} senales={[[1, 3], [5, 5], [3, 8]]} />
+    /* 6.17b (Emilio: «3 de los estilos se parecen mucho; usa el recorrido de la electricidad de un microchip; muy sutil»): tres circuitos distintos */
+    case "bus": return <Circuito l={l} g={g} quieto={quieto} trazas={BUS} />
+    case "chip": return <Circuito l={l} g={g} quieto={quieto} trazas={CHIP} nucleo />
+    case "meandro": return <Circuito l={l} g={g} quieto={quieto} trazas={MEANDRO} />
+    case "trayecto": return <Mapa l={l} g={g} quieto={quieto} semilla={4} senales={[[1, 2], [4, 5], [2, 9]]} extra="trayecto" />
     /* ───── el escritorio (vidrios chicos y apaisados) ───── */
     case "cotizaciones": { // la cinta de cotizaciones: bloques con su flecha que pasan de derecha a izquierda, en bucle continuo (dos cintas encadenadas; el recorte del vidrio corta lo que sale)
       const bloque = w * 0.34, hueco = w * 0.1, serie = [1, -1, 1, 1, -1, 1], largo = serie.length * (bloque + hueco), ty = y + h * 0.3, alto = h * 0.4
