@@ -58,6 +58,36 @@ const ESTILO = `
 const seg = (s: number) => `${s.toFixed(2)}s`
 const retraso = (s: number): CSSProperties => ({ animationDelay: seg(s) })
 
+/** el mapa dorado: una trama de puntos (la «tierra» cambia con la semilla) y señales que se expanden; variantes mínimas: rutas que se trazan entre señales,
+ *  una constelación fija que las une, o una luz que viaja de una a otra */
+function Mapa({ l, g, quieto, semilla, senales, extra }: { l: Caja; g: number; quieto: boolean; semilla: number; senales: ReadonlyArray<readonly [number, number]>; extra?: "rutas" | "constelacion" | "trayecto" }) {
+  const { x, y, w, h } = l
+  const cols = 7, filas = 11, px = w / (cols - 1), py = (h * 0.9) / (filas - 1)
+  const hay = (c: number, f: number) => ((c * 7 + f * 13 + semilla * 3) % 10) > 2 && !(f < 2 && (semilla % 2 ? c < 2 : c > 4)) && !(f > 8 && (semilla % 2 ? c > 4 : c < 2))
+  const pt = senales.map(([c, f]) => [x + c * px, y + f * py] as const)
+  const camino = `M${pt.map(([a, b]) => `${a.toFixed(1)},${b.toFixed(1)}`).join(" L")}`
+  return (
+    <g fill="currentColor" stroke="currentColor">
+      {Array.from({ length: cols * filas }, (_, i) => { const c = i % cols, f = Math.floor(i / cols); return hay(c, f) ? <circle key={i} cx={x + c * px} cy={y + f * py} r={g * 0.55} stroke="none" opacity={0.42} /> : null })}
+      {extra === "rutas" && <path d={camino} pathLength={1} strokeDashoffset={0} fill="none" strokeWidth={g * 0.6} strokeLinecap="round" opacity={0.6} data-anima="traza" />}
+      {extra === "constelacion" && <path d={camino} fill="none" strokeWidth={g * 0.45} opacity={0.4} />}
+      {extra === "trayecto" && <path d={camino} fill="none" strokeWidth={g * 0.45} strokeDasharray={`${g} ${g * 1.5}`} opacity={0.4} />}
+      {extra === "trayecto" && !quieto && (
+        <circle r={g * 1.2} stroke="none" opacity={0.95}>
+          <animate attributeName="cx" values={[...pt, pt[0]].map((p) => p[0].toFixed(1)).join(";")} dur="9s" repeatCount="indefinite" />
+          <animate attributeName="cy" values={[...pt, pt[0]].map((p) => p[1].toFixed(1)).join(";")} dur="9s" repeatCount="indefinite" />
+        </circle>
+      )}
+      {pt.map(([sx, sy], i) => (
+        <g key={i}>
+          <circle cx={sx} cy={sy} r={g * 1.1} stroke="none" opacity={0.95} />
+          <circle cx={sx} cy={sy} r={g * 1.1} fill="none" strokeWidth={g * 0.7} opacity={quieto ? 0.4 : 0.9} data-anima="senal" style={retraso(i * (3.3 / senales.length) + semilla * 0.4)} />
+        </g>
+      ))}
+    </g>
+  )
+}
+
 /* ─── los tableros: cada uno dentro del lienzo de su pantalla (en reposo, cada dibujo muestra su estado final visible) ─── */
 function Tablero({ animacion, l, quieto }: { animacion: Animacion; l: Caja; quieto: boolean }) {
   const { x, y, w, h } = l
@@ -148,25 +178,13 @@ function Tablero({ animacion, l, quieto }: { animacion: Animacion; l: Caja; quie
         </g>
       )
     }
-    case "mapa": { // el mapa de mercados: una trama de puntos con señales que se expanden en distintos lugares
-      const cols = 7, filas = 11, px = w / (cols - 1), py = (h * 0.9) / (filas - 1)
-      const hay = (c: number, f: number) => ((c * 7 + f * 13) % 10) > 2 && !(f < 2 && c > 4) && !(f > 8 && c < 2) // una «tierra» irregular y fija
-      const señales = [[1, 3], [5, 5], [3, 8]] as const
-      return (
-        <g fill="currentColor" stroke="currentColor">
-          {Array.from({ length: cols * filas }, (_, i) => { const c = i % cols, f = Math.floor(i / cols); return hay(c, f) ? <circle key={i} cx={x + c * px} cy={y + f * py} r={g * 0.55} stroke="none" opacity={0.42} /> : null })}
-          {señales.map(([c, f], i) => {
-            const sx = x + c * px, sy = y + f * py
-            return (
-              <g key={i}>
-                <circle cx={sx} cy={sy} r={g * 1.1} stroke="none" opacity={0.95} />
-                <circle cx={sx} cy={sy} r={g * 1.1} fill="none" strokeWidth={g * 0.7} opacity={quieto ? 0.4 : 0.9} data-anima="senal" style={retraso(i * 1.1)} />
-              </g>
-            )
-          })}
-        </g>
-      )
-    }
+    /* 6.17 (Emilio, 1-nov: «la última pantalla del arco tiene una animación dorada pálida excelente: haz las otras pantallas negras del mismo estilo, cambiando
+       de manera mínima el diseño»): el mapa de mercados y sus 4 variantes para los vidrios negros, todas en el mismo tono durazno sobre vidrio apagado. */
+    case "mapa": return <Mapa l={l} g={g} quieto={quieto} semilla={0} senales={[[1, 3], [5, 5], [3, 8]]} />
+    case "rutas": return <Mapa l={l} g={g} quieto={quieto} semilla={1} senales={[[1, 2], [5, 4], [2, 7], [5, 9]]} extra="rutas" />
+    case "constelacion": return <Mapa l={l} g={g} quieto={quieto} semilla={2} senales={[[2, 2], [5, 3], [4, 6], [1, 8], [5, 9]]} extra="constelacion" />
+    case "senales": return <Mapa l={l} g={g} quieto={quieto} semilla={3} senales={[[1, 1], [4, 3], [2, 5], [5, 7], [3, 9]]} />
+    case "trayecto": return <Mapa l={l} g={g} quieto={quieto} semilla={4} senales={[[1, 2], [4, 5], [2, 9]]} extra="trayecto" />
     /* ───── el escritorio (vidrios chicos y apaisados) ───── */
     case "cotizaciones": { // la cinta de cotizaciones: bloques con su flecha que pasan de derecha a izquierda, en bucle continuo (dos cintas encadenadas; el recorte del vidrio corta lo que sale)
       const bloque = w * 0.34, hueco = w * 0.1, serie = [1, -1, 1, 1, -1, 1], largo = serie.length * (bloque + hueco), ty = y + h * 0.3, alto = h * 0.4

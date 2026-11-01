@@ -13,6 +13,7 @@
  */
 export type Animacion =
   | "ventas" | "red" | "indicadores" | "crecimiento" | "embudo" | "mapa" // el arco (6): barras de ventas · red de la empresa · tablero de indicadores · curva de crecimiento · embudo · mapa de mercados
+  | "rutas" | "constelacion" | "senales" | "trayecto" // 6.17: los 4 vidrios negros del arco, variantes mínimas del mapa dorado
   | "cotizaciones" | "pista" | "agenda" | "participacion" | "tareas" // el escritorio (5): cinta de cotizaciones · pista de reproducción (música) · agenda del día · participación · lista de tareas
 
 export interface Pantalla {
@@ -20,7 +21,7 @@ export interface Pantalla {
   indice: number
   /** el vidrio de la pantalla, en píxeles de la foto 2560×1440 */
   forma: string
-  /** encendida en la foto (las apagadas no muestran nada) */
+  /** encendida en la foto (6.17: las apagadas también se animan, en el estilo dorado pálido de la pantalla 10) */
   encendida: boolean
   /** su matiz dentro de la paleta de naranjas (cada encendida, un matiz claramente distinto; con la mezcla «matiz» solo cuenta el matiz, no la saturación) */
   tono: string | null
@@ -34,13 +35,13 @@ export type PantallaDelArco = Pantalla
 /** EL ARCO · medidas 1-nov sobre oficina-2560.jpg (x 900-1680 · y 246-480) · 6.16b: las 6 encendidas re-medidas sobre la foto ampliada con cuadrícula de 10 px (las de 6.14 estaban corridas hasta 9 px) */
 export const PANTALLAS_DEL_ARCO: readonly Pantalla[] = [
   { indice: 1, forma: "928,369 971,345 970,450 928,471", encendida: true, tono: "#f7c233", nombreDelTono: "dorado", animacion: "ventas" },
-  { indice: 2, forma: "986,330 1040,312 1040,438 986,426", encendida: false, tono: null, nombreDelTono: null, animacion: null },
+  { indice: 2, forma: "983,333 1038,316 1038,421 984,445", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "rutas" },
   { indice: 3, forma: "1051,311 1111,294 1111,396 1052,416", encendida: true, tono: "#ffad1f", nombreDelTono: "ámbar", animacion: "red" },
   { indice: 4, forma: "1126,291 1191,277 1191,380 1126,393", encendida: true, tono: "#e8731a", nombreDelTono: "naranja de la marca", animacion: "indicadores" },
-  { indice: 5, forma: "1202,273 1276,268 1276,380 1202,382", encendida: false, tono: null, nombreDelTono: null, animacion: null },
-  { indice: 6, forma: "1286,268 1360,273 1360,382 1286,380", encendida: false, tono: null, nombreDelTono: null, animacion: null },
+  { indice: 5, forma: "1206,275 1272,270 1273,373 1206,378", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "constelacion" },
+  { indice: 6, forma: "1289,270 1356,276 1356,377 1289,373", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "senales" },
   { indice: 7, forma: "1371,278 1436,290 1436,391 1371,380", encendida: true, tono: "#ff5e1f", nombreDelTono: "zanahoria", animacion: "crecimiento" },
-  { indice: 8, forma: "1450,296 1508,312 1508,416 1450,406", encendida: false, tono: null, nombreDelTono: null, animacion: null },
+  { indice: 8, forma: "1451,295 1509,311 1510,416 1451,396", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "trayecto" },
   { indice: 9, forma: "1523,318 1575,338 1575,444 1523,420", encendida: true, tono: "#e03d1a", nombreDelTono: "teja", animacion: "embudo" },
   { indice: 10, forma: "1586,345 1624,364 1623,470 1586,450", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "mapa" },
 ]
@@ -107,7 +108,11 @@ const vivas = (ps: readonly Pantalla[]) => ps.filter((p): p is PantallaViva => p
 export const PANTALLAS_VIVAS = vivas(PANTALLAS_DEL_ARCO)
 export const ESCRITORIO_VIVO = vivas(PANTALLAS_DEL_ESCRITORIO)
 /** los dos grupos, con su nombre */
-export const GRUPOS_DE_PANTALLAS = [{ grupo: "arco", pantallas: PANTALLAS_VIVAS }, { grupo: "escritorio", pantallas: ESCRITORIO_VIVO }] as const
+/** 6.17 · los vidrios NEGROS del arco (apagados en la foto) también se animan, en el estilo dorado pálido de la pantalla 10: mismo tono durazno, variantes del mapa */
+export const PANTALLAS_EN_NEGRO = PANTALLAS_DEL_ARCO.filter((p): p is PantallaViva => !p.encendida && p.animacion !== null && p.tono !== null)
+/** todo el arco animado, de izquierda a derecha */
+export const ARCO_ANIMADO = PANTALLAS_DEL_ARCO.filter((p): p is PantallaViva => p.animacion !== null && p.tono !== null)
+export const GRUPOS_DE_PANTALLAS = [{ grupo: "arco", pantallas: ARCO_ANIMADO }, { grupo: "escritorio", pantallas: ESCRITORIO_VIVO }] as const
 
 /** el color de las LÍNEAS de la interfaz: claro y cálido, para que contrasten con el vidrio tintado (6.15: «se pierden porque las hiciste del mismo color») */
 export const LUZ_DE_LA_INTERFAZ = "#fff3e2"
