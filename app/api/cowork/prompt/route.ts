@@ -269,6 +269,8 @@ export async function POST(req: Request) {
 
       if (!claudeRes.ok || !claudeRes.body) {
         const errText = await claudeRes.text().catch(() => "")
+        // 01-nov: queda en los registros de Vercel (sin la llave) para saber el motivo real cuando el cuadro de /nuevo no puede responder
+        console.error("cowork/prompt: anthropic_api_error", claudeRes.status, errText.slice(0, 300))
         emit("error", {
           message: "anthropic_api_error",
           status: claudeRes.status,

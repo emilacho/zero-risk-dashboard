@@ -9,9 +9,9 @@
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
-import { Globe, Microphone, MicrophoneSlash, PaperPlaneTilt, Paperclip, X } from "@phosphor-icons/react"
+import { Globe, Microphone, MicrophoneSlash, PaperPlaneTilt, Paperclip } from "@phosphor-icons/react"
 import { getOrCreateSessionId } from "@/lib/cowork-session"
-import { leerEventos, leerPedido, textoParaVoz, type PedidoPropuesto } from "@/lib/chat-oficinas"
+import { causaDelFallo, leerEventos, leerPedido, textoParaVoz, type PedidoPropuesto } from "@/lib/chat-oficinas"
 
 const AMBAR = "#e8731a"
 const CANAL = "nuevo"
@@ -48,7 +48,6 @@ export function ChatDeOficinas() {
   const pagina = usePathname()
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [texto, setTexto] = useState("")
-  const [abierto, setAbierto] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [vozActiva, setVozActiva] = useState(false)
   const [escuchando, setEscuchando] = useState(false)
@@ -81,7 +80,7 @@ export function ChatDeOficinas() {
     return () => { vivo = false }
   }, [])
 
-  useEffect(() => { fondo.current?.scrollIntoView({ block: "end" }) }, [mensajes, abierto])
+  useEffect(() => { fondo.current?.scrollIntoView({ block: "nearest" }) }, [mensajes])
 
   const hablar = useCallback((frase: string, alTerminar?: () => void) => {
     const s = typeof window !== "undefined" ? window.speechSynthesis : undefined
@@ -130,7 +129,6 @@ export function ChatDeOficinas() {
     if (!mensaje || enviandoRef.current) return
     enviandoRef.current = true
     setEnviando(true)
-    setAbierto(true)
     const previos = mensajes.filter((m) => !m.error).slice(-12).map((m) => ({ role: m.rol, content: m.texto }))
     setMensajes((m) => [...m, { rol: "user", texto: mensaje }, { rol: "assistant", texto: "" }])
     setTexto("")
@@ -138,7 +136,7 @@ export function ChatDeOficinas() {
     abortar.current = ctl
     let respuesta = ""
     let pedido: PedidoPropuesto | undefined
-    let fallo = ""
+    let fallo: Record<string, unknown> | null = null
     try {
       const r = await fetch("/api/cowork/prompt", {
         method: "POST",
@@ -146,6 +144,8 @@ export function ChatDeOficinas() {
         body: JSON.stringify({ message: mensaje, session_id: sesion.current, history: previos, context: { channel: CANAL, page: pagina ?? "/nuevo", surface_state: { voz: porVoz } } }),
         signal: ctl.signal,
       })
+      // un fallo del servidor que no viene como flujo de eventos (500 de Vercel, 404…) se dice con su código en vez de quedar mudo
+      if (!r.ok && !(r.headers.get("content-type") ?? "").includes("text/event-stream")) fallo = { http: r.status }
       if (!r.body) throw new Error("sin_respuesta")
       const lector = r.body.getReader()
       const dec = new TextDecoder()
@@ -164,14 +164,16 @@ export function ChatDeOficinas() {
           } else if (ev.event === "tool_use" && ev.data.name === "proponer_pedido") {
             pedido = leerPedido(ev.data.input as Record<string, unknown> | undefined) ?? pedido
           } else if (ev.event === "error") {
-            fallo = String(ev.data.message ?? "error")
+            fallo = { ...ev.data }
           }
         }
       }
     } catch (e) {
-      if ((e as { name?: string })?.name !== "AbortError") fallo = "sin_conexion"
+      const nombre = (e as { name?: string })?.name
+      // «Failed to fetch» (TypeError) es no llegar al servidor; cualquier otra excepción es un fallo propio del navegador y se dice
+      if (nombre !== "AbortError" && !fallo) fallo = nombre === "TypeError" ? { message: "sin_conexion" } : { message: `fallo del navegador: ${String((e as Error)?.message ?? e).slice(0, 80)}` }
     }
-    const texto = respuesta || (fallo ? (fallo === "unauthenticated" ? "Tu sesión venció: vuelve a entrar para conversar." : "No pude responder ahora. Inténtalo de nuevo en un momento.") : "")
+    const texto = respuesta || (fallo ? causaDelFallo(fallo) : "")
     setMensajes((m) => { const c = m.slice(); c[c.length - 1] = { rol: "assistant", texto, pedido, error: !respuesta && !!fallo }; return c })
     enviandoRef.current = false
     setEnviando(false)
@@ -197,7 +199,6 @@ export function ChatDeOficinas() {
     if (vozRef.current) { apagarVoz(); return }
     vozRef.current = true
     setVozActiva(true)
-    setAbierto(true)
     hablar("Hola, te escucho.", () => { if (vozRef.current) escuchar() })
   }
 
@@ -220,39 +221,33 @@ export function ChatDeOficinas() {
   return (
     <div data-chat-de-oficinas aria-label="Chat con tus oficinas"
       className="absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2">
-      {abierto && (
-        <section data-chat-conversacion aria-label="Conversación" aria-live="polite"
-          className="absolute bottom-full left-0 right-0 mb-2 flex max-h-[min(46vh,420px)] flex-col rounded-xl border bg-[#1b1b1d]/95 backdrop-blur" style={{ borderColor: "rgba(232,115,26,.55)" }}>
-          <div className="flex items-center justify-between px-4 pt-2.5 text-[12px] text-zinc-400">
-            <span>{vozActiva ? (hablando ? "Hablando…" : escuchando ? "Te escucho…" : "Conversación por voz") : "Conversación"}</span>
-            <button type="button" aria-label="Cerrar la conversación" onClick={() => setAbierto(false)} className="rounded p-1 text-zinc-300 hover:bg-white/[0.07] hover:text-white"><X size={14} /></button>
-          </div>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 text-[14px] leading-relaxed">
-            {mensajes.length === 0 && <p className="text-zinc-500">Pregúntame por tus oficinas o pídeme algo: lo que haya que construir queda como pedido.</p>}
-            {mensajes.map((m, i) => (
-              <div key={i} className={m.rol === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div className={`max-w-[88%] whitespace-pre-wrap rounded-lg px-3 py-2 ${m.rol === "user" ? "bg-white/[0.08] text-zinc-100" : m.error ? "text-amber-300" : "text-zinc-200"}`}>
-                  {m.texto || (enviando && i === mensajes.length - 1 ? <span className="text-zinc-500">…</span> : null)}
-                  {m.pedido && (
-                    <div className="mt-2 rounded-md border border-white/10 p-2 text-[13px]">
-                      <p className="font-medium text-zinc-100">{m.pedido.titulo}</p>
-                      <p className="mt-0.5 text-zinc-400">{m.pedido.detalle}</p>
-                      {m.pedidoEstado === "anotado" ? <p className="mt-1.5 text-emerald-400">Anotado como pedido para Lenovo.</p> : (
-                        <button type="button" onClick={() => void anotarPedido(i)} className="mt-1.5 rounded-md px-2.5 py-1 text-[12px] text-white" style={{ backgroundColor: AMBAR }}>Dejar como pedido</button>
-                      )}
-                      {m.pedidoEstado === "error" && <p className="mt-1 text-amber-300">No se pudo anotar. Inténtalo otra vez.</p>}
-                    </div>
+      {/* LAS RESPUESTAS VAN AL LADO del cuadro, en el espacio libre del fondo negro (encargo de Emilio 01-nov): solo texto blanco, sin ventana, sin borde, sin panel ni globo; no tapa la escena.
+          Mide lo que queda libre a la derecha del cuadro y no más; las respuestas largas se ven completas desplazándose DENTRO de esa zona. En ventanas angostas, donde no hay lado, ocupa el mismo ancho justo encima del cuadro. */}
+      {mensajes.length > 0 && (
+        <div data-chat-respuestas aria-label="Respuestas" aria-live="polite" tabIndex={0}
+          className="absolute bottom-0 left-0 right-0 mb-2 max-h-[min(30vh,170px)] overflow-y-auto pr-1 text-[14px] leading-relaxed text-white outline-none min-[1100px]:bottom-0 min-[1100px]:left-full min-[1100px]:right-auto min-[1100px]:mb-0 min-[1100px]:ml-5 min-[1100px]:h-[8.5rem] min-[1100px]:max-h-none min-[1100px]:w-[calc((100vw-min(610px,100vw-7rem))/2-2.5rem)]">
+          {vozActiva && <p className="mb-1 text-[12px] text-white/60">{hablando ? "Hablando…" : escuchando ? "Te escucho…" : "Conversación por voz"}</p>}
+          {mensajes.map((m, i) => m.rol === "user" ? null : (
+            <div key={i} className="mb-3 whitespace-pre-wrap">
+              {m.texto || (enviando && i === mensajes.length - 1 ? <span className="text-white/50">…</span> : null)}
+              {m.pedido && (
+                <div className="mt-2 text-[13px]">
+                  <p className="font-medium">{m.pedido.titulo}</p>
+                  <p className="mt-0.5 text-white/70">{m.pedido.detalle}</p>
+                  {m.pedidoEstado === "anotado" ? <p className="mt-1.5 text-white/70">Anotado como pedido para Lenovo.</p> : (
+                    <button type="button" onClick={() => void anotarPedido(i)} className="mt-1.5 text-[13px] text-white underline underline-offset-2" style={{ textDecorationColor: AMBAR }}>Dejar como pedido</button>
                   )}
+                  {m.pedidoEstado === "error" && <p className="mt-1 text-white/70">No se pudo anotar. Inténtalo otra vez.</p>}
                 </div>
-              </div>
-            ))}
-            <div ref={fondo} />
-          </div>
-        </section>
+              )}
+            </div>
+          ))}
+          <div ref={fondo} />
+        </div>
       )}
       <form onSubmit={alEnviar} className="rounded-xl border p-[7px]" style={{ borderColor: "rgba(232,115,26,.55)" }}>
         <div className="rounded-lg bg-[#1b1b1d] px-4 py-3.5">
-          <textarea value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={alTeclear} onFocus={() => mensajes.length > 0 && setAbierto(true)}
+          <textarea value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={alTeclear}
             rows={1} maxLength={8000} placeholder="Habla con tus oficinas…" aria-label="Escribe tu mensaje"
             className="block max-h-24 w-full resize-none bg-transparent text-[14px] text-zinc-100 outline-none placeholder:text-zinc-400" />
           <div className="mt-4 flex items-center gap-3 text-zinc-300">
