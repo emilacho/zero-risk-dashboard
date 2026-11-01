@@ -36,10 +36,10 @@ describe("dashboard nuevo · sprint 3 · Dept. Marketing proyectado", () => {
   })
   it("cerrada: solo la escena (sin el interior ni el control de volver); abierta de entrada: escena atenuada + interior + «Escena»", () => {
     const cerrada = renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))
-    expect(cerrada).not.toContain("marketing-2560.jpg")
+    expect(cerrada).not.toContain("marketing-2560.webp")
     expect(cerrada).not.toContain("Volver a la escena")
     const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
-    expect(abierta).toContain("marketing-2560.jpg")
+    expect(abierta).toContain("marketing-2560.webp")
     expect(abierta).toContain('data-atenuado="true"')
     expect(abierta).toContain("Volver a la escena")
     // el interior no tiene zonas clicables propias: los únicos enlaces son los de la escena de fondo

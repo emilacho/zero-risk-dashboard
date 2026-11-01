@@ -34,6 +34,10 @@ export function VidaSpline() {
   useEffect(() => {
     let vivo = true
     const decidir = async () => {
+      // la biblioteca de Spline pesa varios MB: espera a que las fotos y la pantalla estén listas (carga + un respiro) para no competir con ellas por la red
+      if (document.readyState !== "complete") await new Promise<void>((r) => window.addEventListener("load", () => r(), { once: true }))
+      await new Promise<void>((r) => setTimeout(r, 1200))
+      if (!vivo) return
       if (!conviene(window.innerWidth, hayWebGL(), window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return
       // la escena está exportada solo para WebGPU (31-oct): sin adaptador WebGPU el lienzo no pinta nada y es mejor no montarlo (queda la foto sola).
       // Cuando el archivo de Spline se re-exporte con «Renderer: Both», esta puerta se puede abrir a WebGL.
@@ -45,6 +49,16 @@ export function VidaSpline() {
   }, [])
 
   useEffect(() => () => { detener.current?.() }, [])
+  // el sello «Built with Spline» lo pone el propio visor (un enlace con id «logo» dentro del contenedor): se quita al aparecer (Emilio 01-nov, encargo de Lenovo 21:14Z)
+  useEffect(() => {
+    if (!montar) return
+    const quitar = () => document.querySelectorAll('[data-vida="spline"] a#logo, [data-vida="spline"] a[href*="spline.design"]').forEach((a) => a.remove())
+    quitar()
+    const obs = new MutationObserver(quitar)
+    const raiz = document.querySelector('[data-vida="spline"]')
+    if (raiz) obs.observe(raiz, { childList: true, subtree: true })
+    return () => obs.disconnect()
+  }, [montar])
 
   const alCargar = (app: Application) => {
     detener.current?.()
@@ -95,6 +109,7 @@ export function VidaSpline() {
   if (!montar) return null
   return (
     <div data-vida="spline" aria-hidden="true" className="pointer-events-none absolute inset-0">
+      <style>{`[data-vida="spline"] a#logo,[data-vida="spline"] a[href*="spline.design"]{display:none!important}`}</style>
       <Suspense fallback={null}>
         <Spline scene={ESCENA_SPLINE} onLoad={alCargar} renderOnDemand={false} style={{ width: "100%", height: "100%" }} />
       </Suspense>

@@ -2,7 +2,7 @@
  * DASHBOARD NUEVO · SPRINT 6.12 (Emilio, 1-nov): «el monolito central va a ser la oficina del humano; al darle clic, igual que el Dept. Marketing, se expande la oficina;
  * crea una imagen con el mismo estilo pero que parezca un centro de comando, algo como una nave espacial moderna con pantallas, sin perder el estilo sencillo y sofisticado».
  *  · el monolito es la zona «Tu oficina» (/nuevo/oficina) y se proyecta con la MISMA mecánica que el departamento (crece desde el monolito, miniatura, Esc/atrás).
- *  · la imagen `oficina-2560.jpg` (+ 1280) existe y es liviana; su encaje (`SALA_EN_LA_OFICINA`) está medido.
+ *  · la imagen `oficina-2560.webp` (+ 1280) existe y es liviana; su encaje (`SALA_EN_LA_OFICINA`) está medido.
  *  · 6.12b (Emilio, 1-nov): el Cerebro NO está en tu oficina (tendrá estructura propia); tu oficina es el centro de revisión humana y sus pantallas se cablean una por una.
  *    La dirección directa /nuevo/cerebro sigue existiendo.
  */
@@ -36,8 +36,8 @@ describe("6.12 · el monolito es TU OFICINA", () => {
       expect(existsSync(p), p).toBe(true); expect(statSync(p).size).toBeLessThan(max * 1024)
     }
     const o = DEPARTAMENTOS.oficina
-    expect(o).toMatchObject({ clave: "oficina", url: "/nuevo/oficina", src: "/nuevo/oficina-2560.jpg", src1280: "/nuevo/oficina-1280.jpg", sala: SALA_EN_LA_OFICINA })
-    expect(DEPARTAMENTOS.marketing).toMatchObject({ clave: "marketing", url: "/nuevo/marketing", src: "/nuevo/marketing-2560.jpg", sala: SALA_EN_LA_FOTO })
+    expect(o).toMatchObject({ clave: "oficina", url: "/nuevo/oficina", src: "/nuevo/oficina-2560.webp", src1280: "/nuevo/oficina-1280.webp", sala: SALA_EN_LA_OFICINA })
+    expect(DEPARTAMENTOS.marketing).toMatchObject({ clave: "marketing", url: "/nuevo/marketing", src: "/nuevo/marketing-2560.webp", sala: SALA_EN_LA_FOTO })
     for (const v of [SALA_EN_LA_OFICINA.ancho, SALA_EN_LA_OFICINA.cx, SALA_EN_LA_OFICINA.cy]) { expect(v).toBeGreaterThan(0); expect(v).toBeLessThan(1) }
     expect(SALA_EN_LA_OFICINA.ancho).not.toBe(SALA_EN_LA_FOTO.ancho) // la losa del centro de comando es más ancha en su foto (x 120-2445 de 2560)
     expect(o.ovalo).toBe(ovaloDeLaSala(SALA_EN_LA_OFICINA, 46, 48)); expect(o.ovalo).toContain(`at ${SALA_EN_LA_OFICINA.cx * 100}% ${SALA_EN_LA_OFICINA.cy * 100}%`)
@@ -54,7 +54,7 @@ describe("6.12 · el monolito es TU OFICINA", () => {
   })
   it("tu oficina abierta: la foto del centro de comando (no la de marketing), el óvalo de SU sala; sin el Cerebro, sin el tablero de marketing y sin enlaces propios", () => {
     const html = renderToStaticMarkup(createElement(EscenaViva, { inicial: "oficina" }))
-    expect(html).toContain("/nuevo/oficina-2560.jpg"); expect(html).toContain("/nuevo/oficina-1280.jpg 1280w"); expect(html).not.toContain("marketing-2560.jpg")
+    expect(html).toContain("/nuevo/oficina-2560.webp"); expect(html).toContain("/nuevo/oficina-1280.webp 1280w"); expect(html).not.toContain("marketing-2560.webp")
     expect(html).toContain('data-departamento="oficina"'); expect(html).toContain('data-atenuado="true"'); expect(html).toContain("Volver a la escena")
     expect(html).toContain(`--nv-ovalo:${DEPARTAMENTOS.oficina.ovalo}`); expect(html).toContain(".nv-foto-a{-webkit-mask-image:var(--nv-ovalo);mask-image:var(--nv-ovalo)}")
     expect(html).toContain('alt="Tu oficina: el centro de comando"')
@@ -66,7 +66,7 @@ describe("6.12 · el monolito es TU OFICINA", () => {
   it("marketing abierto sigue igual: su foto, su tablero, su óvalo; sin el arco de pantallas (que es de tu oficina). `inicial: true` = marketing (compatibilidad)", () => {
     for (const inicial of [true, "marketing"] as const) {
       const html = renderToStaticMarkup(createElement(EscenaViva, { inicial }))
-      expect(html).toContain("/nuevo/marketing-2560.jpg"); expect(html).not.toContain("oficina-2560.jpg"); expect(html).toContain('data-departamento="marketing"')
+      expect(html).toContain("/nuevo/marketing-2560.webp"); expect(html).not.toContain("oficina-2560.webp"); expect(html).toContain('data-departamento="marketing"')
       expect(html).toContain(`--nv-ovalo:${DEPARTAMENTOS.marketing.ovalo}`); expect(html).toContain('class="nv-tablero"'); expect(html).not.toContain("nv-pantallas\" data-zona")
     }
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))).not.toContain('class="nv-proy') // cerrada: no hay proyección

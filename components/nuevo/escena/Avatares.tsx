@@ -65,7 +65,7 @@ const ESTILO = `
  *  brilla si trabaja (y se inclina un poco hacia el monitor), late en rojo si fall√≥. El origen es el asiento. */
 function Figura({ x, y, color, estado }: { x: number; y: number; color: string; estado: EstadoDelMiembro }) {
   return (
-    <g className="nv-av-fig" data-estado={estado} transform={`translate(${x} ${y}) scale(.9)`}>
+    <g className="nv-av-fig" data-estado={estado} transform={`translate(${x} ${y}) scale(1.15)`}>
       <ellipse className="nv-av-sombra" cx={0} cy={4} rx={25} ry={8} />
       <path className="nv-av-silla" d="M-19 -8 C-21 -34 -17 -52 -9 -54 L9 -54 C17 -52 21 -34 19 -8 Q0 0 -19 -8 Z" />
       <rect className="nv-av-silla" x={-3} y={-2} width={6} height={9} rx={2} />
@@ -187,11 +187,11 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn√
                   <g key={k} className="nv-av-asiento" data-agente={p.agente} data-estado={p.estado} role="img" tabIndex={p.estado === "trabajando" || p.estado === "fallo" ? 0 : -1} aria-label={`${p.nombre}. ${m.nombre}. ${p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? "con fallo" : "sin trabajar ahora"}`}
                     onMouseEnter={() => setFicha(k)} onMouseLeave={() => setFicha((f) => (f === k ? null : f))} onFocus={() => setFicha(k)} onBlur={() => setFicha((f) => (f === k ? null : f))}>
                     <Figura x={pt.x} y={pt.y} color={m.color} estado={p.estado} />
-                    <rect x={pt.x - 24} y={pt.y - 72} width={48} height={80} />
+                    <rect x={pt.x - 30} y={pt.y - 92} width={60} height={100} />
                   </g>
                 )
               })}
-              {deMas > 0 && puestos.length > 0 && <text x={puestos[puestos.length - 1].pt.x + 34} y={puestos[puestos.length - 1].pt.y - 22} fill="#ffd9a0" fontSize={24} fontFamily="system-ui, Arial, sans-serif">+{deMas}</text>}
+              {deMas > 0 && puestos.length > 0 && <text x={puestos[0].pt.x - 46} y={puestos[0].pt.y - 30} fill="#ffd9a0" fontSize={24} fontFamily="system-ui, Arial, sans-serif">+{deMas}</text>}
             </g>
           )
         })}
@@ -205,7 +205,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn√
       {/* la ficha al pasar el cursor por una figura */}
       {enFicha && posFicha && (
         <div role="tooltip" className="nv-av-ficha absolute z-[3] w-max max-w-[22rem] -translate-y-full rounded-xl border border-amber-400/60 bg-[#0e0c0a]/95 px-3.5 py-2.5 text-[12px] leading-[1.45] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
-          style={{ left: pct(posFicha.x + 24, FOTO.w), top: pct(posFicha.y - 76, FOTO.h) }} data-ficha={enFicha.agente}>
+          style={{ left: pct(posFicha.x + 24, FOTO.w), top: pct(posFicha.y - 96, FOTO.h) }} data-ficha={enFicha.agente}>
           {enFicha.lineas.map((l, i) => (
             <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : enFicha.lineas.length > 2 && i === enFicha.lineas.length - 1 ? "mt-1 text-[11px] text-zinc-500" : undefined}>{l}</div>
           ))}

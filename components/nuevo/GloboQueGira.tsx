@@ -10,7 +10,7 @@ import { GLOBO, TRAZO_DEL_GLOBO, cajaDelGlobo, giroDelGlobo } from "@/lib/globo-
  * El mapa (world-atlas 1:110m, ~55 kB) se carga aparte, solo dentro de tu oficina. Con «menos movimiento» se dibuja quieto; con la pestaña oculta no se dibuja.
  * Hasta tener el primer cuadro el lienzo es invisible (se ve la foto). Solo decoración: no se toca, no lee nada del sistema.
  */
-const FOTO = { w: 2560, h: 1440, src: "/nuevo/oficina-2560.jpg" }
+const FOTO = { w: 2560, h: 1440, src: "/nuevo/oficina-2560.webp" }
 const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
 const ESCALA = 3 // píxeles del lienzo por píxel de la foto (nítido también en pantallas grandes)
 

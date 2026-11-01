@@ -76,7 +76,7 @@ export function EscenaNuevo({ alAbrirMarketing, alAbrirOficina, fondo, children 
         {/* [transform:translateZ(0)] en la foto: con un lienzo WebGL encima (la capa de vida) Chrome la redibuja con otro filtro y se ve distinta;
             en su propia capa de composición queda píxel-idéntica a la foto sola (medido 31-oct: 0 píxeles cambiados). No es decorativo: no quitar. */}
         <img
-          src="/nuevo/escena-2560.jpg" srcSet="/nuevo/escena-1280.jpg 1280w, /nuevo/escena-2560.jpg 2560w" sizes="(max-width: 900px) 100vw, 1400px"
+          src="/nuevo/escena-2560.webp" srcSet="/nuevo/escena-1280.webp 1280w, /nuevo/escena-2560.webp 2560w" sizes="(max-width: 900px) 100vw, 1400px"
           alt="Las oficinas de Zero Risk" width={2560} height={1385} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full select-none [transform:translateZ(0)]" draggable={false}
         />
         {ENCENDIDOS.map((e) => (

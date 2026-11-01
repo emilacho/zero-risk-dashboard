@@ -22,14 +22,25 @@ const ESTILO = `
 @media (prefers-reduced-motion:reduce){.pz-casilla{transition:none}.pz-casilla[data-destacada="true"]{animation:none}}
 `
 
-/** qué dice arriba del tablero sobre la fase: antes de empezar, en curso o terminada */
+/** el nombre de una fase con sus tildes («senal» → «Señal»); las que no conoce las escribe con mayúscula inicial */
+const FASES_CON_TILDE: Record<string, string> = { senal: "Señal", señal: "Señal", conexion: "Conexión", conversion: "Conversión", optimizacion: "Optimización", activacion: "Activación", expansion: "Expansión", atraccion: "Atracción" }
+export const nombreDeLaFase = (clave: unknown): string => { const k = String(clave ?? "").trim(); return k ? FASES_CON_TILDE[k.toLowerCase()] ?? k.charAt(0).toUpperCase() + k.slice(1) : "—" }
+
+/** qué dice arriba del tablero y en la tarjeta «Plan de 90 días»: el estado REAL (campaña en pausa · plan esperando tu decisión · en reescritura…); la fase solo si la campaña corre con su plan vigente */
 export function textoDeLaFase(p: Pick<Pizarron, "fase_activa" | "campana">): string {
+  const c = p.campana
   const f = p.fase_activa
+  if (c && (c.estado !== "activa" || c.del_plan_anterior || (c.momento_del_plan && !/aprobado|en marcha/.test(c.momento_del_plan)))) {
+    const partes = [c.estado !== "activa" ? `Campaña ${estadoDeCampanaLegible(c.estado)}` : null, c.momento_del_plan].filter((x): x is string => !!x)
+    if (partes[0]) partes[0] = partes[0].charAt(0).toUpperCase() + partes[0].slice(1)
+    if (partes.length) return partes.join(" · ")
+    if (c.del_plan_anterior) return "Sigue el plan anterior"
+  }
   if (f.situacion === "sin_fecha") return "La campaña no tiene fecha de inicio"
   if (f.situacion === "sin_fases") return "La estrategia todavía no trae fases"
-  if (f.situacion === "antes") return `Empieza ${f.dias_para_empezar === 1 ? "mañana" : `en ${f.dias_para_empezar} días`} (${p.campana?.desde ? diaDelCalendario(p.campana.desde) : "—"}) · primera fase: ${f.fase?.clave ?? "—"}`
-  if (f.situacion === "despues") return `Terminó sus 90 días · última fase: ${f.fase?.clave ?? "—"}`
-  return `Día ${f.dia} · fase ${f.fase?.clave ?? "—"}`
+  if (f.situacion === "antes") return `Empieza ${f.dias_para_empezar === 1 ? "mañana" : `en ${f.dias_para_empezar} días`} (${c?.desde ? diaDelCalendario(c.desde) : "—"}) · primera fase: ${nombreDeLaFase(f.fase?.clave)}`
+  if (f.situacion === "despues") return `Terminó sus 90 días · última fase: ${nombreDeLaFase(f.fase?.clave)}`
+  return `Día ${f.dia} · fase ${nombreDeLaFase(f.fase?.clave)}`
 }
 
 /** las esperas vivas de la campaña, agrupadas por motivo («un dato se investiga ×16»), en el orden en que aparecen */
