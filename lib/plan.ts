@@ -204,6 +204,17 @@ export function marcasDelChequeo(pendientes: unknown): MarcaDelChequeo[] {
   }
   return out
 }
+/** el estado de la estrategia de la cadena, en palabras (sin enseñar el valor interno) */
+export function estadoDeLaEstrategia(e: unknown): string {
+  switch (String(e ?? "")) {
+    case "validada": return "validada"
+    case "borrador": return "en borrador"
+    case "rechazada": return "rechazada"
+    case "": return "sin estado"
+    default: return "en revisión"
+  }
+}
+
 export function estadoDelPlanLegible(e: unknown): string {
   switch (texto(e)) {
     case "con_pendientes": return "Con puntos por resolver"
@@ -346,21 +357,21 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
     const quien = cp?.decidido_por ? ` por ${cp.decidido_por}` : ""
     const detalle = sinDespertar
       ? `Quedó aprobado, pero no se pudo avisar para seguir al PDF y al brief${cp?.despertar_detalle ? ` (${cp.despertar_detalle})` : ""}. No se cambió nada.`
-      : `Versión ${ciclo.version} aprobada${quien}: sigue el PDF, la sala y el brief.`
+      : `Plan aprobado${quien}: sigue el PDF, la sala y el brief.`
     return { estado: "aprobado", titulo: "Aprobado → pasa al brief", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-aprobar" : null, avisos }
   }
   if (pd && (pd.estado === "pendiente" || pd.estado === "en_reescritura")) {
     const sinDespertar = pd.despertado === false
     const detalle = sinDespertar
       ? `Tu pedido quedó guardado, pero no se pudo avisar a la oficina de planeación${pd.despertar_detalle ? ` (${pd.despertar_detalle})` : ""}. No se cambió nada.`
-      : `El jefe de marketing rehace el plan sobre la versión ${ciclo.version} con tus observaciones${pd.vuelta ? ` (vuelta ${pd.vuelta} de ${VUELTAS_MAXIMAS})` : ""}; después lo revisa la jefatura.`
+      : `El jefe de marketing rehace el plan con tus observaciones${pd.vuelta ? ` (vuelta ${pd.vuelta} de ${VUELTAS_MAXIMAS})` : ""}; después lo revisa la jefatura.`
     return { estado: "reescribiendo", titulo: "Reescribiendo", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-cambios" : null, avisos }
   }
   if (ciclo.con_compuerta && !cp) return { estado: "en_revision", titulo: "En revisión", detalle: "La jefatura está revisando esta versión: decides cuando termine.", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos }
   const alTope = ciclo.version > VUELTAS_MAXIMAS
   if (alTope) avisos.push(`Ya van ${VUELTAS_MAXIMAS} reescrituras: desde aquí solo se puede aprobar; lo demás se decide a mano.`)
   if (ciclo.disponible && !ciclo.con_compuerta && !cp) avisos.push("Este plan es de antes del ciclo: aprobarlo lo deja firme sin reanudar nada (su brief ya salió). Pedir cambios crea la versión siguiente, con su revisión.")
-  return { estado: "esperando_decision", titulo: "Esperando tu decisión", detalle: `Versión ${ciclo.version}: apruébala para que pase al brief, o pide cambios para que el jefe de marketing la reescriba.`, puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
+  return { estado: "esperando_decision", titulo: "Esperando tu decisión", detalle: "Apruébalo para que pase al brief, o pide cambios para que el jefe de marketing lo reescriba.", puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
 }
 
 

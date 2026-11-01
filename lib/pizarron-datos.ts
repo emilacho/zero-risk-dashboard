@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { fasesDelPlan, type FasesDelPlan } from "@/lib/clientes"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { estadoDeLaPieza } from "@/lib/piezas"
+import { versionDelTag } from "@/lib/plan"
 import { estadoDelTablero, faseActiva, hoyEnEcuador, semanasDelTablero, totalesDelTablero, type EncargoDelTablero, type FaseActiva, type FilaDelTablero, type PiezaDelTablero, type RevisionDelTablero, type SemanaDelTablero, type EstadoDelTablero } from "@/lib/pizarron"
 
 type Fila = Record<string, unknown>
@@ -20,7 +21,7 @@ const textos = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => (typeo
 export interface Pizarron {
   clientes: Array<{ id: string; nombre: string; con_campana: boolean }>
   cliente: { id: string; nombre: string } | null
-  campana: null | { id: string; estado: string; desde: string | null; hasta: string | null; version_calendario: number | null; version_estrategia: number | null }
+  campana: null | { id: string; estado: string; desde: string | null; hasta: string | null; version_calendario: number | null; version_estrategia: number | null; /** el calendario se armó con un plan que ya no es el vigente */ del_plan_anterior?: boolean }
   fases: FasesDelPlan[]
   fase_activa: FaseActiva
   /** no existe en ninguna tabla todavía; se dice así */
@@ -49,10 +50,14 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   if (!elegido) return vacio(null)
   const cliente = { id: elegido.id, nombre: elegido.nombre }
 
-  const camp = await una(supa.from("cadena_campanas").select("id, estado, fecha_inicio, fecha_fin").eq("client_id", cliente.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
+  const camp = await una(supa.from("cadena_campanas").select("id, plan_id, estado, fecha_inicio, fecha_fin").eq("client_id", cliente.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
   if (!camp) return vacio(cliente)
   const campId = String(camp.id)
 
+  // el plan vigente del cliente (el último que no está rechazado ni reemplazado): si la campaña apunta a otro, su calendario es del plan anterior
+  const planes = await filas(supa.from("client_historical_outputs").select("id, status, provenance_tag").eq("client_id", cliente.id).eq("output_type", "campaign_plan_90d").order("created_at", { ascending: false }).limit(40), "client_historical_outputs")
+  const vigente = planes.find((p) => p.status !== "rejected" && versionDelTag(p.provenance_tag).vigente)
+  const delPlanAnterior = !!(vigente && camp.plan_id && String(vigente.id) !== String(camp.plan_id))
   const [est, ultimaVersion, esperas, encargos] = await Promise.all([
     una(supa.from("cadena_estrategias").select("version, contenido").eq("campana_id", campId).eq("seco", false).order("version", { ascending: false }).limit(1).maybeSingle(), "cadena_estrategias"),
     una(supa.from("cadena_calendario_filas").select("calendario_version").eq("campana_id", campId).eq("seco", false).order("calendario_version", { ascending: false }).limit(1).maybeSingle(), "cadena_calendario_filas"),
@@ -103,7 +108,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   const fases = fasesDelPlan(est?.contenido)
   return {
     clientes, cliente,
-    campana: { id: campId, estado: String(camp.estado ?? ""), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, version_calendario: version, version_estrategia: est ? Number(est.version) : null },
+    campana: { id: campId, estado: String(camp.estado ?? ""), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, version_calendario: version, version_estrategia: est ? Number(est.version) : null, del_plan_anterior: delPlanAnterior },
     fases, fase_activa: faseActiva(fases, camp.fecha_inicio ? String(camp.fecha_inicio) : null, hoy),
     gran_idea: GRAN_IDEA_SIN_TABLA,
     esperas: esperas.map((e) => ({ motivo: String(e.motivo ?? ""), vence_en: e.vence_en ? String(e.vence_en) : null })),

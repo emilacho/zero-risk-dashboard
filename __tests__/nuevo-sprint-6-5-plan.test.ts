@@ -158,11 +158,11 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
   it("el panel dibuja la portada, la decisión pendiente con sus marcas y botones, las fases, la meta, las redes, la semana tipo y lo que espera; sin revisión pendiente no hay botones", () => {
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="plan"'); expect(html).toContain("Plan de 90 días"); expect(html).toContain("Náufrago")
-    expect(html).toContain("campaña en pausa"); expect(html).toContain("pausa de pruebas por decisión del dueño"); expect(html).toContain("Día 4 · fase senal"); expect(html).toContain("estrategia v1 · validada"); expect(html).toContain("Con puntos por resolver · 3")
-    expect(html).toContain("Topes de la planeación"); expect(html).toContain("Mesa de análisis"); expect(html).toContain("US$ 1,50"); expect(html).not.toContain("Tope de planeación"); // errores 3: topes del catálogo, no fijos
+    expect(html).toContain("campaña en pausa"); expect(html).toContain("pausa de pruebas por decisión del dueño"); expect(html).toContain("Día 4 · fase senal"); expect(html).toContain("estrategia validada"); expect(html).not.toContain("estrategia v1"); expect(html).toContain("Con puntos por resolver · 3")
+    expect(html).not.toContain("Topes de la planeación"); expect(html).not.toContain("US$ 1,50"); expect(html).not.toContain("Tope de planeación"); // 01-nov (punto 8 de Emilio): el panel del plan no muestra dinero; el dinero va en Dinero
      expect(html).toContain("136"); expect(html).toContain("Guayaquil · Olón")
     // la decisión pendiente: las marcas del chequeo y los dos botones con las palabras de la bandeja
-    expect(html).toContain('data-apartado="decision"'); expect(html).toContain(">P3<"); expect(html).toContain("lleva nombres internos"); expect(html).toContain("La jefatura dejó desacuerdos")
+    expect(html).toContain('data-apartado="decision"'); expect(html).not.toContain(">P3<"); expect(html).toContain("lleva nombres internos"); expect(html).toContain("La jefatura dejó desacuerdos")
     expect(html).toContain('data-accion="plan-aprobar-asi"'); expect(html).toContain("Aprobar el plan así"); expect(html).toContain('data-accion="plan-pedir-cambios"'); expect(html).toContain("Pedir cambios al plan")
     expect(html).not.toContain('data-editor="plan-cambios"') // el formulario del porqué no está abierto de entrada
     // fases · meta · redes · pilares · semana tipo · lo dicho · esperas

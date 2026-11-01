@@ -7,9 +7,10 @@ import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
 import { ESTILO_SALA, lineasDelParticipante, PanelDeLaSala, SalaEnLaFoto } from "@/components/nuevo/escena/SalaDeReuniones"
 import { SALA } from "@/lib/escena-sala"
 import {
-  asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, tableroDeLaMesa,
-  type ClaveDeMesa, type EscenaDatos, type Mesa, type MesaViva,
+  colocarFiguras, ESCENA_AVATARES, estadoDeLaMesa, FOTO, lineasDeLaFicha, lineasDelMiembro, MESAS, puestosDeLaMesa, tableroDeLaMesa,
+  type ClaveDeMesa, type EscenaDatos, type EstadoDelMiembro, type Mesa, type MesaViva, type MiembroDeMesa, type Punto,
 } from "@/lib/escena-avatares"
+import { nombreCanonico } from "@/lib/organigrama"
 
 /**
  * LA ESCENA VIVA · AVATARES (CC6 · Sprint 1 · 01-nov): la capa que va ENCIMA de la foto de la oficina de marketing, dentro de la proyección de `EscenaViva`.
@@ -37,16 +38,43 @@ const ESTILO = `
 .nv-av .nv-av-luz[data-on="ambar"]{opacity:.9;animation:nvAvLate 2.6s ease-in-out infinite}
 .nv-av .nv-av-luz[data-on="rojo"]{opacity:.85;animation:nvAvLateRojo 1.4s ease-in-out infinite}
 .nv-av .nv-av-asiento{pointer-events:auto;cursor:default;outline:none}
-.nv-av .nv-av-asiento ellipse{fill:rgba(255,170,60,0);stroke:rgba(255,170,60,0);transition:fill .3s ease,stroke .3s ease}
-.nv-av .nv-av-asiento[data-figura="false"] ellipse{stroke:rgba(255,170,60,.55);stroke-width:2;fill:rgba(255,170,60,.1)}
-.nv-av .nv-av-asiento[data-figura="false"][data-estado="fallo"] ellipse{stroke:rgba(255,90,74,.7);fill:rgba(255,90,74,.12)}
-.nv-av .nv-av-asiento:hover ellipse,.nv-av .nv-av-asiento:focus-visible ellipse{stroke:rgba(255,200,120,.8)}
+.nv-av .nv-av-asiento rect{fill:transparent}
+.nv-av .nv-av-sombra{fill:rgba(0,0,0,.45)}
+.nv-av .nv-av-cuerpo,.nv-av .nv-av-cabeza{fill:#16130f;stroke:rgba(255,170,60,.34);stroke-width:1.7;transition:stroke .3s ease,filter .3s ease}
+.nv-av .nv-av-franja{opacity:.5;transition:opacity .3s ease}
+.nv-av .nv-av-fig[data-estado="reciente"] .nv-av-cuerpo,.nv-av .nv-av-fig[data-estado="reciente"] .nv-av-cabeza{stroke:rgba(255,170,60,.55)}
+.nv-av .nv-av-fig[data-estado="reciente"] .nv-av-franja{opacity:.75}
+.nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-cuerpo,.nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-cabeza{stroke:#ffb347;filter:drop-shadow(0 0 5px rgba(255,160,50,.85))}
+.nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-franja{opacity:1}
+.nv-av .nv-av-fig[data-estado="trabajando"]{animation:nvAvRespira 3s ease-in-out infinite}
+.nv-av .nv-av-fig[data-estado="fallo"] .nv-av-cuerpo,.nv-av .nv-av-fig[data-estado="fallo"] .nv-av-cabeza{stroke:#ff5a4a;filter:drop-shadow(0 0 5px rgba(255,80,60,.8))}
+.nv-av .nv-av-fig[data-estado="fallo"] .nv-av-franja{opacity:.9}
+.nv-av .nv-av-asiento:hover .nv-av-cuerpo,.nv-av .nv-av-asiento:hover .nv-av-cabeza,.nv-av .nv-av-asiento:focus-visible .nv-av-cuerpo,.nv-av .nv-av-asiento:focus-visible .nv-av-cabeza{stroke:rgba(255,215,150,.95)}
+@keyframes nvAvRespira{0%,100%{opacity:1}50%{opacity:.82}}
 .nv-av .nv-av-ficha,.nv-av .nv-av-lista{pointer-events:auto;animation:nvAvEntra .25s ease both}
 @keyframes nvAvLate{0%,100%{opacity:.9}50%{opacity:.55}}
 @keyframes nvAvLateRojo{0%,100%{opacity:.85}50%{opacity:.4}}
 @keyframes nvAvEntra{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.nv-av .nv-av-luz[data-on]{animation:none}.nv-av .nv-av-ficha,.nv-av .nv-av-lista{animation:none}.nv-av .nv-av-rotulo,.nv-av .nv-av-luz{transition:none}}
+@media (prefers-reduced-motion:reduce){.nv-av .nv-av-fig{animation:none!important}.nv-av .nv-av-luz[data-on]{animation:none}.nv-av .nv-av-ficha,.nv-av .nv-av-lista{animation:none}.nv-av .nv-av-rotulo,.nv-av .nv-av-luz{transition:none}}
 `
+
+/** una figura sentada en su puesto, en el estilo de la escena: cuerpo oscuro con borde de luz, la franja del color de su equipo en el hombro; brilla si trabaja, late en rojo si falló */
+function Figura({ x, y, color, estado }: { x: number; y: number; color: string; estado: EstadoDelMiembro }) {
+  return (
+    <g className="nv-av-fig" data-estado={estado} transform={`translate(${x} ${y})`}>
+      <ellipse className="nv-av-sombra" cx={0} cy={2} rx={13} ry={4.5} />
+      <path className="nv-av-cuerpo" d="M-12 0 C-13 -12 -9 -22 -5 -24 L5 -24 C9 -22 13 -12 12 0 Z" />
+      <path className="nv-av-franja" d="M-8.6 -17 L8.6 -17 L9.4 -13 L-9.4 -13 Z" fill={color} />
+      <circle className="nv-av-cabeza" cx={0} cy={-32} r={8.5} />
+    </g>
+  )
+}
+/** quién se dibuja en la mesa y dónde: todo el equipo menos quien está ahora en la sala de reuniones (ahí se ve) */
+const puestosDelEquipo = (m: MesaViva): Array<{ p: MiembroDeMesa; pt: Punto }> => {
+  const visibles = m.equipo.filter((p) => !p.en_sala)
+  const pts = puestosDeLaMesa(m, visibles.length)
+  return visibles.slice(0, pts.length).map((p, i) => ({ p, pt: pts[i] }))
+}
 
 /** la mesa vacía que se dibuja antes de que llegue el dato (y si la lectura falla): sin sentados, sin equipo, sin inventar */
 const vacia = (m: Mesa): MesaViva => ({ ...m, sentados: [], equipo: [], trabajando: 0, fallando: 0 })
@@ -102,8 +130,14 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
-  const enFicha = ficha ? (() => { const [mk, ag] = ficha.split("|"); const m = mesas.find((x) => x.clave === mk); const s = m?.sentados.find((x) => x.agente === ag); return m && s ? { m, s } : null })() : null
-  const posFicha = enFicha ? asientosDeLaMesa(enFicha.m, enFicha.m.sentados.length)[Math.min(enFicha.m.sentados.indexOf(enFicha.s), MAXIMO_POR_MESA - 1)] : null
+  // la ficha al pasar el cursor: de quien trabaja (completa) o de quien está en su puesto (estado y última tarea)
+  const enFicha = ficha ? (() => {
+    const [mk, ag] = ficha.split("|"); const m = mesas.find((x) => x.clave === mk); if (!m) return null
+    const puesto = puestosDelEquipo(m).find((x) => x.p.agente === ag); if (!puesto) return null
+    const s = m.sentados.find((x) => nombreCanonico(x.agente) === nombreCanonico(ag))
+    return { m, pt: puesto.pt, lineas: s ? lineasDeLaFicha(s, m) : lineasDelMiembro(puesto.p, m), agente: ag }
+  })() : null
+  const posFicha = enFicha ? enFicha.pt : null
 
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
@@ -119,9 +153,9 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {mesas.map((m) => <PantallaDeLaMesa key={`pantalla-${m.clave}`} m={m} />)}
         {mesas.map((m) => {
           const on = m.trabajando > 0 ? "ambar" : m.fallando > 0 ? "rojo" : ""
-          const asientos = asientosDeLaMesa(m, m.sentados.length)
-          const deMas = m.sentados.length - asientos.length
-          const subtitulo = m.sentados.length ? `${m.trabajando} trabajando${m.fallando ? ` · ${m.fallando} con fallo` : ""}` : m.etapa === "segunda_etapa" ? "por activar · nadie trabaja" : "nadie trabaja ahora"
+          const puestos = puestosDelEquipo(m)
+          const deMas = m.equipo.filter((p) => !p.en_sala).length - puestos.length
+          const subtitulo = estadoDeLaMesa(m)
           return (
             <g key={m.clave} className="nv-av-mesa" data-mesa={m.clave} data-etapa={m.etapa} data-ocupada={m.sentados.length > 0} data-trabajando={m.trabajando} opacity={m.etapa === "segunda_etapa" && !m.sentados.length ? 0.75 : 1}>
               {/* la luz del monitor de la foto: ámbar cuando alguien trabaja, roja si lo último fue un fallo; el derrame al piso va sobre la silla */}
@@ -137,18 +171,18 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
                   <text x={m.rotulo.x} y={m.rotulo.y + 24} textAnchor="middle" fill={m.sentados.length ? "#ffd9a0" : "#9a9a9a"} fontSize={17} fontFamily="system-ui, Arial, sans-serif">{subtitulo}</text>
                 </g>
               </g>
-              {/* los asientos ocupados: el blanco del cursor para la ficha (la figura 3D la pinta Spline encima; sin escena, un marcador en la silla) */}
-              {asientos.map((p, i) => {
-                const s = m.sentados[i]
-                const k = `${m.clave}|${s.agente}`
+              {/* el equipo completo en su puesto, al frente del escritorio: los de la fila de atrás se dibujan primero. Trabajando = brilla; sin trabajo = figura quieta (el monitor de la mesa sigue negro) */}
+              {[...puestos].sort((a, b) => a.pt.y - b.pt.y).map(({ p, pt }) => {
+                const k = `${m.clave}|${p.agente}`
                 return (
-                  <g key={k} className="nv-av-asiento" data-agente={s.agente} data-estado={s.estado} data-figura={hayFiguras} role="img" tabIndex={0} aria-label={lineasDeLaFicha(s, m).join(". ")}
+                  <g key={k} className="nv-av-asiento" data-agente={p.agente} data-estado={p.estado} role="img" tabIndex={p.estado === "trabajando" || p.estado === "fallo" ? 0 : -1} aria-label={`${p.nombre}. ${m.nombre}. ${p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? "con fallo" : "sin trabajar ahora"}`}
                     onMouseEnter={() => setFicha(k)} onMouseLeave={() => setFicha((f) => (f === k ? null : f))} onFocus={() => setFicha(k)} onBlur={() => setFicha((f) => (f === k ? null : f))}>
-                    <ellipse cx={p.x} cy={p.y - 40} rx={38} ry={62} />
+                    <Figura x={pt.x} y={pt.y} color={m.color} estado={p.estado} />
+                    <rect x={pt.x - 15} y={pt.y - 46} width={30} height={50} />
                   </g>
                 )
               })}
-              {deMas > 0 && <text x={asientos[asientos.length - 1].x + 50} y={asientos[asientos.length - 1].y - 70} fill="#ffd9a0" fontSize={20} fontFamily="system-ui, Arial, sans-serif">+{deMas}</text>}
+              {deMas > 0 && puestos.length > 0 && <text x={puestos[puestos.length - 1].pt.x + 22} y={puestos[puestos.length - 1].pt.y - 14} fill="#ffd9a0" fontSize={20} fontFamily="system-ui, Arial, sans-serif">+{deMas}</text>}
             </g>
           )
         })}
@@ -156,15 +190,15 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} onFoco={setEnSala} onTocar={(a) => setFichaDe(a)} />
         {/* trabajando ahora sin mesa conocida: se dice, no se inventa una mesa */}
         {datos && datos.sin_mesa.length > 0 && (
-          <text x={560} y={1120} fill="#bdb3a4" fontSize={18} fontFamily="system-ui, Arial, sans-serif" data-sin-mesa>sin mesa conocida · {datos.sin_mesa.map((s) => `${s.nombre} (${s.estado})`).join(" · ")}</text>
+          <text x={560} y={1120} fill="#bdb3a4" fontSize={18} fontFamily="system-ui, Arial, sans-serif" data-sin-mesa>sin equipo asignado · {datos.sin_mesa.map((s) => `${s.nombre} (${s.estado === "trabajando" ? "trabajando" : "falló"})`).join(" · ")}</text>
         )}
       </svg>
       {/* la ficha al pasar el cursor por una figura */}
       {enFicha && posFicha && (
         <div role="tooltip" className="nv-av-ficha absolute z-[3] w-max max-w-[22rem] -translate-y-full rounded-xl border border-amber-400/60 bg-[#0e0c0a]/95 px-3.5 py-2.5 text-[12px] leading-[1.45] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
-          style={{ left: pct(posFicha.x + 50, FOTO.w), top: pct(posFicha.y - 110, FOTO.h) }} data-ficha={enFicha.s.agente}>
-          {lineasDeLaFicha(enFicha.s, enFicha.m).map((l, i) => (
-            <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : i === lineasDeLaFicha(enFicha.s, enFicha.m).length - 1 ? "mt-1 text-[11px] text-zinc-500" : undefined}>{l}</div>
+          style={{ left: pct(posFicha.x + 24, FOTO.w), top: pct(posFicha.y - 56, FOTO.h) }} data-ficha={enFicha.agente}>
+          {enFicha.lineas.map((l, i) => (
+            <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : enFicha.lineas.length > 2 && i === enFicha.lineas.length - 1 ? "mt-1 text-[11px] text-zinc-500" : undefined}>{l}</div>
           ))}
         </div>
       )}
@@ -191,16 +225,16 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <div role="dialog" aria-label={`Equipo ${abierta.nombre}`} className="nv-av-lista absolute z-[4] w-[22rem] max-h-[60%] overflow-auto rounded-xl border border-white/15 bg-[#121110]/95 p-3 text-[12px] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
           style={{ left: pct(Math.min(abierta.centro.x + 130, FOTO.w - 700), FOTO.w), top: pct(Math.max(abierta.centro.y - 160, 40), FOTO.h) }} onClick={(e) => e.stopPropagation()}>
           <div className="mb-1.5 flex items-center justify-between gap-2">
-            <div><span className="text-[13px] font-semibold" style={{ color: abierta.color }}>{abierta.nombre}</span><span className="ml-2 text-[11px] text-zinc-500">{abierta.etapa === "activo" ? "activo" : "segunda etapa · por activar"}</span></div>
+            <div><span className="text-[13px] font-semibold" style={{ color: abierta.color }}>{abierta.nombre}</span><span className="ml-2 text-[11px] text-zinc-500" data-estado-de-la-mesa>{estadoDeLaMesa(abierta)}</span></div>
             <button type="button" onClick={() => setMesaAbierta(null)} aria-label="Cerrar" className="rounded px-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">×</button>
           </div>
           {abierta.equipo.length === 0 ? (
-            <p className="text-zinc-500">{datos ? "nadie asignado a esta mesa en el directorio ni en el mapa" : "leyendo…"}</p>
+            <p className="text-zinc-500">{datos ? "Todavía no hay nadie asignado a este equipo." : "leyendo…"}</p>
           ) : (
             <ul className="space-y-1">
               {abierta.equipo.map((p) => (
                 <li key={p.agente} className="flex items-baseline justify-between gap-2" data-miembro={p.agente} data-estado={p.estado}>
-                  <span className="min-w-0 truncate"><button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); setFichaDe(p.agente) }} title={`Ver la ficha de ${p.nombre}`} className="truncate text-left underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100 hover:decoration-amber-300 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">{p.nombre}</button>{p.origen_de_la_mesa === "mapa" && <span className="ml-1 text-[10px] text-zinc-500" title="sin tarjeta en el directorio; equipo según el mapa firmado">(mapa)</span>}</span>
+                  <span className="min-w-0 truncate"><button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); setFichaDe(p.agente) }} title={`Ver la ficha de ${p.nombre}`} className="truncate text-left underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100 hover:decoration-amber-300 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">{p.nombre}</button></span>
                   <span className={`shrink-0 text-[11px] ${p.estado === "trabajando" ? "text-amber-200" : p.estado === "fallo" ? "text-red-300" : p.estado === "reciente" ? "text-zinc-300" : "text-zinc-500"}`}>
                     {p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? `falló ${p.hace}` : p.estado === "reciente" ? `trabajó ${p.hace}` : p.ultima ? `última ${p.hace}` : "sin trabajo en 24 h"}
                     {p.nota && <span className="block text-[10px] text-zinc-500">{p.nota}</span>}
@@ -209,9 +243,12 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
               ))}
             </ul>
           )}
-          <p className="mt-2 text-[10px] text-zinc-600">{datos ? datos.fuente : "sin dato todavía"}{datos && datos.sin_fin_registrado > 0 ? ` · ${datos.sin_fin_registrado} despacho(s) abiertos sin fin registrado (no se sientan)` : ""}</p>
+          {(abierta.por_instalar?.length ?? 0) > 0 && <p data-por-instalar className="mt-2 text-[11px] text-zinc-500">Firmados, todavía sin instalar: {abierta.por_instalar!.join(" · ")}</p>}
+          <p className="mt-2 text-[10px] text-zinc-600">{datos ? datos.fuente : "sin dato todavía"}</p>
         </div>
       )}
+      {/* en qué se trabaja: el cliente y el momento de su campaña, discreto, abajo a la izquierda */}
+      {datos?.contexto && <p data-contexto className="pointer-events-none absolute bottom-[3.2%] left-[2.6%] max-w-[44%] text-[12px] tracking-wide text-zinc-400/85">{datos.contexto.cliente}<span className="mx-1.5 text-zinc-600">·</span>{datos.contexto.momento}</p>}
       {error && <span className="sr-only" data-error-lectura>{error}</span>}
       {fichaDe && <FichaDelEmpleado agente={fichaDe} onCerrar={() => setFichaDe(null)} />}
     </div>

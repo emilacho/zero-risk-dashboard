@@ -142,7 +142,7 @@ describe("6.9 · informes · lectura y puerta", () => {
 })
 
 describe("6.9 · el panel de informes", () => {
-  const base: InformesDelCliente = { clientes: [{ id: NAUFRAGO, nombre: "Náufrago" }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, informes: [], leido_en: "x" }
+  const base: InformesDelCliente = { clientes: [{ id: NAUFRAGO, nombre: "Náufrago" }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, informes: [], analisis: [], leido_en: "x" }
   it("sin informes lo dice tal cual, dentro del cliente enfocado, sin inventar nada", () => {
     const html = renderToStaticMarkup(createElement(PanelInformes, { onCerrar: () => {}, datosIniciales: base }))
     expect(html).toContain('data-seccion="informes"'); expect(html).toContain('data-vista="vacio"')

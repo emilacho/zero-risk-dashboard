@@ -112,8 +112,9 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <h3 className="text-[15px] font-medium text-zinc-100">Campaña de {datos.cliente?.nombre}</h3>
                     <span className="text-[12px] text-zinc-400">{estadoDeCampanaLegible(datos.campana.estado)}{datos.campana.desde ? ` · ${diaDelCalendario(datos.campana.desde)}` : ""}{datos.campana.hasta ? ` → ${diaDelCalendario(datos.campana.hasta)}` : ""}</span>
-                    <span className="text-[12px] text-zinc-500">{datos.filas.length} publicaciones{datos.campana.version_calendario != null ? ` · calendario v${datos.campana.version_calendario}` : ""}</span>
+                    <span className="text-[12px] text-zinc-500">{datos.filas.length} publicaciones{datos.campana.del_plan_anterior ? " · del plan anterior" : ""}</span>
                   </div>
+                  {datos.campana.del_plan_anterior && <p data-calendario-anterior className="mt-2 text-[12.5px] text-amber-200/90">Este calendario se armó con el plan anterior; el plan vigente todavía no lo reemplaza.</p>}
                   <p className="mt-2 text-[13px]"><span className="text-zinc-500">Gran idea · </span>{datos.gran_idea.texto ? <span className="text-zinc-100">{datos.gran_idea.texto}</span> : <span className="italic text-zinc-400">{datos.gran_idea.nota}</span>}</p>
                   <p className="mt-1 text-[13px]"><span className="text-zinc-500">Fase · </span><span className="text-zinc-100">{textoDeLaFase(datos)}</span>{datos.fase_activa.fase?.objetivo ? <span className="text-zinc-400"> — {datos.fase_activa.fase.objetivo}</span> : null}</p>
                   {fases.length > 0 && (

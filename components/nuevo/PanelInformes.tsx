@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { InformesDelCliente } from "@/lib/informes-datos"
-import { bloquesDelResumen, estadoLegible, periodoLegible, porTipo, tipoLegible, tituloDelInforme, type Informe, type TonoDeEstado } from "@/lib/informes"
+import { bloquesDelResumen, diaDePeriodo, estadoLegible, periodoLegible, porTipo, tipoLegible, tituloDelInforme, type Informe, type InformeDeAnalisis, type TonoDeEstado } from "@/lib/informes"
 import { diaYHora, plural } from "@/lib/lenguaje"
 
 /**
@@ -42,6 +42,20 @@ function TarjetaDeInforme({ i, onAbrir }: { i: Informe; onAbrir: () => void }) {
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1"><Chip tono={e.tono}>{e.texto}</Chip>{i.pdf_url && <Chip>PDF</Chip>}</div>
         <span className="text-[11px] text-zinc-500">{i.entregado_en ? `Entregado el ${diaYHora(i.entregado_en)}` : i.creado_en ? `Armado el ${diaYHora(i.creado_en)}` : ""}</span>
       </button>
+    </li>
+  )
+}
+
+/** un informe de la mesa de análisis: se abre en el mismo lugar; va rotulado como propuesta de la oficina, no como dato confirmado del cliente */
+function InformeDeLaMesa({ a }: { a: InformeDeAnalisis }) {
+  return (
+    <li data-analisis={a.id} data-tipo={a.tipo}>
+      <details className="rounded-xl border border-white/10 bg-[#1c1c1c] p-3.5">
+        <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-[13px] font-medium text-zinc-100"><IconoInforme /><span>{a.titulo}</span>{a.corte && <span className="text-[11.5px] font-normal text-zinc-500">al {diaDePeriodo(a.corte.slice(0, 10))}</span>}</summary>
+        <div className="mt-2.5 flex flex-wrap gap-1.5"><Chip tono="ambar">Propuesta de la mesa de análisis</Chip>{a.citas > 0 && <Chip>{plural(a.citas, "ficha citada", "fichas citadas")}</Chip>}</div>
+        <p className="mt-1.5 text-[11.5px] text-zinc-500">No es un dato confirmado del cliente: es lo que la mesa de análisis propone a partir de lo que el cerebro tiene.</p>
+        <div className="mt-2.5 whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">{a.texto || "Este informe no trae texto."}</div>
+      </details>
     </li>
   )
 }
@@ -88,7 +102,9 @@ export function PanelInformes({ onCerrar, datosIniciales = null, clienteInicial 
   const informe = informeId ? datos?.informes.find((i) => i.id === informeId) ?? null : null
   const nombre = datos?.cliente?.nombre ?? "Cliente"
   const esperan = datos ? datos.informes.filter((i) => i.estado === "awaiting_review").length : 0
-  const resumen = datos ? (datos.informes.length ? `${plural(datos.informes.length, "informe", "informes")}${esperan ? ` · ${esperan} esperan tu revisión` : ""}` : "todavía sin informes") : ""
+  const analisis = datos?.analisis ?? []
+  const partes = datos ? [datos.informes.length ? `${plural(datos.informes.length, "informe", "informes")}${esperan ? ` · ${esperan} esperan tu revisión` : ""}` : "", analisis.length ? plural(analisis.length, "informe de análisis", "informes de análisis") : ""].filter(Boolean) : []
+  const resumen = datos ? (partes.length ? partes.join(" · ") : "todavía sin informes") : ""
   const irA = (t: string | null) => { setTipo(t); setInformeId(null) }
   const visibles = grupo ? grupo.informes : datos?.informes ?? []
 
@@ -119,7 +135,8 @@ export function PanelInformes({ onCerrar, datosIniciales = null, clienteInicial 
                   </button>
                 </li>
               ))}
-              {datos && !grupos.length && <li className="px-2 py-1.5 text-[12px] text-zinc-500">Sin informes todavía</li>}
+              {analisis.length > 0 && <li><button type="button" data-nodo-tipo="analisis" onClick={() => irA(null)} className="in-nodo flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]"><IconoTipo /><span className="min-w-0 flex-1 truncate">Mesa de análisis</span><span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 text-[10.5px] text-zinc-400">{analisis.length}</span></button></li>}
+              {datos && !grupos.length && !analisis.length && <li className="px-2 py-1.5 text-[12px] text-zinc-500">Sin informes todavía</li>}
             </ul>
           </aside>
 
@@ -129,10 +146,21 @@ export function PanelInformes({ onCerrar, datosIniciales = null, clienteInicial 
             {datos && !datos.cliente && <p className="text-[13px] text-zinc-400">No hay un cliente elegido.</p>}
 
             {/* sin informes: se dice tal cual */}
-            {datos?.cliente && !datos.informes.length && (
+            {datos?.cliente && !datos.informes.length && !analisis.length && (
               <div data-vista="vacio" className="in-entra max-w-[640px] space-y-3">
                 <h3 className="text-[15px] font-medium text-zinc-100">Todavía no hay informes de {nombre}</h3>
                 <p className="text-[13px] leading-relaxed text-zinc-400">Los informes los arma la oficina (semanal, mensual o trimestral) con lo que pasó en la campaña: indicadores, puntos altos, lo que frena y en qué se enfoca la semana siguiente. Apenas exista el primero aparece aquí, y si espera tu revisión lo verás marcado.</p>
+              </div>
+            )}
+
+            {/* los informes de la mesa de análisis (viven en el cerebro) */}
+            {datos?.cliente && analisis.length > 0 && !informe && !grupo && (
+              <div data-vista="analisis" className="in-entra mb-6 space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="text-[15px] font-medium text-zinc-100">De la mesa de análisis</h3>
+                  <span className="text-[12px] text-zinc-500">{plural(analisis.length, "informe", "informes")}</span>
+                </div>
+                <ul className="space-y-2.5">{analisis.map((a) => <InformeDeLaMesa key={a.id} a={a} />)}</ul>
               </div>
             )}
 

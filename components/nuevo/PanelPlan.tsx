@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
-import { BOTONES_DEL_PLAN, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
 import { fechaCortaEC } from "@/lib/manual"
-import { estadoDeCampanaLegible, pilarLegible, plural, usdES } from "@/lib/lenguaje"
+import { estadoDeCampanaLegible, pilarLegible, plural } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & PlanDelCliente) | { ok: false; error: string }
@@ -124,9 +124,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h3 className="text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>La decisión sobre el plan</h3>
         <span data-estado-ciclo={lectura.estado} className={`rounded-full border px-3 py-1 text-[13px] font-medium ${ESTADO_CICLO_COLOR[lectura.estado]}`}>{lectura.titulo}</span>
-        <span className="text-[12px] text-zinc-400" data-version={ciclo.version}>
-          Versión {ciclo.version}{corregido > 0 ? ` · corregido ${plural(corregido, "vez", "veces")}` : ""}
-        </span>
+        {corregido > 0 && <span className="text-[12px] text-zinc-400" data-version={ciclo.version}>Corregido {plural(corregido, "vez", "veces")}</span>}
         {ciclo.historial.length > 0 && (
           <button type="button" data-accion="ver-historial" aria-expanded={verHistorial} onClick={() => setVerHistorial((v) => !v)} className="text-[12px] text-zinc-400 underline decoration-dotted underline-offset-4 hover:text-zinc-200">
             {verHistorial ? "ocultar historial" : "ver historial"}
@@ -135,7 +133,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       </div>
       {queCambio && ciclo.version > 1 && (
         <div data-que-cambio className="mt-3 rounded-lg border border-amber-400/40 bg-black/30 p-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-300">Qué cambió en esta versión</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-300">Qué cambió en el plan</p>
           <p className="mt-1 whitespace-pre-wrap text-[13.5px] leading-relaxed text-zinc-100">{queCambio}</p>
         </div>
       )}
@@ -167,7 +165,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       {modo === "escribir" && (
         <form data-editor="plan-cambios" className="mt-4 rounded-lg border border-violet-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); void mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones)) }}>
           <label className="block">
-            <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar? (el jefe de marketing lo lee y reescribe sobre la versión {ciclo.version})</span>
+            <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar? (el jefe de marketing lo lee y reescribe el plan)</span>
             <textarea value={observaciones} onChange={(ev) => setObservaciones(ev.target.value)} rows={4} maxLength={4000} aria-label="Qué debe cambiar en el plan" autoFocus
               className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[14px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
           </label>
@@ -185,7 +183,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
         <ol data-historial className="mt-4 space-y-1 border-t border-white/10 pt-3 text-[12.5px] text-zinc-400" aria-label="Versiones anteriores del plan">
           {ciclo.historial.map((v) => (
             <li key={v.id} className="flex flex-wrap gap-x-2">
-              <span className="text-zinc-300">Versión {v.version}</span>
+              <span className="text-zinc-300">Plan anterior</span>
               {v.creado_en && <span>· {fechaCortaEC(v.creado_en)}</span>}
               {v.superseded_por ? <span>· reemplazada</span> : v.status === "rejected" ? <span>· rechazada</span> : null}
             </li>
@@ -277,17 +275,16 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                   {c && <Chip tono={c.estado === "activa" ? "verde" : c.estado === "pausada" || c.estado === "necesita_humano" ? "ambar" : "neutro"}>campaña {estadoDeCampanaLegible(c.estado)}</Chip>}
                   {c && (c.desde || c.hasta) && <Chip>{c.desde ? diaDelCalendario(c.desde) : "—"} → {c.hasta ? diaDelCalendario(c.hasta) : "—"}</Chip>}
                   {c && (() => { const sujeto = inicioSujetoAReanudar(c.estado, datos.fase_activa, c.desde); return sujeto ? <Chip tono="ambar">{sujeto}</Chip> : datos.fase_activa.situacion !== "sin_fecha" ? <Chip>{textoDeLaFase({ fase_activa: datos.fase_activa, campana: { desde: c.desde } as never })}</Chip> : null })()}
-                  {e && <Chip>estrategia v{e.version ?? "?"} · {e.estado}</Chip>}
+                  {e && <Chip>estrategia {estadoDeLaEstrategia(e.estado)}{c?.del_plan_anterior ? " · del plan anterior" : ""}</Chip>}
                   {d && <Chip>plan escrito {d.creado_en ? fechaCortaEC(d.creado_en) : ""}</Chip>}
                   {d && <Chip tono={d.estado_del_plan === "con_pendientes" ? "ambar" : "neutro"}>{estadoDelPlanLegible(d.estado_del_plan)}{d.marcas.length ? ` · ${d.marcas.length}` : ""}</Chip>}
                   {rev && rev.status !== "pending" && rev.decision && <Chip tono={rev.status === "approved" ? "verde" : "rojo"}>{rev.decision} · {fechaCortaEC(rev.creada_en)}</Chip>}
                 </div>
                 {c?.estado_motivo && <p className="mt-2 text-[12.5px] text-zinc-400">{c.estado_motivo}</p>}
                 {c && (
-                  <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-4">
+                  <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-3">
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Sedes</dt><dd className="text-zinc-200">{c.sedes.length ? c.sedes.map(sedeLegible).join(" · ") : "—"}</dd></div>
-                    <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Publicaciones</dt><dd className="text-zinc-200">{c.publicaciones}{c.version_calendario != null ? ` · calendario v${c.version_calendario}` : ""}</dd></div>
-                    <div data-topes><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Topes de la planeación</dt><dd className="text-zinc-200" title={datos.topes.length ? `Catálogo de topes de la plataforma · vigentes${datos.topes[0].desde ? ` desde ${fechaCortaEC(datos.topes[0].desde)}` : ""} · leído ${datos.leido_en.slice(11, 16)}Z` : "Sin dato en el catálogo de topes"}>{datos.topes.length ? <ul className="space-y-0.5">{datos.topes.map((x) => <li key={x.tramo} data-tope={x.tramo} className="flex justify-between gap-3"><span className="text-zinc-400">{x.nombre}</span><span className="tabular-nums">{usdES(x.usd)}</span></li>)}</ul> : <span className="italic text-zinc-500">sin dato</span>}</dd></div>
+                    <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Publicaciones</dt><dd className="text-zinc-200">{c.publicaciones}{c.del_plan_anterior ? " · del plan anterior" : ""}</dd></div>
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Producción</dt><dd className="text-zinc-200">{c.autoproducir ? "la oficina produce sola" : "cada pieza se pide"}</dd></div>
                   </dl>
                 )}
@@ -300,7 +297,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                     <div className="mt-3">
                       <p className="text-[12.5px] text-zinc-300">El chequeo del sistema marcó estos puntos antes de darlo por bueno:</p>
                       <ol className="mt-1.5 space-y-1.5" aria-label="Las marcas del chequeo">
-                        {d.marcas.map((m, i) => <li key={`${m.codigo}-${i}`} className="flex gap-2 text-[12.5px]"><span className="shrink-0 rounded border border-white/15 px-1.5 font-mono text-[10.5px] text-zinc-400">{m.codigo || "·"}</span><span className="text-zinc-200">{m.texto}</span></li>)}
+                        {d.marcas.map((m, i) => <li key={`${m.codigo}-${i}`} className="flex gap-2 text-[12.5px]"><span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/70" /><span className="text-zinc-200">{m.texto}</span></li>)}
                       </ol>
                     </div>
                   )}
@@ -315,7 +312,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
                 <div className="min-w-0 space-y-5">
                   {/* las fases */}
-                  <Seccion titulo="Las fases" nota={e ? `estrategia v${e.version ?? "?"}` : undefined} retraso={60}>
+                  <Seccion titulo="Las fases" nota={e && c?.del_plan_anterior ? "de la estrategia del plan anterior" : undefined} retraso={60}>
                     {!e || e.fases.length === 0 ? <Vacio>La estrategia todavía no trae fases.</Vacio> : (
                       <ol className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Las fases de la estrategia">
                         {e.fases.map((f) => (
@@ -455,7 +452,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                     <section className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
                       <h3 className="mb-2 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>Ficha</h3>
                       <dl className="space-y-1 text-[12px] text-zinc-400">
-                        <div><dt className="inline text-zinc-500">Estrategia · </dt><dd className="inline">v{e.version ?? "?"} · {e.estado}{e.creada_en ? ` · ${fechaCortaEC(e.creada_en)}` : ""}{e.costo_usd != null ? ` · costó ${usdES(e.costo_usd)}` : ""}</dd></div>
+                        <div><dt className="inline text-zinc-500">Estrategia · </dt><dd className="inline">{estadoDeLaEstrategia(e.estado)}{c?.del_plan_anterior ? " · del plan anterior" : ""}{e.creada_en ? ` · ${fechaCortaEC(e.creada_en)}` : ""}</dd></div>
                         {c?.creada_en && <div><dt className="inline text-zinc-500">Campaña creada · </dt><dd className="inline">{fechaCortaEC(c.creada_en)}</dd></div>}
                         {c?.actualizada_en && <div><dt className="inline text-zinc-500">Último cambio · </dt><dd className="inline">{fechaCortaEC(c.actualizada_en)}</dd></div>}
                       </dl>
