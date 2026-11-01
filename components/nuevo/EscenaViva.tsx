@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 import { PantallaDeMusica } from "@/components/nuevo/PantallaDeMusica"
+import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
@@ -316,6 +317,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
               alt={d.alt} width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
+            {/* 6.14 · el arco de pantallas de tu oficina: cada una un centro de comando distinto, abierto encima */}
+            {depto === "oficina" && <PantallasDelArco />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
