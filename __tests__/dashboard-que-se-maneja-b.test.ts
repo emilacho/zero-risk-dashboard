@@ -149,7 +149,7 @@ describe("la puerta del tablero: solo administrador con sesión", () => {
 })
 
 describe("cada botón que pintan las pantallas nombra una acción que existe, y el tablero no escribe la base", () => {
-  const PANTALLAS = ["app/oficinas/page.tsx", "app/alertas/page.tsx", "app/clientes/page.tsx", "app/clientes/[id]/page.tsx", "app/piezas/VisorDePieza.tsx", "components/TopeDelCliente.tsx"]
+  const PANTALLAS = ["app/oficinas/page.tsx", "app/alertas/page.tsx", "app/clientes/page.tsx", "app/clientes/[id]/page.tsx", "app/piezas/VisorDePieza.tsx", "components/TopeDelCliente.tsx", /* CC6 · 01-nov · el tablero del dueño vive en /nuevo */ "components/nuevo/PalabrasDelManual.tsx"]
   it("todas las acciones de los botones están en el catálogo", () => {
     const usadas = new Set<string>()
     for (const p of PANTALLAS) for (const m of leer(p).matchAll(/accion="([a-z-]+)"/g)) usadas.add(m[1])

@@ -14,7 +14,7 @@ export type NombreDeAccion =
   | "cliente-editar" | "cliente-nuevo" | "cliente-baja" | "cliente-tope"
   | "oficina-estado" | "oficina-tope"
   | "revision-resolver"
-  | "manual-campos" | "manual-validar"
+  | "manual-campos" | "manual-validar" | "manual-palabra"
 
 type Cuerpo = Record<string, unknown>
 export type Validacion = { ok: true; cuerpo: Cuerpo } | { ok: false; error: string; detalle: string }
@@ -162,6 +162,18 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   "manual-validar": {
     gasta: null,
     validar: (c) => { const id = conId(c, "client_id"); return id ? { ok: true, cuerpo: { client_id: id } } : mal("falta el cliente") },
+  },
+  // TABLERO DEL DUEÑO · palabras del manual (CC6 · 01-nov · contrato de CC1 #815): prohibir, dejar como estilo o quitar. US$ 0; versión nueva del manual.
+  "manual-palabra": {
+    gasta: null,
+    validar: (c) => {
+      const id = conId(c, "client_id"), t = texto(c.texto), d = texto(c.decision), com = texto(c.comentario)
+      if (!id) return mal("falta el cliente")
+      if (!t || t.length > 200) return mal("la palabra debe tener entre 1 y 200 caracteres")
+      if (d !== "prohibir" && d !== "contexto" && d !== "quitar") return mal("la decisión es «prohibir», «contexto» o «quitar»")
+      if (com.length > 1000) return mal("el porqué pasa de 1.000 caracteres")
+      return { ok: true, cuerpo: { client_id: id, texto: t, decision: d, ...(com ? { comentario: com } : {}) } }
+    },
   },
 }
 

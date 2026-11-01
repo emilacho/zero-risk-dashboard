@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 import { CAMPOS_DEL_LECTOR, type CampoLeido } from "@/lib/manual-lector"
 import { EDITABLES_DESDE_EL_TABLERO, contrasteDelTexto, cuerpoDeEdicion, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, procedenciaLegible, rolDeLaLetraLegible, rolDelColorLegible, separarPropuesta, textoParaEditar } from "@/lib/manual"
@@ -258,17 +259,15 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                     )
                   })}
 
-                  {(m.palabras_prohibidas.length > 0 || m.terminos_propios.length > 0 || m.politica_competidores) && (
+                  {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
                     <section aria-label="Palabras" className="mn-seccion rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: "240ms" }}>
                       <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>Palabras</h3>
                       {m.terminos_propios.length > 0 && (
                         <div className="mb-3"><h4 className="mb-1.5 text-[11px] uppercase tracking-[0.08em] text-zinc-500">Términos propios · se usan</h4>
                           <ul className="flex flex-wrap gap-1.5">{m.terminos_propios.map((t) => <li key={t} className="rounded-md border border-emerald-400/25 bg-emerald-400/[0.06] px-2 py-0.5 text-[12px] text-emerald-100">{t}</li>)}</ul></div>
                       )}
-                      {m.palabras_prohibidas.length > 0 && (
-                        <div className="mb-3"><h4 className="mb-1.5 text-[11px] uppercase tracking-[0.08em] text-zinc-500">Palabras prohibidas · nunca</h4>
-                          <ul className="flex flex-wrap gap-1.5">{m.palabras_prohibidas.map((t) => <li key={t} className="rounded-md border border-rose-400/25 bg-rose-400/[0.06] px-2 py-0.5 text-[12px] text-rose-100 line-through decoration-rose-300/60">{t}</li>)}</ul></div>
-                      )}
+                      {/* CC6 · tablero del dueño: cada palabra con su intención y lo que el dueño decide sobre ella (antes: la lista plana de «prohibidas») */}
+                      <PalabrasDelManual palabras={m.palabras ?? m.palabras_prohibidas.map((t) => ({ texto: t, intencion: "estilo" as const, porque: null, cita: null, origen: null, fecha: null, por: null }))} cliente={cliente} accion={accion} onGuardado={guardado} />
                       {m.politica_competidores && <p className="text-[12.5px] text-zinc-300"><span className="text-zinc-500">Competencia · </span>{m.politica_competidores}</p>}
                     </section>
                   )}
