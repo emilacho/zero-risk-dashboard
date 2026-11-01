@@ -111,8 +111,9 @@ describe("6.22 · el panel", () => {
     expect(html).toContain("calidad, plazos, seguridad y cumplimiento: el sistema todavía no tiene de dónde leerlos"); expect(html).not.toMatch(/: n8n conserva/)
     expect(html).toContain("1 aviso viejo caducó solo")
   })
-  it("el radar quedó más chico dentro de su encuadre", () => {
-    expect(readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")).toContain("max-w-[380px]")
+  it("6.24 · el radar llena su columna: sin vacío alrededor (Emilio: «reduce el espacio vacío que lo rodea, que todo tenga más simetría»)", () => {
+    const c = readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")
+    expect(c).toContain('data-radar className="relative aspect-square w-full lg:aspect-auto lg:min-h-0 lg:flex-1"'); expect(c).not.toContain("max-w-[380px]"); expect(c).toContain("const C = 200, R = 150,")
   })
 })
 

@@ -44,16 +44,16 @@ const gajo = (C: number, r: number, a0: number, a1: number) => `M${C} ${C} L${pu
 
 /** el radar: bisel con graduación, anillos de gravedad, 8 sectores con su arco de estado, el haz con estela y un punto por riesgo */
 function Radar({ riesgos, todos, elegido, alElegir, sector, quieto }: { riesgos: Riesgo[]; todos: Riesgo[]; elegido: string | null; alElegir: (id: string) => void; sector: Sector | null; quieto: boolean }) {
-  const C = 200, R = 136, lugar = useMemo(() => lugarEnElRadar(riesgos), [riesgos])
+  const C = 200, R = 150, lugar = useMemo(() => lugarEnElRadar(riesgos), [riesgos])
   return (
-    <svg viewBox="0 0 400 400" className="h-full w-full" role="img" aria-label={`Radar de riesgos: ${riesgos.length} puntos en 8 sectores`}>
+    <svg viewBox="-16 -8 432 416" className="h-full w-full" role="img" aria-label={`Radar de riesgos: ${riesgos.length} puntos en 8 sectores`}>
       <defs>
         <radialGradient id="ri-fondo" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="rgba(232,115,26,.2)" /><stop offset="55%" stopColor="rgba(232,115,26,.06)" /><stop offset="100%" stopColor="rgba(232,115,26,0)" /></radialGradient>
         <radialGradient id="ri-vidrio" cx="50%" cy="38%" r="62%"><stop offset="0%" stopColor="rgba(255,236,210,.07)" /><stop offset="100%" stopColor="rgba(255,236,210,0)" /></radialGradient>
         <filter id="ri-brillo" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
       </defs>
       {/* el bisel: dos aros finos y la graduación (cada 3°, más larga cada 15°) */}
-      <circle cx={C} cy={C} r={R + 22} fill="none" stroke="rgba(255,226,190,.07)" strokeWidth={1} />
+      <circle cx={C} cy={C} r={R + 18} fill="none" stroke="rgba(255,226,190,.07)" strokeWidth={1} />
       <circle cx={C} cy={C} r={R + 9} fill="none" stroke="rgba(255,226,190,.14)" strokeWidth={0.8} />
       {Array.from({ length: 120 }, (_, i) => { const a = i * 3, largo = a % 15 === 0 ? 6 : 2.6, [x0, y0] = alPlano(C, C, R + 9, a, 1), [x1, y1] = alPlano(C, C, R + 9 + largo, a, 1); return <line key={i} x1={x0} y1={y0} x2={x1} y2={y1} stroke="rgba(255,226,190,.26)" strokeWidth={a % 15 === 0 ? 0.9 : 0.5} /> })}
       <circle cx={C} cy={C} r={R} fill="url(#ri-fondo)" />
@@ -62,17 +62,21 @@ function Radar({ riesgos, todos, elegido, alElegir, sector, quieto }: { riesgos:
       {sector && <path d={gajo(C, R, SECTORES.indexOf(sector) * GRADOS_POR_SECTOR, (SECTORES.indexOf(sector) + 1) * GRADOS_POR_SECTOR)} fill="rgba(232,115,26,.09)" />}
       {/* los anillos: el límite de cada gravedad */}
       {([3, 2] as Gravedad[]).map((g) => <circle key={g} cx={C} cy={C} r={R * (ANILLOS[g][1] + 0.03)} fill="none" stroke="rgba(255,226,190,.16)" strokeWidth={0.7} strokeDasharray="1.5 3.5" />)}
-      {([3, 2, 1] as Gravedad[]).map((g) => <text key={`t${g}`} x={C + 3} y={C - R * (ANILLOS[g][1] + 0.03) + 9} fontSize={7} letterSpacing=".12em" fill="rgba(255,226,190,.42)">{NOMBRE_DE_LA_GRAVEDAD[g].nombre.toUpperCase()}</text>)}
+      {([3, 2, 1] as Gravedad[]).map((g) => <text key={`t${g}`} x={C + 3} y={C - R * (ANILLOS[g][1] + 0.03) + 9} fontSize={7.5} fontWeight={600} letterSpacing=".12em" fill="rgba(255,236,215,.7)" stroke="#161412" strokeWidth={3} paintOrder="stroke">{NOMBRE_DE_LA_GRAVEDAD[g].nombre.toUpperCase()}</text>)}
       {/* los 8 sectores: frontera fina, arco de estado en el borde (color de su riesgo más grave) y su nombre con la cuenta */}
       {SECTORES.map((s, i) => {
         const a0 = i * GRADOS_POR_SECTOR, a1 = a0 + GRADOS_POR_SECTOR, [x, y] = alPlano(C, C, R, a0, 1), del = todos.filter((r) => r.sector === s), g = peor(del)
-        const [tx, ty] = alPlano(C, C, R + 38, a0 + GRADOS_POR_SECTOR / 2, 1), sinFuente = SECTORES_SIN_FUENTE.includes(s) && !del.length
+        const [tx, ty] = alPlano(C, C, R + 36, a0 + GRADOS_POR_SECTOR / 2, 1), sinFuente = SECTORES_SIN_FUENTE.includes(s) && !del.length, ancho = Math.max(NOMBRE_DEL_SECTOR[s].corto.length * 7.2 + 16, 52)
         return (
           <g key={s} data-sector={s}>
             <line x1={C} y1={C} x2={x} y2={y} stroke="rgba(255,226,190,.1)" strokeWidth={0.7} />
             <path d={arco(C, R + 3.5, a0 + 2.5, a1 - 2.5)} fill="none" stroke={g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,226,190,.16)"} strokeWidth={g ? 2.6 : 1.4} strokeLinecap="round" strokeDasharray={sinFuente ? "1 3" : undefined} />
-            <text x={tx} y={ty - 4} fontSize={8.5} letterSpacing=".14em" textAnchor="middle" fill={del.length ? "rgba(255,232,205,.92)" : "rgba(255,226,190,.4)"}>{NOMBRE_DEL_SECTOR[s].corto.toUpperCase()}</text>
-            <text x={tx} y={ty + 9} fontSize={10.5} fontWeight={600} textAnchor="middle" fill={g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,226,190,.32)"} style={{ fontVariantNumeric: "[font-variant-numeric:tabular-nums]" }}>{sinFuente ? "sin dato" : del.length}</text>
+            {/* el nombre va en su propia placa (fondo oscuro y borde), para que no se confunda con las líneas del radar */}
+            <g data-placa={s}>
+              <rect x={tx - ancho / 2} y={ty - 14} width={ancho} height={29} rx={7} fill="#1d1813" stroke={g ? `${COLOR_DE_LA_GRAVEDAD[g]}88` : "rgba(255,226,190,.22)"} strokeWidth={0.8} />
+              <text x={tx} y={ty - 2} fontSize={9} fontWeight={600} letterSpacing=".12em" textAnchor="middle" fill={del.length ? "#fff3e4" : "rgba(255,236,215,.72)"}>{NOMBRE_DEL_SECTOR[s].corto.toUpperCase()}</text>
+              <text x={tx} y={ty + 10} fontSize={10} fontWeight={700} textAnchor="middle" fill={g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,236,215,.5)"} style={{ fontVariantNumeric: "tabular-nums" }}>{sinFuente ? "sin dato" : del.length}</text>
+            </g>
           </g>
         )
       })}
@@ -161,8 +165,8 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:overflow-hidden">
           {/* izquierda: el radar (más chico, centrado) y los 8 sectores como tarjetas que filtran */}
-          <div className="flex min-h-0 min-w-0 flex-col items-center justify-center gap-4 border-white/10 p-4 lg:border-r sm:p-5">
-            <div data-radar className="relative aspect-square w-full max-w-[380px] lg:max-h-[52vh] lg:w-auto lg:h-full">
+          <div className="flex min-h-0 min-w-0 flex-col gap-3 border-white/10 p-4 lg:border-r sm:p-5">
+            <div data-radar className="relative aspect-square w-full lg:aspect-auto lg:min-h-0 lg:flex-1">
               {datos && <Radar riesgos={visibles} todos={todos} elegido={ficha?.id ?? null} alElegir={setElegido} sector={sector} quieto={quieto} />}
               {datos && !total && <p data-vacio className="absolute inset-x-0 bottom-1 text-center text-[12.5px] text-zinc-400">{datos.completo && !error ? "Sin riesgos abiertos ahora." : "No pude leer todas las fuentes: no puedo asegurarte que no haya riesgos."}</p>}
             </div>
