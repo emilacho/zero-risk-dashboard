@@ -4,7 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
-import { informeDesdeFila, ordenarInformes, type Informe } from "@/lib/informes"
+import { analisisDesdeFila, informeDesdeFila, ordenarAnalisis, ordenarInformes, type Informe, type InformeDeAnalisis } from "@/lib/informes"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -16,6 +16,8 @@ export interface InformesDelCliente {
   cliente: { id: string; nombre: string } | null
   /** del más reciente al más viejo */
   informes: Informe[]
+  /** los informes de la mesa de análisis (fichas `informe_de_analisis` vigentes del cerebro), del más reciente al más viejo */
+  analisis: InformeDeAnalisis[]
   leido_en: string
 }
 
@@ -29,10 +31,11 @@ export async function leerInformesDelCliente(supa: SupabaseClient, o: { cliente?
   }
   if (!elegido) elegido = clientes[0] ?? null
   const base = { clientes, leido_en: ahora.toISOString() }
-  if (!elegido) return { ...base, cliente: null, informes: [] }
-  const xs = await filas(
-    supa.from("client_reports").select("id, client_id, period_start, period_end, kind, summary, pdf_url, delivered_to, delivered_at, status, created_at").eq("client_id", elegido.id).order("period_end", { ascending: false }).limit(200),
-    "client_reports",
-  )
-  return { ...base, cliente: elegido, informes: ordenarInformes(xs.map(informeDesdeFila)) }
+  if (!elegido) return { ...base, cliente: null, informes: [], analisis: [] }
+  const [xs, fichas] = await Promise.all([
+    filas(supa.from("client_reports").select("id, client_id, period_start, period_end, kind, summary, pdf_url, delivered_to, delivered_at, status, created_at").eq("client_id", elegido.id).order("period_end", { ascending: false }).limit(200), "client_reports"),
+    // la mesa de análisis archiva sus informes en el cerebro: una ficha vigente (sin retirar ni descartar) por cliente y tipo
+    filas(supa.from("cerebro_fichas").select("id, titulo, contenido, observado_en, creado_en, provenance_tag").eq("client_id", elegido.id).eq("clase", "informe_de_analisis").is("retirada_en", null).eq("descartada", false).order("creado_en", { ascending: false }).limit(50), "cerebro_fichas"),
+  ])
+  return { ...base, cliente: elegido, informes: ordenarInformes(xs.map(informeDesdeFila)), analisis: ordenarAnalisis(fichas.map(analisisDesdeFila)) }
 }

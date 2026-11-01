@@ -44,6 +44,35 @@ export function informeDesdeFila(f: Fila): Informe {
   }
 }
 
+/** ─── los informes de la mesa de análisis (01-nov · punto 7 de Emilio): viven en el cerebro, no en `client_reports` ───
+ * Cada uno es una ficha de clase `informe_de_analisis` (una vigente por cliente y tipo; la puerta `/api/brain/alimentar/informe` retira la anterior). Son PROPUESTAS de la
+ * mesa de análisis: se muestran rotuladas, nunca como dato confirmado del cliente. */
+export interface InformeDeAnalisis { id: string; tipo: string; titulo: string; texto: string; /** hasta qué día llega la información (ISO) */ corte: string | null; creado_en: string | null; citas: number }
+export function tipoDeAnalisisLegible(t: unknown): string {
+  switch (String(t ?? "")) {
+    case "mercado": return "Mercado"
+    case "competencia": return "Competencia"
+    case "voz_del_publico": return "Voz del público"
+    case "tendencias": return "Tendencias"
+    case "": return "Análisis"
+    default: { const s = String(t).replace(/[_-]+/g, " ").trim(); return s.charAt(0).toUpperCase() + s.slice(1) }
+  }
+}
+const objeto = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
+export function analisisDesdeFila(f: Fila): InformeDeAnalisis {
+  const datos = objeto(objeto(f.provenance_tag).datos)
+  const deltitulo = /Informe\s*·\s*([^·]+?)\s*·/.exec(String(f.titulo ?? ""))?.[1]
+  const tipo = texto(datos.tipo) ?? (deltitulo ? deltitulo.trim() : "")
+  return {
+    id: String(f.id), tipo, titulo: `Informe de ${tipoDeAnalisisLegible(tipo).toLowerCase()}`,
+    // la ficha abre con un rótulo de sistema «[informe de análisis · tipo · PROPUESTA: …]»: se quita, la pantalla lo dice con sus palabras
+    texto: String(f.contenido ?? "").replace(/^\[informe de an[aá]lisis[^\]]*\]\s*/i, "").trim(),
+    corte: texto(datos.fecha_de_corte) ?? texto(f.observado_en), creado_en: texto(f.creado_en),
+    citas: Array.isArray(datos.citas) ? datos.citas.length : 0,
+  }
+}
+export const ordenarAnalisis = (xs: InformeDeAnalisis[]): InformeDeAnalisis[] => [...xs].sort((a, b) => (b.creado_en ?? "").localeCompare(a.creado_en ?? ""))
+
 export function tipoLegible(t: unknown): string {
   switch (String(t)) {
     case "weekly": return "Semanal"
@@ -108,10 +137,13 @@ export function porTipo(xs: Informe[]): Array<{ tipo: string; nombre: string; in
 }
 
 /** la segunda línea del cuadro «Informes» en la pantalla de aplicaciones */
-export function detalleDeInformes(xs: Informe[]): { texto: string; aviso: boolean } {
-  if (!xs.length) return { texto: "Todavía no hay informes de este cliente", aviso: false }
+export function detalleDeInformes(xs: Informe[], analisis: InformeDeAnalisis[] = []): { texto: string; aviso: boolean } {
+  if (!xs.length && !analisis.length) return { texto: "Todavía no hay informes de este cliente", aviso: false }
+  const deAnalisis = analisis.length ? `${analisis.length} ${analisis.length === 1 ? "informe de análisis" : "informes de análisis"}` : ""
+  if (!xs.length) { const u = ordenarAnalisis(analisis)[0]; return { texto: `${deAnalisis}${u.corte ? ` · al ${diaDePeriodo(u.corte.slice(0, 10))}` : ""}`, aviso: false } }
   const esperan = xs.filter((x) => x.estado === "awaiting_review").length
-  if (esperan) return { texto: `${esperan} ${esperan === 1 ? "informe espera" : "informes esperan"} tu revisión`, aviso: true }
+  const resto = deAnalisis ? ` · ${deAnalisis}` : ""
+  if (esperan) return { texto: `${esperan} ${esperan === 1 ? "informe espera" : "informes esperan"} tu revisión${resto}`, aviso: true }
   const ultimo = ordenarInformes(xs)[0]
-  return { texto: `${xs.length} ${xs.length === 1 ? "informe" : "informes"} · último ${periodoLegible(ultimo.desde, ultimo.hasta)}`, aviso: false }
+  return { texto: `${xs.length} ${xs.length === 1 ? "informe" : "informes"} · último ${periodoLegible(ultimo.desde, ultimo.hasta)}${resto}`, aviso: false }
 }

@@ -70,7 +70,7 @@ describe("quién se sienta (solo el que trabaja ahora, dato real)", () => {
     expect(estrategia.trabajando).toBe(1)
     expect(r.mesas.filter((m) => m.clave !== "estrategia").every((m) => m.sentados.length === 0)).toBe(true)
     expect(r.sin_mesa).toEqual([])
-    expect(r.fuente).toBe("agent_dispatches + agent_invocations · leído 12:00Z")
+    expect(r.fuente).toBe("al día a las 07:00") // 12:00Z = 07:00 en Ecuador; nada de nombres de tablas a la vista
   })
   it("la invocación terminada de la misma corrida (id con «:paso») cierra el despacho: ya no está sentado, queda «reciente» en la lista del equipo", () => {
     const r = armarEscena(base({ despachos: [despacho("market_research_analyst", 6)], invocaciones: [invocacion("market_research_analyst", 2)] }))
@@ -86,7 +86,7 @@ describe("quién se sienta (solo el que trabaja ahora, dato real)", () => {
     expect(r.sin_fin_registrado).toBe(1)
     const p = r.mesas.find((m) => m.clave === "estrategia")!.equipo.find((x) => x.agente === "market_research_analyst")!
     expect(p.estado).toBe("quieto")
-    expect(p.nota).toBe("despacho abierto hace 2 h sin fin registrado")
+    expect(p.nota).toBeNull() // 01-nov (punto 5 de Emilio): el texto técnico «sin fin registrado» ya no se muestra
   })
   it(`un fallo de hace menos de ${MINUTOS_FALLO} min se queda sentado en rojo con su gasto; uno más viejo no`, () => {
     const r = armarEscena(base({ invocaciones: [invocacion("content-creator", 3, { status: "failed", workflow_execution_id: "209800:pieza", cost_usd: 0.05, workflow_id: "otro" })] }))
@@ -105,7 +105,7 @@ describe("quién se sienta (solo el que trabaja ahora, dato real)", () => {
     const r = armarEscena(base({ despachos: [despacho("jefe-marketing", 1), despacho("portero", 1, { workflow_execution_id: "1" })] }))
     const direccion = r.mesas.find((m) => m.clave === "direccion")!
     expect(direccion.sentados[0]).toMatchObject({ agente: "jefe-marketing", origen_de_la_mesa: "mapa" })
-    expect(lineasDeLaFicha(direccion.sentados[0], direccion)[1]).toBe("Dirección (según el mapa, sin tarjeta en el directorio) · trabajando")
+    expect(lineasDeLaFicha(direccion.sentados[0], direccion)[1]).toBe("Dirección · trabajando")
     expect(r.sin_mesa.map((s) => s.agente)).toEqual(["portero"])
     expect(r.mesas.flatMap((m) => m.sentados).some((s) => s.agente === "portero")).toBe(false)
   })
@@ -127,7 +127,7 @@ describe("quién se sienta (solo el que trabaja ahora, dato real)", () => {
     expect(l[2]).toBe("Náufrago · Plan de 90 días · analisis mercado")
     expect(l).toContain("desde hace 4 min")
     expect(l).toContain("gasto de esta tarea · en curso, sin registrar aún")
-    expect(l.at(-1)).toBe("fuente agent_dispatches + agent_invocations · leído 12:00Z")
+    expect(l.at(-1)).toBe("al día a las 07:00")
     expect(l.some((x) => x.startsWith("tarea ·"))).toBe(false) // la corrida de hace 30 min es OTRA: su texto no se le cuelga a la de ahora
     const sinCliente = armarEscena(base({ despachos: [despacho("market_research_analyst", 4, { client_id: null, workflow_id: null, workflow_execution_id: null })] }))
     expect(lineasDeLaFicha(sinCliente.mesas[1].sentados[0], sinCliente.mesas[1])[2]).toBe("sin cliente · sin flujo registrado")

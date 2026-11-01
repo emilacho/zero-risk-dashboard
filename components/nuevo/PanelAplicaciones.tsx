@@ -55,7 +55,7 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
   }
   if (!datos) return { texto: fijo, aviso: false }
   if (clave === "plan") return { texto: datos.campana ? textoDeLaFase(datos) : "Sin campaña todavía", aviso: false }
-  if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${datos.filas.length} publicaciones${datos.campana.version_calendario != null ? ` · calendario v${datos.campana.version_calendario}` : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }
+  if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${datos.filas.length} publicaciones${datos.campana.del_plan_anterior ? " · del plan anterior" : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }
   if (clave === "piezas") { const n = datos.totales.emilio ?? 0; return { texto: n ? `${n} ${n === 1 ? "pieza espera" : "piezas esperan"} tu aprobación` : "Nada por aprobar ahora", aviso: n > 0 } }
   return { texto: fijo, aviso: false }
 }

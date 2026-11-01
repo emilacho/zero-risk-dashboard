@@ -35,6 +35,8 @@ export interface PlanDelCliente {
     /** si la oficina produce las piezas sola cuando el calendario las pide */
     autoproducir: boolean
     publicaciones: number; version_calendario: number | null; creada_en: string | null; actualizada_en: string | null
+    /** la campaña (su estrategia y su calendario) se armó con un plan que ya no es el vigente: el plan nuevo todavía no la reemplaza */
+    del_plan_anterior?: boolean
   }
   estrategia: null | ({ version: number | null; estado: string; creada_en: string | null; costo_usd: number | null; texto_md: string | null } & EstrategiaLeida)
   fase_activa: FaseActiva
@@ -182,6 +184,8 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
       autoproducir: camp.autoproducir === true,
       publicaciones: nFilas, version_calendario: ultimaVersion ? Number(ultimaVersion.calendario_version) : null,
       creada_en: t(camp.creada_en), actualizada_en: t(camp.actualizada_en),
+      // la campaña apunta a un plan (`plan_id`); si el documento vigente es otro, lo que cuelga de la campaña es del plan anterior
+      del_plan_anterior: !!(d && t(camp.plan_id) && String(d.id) !== t(camp.plan_id)),
     },
     estrategia,
     fase_activa: faseActiva(estrategia?.fases ?? [], desde, hoy),

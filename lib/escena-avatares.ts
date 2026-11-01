@@ -12,12 +12,17 @@
  * - la mesa de cada uno = `oficina_directorio.equipo` (el dato); si no tiene tarjeta, el mapa firmado de `lib/organigrama.ts` (rotulado «según el mapa»); si tampoco, «sin mesa».
  * Todo aquí es puro (sin red, sin reloj propio: `ahora` se pasa) y está probado con vitest. Coordenadas en píxeles de `marketing-2560.jpg` (2560×1440), como el Centro de campaña.
  */
-import { EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico } from "@/lib/organigrama"
+import { EQUIPOS, EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico, puestosDelAgente } from "@/lib/organigrama"
 import { haceCuanto } from "@/lib/oficinas"
+import { estadoDeCampanaLegible } from "@/lib/lenguaje"
+import { leerElCiclo } from "@/lib/plan"
+import type { PlanDelCliente } from "@/lib/plan-datos"
 import { nombreLegible } from "@/lib/trabajo-en-vivo"
 import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
 
 export const FOTO = { w: 2560, h: 1440 } as const
+/** «12:15» en hora de Ecuador (UTC-5, sin horario de verano) */
+export const horaDeEcuador = (d: Date): string => new Date(d.getTime() - 5 * 3_600_000).toISOString().slice(11, 16)
 export type ClaveDeMesa = "direccion" | "estrategia" | "creativo" | "web" | "medios" | "relaciones"
 export type EtapaDeMesa = "activo" | "segunda_etapa"
 export interface Punto { x: number; y: number }
@@ -104,6 +109,45 @@ export function estadoDePantalla(m: Pick<MesaViva, "trabajando" | "fallando">): 
   return m.trabajando > 0 ? "trabajando" : m.fallando > 0 ? "fallo" : "apagada"
 }
 
+/** en qué se trabaja, para la línea discreta de la escena: el cliente y el momento de su campaña en lenguaje de oficina («Náufrago · plan esperando tu decisión»); sin cliente no hay línea */
+export function momentoDeLaCampana(p: Pick<PlanDelCliente, "cliente" | "documento" | "ciclo" | "campana">): { cliente: string; momento: string } | null {
+  if (!p.cliente) return null
+  let momento: string
+  if (p.documento && p.ciclo) {
+    switch (leerElCiclo(p.documento.status, p.ciclo).estado) {
+      case "esperando_decision": momento = "plan esperando tu decisión"; break
+      case "reescribiendo": momento = "plan en reescritura"; break
+      case "en_revision": momento = "plan en revisión de la jefatura"; break
+      case "aprobado": momento = "plan aprobado · sigue el brief"; break
+      default: momento = "plan en marcha"
+    }
+  } else if (p.campana) momento = `campaña ${estadoDeCampanaLegible(p.campana.estado)}`
+  else momento = "todavía sin plan"
+  return { cliente: p.cliente.nombre, momento }
+}
+
+/** UN solo estado verdadero de la mesa: el mismo texto en el rótulo, en el aviso de accesibilidad y en el encabezado de la lista (Emilio 01-nov: no más «nadie trabaja» junto a «activo») */
+export function estadoDeLaMesa(m: Pick<MesaViva, "trabajando" | "fallando" | "etapa" | "sentados">): string {
+  if (m.trabajando > 0) return `${m.trabajando} trabajando ahora${m.fallando ? ` · ${m.fallando} con fallo` : ""}`
+  if (m.fallando > 0) return `${m.fallando} con fallo`
+  return m.etapa === "segunda_etapa" ? "por activar · nadie trabaja" : "en espera · nadie trabaja ahora"
+}
+
+/** los puestos del equipo completo de una mesa: dos filas al frente del escritorio (la de adelante primero), de hasta FILA_DE_PUESTOS cada una; el resto se dice «+N» */
+export const FILA_DE_PUESTOS = 7
+export const PASO_ENTRE_PUESTOS = 28
+export const MAXIMO_DE_PUESTOS = FILA_DE_PUESTOS * 2
+export function puestosDeLaMesa(m: Pick<Mesa, "centro">, n: number): Punto[] {
+  const k = Math.min(Math.max(n, 0), MAXIMO_DE_PUESTOS)
+  return Array.from({ length: k }, (_, i) => {
+    const fila = Math.floor(i / FILA_DE_PUESTOS), col = i % FILA_DE_PUESTOS
+    const enLaFila = Math.min(FILA_DE_PUESTOS, k - fila * FILA_DE_PUESTOS)
+    const u = (col - (enLaFila - 1) / 2) * PASO_ENTRE_PUESTOS
+    const v = 66 + fila * 34
+    return { x: Math.round(m.centro.x + u * U.x + v * V.x), y: Math.round(m.centro.y + u * U.y + v * V.y) }
+  })
+}
+
 /** el tablero de una mesa como polígono (puntos «x,y x,y …» para SVG): un paralelogramo isométrico de 200 × 84 alrededor de su centro */
 export function tableroDeLaMesa(m: Mesa, largo = 100, ancho = 42): string {
   const c = m.centro
@@ -127,7 +171,7 @@ export const HORAS_RECIENTE = 24
 export interface Despacho { id: string; agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; running_at: string | null; completed_at: string | null; created_at: string | null }
 export interface InvocacionViva { agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; started_at: string | null; ended_at: string | null; cost_usd: number | null; step_name: string | null; task_text: string | null }
 export interface TarjetaDelDirectorio { agente: string; equipo: string | null; /** `direccion` = dirige la sesión (S3 · la cabecera de la sala) */ rol?: string | null }
-export interface NombreDeAgente { name: string; display_name: string | null }
+export interface NombreDeAgente { name: string; display_name: string | null; /** `agents.is_active`; `false` = dado de baja (no se sienta en la oficina) */ activo?: boolean | null }
 export type EstadoDelAsiento = "trabajando" | "fallo"
 export type EstadoDelMiembro = EstadoDelAsiento | "reciente" | "quieto"
 export type OrigenDeLaMesa = "directorio" | "mapa"
@@ -150,8 +194,8 @@ export interface Sentado {
   fuente: string
   origen_de_la_mesa: OrigenDeLaMesa
 }
-export interface MiembroDeMesa { agente: string; nombre: string; estado: EstadoDelMiembro; ultima: string | null; hace: string; nota: string | null; origen_de_la_mesa: OrigenDeLaMesa }
-export interface MesaViva extends Mesa { sentados: Sentado[]; equipo: MiembroDeMesa[]; trabajando: number; fallando: number }
+export interface MiembroDeMesa { agente: string; nombre: string; estado: EstadoDelMiembro; ultima: string | null; hace: string; nota: string | null; origen_de_la_mesa: OrigenDeLaMesa; /** está ahora en la sala de reuniones: no se dibuja en su puesto */ en_sala?: boolean }
+export interface MesaViva extends Mesa { sentados: Sentado[]; equipo: MiembroDeMesa[]; trabajando: number; fallando: number; /** firmados en el mapa que todavía no están instalados: se dicen, no se sientan */ por_instalar?: string[] }
 export interface EscenaDatos {
   leido_en: string
   fuente: string
@@ -162,6 +206,8 @@ export interface EscenaDatos {
   sin_fin_registrado: number
   /** S3 · la sala de reuniones: la sesión de varios empleados en curso (o recién terminada) */
   sala?: SalaDeReuniones
+  /** en qué se trabaja: el cliente y el momento de su campaña, en lenguaje de oficina (null si no se pudo leer) */
+  contexto?: { cliente: string; momento: string } | null
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
@@ -196,6 +242,8 @@ export interface EntradaDeLaEscena {
   /** las filas de `oficina_equipos` (etapa real); si faltan, manda la tabla MESAS */
   equipos?: Array<{ clave: string; nombre: string | null; etapa: string | null }> | null
   ahora: Date
+  /** el cliente y el momento de su campaña (lo lee quien arma la entrada) */
+  contexto?: EscenaDatos["contexto"]
 }
 
 /** la mesa de un agente: el dato del directorio primero; si no tiene tarjeta, el mapa firmado; si no, ninguna */
@@ -208,14 +256,23 @@ export function mesaDelAgente(agente: string, directorio: TarjetaDelDirectorio[]
   return (EQUIPOS_DE_MARKETING as string[]).includes(e) && mesaPorClave(e) ? { mesa: e as ClaveDeMesa, origen: "mapa" } : null
 }
 
+/** la mesa donde SE SIENTA un empleado (el escritorio): igual que `mesaDelAgente`, salvo que los 3 jefes de la jefatura (área «revisores») NO son del equipo Dirección según el mapa firmado
+ *  (jefe-marketing · spell-check · Legal Compliance · GPT): sirven a la sala de reuniones —que sigue usando `mesaDelAgente`—, no a una mesa de equipo */
+export function mesaDeEscritorio(agente: string, directorio: TarjetaDelDirectorio[]): { mesa: ClaveDeMesa; origen: OrigenDeLaMesa } | null {
+  const k = nombreCanonico(agente)
+  const t = directorio.find((d) => nombreCanonico(d.agente) === k)
+  if (t) return mesaDelAgente(agente, directorio)
+  const e = puestosDelAgente(agente).find((p) => p.area !== "revisores")?.equipo ?? "otros"
+  return (EQUIPOS_DE_MARKETING as string[]).includes(e) && mesaPorClave(e) ? { mesa: e as ClaveDeMesa, origen: "mapa" } : null
+}
+
 export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   const t = e.ahora.getTime()
   const nombres = new Map(e.agentes.map((a) => [nombreCanonico(a.name), a.display_name || nombreLegible(a.name)]))
   const nombre = (a: string) => nombres.get(nombreCanonico(a)) ?? nombreLegible(a)
   const clientes = new Map(e.clientes.map((c) => [c.id, c.nombre]))
   const cliente = (id: string | null) => (id ? clientes.get(id) ?? "cliente sin nombre" : null)
-  const hora = e.ahora.toISOString().slice(11, 16) + "Z"
-  const fuente = `agent_dispatches + agent_invocations · leído ${hora}`
+  const fuente = `al día a las ${horaDeEcuador(e.ahora)}`
   const etapas = new Map((e.equipos ?? []).map((q) => [nombreCanonico(q.clave).replace(/-/g, "_"), q]))
   // S3 · la sala de reuniones primero: quien está en una reunión en curso se sienta en la sala, no en su mesa
   const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo, mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora })
@@ -236,7 +293,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
     const k = nombreCanonico(d.agent_name) + "|" + (d.workflow_execution_id ?? "")
     if (yaSentado.has(k)) continue
     yaSentado.add(k)
-    const m = mesaDelAgente(d.agent_name, e.directorio)
+    const m = mesaDeEscritorio(d.agent_name, e.directorio)
     const inv = e.invocaciones.find((i) => nombreCanonico(i.agent_name) === nombreCanonico(d.agent_name) && i.workflow_execution_id && d.workflow_execution_id && i.workflow_execution_id.startsWith(d.workflow_execution_id))
     const s: Sentado = {
       agente: d.agent_name, nombre: nombre(d.agent_name), mesa: m?.mesa ?? "direccion", estado: "trabajando", cliente: cliente(d.client_id),
@@ -253,7 +310,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   for (const f of fallos.sort((a, b) => (a.cuando < b.cuando ? 1 : -1))) {
     const k = nombreCanonico(f.agente)
     if (sentados.some((s) => nombreCanonico(s.agente) === k) || enLaSala.has(k)) continue
-    const m = mesaDelAgente(f.agente, e.directorio)
+    const m = mesaDeEscritorio(f.agente, e.directorio)
     const s: Sentado = {
       agente: f.agente, nombre: nombre(f.agente), mesa: m?.mesa ?? "direccion", estado: "fallo", cliente: cliente(f.d?.client_id ?? f.i?.client_id ?? null),
       flujo: nombreDelFlujo(f.d?.workflow_id ?? f.i?.workflow_id), paso: pasoDe(f.d?.workflow_execution_id ?? f.i?.workflow_execution_id, f.i?.step_name), tarea: recorte(f.i?.task_text),
@@ -264,37 +321,51 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   }
 
   // 3 · el equipo completo de cada mesa (para la lista al tocar la mesa): directorio + mapa, con su última actividad
-  const agentesConocidos = new Set<string>([...e.directorio.map((d) => d.agente), ...e.agentes.map((a) => a.name), ...e.invocaciones.map((i) => i.agent_name), ...e.despachos.map((d) => d.agent_name)].filter(Boolean))
+  // `editor_en_jefe` (agents) y `editor-en-jefe` (invocaciones) son el MISMO empleado: se cuenta una sola vez, por su nombre canónico (la grafía de `agents` manda); los dados de baja no se sientan
+  const dadosDeBaja = new Set(e.agentes.filter((a) => a.activo === false).map((a) => nombreCanonico(a.name)))
+  const porCanonico = new Map<string, string>()
+  for (const n of [...e.directorio.map((d) => d.agente), ...e.agentes.map((a) => a.name), ...e.invocaciones.map((i) => i.agent_name), ...e.despachos.map((d) => d.agent_name)]) {
+    if (n && !porCanonico.has(nombreCanonico(n)) && !dadosDeBaja.has(nombreCanonico(n))) porCanonico.set(nombreCanonico(n), n)
+  }
+  const agentesConocidos = new Set<string>(porCanonico.values())
   const mesas: MesaViva[] = MESAS.map((m) => {
     const q = etapas.get(m.clave)
     const base: Mesa = { ...m, nombre: q?.nombre || m.nombre, etapa: q ? (q.etapa === "activo" ? "activo" : "segunda_etapa") : m.etapa }
     const misSentados = sentados.filter((s) => s.mesa === m.clave && !sinMesa.includes(s))
     const equipo: MiembroDeMesa[] = []
     for (const a of agentesConocidos) {
-      const pm = mesaDelAgente(a, e.directorio)
+      const pm = mesaDeEscritorio(a, e.directorio)
       if (pm?.mesa !== m.clave) continue
       const sentado = misSentados.find((s) => nombreCanonico(s.agente) === nombreCanonico(a))
       const mias = e.invocaciones.filter((i) => nombreCanonico(i.agent_name) === nombreCanonico(a))
       const ultima = mias.map((i) => i.ended_at ?? i.started_at).filter((x): x is string => !!x).sort().at(-1) ?? null
-      const abiertoViejo = e.despachos.find((d) => nombreCanonico(d.agent_name) === nombreCanonico(a) && String(d.status ?? "").toLowerCase() === "running" && !e.invocaciones.some((i) => invocacionCierraElDespacho(d, i)) && t - ms(d.running_at ?? d.created_at) > MINUTOS_TOPE * 60_000)
       const estado: EstadoDelMiembro = sentado ? sentado.estado : ultima && t - ms(ultima) < HORAS_RECIENTE * 3_600_000 ? "reciente" : "quieto"
-      equipo.push({ agente: a, nombre: nombre(a), estado, ultima, hace: ultima ? haceCuanto(ultima, e.ahora) : "sin trabajo en la ventana leída", nota: enLaSala.has(nombreCanonico(a)) ? `en la sala de reuniones · ${sala.reunion?.titulo ?? ""}` : abiertoViejo ? `despacho abierto ${haceCuanto(abiertoViejo.running_at ?? abiertoViejo.created_at, e.ahora)} sin fin registrado` : null, origen_de_la_mesa: pm.origen })
+      equipo.push({ agente: a, nombre: nombre(a), estado, ultima, hace: ultima ? haceCuanto(ultima, e.ahora) : "sin trabajo en la ventana leída", nota: enLaSala.has(nombreCanonico(a)) ? `en la sala de reuniones · ${sala.reunion?.titulo ?? ""}` : null, origen_de_la_mesa: pm.origen, en_sala: enLaSala.has(nombreCanonico(a)) })
     }
     const orden = (x: MiembroDeMesa) => (x.estado === "trabajando" ? 0 : x.estado === "fallo" ? 1 : x.estado === "reciente" ? 2 : 3)
     equipo.sort((a, b) => orden(a) - orden(b) || a.nombre.localeCompare(b.nombre, "es"))
-    return { ...base, sentados: misSentados, equipo, trabajando: misSentados.filter((s) => s.estado === "trabajando").length, fallando: misSentados.filter((s) => s.estado === "fallo").length }
+    // lo firmado en el mapa y todavía no instalado se dice, no se sienta (p. ej. Legal Compliance Checker en Dirección)
+    const instalados = new Set([...porCanonico.keys(), ...e.agentes.map((a) => nombreCanonico(a.display_name))])
+    const porInstalar = [...new Set(EQUIPOS.find((q) => q.clave === m.clave)?.areas.flatMap((ar) => ar.por_instalar) ?? [])].filter((n) => !instalados.has(nombreCanonico(n)))
+    return { ...base, sentados: misSentados, equipo, trabajando: misSentados.filter((s) => s.estado === "trabajando").length, fallando: misSentados.filter((s) => s.estado === "fallo").length, por_instalar: porInstalar }
   })
-  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala }
+  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala, contexto: e.contexto ?? null }
 }
 
 /** las líneas de la ficha al pasar el cursor, en este orden; nunca se rellena: lo que no hay dice «sin dato» */
 export function lineasDeLaFicha(s: Sentado, mesa: Pick<Mesa, "nombre">): string[] {
   const estado = s.estado === "trabajando" ? "trabajando" : "falló"
-  const equipo = `${mesa.nombre}${s.origen_de_la_mesa === "mapa" ? " (según el mapa, sin tarjeta en el directorio)" : ""} · ${estado}`
+  const equipo = `${mesa.nombre} · ${estado}`
   const enQue = [s.cliente ?? "sin cliente", s.flujo, s.paso].filter(Boolean).join(" · ")
   const desde = s.desde ? `${s.estado === "trabajando" ? "desde" : "falló"} ${s.hace}` : "desde · sin dato"
   const gasto = s.gasto_usd == null ? (s.estado === "trabajando" ? "gasto de esta tarea · en curso, sin registrar aún" : "gasto de esta tarea · sin dato") : `gasto de esta tarea · US$ ${s.gasto_usd.toFixed(3)}`
-  return [s.nombre, equipo, enQue, ...(s.tarea ? [`tarea · ${s.tarea}`] : []), desde, gasto, `fuente ${s.fuente}`]
+  return [s.nombre, equipo, enQue, ...(s.tarea ? [`tarea · ${s.tarea}`] : []), desde, gasto, s.fuente]
+}
+
+/** la ficha corta de quien está en su puesto pero no trabaja ahora (o ya terminó): su estado y su última actividad, sin inventar nada */
+export function lineasDelMiembro(p: MiembroDeMesa, mesa: Pick<Mesa, "nombre">): string[] {
+  const estado = p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? `falló ${p.hace}` : p.estado === "reciente" ? `trabajó ${p.hace}` : p.ultima ? `última tarea ${p.hace}` : "sin trabajo en las últimas 24 h"
+  return [p.nombre, `${mesa.nombre} · ${estado}`]
 }
 
 /** ─── la cámara de la escena de Spline que se monta sobre la foto: de píxeles de la foto a coordenadas del suelo 3D y vuelta ─── */

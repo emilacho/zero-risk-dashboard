@@ -25,7 +25,7 @@ const base: CicloDelPlan = { disponible: true, version: 1, historial: [], con_co
 describe("CC6 · el estado del ciclo del plan", () => {
   it("cada estado sale de lo real: aprobado · reescribiendo · en revisión · esperando tu decisión (con sus botones)", () => {
     expect(leerElCiclo("approved", base)).toMatchObject({ estado: "aprobado", titulo: "Aprobado → pasa al brief", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null })
-    expect(leerElCiclo("draft", { ...base, compuerta: { estado: "aprobado", decidido_por: "emilio", decidido_en: "2026-11-01T15:00:00Z", despertado: true, despertar_detalle: null } }).detalle).toContain("aprobada por emilio")
+    expect(leerElCiclo("draft", { ...base, compuerta: { estado: "aprobado", decidido_por: "emilio", decidido_en: "2026-11-01T15:00:00Z", despertado: true, despertar_detalle: null } }).detalle).toContain("aprobado por emilio")
     const re = leerElCiclo("draft", { ...base, version: 2, con_compuerta: true, compuerta: { estado: "cambios_pedidos", decidido_por: null, decidido_en: null, despertado: true, despertar_detalle: null }, pedido: { id: "p", estado: "en_reescritura", texto: "Sube la meta a 130", vuelta: 2, despertado: true, despertar_detalle: null } })
     expect(re).toMatchObject({ estado: "reescribiendo", titulo: "Reescribiendo", puede_aprobar: false, puede_pedir_cambios: false }); expect(re.detalle).toContain("vuelta 2 de 3")
     expect(leerElCiclo("draft", { ...base, con_compuerta: true })).toMatchObject({ estado: "en_revision", titulo: "En revisión", puede_aprobar: false, puede_pedir_cambios: false }) // la jefatura sigue: sin botones
@@ -189,7 +189,7 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
     const html = pinta(datos({ ...base, version: 2, con_compuerta: true, compuerta: { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null }, historial: [{ id: PLAN, version: 1, creado_en: "2026-10-30T23:13:22Z", status: "draft", reemplaza_a: null, superseded_por: PLAN_V2 }] }))
     expect(html).toContain('data-ciclo="esperando_decision"'); expect(html).toContain("Esperando tu decisión")
     expect(html).toContain('data-accion="plan-aprobar-asi"'); expect(html).toContain('data-accion="plan-pedir-cambios"'); expect(html).toMatch(/min-h-\[56px\][^"]*text-\[16px\]/) // grandes
-    expect(html).toContain("Versión 2 · corregido 1 vez"); expect(html).toContain('data-accion="ver-historial"')
+    expect(html).toContain("Corregido 1 vez"); expect(html).not.toContain("Versión"); expect(html).toContain('data-accion="ver-historial"')
     expect(html).not.toContain("el plan en sí no cambia"); expect(html).not.toContain("data-confirmar") // sin confirmaciones de gasto
   })
   it("en revisión y reescribiendo no ofrecen botones; un pedido que no despertó ofrece «Reintentar» con su tope; aprobado lo dice; ciclo cerrado lo avisa", () => {
@@ -255,7 +255,7 @@ describe("CC6 · ADENDA 1 · la barra de progreso del pedido de cambios", () => 
     }
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d }))
     expect(html).toContain("data-barra-del-pedido"); expect(html).toContain('data-paso="reescribiendo" data-estado="en_curso"'); expect(html).toContain("El jefe de marketing está reescribiendo"); expect(html).toContain("Suele tardar ≈ 15–30 min")
-    expect(html).toContain("data-que-cambio"); expect(html).toContain("Qué cambió en esta versión"); expect(html).toContain("La meta sube a 130.")
+    expect(html).toContain("data-que-cambio"); expect(html).toContain("Qué cambió en el plan"); expect(html).toContain("La meta sube a 130.")
     const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
     expect(c).toContain("15_000"); expect(c).toContain('document.visibilityState === "visible"') // se actualiza solo, sin recargar
   })
