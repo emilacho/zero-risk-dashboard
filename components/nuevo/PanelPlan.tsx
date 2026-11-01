@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
-import { BOTONES_DEL_PLAN, COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, queHaceAprobar, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
@@ -101,6 +101,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
   const [error, setError] = useState<string | null>(null)
   const [verHistorial, setVerHistorial] = useState(false)
   const corregido = ciclo.version - 1
+  const alAprobar = queHaceAprobar(ciclo.con_compuerta)
 
   async function mandar(accion: PuertaDelCiclo, cuerpo: Record<string, unknown> | { error: string }) {
     setError(null)
@@ -153,6 +154,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
 
       {modo === "quieto" && (lectura.puede_aprobar || lectura.puede_pedir_cambios) && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
+          {lectura.puede_aprobar && <p data-que-hace-aprobar={alAprobar.gasta ? "gasta" : "no_gasta"} className={`order-last w-full text-[12.5px] ${alAprobar.gasta ? "text-amber-200" : "text-zinc-400"}`}>{alAprobar.texto}</p>}
           {lectura.puede_aprobar && <button type="button" data-accion="plan-aprobar-asi" onClick={() => { setError(null); setModo("confirmar_aprobar") }} className={`${BOTON_GRANDE} border border-amber-300/80 bg-amber-400/90 text-black hover:bg-amber-300`}>{BOTONES_DEL_PLAN.aprobar}</button>}
           {lectura.puede_pedir_cambios && <button type="button" data-accion="plan-pedir-cambios" onClick={() => { setError(null); setModo("escribir") }} className={`${BOTON_GRANDE} border border-white/25 bg-white/[0.06] text-zinc-50 hover:border-violet-300/70 hover:bg-violet-400/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
         </div>
@@ -204,7 +206,8 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
 
       {modo === "confirmar_aprobar" && (
         <div data-confirmar="plan-aprobar" className="mt-4 rounded-lg border border-amber-400/50 bg-black/40 p-4">
-          <p className="text-[14px] text-zinc-100">Apruebas la versión {ciclo.version}: el plan queda firme y pasa al PDF, a la sala y al brief. <span className="text-zinc-400">No cuesta nada.</span></p>
+          <p className="text-[14px] text-zinc-100">Apruebas la versión {ciclo.version}: el plan queda firme.</p>
+          <p data-confirmar-gasto={alAprobar.gasta ? "si" : "no"} className={`mt-1 text-[13.5px] ${alAprobar.gasta ? "font-medium text-amber-200" : "text-zinc-400"}`}>{alAprobar.texto}</p>
           <label className="mt-2 block">
             <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">Comentario (opcional)</span>
             <textarea value={comentario} onChange={(ev) => setComentario(ev.target.value)} rows={2} maxLength={1000} aria-label="Comentario al aprobar"
@@ -212,7 +215,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
           </label>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button type="button" data-accion="confirmar-aprobar-plan" disabled={ocupado} onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, comentario))} className={`${BOTON_GRANDE} border border-amber-300/80 bg-amber-400/90 text-black hover:bg-amber-300`}>
-              {ocupado ? "Enviando…" : `Sí, aprobar la versión ${ciclo.version}`}
+              {ocupado ? "Enviando…" : alAprobar.gasta ? `Sí, aprobar e iniciar la campaña (tope US$ 10)` : `Sí, aprobar la versión ${ciclo.version}`}
             </button>
             <button type="button" disabled={ocupado} onClick={() => setModo("quieto")} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
           </div>
@@ -506,7 +509,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
             </>
           )}
         </div>
-        <footer className="border-t border-white/10 px-4 py-2 text-[11.5px] text-zinc-500 sm:px-6">Aprobar pasa el plan al PDF, a la sala y al brief (no cuesta). Pedir cambios hace que el jefe de marketing reescriba el plan y la jefatura lo revise (gasta, con tope). Cada decisión queda registrada; el plan lo escribe la oficina de planeación.</footer>
+        <footer className="border-t border-white/10 px-4 py-2 text-[11.5px] text-zinc-500 sm:px-6">Aprobar un plan nuevo inicia la campaña: brief y gran idea (gasta, con tope de US$ 10). Pedir cambios hace que el jefe de marketing reescriba el plan y la jefatura lo revise (gasta, con tope). Cada decisión queda registrada; el plan lo escribe la oficina de planeación.</footer>
       </section>
     </div>
   )

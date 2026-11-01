@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import {
-  COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, avanceDelPedido, inicioSujetoAReanudar, nombreDelTramo, separarEsperas, queCambioDelTexto, type AvanceCrudo, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
+  COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, queHaceAprobar, avanceDelPedido, inicioSujetoAReanudar, nombreDelTramo, separarEsperas, queCambioDelTexto, type AvanceCrudo, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
 } from "@/lib/plan"
 import { leerPlanDelCliente, type PlanDelCliente } from "@/lib/plan-datos"
 import { enviarAlCiclo } from "@/lib/plan-ciclo"
@@ -284,5 +284,25 @@ describe("CC6 · errores 3–5 del panel del plan (ENCARGO Lenovo 01-nov)", () =
     expect(inicioSujetoAReanudar("necesita_humano", { situacion: "sin_fecha" }, null)).toBe("Inicio sujeto a reanudar")
     expect(inicioSujetoAReanudar("activa", { situacion: "antes" }, "2026-11-02")).toBeNull()
     expect(inicioSujetoAReanudar("pausada", { situacion: "en_curso" }, "2026-11-02")).toBeNull() // ya empezó: se dice el día como siempre
+  })
+})
+
+describe("CC6 · DALE de Emilio punto 2 · «Aprobar» avisa el gasto ANTES del clic", () => {
+  it("con compuerta, aprobar inicia la campaña (brief y gran idea, ≈ US$ 4,5–8, tope 10); sin ella, no cuesta", () => {
+    expect(queHaceAprobar(true)).toEqual({ gasta: true, texto: "Aprobar inicia la campaña: brief y gran idea · US$ 4,5–8 estimado · tope US$ 10 · ≈ 1–2 h. Se levanta la pausa de pruebas; se detiene en la tarjeta de la gran idea." })
+    expect(queHaceAprobar(false).gasta).toBe(false)
+  })
+  it("el aviso se ve bajo los botones sin hacer clic y la confirmación lo repite", () => {
+    const d = (conCompuerta: boolean): PlanDelCliente => ({
+      clientes: [{ id: CLIENTE, nombre: "Náufrago", con_campana: false }], cliente: { id: CLIENTE, nombre: "Náufrago" }, hoy: "2026-11-01",
+      campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [], leido_en: "x",
+      documento: { id: PLAN_V2, titulo: "Plan v2", creado_en: null, actualizado_en: null, status: "draft", estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: "Prosa", caracteres: 5, que_cambio: null },
+      ciclo: { ...base, version: 2, con_compuerta: conCompuerta, compuerta: conCompuerta ? { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null } : null },
+    })
+    const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d(true) }))
+    expect(html).toContain('data-que-hace-aprobar="gasta"'); expect(html).toContain("Aprobar inicia la campaña: brief y gran idea"); expect(html).toContain("tope US$ 10")
+    expect(renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d(false) }))).toContain('data-que-hace-aprobar="no_gasta"')
+    const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
+    expect(c).toContain("data-confirmar-gasto"); expect(c).toContain("Sí, aprobar e iniciar la campaña (tope US$ 10)"); expect(c).not.toContain("No cuesta nada.</span>")
   })
 })
