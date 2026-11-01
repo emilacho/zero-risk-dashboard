@@ -43,14 +43,14 @@ const NOMBRES = new Map([["X9F0zp6LQ2xGEYVS", "Zero Risk — Planeación (CC1)"]
 describe("6.26 · lectura y nombres", () => {
   it("la corrida se llama como su proceso en n8n, sin prefijos ni sufijos de empleado; si no es de n8n, en palabras; si no hay nada, su número", () => {
     expect(nombreLimpio("Jefatura · un turno (agente → resultado → siguiente) · CC#2")).toBe("Jefatura · un turno")
-    expect(nombreDeLaCorrida("X9F0zp6LQ2xGEYVS", "210273", NOMBRES)).toBe("Planeación")
-    expect(nombreDeLaCorrida("cc-cerebro-fallas-y-retencion", "p1")).toBe("cc cerebro fallas y retencion")
-    expect(nombreDeLaCorrida("X9F0zp6LQ2xGEYVS", "210273")).toBe("Ejecución 210273")
+    expect(nombreDeLaCorrida("X9F0zp6LQ2xGEYVS", "210273", NOMBRES)).toBe("Planeación del plan de 90 días") // 6.27: nombre de oficina
+    expect(nombreDeLaCorrida("cc-cerebro-fallas-y-retencion", "p1")).toBe("Cerebro · fallas y retención")
+    expect(nombreDeLaCorrida("AbCdEfGhIjKlMnOp", "210273")).toBe("Ejecución 210273")
     expect(nombreDeLaRama("analisis-voz_del_publico")).toBe("analisis · voz del publico")
   })
   it("normaliza la lista y resume la pantalla 9 (errores y en curso)", () => {
     const l = normalizarLista(LISTA, NOMBRES)
-    expect(l.corridas.map((c) => c.nombre)).toEqual(["Planeación", "Jefatura · un turno", "cc cerebro fallas y retencion"])
+    expect(l.corridas.map((c) => c.nombre)).toEqual(["Planeación del plan de 90 días", "Jefatura · un turno", "Cerebro · fallas y retención"])
     expect(l.sin_enlace_a_trazas).toBe("x")
     expect(resumenDeCorridas(l)).toEqual({ total: 3, en_curso: 1, con_error: 1, completo: true })
   })
@@ -76,7 +76,7 @@ describe("6.26 · el árbol y la cascada (estructura de LangSmith)", () => {
   const nodos = arbolDeNodos(d)
   it("la corrida arriba y sus pasos en orden de inicio: la mesa de análisis antes que jefe marketing", () => {
     expect(nodos.map((n) => [n.tipo, n.nombre, n.sub])).toEqual([
-      ["corrida", "Planeación", "Náufrago"], ["paso", "competitive intelligence", "analisis · competencia"], ["paso", "feedback synthesizer", "analisis · voz del publico"], ["paso", "jefe marketing", null],
+      ["corrida", "Planeación del plan de 90 días", "Náufrago"], ["paso", "Competitive intelligence", "analisis · competencia"], ["paso", "Feedback synthesizer", "analisis · voz del publico"], ["paso", "Jefe marketing", null],
     ])
   })
   it("una rama con varios pasos es un nodo propio con sus pasos debajo", () => {
@@ -103,7 +103,7 @@ describe("6.26 · el panel", () => {
     for (const c of ["Nombre", "Cliente", "Estado", "Inicio", "Duración", "Tokens", "Costo", "Pasos"]) expect(h).toContain(`>${c}</th>`)
     expect(h).toContain("data-busca"); expect(h.match(/data-fecha=/g)).toHaveLength(3); expect(h).toContain("data-filtro-cliente"); expect(h.match(/data-filtro-estado=/g)).toHaveLength(6)
     expect(h.match(/data-corrida=/g)).toHaveLength(3); expect(h).toContain('data-estado="fallida"')
-    expect(h).toContain("Sin dato todavía:"); expect(h).toContain("entrada y salida de cada corrida")
+    expect(h).toContain("entrada y salida de cada paso: los primeros 2.000 caracteres") // 6.27: ya se leen
   })
   it("una corrida abierta: árbol con barras, detalle con 3 pestañas y metadatos; entrada y salida «sin dato todavía»", () => {
     const t = renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: lista, detalleInicial: normalizarDetalle(CORRIDA_210273, NOMBRES) }))
