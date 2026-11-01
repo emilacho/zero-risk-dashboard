@@ -30,7 +30,7 @@ export interface Mesa {
   monitor: Punto
   /** dónde va el rótulo del equipo */
   rotulo: Punto
-  /** la mesa está en la foto original (1-4) o es una de las 2 copias idénticas de la capa `MESAS_EXTRA` (5-6, en el piso ganado al acercar el vidrio) */
+  /** la mesa está en la foto original (Dirección, Estrategia, Creativo) o es una copia idéntica de la capa `MESAS_EXTRA` (Web, Medios, Relaciones) */
   en_la_foto: boolean
   /** centro del tablero de la mesa (para la zona del ratón) */
   centro: Punto
@@ -44,31 +44,32 @@ const mesa = (clave: ClaveDeMesa, nombre: string, orden: number, etapa: EtapaDeM
   ({ clave, nombre, orden, etapa, silla, monitor, rotulo: { x: monitor.x, y: monitor.y - 95 }, en_la_foto, centro, color })
 
 /**
- * LAS 6 MESAS del boceto de CC5 (`2026-11-01-BOCETO-CC5-oficina-de-marketing-6-equipos.md`, aprobado por Emilio 01-nov): Dirección · Estrategia · Creativo encendidas en 3 de las
- * 4 mesas de la foto; Web y búsqueda en la 4.ª; Medios y Performance y Relaciones en 2 mesas NUEVAS idénticas (pedidos de Emilio 01-nov: «2 mesas extras idénticas a las
- * que ya se ven», sin punteadas, y «reducir el espacio entre el vidrio y la mesa redonda para ganar espacio»): el vidrio de la sala de reuniones se acerca a la mesa redonda y
- * en el piso ganado van 2 copias píxel a píxel de la mesa Creativo, alineadas con las demás (Medios junto a Dirección, Relaciones junto a Creativo). Todo va en una capa
- * aparte encima de la foto (`MESAS_EXTRA`); la foto original no se toca. Sus sillas/monitores = los de Creativo trasladados. Colores de `lib/organigrama.ts`.
+ * LAS 6 MESAS (pedidos de Emilio 01-nov: «2 mesas extras idénticas a las que ya se ven», «deja dentro del vidrio solo el mueble y la mesa, pon afuera la pantalla
+ * vertical y organiza las 6 mesas de manera simétrica y bien espaciada, sin perder las líneas naranjas del piso»): rejilla de 3 filas × 2 columnas con el mismo paso
+ * que las mesas de la foto (medido por registro de imagen: columnas +191,+113 · filas +211,−105). Delante Estrategia y Creativo (sus mesas de la foto), en medio Dirección (la suya) y Web y búsqueda, al fondo Medios y Performance y
+ * Relaciones. Web, Medios y Relaciones son copias píxel a píxel de la mesa Creativo en la capa `MESAS_EXTRA` (sus sillas/monitores = los de Creativo trasladados).
+ * La foto original no se toca. Colores de `lib/organigrama.ts`.
  */
 export const MESAS: Mesa[] = [
-  mesa("direccion", "Dirección", 1, "activo", { x: 1038, y: 628 }, { x: 1102, y: 552 }, true, { x: 1078, y: 585 }, "#f5a524"),
-  mesa("estrategia", "Estrategia", 2, "activo", { x: 836, y: 728 }, { x: 895, y: 650 }, true, { x: 872, y: 684 }, "#e8731a"),
+  mesa("direccion", "Dirección", 1, "activo", { x: 1044, y: 618 }, { x: 1108, y: 540 }, true, { x: 1084, y: 574 }, "#f5a524"),
+  mesa("estrategia", "Estrategia", 2, "activo", { x: 833, y: 723 }, { x: 897, y: 645 }, true, { x: 873, y: 679 }, "#e8731a"),
   mesa("creativo", "Creativo", 3, "activo", { x: 1024, y: 836 }, { x: 1088, y: 758 }, true, { x: 1064, y: 792 }, "#ffb86b"),
-  mesa("web", "Web y búsqueda", 4, "segunda_etapa", { x: 1222, y: 930 }, { x: 1275, y: 855 }, true, { x: 1255, y: 888 }, "#9a7b5a"),
-  mesa("medios", "Medios y Performance", 5, "segunda_etapa", { x: 1185, y: 727 }, { x: 1249, y: 649 }, false, { x: 1225, y: 683 }, "#8c8c8c"),
-  mesa("relaciones", "Relaciones", 6, "segunda_etapa", { x: 1336, y: 838 }, { x: 1400, y: 760 }, false, { x: 1376, y: 794 }, "#a08cff"),
+  mesa("web", "Web y búsqueda", 4, "segunda_etapa", { x: 1235, y: 731 }, { x: 1299, y: 653 }, false, { x: 1275, y: 687 }, "#9a7b5a"),
+  mesa("medios", "Medios y Performance", 5, "segunda_etapa", { x: 1255, y: 513 }, { x: 1319, y: 435 }, false, { x: 1295, y: 469 }, "#8c8c8c"),
+  mesa("relaciones", "Relaciones", 6, "segunda_etapa", { x: 1446, y: 626 }, { x: 1510, y: 548 }, false, { x: 1486, y: 582 }, "#a08cff"),
 ]
 
 /**
- * La capa de las 2 mesas nuevas: `public/nuevo/marketing-mesas-y-vidrio.webp` (con transparencia: solo los píxeles que cambian). Lleva el vidrio en L de la sala de
- * reuniones trasladado (83, −39) hacia la mesa redonda (el piso donde estaba se rehace liso con el grano del piso; la marca del piso junto al poste se conserva) y
- * la mesa Creativo de `marketing-2560.jpg` copiada 2 veces (`traslados`) en el piso ganado. `caja` = dónde va, en píxeles de la foto.
- * Generada por `.cc6/mover-vidrio.py 0.4 … --capa` (CC6, 01-nov · copia del guion en zr-vault/raw/evidencia/dashboard-nuevo/cc6/vidrio-y-mesas/).
+ * La capa de la oficina reordenada: `public/nuevo/marketing-oficina-simetrica.webp` (con transparencia: solo los píxeles que cambian). Quita el vidrio viejo, la mesa
+ * Web de la foto y la pantalla vertical (el piso se rehace liso con su grano y se redibujan los tramos de línea naranja que tapaban; los rombos se conservan); pone
+ * las 3 mesas copiadas (`traslados` desde la mesa Creativo), un vidrio nuevo por las líneas del piso desde el rombo junto a la mesa redonda que encierra solo la mesa
+ * y el mueble, y la pantalla vertical afuera, en la celda delantera derecha. `caja` = dónde va, en píxeles de la foto.
+ * Generada por `.cc6/oficina-simetrica.py … --capa` (CC6, 01-nov · copia del guion en zr-vault/raw/evidencia/dashboard-nuevo/cc6/oficina-simetrica/).
  */
 export const MESAS_EXTRA = {
-  src: "/nuevo/marketing-mesas-y-vidrio.webp",
-  caja: { x: 1131, y: 436, w: 500, h: 517 },
-  traslados: { medios: { x: 161, y: -109 }, relaciones: { x: 312, y: 2 } },
+  src: "/nuevo/marketing-oficina-simetrica.webp",
+  caja: { x: 1146, y: 381, w: 523, h: 642 },
+  traslados: { web: { x: 211, y: -105 }, medios: { x: 231, y: -323 }, relaciones: { x: 422, y: -210 } },
 } as const
 export const mesaPorClave = (k: string): Mesa | undefined => MESAS.find((m) => m.clave === k)
 
