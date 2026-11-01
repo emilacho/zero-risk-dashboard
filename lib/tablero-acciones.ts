@@ -209,7 +209,8 @@ export async function ejecutarAccion(nombre: string, raw: unknown, d: DepsDeAcci
     if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "todavia_no_disponible", detalle: "la plataforma todavía no tiene esta acción: no se hizo ningún cambio" } }
     if (r.status === 401 || r.status === 403) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_no_acepto_la_llave", plataforma_status: r.status, detalle: "el tablero no pudo identificarse ante la plataforma" } }
     if (r.status === 409) return { status: 409, cuerpo: { ok: false, error: "conflicto", detalle: String(datos.detalle ?? datos.error ?? "otra decisión se adelantó: recarga"), plataforma: datos } }
-    if (!r.ok) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: r.status, detalle: String(datos.detalle ?? datos.error ?? t) } }
+    // `plataforma_error` = el código de la plataforma tal cual (p. ej. `planes_error` del ciclo del plan antes de la «ventana»): la pantalla lo traduce sin mostrar el detalle técnico
+    if (!r.ok) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: r.status, ...(typeof datos.error === "string" ? { plataforma_error: datos.error } : {}), detalle: String(datos.detalle ?? datos.error ?? t) } }
     return { status: 200, cuerpo: { ok: true, accion: nombre, plataforma_status: r.status, resultado: datos } }
   } catch (e) {
     return { status: 502, cuerpo: { ok: false, error: "plataforma_sin_respuesta", detalle: e instanceof Error ? e.message : String(e) } }
