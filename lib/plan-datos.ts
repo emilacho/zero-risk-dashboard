@@ -50,6 +50,9 @@ export interface PlanDelCliente {
   }
   /** la última revisión del plan en la bandeja (pendiente o ya decidida) */
   revision: null | { id: string; titulo: string; creada_en: string; status: string; decision: string | null; vence_en: string | null }
+  /** «la palabra del dueño manda» (CC1 · punto 8): lo que un revisor sugirió contra lo que ordenó el dueño y NO entró, o lo que ordenó y no quedó cumplido.
+   *  Filas pendientes de `hitl_queue` tipo `palabra_del_dueno` del cliente (se cierran al aprobar el plan). Vacío si no hay. */
+  palabra_del_dueno?: Array<{ id: string; titulo: string; detalle: string; requiere_humano: boolean; creado_en: string | null }>
   esperas: { vivas: number; grupos: GrupoDeEsperas[]; /** las vencidas, aparte (no se mezclan con las pendientes) */ vencidas: { n: number; grupos: GrupoDeEsperas[] } }
   /** los topes vigentes de cada tramo de la planeación (catálogo `plan_catalogo_topes`) */
   topes: TopeDelTramo[]
@@ -151,10 +154,15 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
   if (!elegido) return vacio(null)
   const cliente = { id: elegido.id, nombre: elegido.nombre }
 
-  const [camp, rev] = await Promise.all([
+  const [camp, rev, palabras] = await Promise.all([
     una(supa.from("cadena_campanas").select("id, plan_id, estado, estado_motivo, fecha_inicio, fecha_fin, sedes, presupuesto_planificacion_usd, autoproducir, creada_en, actualizada_en").eq("client_id", cliente.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas"),
     una(supa.from("hitl_queue").select("id, title, status, decision, created_at, expires_at").eq("client_id", cliente.id).eq("type", "plan_con_pendientes").order("created_at", { ascending: false }).limit(1).maybeSingle(), "hitl_queue"),
+    filas(supa.from("hitl_queue").select("id, title, output_preview, metadata, created_at").eq("client_id", cliente.id).eq("type", "palabra_del_dueno").eq("status", "pending").order("created_at", { ascending: false }).limit(10), "hitl_queue"),
   ])
+  const palabra_del_dueno: NonNullable<PlanDelCliente["palabra_del_dueno"]> = palabras.map((x) => ({
+    id: String(x.id), titulo: String(x.title ?? ""), detalle: String(x.output_preview ?? ""), creado_en: t(x.created_at),
+    requiere_humano: !!(x.metadata && typeof x.metadata === "object" && (x.metadata as Record<string, unknown>).requiere_humano === true),
+  }))
   const revision: PlanDelCliente["revision"] = rev ? { id: String(rev.id), titulo: String(rev.title ?? ""), creada_en: String(rev.created_at ?? ""), status: String(rev.status ?? ""), decision: decisionDelPlanLegible(rev.status, rev.decision), vence_en: t(rev.expires_at) } : null
 
   // el documento: el VIGENTE del ciclo (contrato CC1 §2); si ninguna versión lo es, el que señala la campaña o, sin campaña, el último del cliente
@@ -172,7 +180,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
 
   if (!camp) {
     const [d, ciclo, topes] = await Promise.all([docP, cicloP, topesP])
-    return { ...vacio(cliente), documento: documentoLeido(d), revision, ciclo, topes }
+    return { ...vacio(cliente), documento: documentoLeido(d), revision, palabra_del_dueno, ciclo, topes }
   }
   const campId = String(camp.id)
   const [d, est, nFilas, ultimaVersion, esperas, ciclo, topes, yaVencidas] = await Promise.all([
@@ -205,6 +213,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     fase_activa: faseActiva(estrategia?.fases ?? [], desde, hoy),
     documento: documentoLeido(d),
     revision,
+    palabra_del_dueno,
     esperas: { vivas: vivas.length, grupos: agruparEsperas(vivas), vencidas: { n: vencidas.length, grupos: agruparEsperas(vencidas) } },
     ciclo,
     topes,
