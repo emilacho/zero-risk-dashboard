@@ -6,6 +6,7 @@ import { ESTILO_DE_DIRECCION, LIENZO_DE_DIRECCION, TableroDeDireccionVivo } from
 import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import type { ResumenDeRiesgos } from "@/lib/direccion-riesgos"
 import type { ResumenDeDinero } from "@/lib/direccion-dinero"
+import type { ResumenDeCorridas } from "@/lib/direccion-corridas"
 
 /**
  * LAS PANTALLAS DE TU OFICINA (sprint 6.14 → 6.16 · Emilio, 1-nov): las 6 pantallas encendidas del ARCO y las 5 chicas del ESCRITORIO, cada una con su MATIZ de
@@ -172,12 +173,15 @@ function Tablero({ animacion, l, quieto }: { animacion: Animacion; l: Caja; quie
 export const PANTALLA_DE_DECISIONES = "arco-5"
 export const PANTALLA_DE_RIESGOS = "arco-6"
 export const PANTALLA_DE_DINERO = "arco-4"
-export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos, dinero = null, alAbrirDinero }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void; dinero?: ResumenDeDinero | null; alAbrirDinero?: () => void }) {
+export const PANTALLA_DE_OBSERVABILIDAD = "arco-9"
+export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos, dinero = null, alAbrirDinero, corridas = null, alAbrirObservabilidad }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void; dinero?: ResumenDeDinero | null; alAbrirDinero?: () => void; corridas?: ResumenDeCorridas | null; alAbrirObservabilidad?: () => void }) {
   const abre: Record<string, { que: string; etiqueta: string; abrir: () => void } | undefined> = {
     [PANTALLA_DE_DECISIONES]: alAbrirDecisiones && { que: "decisiones", etiqueta: "Abrir tus decisiones", abrir: alAbrirDecisiones },
     [PANTALLA_DE_DINERO]: alAbrirDinero && { que: "dinero", etiqueta: "Abrir el dinero", abrir: alAbrirDinero },
     [PANTALLA_DE_RIESGOS]: alAbrirRiesgos && { que: "riesgos", etiqueta: "Abrir los riesgos y alarmas", abrir: alAbrirRiesgos },
+    [PANTALLA_DE_OBSERVABILIDAD]: alAbrirObservabilidad && { que: "observabilidad", etiqueta: "Abrir la observabilidad", abrir: alAbrirObservabilidad },
   }
+  const [encima, setEncima] = useState<string | null>(null) // la pantalla bajo el cursor: su título crece un poco
   const [quieto, setQuieto] = useState(false) // «menos movimiento» del sistema: sin SMIL (el CSS se apaga solo por media query)
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -206,11 +210,11 @@ export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
         <defs>{todas.map(({ id, p }) => <clipPath key={id} id={`nv-pantalla-${id}`}><polygon points={p.forma} /></clipPath>)}</defs>
         {todas.map(({ id, grupo, p }) => (
-          <g key={id} className="nv-pantalla" data-grupo={grupo} data-pantalla={p.indice} data-animacion={p.animacion} data-tono={p.nombreDelTono} style={{ "--tono": p.tono } as CSSProperties} clipPath={`url(#nv-pantalla-${id})`}>
+          <g key={id} className="nv-pantalla" data-grupo={grupo} data-pantalla={p.indice} data-animacion={p.animacion} data-tono={p.nombreDelTono} data-encima={encima === id || undefined} style={{ "--tono": p.tono } as CSSProperties} clipPath={`url(#nv-pantalla-${id})`}>
             {/* 6.16b · el dibujo se hace en el plano propio del vidrio y la matriz lo lleva a su perspectiva: cuadrado con sus bordes, no recto contra la foto */}
             <g className="nv-hud" transform={`matrix(${marcoDeLaForma(p.forma).matriz.map((v) => v.toFixed(5)).join(" ")})`}>
               {p.titulo
-                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} decisiones={decisiones} riesgos={riesgos} dinero={dinero} /></g>
+                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} decisiones={decisiones} riesgos={riesgos} dinero={dinero} corridas={corridas} /></g>
                 : <Tablero animacion={p.animacion} l={lienzoDelMarco(marcoDeLaForma(p.forma))} quieto={quieto} />}
             </g>
           </g>
@@ -228,6 +232,7 @@ export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos
         </defs>
         {todas.filter(({ id }) => id !== "escritorio-2").map(({ id, p }) => (
           <g key={id} className="nv-toque" data-id={id} data-tono={p.nombreDelTono}
+            onMouseEnter={() => setEncima(id)} onMouseLeave={() => setEncima((e) => (e === id ? null : e))} onFocus={() => setEncima(id)} onBlur={() => setEncima((e) => (e === id ? null : e))}
             {...(abre[id] ? {
               "data-abre": abre[id].que, role: "button", tabIndex: 0, "aria-label": abre[id].etiqueta,
               onClick: abre[id].abrir, onKeyDown: (e: KeyboardEvent<SVGGElement>) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abre[id]?.abrir() } },

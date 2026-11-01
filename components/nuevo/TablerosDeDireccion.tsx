@@ -3,6 +3,7 @@ import type { TableroDeDireccion } from "@/lib/pantallas-de-la-oficina"
 import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import { alPlano, type ResumenDeRiesgos } from "@/lib/direccion-riesgos"
 import type { ResumenDeDinero } from "@/lib/direccion-dinero"
+import type { ResumenDeCorridas } from "@/lib/direccion-corridas"
 
 /**
  * 6.19 · LOS 9 TABLEROS DE DIRECCIÓN del arco de Tu oficina (capa 1 del encargo «oficina del humano», aprobada por Emilio el 1-nov «tal como se ve en tu
@@ -235,9 +236,11 @@ function Agenda() {
 
 /** 9 · OBSERVABILIDAD · la cascada de trazas: el árbol de cada corrida se despliega paso a paso (un paso destacado: el más caro o con falla) */
 const PASOS = [[0, 10, 80], [1, 12, 22], [2, 14, 10], [2, 24, 8], [1, 34, 30], [2, 36, 12], [2, 48, 14], [1, 64, 18], [2, 66, 10], [1, 82, 12]] as const
-function Observabilidad() {
+function Observabilidad({ resumen }: { resumen: ResumenDeCorridas | null }) {
+  // 6.26 · con lectura, el vidrio dice lo real de las últimas 24 h: errores primero, luego lo que está en curso, luego cuántas corridas hubo
+  const cuenta = !resumen ? null : resumen.con_error ? `${resumen.con_error} con error` : resumen.en_curso ? `${resumen.en_curso} en curso` : `${resumen.total} ${resumen.total === 1 ? "corrida" : "corridas"}`
   return (
-    <g>
+    <g data-corridas={resumen ? resumen.total : "sin-lectura"}>
       {PASOS.map(([n, x, w], i) => {
         const y = 36 + i * 11
         return (
@@ -247,23 +250,25 @@ function Observabilidad() {
           </g>
         )
       })}
-      <line {...linea} opacity={0.5} x1={14} y1={148} x2={94} y2={148} strokeDasharray="3 3" />
+      {cuenta === null
+        ? <line {...linea} opacity={0.5} x1={14} y1={148} x2={94} y2={148} strokeDasharray="3 3" />
+        : <text data-cuenta-corridas x={50} y={152} textAnchor="middle" fontSize={11} fontWeight={700} fill="currentColor" stroke="none">{cuenta}{resumen && !resumen.completo ? " +?" : ""}</text>}
     </g>
   )
 }
 
-const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null; riesgos: ResumenDeRiesgos | null; dinero: ResumenDeDinero | null }) => ReactNode> = {
+const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null; riesgos: ResumenDeRiesgos | null; dinero: ResumenDeDinero | null; corridas: ResumenDeCorridas | null }) => ReactNode> = {
   gobierno: () => <Gobierno />, proyectos: ({ quieto }) => <Proyectos quieto={quieto} />, portafolio: () => <Portafolio />, dinero: ({ dinero }) => <Dinero resumen={dinero} />,
   decisiones: ({ decisiones }) => <Decisiones resumen={decisiones} />, riesgos: ({ quieto, riesgos }) => <Riesgos quieto={quieto} resumen={riesgos} />, organizacion: () => <Organizacion />,
-  "agenda-ejecutiva": () => <Agenda />, observabilidad: () => <Observabilidad />,
+  "agenda-ejecutiva": () => <Agenda />, observabilidad: ({ corridas }) => <Observabilidad resumen={corridas} />,
 }
 
 /** un tablero de dirección en el plano 100×160 del vidrio (con el mismo respiro del boceto: 5 % y 90 %) */
-export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null, riesgos = null, dinero = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null; riesgos?: ResumenDeRiesgos | null; dinero?: ResumenDeDinero | null }) {
+export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null, riesgos = null, dinero = null, corridas = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null; riesgos?: ResumenDeRiesgos | null; dinero?: ResumenDeDinero | null; corridas?: ResumenDeCorridas | null }) {
   return (
     <g transform="translate(5 4) scale(0.9)" data-tablero={tablero}>
       <Titulo lineas={titulo} />
-      {DIBUJO[tablero]({ quieto, decisiones, riesgos, dinero })}
+      {DIBUJO[tablero]({ quieto, decisiones, riesgos, dinero, corridas })}
     </g>
   )
 }
@@ -273,7 +278,8 @@ export const ESTILO_DE_DIRECCION = `
 .nv-pantalla[data-grupo="arco"] .nv-hud{opacity:.86}
 .nv-velos polygon{fill:rgba(14,9,5,.8)}
 .nv-velo-tarjeta{fill:rgba(20,12,6,.72)}
-.nv-titulo{opacity:1}
+.nv-titulo{opacity:1;transform-box:fill-box;transform-origin:center;transition:transform .22s ease}
+.nv-pantalla[data-encima] .nv-titulo{transform:scale(1.14)}
 .nv-toque[data-abre]{cursor:pointer}
 .nv-toque[data-abre] polygon.nv-zona-toque{cursor:pointer}
 .nv-toque[data-abre]:focus-visible{outline:none}
