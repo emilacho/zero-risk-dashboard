@@ -330,13 +330,15 @@ export interface CicloDelPlan {
   avance: AvanceDelPedido | null
   /** de qué pedido es el avance: el abierto sobre esta versión, o el que la creó */
   avance_de?: "esta_version" | "pedido_que_la_creo" | null
+  /** al guardar esta versión no se pudo compararla con la anterior (`provenance_tag.comparacion_fallo` · CC2 adenda 5): puede ser una copia sin cambios */
+  comparacion_fallo?: boolean
 }
 
 /** la versión de una fila del plan y si sigue vigente, de su `provenance_tag` (contrato: versión ausente = 1; vigente salvo `vigente:false` o `superseded_por`) */
-export function versionDelTag(tag: unknown): { version: number; vigente: boolean; reemplaza_a: string | null; superseded_por: string | null; con_compuerta: boolean; plan_cambio_id: string | null } {
+export function versionDelTag(tag: unknown): { version: number; vigente: boolean; reemplaza_a: string | null; superseded_por: string | null; con_compuerta: boolean; plan_cambio_id: string | null; comparacion_fallo: boolean } {
   const t = objeto(tag)
   const v = numero(t.version)
-  return { version: v && v >= 1 ? Math.floor(v) : 1, vigente: t.vigente !== false && !texto(t.superseded_por), reemplaza_a: texto(t.reemplaza_a) || null, superseded_por: texto(t.superseded_por) || null, con_compuerta: t.compuerta === true, plan_cambio_id: texto(t.plan_cambio_id) || null }
+  return { version: v && v >= 1 ? Math.floor(v) : 1, vigente: t.vigente !== false && !texto(t.superseded_por), reemplaza_a: texto(t.reemplaza_a) || null, superseded_por: texto(t.superseded_por) || null, con_compuerta: t.compuerta === true, plan_cambio_id: texto(t.plan_cambio_id) || null, comparacion_fallo: t.comparacion_fallo === true }
 }
 
 export type EstadoDelCiclo = "en_revision" | "reescribiendo" | "esperando_decision" | "aprobado"
@@ -353,6 +355,7 @@ export interface LecturaDelCiclo {
 }
 export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPlan): LecturaDelCiclo {
   const avisos: string[] = []
+  if (ciclo.comparacion_fallo) avisos.push("No se pudo comparar esta versión con la anterior al guardarla: puede ser una copia sin cambios. Revísala antes de aprobar.")
   if (!ciclo.disponible) avisos.push("El ciclo del plan se abre pronto: hasta entonces los botones responden «aún no disponible». No se cambia nada.")
   const cp = ciclo.compuerta, pd = ciclo.pedido
   if (statusDelDocumento === "approved" || cp?.estado === "aprobado") {
