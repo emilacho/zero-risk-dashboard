@@ -392,6 +392,12 @@ export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", s
   const crudo = (v: unknown) => (/^[a-z_]+$/.test(texto(v)) ? texto(v) : "")
   const err = crudo(c.error)
   const codigo = texto(plat.error) || crudo(c.detalle) || (err !== "conflicto" && err !== "la_plataforma_rechazo" ? err : "")
+  // 409 `campana_detenida` (CC1 · certificado por CC3, 01-nov): la campaña de ese plan está pausada, necesita a una persona o está activa. Se muestra el
+  // `detalle` de la plataforma TAL CUAL y NO se ofrece reintento (el panel no tiene cómo reanudar ni cerrar una campaña)
+  if (codigo === "campana_detenida") {
+    const d = texto(plat.detalle) || texto(c.detalle)
+    return { ok: false, texto: `La campaña de este plan está detenida${d && d !== "campana_detenida" ? `: ${d}` : ""}. No se cambió nada ni se gastó.`, reintentar: false, releer: false }
+  }
   if (MOTIVOS_DEL_CICLO[codigo]) return { ok: false, texto: MOTIVOS_DEL_CICLO[codigo], reintentar: false, releer: RELEER_TRAS.includes(codigo) }
   // NOTA de CC1 (01-nov): antes de la «ventana» las dos puertas responden 500 `planes_error` (sus tablas no existen) y después ese código sería un fallo real
   // de la base: un solo texto sirve para ambos casos, y el detalle técnico NO se muestra al dueño

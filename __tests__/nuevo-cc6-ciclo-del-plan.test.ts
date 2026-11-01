@@ -83,6 +83,11 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
     const r2 = await ejecutarAccion("plan-aprobar", cuerpoDeAprobar(PLAN, ""), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: conflicto })
     expect(r2.status).toBe(409)
     expect(palabrasDeLaRespuesta("plan-aprobar", r2.status, r2.cuerpo)).toMatchObject({ ok: false, texto: "La jefatura todavía revisa este plan: decides cuando termine. No se cambió nada.", releer: true })
+    // 409 `campana_detenida` (CC1/CC3 01-nov): el detalle de la plataforma tal cual y SIN reintento
+    const detenida = (async () => new Response(JSON.stringify({ ok: false, error: "campana_detenida", detalle: "campaña pausada: pausa de pruebas por decisión del dueño 31-oct" }), { status: 409 })) as unknown as typeof fetch
+    const r409 = await ejecutarAccion("plan-cambios", cuerpoDePedirCambios(PLAN, "Sube la meta a 130"), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: detenida })
+    expect(r409.status).toBe(409)
+    expect(palabrasDeLaRespuesta("plan-cambios", r409.status, r409.cuerpo)).toEqual({ ok: false, texto: "La campaña de este plan está detenida: campaña pausada: pausa de pruebas por decisión del dueño 31-oct. No se cambió nada ni se gastó.", reintentar: false, releer: false })
     // con la ventana abierta, un 404 CON motivo (`plan_inexistente`) se dice como tal, no como «aún no disponible» (sonda de CC6 en producción, 01-nov 15:44Z)
     const inexistente = (async () => new Response(JSON.stringify({ ok: false, error: "plan_inexistente" }), { status: 404 })) as unknown as typeof fetch
     const r404 = await ejecutarAccion("plan-aprobar", cuerpoDeAprobar(PLAN, ""), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: inexistente })
