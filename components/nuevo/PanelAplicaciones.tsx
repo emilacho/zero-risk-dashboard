@@ -8,9 +8,14 @@ import { PanelManual } from "@/components/nuevo/PanelManual"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelInformes } from "@/components/nuevo/PanelInformes"
+import { PanelBrief } from "@/components/nuevo/PanelBrief"
+import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
+import { PanelEquipo } from "@/components/nuevo/PanelEquipo"
+import type { Centro } from "@/lib/centro-datos"
 
 const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
+type RespuestaCentro = ({ ok: true } & Centro) | { ok: false; error: string }
 
 const ESTILO = `
 .ap-cuadro{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease;animation:apEntra .5s cubic-bezier(.2,.8,.2,1) both}
@@ -30,14 +35,24 @@ function Icono({ clave }: { clave: ClaveDeAplicacion }) {
     case "plan": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M5 26h22M8 26V14M16 26V8M24 26v-9" /><path {...p} d="M8 14l8-6 8 3" /><circle cx="8" cy="14" r="1.6" {...p} /><circle cx="16" cy="8" r="1.6" {...p} /><circle cx="24" cy="11" r="1.6" {...p} /></svg>
     case "calendario": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><rect x="5" y="7" width="22" height="20" rx="2.5" {...p} /><path {...p} d="M5 12.5h22M11 4.5v5M21 4.5v5" /><path {...p} d="M9.5 17h3v3h-3zM14.5 17h3v3h-3zM19.5 17h3v3h-3zM9.5 22h3v3h-3zM14.5 22h3v3h-3z" /></svg>
     case "piezas": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><rect x="4" y="9" width="18" height="18" rx="2" {...p} /><path {...p} d="M10 5h16a2 2 0 0 1 2 2v16" /><path {...p} d="M4 22l5-5 4 4 3-3 6 6" /><circle cx="16" cy="14" r="1.8" {...p} /></svg>
+    case "brief": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M7 6h18v22H7z" /><path {...p} d="M11 12h10M11 16h10M11 20h6" /><path {...p} d="M12 3v5M20 3v5" /></svg>
+    case "gran_idea": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M16 4a8 8 0 0 0-4.5 14.6c.9.7 1.5 1.7 1.5 2.9V23h6v-1.5c0-1.2.6-2.2 1.5-2.9A8 8 0 0 0 16 4Z" /><path {...p} d="M13 26h6M14 29h4" /><path {...p} d="M16 10v4M14 12h4" /></svg>
+    case "equipo": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><circle cx="16" cy="10" r="3.5" {...p} /><circle cx="7.5" cy="13" r="2.8" {...p} /><circle cx="24.5" cy="13" r="2.8" {...p} /><path {...p} d="M10 25c0-4 2.7-6.5 6-6.5s6 2.5 6 6.5" /><path {...p} d="M3 24c0-3 2-5 4.5-5 .9 0 1.7.2 2.4.6M29 24c0-3-2-5-4.5-5-.9 0-1.7.2-2.4.6" /></svg>
     case "informes": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M8 4h11l6 6v18H8V4Z" /><path {...p} d="M19 4v6h6" /><path {...p} d="M12 22v-4M16 22v-7M20 22v-5" /><path {...p} d="M12 13h3" /></svg>
     case "gasto": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><circle cx="16" cy="16" r="11" {...p} /><path {...p} d="M16 9.5v13M19.5 12.5c0-1.5-1.5-2.5-3.5-2.5s-3.5 1-3.5 2.5 1.5 2.3 3.5 2.6 3.5 1.2 3.5 2.7-1.5 2.7-3.5 2.7-3.5-1-3.5-2.5" /></svg>
   }
 }
 
 /** la segunda línea de cada cuadro: un dato de la lectura cuando lo hay, si no la descripción fija */
-export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | null): { texto: string; aviso: boolean } {
+export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | null, centro: Centro | null = null): { texto: string; aviso: boolean } {
   const fijo = APLICACIONES.find((a) => a.clave === clave)!.descripcion
+  // 6.10: la segunda línea de informes · brief · gran idea · equipo la trae una lectura aparte (`/api/centro`), con lo real o con lo que falta
+  if (centro) {
+    if (clave === "informes") return { texto: centro.informes.texto, aviso: centro.informes.aviso }
+    if (clave === "brief") return { texto: centro.brief.texto, aviso: centro.brief.aviso }
+    if (clave === "gran_idea") return { texto: centro.gran_idea.texto, aviso: centro.gran_idea.aviso }
+    if (clave === "equipo") return { texto: centro.equipo.texto, aviso: centro.equipo.aviso }
+  }
   if (!datos) return { texto: fijo, aviso: false }
   if (clave === "plan") return { texto: datos.campana ? textoDeLaFase(datos) : "Sin campaña todavía", aviso: false }
   if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${datos.filas.length} publicaciones${datos.campana.version_calendario != null ? ` · calendario v${datos.campana.version_calendario}` : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }
@@ -49,6 +64,7 @@ const CLASE_DEL_CUADRO = "ap-cuadro relative flex aspect-[1/0.92] flex-col items
 
 export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
+  const [centro, setCentro] = useState<Centro | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
@@ -76,6 +92,17 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
   useEffect(() => { if (!datosIniciales) void leer(null) }, [leer, datosIniciales])
+  // la segunda línea de los cuadros nuevos (6.10): una lectura liviana aparte, por cliente; si falla, los cuadros quedan con su descripción fija
+  const idDelCentro = datos?.cliente?.id ?? null
+  useEffect(() => {
+    if (!datos) return
+    let vivo = true
+    setCentro(null)
+    fetch(`/api/centro${idDelCentro ? `?cliente=${encodeURIComponent(idDelCentro)}` : ""}`, { cache: "no-store" })
+      .then(async (r) => { const j = (await r.json().catch(() => null)) as RespuestaCentro | null; if (vivo && r.ok && j && j.ok) setCentro(j) })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [datos, idDelCentro])
 
   const volverAlInicio = useCallback(() => setVista("inicio"), [])
   const abrirPieza = useCallback((id: string) => { setPiezaAbierta({ id, desde: "calendario" }); setVista("piezas") }, [])
@@ -85,6 +112,9 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "piezas") return <PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />
   if (vista === "informes") return <PanelInformes onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "brief") return <PanelBrief onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "gran_idea") return <PanelGranIdea onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "equipo") return <PanelEquipo onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
@@ -93,7 +123,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
       <section role="dialog" aria-modal="true" aria-labelledby="aplicaciones-titulo" data-seccion="aplicaciones" className="relative w-full max-w-[780px] text-zinc-200">
         <header className="mb-5 flex flex-wrap items-center gap-3 px-1">
           <h2 id="aplicaciones-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.3em]" style={{ color: AMBAR }}>Centro de campaña</h2>
-          <p className="hidden text-[12px] text-zinc-400 md:block">Dept. Marketing · todo lo que ya tiene de este cliente, en el orden de la cadena</p>
+          <p className="hidden text-[12px] text-zinc-400 md:block">Dept. Marketing · los 9 pasos de la campaña, en el orden de la cadena</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
             <select value={cliente ?? ""} onChange={(e) => void leer(e.target.value || null)} disabled={!datos || cargando} aria-label="Elegir el cliente"
@@ -109,14 +139,15 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
 
         {error && <p role="alert" className="mb-4 rounded-md border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200">{error}</p>}
 
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Aplicaciones de marketing">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Los 9 pasos del Centro de campaña">
           {APLICACIONES.map((a, i) => {
-            const d = detalleDelCuadro(a.clave, datos)
+            const d = detalleDelCuadro(a.clave, datos, centro)
             const href = a.enlace(idCliente)
             const retraso = { animationDelay: `${i * 45}ms` }
             const dentro = (
               <>
                 <span className="ap-punto absolute right-3 top-3 h-2 w-2 rounded-full" style={{ background: d.aviso ? "#f5a524" : "transparent" }} aria-hidden />
+                <span data-paso={a.paso} className="absolute left-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/15 text-[10.5px] font-medium text-zinc-400" aria-label={`Paso ${a.paso}`}>{a.paso}</span>
                 <Icono clave={a.clave} />
                 <span className="mt-3 block text-[14px] font-medium text-zinc-100">{a.nombre}</span>
                 <span className="mt-1 block min-h-[2.4em] text-[11.5px] leading-snug text-zinc-400">{cargando && !datos ? "Leyendo…" : d.texto}</span>
