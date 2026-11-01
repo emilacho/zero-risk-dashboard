@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
-import { BOTONES_DEL_PLAN, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
@@ -53,9 +53,10 @@ function Barra({ nombre, pct, detalle }: { nombre: string; pct: number; detalle?
 
 const COLOR_PASO: Record<string, string> = { hecho: "border-amber-300 bg-amber-400 text-black", en_curso: "nv-pl-paso-vivo border-amber-300 bg-amber-400/25 text-amber-100", pendiente: "border-white/20 bg-transparent text-zinc-500", fallo: "border-rose-400 bg-rose-500/80 text-white" }
 /** LA BARRA DE PROGRESO del pedido de cambios (ADENDA 1 de Emilio, 01-nov): cinco pasos con su hora, el tiempo estimado y, si falla, el paso en rojo con qué hacer */
-function BarraDelPedido({ avance }: { avance: AvanceDelPedido }) {
+function BarraDelPedido({ avance, onOcultar }: { avance: AvanceDelPedido; /** cerrarla a propósito (se reabre con «Ver el avance») */ onOcultar?: () => void }) {
   return (
-    <div data-barra-del-pedido data-fallo={avance.fallo ? "si" : "no"} className="mt-4 rounded-lg border border-white/10 bg-black/30 p-4" role="group" aria-label="El avance de tu pedido de cambios">
+    <div data-barra-del-pedido data-fallo={avance.fallo ? "si" : "no"} className="relative mt-4 rounded-lg border border-white/10 bg-black/30 p-4" role="group" aria-label="El avance de tu pedido de cambios">
+      {onOcultar && <button type="button" data-accion="ocultar-avance" onClick={onOcultar} className="absolute right-2 top-2 rounded px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">Ocultar</button>}
       <ol className="grid grid-cols-1 gap-3 sm:grid-cols-5">
         {avance.pasos.map((p, i) => (
           <li key={p.clave} data-paso={p.clave} data-estado={p.estado} className="flex items-start gap-2 sm:flex-col sm:items-center sm:text-center">
@@ -68,6 +69,7 @@ function BarraDelPedido({ avance }: { avance: AvanceDelPedido }) {
           </li>
         ))}
       </ol>
+      {avance.ahora && <p data-ahora={avance.ahora.quien} className="mt-3 flex items-center gap-2 text-[13px] text-zinc-100"><span aria-hidden className="nv-pl-paso-vivo inline-block h-2 w-2 rounded-full bg-violet-400" />Ahora: {avance.ahora.texto.charAt(0).toLowerCase()}{avance.ahora.texto.slice(1)}{avance.ahora.desde ? ` · desde las ${horaCortaEC(avance.ahora.desde)}` : ""}</p>}
       <p className="mt-3 text-[12px] text-zinc-400" data-estimado>{avance.estimado}</p>
       {avance.nota && <p className="mt-1 text-[12px] text-amber-200">{avance.nota}</p>}
       {avance.fallo && <p role="alert" className="mt-2 rounded-md border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-100">{avance.fallo.texto} <span className="text-rose-200/80">{avance.fallo.que_hacer}</span></p>}
@@ -101,6 +103,8 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
   const [observaciones, setObservaciones] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [verHistorial, setVerHistorial] = useState(false)
+  // la barra se ve SIEMPRE que haya avance (sale del dato, no de la memoria del navegador); solo se oculta si Emilio la cierra, y se reabre con «Ver el avance»
+  const [barraOculta, setBarraOculta] = useState(false)
   const corregido = ciclo.version - 1
 
   async function mandar(accion: PuertaDelCiclo, cuerpo: Record<string, unknown> | { error: string }) {
@@ -124,6 +128,9 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h3 className="text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>La decisión sobre el plan</h3>
         <span data-estado-ciclo={lectura.estado} className={`rounded-full border px-3 py-1 text-[13px] font-medium ${ESTADO_CICLO_COLOR[lectura.estado]}`}>{lectura.titulo}</span>
+        {ciclo.avance && barraOculta && (
+          <button type="button" data-accion="ver-avance" onClick={() => setBarraOculta(false)} className="rounded-full border border-violet-300/50 px-3 py-1 text-[12.5px] text-violet-100 hover:bg-violet-500/15">Ver el avance</button>
+        )}
         {corregido > 0 && <span className="text-[12px] text-zinc-400" data-version={ciclo.version}>Corregido {plural(corregido, "vez", "veces")}</span>}
         {ciclo.historial.length > 0 && (
           <button type="button" data-accion="ver-historial" aria-expanded={verHistorial} onClick={() => setVerHistorial((v) => !v)} className="text-[12px] text-zinc-400 underline decoration-dotted underline-offset-4 hover:text-zinc-200">
@@ -138,7 +145,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
         </div>
       )}
       <p className="mt-2 text-[14px] leading-relaxed text-zinc-100">{lectura.detalle}</p>
-      {ciclo.avance && <BarraDelPedido avance={ciclo.avance} />}
+      {ciclo.avance && !barraOculta && <BarraDelPedido avance={ciclo.avance} onOcultar={() => setBarraOculta(true)} />}
       {lectura.estado === "reescribiendo" && ciclo.pedido?.texto && (
         <blockquote className="mt-2 border-l-2 border-violet-400/50 pl-3 text-[12.5px] italic text-zinc-300">Lo que pediste: {ciclo.pedido.texto}</blockquote>
       )}
@@ -327,7 +334,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                   </Seccion>
 
                   {/* la meta y el reparto, del documento del plan */}
-                  <Seccion titulo="La meta y el reparto" nota={d ? `${d.titulo}${d.caracteres ? ` · ${d.caracteres.toLocaleString("es-EC")} caracteres` : ""}` : "sin documento del plan"} retraso={120}>
+                  <Seccion titulo="La meta y el reparto" nota={d ? `${rotuloDelTextoMientrasSeRehace(datos.ciclo) ? `${rotuloDelTextoMientrasSeRehace(datos.ciclo)} · ` : ""}${d.titulo}${d.caracteres ? ` · ${d.caracteres.toLocaleString("es-EC")} caracteres` : ""}` : "sin documento del plan"} retraso={120}>
                     {!d && <Vacio>La oficina de planeación todavía no escribió el plan de este cliente.</Vacio>}
                     {d && !d.plan && d.prosa && <p className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{d.prosa}</p>}
                     {d && !d.plan && !d.prosa && <Vacio>El documento del plan está vacío.</Vacio>}

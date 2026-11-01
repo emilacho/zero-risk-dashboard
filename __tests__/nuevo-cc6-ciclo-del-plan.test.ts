@@ -41,7 +41,7 @@ describe("CC6 · el estado del ciclo del plan", () => {
     expect(leerElCiclo("draft", { ...base, compuerta: { estado: "aprobado", decidido_por: null, decidido_en: null, despertado: false, despertar_detalle: null } })).toMatchObject({ estado: "aprobado", reintentar: "plan-aprobar" })
   })
   it("la versión y la vigencia salen del provenance_tag (contrato: versión ausente = 1)", () => {
-    expect(versionDelTag({})).toEqual({ version: 1, vigente: true, reemplaza_a: null, superseded_por: null, con_compuerta: false })
+    expect(versionDelTag({})).toEqual({ version: 1, vigente: true, reemplaza_a: null, superseded_por: null, con_compuerta: false, plan_cambio_id: null })
     expect(versionDelTag({ version: 3, vigente: true, reemplaza_a: PLAN, compuerta: true })).toMatchObject({ version: 3, vigente: true, reemplaza_a: PLAN, con_compuerta: true })
     expect(versionDelTag({ version: 2, vigente: false })).toMatchObject({ vigente: false })
     expect(versionDelTag({ superseded_por: PLAN_V2 })).toMatchObject({ vigente: false, superseded_por: PLAN_V2 })
@@ -303,5 +303,59 @@ describe("«Qué cambió» armado por código (CC1 · 01-nov): el título trae l
     const t = "# PLAN\n\n## QUÉ CAMBIÓ EN ESTA VERSIÓN (v2)\n\n- Pedido del dueño: abrir Guayaquil ya\n- Tomado del revisor: fechas corregidas\n\n## Resumen\nTexto"
     expect(queCambioDelTexto(t)).toBe("- Pedido del dueño: abrir Guayaquil ya\n- Tomado del revisor: fechas corregidas")
     expect(queCambioDelTexto("## QUÉ CAMBIÓ EN ESTA VERSIÓN\n\n- Sin cambios registrados.")).toBe("- Sin cambios registrados.")
+  })
+})
+
+describe("la barra de progreso no se cierra sola (encargo de Emilio · 01-nov 19:36Z · caso real 210596)", () => {
+  const PEDIDO = "3e977563-0000-4000-8000-000000000001"
+  const V2A = { id: PLAN_V2, title: "Plan v2", status: "draft", content_text: "# PLAN\nProsa v1 copiada", content: null, provenance_tag: { version: 2, vigente: true, reemplaza_a: PLAN, compuerta: true, plan_cambio_id: PEDIDO }, created_at: "2026-11-01T19:33:06Z", updated_at: null }
+  const ped = { id: PEDIDO, plan_id: PLAN, estado: "en_reescritura", texto: "Guayaquil ya", vuelta: 1, despertado: true, creado_en: "2026-11-01T19:32:54Z", actualizado_en: "2026-11-01T19:33:00Z", workflow_execution_id: "210596" }
+  const leer = (vivos: unknown[], ahoraIso: string, pedidoEstado = "en_reescritura", compuerta: unknown = null) => leerPlanDelCliente(baseFalsa({
+    clients: CLIENTES, cadena_campanas: [], hitl_queue: [], cadena_esperas: [], plan_catalogo_topes: [],
+    client_historical_outputs: (f: string[]) => (f.some((x) => x.includes("plan_cambio_id")) ? [V2A] : [V2A, V1]),
+    plan_aprobaciones: compuerta ? [compuerta] : [],
+    // sobre la versión nueva no hay pedido; el que la creó se busca por id
+    plan_cambios: (f: string[]) => (f.some((x) => x.includes(`"id","${PEDIDO}"`)) ? [{ ...ped, estado: pedidoEstado }] : []),
+    agent_dispatches: (f: string[]) => (f.some((x) => x.includes('"status","running"')) ? vivos : [{ status: "completed", created_at: "2026-11-01T19:33:03Z", running_at: "2026-11-01T19:33:03Z", completed_at: "2026-11-01T19:33:04Z" }]),
+    agent_invocations: [], jefatura_revisiones: [{ estado: "abierta", resultado: null, creado_en: "2026-11-01T19:33:07Z", cerrado_en: null }],
+  }), { cliente: CLIENTE, ahora: new Date(ahoraIso) })
+
+  it("con la versión nueva ya guardada, la barra sigue: es el avance del pedido que la creó, con quién trabaja ahora", async () => {
+    const p = await leer([{ agent_name: "jefe-marketing", running_at: "2026-11-01T19:42:03Z", created_at: "2026-11-01T19:42:02Z" }], "2026-11-01T19:45:00Z")
+    expect(p.ciclo?.avance_de).toBe("pedido_que_la_creo")
+    expect(p.ciclo?.avance?.listo).toBe(false)
+    expect(p.ciclo?.avance?.ahora).toMatchObject({ quien: "redactor", desde: "2026-11-01T19:42:03Z" })
+    // punto 3: el estado dice el paso real, no «la jefatura está revisando»
+    const l = leerElCiclo(p.documento?.status ?? null, p.ciclo!)
+    expect(l).toMatchObject({ estado: "reescribiendo", titulo: "Reescribiendo" })
+    expect(l.detalle).toMatch(/^El jefe de marketing está reescribiendo el plan/)
+    // punto 4: el texto de abajo se rotula
+    const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: p }))
+    expect(html).toContain("data-barra-del-pedido")
+    expect(html).toContain('data-ahora="redactor"')
+    expect(html).toContain("versión anterior · se está reescribiendo")
+    expect(html).toContain('data-accion="ocultar-avance"') // punto 2: se puede cerrar… y se reabre con «Ver el avance» (estado del navegador, la barra vuelve al recargar)
+    expect(readFileSync("components/nuevo/PanelPlan.tsx", "utf8")).toContain('data-accion="ver-avance"')
+  })
+  it("cuando revisa la jefatura lo dice; un despacho viejo (> 20 min) no cuenta como trabajando", async () => {
+    const p = await leer([{ agent_name: "editor_en_jefe", running_at: "2026-11-01T19:33:09Z", created_at: "2026-11-01T19:33:09Z" }], "2026-11-01T19:34:00Z")
+    expect(leerElCiclo(null, p.ciclo!)).toMatchObject({ estado: "en_revision", detalle: "La jefatura está revisando la versión nueva: decides cuando termine." })
+    const viejo = await leer([{ agent_name: "jefe-marketing", running_at: "2026-11-01T19:00:00Z", created_at: "2026-11-01T19:00:00Z" }], "2026-11-01T19:45:00Z")
+    expect(viejo.ciclo?.avance?.ahora).toBeNull()
+  })
+  it("al terminar queda «Listo para ti» sin rótulo de versión anterior; con la decisión tomada, ya no hay barra", async () => {
+    const listo = await leer([], "2026-11-01T19:50:00Z", "aplicado", { plan_id: PLAN_V2, estado: "pendiente", creado_en: "2026-11-01T19:49:21Z" })
+    expect(listo.ciclo?.avance?.listo).toBe(true)
+    const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: listo }))
+    expect(html).not.toContain("versión anterior · se está reescribiendo")
+    const decidido = await leer([], "2026-11-01T20:30:00Z", "aplicado", { plan_id: PLAN_V2, estado: "aprobado", creado_en: "2026-11-01T19:49:21Z", decidido_en: "2026-11-01T20:00:00Z" })
+    expect(decidido.ciclo?.avance).toBeNull()
+  })
+})
+
+describe("«Qué cambió» sin marcas de formato a la vista", () => {
+  it("quita «**» y la raya final", async () => {
+    const { queCambioDelTexto } = await import("@/lib/plan")
+    expect(queCambioDelTexto("## QUÉ CAMBIÓ EN ESTA VERSIÓN\n1. **Idea de marca corregida:** se reemplaza\n2. **Guayaquil:** por estados\n\n---\n\n## Resumen")).toBe("1. Idea de marca corregida: se reemplaza\n2. Guayaquil: por estados")
   })
 })

@@ -73,7 +73,7 @@ const detalleCorto = (v: unknown): string | null => {
 }
 const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null)
 
-async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[], ahora: Date): Promise<CicloDelPlan | null> {
+async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[], ahora: Date, clienteId: string | null = null): Promise<CicloDelPlan | null> {
   if (!d) return null
   const id = String(d.id)
   const tag = versionDelTag(d.provenance_tag)
@@ -82,15 +82,26 @@ async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[]
     // el ÚLTIMO pedido sobre esta versión (abierto, fallido o cancelado): el abierto bloquea los botones; cualquiera muestra su avance
     opcional(supa.from("plan_cambios").select("*").eq("plan_id", id).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "plan_cambios"),
   ])
-  const ult = pc.fila
-  const abierto = ult && (ult.estado === "pendiente" || ult.estado === "en_reescritura") ? ult : null
+  const abierto = pc.fila && (pc.fila.estado === "pendiente" || pc.fila.estado === "en_reescritura") ? pc.fila : null
+  // el pedido cuyo avance se muestra: el último sobre esta versión si no está aplicado; si no, el que CREÓ esta versión mientras no se decida sobre ella
+  // (la versión nueva se guarda a los segundos de pedir: sin esto la barra desaparecía a mitad de la corrida · encargo de Emilio, 01-nov)
+  let ult: Fila | null = pc.fila && pc.fila.estado !== "aplicado" ? pc.fila : null
+  let avance_de: CicloDelPlan["avance_de"] = ult ? "esta_version" : null
+  const decidida = ap.fila && ap.fila.estado !== "pendiente"
+  if (!ult && tag.plan_cambio_id && !decidida) {
+    const origen = await opcional(supa.from("plan_cambios").select("*").eq("id", tag.plan_cambio_id).limit(1).maybeSingle(), "plan_cambios")
+    if (origen.fila) { ult = origen.fila; avance_de = "pedido_que_la_creo" }
+  }
   let avance: CicloDelPlan["avance"] = null
-  if (ult && ult.estado !== "aplicado") {
+  if (ult) {
     const wfe = t(ult.workflow_execution_id)
-    const [desp, invs, nueva] = await Promise.all([
+    const desdePedido = t(ult.creado_en)
+    const [desp, invs, nueva, vivos] = await Promise.all([
       wfe ? filas(supa.from("agent_dispatches").select("status, created_at, running_at, completed_at").eq("workflow_execution_id", wfe).limit(50), "agent_dispatches") : Promise.resolve([] as Fila[]),
       wfe ? filas(supa.from("agent_invocations").select("status, created_at").eq("workflow_execution_id", wfe).limit(50), "agent_invocations") : Promise.resolve([] as Fila[]),
       una(supa.from("client_historical_outputs").select("id, created_at").eq("provenance_tag->>plan_cambio_id", String(ult.id)).order("created_at", { ascending: false }).limit(1).maybeSingle(), "client_historical_outputs"),
+      // quién trabaja AHORA para este cliente desde el pedido (la reescritura y la jefatura corren con otros números de ejecución)
+      clienteId && desdePedido ? filas(supa.from("agent_dispatches").select("agent_name, running_at, created_at").eq("client_id", clienteId).eq("status", "running").gte("created_at", desdePedido).limit(20), "agent_dispatches") : Promise.resolve([] as Fila[]),
     ])
     const [jef, cpn] = nueva ? await Promise.all([
       opcional(supa.from("jefatura_revisiones").select("estado, resultado, creado_en, cerrado_en").eq("artifact_id", String(nueva.id)).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "jefatura_revisiones"),
@@ -103,6 +114,7 @@ async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[]
       version_nueva: nueva ? { id: String(nueva.id), creado_en: t(nueva.created_at) } : null,
       jefatura: jef.fila ? { estado: String(jef.fila.estado ?? ""), resultado: t(jef.fila.resultado), creado_en: t(jef.fila.creado_en), cerrado_en: t(jef.fila.cerrado_en) } : null,
       compuerta_nueva: cpn.fila ? { estado: String(cpn.fila.estado ?? ""), creado_en: t(cpn.fila.creado_en) } : null,
+      trabajando: vivos.map((x) => ({ agente: String(x.agent_name ?? ""), desde: t(x.running_at) ?? t(x.created_at) })),
     }, ahora)
   }
   return {
@@ -113,6 +125,7 @@ async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[]
     compuerta: ap.fila ? { estado: String(ap.fila.estado ?? ""), decidido_por: t(ap.fila.decidido_por), decidido_en: t(ap.fila.decidido_en), despertado: bool(ap.fila.despertado), despertar_detalle: detalleCorto(ap.fila.despertar_detalle) } : null,
     pedido: abierto ? { id: String(abierto.id), estado: String(abierto.estado ?? ""), texto: String(abierto.texto ?? ""), vuelta: abierto.vuelta == null ? null : Number(abierto.vuelta), despertado: bool(abierto.despertado), despertar_detalle: detalleCorto(abierto.despertar_detalle) } : null,
     avance,
+    avance_de,
   }
 }
 
@@ -152,7 +165,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     qDoc = planId ? qDoc.eq("id", planId) : qDoc.order("created_at", { ascending: false })
     return una(qDoc.limit(1).maybeSingle(), "client_historical_outputs")
   })
-  const cicloP = Promise.all([docP, versionesP]).then(([d, versiones]) => leerCiclo(supa, d, versiones, ahora))
+  const cicloP = Promise.all([docP, versionesP]).then(([d, versiones]) => leerCiclo(supa, d, versiones, ahora, cliente.id))
   const topesP = filas(supa.from("plan_catalogo_topes").select("tramo, usd, version, desde").eq("vigente", true).order("tramo", { ascending: true }).limit(20), "plan_catalogo_topes")
     .then((xs) => xs.map((x): TopeDelTramo => ({ tramo: String(x.tramo ?? ""), nombre: nombreDelTramo(x.tramo), usd: Number(x.usd ?? 0), version: x.version == null ? null : Number(x.version), desde: t(x.desde) })))
 
