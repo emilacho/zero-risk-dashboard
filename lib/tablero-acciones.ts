@@ -206,6 +206,8 @@ export async function ejecutarAccion(nombre: string, raw: unknown, d: DepsDeAcci
     const t = (await r.text().catch(() => "")).slice(0, 600)
     let datos: Record<string, unknown> = {}
     try { const j = JSON.parse(t); if (esObjeto(j)) datos = j } catch { /* texto plano */ }
+    // un 404 CON motivo de la plataforma (p. ej. `plan_inexistente` del ciclo del plan) no es «la ruta no existe»: se pasa con su motivo (CC6 · 01-nov)
+    if (r.status === 404 && typeof datos.error === "string" && /^[a-z_]+$/.test(datos.error) && datos.error !== "not_found") return { status: 404, cuerpo: { ok: false, error: "no_encontrado", detalle: String(datos.detalle ?? datos.error), plataforma: datos } }
     if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "todavia_no_disponible", detalle: "la plataforma todavía no tiene esta acción: no se hizo ningún cambio" } }
     if (r.status === 401 || r.status === 403) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_no_acepto_la_llave", plataforma_status: r.status, detalle: "el tablero no pudo identificarse ante la plataforma" } }
     if (r.status === 409) return { status: 409, cuerpo: { ok: false, error: "conflicto", detalle: String(datos.detalle ?? datos.error ?? "otra decisión se adelantó: recarga"), plataforma: datos } }

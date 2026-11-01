@@ -83,6 +83,10 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
     const r2 = await ejecutarAccion("plan-aprobar", cuerpoDeAprobar(PLAN, ""), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: conflicto })
     expect(r2.status).toBe(409)
     expect(palabrasDeLaRespuesta("plan-aprobar", r2.status, r2.cuerpo)).toMatchObject({ ok: false, texto: "La jefatura todavía revisa este plan: decides cuando termine. No se cambió nada.", releer: true })
+    // con la ventana abierta, un 404 CON motivo (`plan_inexistente`) se dice como tal, no como «aún no disponible» (sonda de CC6 en producción, 01-nov 15:44Z)
+    const inexistente = (async () => new Response(JSON.stringify({ ok: false, error: "plan_inexistente" }), { status: 404 })) as unknown as typeof fetch
+    const r404 = await ejecutarAccion("plan-aprobar", cuerpoDeAprobar(PLAN, ""), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: inexistente })
+    expect(r404.status).toBe(404); expect(palabrasDeLaRespuesta("plan-aprobar", r404.status, r404.cuerpo).texto).toBe("La plataforma no encuentra este plan. Vuelvo a leer.")
     // la plataforma aún sin la puerta (antes de la ventana) → 501 → «aún no disponible»
     const sinPuerta = (async () => new Response("not found", { status: 404 })) as unknown as typeof fetch
     const r3 = await ejecutarAccion("plan-cambios", cuerpoDePedirCambios(PLAN, "Sube la meta a 130"), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: sinPuerta })
