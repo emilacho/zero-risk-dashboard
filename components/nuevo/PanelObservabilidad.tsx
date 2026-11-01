@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
-  COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, arbolDeNodos, costoComoDato, cuando, duracion, lineaDeTiempo, miles, nombreDeLaRama, palabras,
+  COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo,
 } from "@/lib/direccion-corridas"
 
@@ -19,7 +19,6 @@ type Dias = 1 | 7 | 30
 const FECHAS: { dias: Dias; nombre: string }[] = [{ dias: 1, nombre: "Últimas 24 h" }, { dias: 7, nombre: "7 días" }, { dias: 30, nombre: "30 días" }]
 type Pestana = "entrada" | "salida" | "metadatos"
 const PESTANAS: { id: Pestana; nombre: string }[] = [{ id: "entrada", nombre: "Entrada" }, { id: "salida", nombre: "Salida" }, { id: "metadatos", nombre: "Metadatos" }]
-const SIN_TEXTO = "La plataforma guarda quién trabajó, cuándo, con qué modelo y cuántos tokens usó, pero todavía no guarda el texto"
 
 /** el ícono de estado, como en LangSmith: visto bueno, equis, círculo que gira */
 function IconoDeEstado({ estado, tam = 14 }: { estado: EstadoCorrida; tam?: number }) {
@@ -58,7 +57,7 @@ function Lista({ lista, dias, setDias, cliente, setCliente, clientes, estado, se
 }) {
   const corridas = lista?.corridas ?? []
   const b = busca.trim().toLowerCase()
-  const buscadas = b ? corridas.filter((c) => [c.nombre, c.cliente ?? "", c.workflow_execution_id].some((x) => x.toLowerCase().includes(b))) : corridas
+  const buscadas = b ? corridas.filter((c) => [c.nombre, clienteVisible(c) ?? "", c.nombre_tecnico ?? "", c.workflow_execution_id].some((x) => x.toLowerCase().includes(b))) : corridas
   const visibles = estado === "todas" ? buscadas : buscadas.filter((c) => c.estado === estado)
   const cuenta = (e: EstadoCorrida) => buscadas.filter((c) => c.estado === e).length
   return (
@@ -86,8 +85,8 @@ function Lista({ lista, dias, setDias, cliente, setCliente, clientes, estado, se
               <tr key={c.workflow_execution_id} data-corrida={c.workflow_execution_id} tabIndex={0} role="button" aria-label={`Abrir la corrida ${c.nombre}`}
                 onClick={() => abrir(c)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(c) } }}
                 className="cursor-pointer border-b border-white/[0.05] hover:bg-amber-500/[0.06] focus-visible:bg-amber-500/[0.08] focus-visible:outline-none">
-                <td className="max-w-[340px] py-2 pl-4 pr-3 sm:pl-6"><p className="truncate text-zinc-100">{c.nombre}</p><p className="truncate text-[11px] text-zinc-600" style={NUM}>{c.workflow_execution_id}{c.ramas.length ? ` · ${c.ramas.length} ${c.ramas.length === 1 ? "rama" : "ramas"}` : ""}</p></td>
-                <td className="px-3 py-2 text-zinc-300">{c.cliente ?? <span className="text-zinc-600">sin cliente</span>}</td>
+                <td className="max-w-[340px] py-2 pl-4 pr-3 sm:pl-6"><p className="truncate text-zinc-100">{c.nombre}</p>{c.ramas.length > 0 && <p className="truncate text-[11px] text-zinc-600" style={NUM}>{c.ramas.length} {c.ramas.length === 1 ? "rama" : "ramas"}</p>}</td>
+                <td data-cliente={c.interno ? "interno" : c.client_id ?? "ninguno"} className="px-3 py-2 text-zinc-300">{clienteVisible(c) ?? <span className="text-zinc-600">sin cliente</span>}</td>
                 <td className="px-3 py-2"><Estado estado={c.estado} /></td>
                 <td className="whitespace-nowrap px-3 py-2 text-zinc-400" style={NUM}>{cuando(c.inicio)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-200" style={NUM}>{duracion(c.duracion_ms)}</td>
@@ -105,7 +104,7 @@ function Lista({ lista, dias, setDias, cliente, setCliente, clientes, estado, se
           <span style={NUM}>Mostrando {visibles.length} de {lista.total} corridas</span>
           {lista.total > corridas.length && <> · la plataforma entrega las {corridas.length} más recientes por lectura</>}
           {!lista.completo && <> · lectura incompleta: alguna fuente no respondió entera</>}
-          <> · <span className="text-zinc-400">Sin dato todavía:</span> entrada y salida de cada corrida</>
+          <> · horas en la zona de tu equipo · entrada y salida de cada paso: los primeros {TOPE_DEL_TEXTO.toLocaleString("es-EC")} caracteres</>
         </div>
       )}
     </div>
@@ -127,10 +126,9 @@ function Traza({ detalle, volver }: { detalle: DetalleDeCorrida; volver: () => v
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-6">
         <button type="button" data-volver onClick={volver} className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06]">← Corridas</button>
         <h3 className="min-w-0 truncate text-[15px] text-white">{c.nombre}</h3>
-        <span className="text-[12px] text-zinc-500" style={NUM}>{c.workflow_execution_id}</span>
         <Estado estado={c.estado} />
         <div className="ml-auto flex flex-wrap gap-1.5">
-          <Ficha titulo="Cliente">{c.cliente ?? "sin cliente"}</Ficha>
+          <Ficha titulo="Cliente">{clienteVisible(c) ?? "sin cliente"}</Ficha>
           <Ficha titulo="Inicio">{cuando(c.inicio)}</Ficha>
           <Ficha titulo="Duración">{duracion(c.duracion_ms)}</Ficha>
           <Ficha titulo="Tokens">{miles(c.tokens)}</Ficha>
@@ -187,7 +185,7 @@ function Detalle({ nodo, corrida, pestana, setPestana }: { nodo: Nodo; corrida: 
   const p = nodo.paso
   const filas: [string, ReactNode][] = nodo.tipo === "paso" && p
     ? [
-      ["Empleado", p.agente ? <>{palabras(p.agente)} <span className="text-zinc-500">({p.agente})</span></> : "sin nombre"], ["Modelo", p.modelo ?? "sin dato"], ["Estado", <Estado key="e" estado={nodo.estado} />],
+      ["Empleado", p.agente ? <>{mayuscula(palabras(p.agente))} <span className="text-zinc-500">({p.agente})</span></> : "sin nombre"], ["Modelo", p.modelo ?? "sin dato"], ["Estado", <Estado key="e" estado={nodo.estado} />],
       ["Inicio", cuando(p.inicio)], ["Fin", cuando(nodo.fin)], ["Duración", duracion(nodo.duracion_ms)], ["Tokens de entrada", miles(p.tokens.entrada)], ["Tokens de salida", miles(p.tokens.salida)],
       ["Tokens leídos de la caché", miles(p.tokens.cache_lectura)], ["Tokens escritos en la caché", miles(p.tokens.cache_escritura)], ["Tokens en total", miles(p.tokens_total)], ["Turnos", p.turnos ?? "sin dato"],
       ["Costo", costoComoDato(p.costo_usd)], ["Rama", nodo.rama ? nombreDeLaRama(nodo.rama) : "principal"], ["Registro", p.origen === "despacho" ? "solo el encargo (el empleado no dejó fila)" : "libro de los empleados"],
@@ -196,7 +194,7 @@ function Detalle({ nodo, corrida, pestana, setPestana }: { nodo: Nodo; corrida: 
     : nodo.tipo === "rama"
       ? [["Rama", nodo.nombre], ["Pasos", nodo.sub ?? ""], ["Estado", <Estado key="e" estado={nodo.estado} />], ["Inicio", cuando(nodo.inicio)], ["Duración", duracion(nodo.duracion_ms)], ["Tokens", miles(nodo.tokens)], ["Costo", costoComoDato(nodo.costo_usd)]]
       : [
-        ["Proceso", corrida.nombre], ["Cliente", corrida.cliente ?? "sin cliente"], ["Estado", <Estado key="e" estado={corrida.estado} />], ["Inicio", cuando(corrida.inicio)], ["Fin", cuando(corrida.fin)],
+        ["Proceso", corrida.nombre], ["Nombre técnico", <span key="t" className="break-all">{corrida.nombre_tecnico ?? "sin dato"}</span>], ["Cliente", clienteVisible(corrida) ?? "sin cliente"], ["Estado", <Estado key="e" estado={corrida.estado} />], ["Inicio", cuando(corrida.inicio)], ["Fin", cuando(corrida.fin)],
         ["Duración", duracion(corrida.duracion_ms)], ["Pasos de empleados", corrida.pasos], ["Encargos", corrida.despachos], ["Ramas", corrida.ramas.length ? corrida.ramas.map(nombreDeLaRama).join(" · ") : "ninguna"],
         ["Tokens", miles(corrida.tokens)], ["Costo", costoComoDato(corrida.costo_usd)], ["Ejecución", corrida.workflow_execution_id], ["Proceso (identificador)", corrida.workflow_id ?? "sin dato"],
       ]
@@ -224,14 +222,40 @@ function Detalle({ nodo, corrida, pestana, setPestana }: { nodo: Nodo; corrida: 
             {filas.map(([k, v]) => <div key={k} className="contents"><dt className="text-zinc-500">{k}</dt><dd className="min-w-0 text-zinc-100" style={NUM}>{v}</dd></div>)}
           </dl>
         )}
-        {pestana !== "metadatos" && (
-          <div data-sin-texto={pestana} className="rounded-lg border border-dashed border-white/15 p-4">
-            <p className="text-[13px] text-zinc-300">Sin dato todavía</p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-zinc-500">{SIN_TEXTO} {pestana === "entrada" ? "que entró al empleado (lo que se le pidió y lo que leyó)." : "que devolvió el empleado."}</p>
-          </div>
-        )}
+        {pestana !== "metadatos" && <Texto nodo={nodo} pestana={pestana} />}
       </div>
     </aside>
+  )
+}
+
+/** 6.27 · la pestaña Entrada / Salida: el texto que guarda el libro de los empleados, tal cual; lo que no existe se dice */
+function Texto({ nodo, pestana }: { nodo: Nodo; pestana: "entrada" | "salida" }) {
+  const p = nodo.paso
+  const texto = p ? (pestana === "entrada" ? p.entrada : p.salida) : null
+  if (!texto) {
+    const motivo = nodo.tipo !== "paso"
+      ? "La entrada y la salida se ven en cada paso: elige un empleado del árbol."
+      : p?.origen === "despacho"
+        ? "Este encargo no dejó fila en el libro de los empleados, así que no hay texto que mostrar."
+        : pestana === "entrada"
+          ? "Este empleado no guarda lo que se le pidió: su registro solo trae la respuesta y las cifras."
+          : "Este paso no guardó su respuesta."
+    return (
+      <div data-sin-texto={pestana} className="rounded-lg border border-dashed border-white/15 p-4">
+        <p className="text-[13px] text-zinc-300">Sin dato todavía</p>
+        <p className="mt-1 text-[12.5px] leading-relaxed text-zinc-500">{motivo}</p>
+      </div>
+    )
+  }
+  const tope = TOPE_DEL_TEXTO.toLocaleString("es-EC")
+  const nota = pestana === "entrada"
+    ? (p?.entrada_recortada ? `Se guardan los primeros ${tope} caracteres de lo que se le pidió; el resto no queda registrado.` : null)
+    : p?.salida_total && p.salida_total > texto.length ? `Se guardan los primeros ${tope} caracteres de ${miles(p.salida_total)}.` : p?.salida_total == null ? `Se guardan como máximo ${tope} caracteres.` : null
+  return (
+    <div>
+      {nota && <p data-recorte={pestana} className="mb-2 text-[12px] text-zinc-500">{nota}</p>}
+      <pre data-texto={pestana} className="whitespace-pre-wrap break-words rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-[12px] leading-relaxed text-zinc-200">{texto}</pre>
+    </div>
   )
 }
 
@@ -262,7 +286,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const clientes = useMemo(() => [...conocidos.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre)), [conocidos])
 
   const abrir = useCallback(async (c: Corrida) => {
-    setAbriendo(c.workflow_execution_id); setError(null)
+    setAbriendo(c.nombre); setError(null)
     try { setDetalle(await leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(c.workflow_execution_id)}`, "la corrida")) }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setAbriendo(null) }
   }, [fetchImpl])
