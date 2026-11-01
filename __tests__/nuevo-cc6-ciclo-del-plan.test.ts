@@ -386,3 +386,26 @@ describe("«no se pudo comparar» de punta a punta (pedido de CC3 al certificar 
     expect((await conTag({})).ciclo?.comparacion_fallo).toBe(false)
   })
 })
+
+describe("«la palabra del dueño manda» a la vista en el panel (CC1 · punto 8 · hitl_queue tipo palabra_del_dueno)", () => {
+  const conCola = (filasPalabra: unknown[]) => leerPlanDelCliente(baseFalsa({
+    clients: CLIENTES, cadena_campanas: [], cadena_esperas: [], plan_catalogo_topes: [], plan_aprobaciones: [], plan_cambios: [],
+    client_historical_outputs: [V2, V1],
+    hitl_queue: (f: string[]) => (f.some((x) => x.includes('"type","palabra_del_dueno"')) ? filasPalabra : []),
+  }), { cliente: CLIENTE })
+  it("lo que un revisor contradijo y no entró, y lo pedido que no quedó cumplido, se ven arriba de los botones; sin filas, nada", async () => {
+    const p = await conCola([
+      { id: "h1", title: "Plan de 90 días: una revisión contradecía lo que pediste y no entró", output_preview: "El revisor sugirió «Guayaquil solo cuando esté lista la operación»; tu orden fue abrir Guayaquil ya.", metadata: { requiere_humano: false }, created_at: "2026-11-01T22:00:00Z" },
+      { id: "h2", title: "Plan de 90 días: lo que pediste no quedó cumplido, revísalo", output_preview: "Ninguna versión conserva «abrir Guayaquil ya».", metadata: { requiere_humano: true }, created_at: "2026-11-01T22:01:00Z" },
+    ])
+    expect(p.palabra_del_dueno?.map((x) => x.requiere_humano)).toEqual([false, true])
+    const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: p }))
+    expect(html).toContain('data-palabra-del-dueno="contradicha"')
+    expect(html).toContain('data-palabra-del-dueno="no_cumplida"')
+    expect(html).toContain("Tu palabra manda")
+    expect(html).toContain("una revisión contradecía lo que pediste y no entró") // sin el prefijo «Plan de 90 días:»
+    expect(html).not.toContain("Plan de 90 días: una revisión")
+    const vacio = await conCola([])
+    expect(renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: vacio }))).not.toContain("data-palabra-del-dueno")
+  })
+})

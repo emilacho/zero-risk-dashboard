@@ -94,7 +94,7 @@ const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibol
  * clic y «Pedir cambios» es escribir y enviar; el gasto se verá en el panel de gastos de la oficina y en Dinero. Si la última llamada no despertó al flujo se ofrece «Reintentar». Las versiones anteriores
  * quedan en segundo plano («corregido N veces · ver historial»).
  */
-function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
+function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, palabraDelDueno = [], children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** «la palabra del dueño manda»: lo que un revisor contradijo y no entró, o lo pedido que no quedó cumplido */ palabraDelDueno?: NonNullable<PlanDelCliente["palabra_del_dueno"]>; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
   const lectura = leerElCiclo(statusDelDocumento, ciclo)
   // Emilio (01-nov 16:27Z): sin avisos ni confirmaciones de gasto. Aprobar = un clic; Pedir cambios = escribir y enviar. El cuerpo sigue llevando lo que la
   // puerta exige (`confirmo_gasto:true`, `tope_usd:8`): el tope lo cuida la plataforma; el gasto se verá en el panel de gastos de la oficina y en Dinero
@@ -145,6 +145,14 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
         </div>
       )}
       <p className="mt-2 text-[14px] leading-relaxed text-zinc-100">{lectura.detalle}</p>
+      {/* «la palabra del dueño manda» (Emilio, 01-nov): lo que un revisor sugirió contra tu orden no entra al plan; aquí queda a la vista, sin tocar el texto */}
+      {palabraDelDueno.map((x) => (
+        <div key={x.id} data-palabra-del-dueno={x.requiere_humano ? "no_cumplida" : "contradicha"} className={`mt-3 rounded-lg border p-3 ${x.requiere_humano ? "border-rose-400/50 bg-rose-500/[0.08]" : "border-amber-400/40 bg-black/30"}`}>
+          <p className={`text-[11px] font-medium uppercase tracking-[0.14em] ${x.requiere_humano ? "text-rose-200" : "text-amber-300"}`}>{x.requiere_humano ? "Tu orden no quedó cumplida" : "Tu palabra manda"}</p>
+          <p className="mt-1 text-[13.5px] font-medium text-zinc-100">{x.titulo.replace(/^Plan de 90 días:\s*/i, "")}</p>
+          {x.detalle && <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-300">{x.detalle}</p>}
+        </div>
+      ))}
       {ciclo.avance && !barraOculta && <BarraDelPedido avance={ciclo.avance} onOcultar={() => setBarraOculta(true)} />}
       {lectura.estado === "reescribiendo" && ciclo.pedido?.texto && (
         <blockquote className="mt-2 border-l-2 border-violet-400/50 pl-3 text-[12.5px] italic text-zinc-300">Lo que pediste: {ciclo.pedido.texto}</blockquote>
@@ -299,7 +307,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
 
               {/* la decisión sobre el plan: para TODO plan, con el estado del ciclo a la vista y los dos botones grandes */}
               {d && datos.ciclo && (
-                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio}>
+                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio} palabraDelDueno={datos.palabra_del_dueno ?? []}>
                   {d.marcas.length > 0 && (
                     <div className="mt-3">
                       <p className="text-[12.5px] text-zinc-300">El chequeo del sistema marcó estos puntos antes de darlo por bueno:</p>
