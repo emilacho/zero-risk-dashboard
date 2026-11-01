@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { EquipoDelCliente } from "@/lib/equipo-datos"
 import { EQUIPOS_DE_MARKETING, estadoDeAhoraLegible, etapaLegible, type ClaveDeEquipo, type EquipoArmado, type Miembro } from "@/lib/organigrama"
-import { diaYHora, plural, usdFinoES } from "@/lib/lenguaje"
+import { diaYHora, plural } from "@/lib/lenguaje"
 
 /**
  * EQUIPO (sprint 6.10 · encargo 01-nov §2 botón 8 + ADENDA 6 + MAPA «6 EQUIPOS»): el organigrama del departamento como en una agencia real · Dirección · Estrategia ·
@@ -269,7 +269,7 @@ export function PanelEquipo({ onCerrar, datosIniciales = null, clienteInicial = 
                   <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">
                     <p>{estadoDeAhoraLegible(miembro.actividad)}{miembro.actividad.para_este_cliente ? " · para este cliente" : ""}</p>
                     {miembro.actividad.ultima && <p className="text-[11.5px] text-zinc-500">Última corrida: {diaYHora(miembro.actividad.ultima)}</p>}
-                    <p className="mt-1 text-[11.5px] text-zinc-400">Últimos 7 días: {plural(miembro.actividad.trabajos_7d, "corrida", "corridas")} · {plural(miembro.actividad.para_el_cliente_7d, "para este cliente", "para este cliente")} · {usdFinoES(miembro.actividad.gasto_7d_usd)}</p>
+                    <p className="mt-1 text-[11.5px] text-zinc-400">Últimos 7 días: {plural(miembro.actividad.trabajos_7d, "corrida", "corridas")} · {plural(miembro.actividad.para_el_cliente_7d, "para este cliente", "para este cliente")}</p>
                   </div>
                 </div>
                 {miembro.en_directorio ? (

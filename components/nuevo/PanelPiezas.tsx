@@ -11,8 +11,7 @@ import { estadoTrasDecidir } from "@/lib/reflejo"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 import { llamarAccion } from "@/components/nuevo/PanelManual"
-import { TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
-import { diaYHora, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible, usdES } from "@/lib/lenguaje"
+import { diaYHora, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
@@ -114,7 +113,7 @@ function TarjetaDePieza({ p, onAbrir }: { p: FilaDeLaLista; onAbrir: () => void 
         </div>
         <div className="p-3">
           <span className="block text-[13px] font-medium leading-snug text-zinc-100">{p.titulo_legible}</span>
-          <span className="mt-0.5 block text-[11px] text-zinc-500">{diaYHora(p.creada)} · {ESTADO_DE_PIEZA_LEGIBLE[p.estado]}{p.gasto_usd != null ? ` · ${usdES(p.gasto_usd)}` : ""}</span>
+          <span className="mt-0.5 block text-[11px] text-zinc-500">{diaYHora(p.creada)} · {ESTADO_DE_PIEZA_LEGIBLE[p.estado]}</span>
           {avisoFila && <span className="mt-0.5 block text-[11px] text-amber-300/90">{avisoFila}</span>}
         </div>
       </button>
@@ -163,7 +162,6 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const [dialogo, setDialogo] = useState<Dialogo>(null)
   const [comentario, setComentario] = useState("")
   const [casilla, setCasilla] = useState(false)
-  const [confirmoGasto, setConfirmoGasto] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [errorDialogo, setErrorDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
@@ -195,7 +193,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   useEffect(() => { if (!bandejaInicial) void leerLaBandeja(filtro) }, [leerLaBandeja, bandejaInicial, filtro])
   useEffect(() => { if (elegida && elegida !== pieza?.id) void leerLaPieza(elegida) }, [elegida, pieza?.id, leerLaPieza])
   // al cambiar de pieza, el visor vuelve a la primera lámina y se olvidan marcas, ediciones y diálogo
-  useEffect(() => { setN(1); setJuntas(false); setMarcadas([]); setEdiciones([]); setZoom(false); setDialogo(null); setComentario(""); setCasilla(false); setConfirmoGasto(false); setErrorDialogo(null) }, [pieza?.id])
+  useEffect(() => { setN(1); setJuntas(false); setMarcadas([]); setEdiciones([]); setZoom(false); setDialogo(null); setComentario(""); setCasilla(false); setErrorDialogo(null) }, [pieza?.id])
 
   const arbol = useMemo(() => (bandeja ? arbolDeLaBandeja(bandeja.piezas, bandeja.otras) : []), [bandeja])
   const todas = useMemo(() => (bandeja ? [...bandeja.piezas, ...bandeja.otras] : []), [bandeja])
@@ -284,15 +282,14 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
     await leerLaBandeja(filtro); void leerLaPieza(pieza.id)
   }
 
-  /** Rehacer una pieza rechazada: GASTA (hasta el tope por pieza), así que pide marcar que se entiende el gasto */
+  /** Rehacer una pieza rechazada (6.23 · regla de Emilio: sin avisos de gasto en botones; el cuerpo sigue diciendo confirmo_gasto y el tope lo cuida la plataforma) */
   async function rehacer() {
     if (!pieza?.encargo_id) return
-    if (!confirmoGasto) { setErrorDialogo(`Marca que entiendes el gasto: rehacerla puede costar hasta ${usdES(TOPE_POR_PIEZA_USD)}.`); return }
     setEnviando(true); setErrorDialogo(null)
     const r = await accion("rehacer-pieza", cuerpoDeRehacer(pieza.encargo_id, comentario))
     setEnviando(false)
     if (!r.ok) { setErrorDialogo(r.texto); return }
-    setAviso({ ok: true, texto: "Encargo enviado: la oficina creativa rehace la pieza y la versión nueva llega a esta bandeja." }); setDialogo(null); setComentario(""); setConfirmoGasto(false)
+    setAviso({ ok: true, texto: "Encargo enviado: la oficina creativa rehace la pieza y la versión nueva llega a esta bandeja." }); setDialogo(null); setComentario("")
     await leerLaBandeja(filtro)
   }
 
@@ -392,7 +389,6 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
                   <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
-                  {pieza.gasto_usd != null && <Chip>costó {usdES(pieza.gasto_usd)}</Chip>}
                   {pieza.version != null && <Chip>versión {pieza.version}</Chip>}
                   {pieza.jefatura.resultado && <Chip tono={pieza.jefatura.desacuerdos.length ? "ambar" : "neutro"}>jefatura {resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}</Chip>}
                   {total > 0 && <button type="button" data-accion="ver-juntas" aria-pressed={juntas} onClick={() => { setJuntas((v) => !v); setZoom(false) }} className={`${B_CHICO} ml-auto`}>{juntas ? "Ver una lámina" : `Ver las ${total} juntas`}</button>}
@@ -492,7 +488,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                       <button type="button" data-accion="pieza-aprobar" onClick={() => abrir("aprobar")} className={B_AMBAR}>Aprobar</button>
                       <button type="button" data-accion="pieza-pedir-cambios" onClick={() => abrir("cambios")} className={`${B_SUAVE} ${ediciones.length ? "border-amber-400/60" : ""}`}>{ediciones.length ? `Enviar ${ediciones.length === 1 ? "1 cambio de texto" : `${ediciones.length} cambios de texto`}${marcadas.length ? ` y ${textoDelBotonDeCambios(marcadas).toLowerCase()}` : ""}` : textoDelBotonDeCambios(marcadas)}…</button>
                       <button type="button" data-accion="pieza-rechazar" onClick={() => abrir("rechazar")} className={B_ROJO}>Rechazar…</button>
-                      <span className="text-[12px] text-zinc-500">Aprobar no publica todavía: publicar es un paso aparte. Pedir cambios vuelve a gastar.{ediciones.length ? " Tus textos editados viajan en el pedido de cambios." : ""}</span>
+                      <span className="text-[12px] text-zinc-500">Aprobar no publica todavía: publicar es un paso aparte.{ediciones.length ? " Tus textos editados viajan en el pedido de cambios." : ""}</span>
                     </div>
                   )}
                   {pendiente && dialogo === "aprobar" && (
@@ -505,7 +501,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   )}
                   {pendiente && dialogo === "cambios" && (
                     <form data-editor="pieza-cambios" className="rounded-md border border-white/15 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void decidir("cambios") }}>
-                      <p className="text-[12.5px] text-zinc-400">{alcanceDeLosCambios(laminasDelPedido, pieza.gasto_usd)}{laminasDelPedido.length === 0 && total > 1 ? " · en «Ver las juntas» puedes marcar solo algunas láminas" : ""}</p>
+                      <p className="text-[12.5px] text-zinc-400">{alcanceDeLosCambios(laminasDelPedido)}{laminasDelPedido.length === 0 && total > 1 ? " · en «Ver las juntas» puedes marcar solo algunas láminas" : ""}</p>
                       {ediciones.length > 0 && (
                         <ul data-ediciones className="mt-2 space-y-1 rounded-md border border-amber-400/20 bg-amber-400/[0.05] p-2 text-[12.5px]" aria-label="Los textos editados">
                           {ediciones.map((e) => <li key={`${e.lamina}-${e.campo}`} className="flex items-start gap-2"><span className="min-w-0 flex-1 text-zinc-200">{e.lamina != null ? `Lámina ${e.lamina} · ` : ""}{CAMPO_LEGIBLE[e.campo]}: <span className="text-amber-100">«{e.despues}»</span>{e.antes ? <span className="text-zinc-500"> (antes «{e.antes}»)</span> : null}</span><button type="button" data-accion="quitar-edicion" onClick={() => setEdiciones((l) => l.filter((x) => x !== e))} aria-label="Quitar este cambio" className="text-[11px] text-zinc-500 hover:text-rose-200">quitar</button></li>)}
@@ -543,9 +539,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     <form data-editor="pieza-rehacer" className="rounded-md border border-amber-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void rehacer() }}>
                       <label className="block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">Qué debe cambiar (opcional)</span>
                         <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={2} maxLength={MINIMOS.maximo} aria-label="Qué debe cambiar al rehacerla" autoFocus className={CAJA} /></label>
-                      <label className="mt-2 flex items-center gap-2 text-[13px] text-amber-200"><input type="checkbox" data-casilla="gasto" checked={confirmoGasto} onChange={(e) => setConfirmoGasto(e.target.checked)} className="h-4 w-4" />Entiendo que rehacerla gasta: hasta {usdES(TOPE_POR_PIEZA_USD)} (tope por pieza).</label>
                       <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button type="submit" data-accion="confirmar-rehacer-pieza" disabled={enviando || !confirmoGasto} className={B_AMBAR}>{enviando ? "Enviando…" : "Rehacer la pieza"}</button>
+                        <button type="submit" data-accion="confirmar-rehacer-pieza" disabled={enviando} className={B_AMBAR}>{enviando ? "Enviando…" : "Rehacer la pieza"}</button>
                         <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
                       </div>
                     </form>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { BriefDelCliente } from "@/lib/brief-datos"
 import { estadoDelBriefLegible, seccionesDelBrief, type Brief, type TonoDelBrief } from "@/lib/brief"
-import { diaYHora, plural, usdFinoES } from "@/lib/lenguaje"
+import { diaYHora, plural } from "@/lib/lenguaje"
 
 /**
  * BRIEF DE CAMPAÑA (sprint 6.10 · encargo 01-nov §2 botón 4): lo que la mesa del brief le entrega a los creativos, corto y con secciones fijas. SOLO LECTURA.
@@ -121,7 +121,6 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <Chip tono={estadoDelBriefLegible(brief.estado).tono}>{estadoDelBriefLegible(brief.estado).texto}</Chip>
                     {brief.seco && <Chip>Ensayo en seco</Chip>}
-                    {brief.costo_usd != null && <Chip>{usdFinoES(brief.costo_usd)}</Chip>}
                     {brief.creada_en && <Chip>{diaYHora(brief.creada_en)}</Chip>}
                   </div>
                 </div>

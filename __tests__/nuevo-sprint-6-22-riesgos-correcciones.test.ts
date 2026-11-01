@@ -109,7 +109,7 @@ describe("6.22 · el panel", () => {
   it("tus pausas van fuera del radar y lo que no tiene fuente dice «sin dato»", () => {
     expect(html).toContain("Pausas que decidiste"); expect(html).toContain("foco en Náufrago")
     expect(html).toContain("calidad, plazos, seguridad y cumplimiento: el sistema todavía no tiene de dónde leerlos"); expect(html).not.toMatch(/: n8n conserva/)
-    expect(html).toContain("1 aviso viejo de gasto caducó solo")
+    expect(html).toContain("1 aviso viejo caducó solo")
   })
   it("el radar quedó más chico dentro de su encuadre", () => {
     expect(readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")).toContain("max-w-[380px]")

@@ -72,7 +72,6 @@ function TarjetaDelFrente({ d, alDecidir }: { d: Decision; alDecidir: (d: Decisi
         <div><dt className="text-zinc-500">Espera</dt><dd data-espera className="text-zinc-200">{haceCuanto(d.desde)}{fecha(d.desde) ? <span className="text-zinc-500"> · {fecha(d.desde)}</span> : null}</dd></div>
         <div><dt className="text-zinc-500">Vence</dt><dd data-vence className={d.vencida ? "text-orange-300" : "text-zinc-200"}>{d.vence ? `${fecha(d.vence)}${d.vencida ? " · vencida" : ""}` : "Sin fecha límite"}</dd></div>
         <div><dt className="text-zinc-500">Viene de</dt><dd data-origen className="text-zinc-200">{ORIGEN[d.fuente ?? ""] ?? "Sin dato"}</dd></div>
-        <div><dt className="text-zinc-500">Costo</dt><dd data-costo className="text-zinc-200">{d.costo_usd != null ? `US$ ${d.costo_usd.toFixed(2)}` : d.costo_nota ?? "Sin dato"}</dd></div>
       </dl>
       <footer className="mt-auto pt-6">
         {donde.panel

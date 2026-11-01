@@ -111,7 +111,7 @@ describe("sprint 6.6 · la lógica pura de la bandeja", () => {
   })
   it("los textos de la decisión dicen lo que pasa de verdad: aprobar no publica, cambios gasta, 409 recarga, 501 no cambió nada", () => {
     expect(textoDelBotonDeCambios([])).toBe("Pedir cambios"); expect(textoDelBotonDeCambios([1, 3])).toBe("Pedir cambios en 2 láminas"); expect(textoDelBotonDeCambios([2])).toBe("Pedir cambios en 1 lámina")
-    expect(alcanceDeLosCambios([1, 3], 1.02988)).toBe("Láminas 1, 3 · vuelve a gastar ≈ US$ 1,03"); expect(alcanceDeLosCambios([2], 1)).toBe("Lámina 2 · vuelve a gastar ≈ US$ 1,00"); expect(alcanceDeLosCambios([], null)).toBe("Toda la pieza · vuelve a gastar")
+    expect(alcanceDeLosCambios([1, 3])).toBe("Láminas 1, 3"); expect(alcanceDeLosCambios([2])).toBe("Lámina 2"); expect(alcanceDeLosCambios([])).toBe("Toda la pieza") // 6.23: sin avisos de gasto
     expect(avisoTrasDecidir("aprobar", { ok: true, nota: "Aprobada. Todavía no se publica en redes: es un paso aparte." })).toContain("Todavía no se publica")
     expect(avisoTrasDecidir("aprobar", { ok: true, simulado: true, detalle: "SIMULADO: el tablero está en modo sombra y no guardó nada" })).toContain("SIMULADO")
     expect(avisoTrasDecidir("cambios", { ok: true })).toContain("rehace la pieza"); expect(avisoTrasDecidir("rechazar", { ok: true })).toContain("Rechazada")
@@ -162,7 +162,7 @@ describe("sprint 6.6 · el panel", () => {
     expect(carpetas).toContain("2 piezas"); expect(carpetas).toContain("1 por aprobar · 1 en total"); expect(carpetas).toContain('data-miga="cliente"'); expect(carpetas).toContain(">Zero Risk Seguridad Industrial</button>"); expect(carpetas).toContain('data-nodo-carpeta="Carrusel Instagram"')
     const tarjetas = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Facebook" })
     expect([...tarjetas.matchAll(/data-pieza="([^"]+)" data-estado="([^"]+)"/g)].map((m) => [m[1], m[2]])).toEqual([[PIEZAS[1].id, "aprobada"], [PIEZAS[3].id, "superada"]])
-    expect(tarjetas).toContain(`src="/api/piezas/${PIEZAS[1].id}/lamina/1"`); expect(tarjetas).toContain("superada (la reemplazó otra pieza)"); expect(tarjetas).toContain("US$ 2,05"); expect(tarjetas).toContain('data-miga="carpeta"')
+    expect(tarjetas).toContain(`src="/api/piezas/${PIEZAS[1].id}/lamina/1"`); expect(tarjetas).toContain("superada (la reemplazó otra pieza)"); expect(tarjetas).not.toContain("US$ 2,05") /* 6.23: sin avisos de gasto */; expect(tarjetas).toContain('data-miga="carpeta"')
     const incompleta = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Instagram" })
     expect(incompleta).toContain("revisión de la jefatura incompleta · 9 desacuerdos"); expect(incompleta).toContain("por aprobar")
     const otras = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Otras revisiones" })
@@ -190,13 +190,13 @@ describe("sprint 6.6 · el panel", () => {
     expect(c).toContain('cuerpoDeDecisionDePieza({ accion: a, comentario: texto, laminas: a === "cambios" ? laminasDelPedido : marcadas, casilla, total, exige_casilla: pieza.exige_casilla, estado_visto: pieza.status })')
     expect(c).toContain("siguientePendiente(carpetaActual?.filas ?? [], pieza.id)") // tras decidir, pasa a la siguiente pendiente de la misma carpeta
   })
-  it("una pieza ya resuelta no ofrece decidir; si fue rechazada y tiene encargo, ofrece rehacerla con el gasto a la vista", () => {
+  it("una pieza ya resuelta no ofrece decidir; si fue rechazada y tiene encargo, ofrece rehacerla (sin aviso de gasto: 6.23)", () => {
     const aprobada = dibujar({ piezaInicialDatos: { ...DETALLE, id: PIEZAS[1].id, estado: "aprobada", status: "approved" } })
     expect(aprobada).not.toContain('data-accion="pieza-aprobar"'); expect(aprobada).toContain("Esta pieza está aprobada."); expect(aprobada).not.toContain('data-accion="pieza-rehacer"')
     const rechazada = dibujar({ piezaInicialDatos: { ...DETALLE, estado: "rechazada", status: "rejected" } })
     expect(rechazada).toContain('data-accion="pieza-rehacer"'); expect(rechazada).toContain("Esta pieza está rechazada.")
     const c = readFileSync("components/nuevo/PanelPiezas.tsx", "utf8")
-    expect(c).toContain('data-casilla="gasto"'); expect(c).toContain("hasta {usdES(TOPE_POR_PIEZA_USD)}")
+    expect(c).not.toContain('data-casilla="gasto"'); expect(c).not.toContain("TOPE_POR_PIEZA_USD") // 6.23: rehacer es un clic; el cuerpo sigue con confirmo_gasto
   })
   it("una revisión que no es pieza lleva sus botones en palabras de negocio y va por `revision-resolver`; resuelta, solo se dice", () => {
     const plan = dibujar({ piezaInicialDatos: { ...DETALLE, id: PLAN, tipo: "plan_con_pendientes", es_pieza: false, titulo: "Plan con puntos por resolver · Náufrago", laminas: [], pie: null, avisos: [], exige_casilla: false, encargo_id: null, gasto_usd: null, version: null, jefatura: { resultado: null, desacuerdos: [], opinion_externa: null, revision_id: null } } })

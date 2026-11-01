@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { GranIdeaDelCliente } from "@/lib/gran-idea-datos"
 import type { EstadoDelConcepto } from "@/lib/concepto-datos"
-import { diaYHora, plural, usdFinoES } from "@/lib/lenguaje"
+import { diaYHora, plural } from "@/lib/lenguaje"
 import { NOTA_MINIMA, type ApuntaA } from "@/lib/concepto-decision"
 import { avisoTrasDecidirGranIdea, cuerpoDeDecisionDeGranIdea, errorTrasDecidirGranIdea, rutaDeDecisionDeGranIdea, type AccionDeGranIdea, type RespuestaDeDecisionDeGranIdea } from "@/lib/gran-idea"
 
@@ -163,7 +163,6 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                     <Chip tono={estadoDeLaGranIdeaLegible(d.estado).tono}>{estadoDeLaGranIdeaLegible(d.estado).texto}</Chip>
                     {d.version != null && <Chip>Versión {d.version}</Chip>}
                     {d.seco && <Chip>Ensayo en seco</Chip>}
-                    {d.costo_usd != null && <Chip>{usdFinoES(d.costo_usd)}</Chip>}
                     {d.creada && <Chip>{diaYHora(d.creada)}</Chip>}
                     {d.vueltas_restantes != null && <Chip>{plural(d.vueltas_restantes, "vuelta de cambios", "vueltas de cambios")} restantes</Chip>}
                   </div>

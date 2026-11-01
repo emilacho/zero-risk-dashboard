@@ -5,7 +5,6 @@
  */
 import type { FilaDeLaLista } from "@/lib/piezas-datos"
 import { COMENTARIO_MAXIMO, COMENTARIO_MINIMO, MOTIVO_MINIMO, validarDecision, type AccionDeLaPieza, type EstadoPieza, type OrigenDeLaImagen, type PedidoDeDecision } from "@/lib/piezas"
-import { usdES } from "@/lib/lenguaje"
 
 export type FiltroDeLaBandeja = "pendiente" | "todas"
 export type Tono = "ambar" | "verde" | "azul" | "rojo" | "neutro"
@@ -70,10 +69,10 @@ export function textoDelBotonDeCambios(marcadas: number[]): string {
   return marcadas.length ? `Pedir cambios en ${marcadas.length} ${marcadas.length === 1 ? "lámina" : "láminas"}` : "Pedir cambios"
 }
 
-/** a qué alcanza el pedido de cambios y qué vuelve a gastar: «Láminas 1, 3 · vuelve a gastar ≈ US$ 1,03» */
-export function alcanceDeLosCambios(marcadas: number[], gastoUsd: number | null): string {
+/** a qué alcanza el pedido de cambios: «Láminas 1, 3» (6.23 · sin avisos de gasto: el gasto se ve en Dinero y en el panel de gastos de cada oficina) */
+export function alcanceDeLosCambios(marcadas: number[]): string {
   const que = marcadas.length === 1 ? `Lámina ${marcadas[0]}` : marcadas.length ? `Láminas ${marcadas.join(", ")}` : "Toda la pieza"
-  return gastoUsd != null ? `${que} · vuelve a gastar ≈ ${usdES(gastoUsd)}` : `${que} · vuelve a gastar`
+  return que
 }
 
 export interface RespuestaDeDecidir { ok?: boolean; simulado?: boolean; detalle?: string; nota?: string; error?: string }

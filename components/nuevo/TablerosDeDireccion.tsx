@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react"
 import type { TableroDeDireccion } from "@/lib/pantallas-de-la-oficina"
 import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import { alPlano, type ResumenDeRiesgos } from "@/lib/direccion-riesgos"
+import type { ResumenDeDinero } from "@/lib/direccion-dinero"
 
 /**
  * 6.19 · LOS 9 TABLEROS DE DIRECCIÓN del arco de Tu oficina (capa 1 del encargo «oficina del humano», aprobada por Emilio el 1-nov «tal como se ve en tu
@@ -94,8 +95,11 @@ function Portafolio() {
   )
 }
 
-/** 4 · DINERO · el río de proveedores → departamentos → negocios, contra el presupuesto del mes: la corriente fluye por los cauces */
-function Dinero() {
+/** 4 · DINERO · el río de proveedores → departamentos → negocios: la corriente fluye por los cauces.
+ *  6.23 · con datos: abajo, la medida más cerca de su límite (saldo de un proveedor o freno de gasto de un cliente) como barra y en letras grandes. Sin lectura
+ *  todavía, el dibujo del boceto (sin la nota «presupuesto del mes»: no hay de dónde leerlo). */
+function Dinero({ resumen }: { resumen: ResumenDeDinero | null }) {
+  const m = resumen?.mayor ?? null
   const arriba = [14, 30, 46, 62, 78], medio = [24, 50, 76], abajo = [32, 68]
   const cauces: Array<{ d: string; ancho: number }> = [
     ...arriba.map((x, i) => { const m = medio[Math.min(2, Math.floor((i * 3) / 5))]; return { d: `M${x} 39 C${x} 62 ${m} 62 ${m} 82`, ancho: 2.6 - i * 0.3 } }),
@@ -112,8 +116,11 @@ function Dinero() {
           <path {...linea} d={c.d} strokeWidth={c.ancho * 0.7} opacity={0.9} pathLength={1} strokeDasharray="0.08 0.14" data-anima="fluye" style={r(-i * 0.7)} />
         </g>
       ))}
-      <line {...linea} x1={10} y1={140} x2={90} y2={140} strokeDasharray="3 3" />
-      <Nota x={50} y={150}>presupuesto del mes</Nota>
+      <g data-dinero={resumen ? (m ? Math.round(m.pct) : "sin-medidas") : "sin-lectura"}>
+        <line {...linea} x1={10} y1={140} x2={90} y2={140} strokeDasharray={m ? undefined : "3 3"} opacity={m ? 0.35 : 1} />
+        {m && <line {...linea} x1={10} y1={140} x2={10 + (80 * Math.min(100, m.pct)) / 100} y2={140} strokeWidth={2.4} />}
+        {m && <text data-mayor x={50} y={154} textAnchor="middle" fontSize={10} fontWeight={700} fill="currentColor" stroke="none">{m.que} {Math.round(m.pct)} %</text>}
+      </g>
     </g>
   )
 }
@@ -245,18 +252,18 @@ function Observabilidad() {
   )
 }
 
-const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null; riesgos: ResumenDeRiesgos | null }) => ReactNode> = {
-  gobierno: () => <Gobierno />, proyectos: ({ quieto }) => <Proyectos quieto={quieto} />, portafolio: () => <Portafolio />, dinero: () => <Dinero />,
+const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null; riesgos: ResumenDeRiesgos | null; dinero: ResumenDeDinero | null }) => ReactNode> = {
+  gobierno: () => <Gobierno />, proyectos: ({ quieto }) => <Proyectos quieto={quieto} />, portafolio: () => <Portafolio />, dinero: ({ dinero }) => <Dinero resumen={dinero} />,
   decisiones: ({ decisiones }) => <Decisiones resumen={decisiones} />, riesgos: ({ quieto, riesgos }) => <Riesgos quieto={quieto} resumen={riesgos} />, organizacion: () => <Organizacion />,
   "agenda-ejecutiva": () => <Agenda />, observabilidad: () => <Observabilidad />,
 }
 
 /** un tablero de dirección en el plano 100×160 del vidrio (con el mismo respiro del boceto: 5 % y 90 %) */
-export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null, riesgos = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null; riesgos?: ResumenDeRiesgos | null }) {
+export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null, riesgos = null, dinero = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null; riesgos?: ResumenDeRiesgos | null; dinero?: ResumenDeDinero | null }) {
   return (
     <g transform="translate(5 4) scale(0.9)" data-tablero={tablero}>
       <Titulo lineas={titulo} />
-      {DIBUJO[tablero]({ quieto, decisiones, riesgos })}
+      {DIBUJO[tablero]({ quieto, decisiones, riesgos, dinero })}
     </g>
   )
 }
