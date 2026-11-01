@@ -8,6 +8,7 @@ import { clientesParaElegir } from "@/lib/clientes-datos"
 import { leerManual, type ManualLeido } from "@/lib/manual-lector"
 import { borradorDelManual, coloresDelManual, listaDeTextos, origenDelManualLegible, politicaDeCompetidoresLegible, tipografiasDelManual, type ColorDelManual, type TipografiaDelManual } from "@/lib/manual"
 import { revisionDeFidelidadLegible } from "@/lib/lenguaje"
+import { palabrasDelManual, type PalabraDelManual } from "@/lib/manual-palabras"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -30,6 +31,8 @@ export interface ManualDelCliente {
     /** las opciones de eslogan del borrador (las marcadas «PROPUESTA» no son dato del cliente) cuando el eslogan aún no está decidido */
     opciones_eslogan: string[]
     palabras_prohibidas: string[]
+    /** CC6 · tablero del dueño: cada palabra con su intención (norma · dueño · estilo), con la misma regla que la plataforma */
+    palabras?: PalabraDelManual[]
     terminos_propios: string[]
     politica_competidores: string | null
     creado_en: string | null
@@ -74,6 +77,7 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
       tipografias: tipografiasDelManual(b),
       opciones_eslogan: listaDeTextos(borradorDelManual(b).tagline_opciones),
       palabras_prohibidas: listaDeTextos(b.forbidden_words),
+      palabras: palabrasDelManual(b),
       terminos_propios: listaDeTextos(b.required_terminology),
       politica_competidores: politicaDeCompetidoresLegible(b.competitor_mentions_policy),
       creado_en: typeof b.created_at === "string" ? b.created_at : null,
