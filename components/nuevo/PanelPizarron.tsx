@@ -74,7 +74,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
   const kanban = useMemo(() => armarKanban((datos?.filas ?? []).map(tarjetaDeFila)), [datos])
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" data-vista-activa={vista} className="relative flex max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">

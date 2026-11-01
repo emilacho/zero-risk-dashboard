@@ -1087,3 +1087,8 @@ html, body { background-image: none !important; }
 /* D7 · sin respiración, sin escaneo, sin brillos animados (Lumen suave) */
 .animate-breathing, .animate-scanning, .animate-pulse-glow, .animate-glow-pulse, .animate-radial-pulse, .animate-ring-slow, .animate-ring-mid, .animate-ring-counter { animation: none !important; }
 .shimmer-btn::after { animation: none !important; opacity: 0 !important; }
+
+/* DASHBOARD NUEVO · 6.22 · REGLA GENERAL (encargo 1-nov): el chat de abajo SIEMPRE visible en todo /nuevo. Ningún panel lo tapa: cada panel
+   (clase nv-panel) termina encima del chat (alto del chat 120 px + 24 px de margen + 12 px de aire), así Emilio lee y escribe al mismo tiempo. */
+:root { --nv-chat-reserva: 156px; }
+body:has([data-chat-de-oficinas]) .nv-panel { bottom: var(--nv-chat-reserva); }

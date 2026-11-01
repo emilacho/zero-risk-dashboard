@@ -90,7 +90,7 @@ export function MenuLateral({ actual = "/nuevo" }: { actual?: string }) {
 /** la caja de chat de abajo: SOLO la forma (no envía nada; qué hace se decide en otro sprint) */
 export function BarraDeChat() {
   return (
-    <div aria-label="Chat con tus oficinas (todavía sin función)" aria-disabled="true"
+    <div data-chat-de-oficinas aria-label="Chat con tus oficinas (todavía sin función)" aria-disabled="true"
       className="absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2 rounded-xl border p-[7px]" style={{ borderColor: "rgba(232,115,26,.55)" }}>
       <div className="rounded-lg bg-[#1b1b1d] px-4 py-3.5">
         <p className="text-[14px] text-zinc-400">Habla con tus oficinas…</p>

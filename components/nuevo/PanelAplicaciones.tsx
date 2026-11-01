@@ -118,7 +118,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
 
   const idCliente = datos?.cliente?.id ?? null
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[3px] sm:p-8" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[3px] sm:p-8" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="aplicaciones-titulo" data-seccion="aplicaciones" className="relative w-full max-w-[780px] text-zinc-200">
         <header className="mb-5 flex flex-wrap items-center gap-3 px-1">

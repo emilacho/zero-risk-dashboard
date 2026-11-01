@@ -59,7 +59,7 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
   const resumen = datos ? (!datos.publicado ? "la cadena todavía no lo publica" : briefs.length ? plural(briefs.length, "versión", "versiones") : "todavía sin brief") : ""
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="brief-titulo" data-seccion="brief" className="relative flex h-full max-h-full w-full max-w-[1200px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">

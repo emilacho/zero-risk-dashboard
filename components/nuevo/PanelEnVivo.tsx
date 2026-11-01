@@ -113,7 +113,7 @@ export function PanelEnVivo({ onCerrar }: { onCerrar: () => void }) {
   const lista = filas.slice(0, 9)
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-8" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-8" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <section role="dialog" aria-modal="true" aria-labelledby="envivo-titulo" data-seccion="en-vivo" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <span aria-hidden className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
