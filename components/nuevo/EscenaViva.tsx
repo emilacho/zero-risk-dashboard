@@ -5,6 +5,8 @@ import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
+import { PanelRiesgos } from "@/components/nuevo/PanelRiesgos"
+import { resumenDeRiesgos, type ResumenDeRiesgos, type Riesgos } from "@/lib/direccion-riesgos"
 import { resumenDeDecisiones, type Decisiones, type ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import { PantallaDeMusica } from "@/components/nuevo/PantallaDeMusica"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
@@ -214,6 +216,16 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       setDecisiones(r.ok && j?.ok ? resumenDeDecisiones(j) : null) // sin lectura: la pantalla vuelve al dibujo, nunca a un «0» falso
     } catch { setDecisiones(null) }
   }, [])
+  // 6.21 · Riesgos: la pantalla 6 dibuja los riesgos reales en su radar (misma lectura cada minuto) y al tocarla abre el panel del radar
+  const [riesgos, setRiesgos] = useState<ResumenDeRiesgos | null>(null)
+  const [radar, setRadar] = useState(false)
+  const leerRiesgos = useCallback(async () => {
+    try {
+      const r = await fetch("/api/direccion/riesgos", { cache: "no-store" })
+      const j = (await r.json().catch(() => null)) as ({ ok: true } & Riesgos) | null
+      setRiesgos(r.ok && j?.ok ? resumenDeRiesgos(j) : null) // sin lectura: la pantalla vuelve al dibujo, nunca a un «sin riesgos» falso
+    } catch { setRiesgos(null) }
+  }, [])
   const [sobreLaMiniatura, setSobreLaMiniatura] = useState(false) // 5.12 · la miniatura se aclara un poco al pasar el ratón: avisa que es clicable
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
   const proy = useRef<HTMLDivElement>(null)
@@ -239,10 +251,11 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const oficinaAbierta = depto === "oficina" && fase !== "cerrado"
   useEffect(() => {
     if (!oficinaAbierta) return
-    void leerDecisiones()
-    const t = setInterval(() => { if (!document.hidden) void leerDecisiones() }, 60_000)
+    void leerDecisiones(); void leerRiesgos()
+    const t = setInterval(() => { if (!document.hidden) { void leerDecisiones(); void leerRiesgos() } }, 60_000)
     return () => clearInterval(t)
-  }, [oficinaAbierta, leerDecisiones])
+  }, [oficinaAbierta, leerDecisiones, leerRiesgos])
+  const cerrarRadar = useCallback(() => { setRadar(false); void leerRiesgos() }, [leerRiesgos])
   const cerrarMesa = useCallback(() => { setMesa(false); void leerDecisiones() }, [leerDecisiones])
 
   // 5.8 · antes de pintar la entrada o la salida, se fija desde dónde sale (o hacia dónde vuelve) la imagen: la plataforma, medida en pantalla
@@ -344,7 +357,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
             {/* 6.14 · el arco de pantallas de tu oficina: solo animación (6.14b: sin centros asignados; qué abre cada una lo decide Emilio) */}
-            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} />}
+            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -370,6 +383,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)}
       {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
       {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
+      {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"

@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react"
 import type { TableroDeDireccion } from "@/lib/pantallas-de-la-oficina"
 import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
+import { alPlano, type ResumenDeRiesgos } from "@/lib/direccion-riesgos"
 
 /**
  * 6.19 · LOS 9 TABLEROS DE DIRECCIÓN del arco de Tu oficina (capa 1 del encargo «oficina del humano», aprobada por Emilio el 1-nov «tal como se ve en tu
@@ -155,25 +156,30 @@ function Decisiones({ resumen }: { resumen: ResumenDeDecisiones | null }) {
   )
 }
 
-/** 6 · RIESGOS Y ALARMAS · radar: el haz barre y cada punto se enciende al pasar (lo grave, más cerca del centro) */
+/** 6 · RIESGOS Y ALARMAS · radar: el haz barre y cada punto se enciende al pasar (lo grave, más cerca del centro).
+ *  6.21 · con datos: cada riesgo real es un punto en el sector de su tipo y el anillo de su gravedad (mismo lugar que en el panel) y abajo se lee cuántos
+ *  son graves. Sin lectura todavía, el dibujo del boceto; con la lista incompleta, la cuenta lleva «+?». */
 const AMENAZAS = [[66, 80, 2.6], [36, 72, 2], [58, 112, 3.4], [28, 104, 1.6], [74, 98, 2]] as const
 const VUELTA = 6 // segundos por vuelta del haz
-function Riesgos({ quieto }: { quieto: boolean }) {
-  const inicio = -30 // el haz arranca apuntando a (88,68)
+const anguloDe = (x: number, y: number) => ((((Math.atan2(y - 90, x - 50) * 180) / Math.PI + 90) % 360) + 360) % 360 // 0 = arriba, sentido del reloj
+function Riesgos({ quieto, resumen }: { quieto: boolean; resumen: ResumenDeRiesgos | null }) {
+  const puntos = resumen
+    ? resumen.puntos.map((p) => { const [x, y] = alPlano(50, 90, 44, p.angulo, p.radio); return { id: p.id, x, y, r: p.gravedad === 3 ? 3.2 : p.gravedad === 2 ? 2.4 : 1.8, a: p.angulo } })
+    : AMENAZAS.map(([x, y, rr], i) => ({ id: String(i), x, y, r: rr, a: anguloDe(x, y) }))
+  const cuenta = resumen ? (resumen.graves ? `${resumen.graves} ${resumen.graves === 1 ? "grave" : "graves"}` : resumen.total ? `${resumen.total} ${resumen.total === 1 ? "abierto" : "abiertos"}` : resumen.completo ? "sin riesgos" : "") : null
+  const borde = alPlano(50, 90, 44, 40, 1).map((v) => v.toFixed(2)).join(" ")
   return (
-    <g>
+    <g data-riesgos={resumen ? resumen.total : "sin-lectura"}>
       {[44, 32, 20, 8].map((rr) => <circle key={rr} {...linea} opacity={0.55} cx={50} cy={90} r={rr} />)}
       <line {...linea} opacity={0.4} x1={6} y1={90} x2={94} y2={90} />
       <line {...linea} opacity={0.4} x1={50} y1={46} x2={50} y2={134} />
       <g>
-        <path d="M50 90 L88 68 A44 44 0 0 1 94 90 Z" fill="currentColor" opacity={0.22} />
-        <line {...linea} x1={50} y1={90} x2={88} y2={68} />
+        <path d={`M50 90 L50 46 A44 44 0 0 1 ${borde} Z`} fill="currentColor" opacity={0.22} transform="rotate(-40 50 90)" />
+        <line {...linea} x1={50} y1={90} x2={50} y2={46} />
         {!quieto && <animateTransform attributeName="transform" type="rotate" from="0 50 90" to="360 50 90" dur={`${VUELTA}s`} repeatCount="indefinite" />}
       </g>
-      {AMENAZAS.map(([x, y, rr], i) => {
-        const angulo = (Math.atan2(y - 90, x - 50) * 180) / Math.PI, paso = ((((angulo - inicio) % 360) + 360) % 360) / 360 * VUELTA
-        return <circle key={i} cx={x} cy={y} r={rr} fill="currentColor" data-anima="detecta" style={r(paso)} />
-      })}
+      {puntos.map((q) => <circle key={q.id} cx={q.x} cy={q.y} r={q.r} fill="currentColor" data-anima="detecta" style={r((q.a / 360) * VUELTA)} />)}
+      {cuenta !== null && cuenta !== "" && <text data-graves x={50} y={152} textAnchor="middle" fontSize={11} fontWeight={700} fill="currentColor" stroke="none">{cuenta}{resumen && !resumen.completo ? " +?" : ""}</text>}
     </g>
   )
 }
@@ -239,18 +245,18 @@ function Observabilidad() {
   )
 }
 
-const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null }) => ReactNode> = {
+const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null; riesgos: ResumenDeRiesgos | null }) => ReactNode> = {
   gobierno: () => <Gobierno />, proyectos: ({ quieto }) => <Proyectos quieto={quieto} />, portafolio: () => <Portafolio />, dinero: () => <Dinero />,
-  decisiones: ({ decisiones }) => <Decisiones resumen={decisiones} />, riesgos: ({ quieto }) => <Riesgos quieto={quieto} />, organizacion: () => <Organizacion />,
+  decisiones: ({ decisiones }) => <Decisiones resumen={decisiones} />, riesgos: ({ quieto, riesgos }) => <Riesgos quieto={quieto} resumen={riesgos} />, organizacion: () => <Organizacion />,
   "agenda-ejecutiva": () => <Agenda />, observabilidad: () => <Observabilidad />,
 }
 
 /** un tablero de dirección en el plano 100×160 del vidrio (con el mismo respiro del boceto: 5 % y 90 %) */
-export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null }) {
+export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null, riesgos = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null; riesgos?: ResumenDeRiesgos | null }) {
   return (
     <g transform="translate(5 4) scale(0.9)" data-tablero={tablero}>
       <Titulo lineas={titulo} />
-      {DIBUJO[tablero]({ quieto, decisiones })}
+      {DIBUJO[tablero]({ quieto, decisiones, riesgos })}
     </g>
   )
 }
