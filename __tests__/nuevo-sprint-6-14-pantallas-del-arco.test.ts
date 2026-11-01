@@ -126,7 +126,7 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
     expect(oficina).toContain('data-animacion="decisiones"'); expect(oficina).toContain('data-grupo="escritorio" data-pantalla="2" data-animacion="pista"')
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: "marketing" }))).not.toContain("data-animacion=")
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))).not.toContain("data-animacion=")
-    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} />}')
+    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} />}')
     const rotulo = oficina.match(/<text class="nv-rotulo"[^>]*>MÚSICA<\/text>/)![0]
     expect(Number(rotulo.match(/font-size="([\d.]+)"/)![1])).toBe(10) // 32 × 0,3 ≈ 10
     expect(PANTALLA_MUSICA.rotulo.y).toBeGreaterThan(428); expect(PANTALLA_MUSICA.rotulo.y).toBeLessThan(440) // justo encima del borde superior (440)

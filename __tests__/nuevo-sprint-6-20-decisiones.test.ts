@@ -119,7 +119,7 @@ describe("6.20 · la pantalla 5 del arco con datos y los títulos más grandes",
   })
   it("la escena lee las decisiones solo con la oficina abierta y la pestaña visible, cada minuto", () => {
     const e = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
-    expect(e).toContain('fetch("/api/direccion/decisiones", { cache: "no-store" })'); expect(e).toContain("if (!document.hidden) void leerDecisiones()"); expect(e).toContain("60_000")
+    expect(e).toContain('fetch("/api/direccion/decisiones", { cache: "no-store" })'); expect(e).toContain("if (!document.hidden) { void leerDecisiones(); void leerRiesgos() }"); expect(e).toContain("60_000")
     expect(e).toContain('const oficinaAbierta = depto === "oficina" && fase !== "cerrado"')
   })
 })
