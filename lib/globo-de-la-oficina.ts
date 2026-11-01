@@ -22,12 +22,12 @@ export const GLOBO = {
   /** cuadrícula cada tantos grados (contada sobre la foto: ~15°) */
   paso: 15,
   /** desde dónde el dibujo se funde con la foto (fracción del radio): el borde brillante y el anillo quedan de la foto */
-  fundido: { desde: 0.84, hasta: 0.97 },
+  fundido: { desde: 0.93, hasta: 1 },
   /** desenfoque de la iluminación de la foto, en píxeles de la foto, y cuánto se oscurece (el desenfoque reparte el brillo de las líneas viejas y aclara el
    *  vidrio: el original es más oscuro y translúcido entre líneas) */
   desenfoque: 7,
-  brilloDeLaBase: 0.55,
-  saturacionDeLaBase: 1.3,
+  brilloDeLaBase: 0.56,
+  saturacionDeLaBase: 1.25,
   /** el lienzo cubre un poco más que el disco */
   margen: 1.06,
   /** cuadros por segundo (gira despacio: no hace falta más) */
@@ -36,16 +36,20 @@ export const GLOBO = {
 
 /** el trazo, tomado del holograma de la foto (grosores en píxeles de la foto) */
 export const TRAZO_DEL_GLOBO = {
-  cuadricula: "rgba(255,222,170,0.92)",
-  grosorCuadricula: 0.55,
-  costa: "rgba(255,240,215,0.55)",
-  grosorCosta: 0.45,
-  tierra: "rgba(255,226,180,0.34)",
-  atras: 0.25,
-  halo: "rgba(255,160,60,1)",
-  radioHalo: 5,
-  /** el haz de luz vertical del pedestal que atraviesa el globo (en la foto no gira: es la luz del proyector) */
-  haz: { ancho: 0.8, arriba: "rgba(255,236,200,0.35)", abajo: "rgba(255,246,225,0.95)" },
+  cuadricula: "rgba(255,234,198,1)",
+  grosorCuadricula: 0.5,
+  costa: "rgba(255,214,160,0.6)",
+  grosorCosta: 0.4,
+  /** las tierras: un velo apenas más claro + una trama de puntitos, como las manchas texturadas de la foto */
+  tierra: "rgba(255,210,150,0.08)",
+  puntos: { color: "rgba(255,228,185,0.42)", paso: 0.8, radio: 0.2 },
+  atras: 0.22,
+  halo: "rgba(255,155,50,1)",
+  radioHalo: 8,
+  /** los destellos en algunos cruces de la cuadrícula (la foto tiene puntos de luz donde se cruzan las líneas) */
+  destellos: { color: "rgba(255,236,200,0.95)", radio: 0.6, proporcion: 0.1 },
+  /** el haz de luz vertical del pedestal que atraviesa el globo (en la foto no gira: es la luz del proyector), con su destello en cruz a media altura */
+  haz: { ancho: 1.1, arriba: "rgba(255,226,180,0.45)", abajo: "rgba(255,248,230,1)", destelloEn: 0.24, destelloLargo: 0.32 },
 } as const
 
 /** la caja del lienzo en píxeles de la foto */

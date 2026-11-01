@@ -29,8 +29,11 @@ describe("6.18 · el globo gira sobre su eje sin dañar sus detalles", () => {
     const src = readFileSync("components/nuevo/GloboQueGira.tsx", "utf8")
     expect(src).toContain('import("world-atlas/land-110m.json")'); expect(src).toContain("geoOrthographic"); expect(src).toContain("geoGraticule")
     expect(src).toContain('"destination-in"') // el fundido hacia la foto en el borde
-    expect(GLOBO.fundido.desde).toBeLessThan(GLOBO.fundido.hasta); expect(GLOBO.fundido.hasta).toBeLessThan(1)
+    expect(GLOBO.fundido.desde).toBeLessThan(GLOBO.fundido.hasta); expect(GLOBO.fundido.hasta).toBeLessThanOrEqual(1); expect(GLOBO.fundido.desde).toBeGreaterThan(0.9) // 6.18c · la cuadrícula llega hasta el borde, como en la foto
     expect(TRAZO_DEL_GLOBO.atras).toBeLessThan(0.5) // la cara de atrás, tenue
+    // 6.18c · los detalles de la foto: tierras con trama de puntitos, destellos en algunos cruces y el haz con su destello en cruz
+    expect(src).toContain('createPattern(tile, "repeat")'); expect(src).toContain("T.haz.destelloEn")
+    expect(TRAZO_DEL_GLOBO.destellos.proporcion).toBeGreaterThan(0); expect(TRAZO_DEL_GLOBO.destellos.proporcion).toBeLessThan(0.25)
   })
   it("el lienzo va encima del globo de la foto, invisible hasta el primer cuadro, sin toques; solo en TU OFICINA", () => {
     const html = renderToStaticMarkup(createElement(GloboQueGira))
