@@ -12,7 +12,7 @@
  */
 import type { FasesDelPlan } from "@/lib/clientes"
 import { fasesDelPlan } from "@/lib/clientes"
-import { DIAS_DE_LA_SEMANA } from "@/lib/pizarron"
+import { DIAS_DE_LA_SEMANA, diaDelCalendario, type FaseActiva } from "@/lib/pizarron"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const texto = (v: unknown): string => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "")
@@ -236,6 +236,26 @@ export function puntosDeLoNoBuscado(bloque: unknown): string[] {
   return t.split("\n").filter((l) => !/^\s*#{1,6}\s/.test(l)).map((l) => l.replace(/^\s*-\s*/, "").trim()).filter(Boolean)
 }
 
+// ── errores 3–5 del panel (ENCARGO Lenovo 01-nov · CC6) ──
+/** 3 · los topes REALES de cada tramo de la planeación (catálogo de topes de la plataforma, solo los vigentes); nada fijo en la pantalla */
+export interface TopeDelTramo { tramo: string; nombre: string; usd: number; version: number | null; desde: string | null }
+export function nombreDelTramo(tramo: unknown): string {
+  switch (texto(tramo)) {
+    case "recoleccion": return "Recolección de datos"
+    case "oficina": return "Mesa de análisis"
+    case "redaccion": return "Redactor del plan"
+    case "jefatura": return "Jefatura"
+    case "cupo_ficha": return "Cupo por cliente"
+    default: { const s = texto(tramo).replace(/_/g, " "); return s ? s[0].toUpperCase() + s.slice(1) : "—" }
+  }
+}
+/** 5 · la fecha de inicio no se muestra firme si la campaña está detenida («inicio sujeto a reanudar»); null = usar el texto de siempre */
+export function inicioSujetoAReanudar(estadoDeCampana: unknown, fase: Pick<FaseActiva, "situacion">, desde: string | null): string | null {
+  if (!["pausada", "necesita_humano"].includes(texto(estadoDeCampana))) return null
+  if (fase.situacion !== "antes" && fase.situacion !== "sin_fecha") return null
+  return `Inicio sujeto a reanudar${desde ? ` (previsto ${diaDelCalendario(desde)})` : ""}`
+}
+
 // ── lo que espera la campaña ──
 export interface EsperaCruda { objeto_tipo: string; motivo: string | null; vence_en: string | null; estado: string }
 export interface GrupoDeEsperas { tipo: string; etiqueta: string; n: number; vence_primero: string | null }
@@ -251,6 +271,15 @@ export function tipoDeEsperaLegible(tipo: unknown, motivo?: string | null): stri
     case "calendario": return "el calendario espera revisión"
     default: return texto(motivo) || texto(tipo).replace(/_/g, " ") || "espera"
   }
+}
+/** 4 · las esperas, separadas: las vigentes y las VENCIDAS (marcadas `vencida` por el reloj, o `viva` con su plazo ya pasado mientras el reloj no corre) */
+export function separarEsperas(esperas: EsperaCruda[], ahoraIso: string): { vigentes: EsperaCruda[]; vencidas: EsperaCruda[] } {
+  const vigentes: EsperaCruda[] = [], vencidas: EsperaCruda[] = []
+  for (const e of esperas) {
+    if (e.estado === "vencida" || (e.estado === "viva" && !!e.vence_en && e.vence_en < ahoraIso)) vencidas.push({ ...e, estado: "viva" })
+    else if (e.estado === "viva") vigentes.push(e)
+  }
+  return { vigentes, vencidas }
 }
 /** solo las vivas, agrupadas por tipo, de más a menos; cada grupo dice cuándo vence la primera */
 export function agruparEsperas(esperas: EsperaCruda[]): GrupoDeEsperas[] {

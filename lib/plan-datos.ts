@@ -11,7 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { faseActiva, hoyEnEcuador, type FaseActiva } from "@/lib/pizarron"
-import { agruparEsperas, decisionDelPlanLegible, estrategiaDelContenido, marcasDelChequeo, planDelTexto, puntosDeLoNoBuscado, puntosDelAviso, avanceDelPedido, queCambioDelTexto, versionDelTag, type CicloDelPlan, type EstrategiaLeida, type GrupoDeEsperas, type MarcaDelChequeo, type PlanLeido } from "@/lib/plan"
+import { agruparEsperas, nombreDelTramo, separarEsperas, type TopeDelTramo, decisionDelPlanLegible, estrategiaDelContenido, marcasDelChequeo, planDelTexto, puntosDeLoNoBuscado, puntosDelAviso, avanceDelPedido, queCambioDelTexto, versionDelTag, type CicloDelPlan, type EstrategiaLeida, type GrupoDeEsperas, type MarcaDelChequeo, type PlanLeido } from "@/lib/plan"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -48,7 +48,9 @@ export interface PlanDelCliente {
   }
   /** la última revisión del plan en la bandeja (pendiente o ya decidida) */
   revision: null | { id: string; titulo: string; creada_en: string; status: string; decision: string | null; vence_en: string | null }
-  esperas: { vivas: number; grupos: GrupoDeEsperas[] }
+  esperas: { vivas: number; grupos: GrupoDeEsperas[]; /** las vencidas, aparte (no se mezclan con las pendientes) */ vencidas: { n: number; grupos: GrupoDeEsperas[] } }
+  /** los topes vigentes de cada tramo de la planeación (catálogo `plan_catalogo_topes`) */
+  topes: TopeDelTramo[]
   /** el ciclo del plan sobre la versión vigente (null sin documento) */
   ciclo: CicloDelPlan | null
   leido_en: string
@@ -129,7 +131,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
   }
   if (!elegido) elegido = clientes.find((c) => c.con_campana) || clientes[0] || null
   const base = { clientes, hoy, leido_en: ahora.toISOString() }
-  const vacio = (cliente: PlanDelCliente["cliente"]): PlanDelCliente => ({ ...base, cliente, campana: null, estrategia: null, fase_activa: faseActiva([], null, hoy), documento: null, revision: null, esperas: { vivas: 0, grupos: [] }, ciclo: null })
+  const vacio = (cliente: PlanDelCliente["cliente"]): PlanDelCliente => ({ ...base, cliente, campana: null, estrategia: null, fase_activa: faseActiva([], null, hoy), documento: null, revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, ciclo: null, topes: [] })
   if (!elegido) return vacio(null)
   const cliente = { id: elegido.id, nombre: elegido.nombre }
 
@@ -149,23 +151,28 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     return una(qDoc.limit(1).maybeSingle(), "client_historical_outputs")
   })
   const cicloP = Promise.all([docP, versionesP]).then(([d, versiones]) => leerCiclo(supa, d, versiones, ahora))
+  const topesP = filas(supa.from("plan_catalogo_topes").select("tramo, usd, version, desde").eq("vigente", true).order("tramo", { ascending: true }).limit(20), "plan_catalogo_topes")
+    .then((xs) => xs.map((x): TopeDelTramo => ({ tramo: String(x.tramo ?? ""), nombre: nombreDelTramo(x.tramo), usd: Number(x.usd ?? 0), version: x.version == null ? null : Number(x.version), desde: t(x.desde) })))
 
   if (!camp) {
-    const [d, ciclo] = await Promise.all([docP, cicloP])
-    return { ...vacio(cliente), documento: documentoLeido(d), revision, ciclo }
+    const [d, ciclo, topes] = await Promise.all([docP, cicloP, topesP])
+    return { ...vacio(cliente), documento: documentoLeido(d), revision, ciclo, topes }
   }
   const campId = String(camp.id)
-  const [d, est, nFilas, ultimaVersion, esperas, ciclo] = await Promise.all([
+  const [d, est, nFilas, ultimaVersion, esperas, ciclo, topes, yaVencidas] = await Promise.all([
     docP,
     una(supa.from("cadena_estrategias").select("version, estado, contenido, texto_md, costo_usd, creada_en").eq("campana_id", campId).eq("seco", false).order("version", { ascending: false }).limit(1).maybeSingle(), "cadena_estrategias"),
     contar(supa.from("cadena_calendario_filas").select("*", { count: "exact", head: true }).eq("campana_id", campId).eq("seco", false), "cadena_calendario_filas"),
     una(supa.from("cadena_calendario_filas").select("calendario_version").eq("campana_id", campId).eq("seco", false).order("calendario_version", { ascending: false }).limit(1).maybeSingle(), "cadena_calendario_filas"),
     filas(supa.from("cadena_esperas").select("objeto_tipo, motivo, vence_en, estado").eq("campana_id", campId).eq("estado", "viva").eq("seco", false).order("vence_en", { ascending: true }).limit(300), "cadena_esperas"),
     cicloP,
+    topesP,
+    filas(supa.from("cadena_esperas").select("objeto_tipo, motivo, vence_en, estado").eq("campana_id", campId).eq("estado", "vencida").eq("seco", false).order("vence_en", { ascending: false }).limit(100), "cadena_esperas"),
   ])
   const estrategia = est ? { version: est.version == null ? null : Number(est.version), estado: String(est.estado ?? ""), creada_en: t(est.creada_en), costo_usd: est.costo_usd == null ? null : Number(est.costo_usd), texto_md: t(est.texto_md), ...estrategiaDelContenido(est.contenido) } : null
   const desde = t(camp.fecha_inicio)
-  const vivas = esperas.map((e) => ({ objeto_tipo: String(e.objeto_tipo ?? ""), motivo: t(e.motivo), vence_en: t(e.vence_en), estado: String(e.estado ?? "") }))
+  const crudas = [...esperas, ...yaVencidas].map((e) => ({ objeto_tipo: String(e.objeto_tipo ?? ""), motivo: t(e.motivo), vence_en: t(e.vence_en), estado: String(e.estado ?? "") }))
+  const { vigentes: vivas, vencidas } = separarEsperas(crudas, ahora.toISOString())
   return {
     ...base, cliente,
     campana: {
@@ -180,8 +187,9 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     fase_activa: faseActiva(estrategia?.fases ?? [], desde, hoy),
     documento: documentoLeido(d),
     revision,
-    esperas: { vivas: vivas.length, grupos: agruparEsperas(vivas) },
+    esperas: { vivas: vivas.length, grupos: agruparEsperas(vivas), vencidas: { n: vencidas.length, grupos: agruparEsperas(vencidas) } },
     ciclo,
+    topes,
   }
 }
 

@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import {
-  COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, avanceDelPedido, queCambioDelTexto, type AvanceCrudo, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
+  COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, avanceDelPedido, inicioSujetoAReanudar, nombreDelTramo, separarEsperas, queCambioDelTexto, type AvanceCrudo, cuerpoDeAprobar, cuerpoDePedirCambios, leerElCiclo, palabrasDeLaRespuesta, versionDelTag, type CicloDelPlan,
 } from "@/lib/plan"
 import { leerPlanDelCliente, type PlanDelCliente } from "@/lib/plan-datos"
 import { enviarAlCiclo } from "@/lib/plan-ciclo"
@@ -180,7 +180,7 @@ describe("CC6 · la lectura del ciclo (solo lectura)", () => {
 describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, historial", () => {
   const datos = (ciclo: CicloDelPlan, status = "draft"): PlanDelCliente => ({
     clientes: [{ id: CLIENTE, nombre: "Náufrago", con_campana: false }], cliente: { id: CLIENTE, nombre: "Náufrago" }, hoy: "2026-11-01",
-    campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [] }, leido_en: "x",
+    campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [], leido_en: "x",
     documento: { id: PLAN_V2, titulo: "Plan v2", creado_en: "2026-11-01T15:00:00Z", actualizado_en: null, status, estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: "Prosa", caracteres: 5, que_cambio: null },
     ciclo,
   })
@@ -248,7 +248,7 @@ describe("CC6 · ADENDA 1 · la barra de progreso del pedido de cambios", () => 
     const corriendo = avanceDelPedido(vacio({ pedido: ped({ estado: "en_reescritura" }), despachos: [{ status: "running", creado_en: "2026-11-01T16:21:00Z", empezo_en: "2026-11-01T16:21:10Z", termino_en: null }] }), AHORA)
     const d: PlanDelCliente = {
       clientes: [{ id: CLIENTE, nombre: "Náufrago", con_campana: false }], cliente: { id: CLIENTE, nombre: "Náufrago" }, hoy: "2026-11-01",
-      campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [] }, leido_en: "x",
+      campana: null, estrategia: null, fase_activa: faseActiva([], null, "2026-11-01"), revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [], leido_en: "x",
       documento: { id: PLAN_V2, titulo: "Plan v2", creado_en: null, actualizado_en: null, status: "draft", estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: "Prosa", caracteres: 5, que_cambio: "- La meta sube a 130." },
       ciclo: { ...base, version: 2, pedido: { id: "pc", estado: "en_reescritura", texto: "Sube la meta", vuelta: 2, despertado: true, despertar_detalle: null }, avance: corriendo },
     }
@@ -261,5 +261,28 @@ describe("CC6 · ADENDA 1 · la barra de progreso del pedido de cambios", () => 
   it("sin la ventana abierta el aviso es informativo, sin rojo", () => {
     expect(palabrasDeLaRespuesta("plan-aprobar", 501, { ok: false, error: "todavia_no_disponible" })).toMatchObject({ tono: "info", texto: "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada ni se gastó." })
     expect(readFileSync("components/nuevo/PanelPlan.tsx", "utf8")).toContain('aviso.tono === "info" ? "info"')
+  })
+})
+
+describe("CC6 · errores 3–5 del panel del plan (ENCARGO Lenovo 01-nov)", () => {
+  it("3 · los topes se leen del catálogo y se dicen en palabras", () => {
+    expect(nombreDelTramo("oficina")).toBe("Mesa de análisis"); expect(nombreDelTramo("redaccion")).toBe("Redactor del plan"); expect(nombreDelTramo("jefatura")).toBe("Jefatura"); expect(nombreDelTramo("algo_nuevo")).toBe("Algo nuevo")
+  })
+  it("4 · vencidas aparte: marcadas por el reloj o con el plazo pasado", () => {
+    const r = separarEsperas([
+      { objeto_tipo: "espera_video", motivo: null, vence_en: "2026-10-31T13:30:00Z", estado: "viva" },
+      { objeto_tipo: "fecha_inicio_propuesta", motivo: null, vence_en: "2026-11-01T05:00:00Z", estado: "vencida" },
+      { objeto_tipo: "aprobacion_bandeja", motivo: null, vence_en: null, estado: "viva" },
+      { objeto_tipo: "necesita_humano", motivo: null, vence_en: "2026-12-01T00:00:00Z", estado: "viva" },
+      { objeto_tipo: "x", motivo: null, vence_en: null, estado: "resuelta" },
+    ], "2026-11-01T16:00:00Z")
+    expect(r.vigentes.map((e) => e.objeto_tipo)).toEqual(["aprobacion_bandeja", "necesita_humano"])
+    expect(r.vencidas.map((e) => e.objeto_tipo)).toEqual(["espera_video", "fecha_inicio_propuesta"])
+  })
+  it("5 · campaña en pausa: el inicio no se muestra firme", () => {
+    expect(inicioSujetoAReanudar("pausada", { situacion: "antes" }, "2026-11-02")).toMatch(/^Inicio sujeto a reanudar \(previsto /)
+    expect(inicioSujetoAReanudar("necesita_humano", { situacion: "sin_fecha" }, null)).toBe("Inicio sujeto a reanudar")
+    expect(inicioSujetoAReanudar("activa", { situacion: "antes" }, "2026-11-02")).toBeNull()
+    expect(inicioSujetoAReanudar("pausada", { situacion: "en_curso" }, "2026-11-02")).toBeNull() // ya empezó: se dice el día como siempre
   })
 })

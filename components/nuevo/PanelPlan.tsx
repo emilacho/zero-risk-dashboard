@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
-import { BOTONES_DEL_PLAN, COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, COSTO_ESTIMADO_REESCRITURA, TOPE_REESCRITURA_USD, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
@@ -316,7 +316,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 <div className="mt-2 flex flex-wrap gap-2">
                   {c && <Chip tono={c.estado === "activa" ? "verde" : c.estado === "pausada" || c.estado === "necesita_humano" ? "ambar" : "neutro"}>campaña {estadoDeCampanaLegible(c.estado)}</Chip>}
                   {c && (c.desde || c.hasta) && <Chip>{c.desde ? diaDelCalendario(c.desde) : "—"} → {c.hasta ? diaDelCalendario(c.hasta) : "—"}</Chip>}
-                  {datos.fase_activa.situacion !== "sin_fecha" && c && <Chip>{textoDeLaFase({ fase_activa: datos.fase_activa, campana: { desde: c.desde } as never })}</Chip>}
+                  {c && (() => { const sujeto = inicioSujetoAReanudar(c.estado, datos.fase_activa, c.desde); return sujeto ? <Chip tono="ambar">{sujeto}</Chip> : datos.fase_activa.situacion !== "sin_fecha" ? <Chip>{textoDeLaFase({ fase_activa: datos.fase_activa, campana: { desde: c.desde } as never })}</Chip> : null })()}
                   {e && <Chip>estrategia v{e.version ?? "?"} · {e.estado}</Chip>}
                   {d && <Chip>plan escrito {d.creado_en ? fechaCortaEC(d.creado_en) : ""}</Chip>}
                   {d && <Chip tono={d.estado_del_plan === "con_pendientes" ? "ambar" : "neutro"}>{estadoDelPlanLegible(d.estado_del_plan)}{d.marcas.length ? ` · ${d.marcas.length}` : ""}</Chip>}
@@ -327,7 +327,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                   <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-4">
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Sedes</dt><dd className="text-zinc-200">{c.sedes.length ? c.sedes.map(sedeLegible).join(" · ") : "—"}</dd></div>
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Publicaciones</dt><dd className="text-zinc-200">{c.publicaciones}{c.version_calendario != null ? ` · calendario v${c.version_calendario}` : ""}</dd></div>
-                    <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Tope de planeación</dt><dd className="text-zinc-200" title="Lo máximo que gasta la planeación de esta campaña; no es pauta ni presupuesto del cliente">{usdES(c.tope_planeacion_usd)}</dd></div>
+                    <div data-topes><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Topes de la planeación</dt><dd className="text-zinc-200" title={datos.topes.length ? `Catálogo de topes de la plataforma · vigentes${datos.topes[0].desde ? ` desde ${fechaCortaEC(datos.topes[0].desde)}` : ""} · leído ${datos.leido_en.slice(11, 16)}Z` : "Sin dato en el catálogo de topes"}>{datos.topes.length ? <ul className="space-y-0.5">{datos.topes.map((x) => <li key={x.tramo} data-tope={x.tramo} className="flex justify-between gap-3"><span className="text-zinc-400">{x.nombre}</span><span className="tabular-nums">{usdES(x.usd)}</span></li>)}</ul> : <span className="italic text-zinc-500">sin dato</span>}</dd></div>
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Producción</dt><dd className="text-zinc-200">{c.autoproducir ? "la oficina produce sola" : "cada pieza se pide"}</dd></div>
                   </dl>
                 )}
@@ -474,6 +474,15 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                       </ul>
                     )}
                     {c && datos.esperas.vivas > 0 && <p className="mt-3 text-[11px] text-zinc-500">{datos.esperas.vivas} esperas vivas en total · cada una tiene reloj.</p>}
+                    {c && datos.esperas.vencidas.n > 0 && (
+                      <div data-vencidas className="mt-4 border-t border-white/10 pt-3">
+                        <h4 className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Vencidas · {datos.esperas.vencidas.n}</h4>
+                        <ul className="mt-1.5 space-y-1.5" aria-label="Las esperas vencidas">
+                          {datos.esperas.vencidas.grupos.map((g) => <li key={g.tipo} data-vencida={g.tipo} className="flex gap-2 text-[12px] text-zinc-500"><span className="shrink-0 rounded-md border border-white/10 px-1.5 tabular-nums">{g.n}</span><span>{g.etiqueta}{g.vence_primero ? <span className="block text-[11px]">venció {fechaCortaEC(g.vence_primero)}</span> : null}</span></li>)}
+                        </ul>
+                        <p className="mt-1.5 text-[11px] text-zinc-600">Vencieron sin resolverse: ya no esperan nada (las cierra el reloj de la cadena).</p>
+                      </div>
+                    )}
                   </section>
                   {d && d.no_se_busco.length > 0 && (
                     <section className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
