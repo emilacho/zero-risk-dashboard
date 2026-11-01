@@ -1,10 +1,10 @@
 /** Dashboard nuevo · CC6 Sprint 1 (01-nov): la escena viva de la oficina de marketing. 6 mesas · solo se sienta el que trabaja ahora · ficha con el agente real, fuente y hora. US$ 0 · sin red. */
 import { describe, expect, it } from "vitest"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import {
-  alSuelo, armarEscena, asientosDeLaMesa, CAMARA, colocarFiguras, FOTO, giroHaciaElMonitor, invocacionCierraElDespacho, lineasDeLaFicha, MAXIMO_DE_FIGURAS, MAXIMO_POR_MESA, MESAS, MESAS_EXTRA, mesaDelAgente,
+  alSuelo, armarEscena, asientosDeLaMesa, CAMARA, colocarFiguras, FOTO, giroHaciaElMonitor, invocacionCierraElDespacho, lineasDeLaFicha, MAXIMO_DE_FIGURAS, MAXIMO_POR_MESA, MESAS, mesaDelAgente,
   MINUTOS_FALLO, MINUTOS_TOPE, NOMBRES_SPLINE, nombreDelFlujo, pasoDe, proyectar, tableroDeLaMesa, type Despacho, type EntradaDeLaEscena, type InvocacionViva,
 } from "@/lib/escena-avatares"
 import { leerEscenaViva, LIMITE_DE_INVOCACIONES } from "@/lib/escena-avatares-datos"
@@ -24,30 +24,29 @@ const base = (extra: Partial<EntradaDeLaEscena> = {}): EntradaDeLaEscena => ({
 })
 
 describe("las 6 mesas del boceto aprobado", () => {
-  it("son 6, en el orden del organigrama, en rejilla simétrica 3 × 2: Dirección, Estrategia y Creativo de la foto; Web, Medios y Relaciones copias idénticas de Creativo", () => {
+  it("son 6, en el orden del organigrama, todas EN la foto regenerada, en rejilla de 2 filas × 3 columnas con el mismo paso", () => {
     expect(MESAS.map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo", "web", "medios", "relaciones"])
     expect(MESAS.filter((m) => m.etapa === "activo").map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo"])
-    expect(MESAS.filter((m) => !m.en_la_foto).map((m) => m.clave)).toEqual(["web", "medios", "relaciones"])
+    expect(MESAS.every((m) => m.en_la_foto)).toBe(true) // ya no hay capas de retoque
     for (const m of MESAS) for (const p of [m.silla, m.monitor, m.rotulo, m.centro]) { expect(p.x).toBeGreaterThan(0); expect(p.x).toBeLessThan(FOTO.w); expect(p.y).toBeGreaterThan(0); expect(p.y).toBeLessThan(FOTO.h) }
     expect(tableroDeLaMesa(MESAS[0]).split(" ")).toHaveLength(4)
-    // rejilla simétrica: columnas separadas por el mismo paso en cada fila y filas separadas por el mismo paso en cada columna
+    // rejilla: el paso entre columnas y entre filas es el mismo en toda la oficina (± 16 px por la perspectiva del render)
     const m = (k: string) => MESAS.find((x) => x.clave === k)!.monitor
     const resta = (p: { x: number; y: number }, q: { x: number; y: number }) => ({ x: p.x - q.x, y: p.y - q.y })
-    const col = resta(m("creativo"), m("estrategia"))
-    expect(resta(m("web"), m("direccion"))).toEqual(col)
-    expect(resta(m("relaciones"), m("medios"))).toEqual(col)
-    const fila = resta(m("direccion"), m("estrategia"))
-    expect(resta(m("medios"), m("direccion"))).toEqual(fila)
-    expect(resta(m("web"), m("creativo"))).toEqual(fila)
-    // las 2 nuevas son Creativo trasladada: silla, monitor y centro con el mismo traslado de la capa de imagen
-    const creativo = MESAS[2]
-    for (const k of ["web", "medios", "relaciones"] as const) {
-      const m = MESAS.find((x) => x.clave === k)!, d = MESAS_EXTRA.traslados[k]
-      for (const c of ["silla", "monitor", "centro"] as const) expect(m[c]).toEqual({ x: creativo[c].x + d.x, y: creativo[c].y + d.y })
-      // y caen dentro de la caja de la imagen
-      expect(m.monitor.x).toBeGreaterThan(MESAS_EXTRA.caja.x); expect(m.monitor.x).toBeLessThan(MESAS_EXTRA.caja.x + MESAS_EXTRA.caja.w)
-      expect(m.silla.y).toBeGreaterThan(MESAS_EXTRA.caja.y); expect(m.silla.y).toBeLessThan(MESAS_EXTRA.caja.y + MESAS_EXTRA.caja.h)
-    }
+    const cerca = (a: { x: number; y: number }, b: { x: number; y: number }) => { expect(Math.abs(a.x - b.x)).toBeLessThanOrEqual(16); expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(16) }
+    const col = resta(m("estrategia"), m("direccion"))
+    for (const [a, b] of [["creativo", "estrategia"], ["medios", "web"], ["relaciones", "medios"]] as const) cerca(resta(m(a), m(b)), col)
+    const fila = resta(m("web"), m("direccion"))
+    for (const [a, b] of [["medios", "estrategia"], ["relaciones", "creativo"]] as const) cerca(resta(m(a), m(b)), fila)
+    // la silla y el centro guardan el mismo desplazamiento respecto del monitor en las 6
+    const d0 = resta(MESAS[0].silla, MESAS[0].monitor)
+    for (const x of MESAS) expect(resta(x.silla, x.monitor)).toEqual(d0)
+  })
+  it("la foto de la oficina es la regenerada: 6 pantallas encendidas en los monitores de las mesas", () => {
+    const foto = readFileSync("public/nuevo/marketing-2560.jpg")
+    expect(foto.length).toBeGreaterThan(150_000); expect(foto.length).toBeLessThan(400_000)
+    expect(existsSync("public/nuevo/marketing-oficina-simetrica.webp")).toBe(false) // la capa de retoques se fue
+    expect(existsSync("public/nuevo/marketing-mesas-y-vidrio.webp")).toBe(false)
   })
   it("un solo sentado va en la silla; varios se reparten a lo largo de la mesa; nunca más de MAXIMO_POR_MESA", () => {
     const m = MESAS[1]
@@ -210,14 +209,13 @@ describe("la lectura y la ruta", () => {
     expect(escena).toContain('import { Avatares } from "@/components/nuevo/escena/Avatares"')
     expect(escena).toMatch(/depto === "marketing" && \(<>[\s\S]*<Avatares \/>[\s\S]*<\/>\)\}/)
   })
-  it("antes del dato la capa dibuja las 6 mesas vacías (2 de ellas en la capa de mesas nuevas, sin punteado), sin sentados ni fichas", () => {
+  it("antes del dato la capa dibuja las 6 mesas vacías (todas de la foto, sin punteado), sin sentados ni fichas", () => {
     const html = renderToStaticMarkup(createElement(Avatares))
     expect(html.match(/data-mesa="/g)).toHaveLength(6)
-    // pedido de Emilio 01-nov: nada de mesas punteadas; las 2 nuevas son una imagen aparte (copia idéntica) que entra y sale con la foto
+    // pedido de Emilio 01-nov: nada de mesas punteadas
     expect(html).not.toContain("nv-av-punteada")
     expect(html).not.toContain("stroke-dasharray")
-    expect(html).toContain('src="/nuevo/marketing-oficina-simetrica.webp"')
-    expect(html).toMatch(/class="nv-foto-b nv-av-mesas-extra[^"]*"/)
+    expect(html).not.toContain("nv-av-mesas-extra") // sin capas encima de la foto
     expect(html).not.toContain('class="nv-av-asiento"')
     expect(html).not.toContain('role="tooltip"')
     expect(html).toContain("MEDIOS Y PERFORMANCE")
