@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { leerEventos, leerPedido, textoParaVoz } from "@/lib/chat-oficinas"
+import { causaDelFallo, leerEventos, leerPedido, textoParaVoz } from "@/lib/chat-oficinas"
 
 const leer = (p: string) => readFileSync(p, "utf8").replace(/\r\n/g, "\n")
 
@@ -84,10 +84,29 @@ describe("chat de /nuevo · lo que el servidor puede y no puede hacer", () => {
 
 describe("chat de /nuevo · el cuadro", () => {
   const c = leer("components/nuevo/ChatDeOficinas.tsx")
-  it("sigue siempre visible: la conversación se abre encima y el cuadro se queda", () => {
+  it("sigue siempre visible: el cuadro nunca se oculta ni se tapa", () => {
     expect(c).toContain("data-chat-de-oficinas")
-    expect(c).toContain("absolute bottom-full")
     expect(c).toContain("Habla con tus oficinas…")
+    expect(c).not.toContain("absolute bottom-full")
+  })
+  it("las respuestas van AL LADO del cuadro: solo texto blanco, sin ventana, borde, fondo, desenfoque ni botón de cerrar", () => {
+    const zona = c.slice(c.indexOf("data-chat-respuestas"), c.indexOf("<form onSubmit"))
+    expect(zona.length).toBeGreaterThan(200)
+    expect(zona).toContain("text-white")
+    expect(zona).toContain("overflow-y-auto")
+    expect(zona).toContain("min-[1100px]:left-full")
+    expect(zona).not.toMatch(/bg-(?!transparent)|border|border-|rounded-|backdrop|shadow|role="dialog"|aria-modal/)
+    expect(c).not.toContain("data-chat-conversacion")
+    expect(c).not.toContain("Cerrar la conversación")
+  })
+  it("una respuesta larga se ve completa: nada la corta (sin line-clamp, sin truncate, sin altura que esconda texto)", () => {
+    const zona = c.slice(c.indexOf("data-chat-respuestas"), c.indexOf("<form onSubmit"))
+    expect(zona).not.toMatch(/line-clamp|truncate|text-ellipsis|overflow-hidden/)
+  })
+  it("el error se dice con su causa en vez del genérico, y un fallo que no es del flujo (500, 404) también", () => {
+    expect(c).toContain("causaDelFallo(fallo)")
+    expect(c).not.toContain("No pude responder ahora. Inténtalo")
+    expect(c).toMatch(/!r\.ok && !\(r\.headers\.get\("content-type"\)/)
   })
   it("el micrófono usa solo el navegador (sin costo) y se corta al tocarlo de nuevo", () => {
     expect(c).toMatch(/SpeechRecognition/)
@@ -103,5 +122,37 @@ describe("chat de /nuevo · el cuadro", () => {
   it("lo que pide construir se anota como pedido solo al tocar el botón", () => {
     expect(c).toContain("/api/cowork/pedido")
     expect(c).toContain("Dejar como pedido")
+  })
+})
+
+describe("chat de /nuevo · la causa del fallo", () => {
+  it("sesión vencida, sin permiso y sin llave se dicen claro", () => {
+    expect(causaDelFallo({ message: "unauthenticated" })).toMatch(/sesión venció/)
+    expect(causaDelFallo({ message: "forbidden" })).toMatch(/permiso de administrador.*403/)
+    expect(causaDelFallo({ message: "anthropic_api_key_missing" })).toMatch(/no tiene la llave/)
+  })
+  it("el proveedor: llave rechazada, sin saldo, límite, saturado, modelo y permiso", () => {
+    const e = (status: number, type: string, message = "x") => causaDelFallo({ message: "anthropic_api_error", status, details: JSON.stringify({ type: "error", error: { type, message } }) })
+    expect(e(401, "authentication_error")).toMatch(/rechazó la llave.*401/)
+    expect(e(400, "invalid_request_error", "Your credit balance is too low to access the API")).toMatch(/no hay saldo/)
+    expect(e(403, "permission_error")).toMatch(/no permite esta llave.*403/)
+    expect(e(404, "not_found_error")).toMatch(/no encuentra el modelo/)
+    expect(e(429, "rate_limit_error")).toMatch(/429/)
+    expect(e(529, "overloaded_error")).toMatch(/saturado/)
+    expect(e(500, "api_error")).toMatch(/saturado o caído \(500\)/)
+  })
+  it("un detalle que no es JSON no rompe la explicación y nunca deja pasar una llave", () => {
+    expect(causaDelFallo({ message: "anthropic_api_error", status: 400, details: "<html>" })).toMatch(/respondió 400/)
+    const t = causaDelFallo({ message: "anthropic_api_error", status: 400, details: JSON.stringify({ error: { type: "invalid_request_error", message: "bad key sk-ant-api03-ABCDEF" } }) })
+    expect(t).not.toMatch(/sk-ant/)
+    expect(t).toContain("***")
+  })
+  it("un fallo que no vino del flujo se dice con el código; sin conexión y corte también", () => {
+    expect(causaDelFallo({ http: 500 })).toMatch(/dashboard falló \(500\)/)
+    expect(causaDelFallo({ http: 404 })).toMatch(/rechazó el mensaje \(404\)/)
+    expect(causaDelFallo({ message: "sin_conexion" })).toMatch(/revisa tu conexión/)
+    expect(causaDelFallo({ message: "stream_interrupted" })).toMatch(/se cortó/)
+    expect(causaDelFallo({ message: "algo raro" })).toContain("algo raro")
+    expect(causaDelFallo({})).toMatch(/No pude responder/)
   })
 })
