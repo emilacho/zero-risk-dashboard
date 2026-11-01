@@ -367,6 +367,7 @@ const MOTIVOS_DEL_CICLO: Record<string, string> = {
 }
 const RELEER_TRAS = ["no_es_el_vigente", "plan_ya_aprobado", "plan_inexistente", "reescritura_en_curso", "plan_en_revision"]
 const NO_DISPONIBLE = "Aún no disponible: el ciclo del plan todavía no está abierto en la plataforma. No se cambió nada ni se gastó."
+const PUEDE_NO_ESTAR = "No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada ni se gastó."
 export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", status: number, cuerpo: unknown): RespuestaDelCiclo {
   const c = objeto(cuerpo)
   if (status === 200 && c.ok === true) {
@@ -392,9 +393,16 @@ export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", s
   const err = crudo(c.error)
   const codigo = texto(plat.error) || crudo(c.detalle) || (err !== "conflicto" && err !== "la_plataforma_rechazo" ? err : "")
   if (MOTIVOS_DEL_CICLO[codigo]) return { ok: false, texto: MOTIVOS_DEL_CICLO[codigo], reintentar: false, releer: RELEER_TRAS.includes(codigo) }
+  // NOTA de CC1 (01-nov): antes de la «ventana» las dos puertas responden 500 `planes_error` (sus tablas no existen) y después ese código sería un fallo real
+  // de la base: un solo texto sirve para ambos casos, y el detalle técnico NO se muestra al dueño
+  const platErr = texto(c.plataforma_error)
   const detalle = texto(c.detalle)
-  // la plataforma tiene la puerta pero aún no sus tablas (antes de la «ventana»): es «aún no disponible», no un error raro
-  if (/schema cache|does not exist|PGRST20[45]|42P01|plan_aprobaciones|plan_cambios/i.test(detalle)) return { ok: false, texto: NO_DISPONIBLE, reintentar: false, releer: false }
+  if (platErr === "planes_error" || detalle === "planes_error") return { ok: false, texto: PUEDE_NO_ESTAR, reintentar: false, releer: false }
+  // la plataforma tiene la puerta pero aún no sus tablas: igual, sin detalle técnico
+  if (/schema cache|does not exist|PGRST20[45]|42P01|plan_aprobaciones|plan_cambios/i.test(detalle)) return { ok: false, texto: PUEDE_NO_ESTAR, reintentar: false, releer: false }
+  // un fallo de la plataforma (5xx) no se cuenta con su texto técnico; un rechazo con motivo legible, sí
+  const plataformaStatus = numero(c.plataforma_status)
+  if (plataformaStatus != null && plataformaStatus >= 500) return { ok: false, texto: "No se pudo completar: la plataforma tuvo un problema. No se cambió nada.", reintentar: false, releer: false }
   return { ok: false, texto: `No se pudo${detalle ? `: ${detalle}` : ` (${status})`}. No se cambió nada.`, reintentar: false, releer: false }
 }
 

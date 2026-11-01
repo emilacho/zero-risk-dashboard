@@ -87,6 +87,12 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
     const sinPuerta = (async () => new Response("not found", { status: 404 })) as unknown as typeof fetch
     const r3 = await ejecutarAccion("plan-cambios", cuerpoDePedirCambios(PLAN, "Sube la meta a 130"), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: sinPuerta })
     expect(r3.status).toBe(501); expect(palabrasDeLaRespuesta("plan-cambios", r3.status, r3.cuerpo).texto).toMatch(/^Aún no disponible/)
+    // NOTA de CC1: antes de la ventana las puertas responden 500 `planes_error` con un detalle técnico de la base → un texto que sirve antes y después, sin el detalle
+    const planesError = (async () => new Response(JSON.stringify({ ok: false, error: "planes_error", detalle: "relation \"public.plan_cambios\" does not exist" }), { status: 500 })) as unknown as typeof fetch
+    const r4 = await ejecutarAccion("plan-cambios", cuerpoDePedirCambios(PLAN, "Sube la meta a 130"), { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: planesError })
+    expect(r4.status).toBe(502); expect(r4.cuerpo).toMatchObject({ plataforma_error: "planes_error", plataforma_status: 500 })
+    const palabras = palabrasDeLaRespuesta("plan-cambios", r4.status, r4.cuerpo).texto
+    expect(palabras).toBe("No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada ni se gastó."); expect(palabras).not.toMatch(/relation|plan_cambios|planes_error/)
   })
 })
 
@@ -107,7 +113,8 @@ describe("CC6 · las respuestas de la puerta en palabras", () => {
       const r = palabrasDeLaRespuesta("plan-cambios", 502, { ok: false, error: "la_plataforma_rechazo", plataforma_status: 400, detalle: codigo })
       expect(r.texto).not.toContain(codigo); expect(r.texto).toContain("No se gastó nada")
     }
-    expect(palabrasDeLaRespuesta("plan-cambios", 502, { ok: false, error: "la_plataforma_rechazo", detalle: "Could not find the table 'public.plan_cambios' in the schema cache" }).texto).toMatch(/^Aún no disponible/)
+    expect(palabrasDeLaRespuesta("plan-cambios", 502, { ok: false, error: "la_plataforma_rechazo", detalle: "Could not find the table 'public.plan_cambios' in the schema cache" }).texto).toBe("No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada ni se gastó.")
+    expect(palabrasDeLaRespuesta("plan-aprobar", 502, { ok: false, error: "la_plataforma_rechazo", plataforma_status: 500, detalle: "timeout de la base" }).texto).not.toContain("timeout") // un 5xx no se cuenta con su texto técnico
     expect(palabrasDeLaRespuesta("plan-aprobar", 401, {}).texto).toContain("sesión venció")
   })
   it("el panel envía por la puerta del tablero y no por su cuenta", async () => {
