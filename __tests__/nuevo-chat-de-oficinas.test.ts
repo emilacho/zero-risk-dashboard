@@ -149,6 +149,9 @@ describe("chat de /nuevo · la causa del fallo", () => {
   })
   it("un fallo que no vino del flujo se dice con el código; sin conexión y corte también", () => {
     expect(causaDelFallo({ http: 500 })).toMatch(/dashboard falló \(500\)/)
+    // el control de acceso del dashboard corta con 401/403 en JSON antes de llegar a la ruta
+    expect(causaDelFallo({ http: 401 })).toMatch(/sesión venció/)
+    expect(causaDelFallo({ http: 403 })).toMatch(/permiso de administrador/)
     expect(causaDelFallo({ http: 404 })).toMatch(/rechazó el mensaje \(404\)/)
     expect(causaDelFallo({ message: "sin_conexion" })).toMatch(/revisa tu conexión/)
     expect(causaDelFallo({ message: "stream_interrupted" })).toMatch(/se cortó/)
