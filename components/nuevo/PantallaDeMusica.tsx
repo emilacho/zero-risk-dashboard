@@ -13,7 +13,7 @@ import { AVISO_MEZCLA, AVISO_SIN_ENLACE, AVISO_SPOTIFY_SESION, ENLACE_DE_LA_MUSI
  *  · YouTube: el iframe nace con el toque (`autoplay=1`) y se quita al tocar otra vez.
  */
 const FOTO = { w: 2560, h: 1440 }
-const TAM_ROTULO = 32 // como el rótulo del Centro de campaña dentro de marketing (≈ 26 px de la sala en pantalla)
+const TAM_ROTULO = 10 // 6.15 (Emilio): «reduce el tamaño de las letras que dicen música en 70 %» → 32 × 0,3 ≈ 10 (cabe en el ancho de la pantalla chica)
 const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
 
 const ESTILO = `

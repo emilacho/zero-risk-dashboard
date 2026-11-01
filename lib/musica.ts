@@ -80,8 +80,8 @@ export const AVISO_SPOTIFY_SESION = "Si tu cuenta de Spotify está abierta en es
 export const PANTALLA_MUSICA = {
   clave: "musica",
   nombre: "Música",
-  rotulo: { x: 1168, y: 416, texto: "MÚSICA" },
-  forma: "1136,449 1196,440 1200,467 1140,476",
+  rotulo: { x: 1168, y: 435, texto: "MÚSICA" }, // 6.15: letras al 30 % → el rótulo baja a pegarse al borde superior de la pantalla
+  forma: "1139,447 1197,440 1199,465 1142,472", // 6.15: afinada sobre el vidrio
   /** dónde aparece el reproductor (fracción de la foto): sobre la losa vacía a la izquierda, debajo de la consola */
   caja: { x: 0.245, y: 0.40, w: 0.205 },
 } as const
