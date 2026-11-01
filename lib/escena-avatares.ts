@@ -133,17 +133,15 @@ export function estadoDeLaMesa(m: Pick<MesaViva, "trabajando" | "fallando" | "et
   return m.etapa === "segunda_etapa" ? "por activar · nadie trabaja" : "en espera · nadie trabaja ahora"
 }
 
-/** los puestos del equipo completo de una mesa: dos filas al frente del escritorio (la de adelante primero), de hasta FILA_DE_PUESTOS cada una; el resto se dice «+N» */
-export const FILA_DE_PUESTOS = 7
-export const PASO_ENTRE_PUESTOS = 28
-export const MAXIMO_DE_PUESTOS = FILA_DE_PUESTOS * 2
+/** los puestos del equipo de una mesa: personas sentadas en fila junto al escritorio, del lado de la silla de la foto (como en una oficina isométrica), de a PASO_ENTRE_PUESTOS;
+ *  los que no caben se dicen «+N» y la lista completa sigue al tocar la mesa. El de más a la izquierda es el primero (quien trabaja se ordena primero) */
+export const FILA_DE_PUESTOS = 4
+export const PASO_ENTRE_PUESTOS = 46
+export const MAXIMO_DE_PUESTOS = FILA_DE_PUESTOS
 export function puestosDeLaMesa(m: Pick<Mesa, "centro">, n: number): Punto[] {
   const k = Math.min(Math.max(n, 0), MAXIMO_DE_PUESTOS)
   return Array.from({ length: k }, (_, i) => {
-    const fila = Math.floor(i / FILA_DE_PUESTOS), col = i % FILA_DE_PUESTOS
-    const enLaFila = Math.min(FILA_DE_PUESTOS, k - fila * FILA_DE_PUESTOS)
-    const u = (col - (enLaFila - 1) / 2) * PASO_ENTRE_PUESTOS
-    const v = 66 + fila * 34
+    const u = -64, v = (i - (k - 1) / 2) * PASO_ENTRE_PUESTOS
     return { x: Math.round(m.centro.x + u * U.x + v * V.x), y: Math.round(m.centro.y + u * U.y + v * V.y) }
   })
 }

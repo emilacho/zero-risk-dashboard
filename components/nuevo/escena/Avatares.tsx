@@ -41,17 +41,19 @@ const ESTILO = `
 .nv-av .nv-av-asiento{pointer-events:auto;cursor:default;outline:none}
 .nv-av .nv-av-asiento rect{fill:transparent}
 .nv-av .nv-av-sombra{fill:rgba(0,0,0,.45)}
-.nv-av .nv-av-cuerpo,.nv-av .nv-av-cabeza{fill:#16130f;stroke:rgba(255,170,60,.34);stroke-width:1.7;transition:stroke .3s ease,filter .3s ease}
+.nv-av .nv-av-silla{fill:#0c0a08;stroke:rgba(255,170,60,.22);stroke-width:1.5}
+.nv-av .nv-av-cuerpo,.nv-av .nv-av-cabeza{fill:#1b1712;stroke:rgba(255,170,60,.34);stroke-width:1.7;transition:stroke .3s ease,filter .3s ease}
 .nv-av .nv-av-franja{opacity:.5;transition:opacity .3s ease}
 .nv-av .nv-av-fig[data-estado="reciente"] .nv-av-cuerpo,.nv-av .nv-av-fig[data-estado="reciente"] .nv-av-cabeza{stroke:rgba(255,170,60,.55)}
 .nv-av .nv-av-fig[data-estado="reciente"] .nv-av-franja{opacity:.75}
 .nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-cuerpo,.nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-cabeza{stroke:#ffb347;filter:drop-shadow(0 0 5px rgba(255,160,50,.85))}
 .nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-franja{opacity:1}
-.nv-av .nv-av-fig[data-estado="trabajando"]{animation:nvAvRespira 3s ease-in-out infinite}
+.nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-persona{animation:nvAvInclina 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+.nv-av .nv-av-fig[data-estado="trabajando"] .nv-av-silla{stroke:rgba(255,170,60,.5)}
 .nv-av .nv-av-fig[data-estado="fallo"] .nv-av-cuerpo,.nv-av .nv-av-fig[data-estado="fallo"] .nv-av-cabeza{stroke:#ff5a4a;filter:drop-shadow(0 0 5px rgba(255,80,60,.8))}
 .nv-av .nv-av-fig[data-estado="fallo"] .nv-av-franja{opacity:.9}
 .nv-av .nv-av-asiento:hover .nv-av-cuerpo,.nv-av .nv-av-asiento:hover .nv-av-cabeza,.nv-av .nv-av-asiento:focus-visible .nv-av-cuerpo,.nv-av .nv-av-asiento:focus-visible .nv-av-cabeza{stroke:rgba(255,215,150,.95)}
-@keyframes nvAvRespira{0%,100%{opacity:1}50%{opacity:.82}}
+@keyframes nvAvInclina{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px) rotate(-1.2deg)}}
 .nv-av .nv-av-ficha,.nv-av .nv-av-lista{pointer-events:auto;animation:nvAvEntra .25s ease both}
 @keyframes nvAvLate{0%,100%{opacity:.9}50%{opacity:.55}}
 @keyframes nvAvLateRojo{0%,100%{opacity:.85}50%{opacity:.4}}
@@ -59,14 +61,19 @@ const ESTILO = `
 @media (prefers-reduced-motion:reduce){.nv-av .nv-av-fig{animation:none!important}.nv-av .nv-av-luz[data-on]{animation:none}.nv-av .nv-av-ficha,.nv-av .nv-av-lista{animation:none}.nv-av .nv-av-rotulo,.nv-av .nv-av-luz{transition:none}}
 `
 
-/** una figura sentada en su puesto, en el estilo de la escena: cuerpo oscuro con borde de luz, la franja del color de su equipo en el hombro; brilla si trabaja, late en rojo si falló */
+/** una persona sentada en su puesto, de espaldas a la cámara frente al escritorio, en el estilo de la escena: silla y cuerpo oscuros con borde de luz, la franja del color de su equipo en los hombros;
+ *  brilla si trabaja (y se inclina un poco hacia el monitor), late en rojo si falló. El origen es el asiento. */
 function Figura({ x, y, color, estado }: { x: number; y: number; color: string; estado: EstadoDelMiembro }) {
   return (
-    <g className="nv-av-fig" data-estado={estado} transform={`translate(${x} ${y})`}>
-      <ellipse className="nv-av-sombra" cx={0} cy={2} rx={13} ry={4.5} />
-      <path className="nv-av-cuerpo" d="M-12 0 C-13 -12 -9 -22 -5 -24 L5 -24 C9 -22 13 -12 12 0 Z" />
-      <path className="nv-av-franja" d="M-8.6 -17 L8.6 -17 L9.4 -13 L-9.4 -13 Z" fill={color} />
-      <circle className="nv-av-cabeza" cx={0} cy={-32} r={8.5} />
+    <g className="nv-av-fig" data-estado={estado} transform={`translate(${x} ${y}) scale(.9)`}>
+      <ellipse className="nv-av-sombra" cx={0} cy={4} rx={25} ry={8} />
+      <path className="nv-av-silla" d="M-19 -8 C-21 -34 -17 -52 -9 -54 L9 -54 C17 -52 21 -34 19 -8 Q0 0 -19 -8 Z" />
+      <rect className="nv-av-silla" x={-3} y={-2} width={6} height={9} rx={2} />
+      <g className="nv-av-persona">
+        <path className="nv-av-cuerpo" d="M-17 -12 C-19 -30 -14 -44 -7 -47 L7 -47 C14 -44 19 -30 17 -12 Q0 -6 -17 -12 Z" />
+        <path className="nv-av-franja" d="M-12.5 -38 L12.5 -38 L13.8 -31 L-13.8 -31 Z" fill={color} />
+        <circle className="nv-av-cabeza" cx={0} cy={-58} r={11.5} />
+      </g>
     </g>
   )
 }
@@ -173,18 +180,18 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
                   <text x={m.rotulo.x} y={m.rotulo.y + 24} textAnchor="middle" fill={m.sentados.length ? "#ffd9a0" : "#9a9a9a"} fontSize={17} fontFamily="system-ui, Arial, sans-serif">{subtitulo}</text>
                 </g>
               </g>
-              {/* el equipo completo en su puesto, al frente del escritorio: los de la fila de atrás se dibujan primero. Trabajando = brilla; sin trabajo = figura quieta (el monitor de la mesa sigue negro) */}
+              {/* los que caben, sentados en su puesto al frente del escritorio, de izquierda a derecha. Trabajando = brilla; sin trabajo = figura quieta (el monitor de la mesa sigue negro) */}
               {[...puestos].sort((a, b) => a.pt.y - b.pt.y).map(({ p, pt }) => {
                 const k = `${m.clave}|${p.agente}`
                 return (
                   <g key={k} className="nv-av-asiento" data-agente={p.agente} data-estado={p.estado} role="img" tabIndex={p.estado === "trabajando" || p.estado === "fallo" ? 0 : -1} aria-label={`${p.nombre}. ${m.nombre}. ${p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? "con fallo" : "sin trabajar ahora"}`}
                     onMouseEnter={() => setFicha(k)} onMouseLeave={() => setFicha((f) => (f === k ? null : f))} onFocus={() => setFicha(k)} onBlur={() => setFicha((f) => (f === k ? null : f))}>
                     <Figura x={pt.x} y={pt.y} color={m.color} estado={p.estado} />
-                    <rect x={pt.x - 15} y={pt.y - 46} width={30} height={50} />
+                    <rect x={pt.x - 24} y={pt.y - 72} width={48} height={80} />
                   </g>
                 )
               })}
-              {deMas > 0 && puestos.length > 0 && <text x={puestos[puestos.length - 1].pt.x + 22} y={puestos[puestos.length - 1].pt.y - 14} fill="#ffd9a0" fontSize={20} fontFamily="system-ui, Arial, sans-serif">+{deMas}</text>}
+              {deMas > 0 && puestos.length > 0 && <text x={puestos[puestos.length - 1].pt.x + 34} y={puestos[puestos.length - 1].pt.y - 22} fill="#ffd9a0" fontSize={24} fontFamily="system-ui, Arial, sans-serif">+{deMas}</text>}
             </g>
           )
         })}
@@ -198,7 +205,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
       {/* la ficha al pasar el cursor por una figura */}
       {enFicha && posFicha && (
         <div role="tooltip" className="nv-av-ficha absolute z-[3] w-max max-w-[22rem] -translate-y-full rounded-xl border border-amber-400/60 bg-[#0e0c0a]/95 px-3.5 py-2.5 text-[12px] leading-[1.45] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
-          style={{ left: pct(posFicha.x + 24, FOTO.w), top: pct(posFicha.y - 56, FOTO.h) }} data-ficha={enFicha.agente}>
+          style={{ left: pct(posFicha.x + 24, FOTO.w), top: pct(posFicha.y - 76, FOTO.h) }} data-ficha={enFicha.agente}>
           {enFicha.lineas.map((l, i) => (
             <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : enFicha.lineas.length > 2 && i === enFicha.lineas.length - 1 ? "mt-1 text-[11px] text-zinc-500" : undefined}>{l}</div>
           ))}
