@@ -24,15 +24,24 @@ const base = (extra: Partial<EntradaDeLaEscena> = {}): EntradaDeLaEscena => ({
 })
 
 describe("las 6 mesas del boceto aprobado", () => {
-  it("son 6, en el orden del organigrama: 3 activas en la foto, Web en la 4.ª, y Medios y Relaciones copias idénticas de Creativo en el piso ganado al acercar el vidrio", () => {
+  it("son 6, en el orden del organigrama, en rejilla simétrica 3 × 2: Dirección, Estrategia y Creativo de la foto; Web, Medios y Relaciones copias idénticas de Creativo", () => {
     expect(MESAS.map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo", "web", "medios", "relaciones"])
     expect(MESAS.filter((m) => m.etapa === "activo").map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo"])
-    expect(MESAS.filter((m) => !m.en_la_foto).map((m) => m.clave)).toEqual(["medios", "relaciones"])
+    expect(MESAS.filter((m) => !m.en_la_foto).map((m) => m.clave)).toEqual(["web", "medios", "relaciones"])
     for (const m of MESAS) for (const p of [m.silla, m.monitor, m.rotulo, m.centro]) { expect(p.x).toBeGreaterThan(0); expect(p.x).toBeLessThan(FOTO.w); expect(p.y).toBeGreaterThan(0); expect(p.y).toBeLessThan(FOTO.h) }
     expect(tableroDeLaMesa(MESAS[0]).split(" ")).toHaveLength(4)
+    // rejilla simétrica: columnas separadas por el mismo paso en cada fila y filas separadas por el mismo paso en cada columna
+    const m = (k: string) => MESAS.find((x) => x.clave === k)!.monitor
+    const resta = (p: { x: number; y: number }, q: { x: number; y: number }) => ({ x: p.x - q.x, y: p.y - q.y })
+    const col = resta(m("creativo"), m("estrategia"))
+    expect(resta(m("web"), m("direccion"))).toEqual(col)
+    expect(resta(m("relaciones"), m("medios"))).toEqual(col)
+    const fila = resta(m("direccion"), m("estrategia"))
+    expect(resta(m("medios"), m("direccion"))).toEqual(fila)
+    expect(resta(m("web"), m("creativo"))).toEqual(fila)
     // las 2 nuevas son Creativo trasladada: silla, monitor y centro con el mismo traslado de la capa de imagen
     const creativo = MESAS[2]
-    for (const k of ["medios", "relaciones"] as const) {
+    for (const k of ["web", "medios", "relaciones"] as const) {
       const m = MESAS.find((x) => x.clave === k)!, d = MESAS_EXTRA.traslados[k]
       for (const c of ["silla", "monitor", "centro"] as const) expect(m[c]).toEqual({ x: creativo[c].x + d.x, y: creativo[c].y + d.y })
       // y caen dentro de la caja de la imagen
@@ -207,7 +216,7 @@ describe("la lectura y la ruta", () => {
     // pedido de Emilio 01-nov: nada de mesas punteadas; las 2 nuevas son una imagen aparte (copia idéntica) que entra y sale con la foto
     expect(html).not.toContain("nv-av-punteada")
     expect(html).not.toContain("stroke-dasharray")
-    expect(html).toContain('src="/nuevo/marketing-mesas-y-vidrio.webp"')
+    expect(html).toContain('src="/nuevo/marketing-oficina-simetrica.webp"')
     expect(html).toMatch(/class="nv-foto-b nv-av-mesas-extra[^"]*"/)
     expect(html).not.toContain('class="nv-av-asiento"')
     expect(html).not.toContain('role="tooltip"')
