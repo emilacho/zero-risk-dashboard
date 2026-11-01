@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
+import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
 import {
   asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, tableroDeLaMesa,
   type ClaveDeMesa, type EscenaDatos, type Mesa, type MesaViva,
@@ -53,6 +54,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [error, setError] = useState<string | null>(null)
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
   const [ficha, setFicha] = useState<string | null>(null) // «mesa|agente» de la figura bajo el cursor
+  const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leer = useCallback(async () => {
@@ -164,7 +166,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
             <ul className="space-y-1">
               {abierta.equipo.map((p) => (
                 <li key={p.agente} className="flex items-baseline justify-between gap-2" data-miembro={p.agente} data-estado={p.estado}>
-                  <span className="min-w-0 truncate" title={p.nombre}>{p.nombre}{p.origen_de_la_mesa === "mapa" && <span className="ml-1 text-[10px] text-zinc-500" title="sin tarjeta en el directorio; equipo según el mapa firmado">(mapa)</span>}</span>
+                  <span className="min-w-0 truncate"><button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); setFichaDe(p.agente) }} title={`Ver la ficha de ${p.nombre}`} className="truncate text-left underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100 hover:decoration-amber-300 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">{p.nombre}</button>{p.origen_de_la_mesa === "mapa" && <span className="ml-1 text-[10px] text-zinc-500" title="sin tarjeta en el directorio; equipo según el mapa firmado">(mapa)</span>}</span>
                   <span className={`shrink-0 text-[11px] ${p.estado === "trabajando" ? "text-amber-200" : p.estado === "fallo" ? "text-red-300" : p.estado === "reciente" ? "text-zinc-300" : "text-zinc-500"}`}>
                     {p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? `falló ${p.hace}` : p.estado === "reciente" ? `trabajó ${p.hace}` : p.ultima ? `última ${p.hace}` : "sin trabajo en 24 h"}
                     {p.nota && <span className="block text-[10px] text-zinc-500">{p.nota}</span>}
@@ -177,6 +179,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         </div>
       )}
       {error && <span className="sr-only" data-error-lectura>{error}</span>}
+      {fichaDe && <FichaDelEmpleado agente={fichaDe} onCerrar={() => setFichaDe(null)} />}
     </div>
   )
 }
