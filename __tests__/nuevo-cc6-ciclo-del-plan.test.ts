@@ -296,3 +296,12 @@ describe("lo que espera la campaña · el brazo de video existe (Emilio 01-nov)"
     expect(tipoDeEsperaLegible("espera_video")).not.toMatch(/no construido/)
   })
 })
+
+describe("«Qué cambió» armado por código (CC1 · 01-nov): el título trae la versión real", () => {
+  it("«## QUÉ CAMBIÓ EN ESTA VERSIÓN (v2)» se lee sin arrastrar «(v2)» a la lista", async () => {
+    const { queCambioDelTexto } = await import("@/lib/plan")
+    const t = "# PLAN\n\n## QUÉ CAMBIÓ EN ESTA VERSIÓN (v2)\n\n- Pedido del dueño: abrir Guayaquil ya\n- Tomado del revisor: fechas corregidas\n\n## Resumen\nTexto"
+    expect(queCambioDelTexto(t)).toBe("- Pedido del dueño: abrir Guayaquil ya\n- Tomado del revisor: fechas corregidas")
+    expect(queCambioDelTexto("## QUÉ CAMBIÓ EN ESTA VERSIÓN\n\n- Sin cambios registrados.")).toBe("- Sin cambios registrados.")
+  })
+})
