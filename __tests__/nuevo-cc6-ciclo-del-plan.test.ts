@@ -409,3 +409,26 @@ describe("«la palabra del dueño manda» a la vista en el panel (CC1 · punto 8
     expect(renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: vacio }))).not.toContain("data-palabra-del-dueno")
   })
 })
+
+describe("«tu palabra manda» · aislamiento y estado (pedido de CC3 al verificar #140)", () => {
+  const PROPIA = { id: "p1", title: "Plan de 90 días: una revisión contradecía lo que pediste y no entró", output_preview: "Tu orden: abrir Guayaquil ya.", metadata: { requiere_humano: false }, created_at: "2026-11-01T22:00:00Z" }
+  const AJENA = { id: "x1", title: "Plan de 90 días: lo que pediste no quedó cumplido, revísalo", output_preview: "ORDEN DE OTRO NEGOCIO", metadata: { requiere_humano: true }, created_at: "2026-11-01T22:00:00Z" }
+  const CERRADA = { id: "c1", title: "Plan de 90 días: nota vieja", output_preview: "NOTA YA CERRADA", metadata: {}, created_at: "2026-11-01T21:00:00Z" }
+  // la base falsa responde según los filtros: sin el del cliente aparece la nota de otro negocio; sin el de estado, la ya cerrada
+  const leer = () => leerPlanDelCliente(baseFalsa({
+    clients: CLIENTES, cadena_campanas: [], cadena_esperas: [], plan_catalogo_topes: [], plan_aprobaciones: [], plan_cambios: [], client_historical_outputs: [V2, V1],
+    hitl_queue: (f: string[]) => {
+      if (!f.some((x) => x.includes('"type","palabra_del_dueno"'))) return []
+      const delCliente = f.some((x) => x.includes(`"client_id","${CLIENTE}"`)), pendientes = f.some((x) => x.includes('"status","pending"'))
+      return [PROPIA, ...(delCliente ? [] : [AJENA]), ...(pendientes ? [] : [CERRADA])]
+    },
+  }), { cliente: CLIENTE })
+  it("solo las notas PENDIENTES de ESTE cliente; el detalle (qué orden) se pinta", async () => {
+    const p = await leer()
+    expect(p.palabra_del_dueno?.map((x) => x.id)).toEqual(["p1"])
+    const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: p }))
+    expect(html).not.toContain("ORDEN DE OTRO NEGOCIO")
+    expect(html).not.toContain("NOTA YA CERRADA")
+    expect(html).toContain("Tu orden: abrir Guayaquil ya.")
+  })
+})
