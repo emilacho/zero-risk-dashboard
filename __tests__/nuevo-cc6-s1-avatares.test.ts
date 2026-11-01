@@ -1,10 +1,11 @@
 /** Dashboard nuevo · CC6 Sprint 1 (01-nov): la escena viva de la oficina de marketing. 6 mesas · solo se sienta el que trabaja ahora · ficha con el agente real, fuente y hora. US$ 0 · sin red. */
 import { describe, expect, it } from "vitest"
+import type { EscenaDatos } from "@/lib/escena-avatares"
 import { existsSync, readFileSync } from "node:fs"
 import { renderToStaticMarkup } from "react-dom/server"
 import { createElement } from "react"
 import {
-  alSuelo, armarEscena, asientosDeLaMesa, CAMARA, colocarFiguras, FOTO, giroHaciaElMonitor, invocacionCierraElDespacho, lineasDeLaFicha, MAXIMO_DE_FIGURAS, MAXIMO_POR_MESA, MESAS, mesaDelAgente,
+  alSuelo, armarEscena, asientosDeLaMesa, CAMARA, colocarFiguras, FOTO, giroHaciaElMonitor, invocacionCierraElDespacho, lineasDeLaFicha, MAXIMO_DE_FIGURAS, MAXIMO_POR_MESA, MESAS, mesaDelAgente, estadoDePantalla, matrizDeLaPantalla, oficioDeLaMesa, puntosDeLaPantalla,
   MINUTOS_FALLO, MINUTOS_TOPE, NOMBRES_SPLINE, nombreDelFlujo, pasoDe, proyectar, tableroDeLaMesa, type Despacho, type EntradaDeLaEscena, type InvocacionViva,
 } from "@/lib/escena-avatares"
 import { leerEscenaViva, LIMITE_DE_INVOCACIONES } from "@/lib/escena-avatares-datos"
@@ -220,5 +221,31 @@ describe("la lectura y la ruta", () => {
     expect(html).not.toContain('role="tooltip"')
     expect(html).toContain("MEDIOS Y PERFORMANCE")
     expect(html).toContain("por activar · nadie trabaja")
+  })
+})
+
+describe("Sprint A · pantallas vivas en las mesas (pedido de Emilio, 01-nov)", () => {
+  it("cada mesa tiene su pantalla medida en la foto, cerca de su monitor, y un oficio", () => {
+    for (const m of MESAS) {
+      const pts = puntosDeLaPantalla(m.clave).split(" ").map((p) => p.split(",").map(Number))
+      expect(pts).toHaveLength(4)
+      for (const [x, y] of pts) { expect(Math.abs(x - m.monitor.x)).toBeLessThan(45); expect(Math.abs(y - m.monitor.y)).toBeLessThan(45) }
+      expect(matrizDeLaPantalla(m.clave)).toMatch(/^matrix\(/)
+    }
+    expect(MESAS.map((m) => oficioDeLaMesa(m.clave))).toEqual(["tablero", "grafico", "diseno", "codigo", "grafico", "mensajes"])
+  })
+  it("negra si nadie trabaja (también las por activar), viva si alguien trabaja, roja si falló", () => {
+    expect(estadoDePantalla({ trabajando: 0, fallando: 0 })).toBe("apagada")
+    expect(estadoDePantalla({ trabajando: 1, fallando: 0 })).toBe("trabajando")
+    expect(estadoDePantalla({ trabajando: 0, fallando: 1 })).toBe("fallo")
+    expect(estadoDePantalla({ trabajando: 1, fallando: 1 })).toBe("trabajando")
+    const html = renderToStaticMarkup(createElement(Avatares))
+    expect(html.match(/data-pantalla="apagada"/g)).toHaveLength(6) // antes del dato y sin nadie: las 6 negras
+    const datos = { leido_en: "2026-11-01T17:00:00Z", fuente: "x", sin_mesa: [], sin_fin_registrado: 0, mesas: MESAS.map((m) => ({ ...m, sentados: [], equipo: [], trabajando: m.clave === "web" ? 1 : 0, fallando: m.clave === "medios" ? 1 : 0 })) }
+    const vivo = renderToStaticMarkup(createElement(Avatares, { datosIniciales: datos as unknown as EscenaDatos }))
+    expect(vivo).toMatch(/data-pantalla="trabajando" data-pantalla-mesa="web"/); expect(vivo).toMatch(/data-pantalla="fallo" data-pantalla-mesa="medios"/)
+    expect(vivo.match(/data-pantalla="apagada"/g)).toHaveLength(4)
+    expect(vivo).toContain('class="nv-pa-sube"') // el código de Web avanza
+    expect(vivo).toContain("@media (prefers-reduced-motion:reduce){.nv-av .nv-pa-respira")
   })
 })

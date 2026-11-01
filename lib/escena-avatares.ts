@@ -64,6 +64,45 @@ export const MESAS: Mesa[] = [
 ]
 export const mesaPorClave = (k: string): Mesa | undefined => MESAS.find((m) => m.clave === k)
 
+// ── Sprint A · las pantallas vivas de las mesas (pedido de Emilio, 01-nov) ──
+/** la pantalla del monitor de cada mesa en la foto: esquina de arriba a la izquierda (L, T), ancho W, alto h; el borde de arriba baja PENDIENTE_PANTALLA por
+ *  píxel hacia la derecha (vista isométrica). Medido sobre `marketing-2560.jpg` (foto regenerada del 01-nov) y comprobado tapando las 6 de negro. */
+export const PENDIENTE_PANTALLA = 0.56
+export const PANTALLAS: Record<ClaveDeMesa, { L: number; T: number; W: number; h: number }> = {
+  direccion: { L: 1101, T: 533, W: 41, h: 32 },
+  estrategia: { L: 1306, T: 644, W: 41, h: 33 },
+  creativo: { L: 1526, T: 764, W: 43, h: 33 },
+  web: { L: 885, T: 640, W: 38, h: 32 },
+  medios: { L: 1084, T: 763, W: 42, h: 33 },
+  relaciones: { L: 1298, T: 885, W: 42, h: 33 },
+}
+/** las 4 esquinas de la pantalla («x,y x,y x,y x,y» para SVG) */
+export function puntosDeLaPantalla(clave: ClaveDeMesa): string {
+  const { L, T, W, h } = PANTALLAS[clave], s = PENDIENTE_PANTALLA
+  return [[L, T], [L + W, T + s * W], [L + W, T + s * W + h], [L, T + h]].map(([x, y]) => `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`).join(" ")
+}
+/** la matriz que lleva un cuadro de 100 × 100 a la pantalla (el contenido se dibuja derecho y se ve inclinado como el monitor) */
+export function matrizDeLaPantalla(clave: ClaveDeMesa): string {
+  const { L, T, W, h } = PANTALLAS[clave]
+  const r = (n: number) => Math.round(n * 10000) / 10000
+  return `matrix(${r(W / 100)} ${r((PENDIENTE_PANTALLA * W) / 100)} 0 ${r(h / 100)} ${L} ${T})`
+}
+/** lo que se ve en la pantalla según el oficio de la mesa */
+export type OficioDePantalla = "tablero" | "grafico" | "diseno" | "codigo" | "mensajes"
+export function oficioDeLaMesa(clave: ClaveDeMesa): OficioDePantalla {
+  switch (clave) {
+    case "direccion": return "tablero"
+    case "estrategia": case "medios": return "grafico"
+    case "creativo": return "diseno"
+    case "web": return "codigo"
+    case "relaciones": return "mensajes"
+  }
+}
+/** encendida solo si alguien trabaja ahora; roja si lo último fue un fallo; si no, NEGRA (también las mesas por activar) */
+export function estadoDePantalla(m: Pick<MesaViva, "trabajando" | "fallando">): "trabajando" | "fallo" | "apagada" {
+  return m.trabajando > 0 ? "trabajando" : m.fallando > 0 ? "fallo" : "apagada"
+}
+
 /** el tablero de una mesa como polígono (puntos «x,y x,y …» para SVG): un paralelogramo isométrico de 200 × 84 alrededor de su centro */
 export function tableroDeLaMesa(m: Mesa, largo = 100, ancho = 42): string {
   const c = m.centro
