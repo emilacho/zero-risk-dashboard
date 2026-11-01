@@ -103,6 +103,13 @@ describe("6.22 · el panel", () => {
     expect(html.match(/data-tarjeta-sector=/g)).toHaveLength(8)
     expect(html).toContain("Credenciales y accesos"); expect(html).toContain("Seguridad y cumplimiento")
   })
+  it("6.25 · dentro del radar no hay palabras de gravedad: 3 franjas de color (Emilio: «es suficiente con los colores, asegúrate que sean 3»)", () => {
+    const radar = html.match(/<svg[^>]*viewBox="-16 -8 432 416"[^]*?<\/svg>/)?.[0] ?? ""
+    expect(radar).not.toBe("")
+    expect(radar).not.toMatch(/>(GRAVE|ATENDER|A LA VISTA)</i)
+    expect(radar.match(/data-anillo="(3|2|1)"/g)).toEqual(['data-anillo="3"', 'data-anillo="2"', 'data-anillo="1"'])
+    for (const color of ["#ff5a36", "#f5a524", "#e9d6b6"]) expect(radar).toContain(`stroke="${color}"`)
+  })
   it("ya no muestra saldos ni freno de gasto (se van a la pantalla Dinero)", () => {
     expect(html).not.toContain("Saldos de proveedores"); expect(html).not.toContain("Freno de gasto"); expect(html).not.toContain("techo")
   })

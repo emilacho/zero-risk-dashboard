@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { haceCuanto } from "@/lib/direccion-decisiones"
 import {
-  ANILLOS, GRADOS_POR_SECTOR, NOMBRE_DE_LA_GRAVEDAD, NOMBRE_DEL_SECTOR, ORIGEN_DEL_RIESGO, SECTORES, SECTORES_SIN_FUENTE, alPlano, lugarEnElRadar,
+  GRADOS_POR_SECTOR, NOMBRE_DE_LA_GRAVEDAD, NOMBRE_DEL_SECTOR, ORIGEN_DEL_RIESGO, SECTORES, SECTORES_SIN_FUENTE, alPlano, lugarEnElRadar,
   type Gravedad, type Riesgo, type Riesgos, type Sector,
 } from "@/lib/direccion-riesgos"
 
@@ -17,6 +17,8 @@ import {
  */
 const AMBAR = "#e8731a"
 export const COLOR_DE_LA_GRAVEDAD: Record<Gravedad, string> = { 3: "#ff5a36", 2: "#f5a524", 1: "#e9d6b6" }
+/** las 3 franjas del radar (fracción del radio): contiguas, cada una envuelve su anillo de puntos de ANILLOS */
+const FRANJAS: Record<Gravedad, [number, number]> = { 3: [0, 0.41], 2: [0.41, 0.69], 1: [0.69, 1] }
 const VUELTA = 8 // segundos por vuelta del haz
 const ESTELA = 14 // gajos de la estela del haz
 type Respuesta = ({ ok: true } & Riesgos) | { ok: false; error: string }
@@ -60,9 +62,13 @@ function Radar({ riesgos, todos, elegido, alElegir, sector, quieto }: { riesgos:
       <circle cx={C} cy={C} r={R} fill="url(#ri-vidrio)" stroke="rgba(255,226,190,.28)" strokeWidth={0.9} />
       {/* el sector elegido, apenas iluminado */}
       {sector && <path d={gajo(C, R, SECTORES.indexOf(sector) * GRADOS_POR_SECTOR, (SECTORES.indexOf(sector) + 1) * GRADOS_POR_SECTOR)} fill="rgba(232,115,26,.09)" />}
-      {/* los anillos: el límite de cada gravedad */}
-      {([3, 2] as Gravedad[]).map((g) => <circle key={g} cx={C} cy={C} r={R * (ANILLOS[g][1] + 0.03)} fill="none" stroke="rgba(255,226,190,.16)" strokeWidth={0.7} strokeDasharray="1.5 3.5" />)}
-      {([3, 2, 1] as Gravedad[]).map((g) => <text key={`t${g}`} x={C + 3} y={C - R * (ANILLOS[g][1] + 0.03) + 9} fontSize={7.5} fontWeight={600} letterSpacing=".12em" fill="rgba(255,236,215,.7)" stroke="#161412" strokeWidth={3} paintOrder="stroke">{NOMBRE_DE_LA_GRAVEDAD[g].nombre.toUpperCase()}</text>)}
+      {/* las 3 franjas de gravedad: solo color, sin palabras (Emilio 1-nov) · grave al centro, atender en medio, a la vista afuera */}
+      {([3, 2, 1] as Gravedad[]).map((g) => { const [a, b] = FRANJAS[g]; return (
+        <g key={`f${g}`} data-anillo={g}>
+          <circle cx={C} cy={C} r={(R * (a + b)) / 2} fill="none" stroke={COLOR_DE_LA_GRAVEDAD[g]} strokeOpacity={0.075} strokeWidth={R * (b - a)} />
+          <circle cx={C} cy={C} r={R * b} fill="none" stroke={COLOR_DE_LA_GRAVEDAD[g]} strokeOpacity={0.5} strokeWidth={0.8} />
+        </g>
+      ) })}
       {/* los 8 sectores: frontera fina, arco de estado en el borde (color de su riesgo más grave) y su nombre con la cuenta */}
       {SECTORES.map((s, i) => {
         const a0 = i * GRADOS_POR_SECTOR, a1 = a0 + GRADOS_POR_SECTOR, [x, y] = alPlano(C, C, R, a0, 1), del = todos.filter((r) => r.sector === s), g = peor(del)
