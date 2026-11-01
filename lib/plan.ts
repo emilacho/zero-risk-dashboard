@@ -300,6 +300,17 @@ export const BOTONES_DEL_PLAN = { aprobar: "Aprobar el plan así", rechazar: "Pe
 /** tope por pedido de cambios (contrato: ≤ 8) y lo que suele costar (redactor ≈ 1 + jefatura 1–3) */
 export const TOPE_REESCRITURA_USD = 8
 export const COSTO_ESTIMADO_REESCRITURA = "US$ 1–3"
+/** DALE de Emilio (01-nov 16:23Z, punto 2): aprobar un plan con compuerta INICIA la campaña (levanta la pausa de pruebas y arranca brief → gran idea, que se
+ *  detiene en la tarjeta de la gran idea). Su clic en «Aprobar» es el «dale» de ese gasto: el panel lo dice ANTES del clic (PRESUPUESTO-CC2-brief-y-gran-idea). */
+export const COSTO_ESTIMADO_CAMPANA = "US$ 4,5–8"
+export const TOPE_CAMPANA_USD = 10
+export const DURACION_ESTIMADA_CAMPANA = "≈ 1–2 h"
+/** lo que hace «Aprobar» sobre ESTE plan, dicho antes del clic: con compuerta arranca la campaña (gasta); sin ella (plan de antes del ciclo) no reanuda nada */
+export function queHaceAprobar(conCompuerta: boolean): { gasta: boolean; texto: string } {
+  return conCompuerta
+    ? { gasta: true, texto: `Aprobar inicia la campaña: brief y gran idea · ${COSTO_ESTIMADO_CAMPANA} estimado · tope US$ ${TOPE_CAMPANA_USD} · ${DURACION_ESTIMADA_CAMPANA}. Se levanta la pausa de pruebas; se detiene en la tarjeta de la gran idea.` }
+    : { gasta: false, texto: "Este plan es de antes del ciclo: aprobarlo lo deja firme sin reanudar nada. No cuesta nada." }
+}
 /** después de 3 reescrituras (versión 4) solo se aprueba; lo demás se decide a mano */
 export const VUELTAS_MAXIMAS = 3
 
