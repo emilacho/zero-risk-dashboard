@@ -5,8 +5,9 @@
  */
 import Link from "next/link"
 import type { ReactNode } from "react"
+import { ChatDeOficinas } from "@/components/nuevo/ChatDeOficinas"
 import {
-  Bell, BookOpen, Books, CaretDown, CurrencyDollar, Flower, Globe, House, List, MagnifyingGlass, PaperPlaneTilt, Paperclip, Plus, Robot, SignOut, SquaresFour, Sun, Waveform,
+  Bell, BookOpen, Books, CaretDown, CurrencyDollar, Flower, House, List, MagnifyingGlass, Plus, Robot, SignOut, SquaresFour, Sun, Waveform,
 } from "@phosphor-icons/react/dist/ssr"
 
 const AMBAR = "#e8731a"
@@ -87,18 +88,7 @@ export function MenuLateral({ actual = "/nuevo" }: { actual?: string }) {
   )
 }
 
-/** la caja de chat de abajo: SOLO la forma (no envía nada; qué hace se decide en otro sprint) */
+/** la caja de chat de abajo: conversa (01-nov); vive en su propio archivo porque necesita JavaScript de navegador y este archivo es todo de servidor */
 export function BarraDeChat() {
-  return (
-    <div data-chat-de-oficinas aria-label="Chat con tus oficinas (todavía sin función)" aria-disabled="true"
-      className="absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2 rounded-xl border p-[7px]" style={{ borderColor: "rgba(232,115,26,.55)" }}>
-      <div className="rounded-lg bg-[#1b1b1d] px-4 py-3.5">
-        <p className="text-[14px] text-zinc-400">Habla con tus oficinas…</p>
-        <div className="mt-4 flex items-center gap-3 text-zinc-300">
-          <Paperclip size={17} /> <Globe size={17} />
-          <span className="ml-auto flex h-10 w-10 items-center justify-center rounded-lg text-white" style={{ backgroundColor: AMBAR }}><PaperPlaneTilt size={18} weight="regular" /></span>
-        </div>
-      </div>
-    </div>
-  )
+  return <ChatDeOficinas />
 }

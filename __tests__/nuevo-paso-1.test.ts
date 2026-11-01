@@ -51,10 +51,12 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
     expect(escena).not.toMatch(/radial-gradient/)
     expect(escena).toContain("mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)")
   })
-  it("la barra de chat es SOLO la forma: sin campo de texto, sin formulario, sin envío", () => {
+  it("la barra de chat conserva su diseño y ahora tiene campo de texto, micrófono y envío (01-nov)", () => {
     const html = renderToStaticMarkup(createElement(BarraDeChat))
     expect(html).toContain("Habla con tus oficinas…")
-    expect(html).not.toMatch(/<input|<textarea|<form|<button|onSubmit|href=/)
+    expect(html).toMatch(/<textarea/)
+    expect(html).toContain('aria-label="Enviar"')
+    expect(html).toMatch(/Hablar por voz|La voz no está disponible/)
   })
   it("es dibujo propio y de servidor: sin recursos externos ni JavaScript de navegador; la marca es la nuestra", () => {
     const todo = ["components/nuevo/EscenaNuevo.tsx", "components/nuevo/MarcoNuevo.tsx", "app/nuevo/page.tsx", "app/nuevo/marketing/page.tsx", "components/nuevo/PantallaNuevo.tsx"].map(leer).join("\n")
