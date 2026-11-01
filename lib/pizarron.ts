@@ -35,8 +35,8 @@ export const ESTADO_DE_FILA_LEGIBLE: Record<string, string> = {
   en_oficina: "en la oficina creativa",
   aprobada: "aprobada",
   cancelada: "cancelada",
-  espera_video: "espera el brazo de video (aún no construido)",
-  vencida_sin_brazo: "venció sin un brazo que la hiciera",
+  espera_video: "espera su turno en el brazo de video",
+  vencida_sin_brazo: "venció sin que el brazo de video la hiciera a tiempo",
   perdio_su_fecha: "perdió su fecha",
   descartada_sin_fuente: "descartada: no tenía fuente",
 }

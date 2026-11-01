@@ -65,7 +65,7 @@ describe("el estado de cada publicación (de dónde sale cada color)", () => {
     expect(de("en_oficina").tablero).toBe("mesa"); expect(de("aprobada").tablero).toBe("aprobada")
     expect(de("perdio_su_fecha").tablero).toBe("vencida"); expect(de("vencida_sin_brazo").tablero).toBe("vencida")
     expect(de("cancelada").tablero).toBe("descartada"); expect(de("descartada_sin_fuente").tablero).toBe("descartada")
-    expect(de("espera_video").motivo).toBe("espera el brazo de video (aún no construido)")
+    expect(de("espera_video").motivo).toBe("espera su turno en el brazo de video")
     expect(de("algo_nuevo").motivo).toBe("algo nuevo")
     for (const e of ESTADOS_DEL_TABLERO) expect(colorDelEstado(e.clave)).toMatch(/^#[0-9a-f]{6}$/)
   })
@@ -135,7 +135,7 @@ describe("la lectura (base falsa con la forma real de las tablas)", () => {
     const h = p.filas[0]
     expect(h.encargo).toMatchObject({ id: "enc-real", familia: "kit_historias", gasto_usd: 0.42 }); expect(h.jefatura).toEqual({ estado: "cerrada", resultado: "limpia" }); expect(h.pieza).toMatchObject({ id: "hitl-1", estado: "pendiente" })
     expect(p.filas[1].encargo).toBeNull() // el encargo de ensayo (dry_run) no cuenta
-    expect(p.filas[2]).toMatchObject({ red: "whatsapp", pendientes: ["falta el precio"], motivo: "espera el brazo de video (aún no construido)" })
+    expect(p.filas[2]).toMatchObject({ red: "whatsapp", pendientes: ["falta el precio"], motivo: "espera su turno en el brazo de video" })
     expect(p.totales).toEqual({ emilio: 1, idea: 2, descartada: 1 })
     expect(p.semanas).toHaveLength(1); expect(p.semanas[0].dias[0].publicaciones.map((x) => x.hora)).toEqual(["11:00", "15:00"])
     // solo lectura y acotado: filas de la última versión, encargos reales del cliente, bandeja solo por los ids de los encargos
