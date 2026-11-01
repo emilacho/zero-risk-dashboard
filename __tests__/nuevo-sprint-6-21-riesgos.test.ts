@@ -7,7 +7,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import {
-  alPlano, ANILLOS, CATEGORIAS_DE_RIESGO, leerRiesgos, lugarEnElRadar, normalizarRiesgos, resumenDeRiesgos, tituloDelRiesgo, type Riesgos,
+  alPlano, ANILLOS, SECTORES, leerRiesgos, lugarEnElRadar, normalizarRiesgos, resumenDeRiesgos, tituloDelRiesgo, type Riesgos,
 } from "@/lib/direccion-riesgos"
 import { PanelRiesgos } from "@/components/nuevo/PanelRiesgos"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
@@ -17,7 +17,7 @@ import { TableroDeDireccionVivo } from "@/components/nuevo/TablerosDeDireccion"
 const CRUDO = {
   ok: true, generado_en: "2026-11-01T15:48:00.000Z", completo: true, total: 4,
   riesgos: [
-    { id: "a1", gravedad: 1, categoria: "pausa", titulo: "🟡 Interruptor de la cadena apagado", detalle: null, client_id: null, cliente: null, desde: "2026-10-30T10:00:00Z", fuente: "cadena_config" },
+    { id: "a1", gravedad: 1, categoria: "servicio", titulo: "🟡 El vigilante de costos lleva horas sin correr", detalle: null, client_id: null, cliente: null, desde: "2026-10-30T10:00:00Z", fuente: "cost_monitor_runs" },
     { id: "a2", gravedad: 3, categoria: "incidente", titulo: "🟠 Incidente abierto en el monitor", detalle: "El monitor marca caída", client_id: "c1", cliente: "Náufrago", desde: "2026-11-01T09:00:00Z", fuente: "uptime_incidents" },
     { id: "a3", gravedad: 2, categoria: "falla", titulo: "Trabajo de empleado en error", detalle: null, client_id: null, cliente: null, desde: "2026-11-01T12:00:00Z", fuente: "agent_dispatches" },
     { id: "a4", gravedad: 2, categoria: "falla", titulo: "Otro trabajo en error", detalle: null, client_id: null, cliente: null, desde: "2026-11-01T13:00:00Z", fuente: "agent_dispatches" },
@@ -69,10 +69,10 @@ describe("6.21 · la lectura de los riesgos (contrato de CC1)", () => {
 
 describe("6.21 · el radar: cada tipo un sector, cada gravedad un anillo", () => {
   const d = normalizarRiesgos(CRUDO)
-  it("cada punto cae en el sector de su tipo y en el anillo de su gravedad (lo grave, más cerca del centro)", () => {
-    const lugar = lugarEnElRadar(d.riesgos), sector = 360 / CATEGORIAS_DE_RIESGO.length
+  it("cada punto cae en su sector (de 8 fijos) y en el anillo de su gravedad (lo grave, más cerca del centro)", () => {
+    const lugar = lugarEnElRadar(d.riesgos), sector = 360 / SECTORES.length
     for (const x of d.riesgos) {
-      const l = lugar.get(x.id)!, i = CATEGORIAS_DE_RIESGO.indexOf(x.categoria)
+      const l = lugar.get(x.id)!, i = SECTORES.indexOf(x.sector)
       expect(l.angulo).toBeGreaterThanOrEqual(i * sector); expect(l.angulo).toBeLessThan((i + 1) * sector)
       expect(l.radio).toBeGreaterThanOrEqual(ANILLOS[x.gravedad][0]); expect(l.radio).toBeLessThanOrEqual(ANILLOS[x.gravedad][1])
     }
@@ -123,19 +123,19 @@ describe("6.21 · la pantalla 6 del arco", () => {
 describe("6.21 · el panel del radar", () => {
   const d = normalizarRiesgos(CRUDO)
   const html = (datos: Riesgos) => renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: datos }))
-  it("muestra el radar con un punto por riesgo, la ficha del más grave, la lista, los medidores y el «sin dato»", () => {
+  it("muestra el radar con un punto por riesgo, la ficha del más grave, la lista y el «sin dato»", () => {
     const h = html(d)
     expect(h).toContain('data-seccion="riesgos"')
     expect(h.match(/class="ri-punto"/g)).toHaveLength(4)
     expect(h).toContain('data-ficha="a2"'); expect(h).toContain("Incidente abierto en el monitor"); expect(h).toContain("Monitor de servicios")
     expect(h.match(/data-fila=/g)).toHaveLength(4)
-    expect(h).toContain('data-medidor="Apify · starter"'); expect(h).toContain('data-medidor="Náufrago"')
+    expect(h).not.toContain("data-medidor") // 6.22: saldos y freno se van a la pantalla Dinero
     expect(h).toContain("credenciales por vencer"); expect(h).toContain("pocas horas")
-    expect(h).toContain("4 riesgos · 1 graves"); expect(h).toContain("el ciclo cierra el 23 nov") // 24-nov 00:00Z = 23-nov en Ecuador
+    expect(h).toContain("4 riesgos · 1 grave")
     expect(h).not.toContain("🟠")
   })
   it("nunca dice «sin riesgos» con la lista incompleta", () => {
-    const vacio: Riesgos = { ...d, riesgos: [], total: 0, por_gravedad: { 1: 0, 2: 0, 3: 0 } }
+    const vacio: Riesgos = { ...d, riesgos: [], total: 0, por_gravedad: { 1: 0, 2: 0, 3: 0 }, por_sector: { dinero: 0, credenciales: 0, servicios: 0, flujos: 0, datos: 0, calidad: 0, plazos: 0, seguridad: 0 } }
     expect(html({ ...vacio, completo: true })).toContain("Sin riesgos abiertos ahora")
     const inc = html({ ...vacio, completo: false })
     expect(inc).not.toContain("Sin riesgos abiertos ahora"); expect(inc).toContain("no puedo asegurarte")

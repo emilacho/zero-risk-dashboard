@@ -213,7 +213,7 @@ export function PanelCerebro({ onCerrar, datosIniciales = null, clienteInicial =
   const resumen = datos ? `${plural(datos.fichas.length, "ficha vigente", "fichas vigentes")} · ${plural(datos.trozos, "trozo", "trozos")} en el índice que consultan las oficinas${datos.retiradas ? ` · ${datos.retiradas} archivadas` : ""}${porVencer ? ` · ${porVencer} por reconfirmar` : ""}` : ""
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="cerebro-titulo" data-seccion="cerebro" className="relative flex h-full max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
