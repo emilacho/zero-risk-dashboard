@@ -64,6 +64,7 @@ export function tipoDeRevisionLegible(tipo: unknown): string {
     case "plan_con_pendientes": return "Plan con puntos por resolver"
     case "confirm_competitor_list": return "Confirmar lista de competidores"
     case "content_piece_review": return "Pieza por aprobar"
+    case "concepto_review": return "Gran idea por aprobar"
     default: return "Revisión"
   }
 }

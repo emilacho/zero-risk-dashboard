@@ -27,9 +27,10 @@ const datos: Pizarron = {
 }
 
 describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
-  it("la lista es la que cerró Emilio: seis cuadros, sin oficinas/en vivo ni alertas, y cada uno lleva a algo que ya existe", () => {
-    expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Plan de 90 días", "Calendario", "Piezas", "Informes", "Gasto"]) // 6.9: Informes en lugar de Cerebro (el Cerebro es estructura de la sala)
-    expect(APLICACIONES.map((a) => a.enlace(CLIENTE))).toEqual([null, null, null, null, null, "/gasto"]) // 6.3: el manual abre encima · 6.5: el plan · 6.6: las piezas · 6.9: los informes
+  it("la lista es la que cerró Emilio y el encargo 01-nov: nueve cuadros en el orden de la cadena, sin oficinas/en vivo ni alertas, y cada uno lleva a algo que ya existe", () => {
+    // 6.9: Informes en lugar de Cerebro (el Cerebro es estructura de la sala) · 6.10: Brief · Gran idea · Equipo, en el orden de la cadena (encargo 01-nov §2)
+    expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Informes", "Plan de 90 días", "Brief de campaña", "Gran idea", "Calendario", "Piezas", "Equipo", "Gasto"])
+    expect(APLICACIONES.map((a) => a.enlace(CLIENTE))).toEqual([null, null, null, null, null, null, null, null, "/gasto"]) // todo abre encima salvo Gasto (deuda)
     // sin cliente elegido, los cuadros de la ficha llevan a la lista de clientes (no a una ficha rota)
     expect(APLICACIONES.find((a) => a.clave === "gasto")!.enlace(null)).toBe("/gasto")
     for (const a of APLICACIONES) expect(a.nombre).not.toMatch(/oficina|en vivo|alerta/i)
@@ -49,10 +50,10 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(detalleDelCuadro("manual", null).texto).toBe("Lo que la marca es, cómo habla y cómo se ve")
     expect(detalleDelCuadro("gasto", datos).texto).toBe("Lo gastado en los últimos 30 días")
   })
-  it("el panel dibuja los seis cuadros como enlaces (el calendario como botón que abre encima), el selector de cliente y el aviso en Piezas", () => {
+  it("el panel dibuja los nueve cuadros como enlaces (el calendario como botón que abre encima), el selector de cliente y el aviso en Piezas", () => {
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="aplicaciones"'); expect(html).toContain("Dept. Marketing")
-    expect(html.match(/data-aplicacion="/g)?.length).toBe(6)
+    expect(html.match(/data-aplicacion="/g)?.length).toBe(9) // 6.10: nueve pasos
     expect(html).toMatch(/<button type="button" data-aplicacion="manual" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.3: abre encima
     expect(html).toMatch(/<button type="button" data-aplicacion="plan" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.5: abre encima
     expect(html).toMatch(/<button type="button" data-aplicacion="piezas" data-aviso="true"[^>]*aria-haspopup="dialog"/) // 6.6: abre encima, con el punto de aviso
