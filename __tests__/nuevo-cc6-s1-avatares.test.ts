@@ -24,7 +24,7 @@ const base = (extra: Partial<EntradaDeLaEscena> = {}): EntradaDeLaEscena => ({
 })
 
 describe("las 6 mesas del boceto aprobado", () => {
-  it("son 6, en el orden del organigrama: 3 activas en la foto, Web en la 4.ª, y Medios y Relaciones copias idénticas de Creativo en el cuarto libre", () => {
+  it("son 6, en el orden del organigrama: 3 activas en la foto, Web en la 4.ª, y Medios y Relaciones copias idénticas de Creativo en el piso ganado al acercar el vidrio", () => {
     expect(MESAS.map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo", "web", "medios", "relaciones"])
     expect(MESAS.filter((m) => m.etapa === "activo").map((m) => m.clave)).toEqual(["direccion", "estrategia", "creativo"])
     expect(MESAS.filter((m) => !m.en_la_foto).map((m) => m.clave)).toEqual(["medios", "relaciones"])
@@ -207,7 +207,7 @@ describe("la lectura y la ruta", () => {
     // pedido de Emilio 01-nov: nada de mesas punteadas; las 2 nuevas son una imagen aparte (copia idéntica) que entra y sale con la foto
     expect(html).not.toContain("nv-av-punteada")
     expect(html).not.toContain("stroke-dasharray")
-    expect(html).toContain('src="/nuevo/marketing-mesas-extra.webp"')
+    expect(html).toContain('src="/nuevo/marketing-mesas-y-vidrio.webp"')
     expect(html).toMatch(/class="nv-foto-b nv-av-mesas-extra[^"]*"/)
     expect(html).not.toContain('class="nv-av-asiento"')
     expect(html).not.toContain('role="tooltip"')

@@ -9,7 +9,7 @@ import {
 
 /**
  * LA ESCENA VIVA · AVATARES (CC6 · Sprint 1 · 01-nov): la capa que va ENCIMA de la foto de la oficina de marketing, dentro de la proyección de `EscenaViva`.
- * - Las 6 MESAS del boceto de CC5 aprobado por Emilio: 4 de la foto + 2 mesas idénticas nuevas en el cuarto libre del fondo (Medios y Performance · Relaciones), en una imagen aparte encima de la foto.
+ * - Las 6 MESAS del boceto de CC5 aprobado por Emilio: 4 de la foto + 2 mesas idénticas nuevas (Medios y Performance · Relaciones) en el piso ganado al acercar el vidrio de la sala de reuniones a la mesa redonda, en una imagen aparte encima de la foto.
  * - En la silla de cada mesa se SIENTA SOLO quien está trabajando ahora (dato real de `agent_dispatches`); si trabajan varios, se sientan a lo largo de la mesa.
  *   Mesa sin nadie trabajando = vacía y quieta. Al tocar la mesa se ve el equipo completo con su estado. Nunca hay avatares de relleno.
  * - Estados por el monitor de la FOTO: trabajando = brilla ámbar y late · en espera = como en la foto · falló = en rojo.
@@ -91,7 +91,7 @@ export function Avatares() {
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
       <style>{ESTILO}</style>
-      {/* las 2 mesas nuevas (Medios y Performance · Relaciones): copia idéntica de una mesa de la foto; usa la clase de la foto (`nv-foto-b`) para entrar y salir con ella */}
+      {/* el vidrio acercado a la mesa redonda + las 2 mesas nuevas (copia idéntica de una mesa de la foto); usa la clase de la foto (`nv-foto-b`) para entrar y salir con ella */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={MESAS_EXTRA.src} alt="" aria-hidden width={MESAS_EXTRA.caja.w} height={MESAS_EXTRA.caja.h} decoding="async" draggable={false} data-mesas-extra
         className="nv-foto-b nv-av-mesas-extra pointer-events-none absolute select-none"
