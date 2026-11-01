@@ -41,7 +41,7 @@ describe("CC6 · el estado del ciclo del plan", () => {
     expect(leerElCiclo("draft", { ...base, compuerta: { estado: "aprobado", decidido_por: null, decidido_en: null, despertado: false, despertar_detalle: null } })).toMatchObject({ estado: "aprobado", reintentar: "plan-aprobar" })
   })
   it("la versión y la vigencia salen del provenance_tag (contrato: versión ausente = 1)", () => {
-    expect(versionDelTag({})).toEqual({ version: 1, vigente: true, reemplaza_a: null, superseded_por: null, con_compuerta: false, plan_cambio_id: null })
+    expect(versionDelTag({})).toEqual({ version: 1, vigente: true, reemplaza_a: null, superseded_por: null, con_compuerta: false, plan_cambio_id: null, comparacion_fallo: false })
     expect(versionDelTag({ version: 3, vigente: true, reemplaza_a: PLAN, compuerta: true })).toMatchObject({ version: 3, vigente: true, reemplaza_a: PLAN, con_compuerta: true })
     expect(versionDelTag({ version: 2, vigente: false })).toMatchObject({ vigente: false })
     expect(versionDelTag({ superseded_por: PLAN_V2 })).toMatchObject({ vigente: false, superseded_por: PLAN_V2 })
@@ -357,5 +357,14 @@ describe("«Qué cambió» sin marcas de formato a la vista", () => {
   it("quita «**» y la raya final", async () => {
     const { queCambioDelTexto } = await import("@/lib/plan")
     expect(queCambioDelTexto("## QUÉ CAMBIÓ EN ESTA VERSIÓN\n1. **Idea de marca corregida:** se reemplaza\n2. **Guayaquil:** por estados\n\n---\n\n## Resumen")).toBe("1. Idea de marca corregida: se reemplaza\n2. Guayaquil: por estados")
+  })
+})
+
+describe("versión guardada sin poder compararla con la anterior (CC2 · adenda 5, punto 5)", () => {
+  it("la marca del dato se lee y el panel lo avisa; sin marca, nada", () => {
+    expect(versionDelTag({ version: 2, comparacion_fallo: true }).comparacion_fallo).toBe(true)
+    expect(versionDelTag({ version: 2 }).comparacion_fallo).toBe(false)
+    expect(leerElCiclo(null, { ...base, comparacion_fallo: true }).avisos[0]).toMatch(/^No se pudo comparar esta versión con la anterior/)
+    expect(leerElCiclo(null, base).avisos.join(" ")).not.toMatch(/comparar/)
   })
 })

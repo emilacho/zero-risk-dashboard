@@ -126,6 +126,7 @@ async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[]
     pedido: abierto ? { id: String(abierto.id), estado: String(abierto.estado ?? ""), texto: String(abierto.texto ?? ""), vuelta: abierto.vuelta == null ? null : Number(abierto.vuelta), despertado: bool(abierto.despertado), despertar_detalle: detalleCorto(abierto.despertar_detalle) } : null,
     avance,
     avance_de,
+    comparacion_fallo: tag.comparacion_fallo,
   }
 }
 
