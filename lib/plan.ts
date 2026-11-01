@@ -272,7 +272,7 @@ export interface EsperaCruda { objeto_tipo: string; motivo: string | null; vence
 export interface GrupoDeEsperas { tipo: string; etiqueta: string; n: number; vence_primero: string | null }
 export function tipoDeEsperaLegible(tipo: unknown, motivo?: string | null): string {
   switch (texto(tipo)) {
-    case "espera_video": return "publicaciones que esperan el brazo de video (aún no construido)"
+    case "espera_video": return "publicaciones que esperan su turno en el brazo de video" // el brazo existe (Higgsfield conectado · Emilio 01-nov): nunca «aún no construido»
     case "dato_en_investigacion": return "datos de publicaciones que se investigan con fuente"
     case "aprobacion_bandeja": return "piezas que esperan tu aprobación en la bandeja"
     case "campana_pausada": return "la campaña está en pausa: se revisa en el resumen semanal"

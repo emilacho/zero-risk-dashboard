@@ -288,3 +288,11 @@ describe("CC6 · errores 3–5 del panel del plan (ENCARGO Lenovo 01-nov)", () =
   })
 })
 
+
+describe("lo que espera la campaña · el brazo de video existe (Emilio 01-nov)", () => {
+  it("la espera de video nunca dice «aún no construido»", async () => {
+    const { tipoDeEsperaLegible } = await import("@/lib/plan")
+    expect(tipoDeEsperaLegible("espera_video")).toBe("publicaciones que esperan su turno en el brazo de video")
+    expect(tipoDeEsperaLegible("espera_video")).not.toMatch(/no construido/)
+  })
+})
