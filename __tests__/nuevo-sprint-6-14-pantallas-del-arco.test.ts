@@ -2,7 +2,9 @@
  * DASHBOARD NUEVO · SPRINT 6.14 (Emilio, 1-nov): «cada pantalla … una animación sutil y minimalista; no todo naranja: la variedad de la paleta de los naranjas,
  * para dar a entender que cada una muestra algo diferente». Correcciones (Emilio, 1-nov): 6.14b «no te dije que asignaras uso a cada pantalla: quita eso»;
  * «la paleta está toda en el mismo tono; las animaciones deben ser sutiles, futurísticas» · 6.15 «haz lo mismo con las pequeñas pantallas encima del escritorio;
- * reduce el tamaño de las letras que dicen música en 70 %; las animaciones se pierden porque las hiciste del mismo color: piénsalo como un centro de control futurístico».
+ * reduce el tamaño de las letras que dicen música en 70 %; las animaciones se pierden porque las hiciste del mismo color: piénsalo como un centro de control futurístico»
+ *  · 6.16 «las animaciones no me gustan: una es un átomo, otra un radar, otra un pulso cardíaco, otra un nivel de volumen; las del escritorio están mal ajustadas de tamaño;
+ *    debe ser tema tecnología del futuro mezclado con empresa; primero la parte visual, después decidiremos qué función tiene cada una; bibliotecas gratuitas de animación».
  *  · lógica pura: 10 pantallas del arco (6 encendidas) + 5 del escritorio; cada encendida con un matiz de naranja distinto y una animación distinta; sin «usos».
  *  · dentro de tu oficina: solo decoración (sin botones, rótulos, clics, lecturas ni centros); líneas en un color CLARO distinto del tinte.
  */
@@ -10,7 +12,7 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { ESCRITORIO_VIVO, GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, PANTALLAS_DEL_ARCO, PANTALLAS_DEL_ESCRITORIO, PANTALLAS_VIVAS, cajaDeLaForma, matizDe, matizYSaturacion } from "@/lib/pantallas-de-la-oficina"
+import { ESCRITORIO_VIVO, GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, PANTALLAS_DEL_ARCO, PANTALLAS_DEL_ESCRITORIO, PANTALLAS_VIVAS, cajaDeLaForma, lienzoDeLaForma, matizDe, matizYSaturacion } from "@/lib/pantallas-de-la-oficina"
 import { PANTALLA_MUSICA } from "@/lib/musica"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
 import { EscenaViva } from "@/components/nuevo/EscenaViva"
@@ -29,9 +31,9 @@ describe("6.14 · las pantallas del arco (lógica pura)", () => {
       expect(Object.keys(p).sort()).toEqual(["animacion", "encendida", "forma", "indice", "nombreDelTono", "tono"]) // sin centro, sin ruta, sin rótulo
     }
   })
-  it("los 6 tonos del arco son naranjas CLARAMENTE distintos (matices separados ≥ 5° entre vecinos, del dorado a la teja) y las 6 animaciones son distintas", () => {
+  it("los 6 tonos del arco son naranjas CLARAMENTE distintos (matices separados ≥ 5° entre vecinos, del dorado a la teja) y las 6 animaciones son tableros de empresa distintos (6.16)", () => {
     const tonos = PANTALLAS_VIVAS.map((p) => p.tono), animaciones = PANTALLAS_VIVAS.map((p) => p.animacion)
-    expect(new Set(tonos).size).toBe(6); expect(new Set(animaciones).size).toBe(6)
+    expect(new Set(tonos).size).toBe(6); expect(animaciones).toEqual(["ventas", "red", "indicadores", "crecimiento", "embudo", "mapa"]) // 6.16: ni átomo, ni radar, ni pulso cardíaco, ni volumen
     const matices = tonos.map(matizDe).sort((a, b) => a - b)
     for (const m of matices) { expect(m).toBeGreaterThanOrEqual(8); expect(m).toBeLessThanOrEqual(48) } // familia de los naranjas: nada rojo, nada amarillo limón
     expect(matices[matices.length - 1] - matices[0]).toBeGreaterThanOrEqual(25) // recorrido amplio, no «todo el mismo tono»
@@ -52,10 +54,16 @@ describe("6.15 · las 5 pantallas chicas del escritorio (lógica pura)", () => {
       expect(c.y).toBeGreaterThan(420); expect(c.y + c.h).toBeLessThan(500); expect(c.x).toBeGreaterThan(1050); expect(c.x + c.w).toBeLessThan(1500) // sobre la consola
       expect(c.w).toBeGreaterThan(c.h) // apaisadas
     }
-    expect(PANTALLAS_DEL_ESCRITORIO[1].forma).toBe(PANTALLA_MUSICA.forma); expect(PANTALLAS_DEL_ESCRITORIO[1].animacion).toBe("espectro")
+    expect(PANTALLAS_DEL_ESCRITORIO[1].forma).toBe(PANTALLA_MUSICA.forma); expect(PANTALLAS_DEL_ESCRITORIO[1].animacion).toBe("pista") // la de música: una pista de reproducción
+    expect(ESCRITORIO_VIVO.map((p) => p.animacion)).toEqual(["cotizaciones", "pista", "agenda", "participacion", "tareas"]) // 6.16
     const delArco = new Set(PANTALLAS_VIVAS.map((p) => p.animacion))
     for (const p of ESCRITORIO_VIVO) expect(delArco.has(p.animacion)).toBe(false)
-    expect(new Set(ESCRITORIO_VIVO.map((p) => p.animacion)).size).toBe(5)
+    // 6.16 · «las del escritorio están mal ajustadas de tamaño»: cada dibujo se encaja en el LIENZO de su vidrio (10 % de margen a los lados, 12 % arriba/abajo), apaisado
+    for (const p of [...PANTALLAS_DEL_ESCRITORIO, ...PANTALLAS_VIVAS]) {
+      const c = cajaDeLaForma(p.forma), l = lienzoDeLaForma(p.forma)
+      expect(l.x).toBeCloseTo(c.x + c.w * 0.1, 5); expect(l.w).toBeCloseTo(c.w * 0.8, 5); expect(l.y).toBeCloseTo(c.y + c.h * 0.12, 5); expect(l.h).toBeCloseTo(c.h * 0.76, 5)
+      expect(l.cx).toBe(c.cx); expect(l.cy).toBe(c.cy)
+    }
   })
   it("sus 5 tonos son naranjas distintos entre sí (≥ 5° entre vecinos) y repartidos por la familia", () => {
     const escritorio = ESCRITORIO_VIVO.map((p) => matizDe(p.tono)), arco = PANTALLAS_VIVAS.map((p) => matizDe(p.tono))
@@ -68,12 +76,12 @@ describe("6.15 · las 5 pantallas chicas del escritorio (lógica pura)", () => {
   })
 })
 
-describe("6.14/6.15 · las pantallas dentro de tu oficina", () => {
+describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
   it("solo decoración: 11 grupos (6 del arco + 5 del escritorio) con tinte (mezcla «matiz»), sombra e interfaz en color CLARO; sin botones, rótulos, clics ni lecturas", () => {
     const html = renderToStaticMarkup(createElement(PantallasDelArco))
     const grupos = [...html.matchAll(/<g class="nv-pantalla" data-grupo="(arco|escritorio)" data-pantalla="(\d+)" data-animacion="([a-z]+)" data-tono="([^"]+)" style="--tono:(#[0-9a-f]{6})" clip-path="url\(#nv-pantalla-\1-\2\)">/g)]
     expect(grupos.filter((g) => g[1] === "arco").map((g) => Number(g[2]))).toEqual([1, 3, 4, 7, 9, 10])
-    expect(grupos.filter((g) => g[1] === "escritorio").map((g) => [Number(g[2]), g[3]])).toEqual([[1, "telemetria"], [2, "espectro"], [3, "reticula"], [4, "anillo"], [5, "cadena"]])
+    expect(grupos.filter((g) => g[1] === "escritorio").map((g) => [Number(g[2]), g[3]])).toEqual([[1, "cotizaciones"], [2, "pista"], [3, "agenda"], [4, "participacion"], [5, "tareas"]])
     expect(new Set(grupos.map((g) => g[5])).size).toBe(11)
     expect(html).toContain('<svg viewBox="0 0 2560 1440" class="nv-tintes pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"') // el tinte en su propio svg: la mezcla actúa contra la foto
     expect(html).toContain('<svg viewBox="0 0 2560 1440" class="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"')
@@ -84,20 +92,34 @@ describe("6.14/6.15 · las pantallas dentro de tu oficina", () => {
     expect(LUZ_DE_LA_INTERFAZ).toBe("#fff3e2"); expect(matizYSaturacion(LUZ_DE_LA_INTERFAZ).saturacion).toBeGreaterThan(0.5) // cálida…
     expect(html).toContain(`.nv-pantalla .nv-hud{color:${LUZ_DE_LA_INTERFAZ};filter:drop-shadow(0 0 1.2px var(--tono)) drop-shadow(0 0 3px var(--tono))}`)
     expect(html).not.toMatch(/\.nv-hud\{color:var\(--tono\)/)
-    // movimiento: CSS (columnas, pulso, escáner, malla, telemetría, retícula, cadena) + giros SMIL (órbita ×2, radar, anillo); todo quieto con «menos movimiento»
-    for (const a of ["columna", "corre", "escanea", "onda", "respira", "teclea", "barre", "desfila"]) expect(html).toContain(`data-anima="${a}"`)
-    expect((html.match(/<animateTransform attributeName="transform" type="rotate"/g) ?? []).length).toBe(4)
+    // 6.16 · tableros de empresa (ni átomos, ni radares, ni giros): barras, nodos y enlaces, tarjetas, curva, etapas del embudo, trama del mapa…
+    expect(html).not.toMatch(/animateTransform/)
+    const de = (a: string) => html.slice(html.indexOf(`data-animacion="${a}"`), html.indexOf("</g></g>", html.indexOf(`data-animacion="${a}"`)))
+    expect((de("ventas").match(/<rect /g) ?? []).length).toBe(6) // 6 barras de ventas
+    expect((de("red").match(/<circle /g) ?? []).length).toBeGreaterThanOrEqual(7 * 2) // 7 nodos (anillo + centro) + pulsos
+    expect((de("indicadores").match(/<rect /g) ?? []).length).toBe(6) // 3 tarjetas con su bloque de dato
+    expect(de("crecimiento")).toMatch(/<path d="M[\d.,]+ L/) // la curva
+    expect((de("embudo").match(/<path /g) ?? []).length).toBe(8) // 4 etapas, contorno + relleno
+    expect((de("mapa").match(/<circle /g) ?? []).length).toBeGreaterThan(30) // la trama de puntos + 3 señales
+    expect((de("tareas").match(/<rect /g) ?? []).length).toBe(3) // 3 casillas
+    expect(de("participacion")).toMatch(/stroke-dasharray=/) // el anillo por segmentos
+    // movimiento: CSS (crece · llena · traza · marca · respira · aparece · destella · enciende · señal · desfila · recorre · avanza) + SMIL para lo que viaja por un atributo (pulsos de la red · cabezal de la pista); todo quieto con «menos movimiento»
+    for (const a of ["crece", "llena", "traza", "marca", "respira", "aparece", "destella", "enciende", "senal", "desfila", "recorre", "avanza", "avanza-y-vuelve"]) expect(html).toContain(`data-anima="${a}"`)
+    expect((html.match(/<animate attributeName="(cx|cy|opacity)"/g) ?? []).length).toBe(9 * 3 + 1) // 9 pulsos (cx, cy, opacidad) + el cabezal
     expect(html).toContain("@media (prefers-reduced-motion:reduce){.nv-pantalla .nv-hud [data-anima]{animation:none}}")
-    expect(readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")).toContain("fino = u * 0.14") // líneas finas (interfaz, no manchas)
+    expect((html.match(/pathLength="1" stroke-dashoffset="0"/g) ?? []).length).toBe(3 + 1 + 3) // trazos que se dibujan: 3 curvas, la de crecimiento, 3 marcas; en reposo, dibujados
+    // líneas finas de luz: el grosor sale del tamaño de cada vidrio (legible también en las chicas); sin framer-motion (6.16: sus componentes saltan al último cuadro en esta app)
+    const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
+    expect(c).toContain("const g = Math.max(1.3, Math.min(w, h) * 0.035)"); expect(c).toContain("lienzoDeLaForma(p.forma)"); expect(c).not.toMatch(/from "framer-motion"/)
   })
   it("no lee nada, no abre nada, no enlaza nada", () => {
     const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
-    expect(c).not.toMatch(/fetch\(|createPortal|Panel[A-Z]|href=|onClick|router|supabase|process\.env/)
+    expect(c).not.toMatch(/fetch\(|createPortal|Panel[A-Z]|href=|onClick|router|supabase|process\.env|<text/)
     expect(c).toContain('window.matchMedia("(prefers-reduced-motion: reduce)")')
   })
   it("vive solo dentro de TU OFICINA (no en marketing ni en la sala); el rótulo «MÚSICA» quedó al 30 % (6.15) y pegado a su pantalla", () => {
     const oficina = renderToStaticMarkup(createElement(EscenaViva, { inicial: "oficina" }))
-    expect(oficina).toContain('data-animacion="radar"'); expect(oficina).toContain('data-grupo="escritorio" data-pantalla="2" data-animacion="espectro"')
+    expect(oficina).toContain('data-animacion="indicadores"'); expect(oficina).toContain('data-grupo="escritorio" data-pantalla="2" data-animacion="pista"')
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: "marketing" }))).not.toContain("data-animacion=")
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))).not.toContain("data-animacion=")
     expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco />}')
