@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
+import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import {
   asientosDeLaMesa, colocarFiguras, ESCENA_AVATARES, FOTO, lineasDeLaFicha, MAXIMO_POR_MESA, MESAS, tableroDeLaMesa,
   type ClaveDeMesa, type EscenaDatos, type Mesa, type MesaViva,
@@ -47,8 +48,8 @@ const ESTILO = `
 /** la mesa vacía que se dibuja antes de que llegue el dato (y si la lectura falla): sin sentados, sin equipo, sin inventar */
 const vacia = (m: Mesa): MesaViva => ({ ...m, sentados: [], equipo: [], trabajando: 0, fallando: 0 })
 
-export function Avatares() {
-  const [datos, setDatos] = useState<EscenaDatos | null>(null)
+export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arnés: arrancar con estos datos */ datosIniciales?: EscenaDatos | null }) {
+  const [datos, setDatos] = useState<EscenaDatos | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
   const [ficha, setFicha] = useState<string | null>(null) // «mesa|agente» de la figura bajo el cursor
@@ -90,13 +91,16 @@ export function Avatares() {
 
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
-      <style>{ESTILO}</style>
+      <style>{ESTILO + ESTILO_PANTALLAS}</style>
       {hayFiguras && <FigurasSpline colocaciones={colocaciones} />}
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Las mesas de la oficina de marketing y quién trabaja ahora" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <radialGradient id="nv-av-ambar"><stop offset="0" stopColor="#ffb347" stopOpacity=".75" /><stop offset=".45" stopColor="#ff9a2e" stopOpacity=".28" /><stop offset="1" stopColor="#ff8c1a" stopOpacity="0" /></radialGradient>
+          <linearGradient id="nv-pa-reflejo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffffff" stopOpacity=".09" /><stop offset="1" stopColor="#ffffff" stopOpacity="0" /></linearGradient>
           <radialGradient id="nv-av-rojo"><stop offset="0" stopColor="#ff6a55" stopOpacity=".8" /><stop offset=".45" stopColor="#ff4a3a" stopOpacity=".3" /><stop offset="1" stopColor="#ff3a2a" stopOpacity="0" /></radialGradient>
         </defs>
+        {/* Sprint A · la pantalla de cada monitor: negra si nadie trabaja, viva según el oficio si alguien trabaja, roja si falló */}
+        {mesas.map((m) => <PantallaDeLaMesa key={`pantalla-${m.clave}`} m={m} />)}
         {mesas.map((m) => {
           const on = m.trabajando > 0 ? "ambar" : m.fallando > 0 ? "rojo" : ""
           const asientos = asientosDeLaMesa(m, m.sentados.length)
