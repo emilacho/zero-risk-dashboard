@@ -11,10 +11,17 @@
  * 6.16 (Emilio, 1-nov): «las animaciones no me gustan: una es un átomo, otra un radar, otra un pulso cardíaco, otra un nivel de volumen; debe ser tema tecnología
  * del futuro mezclado con empresa; primero la parte visual, después decidiremos qué función tiene cada una». Tema: tableros de una empresa vistos desde el futuro.
  */
+/**
+ * 6.19 (Emilio, 1-nov · encargo de Lenovo «oficina del humano», capa 1 aprobada «tal como se ve en tu boceto»): Tu oficina es la sala del DIRECTOR GENERAL. Las
+ * 10 pantallas del arco pasan a ser 9 tableros de dirección + la 10 libre (se queda el mapa dorado). Cada una con su lenguaje visual propio y su animación; sin
+ * datos todavía (capa 2: una por ciclo, empezando por Decisiones). Las del ESCRITORIO quedan RESERVADAS para temas personales de Emilio (música, secretaria…):
+ * nunca datos del sistema.
+ */
+export type TableroDeDireccion =
+  | "gobierno" | "proyectos" | "portafolio" | "dinero" | "decisiones" | "riesgos" | "organizacion" | "agenda-ejecutiva" | "observabilidad"
 export type Animacion =
-  | "ventas" | "red" | "indicadores" | "crecimiento" | "embudo" | "mapa" // el arco (6): barras de ventas · red de la empresa · tablero de indicadores · curva de crecimiento · embudo · mapa de mercados
-  | "bus" | "chip" | "meandro" | "trayecto" // 6.17: los 4 vidrios negros del arco en el dorado de la 10 · 6.17b: tres circuitos de microchip + un trayecto
-  | "cotizaciones" | "pista" | "agenda" | "participacion" | "tareas" // el escritorio (5): cinta de cotizaciones · pista de reproducción (música) · agenda del día · participación · lista de tareas
+  | TableroDeDireccion | "mapa" // el arco (6.19): 9 tableros de dirección + el mapa dorado en la 10
+  | "cotizaciones" | "pista" | "agenda" | "participacion" | "tareas" // el escritorio (5, reservado a Emilio): cinta de cotizaciones · pista de reproducción (música) · agenda del día · participación · lista de tareas
 
 export interface Pantalla {
   /** arco: 1 = extremo izquierdo … 10 = extremo derecho · escritorio: 1 = extremo izquierdo … 5 = extremo derecho */
@@ -28,21 +35,23 @@ export interface Pantalla {
   /** nombre del tono, para hablar de él */
   nombreDelTono: string | null
   animacion: Animacion | null
+  /** 6.19 · el título que se lee en lo alto del vidrio (una o dos líneas); solo los tableros de dirección */
+  titulo?: readonly string[]
 }
 /** @deprecated nombre viejo (6.14) */
 export type PantallaDelArco = Pantalla
 
 /** EL ARCO · medidas 1-nov sobre oficina-2560.jpg (x 900-1680 · y 246-480) · 6.16b: las 6 encendidas re-medidas sobre la foto ampliada con cuadrícula de 10 px (las de 6.14 estaban corridas hasta 9 px) */
 export const PANTALLAS_DEL_ARCO: readonly Pantalla[] = [
-  { indice: 1, forma: "928,369 971,345 970,450 928,471", encendida: true, tono: "#f7c233", nombreDelTono: "dorado", animacion: "ventas" },
-  { indice: 2, forma: "983,333 1038,316 1038,421 984,445", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "bus" },
-  { indice: 3, forma: "1051,311 1111,294 1111,396 1052,416", encendida: true, tono: "#ffad1f", nombreDelTono: "ámbar", animacion: "red" },
-  { indice: 4, forma: "1126,291 1191,277 1191,380 1126,393", encendida: true, tono: "#e8731a", nombreDelTono: "naranja de la marca", animacion: "indicadores" },
-  { indice: 5, forma: "1206,275 1272,270 1273,373 1206,378", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "chip" },
-  { indice: 6, forma: "1289,270 1356,276 1356,377 1289,373", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "meandro" },
-  { indice: 7, forma: "1371,278 1436,290 1436,391 1371,380", encendida: true, tono: "#ff5e1f", nombreDelTono: "zanahoria", animacion: "crecimiento" },
-  { indice: 8, forma: "1451,295 1509,311 1510,416 1451,396", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "trayecto" },
-  { indice: 9, forma: "1523,318 1575,338 1575,444 1523,420", encendida: true, tono: "#e03d1a", nombreDelTono: "teja", animacion: "embudo" },
+  { indice: 1, forma: "928,369 971,345 970,450 928,471", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "gobierno", titulo: ["GOBIERNO"] },
+  { indice: 2, forma: "983,333 1038,316 1038,421 984,445", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "proyectos", titulo: ["IDEAS", "Y PROYECTOS"] },
+  { indice: 3, forma: "1051,311 1111,294 1111,396 1052,416", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "portafolio", titulo: ["PORTAFOLIO"] },
+  { indice: 4, forma: "1126,291 1191,277 1191,380 1126,393", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "dinero", titulo: ["DINERO"] },
+  { indice: 5, forma: "1206,275 1272,270 1273,373 1206,378", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "decisiones", titulo: ["DECISIONES"] },
+  { indice: 6, forma: "1289,270 1356,276 1356,377 1289,373", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "riesgos", titulo: ["RIESGOS"] },
+  { indice: 7, forma: "1371,278 1436,290 1436,391 1371,380", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "organizacion", titulo: ["ORGANIZACIÓN"] },
+  { indice: 8, forma: "1451,295 1509,311 1510,416 1451,396", encendida: false, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "agenda-ejecutiva", titulo: ["AGENDA"] },
+  { indice: 9, forma: "1523,318 1575,338 1575,444 1523,420", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "observabilidad", titulo: ["OBSERVABILIDAD"] },
   { indice: 10, forma: "1586,345 1624,364 1623,470 1586,450", encendida: true, tono: "#ff9a2e", nombreDelTono: "durazno", animacion: "mapa" },
 ]
 
@@ -108,8 +117,6 @@ const vivas = (ps: readonly Pantalla[]) => ps.filter((p): p is PantallaViva => p
 export const PANTALLAS_VIVAS = vivas(PANTALLAS_DEL_ARCO)
 export const ESCRITORIO_VIVO = vivas(PANTALLAS_DEL_ESCRITORIO)
 /** los dos grupos, con su nombre */
-/** 6.17 · los vidrios NEGROS del arco (apagados en la foto) también se animan, en el estilo dorado pálido de la pantalla 10: mismo tono durazno, variantes del mapa */
-export const PANTALLAS_EN_NEGRO = PANTALLAS_DEL_ARCO.filter((p): p is PantallaViva => !p.encendida && p.animacion !== null && p.tono !== null)
 /** todo el arco animado, de izquierda a derecha */
 export const ARCO_ANIMADO = PANTALLAS_DEL_ARCO.filter((p): p is PantallaViva => p.animacion !== null && p.tono !== null)
 export const GRUPOS_DE_PANTALLAS = [{ grupo: "arco", pantallas: ARCO_ANIMADO }, { grupo: "escritorio", pantallas: ESCRITORIO_VIVO }] as const

@@ -58,8 +58,8 @@ describe("6.18 · cada pantalla se ilumina al tocarla, como el pizarrón", () =>
     expect(html).toContain('.nv-proy:has(.nv-musica:hover) .nv-pantalla[data-grupo="escritorio"][data-pantalla="2"] .nv-hud{opacity:1}')
     // 6.18b · en los vidrios naranjas la luz cálida se perdía: luz más clara y filo de luz; los negros (durazno) siguen igual
     expect(html).toContain('<radialGradient id="nv-luz-clara"'); expect(html).toContain('.nv-toque:not([data-tono="durazno"]) polygon.nv-luz{fill:url(#nv-luz-clara)')
-    expect(html.match(/class="nv-toque" data-id="[^"]+" data-tono="durazno"/g)!.length).toBe(5) // los 4 negros y el mapa (10)
-    expect(html).not.toMatch(/role="button"|tabindex|<text|onclick/i)
+    expect(html.match(/class="nv-toque" data-id="arco-\d+" data-tono="durazno"/g)!.length).toBe(10) // 6.19: el arco entero sobre velo oscuro
+    expect(html).not.toMatch(/role="button"|tabindex|onclick/i)
     const luzMusica = readFileSync("components/nuevo/PantallaDeMusica.tsx", "utf8").match(/<radialGradient id="nv-luz-musica"[\s\S]*?<\/radialGradient>/)![0]
     const luz = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8").match(/<radialGradient id="nv-luz-pantalla"[\s\S]*?<\/radialGradient>/)![0]
     expect(luz.replace(/\s+/g, " ").replace("nv-luz-pantalla", "X")).toBe(luzMusica.replace(/\s+/g, " ").replace("nv-luz-musica", "X")) // la misma luz

@@ -12,41 +12,30 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { ARCO_ANIMADO, ESCRITORIO_VIVO, GRUPOS_DE_PANTALLAS, PANTALLAS_EN_NEGRO, LUZ_DE_LA_INTERFAZ, PANTALLAS_DEL_ARCO, PANTALLAS_DEL_ESCRITORIO, PANTALLAS_VIVAS, alaFoto, cajaDeLaForma, lienzoDeLaForma, lienzoDelMarco, marcoDeLaForma, matizDe, matizYSaturacion } from "@/lib/pantallas-de-la-oficina"
+import { ARCO_ANIMADO, ESCRITORIO_VIVO, GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, PANTALLAS_DEL_ARCO, PANTALLAS_DEL_ESCRITORIO, PANTALLAS_VIVAS, alaFoto, cajaDeLaForma, lienzoDeLaForma, lienzoDelMarco, marcoDeLaForma, matizDe, matizYSaturacion } from "@/lib/pantallas-de-la-oficina"
 import { PANTALLA_MUSICA } from "@/lib/musica"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
 import { EscenaViva } from "@/components/nuevo/EscenaViva"
 
-describe("6.14 · las pantallas del arco (lógica pura)", () => {
-  it("10 pantallas de izquierda a derecha dentro del arco de la foto; 6 encendidas con su matiz; las 4 negras (6.17) en el dorado pálido de la 10; ningún «uso» asignado", () => {
+describe("6.19 · el arco = 9 tableros de dirección + la 10 libre (capa 1 de la oficina del humano, aprobada «tal como se ve en el boceto»)", () => {
+  it("10 vidrios de izquierda a derecha; del 1 al 9 los tableros del boceto con su título, la 10 conserva el mapa dorado; todos en el tono durazno sobre velo oscuro", () => {
     expect(PANTALLAS_DEL_ARCO.map((p) => p.indice)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    expect(PANTALLAS_VIVAS.map((p) => p.indice)).toEqual([1, 3, 4, 7, 9, 10])
-    expect(PANTALLAS_DEL_ARCO.every((p) => p.tono !== null && p.animacion !== null)).toBe(true) // 6.17: todas animadas
-    // 6.17 · «la última pantalla tiene una animación dorada pálida excelente: haz las negras del mismo estilo, cambiando de manera mínima el diseño»
-    const diez = PANTALLAS_VIVAS.find((p) => p.indice === 10)!
-    expect(PANTALLAS_EN_NEGRO.map((p) => [p.indice, p.animacion])).toEqual([[2, "bus"], [5, "chip"], [6, "meandro"], [8, "trayecto"]])
-    for (const p of PANTALLAS_EN_NEGRO) { expect(p.tono).toBe(diez.tono); expect(p.nombreDelTono).toBe("durazno") }
+    expect(PANTALLAS_DEL_ARCO.map((p) => p.animacion)).toEqual(["gobierno", "proyectos", "portafolio", "dinero", "decisiones", "riesgos", "organizacion", "agenda-ejecutiva", "observabilidad", "mapa"])
+    expect(PANTALLAS_DEL_ARCO.map((p) => p.titulo?.join(" ") ?? null)).toEqual(["GOBIERNO", "IDEAS Y PROYECTOS", "PORTAFOLIO", "DINERO", "DECISIONES", "RIESGOS", "ORGANIZACIÓN", "AGENDA", "OBSERVABILIDAD", null])
+    expect(PANTALLAS_VIVAS.map((p) => p.indice)).toEqual([1, 3, 4, 7, 9, 10]) // lo encendido en la foto no cambia
     expect(ARCO_ANIMADO.map((p) => p.indice)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    expect(new Set(ARCO_ANIMADO.map((p) => p.animacion)).size).toBe(10)
+    for (const p of PANTALLAS_DEL_ARCO) expect([p.tono, p.nombreDelTono]).toEqual(["#ff9a2e", "durazno"])
     let xAnterior = 0
     for (const p of PANTALLAS_DEL_ARCO) {
       const c = cajaDeLaForma(p.forma)
       expect(c.x).toBeGreaterThan(xAnterior); xAnterior = c.x // de izquierda a derecha, sin solaparse
       expect(c.x).toBeGreaterThan(900); expect(c.x + c.w).toBeLessThan(1680); expect(c.y).toBeGreaterThan(246); expect(c.y + c.h).toBeLessThan(480)
       expect(c.h).toBeGreaterThan(c.w) // pantallas verticales
-      expect(Object.keys(p).sort()).toEqual(["animacion", "encendida", "forma", "indice", "nombreDelTono", "tono"]) // sin centro, sin ruta, sin rótulo
     }
   })
-  it("los 6 tonos del arco son naranjas CLARAMENTE distintos (matices separados ≥ 5° entre vecinos, del dorado a la teja) y las 6 animaciones son tableros de empresa distintos (6.16)", () => {
-    const tonos = PANTALLAS_VIVAS.map((p) => p.tono), animaciones = PANTALLAS_VIVAS.map((p) => p.animacion)
-    expect(new Set(tonos).size).toBe(6); expect(animaciones).toEqual(["ventas", "red", "indicadores", "crecimiento", "embudo", "mapa"]) // 6.16: ni átomo, ni radar, ni pulso cardíaco, ni volumen
-    const matices = tonos.map(matizDe).sort((a, b) => a - b)
-    for (const m of matices) { expect(m).toBeGreaterThanOrEqual(8); expect(m).toBeLessThanOrEqual(48) } // familia de los naranjas: nada rojo, nada amarillo limón
-    expect(matices[matices.length - 1] - matices[0]).toBeGreaterThanOrEqual(25) // recorrido amplio, no «todo el mismo tono»
-    for (let i = 1; i < matices.length; i++) expect(matices[i] - matices[i - 1]).toBeGreaterThanOrEqual(5) // y vecinos que se distinguen
-    expect(matizYSaturacion("#c9a06b").saturacion).toBeLessThan(0.5); expect(matizYSaturacion("#ff9a2e").saturacion).toBe(1) // (la función: un tono apagado y uno pleno)
-    expect(PANTALLAS_VIVAS.find((p) => p.indice === 4)!.tono).toBe("#e8731a") // la del centro, el naranja de la marca
-    expect(matizDe("#e8731a")).toBeCloseTo(25.7, 0); expect(matizDe("#00ff00")).toBe(120)
+  it("el escritorio queda reservado a Emilio: ningún tablero de dirección ni título en sus 5 pantallas", () => {
+    for (const p of PANTALLAS_DEL_ESCRITORIO) { expect(p.titulo).toBeUndefined(); expect(["cotizaciones", "pista", "agenda", "participacion", "tareas"]).toContain(p.animacion) }
+    expect(matizDe("#e8731a")).toBeCloseTo(25.7, 0); expect(matizDe("#00ff00")).toBe(120); expect(matizYSaturacion("#ff9a2e").saturacion).toBe(1) // (la función)
   })
 })
 
@@ -86,59 +75,54 @@ describe("6.15 · las 5 pantallas chicas del escritorio (lógica pura)", () => {
     const orden = [...escritorio].sort((a, b) => a - b)
     for (let i = 1; i < orden.length; i++) expect(orden[i] - orden[i - 1]).toBeGreaterThanOrEqual(5)
     expect(orden[orden.length - 1] - orden[0]).toBeGreaterThanOrEqual(25)
-    expect(new Set([...escritorio, ...arco].map((m) => m.toFixed(1))).size).toBe(11) // ninguno repite exactamente uno del arco
+    expect(new Set([...escritorio, ...arco].map((m) => m.toFixed(1))).size).toBe(6) // 6.19: el arco entero en durazno; el escritorio no lo repite
     expect(GRUPOS_DE_PANTALLAS.map((g) => g.grupo)).toEqual(["arco", "escritorio"])
   })
 })
 
 describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
-  it("solo decoración: 15 grupos (10 del arco + 5 del escritorio) con tinte (mezcla «matiz»), sombra e interfaz en color CLARO; sin botones, rótulos, clics ni lecturas", () => {
+  it("15 grupos (10 del arco + 5 del escritorio) con tinte, sombra e interfaz CLARA; el arco con velo oscuro y sus 9 tableros animados; sin botones ni clics", () => {
     const html = renderToStaticMarkup(createElement(PantallasDelArco))
-    const grupos = [...html.matchAll(/<g class="nv-pantalla" data-grupo="(arco|escritorio)" data-pantalla="(\d+)" data-animacion="([a-z]+)" data-tono="([^"]+)" style="--tono:(#[0-9a-f]{6})" clip-path="url\(#nv-pantalla-\1-\2\)">/g)]
+    const grupos = [...html.matchAll(/<g class="nv-pantalla" data-grupo="(arco|escritorio)" data-pantalla="(\d+)" data-animacion="([a-z-]+)" data-tono="([^"]+)" style="--tono:(#[0-9a-f]{6})" clip-path="url\(#nv-pantalla-\1-\2\)">/g)]
     expect(grupos.filter((g) => g[1] === "arco").map((g) => Number(g[2]))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    expect(grupos.filter((g) => g[1] === "arco" && ["2", "5", "6", "8", "10"].includes(g[2])).every((g) => g[5] === "#ff9a2e")).toBe(true) // las negras, en el tono de la 10
     expect(grupos.filter((g) => g[1] === "escritorio").map((g) => [Number(g[2]), g[3]])).toEqual([[1, "cotizaciones"], [2, "pista"], [3, "agenda"], [4, "participacion"], [5, "tareas"]])
-    expect(new Set(grupos.map((g) => g[5])).size).toBe(11)
-    expect(html).toContain('<svg viewBox="0 0 2560 1440" class="nv-tintes pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"') // el tinte en su propio svg: la mezcla actúa contra la foto
-    expect(html).toContain('<svg viewBox="0 0 2560 1440" class="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"')
-    expect(html).not.toMatch(/role="button"|tabindex|aria-label|<text|nv-rotulo|aria-haspopup/) // nada que tocar, nada escrito
-    expect(html).toContain(".nv-tintes{mix-blend-mode:hue;opacity:.92}"); expect(html).toContain(".nv-sombras{mix-blend-mode:multiply;opacity:.34}") // la luz de la foto se conserva: solo cambia el matiz
+    expect(html).toContain('<svg viewBox="0 0 2560 1440" class="nv-tintes pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"')
     expect((html.match(/class="nv-tinte"/g) ?? []).length).toBe(15); expect((html.match(/class="nv-sombra"/g) ?? []).length).toBe(15)
-    // 6.15 · las líneas NO van en el tono del vidrio: van en una luz clara, con el tono solo como resplandor
-    expect(LUZ_DE_LA_INTERFAZ).toBe("#fff3e2"); expect(matizYSaturacion(LUZ_DE_LA_INTERFAZ).saturacion).toBeGreaterThan(0.5) // cálida…
-    expect(html).toContain(`.nv-pantalla .nv-hud{color:${LUZ_DE_LA_INTERFAZ};opacity:.78;filter:drop-shadow(0 0 1px var(--tono)) drop-shadow(0 0 2px var(--tono))}`)
-    expect(html).not.toMatch(/\.nv-hud\{color:var\(--tono\)/)
-    // 6.16 · tableros de empresa (ni átomos, ni radares, ni giros): barras, nodos y enlaces, tarjetas, curva, etapas del embudo, trama del mapa…
-    expect(html).not.toMatch(/animateTransform/)
-    const de = (a: string) => html.slice(html.indexOf(`data-animacion="${a}"`), html.indexOf("</g></g>", html.indexOf(`data-animacion="${a}"`)))
-    expect((de("ventas").match(/<rect /g) ?? []).length).toBe(6) // 6 barras de ventas
-    expect((de("red").match(/<circle /g) ?? []).length).toBeGreaterThanOrEqual(7 * 2) // 7 nodos (anillo + centro) + pulsos
-    expect((de("indicadores").match(/<rect /g) ?? []).length).toBe(6) // 3 tarjetas con su bloque de dato
-    expect(de("crecimiento")).toMatch(/<path d="M[\d.,]+ L/) // la curva
-    expect((de("embudo").match(/<path /g) ?? []).length).toBe(8) // 4 etapas, contorno + relleno
-    expect((de("mapa").match(/<circle /g) ?? []).length).toBeGreaterThan(30) // la trama de puntos + 3 señales
-    expect((de("tareas").match(/<rect /g) ?? []).length).toBe(3) // 3 casillas
-    expect(de("participacion")).toMatch(/stroke-dasharray=/) // el anillo por segmentos
-    // movimiento: CSS (crece · llena · traza · marca · respira · aparece · destella · enciende · señal · desfila · recorre · avanza) + SMIL para lo que viaja por un atributo (pulsos de la red · cabezal de la pista); todo quieto con «menos movimiento»
-    for (const a of ["crece", "llena", "traza", "marca", "respira", "aparece", "destella", "enciende", "senal", "desfila", "recorre", "avanza", "avanza-y-vuelve"]) expect(html).toContain(`data-anima="${a}"`)
-    expect((html.match(/<animate attributeName="(cx|cy|opacity)"/g) ?? []).length).toBe(9 * 3 + 1 + 2) // 9 pulsos (cx, cy, opacidad) + el cabezal + la luz del trayecto (6.17)
-    // 6.17b · el circuito del microchip: chispas de corriente que recorren cada pista (4 del bus + 8 del chip + 2 del meandro), y todo más tenue
-    expect((html.match(/data-anima="corriente"/g) ?? []).length).toBe(4 + 8 + 2 + 1) // + la regla del estilo
-    expect(html).toContain('.nv-pantalla[data-tono="durazno"] .nv-hud{opacity:.62}')
-    expect(html).toContain("@media (prefers-reduced-motion:reduce){.nv-pantalla .nv-hud [data-anima]{animation:none}}")
-    expect((html.match(/pathLength="1" stroke-dashoffset="0"/g) ?? []).length).toBe(3 + 1 + 3) // (6.17b: las chispas del circuito van aparte) // trazos que se dibujan: 3 curvas, la de crecimiento, 3 marcas; en reposo, dibujados
-    // líneas finas de luz: el grosor sale del tamaño de cada vidrio (legible también en las chicas); sin framer-motion (6.16: sus componentes saltan al último cuadro en esta app)
-    const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
-    expect(c).toContain("const g = Math.max(1.3, Math.min(w, h) * 0.035)"); expect(c).toContain("lienzoDelMarco(marcoDeLaForma(p.forma))"); expect(c).toContain('transform={`matrix(${marcoDeLaForma(p.forma).matriz'); expect(c).not.toMatch(/from "framer-motion"/)
+    // 6.19 · el velo oscuro solo en los 10 vidrios del arco, como en el boceto
+    const velos = html.slice(html.indexOf('class="nv-velos'), html.indexOf("</svg>", html.indexOf('class="nv-velos')))
+    expect((velos.match(/<polygon /g) ?? []).length).toBe(10); expect(html).toContain(".nv-velos polygon{fill:rgba(14,9,5,.8)}")
+    expect(LUZ_DE_LA_INTERFAZ).toBe("#fff3e2"); expect(html).toContain(`.nv-pantalla .nv-hud{color:${LUZ_DE_LA_INTERFAZ};opacity:.78;filter:drop-shadow(0 0 1px var(--tono)) drop-shadow(0 0 2px var(--tono))}`)
+    expect(html).toContain('.nv-pantalla[data-grupo="arco"] .nv-hud{opacity:.86}')
+    // los 9 tableros, en el plano 100×160 del boceto, cada uno con su título y su dibujo propio
+    expect([...html.matchAll(/data-tablero="([a-z-]+)"/g)].map((m) => m[1])).toEqual(["gobierno", "proyectos", "portafolio", "dinero", "decisiones", "riesgos", "organizacion", "agenda-ejecutiva", "observabilidad"])
+    expect([...html.matchAll(/<g class="nv-titulo"[^>]*>(.*?)<\/g>/g)].map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())).toEqual(["GOBIERNO", "IDEAS Y PROYECTOS", "PORTAFOLIO", "DINERO", "DECISIONES", "RIESGOS", "ORGANIZACIÓN", "AGENDA", "OBSERVABILIDAD"])
+    const de = (t: string) => { const i = html.indexOf(`data-tablero="${t}"`), j = html.indexOf('data-tablero="', i + 20); return html.slice(i, j > 0 ? j : html.indexOf('data-animacion="mapa"')) }
+    expect((de("gobierno").match(/<rect [^>]*rx="6"/g) ?? []).length).toBe(5) // 5 interruptores
+    expect((de("proyectos").match(/<text /g) ?? []).length).toBe(2 + 6) // título en 2 líneas + 6 etapas
+    for (const e of ["idea", "evaluación", "plan", "aprobado", "construcción", "operando"]) expect(de("proyectos")).toContain(`>${e}</text>`)
+    expect((de("portafolio").match(/data-anima="late"/g) ?? []).length).toBe(7) // 7 astros que laten
+    expect((de("dinero").match(/data-anima="fluye"/g) ?? []).length).toBe(8) // 5 + 3 cauces con corriente
+    expect(de("decisiones")).toContain('data-anima="apila"'); expect((de("decisiones").match(/<rect /g) ?? []).length).toBe(3 + 2 + 2) // 3 detrás + la del frente (velo y borde) + 2 botones
+    expect(de("riesgos")).toContain('type="rotate" from="0 50 90" to="360 50 90"'); expect((de("riesgos").match(/data-anima="detecta"/g) ?? []).length).toBe(5)
+    expect((de("organizacion").match(/data-anima="planta"/g) ?? []).length).toBeGreaterThan(10) // las plantas que se encienden
+    expect(de("agenda-ejecutiva")).toContain(">hoy</text>"); expect(de("agenda-ejecutiva")).toContain('data-anima="recorrido"')
+    expect((de("observabilidad").match(/data-anima="despliega"/g) ?? []).length).toBe(10) // la cascada, paso a paso
+    expect((html.match(/data-anima="senal"/g) ?? []).length).toBe(3 + 1 + 1) // las señales del mapa de la 10 + «hoy» + la regla del estilo
+    expect(html).not.toMatch(/role="button"|tabindex|aria-label|aria-haspopup/) // nada que tocar
+    // «menos movimiento»: el CSS se apaga (también el de los tableros) y los SMIL no se montan
+    expect(html.split("@media (prefers-reduced-motion:reduce){.nv-pantalla .nv-hud [data-anima]{animation:none}}").length - 1).toBe(2)
+    const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8"), t = readFileSync("components/nuevo/TablerosDeDireccion.tsx", "utf8")
+    expect(c).toContain("ESTILO + ESTILO_DE_DIRECCION + ESTILO_DEL_BRILLO"); expect(c).toContain('transform={`matrix(${marcoDeLaForma(p.forma).matriz'); expect(c).not.toMatch(/from "framer-motion"/)
+    expect(t).toContain("{!quieto && <animateTransform"); expect(t).toContain("{!quieto && (")
   })
   it("no lee nada, no abre nada, no enlaza nada", () => {
     const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
-    expect(c).not.toMatch(/fetch\(|createPortal|Panel[A-Z]|href=|onClick|router|supabase|process\.env|<text/)
+    for (const f of [c, readFileSync("components/nuevo/TablerosDeDireccion.tsx", "utf8")]) expect(f).not.toMatch(/fetch\(|createPortal|Panel[A-Z]|href=|onClick|router|supabase|process\.env/) // sin datos todavía (capa 2)
     expect(c).toContain('window.matchMedia("(prefers-reduced-motion: reduce)")')
   })
   it("vive solo dentro de TU OFICINA (no en marketing ni en la sala); el rótulo «MÚSICA» quedó al 30 % (6.15) y pegado a su pantalla", () => {
     const oficina = renderToStaticMarkup(createElement(EscenaViva, { inicial: "oficina" }))
-    expect(oficina).toContain('data-animacion="indicadores"'); expect(oficina).toContain('data-grupo="escritorio" data-pantalla="2" data-animacion="pista"')
+    expect(oficina).toContain('data-animacion="decisiones"'); expect(oficina).toContain('data-grupo="escritorio" data-pantalla="2" data-animacion="pista"')
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: "marketing" }))).not.toContain("data-animacion=")
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))).not.toContain("data-animacion=")
     expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco />}')
