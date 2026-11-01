@@ -70,8 +70,8 @@ export function leerPedido(input: Record<string, unknown> | undefined): PedidoPr
 export function causaDelFallo(d: { message?: unknown; status?: unknown; details?: unknown; http?: number } = {}): string {
   const msg = String(d.message ?? "")
   const status = Number(d.status)
-  if (msg === "unauthenticated") return "Tu sesión venció: vuelve a entrar para conversar."
-  if (msg === "forbidden") return "Tu usuario no tiene permiso de administrador para este chat (403)."
+  if (msg === "unauthenticated" || d.http === 401) return "Tu sesión venció: vuelve a entrar para conversar."
+  if (msg === "forbidden" || d.http === 403) return "Tu usuario no tiene permiso de administrador para este chat (403)."
   if (msg === "anthropic_api_key_missing") return "El servidor no tiene la llave del asistente (ANTHROPIC_API_KEY): hay que ponerla en las variables del dashboard."
   if (msg === "invalid_json" || msg === "message_empty_or_too_long" || msg === "session_id_required") return `El servidor no aceptó el mensaje (${msg}).`
   if (msg === "anthropic_api_error") {
