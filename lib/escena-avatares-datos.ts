@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
 import { esDePractica } from "@/lib/clientes"
+import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
 
@@ -54,5 +55,31 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } =
     const m = (i.metadata && typeof i.metadata === "object" ? i.metadata : {}) as Fila
     return { agent_name: String(i.agent_name ?? ""), client_id: s(i.client_id), workflow_id: s(i.workflow_id), workflow_execution_id: s(i.workflow_execution_id), status: s(i.status), started_at: s(i.started_at), ended_at: s(i.ended_at), cost_usd: i.cost_usd == null ? null : Number(i.cost_usd), step_name: s(m.step_name), task_text: s(m.task_text) }
   })
-  return armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx })
+  const escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx })
+  // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
+  if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
+  return escena
+}
+
+/** S4 · lo que hace falta para los globos: la salida guardada de cada participante, los informes que entraron al cerebro durante la reunión y la revisión
+ *  de la jefatura. Un error de la base lanza (no se lee como «no se usó»). */
+export async function leerAportesDeLaReunion(supa: SupabaseClient, r: ReunionDeLaSala): Promise<ReunionDeLaSala> {
+  const corridas = r.participantes.map((p) => p.corrida).filter((x): x is string => !!x)
+  const clave = `escena-viva-aportes|${corridas.join(",")}|${r.participantes.map((p) => p.estado).join(",")}`
+  const datos = await conCache(clave, 20_000, async () => {
+    const desde = r.desde ?? new Date(0).toISOString()
+    const hasta = new Date(Date.parse(r.hasta ?? new Date().toISOString()) + MINUTOS_ENLACE * 60_000).toISOString()
+    const tieneJefatura = r.fases.some((f) => f.nombre === "revisión de la jefatura")
+    const [salidas, fichas, revision] = await Promise.all([
+      corridas.length ? filas(supa.from("agent_invocations").select("agent_name, workflow_execution_id, output_summary").in("workflow_execution_id", corridas).limit(100), "agent_invocations") : Promise.resolve([] as Fila[]),
+      r.cliente_id ? filas(supa.from("cerebro_fichas").select("ref").eq("client_id", r.cliente_id).eq("clase", "informe_de_analisis").gte("creado_en", desde).lte("creado_en", hasta).limit(50), "cerebro_fichas") : Promise.resolve([] as Fila[]),
+      r.cliente_id && tieneJefatura ? filas(supa.from("jefatura_revisiones").select("estado_del_motor, creado_en").eq("client_id", r.cliente_id).gte("creado_en", desde).lte("creado_en", hasta).order("creado_en", { ascending: false }).limit(1), "jefatura_revisiones") : Promise.resolve([] as Fila[]),
+    ])
+    return {
+      salidas: salidas.map((x) => ({ agent_name: String(x.agent_name ?? ""), workflow_execution_id: s(x.workflow_execution_id), output_summary: s(x.output_summary) })),
+      informesEnElCerebro: fichas.map((f) => String(f.ref ?? "")).filter(Boolean),
+      revision: revision[0] ? { estado_del_motor: revision[0].estado_del_motor } : null,
+    }
+  })
+  return conAportes(r, datos)
 }
