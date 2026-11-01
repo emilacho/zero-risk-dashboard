@@ -16,12 +16,12 @@ const fila = (id: string, empleado: string, cuando: string, extra: Partial<FilaE
 
 describe("el tótem", () => {
   it("la pantalla suelta de abajo ya no es un enlace a las oficinas: es el botón «En vivo» (el resto de la escena queda igual)", () => {
-    expect(ZONAS.map((z) => z.clave)).toEqual(["cerebro", "marketing"])
+    expect(ZONAS.map((z) => z.clave)).toEqual(["oficina", "marketing"]) // 6.12: el monolito es tu oficina
     expect(ZONAS.flatMap((z) => z.formas)).not.toContain(TOTEM.forma)
     const html = renderToStaticMarkup(createElement(EscenaNuevo, null, createElement(TotemEnVivo)))
     expect(html).toContain('role="button"')
     expect(html).toContain('aria-label="En vivo"')
-    expect([...html.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/cerebro", "/nuevo/marketing"]) // 6.9: el monolito abre el Cerebro nuevo, ya no el dashboard viejo
+    expect([...html.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1]).sort()).toEqual(["/nuevo/marketing", "/nuevo/oficina"]) // 6.12: el monolito es tu oficina (el Cerebro vive adentro)
     expect(html).not.toContain('role="dialog"') // cerrado de entrada: la capa no existe hasta el clic
   })
   it("la página pone el tótem dentro de la escena", () => {

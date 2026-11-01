@@ -34,7 +34,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
   it("5.8 · la imagen de marketing SALE DE ADENTRO de la plataforma en la que se hizo clic, ocupa casi todo el escenario y sus bordes se funden con el negro (sin viñeta radial)", () => {
     const abierta = renderToStaticMarkup(createElement(EscenaViva, { inicial: true }))
     // la foto abierta (B) no lleva viñeta radial: el único radial es el óvalo de la copia A, que solo se ve mientras aparece chica (5.9)
-    expect(abierta.split("radial-gradient").length - 1).toBe(2)
+    expect(abierta.split("radial-gradient").length - 1).toBe(1) // 6.12: el óvalo viaja como variable (--nv-ovalo) en el estilo de la proyección: una sola vez
     expect(abierta).toContain("width:min(120vw, calc((100dvh - 4rem) * 16 / 9))")
     expect(ANCHO_MARKETING_ABIERTO).toContain("120vw")
     expect(FUNDIDO_BORDES).toBe("linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%)")
@@ -62,7 +62,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     // la capa de la imagen cubre toda la ventana (fixed) para que la foto pueda ser más grande que el hueco de la escena
     // 5.9 · dos copias de la foto: A recortada en óvalo suave (lo que se ve mientras aparece chica sobre la plataforma) y B completa que se funde encima al crecer
     expect(abierta.match(/src="\/nuevo\/marketing-2560\.jpg"/g)?.length).toBe(2)
-    expect(abierta).toContain(`.nv-foto-a{-webkit-mask-image:${OVALO_SALA};mask-image:${OVALO_SALA}}`)
+    expect(abierta).toContain(".nv-foto-a{-webkit-mask-image:var(--nv-ovalo);mask-image:var(--nv-ovalo)}"); expect(abierta).toContain(`--nv-ovalo:${OVALO_SALA}`) // 6.12: el óvalo de cada departamento viaja como variable
     expect(OVALO_SALA).toContain("radial-gradient(ellipse 40% 46% at 48.8% 40.5%")
     expect(abierta).toContain("@keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}")
     expect(abierta).toContain("@keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}")
@@ -89,9 +89,9 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
       expect(px).toBeGreaterThanOrEqual(mkt.caja.x - 1); expect(px).toBeLessThanOrEqual(mkt.caja.x + mkt.caja.w + 1); expect(py).toBeGreaterThanOrEqual(mkt.caja.y - 1); expect(py).toBeLessThanOrEqual(mkt.caja.y + mkt.caja.h + 1)
     }
     expect(z.superficie).toBeUndefined() // Marketing ya no lleva luz pintada
-    // el cerebro conserva su luz suave recortada al monolito
-    const cer = ZONAS.find((zz) => zz.clave === "cerebro")!
-    expect(html).toContain(`<clipPath id="nv-sup-cerebro"><polygon points="${cer.superficie}"`)
+    // el monolito (6.12: tu oficina; antes el cerebro) conserva su luz suave recortada a su cara
+    const cer = ZONAS.find((zz) => zz.clave === "oficina")!
+    expect(html).toContain(`<clipPath id="nv-sup-oficina"><polygon points="${cer.superficie}"`)
     expect(html).toMatch(/polygon\.nv-luz\{[^}]*mix-blend-mode:screen/)
   })
   it("5.14 · dentro de la oficina, el pizarrón de piezas se enciende al pasar el ratón (recorte con alfa en su lugar exacto) y muestra su rótulo con las letras de la marca", () => {

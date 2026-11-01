@@ -9,10 +9,10 @@ const leer = (p: string) => readFileSync(p, "utf8")
 const enlaces = (html: string) => [...html.matchAll(/<a [^>]*?href="([^"]+)"/g)].map((m) => m[1])
 
 describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
-  it("de la escena solo son clicables DOS cosas: el monolito (cerebro) y las pantallas y el proyector (oficinas)", () => {
+  it("de la escena solo son clicables DOS cosas: el monolito (tu oficina) y las pantallas y el proyector (Dept. Marketing)", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
-    expect(enlaces(html).sort()).toEqual(["/nuevo/cerebro", "/nuevo/marketing"]) // 6.9: el monolito abre el Cerebro nuevo, ya no el dashboard viejo
-    expect(ZONAS.map((z) => z.clave)).toEqual(["cerebro", "marketing"])
+    expect(enlaces(html).sort()).toEqual(["/nuevo/marketing", "/nuevo/oficina"]) // 6.12: el monolito es tu oficina (6.9 abría el Cerebro; ahora el Cerebro vive adentro)
+    expect(ZONAS.map((z) => z.clave)).toEqual(["oficina", "marketing"])
     expect(ZONAS[1].formas.length).toBe(1) // la plataforma de marketing (la pantalla de pie queda libre para «En vivo»)
   })
   it("las zonas caen dentro del recorte de la imagen (si no, el clic no coincidiría con el dibujo)", () => {
