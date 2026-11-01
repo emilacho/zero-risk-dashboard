@@ -45,6 +45,16 @@ export function GloboQueGira() {
       const atras = geoOrthographic().translate([c, c]).scale(R).clipAngle(90).precision(0.3)
       const pF = geoPath(frente, ctx), pA = geoPath(atras, ctx)
       const T = TRAZO_DEL_GLOBO
+      // la trama de puntitos de las tierras
+      const tile = document.createElement("canvas"), lado = Math.max(2, Math.round(T.puntos.paso * ESCALA)); tile.width = lado; tile.height = lado
+      const tc = tile.getContext("2d")!; tc.fillStyle = T.puntos.color; tc.beginPath(); tc.arc(lado / 2, lado / 2, T.puntos.radio * ESCALA, 0, Math.PI * 2); tc.fill()
+      const trama = ctx.createPattern(tile, "repeat")!
+      // los cruces que destellan: fijos sobre el globo (giran con él), elegidos una vez
+      const cruces: [number, number][] = []
+      for (let lon = -180; lon < 180; lon += GLOBO.paso) for (let lat = -75; lat <= 75; lat += GLOBO.paso) {
+        const h = Math.abs(Math.sin(lon * 12.9898 + lat * 78.233) * 43758.5453) % 1
+        if (h < T.destellos.proporcion) cruces.push([lon, lat])
+      }
       const pintar = (segundos: number) => {
         const [l, f, g] = giroDelGlobo(segundos)
         frente.rotate([l, f, g])
@@ -60,11 +70,25 @@ export function GloboQueGira() {
         ctx.restore()
         ctx.shadowColor = T.halo; ctx.shadowBlur = T.radioHalo * ESCALA
         ctx.beginPath(); pF(tierra); ctx.fillStyle = T.tierra; ctx.fill()
+        ctx.save(); ctx.shadowBlur = 0; ctx.fillStyle = trama; ctx.fill(); ctx.restore()
         ctx.shadowBlur = T.radioHalo * 0.5 * ESCALA; ctx.strokeStyle = T.costa; ctx.lineWidth = T.grosorCosta * ESCALA; ctx.stroke(); ctx.shadowBlur = T.radioHalo * ESCALA
         ctx.beginPath(); pF(cuadricula); ctx.strokeStyle = T.cuadricula; ctx.lineWidth = T.grosorCuadricula * ESCALA; ctx.stroke()
-        // el haz vertical del pedestal: quieto, como en la foto
+        // los destellos en los cruces de la cara de enfrente
+        ctx.fillStyle = T.destellos.color; ctx.shadowBlur = T.radioHalo * 0.8 * ESCALA
+        for (const q of cruces) {
+          const pt = frente(q); if (!pt) continue
+          const [x, y] = pt; if (Math.hypot(x - c, y - c) > R * 0.97) continue
+          ctx.beginPath(); ctx.arc(x, y, T.destellos.radio * ESCALA, 0, Math.PI * 2); ctx.fill()
+        }
+        // el haz vertical del pedestal: quieto, como en la foto, con su destello en cruz
+        ctx.shadowBlur = T.radioHalo * ESCALA
         const haz = ctx.createLinearGradient(0, c - R, 0, c + R); haz.addColorStop(0, T.haz.arriba); haz.addColorStop(1, T.haz.abajo)
         ctx.beginPath(); ctx.moveTo(c, c - R); ctx.lineTo(c, c + R); ctx.strokeStyle = haz; ctx.lineWidth = T.haz.ancho * ESCALA; ctx.stroke()
+        const yd = c + R * T.haz.destelloEn, ld = R * T.haz.destelloLargo
+        const cruz = ctx.createLinearGradient(c - ld, 0, c + ld, 0); cruz.addColorStop(0, "rgba(255,220,160,0)"); cruz.addColorStop(0.5, T.haz.abajo); cruz.addColorStop(1, "rgba(255,220,160,0)")
+        ctx.beginPath(); ctx.moveTo(c - ld, yd); ctx.lineTo(c + ld, yd); ctx.strokeStyle = cruz; ctx.lineWidth = T.haz.ancho * 0.8 * ESCALA; ctx.stroke()
+        const nucleo = ctx.createRadialGradient(c, yd, 0, c, yd, R * 0.09); nucleo.addColorStop(0, "rgba(255,250,235,1)"); nucleo.addColorStop(1, "rgba(255,200,120,0)")
+        ctx.fillStyle = nucleo; ctx.beginPath(); ctx.arc(c, yd, R * 0.09, 0, Math.PI * 2); ctx.fill()
         ctx.restore()
         ctx.save(); ctx.globalCompositeOperation = "destination-in"
         const m = ctx.createRadialGradient(c, c, R * GLOBO.fundido.desde, c, c, R * GLOBO.fundido.hasta)
