@@ -7,8 +7,8 @@
  *  · la ESTRATEGIA versionada de la cadena (`cadena_estrategias.contenido`: fases · redes con rol y frecuencia · pilares · patrón semanal · pendientes ·
  *    alertas · dependencias · fechas que importan · hitos · piezas fijas · excluidos);
  *  · la CAMPAÑA (`cadena_campanas`: estado y motivo · ventana · sedes · tope de planeación) y lo que ESPERA (`cadena_esperas`).
- * La decisión sobre un plan «con puntos por resolver» es una fila de la bandeja (`hitl_queue` · `plan_con_pendientes`) y se resuelve por la acción del
- * tablero `revision-resolver` (la misma que usa la bandeja de siempre): aquí solo se arma el cuerpo que ese servidor valida.
+ * La decisión sobre el plan (CC6 · 01-nov · ciclo del plan de CC1) va por las puertas `plan-cambios` (gasta, tope ≤ 8) y `plan-aprobar` (US$ 0) del tablero:
+ * aquí se arman sus cuerpos, se lee el estado del ciclo y se dicen sus respuestas en palabras. La nota «plan con pendientes» de la bandeja ya no se decide aquí.
  */
 import type { FasesDelPlan } from "@/lib/clientes"
 import { fasesDelPlan } from "@/lib/clientes"
@@ -265,9 +265,141 @@ export function agruparEsperas(esperas: EsperaCruda[]): GrupoDeEsperas[] {
   return [...m.values()].sort((a, b) => b.n - a.n || a.etiqueta.localeCompare(b.etiqueta, "es"))
 }
 
-// ── la decisión sobre el plan (bandeja `plan_con_pendientes` · acción `revision-resolver`) ──
+// ── el ciclo del plan (CC6 · 01-nov · contrato certificado de CC1: `PLAN-CC1-ciclo-del-plan-tramo-2-diseno-y-contrato.md` §2 + ADENDA 1) ──
+// «Pedir cambios» → `plan-cambios` (GASTA: el jefe de marketing reescribe sobre este plan y la jefatura revisa) · «Aprobar» → `plan-aprobar` (US$ 0: pasa al PDF y al brief).
 export const BOTONES_DEL_PLAN = { aprobar: "Aprobar el plan así", rechazar: "Pedir cambios al plan" } as const
-/** el cuerpo que valida el servidor del tablero: la revisión, la decisión y el porqué (obligatorio al pedir cambios, de 5 a 1.000 caracteres) */
+/** tope por pedido de cambios (contrato: ≤ 8) y lo que suele costar (redactor ≈ 1 + jefatura 1–3) */
+export const TOPE_REESCRITURA_USD = 8
+export const COSTO_ESTIMADO_REESCRITURA = "US$ 1–3"
+/** después de 3 reescrituras (versión 4) solo se aprueba; lo demás se decide a mano */
+export const VUELTAS_MAXIMAS = 3
+
+export interface VersionDelPlan { id: string; version: number; creado_en: string | null; status: string | null; reemplaza_a: string | null; superseded_por: string | null }
+export interface CicloDelPlan {
+  /** las tablas del ciclo existen en la plataforma (hasta que se abra la «ventana» de CC1, no) */
+  disponible: boolean
+  version: number
+  /** las versiones anteriores del plan (más nuevas primero): se ven en segundo plano */
+  historial: VersionDelPlan[]
+  /** el plan salió con compuerta (`provenance_tag.compuerta`): mientras no haya fila de compuerta, la jefatura sigue revisando */
+  con_compuerta: boolean
+  compuerta: null | { estado: string; decidido_por: string | null; decidido_en: string | null; despertado: boolean | null; despertar_detalle: string | null }
+  /** el pedido de cambios abierto sobre esta versión (pendiente o en reescritura) */
+  pedido: null | { id: string; estado: string; texto: string; vuelta: number | null; despertado: boolean | null; despertar_detalle: string | null }
+}
+
+/** la versión de una fila del plan y si sigue vigente, de su `provenance_tag` (contrato: versión ausente = 1; vigente salvo `vigente:false` o `superseded_por`) */
+export function versionDelTag(tag: unknown): { version: number; vigente: boolean; reemplaza_a: string | null; superseded_por: string | null; con_compuerta: boolean } {
+  const t = objeto(tag)
+  const v = numero(t.version)
+  return { version: v && v >= 1 ? Math.floor(v) : 1, vigente: t.vigente !== false && !texto(t.superseded_por), reemplaza_a: texto(t.reemplaza_a) || null, superseded_por: texto(t.superseded_por) || null, con_compuerta: t.compuerta === true }
+}
+
+export type EstadoDelCiclo = "en_revision" | "reescribiendo" | "esperando_decision" | "aprobado"
+export interface LecturaDelCiclo {
+  estado: EstadoDelCiclo
+  /** el estado en palabras (lo que se ve grande) */
+  titulo: string
+  detalle: string
+  puede_aprobar: boolean
+  puede_pedir_cambios: boolean
+  /** la última llamada no logró despertar al flujo (no se gastó nada): repetir la misma puerta */
+  reintentar: null | "plan-cambios" | "plan-aprobar"
+  avisos: string[]
+}
+export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPlan): LecturaDelCiclo {
+  const avisos: string[] = []
+  if (!ciclo.disponible) avisos.push("El ciclo del plan todavía no está abierto en la plataforma: los botones responden «aún no disponible» hasta que se abra. No se cambia nada ni se gasta.")
+  const cp = ciclo.compuerta, pd = ciclo.pedido
+  if (statusDelDocumento === "approved" || cp?.estado === "aprobado") {
+    const sinDespertar = cp?.estado === "aprobado" && cp.despertado === false
+    const quien = cp?.decidido_por ? ` por ${cp.decidido_por}` : ""
+    const detalle = sinDespertar
+      ? `Quedó aprobado, pero no se pudo avisar para seguir al PDF y al brief${cp?.despertar_detalle ? ` (${cp.despertar_detalle})` : ""}. No se gastó nada.`
+      : `Versión ${ciclo.version} aprobada${quien}: sigue el PDF, la sala y el brief.`
+    return { estado: "aprobado", titulo: "Aprobado → pasa al brief", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-aprobar" : null, avisos }
+  }
+  if (pd && (pd.estado === "pendiente" || pd.estado === "en_reescritura")) {
+    const sinDespertar = pd.despertado === false
+    const detalle = sinDespertar
+      ? `Tu pedido quedó guardado, pero no se pudo avisar a la oficina de planeación${pd.despertar_detalle ? ` (${pd.despertar_detalle})` : ""}. No se gastó nada.`
+      : `El jefe de marketing rehace el plan sobre la versión ${ciclo.version} con tus observaciones${pd.vuelta ? ` (vuelta ${pd.vuelta} de ${VUELTAS_MAXIMAS})` : ""}; después lo revisa la jefatura.`
+    return { estado: "reescribiendo", titulo: "Reescribiendo", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-cambios" : null, avisos }
+  }
+  if (ciclo.con_compuerta && !cp) return { estado: "en_revision", titulo: "En revisión", detalle: "La jefatura está revisando esta versión: decides cuando termine.", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos }
+  const alTope = ciclo.version > VUELTAS_MAXIMAS
+  if (alTope) avisos.push(`Ya van ${VUELTAS_MAXIMAS} reescrituras: desde aquí solo se puede aprobar; lo demás se decide a mano.`)
+  if (ciclo.disponible && !ciclo.con_compuerta && !cp) avisos.push("Este plan es de antes del ciclo: aprobarlo lo deja firme sin reanudar nada (su brief ya salió). Pedir cambios crea la versión siguiente, con su revisión.")
+  return { estado: "esperando_decision", titulo: "Esperando tu decisión", detalle: `Versión ${ciclo.version}: apruébala para que pase al brief, o pide cambios para que el jefe de marketing la reescriba.`, puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
+}
+
+/** el cuerpo de «Pedir cambios» (contrato: texto de 5 a 4.000, confirmación del gasto y tope ≤ 8) */
+export function cuerpoDePedirCambios(planId: string | null, observaciones: string): { plan_id: string; texto: string; confirmo_gasto: true; tope_usd: number } | { error: string } {
+  if (!planId || !UUID.test(planId)) return { error: "No hay un plan sobre el que pedir cambios" }
+  const t = observaciones.trim()
+  if (t.length < 5) return { error: "Cuenta qué debe cambiar (al menos 5 caracteres)" }
+  if (t.length > 4000) return { error: "Máximo 4.000 caracteres" }
+  return { plan_id: planId, texto: t, confirmo_gasto: true, tope_usd: TOPE_REESCRITURA_USD }
+}
+/** el cuerpo de «Aprobar» (contrato: comentario opcional de hasta 1.000) */
+export function cuerpoDeAprobar(planId: string | null, comentario: string): { plan_id: string; comentario?: string } | { error: string } {
+  if (!planId || !UUID.test(planId)) return { error: "No hay un plan que aprobar" }
+  const t = comentario.trim()
+  if (t.length > 1000) return { error: "Máximo 1.000 caracteres" }
+  return { plan_id: planId, ...(t ? { comentario: t } : {}) }
+}
+
+/** lo que devolvió la puerta del tablero (`/api/acciones/{accion}`), dicho en palabras: nunca un código crudo */
+export interface RespuestaDelCiclo { ok: boolean; texto: string; reintentar: boolean; releer: boolean }
+const MOTIVOS_DEL_CICLO: Record<string, string> = {
+  plan_en_revision: "La jefatura todavía revisa este plan: decides cuando termine. No se cambió nada.",
+  no_es_el_vigente: "Este ya no es el plan vigente: hay una versión más nueva. Vuelvo a leer.",
+  plan_ya_aprobado: "Este plan ya estaba aprobado: la siguiente fase ya arrancó.",
+  plan_rechazado: "Este plan está rechazado: no se decide sobre él.",
+  reescritura_en_curso: "Ya hay un pedido de cambios en curso: espera la versión nueva.",
+  tope_de_vueltas: `Ya van ${VUELTAS_MAXIMAS} reescrituras: desde aquí solo se puede aprobar; lo demás se decide a mano.`,
+  plan_inexistente: "La plataforma no encuentra este plan. Vuelvo a leer.",
+  entrada_invalida: "La plataforma no aceptó el pedido tal como iba. No se gastó nada.",
+  falta_confirmar_el_gasto: "Falta confirmar el gasto. No se gastó nada.",
+  falta_confirmar_gasto: "Falta confirmar el gasto. No se gastó nada.",
+  falta_el_tope: "Falta el tope del gasto. No se gastó nada.",
+  tope_demasiado_alto: `El tope pasa de US$ ${TOPE_REESCRITURA_USD}. No se gastó nada.`,
+}
+const RELEER_TRAS = ["no_es_el_vigente", "plan_ya_aprobado", "plan_inexistente", "reescritura_en_curso", "plan_en_revision"]
+const NO_DISPONIBLE = "Aún no disponible: el ciclo del plan todavía no está abierto en la plataforma. No se cambió nada ni se gastó."
+export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", status: number, cuerpo: unknown): RespuestaDelCiclo {
+  const c = objeto(cuerpo)
+  if (status === 200 && c.ok === true) {
+    const r = objeto(c.resultado)
+    const re = r.reintento === true ? "Reintento: " : ""
+    const motivo = texto(r.motivo_sin_despertar) || texto(r.motivo)
+    if (accion === "plan-cambios") {
+      if (r.despertado === false) return { ok: false, texto: `${re}Tu pedido quedó guardado, pero no se pudo avisar a la oficina de planeación${motivo ? ` (${motivo})` : ""}. No se gastó nada: usa «Reintentar».`, reintentar: true, releer: true }
+      const vuelta = numero(r.vuelta), nueva = numero(r.version_nueva), tope = numero(r.tope_usd) ?? TOPE_REESCRITURA_USD
+      return { ok: true, texto: `${re}Pedido enviado${vuelta ? ` (vuelta ${vuelta} de ${VUELTAS_MAXIMAS})` : ""}: el jefe de marketing reescribe${nueva ? ` la versión ${nueva}` : " el plan"} y la jefatura la revisa · tope US$ ${tope}.`, reintentar: false, releer: true }
+    }
+    const v = numero(r.version)
+    const cual = v ? ` (versión ${v})` : ""
+    if (r.despertado === false) return { ok: false, texto: `${re}Plan aprobado${cual}, pero no se pudo avisar para seguir al PDF y al brief${motivo ? ` (${motivo})` : ""}. Usa «Reintentar».`, reintentar: true, releer: true }
+    if (r.reanuda === false) return { ok: true, texto: `${re}Plan aprobado${cual}. No se reanudó nada${motivo ? `: ${motivo}` : ""}.`, reintentar: false, releer: true }
+    return { ok: true, texto: `${re}Plan aprobado${cual}: pasa al PDF, a la sala y al brief.`, reintentar: false, releer: true }
+  }
+  if (status === 501) return { ok: false, texto: NO_DISPONIBLE, reintentar: false, releer: false }
+  if (status === 401) return { ok: false, texto: "Tu sesión venció: entra de nuevo. No se cambió nada.", reintentar: false, releer: false }
+  if (status === 403) return { ok: false, texto: "Necesitas una sesión de administrador. No se cambió nada.", reintentar: false, releer: false }
+  const plat = objeto(c.plataforma)
+  const crudo = (v: unknown) => (/^[a-z_]+$/.test(texto(v)) ? texto(v) : "")
+  const err = crudo(c.error)
+  const codigo = texto(plat.error) || crudo(c.detalle) || (err !== "conflicto" && err !== "la_plataforma_rechazo" ? err : "")
+  if (MOTIVOS_DEL_CICLO[codigo]) return { ok: false, texto: MOTIVOS_DEL_CICLO[codigo], reintentar: false, releer: RELEER_TRAS.includes(codigo) }
+  const detalle = texto(c.detalle)
+  // la plataforma tiene la puerta pero aún no sus tablas (antes de la «ventana»): es «aún no disponible», no un error raro
+  if (/schema cache|does not exist|PGRST20[45]|42P01|plan_aprobaciones|plan_cambios/i.test(detalle)) return { ok: false, texto: NO_DISPONIBLE, reintentar: false, releer: false }
+  return { ok: false, texto: `No se pudo${detalle ? `: ${detalle}` : ` (${status})`}. No se cambió nada.`, reintentar: false, releer: false }
+}
+
+// ── la bandeja de siempre (`revision-resolver`): la usa el panel de piezas para las «otras revisiones»; el plan ya no decide por aquí ──
+/** el cuerpo que valida el servidor del tablero: la revisión, la decisión y el porqué (obligatorio al rechazar, de 5 a 1.000 caracteres) */
 export function cuerpoDeResolucion(hitlId: string | null, decision: "aprobar" | "rechazar", comentario: string): { hitl_id: string; decision: "aprobar" | "rechazar"; comentario?: string } | { error: string } {
   if (!hitlId || !UUID.test(hitlId)) return { error: "No hay una revisión del plan que decidir" }
   const t = comentario.trim()
