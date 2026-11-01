@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState, type CSSProperties } from "react"
+import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react"
 import { GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, lienzoDelMarco, marcoDeLaForma, type Animacion, type Caja, type TableroDeDireccion } from "@/lib/pantallas-de-la-oficina"
 import { ESTILO_DE_DIRECCION, LIENZO_DE_DIRECCION, TableroDeDireccionVivo } from "@/components/nuevo/TablerosDeDireccion"
+import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 
 /**
  * LAS PANTALLAS DE TU OFICINA (sprint 6.14 → 6.16 · Emilio, 1-nov): las 6 pantallas encendidas del ARCO y las 5 chicas del ESCRITORIO, cada una con su MATIZ de
@@ -165,7 +166,9 @@ function Tablero({ animacion, l, quieto }: { animacion: Animacion; l: Caja; quie
   }
 }
 
-export function PantallasDelArco() {
+/** 6.20 · la pantalla del arco que se abre al tocarla (por ahora solo Decisiones, la 5; las demás llegan una por ciclo) */
+export const PANTALLA_DE_DECISIONES = "arco-5"
+export function PantallasDelArco({ decisiones = null, alAbrirDecisiones }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void }) {
   const [quieto, setQuieto] = useState(false) // «menos movimiento» del sistema: sin SMIL (el CSS se apaga solo por media query)
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -198,7 +201,7 @@ export function PantallasDelArco() {
             {/* 6.16b · el dibujo se hace en el plano propio del vidrio y la matriz lo lleva a su perspectiva: cuadrado con sus bordes, no recto contra la foto */}
             <g className="nv-hud" transform={`matrix(${marcoDeLaForma(p.forma).matriz.map((v) => v.toFixed(5)).join(" ")})`}>
               {p.titulo
-                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} /></g>
+                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} decisiones={decisiones} /></g>
                 : <Tablero animacion={p.animacion} l={lienzoDelMarco(marcoDeLaForma(p.forma))} quieto={quieto} />}
             </g>
           </g>
@@ -215,7 +218,11 @@ export function PantallasDelArco() {
           </radialGradient>
         </defs>
         {todas.filter(({ id }) => id !== "escritorio-2").map(({ id, p }) => (
-          <g key={id} className="nv-toque" data-id={id} data-tono={p.nombreDelTono}>
+          <g key={id} className="nv-toque" data-id={id} data-tono={p.nombreDelTono}
+            {...(id === PANTALLA_DE_DECISIONES && alAbrirDecisiones ? {
+              "data-abre": "decisiones", role: "button", tabIndex: 0, "aria-label": "Abrir tus decisiones",
+              onClick: alAbrirDecisiones, onKeyDown: (e: KeyboardEvent<SVGGElement>) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alAbrirDecisiones() } },
+            } : {})}>
             <polygon className="nv-zona-toque" points={p.forma} />
             <polygon className="nv-luz" points={p.forma} />
           </g>

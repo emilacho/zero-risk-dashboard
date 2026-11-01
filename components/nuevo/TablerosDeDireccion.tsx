@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react"
 import type { TableroDeDireccion } from "@/lib/pantallas-de-la-oficina"
+import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 
 /**
  * 6.19 · LOS 9 TABLEROS DE DIRECCIÓN del arco de Tu oficina (capa 1 del encargo «oficina del humano», aprobada por Emilio el 1-nov «tal como se ve en tu
@@ -15,8 +16,18 @@ const T = 1.1 // grosor de línea del boceto
 const r = (s: number): CSSProperties => ({ animationDelay: `${s.toFixed(2)}s` })
 const linea = { fill: "none", stroke: "currentColor", strokeWidth: T, strokeLinecap: "round", strokeLinejoin: "round" } as const
 
+/** 6.20 (Emilio: «agranda los títulos para que se lean de lejos»): 13 px en el plano 100×160 (antes 8,5), en negrita; los largos se ajustan al ancho del vidrio */
+export const TITULO = { tamano: 13, ancho: 92, base: 17, interlinea: 14 } as const
+const anchoEstimado = (t: string) => t.length * TITULO.tamano * 0.64
 function Titulo({ lineas }: { lineas: readonly string[] }) {
-  return <g className="nv-titulo" fill="currentColor" stroke="none">{lineas.map((l, i) => <text key={i} x={50} y={16 + i * 10} textAnchor="middle" fontSize={8.5} fontWeight={600} letterSpacing={0.4}>{l}</text>)}</g>
+  return (
+    <g className="nv-titulo" fill="currentColor" stroke="none">
+      {lineas.map((l, i) => (
+        <text key={i} x={50} y={TITULO.base + i * TITULO.interlinea} textAnchor="middle" fontSize={TITULO.tamano} fontWeight={700} letterSpacing={0.3}
+          {...(anchoEstimado(l) > TITULO.ancho ? { textLength: TITULO.ancho, lengthAdjust: "spacingAndGlyphs" } : {})}>{l}</text>
+      ))}
+    </g>
+  )
 }
 const Nota = ({ x, y, children }: { x: number; y: number; children: ReactNode }) => <text x={x} y={y} textAnchor="middle" fontSize={6} fontWeight={500} opacity={0.8} fill="currentColor" stroke="none">{children}</text>
 
@@ -106,19 +117,39 @@ function Dinero() {
   )
 }
 
-/** 5 · DECISIONES (la principal) · la mesa del director: tarjetas apiladas y la más urgente llega al frente */
-function Decisiones() {
+/** 5 · DECISIONES (la principal) · la mesa del director: tarjetas apiladas y la más urgente llega al frente.
+ *  6.20 · con datos: la tarjeta del frente muestra CUÁNTAS decisiones esperan la firma (se lee de lejos), la pila crece con ellas (hasta 4 detrás) y el punto
+ *  late si alguna apremia (prioridad alta o vencida). Sin lectura todavía, el dibujo del boceto; con la lista incompleta, el número lleva «+?». */
+function Decisiones({ resumen }: { resumen: ResumenDeDecisiones | null }) {
+  const detras = resumen ? Math.min(4, Math.max(0, resumen.total - 1)) : 3
   return (
-    <g>
-      {[0.35, 0.55, 0.8].map((o, i) => <rect key={i} {...linea} opacity={o} x={14 + i * 3} y={36 + i * 12} width={72 - i * 6} height={70} rx={4} />)}
+    <g data-decisiones={resumen ? resumen.total : "sin-lectura"}>
+      {Array.from({ length: detras }, (_, i) => { const j = detras - i; return <rect key={j} {...linea} opacity={0.85 - j * 0.15} x={20 + j * 3} y={60 - j * 7} width={60 - j * 6} height={70} rx={4} /> /* la j-ésima detrás: más arriba, más chica, más tenue */ })}
       <g data-anima="apila">
         <rect x={20} y={60} width={60} height={78} rx={4} className="nv-velo-tarjeta" />
         <rect {...linea} x={20} y={60} width={60} height={78} rx={4} strokeWidth={1.5} />
-        <circle cx={30} cy={71} r={3} fill="currentColor" data-anima="urge" />
-        <line {...linea} x1={38} y1={71} x2={70} y2={71} />
-        {[[84, 72], [92, 64], [100, 68]].map(([y, x2]) => <line key={y} {...linea} x1={28} y1={y} x2={x2} y2={y} opacity={0.6} />)}
-        <rect {...linea} x={28} y={114} width={20} height={12} rx={3} />
-        <rect {...linea} x={52} y={114} width={20} height={12} rx={3} opacity={0.6} />
+        {resumen ? (
+          resumen.total === 0 && resumen.completo ? (
+            <g>
+              <path {...linea} strokeWidth={2.4} d="M38 98 l8 8 l16 -18" />
+              <Nota x={50} y={124}>al día</Nota>
+            </g>
+          ) : (
+            <g>
+              {resumen.apremia && <circle cx={30} cy={71} r={3} fill="currentColor" data-anima="urge" />}
+              <text data-cuantas x={50} y={110} textAnchor="middle" fontSize={34} fontWeight={700} fill="currentColor" stroke="none">{resumen.total}{resumen.completo ? "" : "+?"}</text>
+              <Nota x={50} y={126}>{resumen.total === 1 ? "espera tu firma" : "esperan tu firma"}</Nota>
+            </g>
+          )
+        ) : (
+          <g>
+            <circle cx={30} cy={71} r={3} fill="currentColor" data-anima="urge" />
+            <line {...linea} x1={38} y1={71} x2={70} y2={71} />
+            {[[84, 72], [92, 64], [100, 68]].map(([y, x2]) => <line key={y} {...linea} x1={28} y1={y} x2={x2} y2={y} opacity={0.6} />)}
+            <rect {...linea} x={28} y={114} width={20} height={12} rx={3} />
+            <rect {...linea} x={52} y={114} width={20} height={12} rx={3} opacity={0.6} />
+          </g>
+        )}
       </g>
     </g>
   )
@@ -208,18 +239,18 @@ function Observabilidad() {
   )
 }
 
-const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean }) => ReactNode> = {
+const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null }) => ReactNode> = {
   gobierno: () => <Gobierno />, proyectos: ({ quieto }) => <Proyectos quieto={quieto} />, portafolio: () => <Portafolio />, dinero: () => <Dinero />,
-  decisiones: () => <Decisiones />, riesgos: ({ quieto }) => <Riesgos quieto={quieto} />, organizacion: () => <Organizacion />,
+  decisiones: ({ decisiones }) => <Decisiones resumen={decisiones} />, riesgos: ({ quieto }) => <Riesgos quieto={quieto} />, organizacion: () => <Organizacion />,
   "agenda-ejecutiva": () => <Agenda />, observabilidad: () => <Observabilidad />,
 }
 
 /** un tablero de dirección en el plano 100×160 del vidrio (con el mismo respiro del boceto: 5 % y 90 %) */
-export function TableroDeDireccionVivo({ tablero, titulo, quieto }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean }) {
+export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null }) {
   return (
     <g transform="translate(5 4) scale(0.9)" data-tablero={tablero}>
       <Titulo lineas={titulo} />
-      {DIBUJO[tablero]({ quieto })}
+      {DIBUJO[tablero]({ quieto, decisiones })}
     </g>
   )
 }
@@ -229,6 +260,11 @@ export const ESTILO_DE_DIRECCION = `
 .nv-pantalla[data-grupo="arco"] .nv-hud{opacity:.86}
 .nv-velos polygon{fill:rgba(14,9,5,.8)}
 .nv-velo-tarjeta{fill:rgba(20,12,6,.72)}
+.nv-titulo{opacity:1}
+.nv-toque[data-abre]{cursor:pointer}
+.nv-toque[data-abre] polygon.nv-zona-toque{cursor:pointer}
+.nv-toque[data-abre]:focus-visible{outline:none}
+.nv-toque[data-abre]:focus-visible polygon.nv-luz{opacity:1}
 .nv-pantalla .nv-hud [data-anima="conmuta"]{animation-name:nvConmuta;animation-duration:14s}
 .nv-pantalla .nv-hud [data-anima="etapa"]{animation-name:nvEtapa;animation-duration:6s}
 .nv-pantalla .nv-hud [data-anima="late"]{animation-name:nvLate;animation-duration:4.2s;transform-origin:center}
