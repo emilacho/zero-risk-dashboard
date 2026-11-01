@@ -430,7 +430,7 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date): AvanceDelPedido {
 export function queCambioDelTexto(contenido: unknown): string | null {
   const t = texto(contenido)
   if (!t) return null
-  const m = t.match(/(?:^|\n)\s*(?:#{1,6}\s*)?\**\s*QU[ÉE]\s+CAMBI[ÓO]\s+EN\s+ESTA\s+VERSI[ÓO]N\s*\**\s*:?\s*\n?([\s\S]*?)(?=\n\s*#{1,6}\s|\n\s*```|\n\s*\*\*[A-ZÁÉÍÓÚÑ ]{6,}\*\*|$)/i)
+  const m = t.match(/(?:^|\n)\s*(?:#{1,6}\s*)?\**\s*QU[ÉE]\s+CAMBI[ÓO]\s+EN\s+ESTA\s+VERSI[ÓO]N(?:\s*\(v\d+\))?\s*\**\s*:?\s*\n?([\s\S]*?)(?=\n\s*#{1,6}\s|\n\s*```|\n\s*\*\*[A-ZÁÉÍÓÚÑ ]{6,}\*\*|$)/i)
   const cuerpo = m ? m[1].trim() : ""
   return cuerpo ? cuerpo.slice(0, 3000) : null
 }
