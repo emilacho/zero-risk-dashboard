@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
+import { PantallaDeMusica } from "@/components/nuevo/PantallaDeMusica"
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
@@ -24,6 +25,7 @@ import { VidaSpline } from "@/components/nuevo/VidaSpline"
  * 6.12b (Emilio, 1-nov: «no necesito el Cerebro en mi oficina, va a tener su propia estructura; esta oficina es el centro de HITL»): el Cerebro YA NO está en tu oficina
  * (queda su dirección directa /nuevo/cerebro hasta que tenga estructura propia en la sala). Tu oficina = el centro de revisión humana: cada pantalla del arco abrirá
  * un centro de comando distinto y las pantallas chicas del escritorio, el orquestador (la del frente) y la música (la de la izquierda). Se cablean una por una.
+ * 6.13 (Emilio, 1-nov: «comienza por ahí»): la pantalla chica de la IZQUIERDA del escritorio = MÚSICA (`PantallaDeMusica`): tocar → suena su lista; tocar otra vez → se corta.
  */
 // 5.8 · medido con sonda (31-oct): con 650 ms y curva muy «ease-out» la imagen ya tenía el 65 % de su tamaño a los 100 ms y arrancaba invisible (opacidad 0):
 // se leía como «montar la imagen encima». Ahora arranca visible sobre la plataforma y crece parejo, más lento.
@@ -312,6 +314,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={d.src} srcSet={`${d.src1280} 1280w, ${d.src} 2560w`} sizes="(max-width: 900px) 100vw, 1800px"
               alt={d.alt} width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
+            {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
+            {depto === "oficina" && <PantallaDeMusica />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
