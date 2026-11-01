@@ -117,7 +117,8 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
   })
   it("no lee nada, no abre nada, no enlaza nada", () => {
     const c = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
-    for (const f of [c, readFileSync("components/nuevo/TablerosDeDireccion.tsx", "utf8")]) expect(f).not.toMatch(/fetch\(|createPortal|Panel[A-Z]|href=|onClick|router|supabase|process\.env/) // sin datos todavía (capa 2)
+    for (const f of [c, readFileSync("components/nuevo/TablerosDeDireccion.tsx", "utf8")]) expect(f).not.toMatch(/fetch\(|createPortal|Panel[A-Z]|href=|router|supabase|process\.env/) // los datos los trae la escena (6.20), no las pantallas
+    expect(c.match(/onClick/g)?.length).toBe(1) // 6.20 · solo la pantalla de Decisiones se abre al tocarla
     expect(c).toContain('window.matchMedia("(prefers-reduced-motion: reduce)")')
   })
   it("vive solo dentro de TU OFICINA (no en marketing ni en la sala); el rótulo «MÚSICA» quedó al 30 % (6.15) y pegado a su pantalla", () => {
@@ -125,7 +126,7 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
     expect(oficina).toContain('data-animacion="decisiones"'); expect(oficina).toContain('data-grupo="escritorio" data-pantalla="2" data-animacion="pista"')
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: "marketing" }))).not.toContain("data-animacion=")
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))).not.toContain("data-animacion=")
-    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco />}')
+    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} />}')
     const rotulo = oficina.match(/<text class="nv-rotulo"[^>]*>MÚSICA<\/text>/)![0]
     expect(Number(rotulo.match(/font-size="([\d.]+)"/)![1])).toBe(10) // 32 × 0,3 ≈ 10
     expect(PANTALLA_MUSICA.rotulo.y).toBeGreaterThan(428); expect(PANTALLA_MUSICA.rotulo.y).toBeLessThan(440) // justo encima del borde superior (440)

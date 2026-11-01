@@ -4,6 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
+import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
+import { resumenDeDecisiones, type Decisiones, type ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import { PantallaDeMusica } from "@/components/nuevo/PantallaDeMusica"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
 import { GloboQueGira } from "@/components/nuevo/GloboQueGira"
@@ -201,6 +203,17 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón abierto encima de la oficina (6.2: la pantalla de aplicaciones; el calendario se abre desde ahí)
   const tablero = useRef<SVGGElement>(null)
   const cerrarPizarron = useCallback(() => { setPizarron(false); requestAnimationFrame(() => tablero.current?.focus()) }, [])
+  // 6.20 · Tu oficina · Decisiones: la pantalla 5 del arco dice cuántas esperan tu firma (se lee cada minuto mientras la oficina está abierta y la pestaña
+  // visible) y al tocarla abre la mesa del director; al cerrarla se vuelve a leer
+  const [decisiones, setDecisiones] = useState<ResumenDeDecisiones | null>(null)
+  const [mesa, setMesa] = useState(false)
+  const leerDecisiones = useCallback(async () => {
+    try {
+      const r = await fetch("/api/direccion/decisiones", { cache: "no-store" })
+      const j = (await r.json().catch(() => null)) as ({ ok: true } & Decisiones) | null
+      setDecisiones(r.ok && j?.ok ? resumenDeDecisiones(j) : null) // sin lectura: la pantalla vuelve al dibujo, nunca a un «0» falso
+    } catch { setDecisiones(null) }
+  }, [])
   const [sobreLaMiniatura, setSobreLaMiniatura] = useState(false) // 5.12 · la miniatura se aclara un poco al pasar el ratón: avisa que es clicable
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
   const proy = useRef<HTMLDivElement>(null)
@@ -222,6 +235,15 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   }, [])
   const abrirCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
   const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
+
+  const oficinaAbierta = depto === "oficina" && fase !== "cerrado"
+  useEffect(() => {
+    if (!oficinaAbierta) return
+    void leerDecisiones()
+    const t = setInterval(() => { if (!document.hidden) void leerDecisiones() }, 60_000)
+    return () => clearInterval(t)
+  }, [oficinaAbierta, leerDecisiones])
+  const cerrarMesa = useCallback(() => { setMesa(false); void leerDecisiones() }, [leerDecisiones])
 
   // 5.8 · antes de pintar la entrada o la salida, se fija desde dónde sale (o hacia dónde vuelve) la imagen: la plataforma, medida en pantalla
   useLayoutEffect(() => {
@@ -322,7 +344,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
             {/* 6.14 · el arco de pantallas de tu oficina: solo animación (6.14b: sin centros asignados; qué abre cada una lo decide Emilio) */}
-            {depto === "oficina" && <PantallasDelArco />}
+            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -347,6 +369,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {/* sprint 6 · el pizarrón sale al <body> (como «En vivo»): la oficina lleva máscaras que lo desvanecerían */}
       {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)}
       {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
+      {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"
