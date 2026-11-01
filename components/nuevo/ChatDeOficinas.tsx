@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 import { usePathname } from "next/navigation"
 import { Globe, Microphone, MicrophoneSlash, PaperPlaneTilt, Paperclip } from "@phosphor-icons/react"
 import { getOrCreateSessionId } from "@/lib/cowork-session"
+import { TextoMarkdown } from "@/components/nuevo/TextoMarkdown"
 import { causaDelFallo, leerEventos, leerPedido, textoParaVoz, type PedidoPropuesto } from "@/lib/chat-oficinas"
 
 const AMBAR = "#e8731a"
@@ -225,11 +226,11 @@ export function ChatDeOficinas() {
           Mide lo que queda libre a la derecha del cuadro y no más; las respuestas largas se ven completas desplazándose DENTRO de esa zona. En ventanas angostas, donde no hay lado, ocupa el mismo ancho justo encima del cuadro. */}
       {mensajes.length > 0 && (
         <div data-chat-respuestas aria-label="Respuestas" aria-live="polite" tabIndex={0}
-          className="absolute bottom-0 left-0 right-0 mb-2 max-h-[min(30vh,170px)] overflow-y-auto pr-1 text-[14px] leading-relaxed text-white outline-none min-[1100px]:bottom-0 min-[1100px]:left-full min-[1100px]:right-auto min-[1100px]:mb-0 min-[1100px]:ml-5 min-[1100px]:h-[8.5rem] min-[1100px]:max-h-none min-[1100px]:w-[calc((100vw-min(610px,100vw-7rem))/2-2.5rem)]">
+          className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 max-h-[min(34vh,260px)] overflow-y-auto pr-1 text-[14px] leading-relaxed text-white outline-none min-[1100px]:bottom-0 min-[1100px]:left-full min-[1100px]:right-auto min-[1100px]:mb-0 min-[1100px]:ml-5 min-[1100px]:h-[min(55vh,26rem)] min-[1100px]:max-h-none min-[1100px]:w-[calc((100vw-min(610px,100vw-7rem))/2-2.5rem)]">
           {vozActiva && <p className="mb-1 text-[12px] text-white/60">{hablando ? "Hablando…" : escuchando ? "Te escucho…" : "Conversación por voz"}</p>}
           {mensajes.map((m, i) => m.rol === "user" ? null : (
-            <div key={i} className="mb-3 whitespace-pre-wrap">
-              {m.texto || (enviando && i === mensajes.length - 1 ? <span className="text-white/50">…</span> : null)}
+            <div key={i} className="mb-3">
+              {m.texto ? <TextoMarkdown texto={m.texto} /> : (enviando && i === mensajes.length - 1 ? <span className="text-white/50">…</span> : null)}
               {m.pedido && (
                 <div className="mt-2 text-[13px]">
                   <p className="font-medium">{m.pedido.titulo}</p>
