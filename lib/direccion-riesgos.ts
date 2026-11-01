@@ -124,7 +124,7 @@ export function normalizarRiesgos(raw: unknown, ahora: number = Date.now()): Rie
 }
 
 /** los nombres de los procesos de n8n que fallaron (servidor, solo lectura): sin llave o sin respuesta, quedan sin nombre */
-async function nombresDeProcesos(ids: string[], f: typeof fetch): Promise<Map<string, string>> {
+export async function nombresDeProcesos(ids: string[], f: typeof fetch): Promise<Map<string, string>> {
   const base = (process.env.N8N_BASE_URL ?? "").replace(/\/+$/, ""), llave = process.env.N8N_API_KEY ?? ""
   const nombres = new Map<string, string>()
   if (!base || !llave || !ids.length) return nombres
