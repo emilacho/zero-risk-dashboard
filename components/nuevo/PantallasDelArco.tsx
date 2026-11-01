@@ -56,7 +56,21 @@ const ESTILO = `
 @keyframes nvAvanza{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes nvAvanzaYVuelve{0%{transform:scaleX(0)}24%,90%{transform:scaleX(1)}100%{transform:scaleX(0)}}
 @media (prefers-reduced-motion:reduce){.nv-pantalla .nv-hud [data-anima]{animation:none}}
+.nv-pantalla .nv-hud{transition:opacity .45s ease}
+.nv-toques{pointer-events:none}
+.nv-toque polygon.nv-zona-toque{fill:rgba(255,140,40,0);stroke:none;pointer-events:all;cursor:default}
+.nv-toque polygon.nv-luz{fill:url(#nv-luz-pantalla);opacity:0;mix-blend-mode:screen;pointer-events:none;transition:opacity .45s ease}
+.nv-toque:hover polygon.nv-luz,.nv-toque:active polygon.nv-luz{opacity:1}
+@media (prefers-reduced-motion:reduce){.nv-toque polygon.nv-luz,.nv-pantalla .nv-hud{transition:none}}
 `
+/** 6.18 (Emilio, 1-nov: «al tocar cada pantalla que se ilumine tal cual la oficina de marketing hiciste con el pizarrón»): al pasar el ratón (o tocar) cada
+ *  vidrio se enciende con la misma luz que la pantalla de música (degradado cálido en mezcla «trama» que aparece en .45 s) y sus líneas suben a brillo pleno.
+ *  No abre nada ni lleva rótulo: qué hace cada pantalla lo decide Emilio. La de música tiene su propia zona (`PantallaDeMusica`); aquí solo sube sus líneas. */
+const reglaDeBrillo = (grupo: string, indice: number) => {
+  const disparo = grupo === "escritorio" && indice === 2 ? ".nv-musica:hover" : `.nv-toque[data-id="${grupo}-${indice}"]:hover`
+  return `.nv-proy:has(${disparo}) .nv-pantalla[data-grupo="${grupo}"][data-pantalla="${indice}"] .nv-hud{opacity:1}`
+}
+const ESTILO_DEL_BRILLO = GRUPOS_DE_PANTALLAS.flatMap(({ grupo, pantallas }) => pantallas.map((p) => reglaDeBrillo(grupo, p.indice))).join(" ")
 
 const seg = (s: number) => `${s.toFixed(2)}s`
 const retraso = (s: number): CSSProperties => ({ animationDelay: seg(s) })
@@ -302,7 +316,7 @@ export function PantallasDelArco() {
   const todas = GRUPOS_DE_PANTALLAS.flatMap(({ grupo, pantallas }) => pantallas.map((p) => ({ grupo, p, id: `${grupo}-${p.indice}` })))
   return (
     <>
-      <style>{ESTILO}</style>
+      <style>{ESTILO + ESTILO_DEL_BRILLO}</style>
       {/* 1 · el tinte: un svg aparte cuya mezcla «matiz» actúa contra la FOTO */}
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="nv-tintes pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
         {todas.map(({ id, p }) => <polygon key={id} className="nv-tinte" points={p.forma} style={{ "--tono": p.tono } as CSSProperties} />)}
@@ -318,6 +332,20 @@ export function PantallasDelArco() {
           <g key={id} className="nv-pantalla" data-grupo={grupo} data-pantalla={p.indice} data-animacion={p.animacion} data-tono={p.nombreDelTono} style={{ "--tono": p.tono } as CSSProperties} clipPath={`url(#nv-pantalla-${id})`}>
             {/* 6.16b · el dibujo se hace en el plano propio del vidrio y la matriz lo lleva a su perspectiva: cuadrado con sus bordes, no recto contra la foto */}
             <g className="nv-hud" transform={`matrix(${marcoDeLaForma(p.forma).matriz.map((v) => v.toFixed(5)).join(" ")})`}><Tablero animacion={p.animacion} l={lienzoDelMarco(marcoDeLaForma(p.forma))} quieto={quieto} /></g>
+          </g>
+        ))}
+      </svg>
+      {/* 4 · 6.18 · el toque: cada vidrio se ilumina al pasar el ratón, como el pizarrón de marketing (la de música ya tiene el suyo) */}
+      <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="nv-toques absolute inset-0 h-full w-full" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="nv-luz-pantalla" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stopColor="rgba(255,196,120,0.75)" /><stop offset="60%" stopColor="rgba(255,160,70,0.4)" /><stop offset="100%" stopColor="rgba(255,140,40,0.1)" />
+          </radialGradient>
+        </defs>
+        {todas.filter(({ id }) => id !== "escritorio-2").map(({ id, p }) => (
+          <g key={id} className="nv-toque" data-id={id}>
+            <polygon className="nv-zona-toque" points={p.forma} />
+            <polygon className="nv-luz" points={p.forma} />
           </g>
         ))}
       </svg>

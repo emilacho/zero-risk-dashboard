@@ -6,6 +6,7 @@ import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 import { PantallaDeMusica } from "@/components/nuevo/PantallaDeMusica"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
+import { GloboQueGira } from "@/components/nuevo/GloboQueGira"
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { EscenaNuevo } from "@/components/nuevo/EscenaNuevo"
 import { TotemEnVivo } from "@/components/nuevo/TotemEnVivo"
@@ -316,6 +317,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={d.src} srcSet={`${d.src1280} 1280w, ${d.src} 2560w`} sizes="(max-width: 900px) 100vw, 1800px"
               alt={d.alt} width={2560} height={1440} decoding="async" className="nv-foto-b absolute inset-0 h-full w-full select-none" draggable={false} />
+            {/* 6.18 · el globo holográfico del centro gira despacio sobre su eje (sus propios píxeles corren sobre la esfera) */}
+            {depto === "oficina" && <GloboQueGira />}
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
             {/* 6.14 · el arco de pantallas de tu oficina: solo animación (6.14b: sin centros asignados; qué abre cada una lo decide Emilio) */}
