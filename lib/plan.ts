@@ -450,6 +450,8 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date, documento: Document
     { clave: "jefatura", nombre: "La jefatura revisa", estado: jefaturaCerrada ? "hecho" : a.version_nueva ? "en_curso" : "pendiente", hora: a.jefatura?.cerrado_en ?? a.jefatura?.creado_en ?? null, detalle: null },
     { clave: "listo", nombre: manual ? "Listo: ya es el manual vigente" : "Listo para ti", estado: listo ? "hecho" : "pendiente", hora: a.compuerta_nueva?.creado_en ?? (terminado ? p.actualizado_en : null), detalle: null },
   ]
+  // el manual NO pasa por la jefatura (CC1 y CC2, 02-nov): ese paso no se muestra (no hay fila que lo encienda)
+  if (manual) pasos.splice(pasos.findIndex((x) => x.clave === "jefatura"), 1)
   let fallo: AvanceDelPedido["fallo"] = null
   if (sinDespertar && !empezo) {
     const paso = pasos[1]

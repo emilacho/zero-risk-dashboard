@@ -21,7 +21,7 @@ export function BarraDelPedido({ avance, onOcultar }: { avance: AvanceDelPedido;
   return (
     <div data-barra-del-pedido data-fallo={avance.fallo ? "si" : "no"} className="relative mt-4 rounded-lg border border-white/10 bg-black/30 p-4" role="group" aria-label="El avance de tu pedido de cambios">
       {onOcultar && <button type="button" data-accion="ocultar-avance" onClick={onOcultar} className="absolute right-2 top-2 rounded px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">Ocultar</button>}
-      <ol className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+      <ol className={`grid grid-cols-1 gap-3 ${avance.pasos.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-5"}`}>
         {avance.pasos.map((p, i) => (
           <li key={p.clave} data-paso={p.clave} data-estado={p.estado} className="flex items-start gap-2 sm:flex-col sm:items-center sm:text-center">
             <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold ${COLOR_PASO[p.estado]}`}>{p.estado === "hecho" ? "✓" : p.estado === "fallo" ? "!" : i + 1}</span>

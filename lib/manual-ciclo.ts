@@ -91,5 +91,5 @@ export function palabrasDelPedidoDelManual(r: { ok: true; detalle: Record<string
     return { ok: false, texto: r.texto }
   }
   if (r.detalle.despertado === false) return { ok: false, texto: "Tu pedido quedó guardado, pero no se pudo avisar al equipo del manual. Usa «Reintentar»." }
-  return { ok: true, texto: "Pedido enviado: el equipo del manual lo reescribe y la jefatura lo revisa." }
+  return { ok: true, texto: "Pedido enviado: el equipo del manual reescribe el manual con tus observaciones." }
 }

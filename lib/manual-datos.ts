@@ -50,11 +50,10 @@ async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigen
   const reciente = pedido.actualizado_en ? ahora.getTime() - Date.parse(pedido.actualizado_en) <= HORAS_QUE_SE_VE_EL_APLICADO * 3_600_000 : false
   const mostrarAvance = pedido.estado !== "aplicado" || (deEstaVersion && reciente)
   const wfe = t(f.workflow_execution_id)
-  const [desp, invs, vivos, jef, base] = await Promise.all([
+  const [desp, invs, vivos, base] = await Promise.all([
     mostrarAvance && wfe ? filas(supa.from("agent_dispatches").select("status, created_at, running_at, completed_at").eq("workflow_execution_id", wfe).limit(50), "agent_dispatches") : Promise.resolve([] as Fila[]),
     mostrarAvance && wfe ? filas(supa.from("agent_invocations").select("status, created_at").eq("workflow_execution_id", wfe).limit(50), "agent_invocations") : Promise.resolve([] as Fila[]),
     mostrarAvance && pedido.creado_en && esPedidoAbierto(pedido.estado) ? filas(supa.from("agent_dispatches").select("agent_name, running_at, created_at").eq("client_id", clienteId).eq("status", "running").gte("created_at", pedido.creado_en).limit(20), "agent_dispatches") : Promise.resolve([] as Fila[]),
-    mostrarAvance && pedido.manual_nuevo_id ? opcional(supa.from("jefatura_revisiones").select("estado, resultado, creado_en, cerrado_en").eq("artifact_id", pedido.manual_nuevo_id).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "jefatura_revisiones") : Promise.resolve({ falta: false, fila: null }),
     deEstaVersion && pedido.manual_id ? una(supa.from("client_brand_books").select("*").eq("id", pedido.manual_id).maybeSingle(), "client_brand_books") : Promise.resolve(null),
   ])
   const avance = mostrarAvance ? avanceDelPedido({
@@ -62,7 +61,7 @@ async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigen
     despachos: desp.map((x) => ({ status: String(x.status ?? ""), creado_en: t(x.created_at), empezo_en: t(x.running_at), termino_en: t(x.completed_at) })),
     invocaciones: invs.map((x) => ({ status: String(x.status ?? ""), creado_en: t(x.created_at) })),
     version_nueva: pedido.manual_nuevo_id ? { id: pedido.manual_nuevo_id, creado_en: pedido.estado === "aplicado" ? pedido.actualizado_en : null } : null,
-    jefatura: jef.fila ? { estado: String(jef.fila.estado ?? ""), resultado: t(jef.fila.resultado), creado_en: t(jef.fila.creado_en), cerrado_en: t(jef.fila.cerrado_en) } : null,
+    jefatura: null, // el manual no pasa por la jefatura (CC1, 02-nov)
     compuerta_nueva: null,
     trabajando: vivos.map((x) => ({ agente: String(x.agent_name ?? ""), desde: t(x.running_at) ?? t(x.created_at) })),
   }, ahora, "manual") : null

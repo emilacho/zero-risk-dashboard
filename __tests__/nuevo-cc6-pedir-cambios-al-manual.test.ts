@@ -42,7 +42,7 @@ describe("la lógica del pedido (pura)", () => {
   it("el avance usa la cuenta del plan con las palabras del manual; el rótulo se apaga si falla o se pasa de la hora y media", () => {
     const base = { despachos: [], invocaciones: [], version_nueva: null, jefatura: null, compuerta_nueva: null }
     const vivo = avanceDelPedido({ ...base, pedido: { id: "p", estado: "en_reescritura", creado_en: "2026-11-02T09:50:00Z", actualizado_en: "2026-11-02T09:51:00Z", despertado: true, despertar_detalle: null }, trabajando: [{ agente: "brand-strategist", desde: "2026-11-02T09:55:00Z" }] }, AHORA, "manual")
-    expect(vivo.pasos.map((p) => p.nombre)).toEqual(["Recibido", "El equipo del manual está reescribiendo", "Controles automáticos", "La jefatura revisa", "Listo: ya es el manual vigente"])
+    expect(vivo.pasos.map((p) => p.nombre)).toEqual(["Recibido", "El equipo del manual está reescribiendo", "Controles automáticos", "Listo: ya es el manual vigente"]) // sin jefatura (CC1 02-nov)
     expect(vivo.ahora?.texto).toBe("El equipo del manual está trabajando: brand strategist")
     const abierto = { id: "p", estado: "en_reescritura", texto: "x", seccion: null, creado_en: null, actualizado_en: null, despertado: true, despertar_detalle: null, manual_id: null, manual_nuevo_id: null }
     expect(rotuloMientrasSeReescribe({ abierto, avance: vivo })).toMatch(/El equipo está reescribiendo el manual/)
@@ -52,7 +52,8 @@ describe("la lógica del pedido (pura)", () => {
     expect(rotuloMientrasSeReescribe({ abierto, avance: fallo })).toBeNull()
     expect(rotuloMientrasSeReescribe({ abierto, avance: { ...vivo, minutos: 120 } })).toBeNull()
     // el plan no cambia: sus nombres siguen como estaban
-    expect(avanceDelPedido({ ...base, pedido: { id: "p", estado: "pendiente", creado_en: null, actualizado_en: null, despertado: true, despertar_detalle: null } }, AHORA).pasos[1].nombre).toBe("El jefe de marketing está reescribiendo")
+    const delPlan = avanceDelPedido({ ...base, pedido: { id: "p", estado: "pendiente", creado_en: null, actualizado_en: null, despertado: true, despertar_detalle: null } }, AHORA)
+    expect(delPlan.pasos[1].nombre).toBe("El jefe de marketing está reescribiendo"); expect(delPlan.pasos.map((x) => x.clave)).toContain("jefatura")
   })
   it("la respuesta en palabras: enviado, sin despertar (reintentar), en curso", () => {
     expect(palabrasDelPedidoDelManual({ ok: true, detalle: { manual_cambio_id: "x", estado: "pendiente" } }).texto).toMatch(/^Pedido enviado/)
@@ -114,7 +115,9 @@ describe("la lectura del ciclo del manual (solo lectura)", () => {
   it("pide por cliente y documento='manual'; un pedido aplicado que creó la vigente trae «Qué cambió» contra la versión base", async () => {
     const vistos: string[] = []
     const pedido = { id: "pc1", documento: "manual", client_id: CLIENTE, estado: "aplicado", texto: "más cercano", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, manual_id: "b1", manual_nuevo_id: "b2" }
-    const m = await leerManualDelCliente(baseFalsa((t, f) => { if (t === "plan_cambios") vistos.push(f.join(" ")); return comun(t, f, pedido) }), { cliente: CLIENTE, ahora: AHORA })
+    const tablas: string[] = []
+    const m = await leerManualDelCliente(baseFalsa((t, f) => { tablas.push(t); if (t === "plan_cambios") vistos.push(f.join(" ")); return comun(t, f, pedido) }), { cliente: CLIENTE, ahora: AHORA })
+    expect(tablas).not.toContain("jefatura_revisiones") // el manual no pasa por la jefatura
     expect(vistos[0]).toContain('eq("documento","manual")'); expect(vistos[0]).toContain(`eq("client_id","${CLIENTE}")`)
     expect(m.manual?.ciclo?.disponible).toBe(true)
     expect(m.manual?.ciclo?.abierto).toBeNull()
