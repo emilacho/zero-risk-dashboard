@@ -101,3 +101,12 @@ describe("6.28-B · organización · la pantalla", () => {
     expect(panel).not.toMatch(/gasto|US\$|cost_usd|costo/i)
   })
 })
+
+describe("6.34 · Organización sin texto técnico abajo (encargo 02-nov: «solo queda la ayuda de uso»)", () => {
+  const panel = readFileSync("components/nuevo/PanelOrganizacion.tsx", "utf8")
+  it("el pie muestra solo la ayuda de uso; las desalineaciones de la base no se pintan (son pedidos a la plataforma)", () => {
+    expect(panel).toContain("Rueda para acercar · arrastra para moverte")
+    expect(panel).not.toContain("org.notas")
+    expect(panel).not.toContain("data-nota")
+  })
+})

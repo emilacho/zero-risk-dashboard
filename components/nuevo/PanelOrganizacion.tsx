@@ -274,7 +274,6 @@ export function PanelOrganizacion({ onCerrar, datosIniciales = null, fetchImpl =
         {org && (
           <footer className="border-t border-white/[0.06] px-4 py-2 text-[11.5px] text-zinc-500 sm:px-6">
             Rueda para acercar · arrastra para moverte · clic en un departamento para abrirlo o cerrarlo · clic en una persona para ver su ficha
-            {org.notas.map((n) => <span key={n} data-nota className="block">{n}</span>)}
           </footer>
         )}
       </section>
