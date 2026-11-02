@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
-import { Globe, Microphone, MicrophoneSlash, PaperPlaneTilt, Paperclip } from "@phosphor-icons/react"
+import { Globe, Microphone, MicrophoneSlash, PaperPlaneTilt, Paperclip, X } from "@phosphor-icons/react"
 import { getOrCreateSessionId } from "@/lib/cowork-session"
 import { TextoMarkdown } from "@/components/nuevo/TextoMarkdown"
 import { causaDelFallo, leerEventos, leerPedido, textoParaVoz, type PedidoPropuesto } from "@/lib/chat-oficinas"
@@ -48,6 +48,7 @@ function fabricaDeVoz(): FabricaReconocimiento | null {
 export function ChatDeOficinas() {
   const pagina = usePathname()
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
+  const [respuestasCerradas, setRespuestasCerradas] = useState(false) // 6.32 · la X las esconde; vuelven con el próximo mensaje
   const [texto, setTexto] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [vozActiva, setVozActiva] = useState(false)
@@ -59,7 +60,7 @@ export function ChatDeOficinas() {
   const reconocedor = useRef<Reconocimiento | null>(null)
   const vozRef = useRef(false)
   const enviandoRef = useRef(false)
-  const fondo = useRef<HTMLDivElement | null>(null)
+  const fondo = useRef<HTMLSpanElement | null>(null)
   /* `escuchar` vive entre renders: llama siempre al `enviar` más reciente (con la conversación al día) */
   const enviarRef = useRef<((t: string, porVoz?: boolean) => Promise<void>) | null>(null)
 
@@ -132,6 +133,7 @@ export function ChatDeOficinas() {
     setEnviando(true)
     const previos = mensajes.filter((m) => !m.error).slice(-12).map((m) => ({ role: m.rol, content: m.texto }))
     setMensajes((m) => [...m, { rol: "user", texto: mensaje }, { rol: "assistant", texto: "" }])
+    setRespuestasCerradas(false)
     setTexto("")
     const ctl = new AbortController()
     abortar.current = ctl
@@ -224,12 +226,18 @@ export function ChatDeOficinas() {
       className="absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2">
       {/* LAS RESPUESTAS VAN AL LADO del cuadro, en el espacio libre del fondo negro (encargo de Emilio 01-nov): solo texto blanco, sin ventana, sin borde, sin panel ni globo; no tapa la escena.
           Mide lo que queda libre a la derecha del cuadro y no más; las respuestas largas se ven completas desplazándose DENTRO de esa zona. En ventanas angostas, donde no hay lado, ocupa el mismo ancho justo encima del cuadro. */}
-      {mensajes.length > 0 && (
+      {mensajes.length > 0 && !respuestasCerradas && (
+        /* 6.32 (Emilio 2-nov): más abajo, en armonía con la esquina inferior derecha (mismo margen que el cuadro: 1.5rem al borde derecho y al de abajo); el texto crece hacia arriba desde esa esquina, y una X sutil las cierra */
+        <div data-chat-respuestas-marco className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 flex flex-col items-stretch min-[1100px]:bottom-0 min-[1100px]:left-full min-[1100px]:right-auto min-[1100px]:ml-5 min-[1100px]:w-[calc((100vw-min(610px,100vw-7rem))/2-2.75rem)]">
+          <button type="button" data-chat-cerrar onClick={() => setRespuestasCerradas(true)} aria-label="Cerrar las respuestas" title="Cerrar"
+            className="mb-1 flex h-6 w-6 items-center justify-center self-end text-white/45 outline-none transition-colors duration-200 hover:text-white focus-visible:text-white">
+            <X size={14} weight="light" />
+          </button>
         <div data-chat-respuestas aria-label="Respuestas" aria-live="polite" tabIndex={0}
-          className="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 max-h-[min(34vh,260px)] overflow-y-auto pr-1 text-[14px] leading-relaxed text-white outline-none min-[1100px]:bottom-0 min-[1100px]:left-full min-[1100px]:right-auto min-[1100px]:mb-0 min-[1100px]:ml-5 min-[1100px]:h-[min(55vh,26rem)] min-[1100px]:max-h-none min-[1100px]:w-[calc((100vw-min(610px,100vw-7rem))/2-2.5rem)]">
+          className="max-h-[min(34vh,260px)] overflow-y-auto pr-1 text-[14px] leading-relaxed text-white outline-none min-[1100px]:max-h-[min(55vh,26rem)]">
           {vozActiva && <p className="mb-1 text-[12px] text-white/60">{hablando ? "Hablando…" : escuchando ? "Te escucho…" : "Conversación por voz"}</p>}
           {mensajes.map((m, i) => m.rol === "user" ? null : (
-            <div key={i} className="mb-3">
+            <div key={i} className="mb-3 last-of-type:mb-0">
               {m.texto ? <TextoMarkdown texto={m.texto} /> : (enviando && i === mensajes.length - 1 ? <span className="text-white/50">…</span> : null)}
               {m.pedido && (
                 <div className="mt-2 text-[13px]">
@@ -243,7 +251,8 @@ export function ChatDeOficinas() {
               )}
             </div>
           ))}
-          <div ref={fondo} />
+          <span ref={fondo} className="block" />
+        </div>
         </div>
       )}
       <form onSubmit={alEnviar} className="rounded-xl border p-[7px]" style={{ borderColor: "rgba(232,115,26,.55)" }}>

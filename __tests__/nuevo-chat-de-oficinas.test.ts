@@ -89,12 +89,12 @@ describe("chat de /nuevo · el cuadro", () => {
     expect(c).toContain("Habla con tus oficinas…")
     expect(c).not.toContain("absolute bottom-full")
   })
-  it("las respuestas van AL LADO del cuadro: solo texto blanco, sin ventana, borde, fondo, desenfoque ni botón de cerrar", () => {
+  it("las respuestas van AL LADO del cuadro: solo texto blanco, sin ventana, borde, fondo ni desenfoque (6.32: con una X sutil para cerrarlas)", () => {
     const zona = c.slice(c.indexOf("data-chat-respuestas"), c.indexOf("<form onSubmit"))
     expect(zona.length).toBeGreaterThan(200)
     expect(zona).toContain("text-white")
     expect(zona).toContain("overflow-y-auto")
-    expect(zona).toContain("min-[1100px]:left-full")
+    expect(c).toContain("min-[1100px]:left-full")
     expect(zona).not.toMatch(/bg-(?!transparent)|border|border-|rounded-|backdrop|shadow|role="dialog"|aria-modal/)
     expect(c).not.toContain("data-chat-conversacion")
     expect(c).not.toContain("Cerrar la conversación")
