@@ -35,8 +35,8 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     expect(r.status).toBe(200)
     expect(llamadas).toHaveLength(1); expect(llamadas[0].url).toBe(`https://plataforma.test/api/manual/${CLIENTE}/campos`); expect(llamadas[0].metodo).toBe("PATCH")
     expect(llamadas[0].cuerpo).toMatchObject({ campos: { eslogan: "Del mar a tu mesa" }, comentario: "lo dijo el dueño", reviewer: "emilio", origen: "dashboard" })
-    expect(resumenDelGuardado(r.cuerpo.resultado as Record<string, unknown>)).toBe("Versión 2 guardada · el cerebro ya lo tiene: el siguiente empleado lo lee así")
-    expect(resumenDelGuardado({ version_nueva: 3, cerebro: { enviados: ["a"], pendientes: [{ clave: "b", error: "x" }] } })).toBe("Versión 3 guardada · el cerebro recibió 1 y quedan 1 pendientes")
+    expect(resumenDelGuardado(r.cuerpo.resultado as Record<string, unknown>)).toBe("Guardado · el cerebro ya lo tiene: el siguiente empleado lo lee así") /* CC6 · 02-nov: sin número de versión */
+    expect(resumenDelGuardado({ version_nueva: 3, cerebro: { enviados: ["a"], pendientes: [{ clave: "b", error: "x" }] } })).toBe("Guardado · el cerebro recibió 1 y quedan 1 pendientes")
   })
   it("la llamada del panel dice con franqueza lo que pasó", async () => {
     const ok = await llamarAccion("manual-campos", { a: 1 }, async () => new Response(JSON.stringify({ ok: true, resultado: { version_nueva: 2 } }), { status: 200 }))
@@ -52,7 +52,7 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     const html = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toMatch(/data-campo="proposito" data-estado="lleno" data-editable="true"/); expect(html).toMatch(/data-campo="mision" data-estado="lleno" data-editable="false"/)
     expect(html.match(/data-accion="editar-campo"/g)?.length).toBe(EDITABLES_DESDE_EL_TABLERO.length) // todos los editables se muestran, llenos o vacíos, cada uno con su botón
-    expect(html).toContain('data-campo-editar="eslogan"'); expect(html).not.toContain('data-campo-editar="mision"'); expect(html).toContain("se edita en el próximo paso")
+    expect(html).toContain('data-campo-editar="eslogan"'); expect(html).not.toContain('data-campo-editar="mision"'); expect(html).toContain("Este campo todavía no se cambia desde aquí; se da por bueno con «Validar el manual».") /* CC6 · 02-nov: dicho en palabras */
     expect(html).toContain('data-accion="validar-manual"'); expect(html).not.toContain('data-editor=') // nada abierto de entrada
     expect(html).toMatch(/data-campo="nunca" data-estado="hueco" data-editable="true"/); expect(html).toContain("Sin dato todavía: escríbelo aquí") // opcional vacío pero editable: se muestra para poder escribirlo
     // validado por el dueño → no se ofrece validar otra vez
