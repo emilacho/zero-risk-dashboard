@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
+import { ROTULO_TARJETA, SUBCATEGORIA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
 import { vistaDelCliente, type Tarjeta, type VistaDelCliente } from "@/lib/cliente-financiero"
 import { anteriorDe, diaLocal, fechaCorta, PERIODOS, rangoDe, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
 
@@ -33,7 +34,7 @@ function TarjetaPulse({ t }: { t: Tarjeta }) {
   const tono = t.variacion?.tono === "sube" ? "#f5a524" : t.variacion?.tono === "baja" ? "#7fc99a" : undefined
   return (
     <div data-tarjeta-cliente={t.clave} className="flex min-h-[168px] min-w-0 flex-col gap-1 rounded-xl border border-white/[0.09] bg-[#1b1815] px-4 py-3.5">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">{t.rotulo}</p>
+      <h4 className={ROTULO_TARJETA}>{t.rotulo}</h4>
       <p data-valor className={`leading-tight [font-variant-numeric:tabular-nums] ${t.valor == null ? "text-[22px]" : "text-[30px] font-extralight text-white"}`}>
         {t.valor ?? SIN_DATO}{t.valor != null && t.extra && <span className="ml-1.5 text-[15px] text-zinc-400">{t.extra}</span>}
       </p>
@@ -41,7 +42,7 @@ function TarjetaPulse({ t }: { t: Tarjeta }) {
         <div className="my-3 h-2 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden><div className="h-full rounded-full" style={{ width: `${t.barra}%`, background: t.barra >= 80 ? "#f5a524" : "#7fc99a" }} /></div>
       ) : t.valor != null ? <MiniTendencia xs={t.tendencia} proyectada={t.proyectada} color={t.clave === "rehacer" ? "#a1a1aa" : AMBAR} /> : null}
       {t.valor != null && t.variacion && <p data-variacion-cliente className="text-[13px] [font-variant-numeric:tabular-nums]" style={{ color: tono ?? "#a1a1aa" }}>{t.variacion.texto}</p>}
-      <p data-lectura className="mt-auto text-[13px] text-zinc-300">{t.lectura}</p>
+      <p data-lectura className="mt-auto text-[13px] text-zinc-200">{t.lectura}</p>
     </div>
   )
 }
@@ -59,7 +60,7 @@ function Desplegable({ id, titulo, nota, children }: { id: string; titulo: strin
   return (
     <details data-detalle={id} className="group border-t border-white/[0.06] first:border-t-0">
       <summary className="flex cursor-pointer list-none items-center justify-between py-3 text-[14px] text-zinc-200 hover:text-white [&::-webkit-details-marker]:hidden">
-        <span><span className="mr-2 inline-block text-zinc-500 transition-transform group-open:rotate-90">▸</span>{titulo}</span><span className="text-[12px] text-zinc-500">{nota}</span>
+        <span><span className="mr-2 inline-block text-zinc-500 transition-transform group-open:rotate-90">▸</span>{titulo}</span><span className="text-[12px] text-zinc-400">{nota}</span>
       </summary>
       <div className="pb-4">{children}</div>
     </details>
@@ -115,8 +116,8 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) cerrar() }}>
       <section role="dialog" aria-modal="true" aria-labelledby="cliente-titulo" data-seccion="cliente" data-cliente={slug} className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 px-4 py-2.5 sm:px-6">
-          <p className="text-[12px] uppercase tracking-[0.2em] text-zinc-500">Cliente</p>
-          <h2 id="cliente-titulo" className="text-[20px] font-light tracking-wide text-zinc-50">{v?.nombre ?? (cargando ? "…" : slug)}</h2>
+          <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-zinc-400">Cliente</p>
+          <h2 id="cliente-titulo" className="text-[22px] font-normal tracking-wide text-white">{v?.nombre ?? (cargando ? "…" : slug)}</h2>
           <div role="group" aria-label="Período" data-selector-unico className="flex gap-1.5">
             {PERIODOS.map((p) => <button key={p.k} type="button" data-periodo={p.k} aria-pressed={periodo === p.k} onClick={() => setPeriodo(p.k)} className={`rounded-full border px-2.5 py-1 text-[12px] ${periodo === p.k ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{p.t}</button>)}
           </div>
@@ -132,15 +133,15 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
           <div className="grid flex-1 content-start gap-4 overflow-y-auto px-4 py-5 [scrollbar-width:thin] sm:px-6">
             {/* 1 · lo que tienes que saber */}
             <section data-saber className="rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5">
-              <div className="mb-3 flex items-center gap-2"><h3 className="text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]">Lo que tienes que saber</h3><Ayuda texto="Lo escribe el sistema con los datos, sin costo. Más adelante lo escribe la oficina financiera." /></div>
+              <div className="mb-3 flex items-center gap-2"><h3 className={TITULO_SECCION}>Lo que tienes que saber</h3><Ayuda texto="Lo escribe el sistema con los datos, sin costo. Más adelante lo escribe la oficina financiera." /></div>
               <div className="grid gap-4 md:grid-cols-3">
                 {([["que_paso", "Qué pasó"], ["por_que", "Por qué"], ["que_conviene", "Qué conviene"]] as const).map(([k, t]) => (
-                  <p key={k} data-saber-linea={k} className="text-[15px] leading-relaxed text-zinc-50"><span className="mb-1 block text-[11px] uppercase tracking-[0.14em]" style={{ color: AMBAR }}>{t}</span>{v.saber[k]}</p>
+                  <p key={k} data-saber-linea={k} className="text-[15px] leading-relaxed text-zinc-50"><span className={`mb-1 block ${SUBCATEGORIA}`}>{t}</span>{v.saber[k]}</p>
                 ))}
               </div>
             </section>
             {/* 2 · tarjetas tipo Pulse */}
-            <p className="-mb-2 px-0.5 text-[12px] tracking-wide text-zinc-400">Lo que gasta la agencia en este cliente</p>
+            <h3 data-titulo-grupo className={`-mb-1 px-0.5 pt-1 ${TITULO_SECCION}`}>Lo que gasta la agencia en este cliente</h3>
             <section data-tarjetas-cliente className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {v.tarjetas.map((t) => <TarjetaPulse key={t.clave} t={t} />)}
             </section>
@@ -149,7 +150,7 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
             <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
               {/* 4 · preguntas sugeridas */}
               <section data-preguntas className="rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5">
-                <h3 className="mb-3 text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]">Preguntas sugeridas</h3>
+                <h3 className={`mb-3 ${TITULO_SECCION}`}>Preguntas sugeridas</h3>
                 <div className="flex flex-wrap gap-2">
                   {v.preguntas.map((q) => <button key={q} type="button" data-pregunta={q} onClick={() => preguntar(q)} className="rounded-full border border-white/[0.14] px-3.5 py-1.5 text-left text-[13px] text-zinc-200 hover:border-amber-500/50 hover:bg-amber-500/[0.06]">💬 {q}</button>)}
                 </div>
@@ -157,7 +158,7 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
               </section>
               {/* 5 · detalle solo al desplegar */}
               <section data-detalles className="rounded-xl border border-white/[0.09] bg-[#1b1815] px-4 pt-3 sm:px-5">
-                <h3 className="mb-1 text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]">Detalle</h3>
+                <h3 className={`mb-1 ${TITULO_SECCION}`}>Detalle</h3>
                 <Desplegable id="tiempo" titulo="Gasto en el tiempo" nota="por día"><GastoPorDia xs={v.detalle.por_dia} /></Desplegable>
                 <Desplegable id="empleado" titulo="Por empleado" nota="quién gastó qué"><TablaCorta filas={v.detalle.por_empleado} /></Desplegable>
                 <Desplegable id="corridas" titulo="Corridas" nota="las más caras"><TablaCorta filas={v.detalle.corridas} conDia /></Desplegable>

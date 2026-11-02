@@ -116,3 +116,21 @@ describe("6.42 · sin porcentajes absurdos", () => {
     expect(v.tarjetas[0].variacion?.texto).toBe("▲ desde US$ 0,05")
   })
 })
+
+describe("6.43 · pedido de Emilio: sin dados de baja y títulos claros", () => {
+  it("los clientes dados de baja no van en el selector", async () => {
+    const { esDadoDeBaja } = await import("@/lib/cliente-financiero")
+    expect(esDadoDeBaja("churned")).toBe(true); expect(esDadoDeBaja("onboarding")).toBe(false); expect(esDadoDeBaja(null)).toBe(false)
+    expect(readFileSync("app/api/direccion/clientes/route.ts", "utf8")).toContain("filter((c) => !esDadoDeBaja(c.status))")
+  })
+  it("una sola escala: el título de sección es más grande y más claro que el rótulo, y éste que la subcategoría", async () => {
+    const e = await import("@/components/nuevo/estilos-titulos")
+    const tam = (c: string) => Number(/text-\[([0-9.]+)px\]/.exec(c)![1])
+    expect(tam(e.TITULO_SECCION)).toBeGreaterThan(tam(e.ROTULO_TARJETA)); expect(tam(e.ROTULO_TARJETA)).toBeGreaterThan(tam(e.SUBCATEGORIA)); expect(tam(e.SUBCATEGORIA)).toBeGreaterThan(tam(e.ENCABEZADO_TABLA))
+    for (const c of Object.values(e)) { expect(c).toContain("font-medium"); expect(c).not.toMatch(/text-zinc-(5|6|7)00/) }
+    for (const f of ["PanelCliente", "PanelDinero", "DineroDesglose", "DineroResultados"]) {
+      const s = readFileSync(`components/nuevo/${f}.tsx`, "utf8")
+      expect(s, f).toContain("estilos-titulos"); expect(s, f).not.toContain("text-[11px] uppercase"); expect(s, f).not.toContain('text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]')
+    }
+  })
+})

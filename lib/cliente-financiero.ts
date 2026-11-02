@@ -152,6 +152,9 @@ export function vistaDelCliente(todo: Dinero, slug: string, periodo: Periodo, ho
   }
 }
 
+/** 6.43 · un cliente dado de baja (churned) no va en el selector */
+export const esDadoDeBaja = (status: string | null | undefined): boolean => /^(churned|baja|inactive|inactivo)$/i.test(String(status ?? "").trim())
+
 /** la lista del selector «Seleccionar cliente»: los clientes de verdad (sin pruebas ni fichas archivadas), con su ruta */
 export function clientesDelSelector(nombres: string[]): Array<{ nombre: string; ruta: string }> {
   const vistos = new Map<string, string>()

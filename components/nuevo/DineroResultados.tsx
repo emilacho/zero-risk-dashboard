@@ -6,11 +6,12 @@
  */
 import { useMemo } from "react"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
+import { ROTULO_TARJETA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
 import { ahorro, anomalias, costoDeRehacer, costoPorResultado, fechaCorta, usdCorto, veces, type Dinero } from "@/lib/dinero-completo"
 
 const SIN_DATO = <span data-sin-dato-todavia className="italic text-zinc-500">sin dato todavía</span>
 const CAJA = "rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5"
-const TITULO = "mb-3 flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]"
+const TITULO = `mb-3 flex items-center gap-2 ${TITULO_SECCION}`
 
 type Rango = { desde: string; hasta: string }
 
@@ -24,7 +25,7 @@ export function CostoPorResultado({ datos, rango }: { datos: Dinero; rango: Rang
       <div className="grid gap-3 sm:grid-cols-3">
         {res.map((r) => (
           <div key={r.clave} data-resultado={r.clave} className="rounded-lg border border-white/[0.07] bg-black/20 p-3">
-            <p className="text-[12px] text-zinc-400">{r.nombre}</p>
+            <p className={ROTULO_TARJETA}>{r.nombre}</p>
             <p className="mt-1 text-[22px] tabular-nums text-zinc-100">{r.por_unidad == null ? SIN_DATO : usdCorto(r.por_unidad)}</p>
             <p className="mt-1 text-[11.5px] text-zinc-500">{r.nota}{r.por_unidad != null && r.cuantos > 1 ? ` · total ${usdCorto(r.total)}` : ""}</p>
           </div>
@@ -73,11 +74,11 @@ export function Ahorro({ datos, rango }: { datos: Dinero; rango: Rango }) {
       <h3 className={TITULO}>Ahorro <Ayuda lado="izquierda" texto="Lo ahorrado se estima con el precio de entrada de cada modelo (leer del caché cuesta la décima parte). Nunca se propone pasar a un modelo más barato." /></h3>
       <div className="grid grid-cols-2 gap-3">
         <div data-ahorro="cache" className="rounded-lg border border-white/[0.07] bg-black/20 p-3">
-          <p className="text-[12px] text-zinc-400">Leído desde el caché (período)</p>
+          <p className={ROTULO_TARJETA}>Leído desde el caché (período)</p>
           <p className="mt-1 text-[22px] tabular-nums text-zinc-100">{a.pct_cache == null ? SIN_DATO : `${a.pct_cache} %`}</p>
         </div>
         <div data-ahorro="usd" className="rounded-lg border border-white/[0.07] bg-black/20 p-3">
-          <p className="text-[12px] text-zinc-400">Ahorrado por el caché (estimado)</p>
+          <p className={ROTULO_TARJETA}>Ahorrado por el caché (estimado)</p>
           <p className="mt-1 text-[22px] tabular-nums text-[#7fc99a]">{a.ahorrado_usd == null ? SIN_DATO : usdCorto(a.ahorrado_usd)}</p>
         </div>
       </div>
