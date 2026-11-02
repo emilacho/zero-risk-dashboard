@@ -28,8 +28,10 @@ function Valor({ v }: { v: ValorDeSeccion }) {
  * sección»). Lo que propuso el sistema se rotula «propuesta del sistema · por validar» (distinto de «falta»). Auditoría 02-nov: se pintan SIEMPRE, también vacías.
  * Validar y Editar usan las mismas puertas de los demás campos con su clave (contrato CC1); el panel pone los botones y el editor.
  */
-export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor }: {
+export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, extra }: {
   secciones: SeccionLeida[]
+  /** lo que va al pie de una sección (las revisiones del editor que le pertenecen · auditoría 02-nov) */
+  extra?: (s: SeccionLeida) => React.ReactNode
   pedirCambios?: ((titulo: string, claves: string[]) => void) | null
   /** los botones de cada parte (Validar · Quitar validación · Editar): los pone el panel con las mismas puertas de los demás campos */
   acciones?: (p: SeccionLeida["partes"][number]) => React.ReactNode
@@ -59,6 +61,7 @@ export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor }: {
               )
             })}
           </div>
+          {extra?.(s)}
           {pedirCambios && <button type="button" data-accion="manual-pedir-cambios-seccion" data-seccion-pedir={s.titulo} onClick={() => pedirCambios(s.titulo, s.partes.map((p) => p.clave))} className="mt-3 text-[12px] text-violet-200 underline decoration-dotted underline-offset-4 hover:text-violet-100">Pedir cambios en esta sección</button>}
         </section>
       ))}

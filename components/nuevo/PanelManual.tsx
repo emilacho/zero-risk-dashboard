@@ -1,6 +1,7 @@
 "use client"
 
 import { faltantesDeLasSecciones } from "@/lib/manual-secciones"
+import { TarjetaDeRevisionDelEditor } from "@/components/nuevo/manual/RevisionDelEditor"
 import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
@@ -111,7 +112,7 @@ export function resumenDelGuardado(d: Record<string, unknown>): string {
 }
 
 /** Validar · Quitar validación · Editar de una parte de las secciones nuevas: las mismas puertas y los mismos rótulos que un campo */
-function AccionesDeParte({ clave, etiqueta, validado, escrito, enviar, editando, onEditar, onGuardado }: { clave: string; etiqueta: string; validado: boolean; escrito: boolean; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void }) {
+function AccionesDeParte({ clave, etiqueta, validado, escrito, enviar, editando, onEditar, onGuardado, sinValor = false }: { clave: string; etiqueta: string; validado: boolean; /** vacía: no hay qué validar, solo escribir (auditoría 02-nov) */ sinValor?: boolean; escrito: boolean; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void }) {
   const [validando, setValidando] = useState(false)
   async function validar(v: boolean) {
     if (!enviar.cliente) return
@@ -123,7 +124,7 @@ function AccionesDeParte({ clave, etiqueta, validado, escrito, enviar, editando,
   if (editando) return null
   return (
     <>
-      {!validado && <button type="button" data-accion="validar-campo" data-tablero-accion="manual-validar-campo" data-campo-validar={clave} disabled={validando} onClick={() => void validar(true)} title="Lo das por bueno tal cual; el texto no cambia"
+      {!validado && !sinValor && <button type="button" data-accion="validar-campo" data-tablero-accion="manual-validar-campo" data-campo-validar={clave} disabled={validando} onClick={() => void validar(true)} title="Lo das por bueno tal cual; el texto no cambia"
         className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-50">{validando ? "Validando…" : "Validar"}</button>}
       {validado && !escrito && <button type="button" data-accion="desvalidar-campo" data-campo-desvalidar={clave} disabled={validando} onClick={() => void validar(false)} title="Quita tu validación; el texto no cambia"
         className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-white/30 hover:text-zinc-200 disabled:opacity-50">{validando ? "…" : "Quitar validación"}</button>}
@@ -251,6 +252,14 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const completo = !!m && m.lector.completo && faltanSecciones.length === 0
   const ciclo = m?.ciclo ?? CICLO_DEL_MANUAL_CERRADO
   const esDelDueno = (c: CampoLeido) => !!c.valor && (origenDelCampo(c) === "dueno" || origenDelCampo(c) === "aceptado")
+  // auditoría 02-nov (punto 3): cada revisión del editor va en la PRIMERA sección que contiene una de sus claves (apartados de siempre y secciones nuevas)
+  const revisiones = m?.revisiones_del_editor ?? []
+  const seccionesConClaves: string[][] = [...APARTADOS_DEL_MANUAL.map((a) => a.claves), ...(m?.secciones_nuevas ?? []).map((sn) => sn.partes.map((p) => p.clave))]
+  // la sección del PRIMER campo de la revisión que esté en el manual (el principal de quien la escribió), no la primera que nombre cualquiera
+  const dondeVa = (claves: string[]) => { for (const k of claves) { const i = seccionesConClaves.findIndex((sc) => sc.includes(k)); if (i >= 0) return i } return -1 }
+  const revisionesDe = (claves: string[]) => revisiones.filter((r) => { const k = dondeVa(r.claves); return k >= 0 && seccionesConClaves[k].join() === claves.join() })
+  const revisionesSueltas = revisiones.filter((r) => dondeVa(r.claves) < 0)
+  const revisionHecha = (texto: string) => { setAviso({ ok: true, texto }); void leer(cliente) }
   const validadosDe = (claves: string[]) => claves.map((k) => campos.get(k)).filter((c): c is CampoLeido => !!c && esDelDueno(c)).map((c) => c.etiqueta)
   const puedePedirEnSeccion = ciclo.disponible && !ciclo.abierto && !!cliente
   const pedirEnSeccion = (titulo: string, claves: string[]) => setPedirEn((p) => ({ titulo, campos: claves, validados: validadosDe(claves), n: (p?.n ?? 0) + 1 }))
@@ -333,6 +342,12 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
 
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
                 <div className="min-w-0 space-y-5">
+                  {revisionesSueltas.length > 0 && (
+                    <section data-revisiones-sueltas aria-label="Revisiones del editor" className="rounded-lg border border-violet-400/30 bg-white/[0.02] p-4">
+                      <h3 className="text-[12px] font-medium uppercase tracking-[0.18em] text-violet-200">Revisiones del editor</h3>
+                      {revisionesSueltas.map((r) => <TarjetaDeRevisionDelEditor key={r.id} r={r} accion={accion} onHecho={revisionHecha} />)}
+                    </section>
+                  )}
                   {APARTADOS_DEL_MANUAL.map((ap, i) => {
                     // un campo opcional vacío el lector no lo muestra; si se puede editar desde aquí, se muestra vacío con su botón (si no, no habría cómo escribirlo)
                     const vacio = (k: string): CampoLeido | null => { const d = CAMPOS_DEL_LECTOR.find((x) => x.clave === k); return d && esEditableDesdeElTablero(k) ? { clave: k, etiqueta: d.etiqueta, valor: null, estado: "hueco", nota: "Sin dato todavía: escríbelo aquí", explicacion: null, origen: null } : null }
@@ -343,13 +358,14 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                         <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>{ap.titulo}</h3>
                         <div className="space-y-2">{lista.map((c) => <Campo key={c.clave} c={c} opciones={c.clave === "eslogan" ? m.opciones_eslogan : []} enviar={enviar} editando={editando === c.clave} onEditar={setEditando} onGuardado={guardado} manualValidadoPor={m.lector.validadoPor} />)}</div>
                         <BotonDeSeccion titulo={ap.titulo} claves={ap.claves} />
+                        {revisionesDe(ap.claves).map((r) => <TarjetaDeRevisionDelEditor key={r.id} r={r} accion={accion} onHecho={revisionHecha} />)}
                       </section>
                     )
                   })}
 
                   {/* las secciones nuevas del manual (ADENDA 1): aparecen solas cuando el manual las trae */}
-                  <SeccionesNuevas secciones={m.secciones_nuevas ?? []} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null}
-                    acciones={(p) => <AccionesDeParte clave={p.clave} etiqueta={p.etiqueta} validado={p.origen === "aceptado" || p.origen === "dueno"} escrito={p.origen === "dueno"} enviar={enviar} editando={editando === p.clave} onEditar={setEditando} onGuardado={guardado} />}
+                  <SeccionesNuevas secciones={m.secciones_nuevas ?? []} extra={(sn) => revisionesDe(sn.partes.map((p) => p.clave)).map((r) => <TarjetaDeRevisionDelEditor key={r.id} r={r} accion={accion} onHecho={revisionHecha} />)} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null}
+                    acciones={(p) => <AccionesDeParte clave={p.clave} etiqueta={p.etiqueta} sinValor={!p.valor} validado={p.origen === "aceptado" || p.origen === "dueno"} escrito={p.origen === "dueno"} enviar={enviar} editando={editando === p.clave} onEditar={setEditando} onGuardado={guardado} />}
                     editor={(p) => editando === p.clave ? <Editor clave={p.clave} valor={p.para_editar} enviar={enviar} onCancelar={() => setEditando(null)} onGuardado={guardado} /> : null} />
 
                   {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
