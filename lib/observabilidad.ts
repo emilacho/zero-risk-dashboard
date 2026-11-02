@@ -6,8 +6,8 @@
  *  · corrida = un pedido · % con error = con error ÷ corridas del período (las «en curso» no cuentan) · demora típica = la mediana (y la más lenta aparte)
  *  · costo = misma fuente y misma función que Dinero (`resumenDelPeriodo` sobre los movimientos de Dinero) · interno = cerebro, portero, pruebas y ensayos.
  */
-import { anteriorDe, diaLocal, diasEntre, rangoDe, resumenDelPeriodo, sumarDias, type Dinero, type Movimiento, type Periodo } from "@/lib/dinero-completo"
-import { clienteVisible, type Corrida, type DetalleDeCorrida, arbolDeNodos } from "@/lib/direccion-corridas"
+import { anteriorDe, diaLocal, diasEntre, horaLocal, rangoDe, resumenDelPeriodo, sumarDias, type Dinero, type Movimiento, type Periodo } from "@/lib/dinero-completo"
+import { clienteVisible, mayuscula, type Corrida, type DetalleDeCorrida, arbolDeNodos } from "@/lib/direccion-corridas"
 
 /** ─── interno: mantenimiento del cerebro y del portero, pruebas y ensayos ─── */
 const NOMBRE_INTERNO = /^Cerebro ·|^Portero · .*\bprueba\b|\bprueba\b|\bensayo\b/i
@@ -187,4 +187,74 @@ export function variacion(ahora: number | null, antes: number | null): { texto: 
   if (antes === 0) return ahora === 0 ? { texto: "igual", sube: false } : { texto: `▲ antes 0`, sube: true }
   const p = Math.round(((ahora - antes) / antes) * 100)
   return p === 0 ? { texto: "igual", sube: false } : { texto: `${p > 0 ? "▲" : "▼"} ${Math.abs(p)} %`, sube: p > 0 }
+}
+
+/**
+ * ─── 6.49 · OBSERVABILIDAD VISUAL (boceto aprobado por Emilio 2-nov · `2026-11-02-BOCETO-CC5-a-EMILIO-observabilidad-visual.md`) ───
+ * Gráficos grandes por día (por hora si el período es Hoy, como Dinero), los días que la lectura no alcanzó dibujados «no leído» (nunca como cero)
+ * y la corrida con error como cascada: un tramo por fase, su largo = su tiempo real, el que falló en rojo.
+ */
+export interface Cubetas { rotulos: string[]; porHora: boolean }
+export const cubetasDe = (v: Ventana): Cubetas =>
+  v.dias_periodo === 1 ? { rotulos: Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")), porHora: true } : { rotulos: diasEntre(v.r.desde, v.r.hasta), porHora: false }
+const cubetaDe = (iso: string, porHora: boolean): string => (porHora ? String(horaLocal(iso)).padStart(2, "0") : diaLocal(iso))
+/** la serie de cada día (u hora) del período */
+export function serieDe<T>(cs: Corrida[], k: Cubetas, f: (xs: Corrida[]) => T): T[] {
+  const por = new Map<string, Corrida[]>()
+  for (const c of cs) if (c.inicio) { const b = cubetaDe(c.inicio, k.porHora); por.set(b, [...(por.get(b) ?? []), c]) }
+  return k.rotulos.map((r) => f(por.get(r) ?? []))
+}
+/** el costo de cada día (u hora): los movimientos de Dinero, la misma cuenta */
+export function costoPorCubeta(d: Dinero, v: Ventana, k: Cubetas, conInterno: boolean): number[] {
+  const movs = conInterno ? d.movimientos : d.movimientos.filter((x) => !esMovimientoInterno(x))
+  const por = new Map<string, number>()
+  for (const x of movs) if (x.d >= v.r.desde && x.d <= v.r.hasta) { const b = k.porHora ? String(horaLocal(x.t)).padStart(2, "0") : x.d; por.set(b, (por.get(b) ?? 0) + x.usd) }
+  return k.rotulos.map((r) => Math.round((por.get(r) ?? 0) * 100) / 100)
+}
+/** las cubetas anteriores a la ejecución más vieja que entregó la lectura (cuando vino cortada): «no leído», no cero */
+export function noLeidas(k: Cubetas, desdeIso: string | null, dia: string): boolean[] {
+  if (!desdeIso) return k.rotulos.map(() => false)
+  const d = diaLocal(desdeIso), h = horaLocal(desdeIso)
+  return k.rotulos.map((r) => (k.porHora ? d === dia && Number(r) < h : r < d))
+}
+/** la ejecución más vieja de una lectura cortada (null si la lectura entregó todo) */
+export function desdeDeLaLectura(corridas: Pick<Corrida, "inicio">[], cortada: boolean): string | null {
+  if (!cortada) return null
+  return corridas.reduce<string | null>((m, c) => (c.inicio && (!m || c.inicio < m) ? c.inicio : m), null)
+}
+const fecha = (d: string) => new Date(`${d}T12:00:00Z`)
+const corta = (d: string, o: Intl.DateTimeFormatOptions) => fecha(d).toLocaleDateString("es-EC", { timeZone: "UTC", ...o }).replace(".", "")
+/** «mar 27» (pocos días) o «27 oct» (muchos); la hora como «15 h» */
+export const rotuloDe = (r: string, k: Cubetas, n: number): string => (k.porHora ? `${Number(r)} h` : n <= 10 ? `${corta(r, { weekday: "short" })} ${fecha(r).getUTCDate()}` : `${fecha(r).getUTCDate()} ${corta(r, { month: "short" })}`)
+/** «dom 1 nov» o «hoy, 15:00» para el detalle al pasar el cursor */
+export const rotuloLargo = (r: string, k: Cubetas): string => (k.porHora ? `Hoy, ${r}:00` : `${corta(r, { weekday: "short" })} ${fecha(r).getUTCDate()} ${corta(r, { month: "short" })}`)
+
+export interface Fase { nombre: string; pasos: number; desde_ms: number; dur_ms: number; fallo: boolean; clave: string }
+export interface Cascada { fases: Fase[]; total_ms: number; inicio: string }
+const accionDe = (n: string) => { const i = n.indexOf(" · "); return i >= 0 ? n.slice(i + 3) : n }
+/**
+ * la cascada de una corrida: los pasos que se pisan en el tiempo forman una fase («Analiza · 5 empleados en paralelo»); el largo de cada fase es su
+ * tiempo real; la que tiene el paso con error va en rojo. Los pasos de 0 s que salieron bien (cierres) no se dibujan.
+ */
+export function cascadaDe(d: DetalleDeCorrida): Cascada | null {
+  const pasos = arbolDeNodos(d)
+    .filter((n) => n.tipo === "paso" && n.inicio)
+    .map((n) => { const a = Date.parse(n.inicio!); return { n, a, b: a + (n.duracion_ms ?? 0), mal: n.estado === "fallida" || n.estado === "atascada" } })
+    .filter((p) => Number.isFinite(p.a) && (p.b > p.a || p.mal))
+    .sort((x, y) => x.a - y.a)
+  if (!pasos.length) return null
+  const grupos: (typeof pasos)[] = []
+  let fin = -Infinity
+  for (const p of pasos) {
+    if (grupos.length && p.a < fin) { grupos[grupos.length - 1].push(p); fin = Math.max(fin, p.b) } else { grupos.push([p]); fin = p.b }
+  }
+  const t0 = pasos[0].a, tf = Math.max(...pasos.map((p) => p.b))
+  const fases = grupos.map((g): Fase => {
+    const a = Math.min(...g.map((p) => p.a)), b = Math.max(...g.map((p) => p.b)), mal = g.find((p) => p.mal)
+    const acciones = g.map((p) => accionDe(p.n.nombre)), primeras = acciones.map((x) => x.split(/\s+/)[0].toLocaleLowerCase("es"))
+    const comun = primeras.every((x) => x === primeras[0]) ? mayuscula(primeras[0]) : null
+    const nombre = g.length === 1 ? mayuscula(acciones[0]) : `${comun ? `${comun} · ` : ""}${g.length} empleados en paralelo`
+    return { nombre, pasos: g.length, desde_ms: a - t0, dur_ms: b - a, fallo: !!mal, clave: (mal ?? g[0]).n.clave }
+  })
+  return { fases, total_ms: Math.max(1, tf - t0), inicio: new Date(t0).toISOString() }
 }

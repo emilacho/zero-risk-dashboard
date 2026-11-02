@@ -141,12 +141,12 @@ describe("6.47 · en pantalla", () => {
     const { PanelObservabilidad } = await import("@/components/nuevo/PanelObservabilidad")
     return renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: LISTA, dineroInicial: DINERO, empleadosInicial: empleados, hoy, ...x })).replace(/<!-- -->/g, "")
   }
-  it("de arriba hacia abajo: controles, resumen (4 tarjetas con mini gráfico), lo que falló, grupos, empleados", async () => {
+  it("de arriba hacia abajo: controles, resumen (6.49: gráficos grandes, ya no tarjetas con mini línea), lo que falló, grupos, empleados", async () => {
     const h = await render()
     expect(h).toMatch(/^<div class="nv-panel fixed inset-0 z-\[70\]/)
     const orden = ["data-controles", "data-resumen", "data-lo-que-fallo", "data-grupos=", "data-empleados-obs"]
     const pos = orden.map((k) => h.indexOf(k)); expect(pos.every((p) => p > 0)).toBe(true); expect([...pos].sort((a, b) => a - b)).toEqual(pos)
-    expect(h.match(/data-tarjeta-obs=/g)).toHaveLength(4); expect(h.match(/data-mini-grafico/g)!.length).toBeGreaterThanOrEqual(4)
+    expect(h.match(/data-grafico-obs=/g)).toHaveLength(3); expect(h).not.toContain("data-tarjeta-obs"); expect(h).not.toContain("data-mini-grafico")
     expect(h.match(/data-periodo=/g)).toHaveLength(4); expect(h).toContain("data-mostrar-interno"); expect(h).toContain("data-busca"); expect(h).toContain("data-agrupar-por")
   }, 60000)
   it("interno oculto por defecto: no aparece el cerebro y se dice cuánto quedó oculto", async () => {
@@ -157,7 +157,7 @@ describe("6.47 · en pantalla", () => {
   }, 60000)
   it("lo que falló arriba, con el botón al paso; sin errores dice «sin errores» con ✓", async () => {
     const h = await render()
-    expect(h).toContain('data-falla="plan-1"'); expect(h).toContain('data-ver-donde-fallo="plan-1"'); expect(h).toContain("Ver dónde falló →")
+    expect(h).toContain('data-falla="plan-1"'); expect(h).toContain('data-ver-donde-fallo="plan-1"'); expect(h).toContain("Ver completa →")
     const sin = await render({ listaInicial: normalizarLista({ total: 1, corridas: [c("ok-1")] }) })
     expect(sin).toContain("data-sin-errores"); expect(sin).toContain("Sin errores en 7 días ✓")
   }, 60000)
@@ -180,11 +180,12 @@ describe("6.47 · en pantalla", () => {
     expect(h).toMatch(/^<div class="nv-panel fixed inset-0 z-\[70\] flex items-center justify-center bg-black\/80 p-1.5 sm:p-2"/)
     expect(readFileSync("app/globals.css", "utf8")).toContain("body:has([data-chat-de-oficinas]) .nv-panel { bottom: var(--nv-chat-reserva); }")
   }, 60000)
-  it("6.48 · «sin comparación» se explica UNA vez arriba; las tarjetas dicen solo «sin comparación»", async () => {
+  it("6.48 → 6.49 · «sin comparación» se dice UNA vez, en la línea gris de arriba (no franja amarilla, nada en los gráficos)", async () => {
     const cortada = { ...LISTA, ejecuciones_total: 500, ejecuciones_leidas: 7 }
     const h = await render({ listaInicial: cortada })
-    expect(h.match(/data-sin-comparacion/g)).toHaveLength(1); expect(h).toContain("Sin comparación con los 7 días anteriores en corridas, errores y demora: la plataforma entrega 200 ejecuciones por lectura")
-    expect(h).not.toContain("la lectura no alcanza"); expect(h.match(/>sin comparación</g)).toHaveLength(3)
+    expect(h.match(/data-sin-comparacion/g)).toHaveLength(1); expect(h.match(/data-aviso-lectura/g)).toHaveLength(1)
+    expect(h).toContain("Corridas, errores y demora: "); expect(h).toContain("sin comparación con los 7 días anteriores"); expect(h).toContain("El costo es el período entero y sí se compara (Dinero).")
+    expect(h).not.toContain("la lectura no alcanza"); expect(h).not.toContain(">sin comparación<"); expect(h).not.toMatch(/data-aviso-lectura[^>]*amber/)
     expect(h.indexOf("data-aviso-lectura")).toBeLessThan(h.indexOf("data-resumen"))
     const completa = await render()
     expect(completa).not.toContain("data-sin-comparacion"); expect(completa).not.toContain(">sin comparación<")

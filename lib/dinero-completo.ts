@@ -222,6 +222,8 @@ export function loQueCambio(movs: Movimiento[], hoy: string, cache: Dinero["cach
   return out
 }
 
+/** el eje con cifras redondas (1 · 2 · 2,5 · 5 × 10ⁿ) */
+export function pasoRedondo(x: number): number { const e = Math.pow(10, Math.floor(Math.log10(x))), f = x / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e }
 export const usdCorto = (n: number): string => `US$ ${n.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 export const fechaCorta = (d: string): string => new Date(`${d}T12:00:00Z`).toLocaleDateString("es-EC", { timeZone: "UTC", day: "numeric", month: "short" }).replace(".", "")
 

@@ -6,7 +6,7 @@ import { Ahorro, Anomalias, CostoPorResultado } from "@/components/nuevo/DineroR
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
 import { PanelCliente } from "@/components/nuevo/PanelCliente"
 import { ROTULO_TARJETA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
-import { anteriorDe, cacheDelRango, costoDeRehacer, diaLocal, fechaCorta, frenteA, loQueCambio, NOMBRE_DE_DIMENSION, PERIODOS, picos, rangoDe, resumenDelPeriodo, serie, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Periodo, type Pico, type Serie } from "@/lib/dinero-completo"
+import { anteriorDe, cacheDelRango, pasoRedondo, costoDeRehacer, diaLocal, fechaCorta, frenteA, loQueCambio, NOMBRE_DE_DIMENSION, PERIODOS, picos, rangoDe, resumenDelPeriodo, serie, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Periodo, type Pico, type Serie } from "@/lib/dinero-completo"
 
 /**
  * TU OFICINA · DINERO (6.36 · boceto aprobado por Emilio 2-nov): todo el gasto de la agencia en un solo lugar, con la estructura de Ramp · AI Token Spend
@@ -90,7 +90,8 @@ function Resumen({ datos, hoy, rango, anterior }: { datos: Dinero; hoy: string; 
 }
 
 /* 3 · gasto en el tiempo */
-export function pasoRedondo(x: number): number { const e = Math.pow(10, Math.floor(Math.log10(x))), f = x / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e }
+/** 6.49 · el eje de cifras redondas vive en lib/dinero-completo (lo usan también Observabilidad y la vista del cliente) */
+export { pasoRedondo }
 const W = 1300, H = 230, IZQ = 78, ABAJO = 26, ARRIBA = 26
 function Grafico({ s, picosDelRango, porHora, alAbrirCorrida }: { s: Serie; picosDelRango: Pico[]; porHora: boolean; alAbrirCorrida?: (id: string) => void }) {
   const [sobre, setSobre] = useState<number | null>(null)
