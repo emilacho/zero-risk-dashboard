@@ -14,7 +14,7 @@ export type NombreDeAccion =
   | "cliente-editar" | "cliente-nuevo" | "cliente-baja" | "cliente-tope"
   | "oficina-estado" | "oficina-tope"
   | "revision-resolver"
-  | "manual-campos" | "manual-validar" | "manual-palabra"
+  | "manual-campos" | "manual-validar" | "manual-palabra" | "manual-validar-campo"
 
 type Cuerpo = Record<string, unknown>
 export type Validacion = { ok: true; cuerpo: Cuerpo } | { ok: false; error: string; detalle: string }
@@ -164,6 +164,17 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
     validar: (c) => { const id = conId(c, "client_id"); return id ? { ok: true, cuerpo: { client_id: id } } : mal("falta el cliente") },
   },
   // TABLERO DEL DUEÑO · palabras del manual (CC6 · 01-nov · contrato de CC1 #815): prohibir, dejar como estilo o quitar. US$ 0; versión nueva del manual.
+  // VALIDAR UN CAMPO sin versión nueva (CC6 · 02-nov · contrato CC1 `254b94f`, certificado por CC3): el dueño lo da por bueno o le quita la validación. US$ 0
+  "manual-validar-campo": {
+    gasta: null,
+    validar: (c) => {
+      const id = conId(c, "client_id"), campo = texto(c.campo)
+      if (!id) return mal("falta el cliente")
+      if (!/^[a-z_]{2,40}$/.test(campo)) return mal("falta el campo")
+      if (c.validado !== undefined && typeof c.validado !== "boolean") return mal("«validado» es verdadero o falso")
+      return { ok: true, cuerpo: { client_id: id, campo, validado: c.validado !== false } }
+    },
+  },
   "manual-palabra": {
     gasta: null,
     validar: (c) => {

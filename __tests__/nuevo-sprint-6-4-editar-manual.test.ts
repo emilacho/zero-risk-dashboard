@@ -52,7 +52,7 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     const html = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toMatch(/data-campo="proposito" data-estado="lleno" data-editable="true"/); expect(html).toMatch(/data-campo="mision" data-estado="lleno" data-editable="false"/)
     expect(html.match(/data-accion="editar-campo"/g)?.length).toBe(EDITABLES_DESDE_EL_TABLERO.length) // todos los editables se muestran, llenos o vacíos, cada uno con su botón
-    expect(html).toContain('data-campo-editar="eslogan"'); expect(html).not.toContain('data-campo-editar="mision"'); expect(html).toContain("Este campo todavía no se cambia desde aquí; se da por bueno con «Validar el manual».") /* CC6 · 02-nov: dicho en palabras */
+    expect(html).toContain('data-campo-editar="eslogan"'); expect(html).not.toContain('data-campo-editar="mision"'); expect(html).toContain("Este campo todavía no se cambia desde aquí; sí se puede validar.") /* CC6 · 02-nov: dicho en palabras */
     expect(html).toContain('data-accion="validar-manual"'); expect(html).not.toContain('data-editor=') // nada abierto de entrada
     expect(html).toMatch(/data-campo="nunca" data-estado="hueco" data-editable="true"/); expect(html).toContain("Sin dato todavía: escríbelo aquí") // opcional vacío pero editable: se muestra para poder escribirlo
     // validado por el dueño → no se ofrece validar otra vez

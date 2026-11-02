@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
-import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, PORQUE_DE_VALIDAR, valorCorto } from "@/lib/manual-campo"
+import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, valorCorto } from "@/lib/manual-campo"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 import { CAMPOS_DEL_LECTOR, type CampoLeido } from "@/lib/manual-lector"
 import { EDITABLES_DESDE_EL_TABLERO, contrasteDelTexto, cuerpoDeEdicion, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, procedenciaLegible, rolDeLaLetraLegible, rolDelColorLegible, separarPropuesta, textoParaEditar } from "@/lib/manual"
@@ -115,14 +115,13 @@ function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado
   const validado = campoValidado(c, manualValidadoPor)
   const corto = valorCorto(c.valor)
   const viñetasVisibles = viñetas && !entero ? viñetas.slice(0, 4) : viñetas
-  async function validar() {
+  // validar o quitar la validación de UN campo, sin versión nueva (puerta propia de la plataforma · CC1 254b94f): vale para todos los campos con texto
+  async function validar(validado: boolean) {
     if (!enviar.cliente || !c.valor) return
-    const cuerpo = cuerpoDeEdicion(enviar.cliente, c.clave, textoParaEditar(c.clave, c.valor), PORQUE_DE_VALIDAR)
-    if ("error" in cuerpo) { onGuardado({ ok: false, texto: cuerpo.error }); return }
     setValidando(true)
-    const r = await enviar.accion("manual-campos", cuerpo)
+    const r = await enviar.accion("manual-validar-campo", { client_id: enviar.cliente, campo: c.clave, validado })
     setValidando(false)
-    onGuardado(r)
+    onGuardado(r.ok ? { ...r, texto: validado ? "Campo validado" : "Validación quitada" } : r)
   }
   return (
     <div id={`campo-${c.clave}`} data-campo={c.clave} data-estado={c.estado} data-editable={editable} data-origen={origen} data-validado={validado} className="scroll-mt-2 rounded-lg border border-white/10 bg-black/20 p-3">
@@ -132,9 +131,13 @@ function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado
         {c.valor && <Chip tono={validado ? "verde" : "ambar"}>{validado ? "validado" : "sin validar"}</Chip>}
         {!c.valor && <Chip tono="ambar">falta</Chip>}
         <span className="ml-auto flex gap-1">
-          {editable && !editando && c.valor && !validado && (
-            <button type="button" data-accion="validar-campo" data-campo-validar={c.clave} disabled={validando} onClick={() => void validar()} title="Lo das por bueno tal cual: queda como tuyo"
+          {!editando && c.valor && !validado && (
+            <button type="button" data-accion="validar-campo" data-tablero-accion="manual-validar-campo" data-campo-validar={c.clave} disabled={validando} onClick={() => void validar(true)} title="Lo das por bueno tal cual; el texto no cambia"
               className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-50">{validando ? "Validando…" : "Validar"}</button>
+          )}
+          {!editando && c.valor && c.origen === "aceptado" && (
+            <button type="button" data-accion="desvalidar-campo" data-campo-desvalidar={c.clave} disabled={validando} onClick={() => void validar(false)} title="Quita tu validación de este campo; el texto no cambia"
+              className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-white/30 hover:text-zinc-200 disabled:opacity-50">{validando ? "…" : "Quitar validación"}</button>
           )}
           {editable && !editando && (
             <button type="button" data-accion="editar-campo" data-campo-editar={c.clave} onClick={() => onEditar(c.clave)} aria-label={`Editar ${c.etiqueta}`} title="Editar"
@@ -144,7 +147,7 @@ function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado
           )}
         </span>
       </div>
-      {!editable && <p className="mb-1 text-[10.5px] text-zinc-600" >Este campo todavía no se cambia desde aquí; se da por bueno con «Validar el manual».</p>}
+      {!editable && <p className="mb-1 text-[10.5px] text-zinc-600" >Este campo todavía no se cambia desde aquí; sí se puede validar.</p>}
       {editando && <Editor clave={c.clave} valor={c.valor} enviar={enviar} onCancelar={() => onEditar(null)} onGuardado={onGuardado} />}
       {!editando && !c.valor && <p className="text-[13px] italic text-amber-200/80">{c.nota ?? "Sin dato"}</p>}
       {!editando && c.valor && viñetasVisibles && (
