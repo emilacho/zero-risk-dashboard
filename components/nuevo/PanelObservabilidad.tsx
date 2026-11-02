@@ -1,5 +1,6 @@
 "use client"
 
+import { BotonVolver } from "@/components/nuevo/BotonVolver"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
   COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
@@ -267,7 +268,7 @@ function Texto({ nodo, pestana }: { nodo: Nodo; pestana: "entrada" | "salida" })
   )
 }
 
-export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null }: { onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch; /** 6.36 · Dinero abre aquí la corrida de un pico */ corridaInicial?: string | null }) {
+export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null, alVolver }: { /** 6.44 · abierta desde Dinero: la flecha regresa a Dinero */ alVolver?: () => void; onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch; /** 6.36 · Dinero abre aquí la corrida de un pico */ corridaInicial?: string | null }) {
   const [dias, setDias] = useState<Dias>(7)
   const [cliente, setCliente] = useState("")
   const [estado, setEstado] = useState<EstadoCorrida | "todas">("todas")
@@ -318,6 +319,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
       <style>{".ob-gira{transform-origin:8px 8px;animation:obGira 1s linear infinite}@keyframes obGira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.ob-gira{animation:none}}"}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="observabilidad-titulo" data-seccion="observabilidad" className="relative flex h-full max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
+          {alVolver && <BotonVolver alVolver={alVolver} a="Dinero" />}
           <h2 id="observabilidad-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Observabilidad</h2>
           <p className="text-[12px] text-zinc-400">Cada corrida de los empleados, paso a paso</p>
           {abriendo && <p className="text-[12px] text-zinc-500">Abriendo {abriendo}…</p>}

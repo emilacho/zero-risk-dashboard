@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CaretDown } from "@phosphor-icons/react"
+import { CaretDown } from "@phosphor-icons/react/dist/ssr/CaretDown"
 
 /**
  * 6.42 · el selector «Seleccionar cliente» de la barra superior (cambio 1 de Emilio): abre la vista financiera del cliente a un clic desde cualquier pantalla.

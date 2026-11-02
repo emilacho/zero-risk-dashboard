@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
+import { BotonVolver } from "@/components/nuevo/BotonVolver"
 import { ROTULO_TARJETA, SUBCATEGORIA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
 import { vistaDelCliente, type Tarjeta, type VistaDelCliente } from "@/lib/cliente-financiero"
 import { anteriorDe, diaLocal, fechaCorta, PERIODOS, rangoDe, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
@@ -81,7 +82,7 @@ function GastoPorDia({ xs }: { xs: Array<{ d: string; usd: number }> }) {
   )
 }
 
-export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, alCerrar }: { slug: string; datosIniciales?: Dinero | null; fetchImpl?: typeof fetch; alCerrar?: () => void }) {
+export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, alCerrar, alVolver }: { slug: string; datosIniciales?: Dinero | null; fetchImpl?: typeof fetch; alCerrar?: () => void; /** 6.44 · abierta encima de Dinero: la flecha y Esc regresan a Dinero */ alVolver?: () => void }) {
   const router = useRouter()
   const [datos, setDatos] = useState<Dinero | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +91,12 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
   const [aviso, setAviso] = useState<string | null>(null)
   const cerrarBtn = useRef<HTMLButtonElement>(null)
   const cerrar = useCallback(() => { if (alCerrar) alCerrar(); else router.push("/nuevo/oficina") }, [alCerrar, router])
+  // 6.44 · la flecha: encima de Dinero vuelve a Dinero; como página propia vuelve a la pantalla anterior (o a tu oficina si se abrió sola en otra pestaña)
+  const volver = useCallback(() => {
+    if (alVolver) return alVolver()
+    const vengoDeAqui = typeof document !== "undefined" && document.referrer.startsWith(window.location.origin) && window.history.length > 1
+    if (vengoDeAqui) router.back(); else router.push("/nuevo/oficina")
+  }, [alVolver, router])
   const leer = useCallback(async () => {
     setCargando(true); setError(null)
     try {
@@ -102,10 +109,10 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
   useEffect(() => { if (!datosIniciales) void leer() }, [leer, datosIniciales])
   useEffect(() => { cerrarBtn.current?.focus() }, [])
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); cerrar() }
+    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); if (alVolver) alVolver(); else cerrar() }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
-  }, [cerrar])
+  }, [cerrar, alVolver])
 
   const hoy = useMemo(() => diaLocal(datos?.leido_en ?? new Date().toISOString()), [datos])
   const v = useMemo(() => (datos ? vistaDelCliente(datos, slug, periodo, hoy) : null), [datos, slug, periodo, hoy])
@@ -113,9 +120,10 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
   const preguntar = (q: string) => { const ok = escribirEnElChat(q); setAviso(ok ? "La pregunta quedó escrita en el chat de abajo." : "No encontré el chat de abajo.") }
 
   return (
-    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) cerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) { if (alVolver) alVolver(); else cerrar() } }}>
       <section role="dialog" aria-modal="true" aria-labelledby="cliente-titulo" data-seccion="cliente" data-cliente={slug} className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 px-4 py-2.5 sm:px-6">
+          <BotonVolver alVolver={volver} a={alVolver ? "Dinero" : "la pantalla anterior"} />
           <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-zinc-400">Cliente</p>
           <h2 id="cliente-titulo" className="text-[22px] font-normal tracking-wide text-white">{v?.nombre ?? (cargando ? "…" : slug)}</h2>
           <div role="group" aria-label="Período" data-selector-unico className="flex gap-1.5">
