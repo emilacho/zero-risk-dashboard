@@ -33,10 +33,10 @@ export const DUENO_DEL_CAMPO_DEL_MANUAL: Record<string, string> = {
 export const TARJETA_MS = 8000
 export const MAXIMO_JUNTOS_EN_EL_PIZARRON = 4
 
-/** el pizarrón de la foto (`marketing-2560`): la pantalla grande de rejilla, a la izquierda de la sala. Medido sobre la foto: 18 cuadros (6×3); se usan los 12 de las 4 primeras columnas, de arriba abajo */
+/** el pizarrón de la foto (`marketing-2560`): la pantalla grande de rejilla, a la izquierda de la sala. Medido sobre la foto: 18 cuadros (6×3), de arriba abajo y de izquierda a derecha. Desde el encargo del pizarrón de métricas (02-nov) son cuadros de MÉTRICAS (`lib/escena-metricas.ts`), no de entregas */
 const COL_X0 = 890, COL_PASO = 30.6, ANCHO = 25, ALTO = 27, SUBE = 12
 const FILA_Y0 = [414, 445, 478]
-export const CUADROS_DEL_PIZARRON: Punto[][] = Array.from({ length: MAXIMO_DE_CUADROS }, (_, i) => {
+export const CUADROS_DEL_PIZARRON: Punto[][] = Array.from({ length: 18 }, (_, i) => {
   const c = Math.floor(i / 3), r = i % 3
   const x = COL_X0 + COL_PASO * c, y = FILA_Y0[r] - 14 * c
   const p = (dx: number, dy: number): Punto => ({ x: Math.round(x + dx), y: Math.round(y + dy) })

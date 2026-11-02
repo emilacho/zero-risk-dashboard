@@ -20,6 +20,7 @@ import type { PlanDelCliente } from "@/lib/plan-datos"
 import { nombreLegible } from "@/lib/trabajo-en-vivo"
 import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
 import type { EntregasDeLaEscena } from "@/lib/escena-entregas"
+import type { MetricasDelPizarron } from "@/lib/escena-metricas"
 
 export const FOTO = { w: 2560, h: 1440 } as const
 /** «12:15» en hora de Ecuador (UTC-5, sin horario de verano) */
@@ -213,6 +214,8 @@ export interface EscenaDatos {
   contexto?: { cliente: string; momento: string } | null
   /** sprint 3 · lo que se entregó (pizarrón), las revisiones de la jefatura y las firmas que esperan a Emilio; ausente = no se pudo leer (la escena sigue sin eso) */
   entregas?: EntregasDeLaEscena
+  /** el pizarrón de métricas: un cuadro por red del cliente + «General»; hoy todos dicen «métricas pronto» (`lib/escena-metricas.ts`) */
+  metricas?: MetricasDelPizarron
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
