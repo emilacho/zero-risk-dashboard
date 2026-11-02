@@ -94,12 +94,12 @@ export async function llamarAccion(nombre: string, cuerpo: Record<string, unknow
 
 /** lo que se le dice a Emilio después de guardar: versión nueva y si el cerebro ya lo tiene */
 export function resumenDelGuardado(d: Record<string, unknown>): string {
-  const v = d.version_nueva != null ? `versión ${String(d.version_nueva)} guardada` : "guardado"
+  // sin números de versión a la vista (Lenovo, 02-nov): se dice que quedó guardado
   const c = (d.cerebro && typeof d.cerebro === "object" ? d.cerebro : {}) as { indice?: unknown; enviados?: unknown; pendientes?: unknown }
   const pend = Array.isArray(c.pendientes) ? c.pendientes.length : 0
   const env = Array.isArray(c.enviados) ? c.enviados.length : 0
   const cerebro = pend ? `el cerebro recibió ${env} y quedan ${pend} pendientes` : env ? "el cerebro ya lo tiene: el siguiente empleado lo lee así" : c.indice === "sin_cambios" ? "sin cambios" : "el cerebro lo recibe en breve"
-  return `${v[0].toUpperCase()}${v.slice(1)} · ${cerebro}`
+  return `Guardado · ${cerebro}`
 }
 
 function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado, manualValidadoPor = "propuesta" }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void; /** quién validó el manual entero */ manualValidadoPor?: "jefatura" | "dueno" | "propuesta" }) {
@@ -144,7 +144,7 @@ function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado
           )}
         </span>
       </div>
-      {!editable && <p className="mb-1 text-[10.5px] text-zinc-600" title="La plataforma todavía no acepta este campo desde el tablero">se edita en el próximo paso · se valida con «Validar el manual»</p>}
+      {!editable && <p className="mb-1 text-[10.5px] text-zinc-600" >Este campo todavía no se cambia desde aquí; se da por bueno con «Validar el manual».</p>}
       {editando && <Editor clave={c.clave} valor={c.valor} enviar={enviar} onCancelar={() => onEditar(null)} onGuardado={onGuardado} />}
       {!editando && !c.valor && <p className="text-[13px] italic text-amber-200/80">{c.nota ?? "Sin dato"}</p>}
       {!editando && c.valor && viñetasVisibles && (
@@ -202,7 +202,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
     setValidando("enviando"); setAviso(null)
     const r = await accion("manual-validar", { client_id: cliente })
     setValidando("quieto")
-    if (r.ok) { const d = r.detalle; setAviso({ ok: true, texto: d.sin_cambios ? "Ya estaba validado por ti." : `Validado por ti · versión ${String(d.version_nueva ?? "nueva")} · el siguiente empleado lo lee como tuyo` }); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
+    if (r.ok) { const d = r.detalle; setAviso({ ok: true, texto: d.sin_cambios ? "Ya estaba validado por ti." : "Validado por ti · el siguiente empleado lo lee como tuyo" }); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
   }
 
   const m = datos?.manual ?? null
@@ -241,7 +241,6 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
               <section aria-label="La portada del manual" className="mn-seccion mb-5 rounded-lg border border-white/10 bg-black/30 p-4 sm:p-5">
                 <h3 className="font-display text-[24px] font-semibold leading-tight tracking-tight text-zinc-50">{datos.cliente?.nombre}</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Chip>{m.version != null ? `versión ${m.version}` : "sin versión"}{m.versiones > 1 ? ` · ${m.versiones} versiones` : ""}</Chip>
                   <Chip tono={m.lector.validadoPor === "propuesta" ? "ambar" : "verde"}>{m.lector.rotulo}</Chip>
                   <Chip tono={m.lector.completo ? "neutro" : "ambar"}>{m.lector.completo ? (m.lector.rotuloVisual ?? "Completo") : `Incompleto · faltan ${faltan.length}`}</Chip>
                   <Chip>{m.fidelidad}</Chip>
