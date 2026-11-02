@@ -27,6 +27,8 @@ import { esDePractica } from "@/lib/clientes"
 
 /** la carpeta de lo que no es pieza */
 export const CARPETA_OTRAS = "Otras revisiones"
+/** las revisiones que no se ven en Piezas porque tienen su propio panel (auditoría 02-nov): el editor del manual → Manual · el plan con pendientes → Plan */
+export const TIPOS_CON_SU_PROPIO_PANEL = ["editor_escalation", "plan_con_pendientes"] as const
 /** la carpeta de lo archivado de una campaña anterior (CC1 #852 · corrección 3 de Lenovo): va plegada al final, se mira y solo se «recupera» */
 export const CARPETA_ARCHIVO = "Archivo · campaña anterior"
 
@@ -71,7 +73,8 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
   q = filtro.archivo === "solo" ? q.not("archivada_en", "is", null) : q.is("archivada_en", null)
   const tipo = filtro.tipo ?? "piezas"
   if (tipo === "piezas") q = q.eq("type", TIPO_PIEZA)
-  else if (tipo === "otras") q = q.neq("type", TIPO_PIEZA)
+  // auditoría 02-nov (punto 3): la revisión del editor de una sección del manual vive en el panel del Manual, y el plan con puntos por resolver, solo en el del Plan
+  else if (tipo === "otras") q = q.neq("type", TIPO_PIEZA).not("type", "in", `(${TIPOS_CON_SU_PROPIO_PANEL.join(",")})`)
   if ((filtro.estado ?? "pendiente") === "pendiente") q = q.eq("status", "pending")
   const r = await q
   if (r.error) throw new Error(`no pude leer la bandeja: ${r.error.message}`)

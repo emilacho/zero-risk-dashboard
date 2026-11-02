@@ -3,6 +3,7 @@
  * Fuentes: `clients` (los clientes elegibles) · `client_brand_books` (la versión vigente = la mayor por cliente). Los textos los interpreta el lector
  * de siempre (`manual-lector.ts`: columna primero, borrador después, quién validó, qué falta); la identidad visual y las listas, `lib/manual.ts`.
  */
+import { leerRevisionesDelEditor, type RevisionDelEditor } from "@/lib/revisiones-del-manual"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { leerManual, type ManualLeido, CAMPOS_DEL_LECTOR } from "@/lib/manual-lector"
@@ -118,6 +119,8 @@ export interface ManualDelCliente {
     barra?: { logo: { url: string; procedencia: string | null } | null; fotos: FotoDeLaBarra[]; sedes: SedeDeLaBarra[]; canales: CanalDeLaBarra[] }
     /** CC6 · las secciones nuevas del manual (ADENDA 1): solo las que tienen dato; y la jerarquía tipográfica para la barra */
     secciones_nuevas?: SeccionLeida[]
+    /** CC6 · 02-nov (auditoría, punto 3): las revisiones del editor pendientes de este manual, legibles y con su costo (antes, en Piezas) */
+    revisiones_del_editor?: RevisionDelEditor[]
     jerarquia_tipografica?: Array<{ uso: string; familia: string }>
     creado_en: string | null
     actualizado_en: string | null
@@ -167,6 +170,7 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
       ciclo: await leerCicloDelManual(supa, cliente.id, b, ahora),
       barra: await leerLaBarra(supa, cliente.id, b),
       secciones_nuevas: seccionesNuevasDelBorrador(borradorDelManual(b)),
+      revisiones_del_editor: await leerRevisionesDelEditor(supa, cliente.id, etiquetaDelCampo).catch(() => []),
       jerarquia_tipografica: jerarquiaTipografica(borradorDelManual(b)),
       creado_en: typeof b.created_at === "string" ? b.created_at : null,
       actualizado_en: typeof b.updated_at === "string" ? b.updated_at : null,
