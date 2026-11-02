@@ -32,6 +32,20 @@ function Titulo({ lineas }: { lineas: readonly string[] }) {
     </g>
   )
 }
+/** 6.29 (Emilio 2-nov: «al pasar el cursor, las letras del título deben agrandarse para que sean legibles»): el título grande va en una capa SIN recorte
+ * (el vidrio recortaba el título si crecía), sobre el mismo plano de la pantalla, con un halo oscuro para leerse contra la foto. Crece desde arriba al centro. */
+export const TITULO_GRANDE = { escala: 2, halo: 3.2 } as const
+export function TituloGrande({ lineas }: { lineas: readonly string[] }) {
+  const cy = TITULO.base - TITULO.tamano * 0.35
+  return (
+    <g className="nv-titulo-grande" data-titulo-grande={lineas.join(" ")} transform={`translate(50 ${cy}) scale(${TITULO_GRANDE.escala}) translate(-50 ${-cy})`}>
+      {lineas.map((l, i) => (
+        <text key={i} x={50} y={TITULO.base + i * TITULO.interlinea} textAnchor="middle" fontSize={TITULO.tamano} fontWeight={700} letterSpacing={0.3}
+          fill="#fff6ea" stroke="rgba(10,6,3,.82)" strokeWidth={TITULO_GRANDE.halo / TITULO_GRANDE.escala} strokeLinejoin="round" paintOrder="stroke">{l}</text>
+      ))}
+    </g>
+  )
+}
 const Nota = ({ x, y, children }: { x: number; y: number; children: ReactNode }) => <text x={x} y={y} textAnchor="middle" fontSize={6} fontWeight={500} opacity={0.8} fill="currentColor" stroke="none">{children}</text>
 
 /** 1 · GOBIERNO · consola de interruptores (solo lectura): cada tanto un interruptor cambia de posición */
@@ -278,8 +292,11 @@ export const ESTILO_DE_DIRECCION = `
 .nv-pantalla[data-grupo="arco"] .nv-hud{opacity:.86}
 .nv-velos polygon{fill:rgba(14,9,5,.8)}
 .nv-velo-tarjeta{fill:rgba(20,12,6,.72)}
-.nv-titulo{opacity:1;transform-box:fill-box;transform-origin:center;transition:transform .22s ease}
-.nv-pantalla[data-encima] .nv-titulo{transform:scale(1.14)}
+.nv-titulo{opacity:1;transition:opacity .15s ease}
+.nv-pantalla[data-encima] .nv-titulo{opacity:0}
+.nv-titulo-grande{animation:nvTituloCrece .2s ease-out both;transform-box:view-box}
+@keyframes nvTituloCrece{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.nv-titulo-grande{animation:none}}
 .nv-toque[data-abre]{cursor:pointer}
 .nv-toque[data-abre] polygon.nv-zona-toque{cursor:pointer}
 .nv-toque[data-abre]:focus-visible{outline:none}
