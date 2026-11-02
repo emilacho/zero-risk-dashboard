@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Desglose, Proveedores } from "@/components/nuevo/DineroDesglose"
 import { Ahorro, Anomalias, CostoPorResultado } from "@/components/nuevo/DineroResultados"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
+import { PanelCliente } from "@/components/nuevo/PanelCliente"
 import { ROTULO_TARJETA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
 import { anteriorDe, cacheDelRango, costoDeRehacer, diaLocal, fechaCorta, frenteA, loQueCambio, NOMBRE_DE_DIMENSION, PERIODOS, picos, rangoDe, resumenDelPeriodo, serie, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Periodo, type Pico, type Serie } from "@/lib/dinero-completo"
 
@@ -161,6 +162,8 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
   const [cargando, setCargando] = useState(!datosIniciales)
   const [periodo, setPeriodo] = useState<Periodo>("30")
   const [dim, setDim] = useState<Dimension>("proveedor")
+  // 6.44 · la vista del cliente se abre ENCIMA de Dinero: su flecha (o Esc) regresa aquí, con el período y el lugar donde estabas
+  const [cliente, setCliente] = useState<string | null>(null)
   const cerrar = useRef<HTMLButtonElement>(null)
   const leer = useCallback(async () => {
     setCargando(true); setError(null)
@@ -174,10 +177,10 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
   useEffect(() => { if (!datosIniciales) void leer() }, [leer, datosIniciales])
   useEffect(() => { cerrar.current?.focus() }, [])
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar() }
+    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape" || cliente) return; e.stopPropagation(); e.preventDefault(); onCerrar() }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
-  }, [onCerrar])
+  }, [onCerrar, cliente])
 
   const hoy = useMemo(() => diaLocal(datos?.leido_en ?? new Date().toISOString()), [datos])
   const rango = useMemo(() => rangoDe(periodo, hoy), [periodo, hoy])
@@ -232,10 +235,11 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
                     {(Object.keys(NOMBRE_DE_DIMENSION) as Dimension[]).map((d) => <button key={d} type="button" data-dimension={d} aria-pressed={dim === d} onClick={() => setDim(d)} className={`rounded-full border px-2.5 py-1 text-[12px] ${dim === d ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{NOMBRE_DE_DIMENSION[d]}</button>)}
                   </div>}>
                   <Grafico key={dim} s={s} picosDelRango={picosDelRango} porHora={rango.porHora} alAbrirCorrida={alAbrirCorrida} />
+                  {(dim === "empleado" || dim === "modelo") && <p data-sin-apify className="mt-2 text-[12px] text-zinc-400">Sin Apify: es un proveedor y su gasto se ve en Proveedor.</p>}
                 </Seccion>
               </Ancla>
               <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-                <Ancla id="desglose"><Desglose datos={datos} rango={rango} anterior={anterior} hoy={hoy} alAbrirCorrida={alAbrirCorrida} /></Ancla>
+                <Ancla id="desglose"><Desglose datos={datos} rango={rango} anterior={anterior} hoy={hoy} alAbrirCorrida={alAbrirCorrida} alVerCliente={setCliente} /></Ancla>
                 <Ancla id="proveedores"><Proveedores datos={datos} rango={rango} /></Ancla>
               </div>
               <Ancla id="resultados"><CostoPorResultado datos={datos} rango={rango} /></Ancla>
@@ -248,6 +252,7 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
           </div>
         )}
       </section>
+      {cliente && datos && <PanelCliente slug={cliente} datosIniciales={datos} alVolver={() => setCliente(null)} alCerrar={onCerrar} />}
     </div>
   )
 }

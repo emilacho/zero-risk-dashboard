@@ -117,11 +117,13 @@ export const PALETA = ["#e8731a", "#4fa3ff", "#7fc99a", "#c58cff", "#ffd166", "#
 export const COLOR_OTROS = "#8a8580"
 const COLOR_FIJO: Record<string, string> = { Anthropic: "#e8731a", "GPT (OpenAI)": "#4fa3ff", Apify: "#7fc99a", Higgsfield: "#c58cff", Railway: "#ffd166", Vercel: "#ff6b8b", Supabase: "#3dd6c6" }
 export const OTROS = "Otros"
+/** 6.44 · Emilio: Apify es un proveedor, no un empleado ni un modelo; su gasto se ve solo en Proveedor (y en Cliente, dentro de Trabajo interno) */
+export const SOLO_EN_PROVEEDOR = (x: Pick<Movimiento, "proveedor">): boolean => x.proveedor === "Apify"
 
 export interface Serie { rotulos: string[]; claves: string[]; colores: Record<string, string>; valores: Array<Record<string, number>>; totales: number[]; normal: number }
 /** barras apiladas: por día (o por hora si el período es «hoy»), con las 9 claves más grandes y el resto en «Otros» */
 export function serie(movs: Movimiento[], dim: Dimension, o: { desde: string; hasta: string; porHora?: boolean; normal?: number }): Serie {
-  const dentro = movs.filter((x) => x.d >= o.desde && x.d <= o.hasta)
+  const dentro = movs.filter((x) => x.d >= o.desde && x.d <= o.hasta && !(SOLO_EN_PROVEEDOR(x) && (dim === "empleado" || dim === "modelo")))
   const porClave = new Map<string, number>(); for (const x of dentro) porClave.set(x[dim], (porClave.get(x[dim]) ?? 0) + x.usd)
   const orden = [...porClave.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([k]) => k)
   const top = orden.slice(0, orden.length > PALETA.length ? PALETA.length - 1 : PALETA.length)
@@ -173,6 +175,7 @@ export function desglose(movs: Movimiento[], vista: Vista, o: { desde: string; h
   const clave = (x: Movimiento): string | null => vista === "corrida" ? (x.corrida ? x.corrida.split(":")[0] : null) : vista === "equipo" ? (x.equipo ?? "Sin dato") : vista === "cliente" ? x.cliente : x[vista]
   const ahora = new Map<string, Movimiento[]>(), antes = new Map<string, number>()
   for (const x of movs) {
+    if (SOLO_EN_PROVEEDOR(x) && (vista === "empleado" || vista === "equipo" || vista === "modelo")) continue
     const k = clave(x); if (!k) continue
     if (x.d >= o.desde && x.d <= o.hasta) ahora.set(k, [...(ahora.get(k) ?? []), x])
     else if (x.d >= antDesde && x.d <= antHasta) antes.set(k, (antes.get(k) ?? 0) + x.usd)

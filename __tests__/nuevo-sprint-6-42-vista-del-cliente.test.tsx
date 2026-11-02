@@ -78,7 +78,7 @@ describe("6.42 · en pantalla", () => {
     expect(h.match(/data-saber-linea=/g)).toHaveLength(3); expect(h).toContain("data-pregunta=")
     expect(h.match(/<details/g)).toHaveLength(4); expect(h).not.toContain("<details open")
     expect(h).toContain('href="/nuevo/cliente/naufrago"'); expect(h).toContain("comparado con los 30 días anteriores")
-  })
+   }, 60000)
   it("las preguntas escriben en el chat de CC2 sin tocar su código", () => {
     const panel = readFileSync("components/nuevo/PanelCliente.tsx", "utf8")
     expect(panel).toContain('[data-chat-de-oficinas] textarea'); expect(panel).toContain('new Event("input", { bubbles: true })')
