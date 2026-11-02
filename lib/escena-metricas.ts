@@ -54,8 +54,11 @@ export function redesDelCliente(config: unknown, sitio: string | null): ClaveDeR
   return REDES_DEL_PIZARRON.map((r) => r.clave).filter((c) => tiene.has(c))
 }
 
-/** un cuadro por red del cliente + «General»; sin métricas todos dicen «métricas pronto» */
+/** Google Maps va SIEMPRE en el pizarrón: no está en las cuentas propias del cliente (`own_handles`) sino en el resultado de la función de Apify `own_google_maps_profile` (un negocio local la tiene aunque no la declare), y hasta que Emilio fije cuál de los negocios hallados es el suyo no hay forma de saberlo desde la ficha (contrato de CC1, 02-nov) */
+const SIEMPRE_EN_EL_PIZARRON: ClaveDeRed[] = ["google_maps"]
+
+/** un cuadro por red del cliente + «General» + Google Maps; sin métricas todos dicen «métricas pronto» */
 export function cuadrosDelPizarron(redes: ClaveDeRed[], lectura: LecturaDeMetricas): CuadroDeMetrica[] {
   const cuadro = (c: { clave: ClaveDelCuadro; nombre: string; sigla: string }): CuadroDeMetrica => ({ ...c, principal: null, variacion: null, texto: lectura.motivo || TEXTO_SIN_METRICAS })
-  return [cuadro(CUADRO_GENERAL), ...REDES_DEL_PIZARRON.filter((r) => redes.includes(r.clave)).map(cuadro)]
+  return [cuadro(CUADRO_GENERAL), ...REDES_DEL_PIZARRON.filter((r) => redes.includes(r.clave) || SIEMPRE_EN_EL_PIZARRON.includes(r.clave)).map(cuadro)]
 }

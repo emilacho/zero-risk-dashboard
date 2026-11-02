@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
-import { CuadrosDeMetricas, ESTILO_ENTREGAS, LuzDeFirma, TarjetaDeLaEntrega } from "@/components/nuevo/escena/EntregasEnLaFoto"
+import { CuadrosDeMetricas, ESTILO_ENTREGAS, LamparaDeFirma, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
@@ -167,8 +167,10 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
         <FlechasDeForma />
-        {/* sprint 3 · la luz de firma: el panel del borde derecho, hacia Tu oficina */}
-        <LuzDeFirma pendientes={datos?.entregas?.firma.pendientes ?? 0} />
+        {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
+        <VitrinaVertical vitrina={datos?.vitrina} />
+        {/* la lámpara de firma: sobre el escritorio de Dirección, hacia Tu oficina */}
+        <LamparaDeFirma pendientes={datos?.entregas?.firma.pendientes ?? 0} />
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {salaAbierta && (
