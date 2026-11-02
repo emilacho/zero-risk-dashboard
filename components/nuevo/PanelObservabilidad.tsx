@@ -267,7 +267,7 @@ function Texto({ nodo, pestana }: { nodo: Nodo; pestana: "entrada" | "salida" })
   )
 }
 
-export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch }: { onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch }) {
+export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null }: { onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch; /** 6.36 · Dinero abre aquí la corrida de un pico */ corridaInicial?: string | null }) {
   const [dias, setDias] = useState<Dias>(7)
   const [cliente, setCliente] = useState("")
   const [estado, setEstado] = useState<EstadoCorrida | "todas">("todas")
@@ -298,6 +298,12 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
     try { setDetalle(await leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(c.workflow_execution_id)}`, "la corrida")) }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setAbriendo(null) }
   }, [fetchImpl])
+  // 6.36 · desde Dinero: abre directo la corrida del pico
+  useEffect(() => {
+    if (!corridaInicial) return
+    setAbriendo("la corrida")
+    leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(corridaInicial)}`, "la corrida").then(setDetalle, (e) => setError(e instanceof Error ? e.message : String(e))).finally(() => setAbriendo(null))
+  }, [corridaInicial, fetchImpl])
   const volver = useCallback(() => setDetalle(null), [])
 
   useEffect(() => { cerrar.current?.focus() }, [])
