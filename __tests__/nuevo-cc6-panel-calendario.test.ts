@@ -49,5 +49,8 @@ describe("el calendario por día", () => {
     const s = semanasDelTablero(FILAS)
     expect(semanaInicial(s, "2026-11-11")).toBe(1); expect(semanaInicial(s, "2026-10-01")).toBe(0); expect(semanaInicial(s, "2027-03-01")).toBe(1)
     expect(resumenDeLaSemana(s[0]).total).toBe(3); expect(diaConNombre("2026-11-05")).toBe("jue 5 nov")
+    // reserva P3 de CC3: el resumen va de más a menos publicaciones
+    const muchas = semanasDelTablero([fila("e1", "2026-11-02", "espera_video"), fila("v1", "2026-11-03", "validada"), fila("i1", "2026-11-04", "en_investigacion"), fila("i2", "2026-11-05", "en_investigacion"), fila("v2", "2026-11-05", "validada"), fila("i3", "2026-11-06", "en_investigacion")])
+    expect(resumenDeLaSemana(muchas[0]).partes).toEqual(["se investiga un dato ×3", "validada ×2", "espera video"])
   })
 })

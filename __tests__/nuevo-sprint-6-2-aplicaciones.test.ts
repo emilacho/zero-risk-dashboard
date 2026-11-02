@@ -29,10 +29,10 @@ const datos: Pizarron = {
 describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
   it("la lista es la que cerró Emilio y el encargo 01-nov: nueve cuadros en el orden de la cadena, sin oficinas/en vivo ni alertas, y cada uno lleva a algo que ya existe", () => {
     // 6.9: Informes en lugar de Cerebro (el Cerebro es estructura de la sala) · 6.10: Brief · Gran idea · Equipo, en el orden de la cadena (encargo 01-nov §2)
-    expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Informes", "Plan de 90 días", "Brief de campaña", "Gran idea", "Calendario", "Piezas", "Equipo", "Gasto"])
-    expect(APLICACIONES.map((a) => a.enlace(CLIENTE))).toEqual([null, null, null, null, null, null, null, null, "/gasto"]) // todo abre encima salvo Gasto (deuda)
+    expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Informes", "Plan de 90 días", "Brief de campaña", "Gran idea", "Calendario", "Piezas", "Equipo", "Dinero del cliente"])
+    expect(APLICACIONES.map((a) => a.enlace(CLIENTE, "Náufrago"))).toEqual([null, null, null, null, null, null, null, null, "/nuevo/cliente/naufrago"]) // todo abre encima salvo el dinero: lleva a la vista del cliente en Dinero (CC6 · 02-nov · corrección 5)
     // sin cliente elegido, los cuadros de la ficha llevan a la lista de clientes (no a una ficha rota)
-    expect(APLICACIONES.find((a) => a.clave === "gasto")!.enlace(null)).toBe("/gasto")
+    expect(APLICACIONES.find((a) => a.clave === "gasto")!.enlace(null)).toBe("/nuevo/oficina") // sin cliente: Tu oficina (ahí está Dinero)
     for (const a of APLICACIONES) expect(a.nombre).not.toMatch(/oficina|en vivo|alerta/i)
   })
   it("la ficha del cliente tiene los apartados a los que llegan los cuadros (ids reales en la página)", () => {
@@ -48,7 +48,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(detalleDelCuadro("piezas", { ...datos, filas: [], totales: {} })).toEqual({ texto: "Nada por aprobar ahora", aviso: false })
     expect(detalleDelCuadro("plan", { ...datos, campana: null }).texto).toBe("Sin campaña todavía")
     expect(detalleDelCuadro("manual", null).texto).toBe("Lo que la marca es, cómo habla y cómo se ve")
-    expect(detalleDelCuadro("gasto", datos).texto).toBe("Lo gastado en los últimos 30 días")
+    expect(detalleDelCuadro("gasto", datos).texto).toBe("Lo que cuesta este cliente, en Tu oficina › Dinero"); expect(detalleDelCuadro("gasto", datos).texto).not.toMatch(/US\$|\d/) // sin cifras de gasto en /nuevo
   })
   it("el panel dibuja los nueve cuadros como enlaces (el calendario como botón que abre encima), el selector de cliente y el aviso en Piezas", () => {
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, datosIniciales: datos }))

@@ -36,10 +36,26 @@ export async function leerBrief(supa: SupabaseClient, o: { cliente?: string | nu
   const camp = await una(supa.from("cadena_campanas").select("id, estado").eq("client_id", elegido.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
   if (!camp) return { ...base, cliente: elegido, campana: null, publicado: true, briefs: [] }
   const campana = { id: String(camp.id), estado: String(camp.estado ?? "") }
-  const r = await supa.from("cadena_brief_creativo").select("id, campana_id, version, estado, texto_md, leido, devolucion_texto, motivo, costo_usd, seco, creada_en, actualizada_en").eq("campana_id", campana.id).order("version", { ascending: false }).limit(50)
+  const r = await supa.from("cadena_brief_creativo").select("id, campana_id, version, estado, texto_md, leido, devolucion_texto, motivo, costo_usd, seco, creada_en, actualizada_en, encargo_id").eq("campana_id", campana.id).order("version", { ascending: false }).limit(50)
   if (r.error) {
     if (esTablaInexistente(r.error.message)) return { ...base, cliente: elegido, campana, publicado: false, briefs: [] }
     throw new Error(`cadena_brief_creativo: ${r.error.message}`)
   }
-  return { ...base, cliente: elegido, campana, publicado: true, briefs: ordenarBriefs(((r.data ?? []) as Fila[]).map(briefDesdeFila)) }
+  const briefs = ordenarBriefs(((r.data ?? []) as Fila[]).map(briefDesdeFila))
+  return { ...base, cliente: elegido, campana, publicado: true, briefs: await conQuienesEscribieron(supa, briefs) }
+}
+
+/** quién escribió cada versión: los empleados que aportaron en la mesa de su encargo (sin repetir, en el orden en que hablaron, sin «sistema»). Si la lectura falla, se queda sin nombres: no se inventa uno */
+export async function conQuienesEscribieron(supa: SupabaseClient, briefs: Brief[]): Promise<Brief[]> {
+  const encargos = [...new Set(briefs.map((b) => b.encargo_id).filter((x): x is string => !!x))]
+  if (!encargos.length) return briefs.map((b) => ({ ...b, quienes_escribieron: [] }))
+  const r = await supa.from("oficina_mesa_aportes").select("encargo_id, de, n").in("encargo_id", encargos).order("n", { ascending: true }).limit(1000)
+  const filas = r.error ? [] : ((r.data ?? []) as Fila[])
+  const por = new Map<string, string[]>()
+  for (const f of filas) {
+    const de = String(f.de ?? ""); const e = String(f.encargo_id ?? "")
+    if (!de || de === "sistema") continue
+    const l = por.get(e) ?? []; if (!l.includes(de)) l.push(de); por.set(e, l)
+  }
+  return briefs.map((b) => ({ ...b, quienes_escribieron: b.encargo_id ? por.get(b.encargo_id) ?? [] : [] }))
 }

@@ -10,6 +10,8 @@
  */
 export type ClaveDeAplicacion = "manual" | "informes" | "plan" | "brief" | "gran_idea" | "calendario" | "piezas" | "equipo" | "gasto"
 
+import { rutaDelCliente } from "@/lib/cliente-financiero"
+
 export interface Aplicacion {
   clave: ClaveDeAplicacion
   /** el paso de la cadena (1-9) */
@@ -18,7 +20,7 @@ export interface Aplicacion {
   /** qué hay detrás, en una línea, cuando la lectura no trae un dato mejor */
   descripcion: string
   /** a dónde lleva; `null` = se abre encima, en el estilo nuevo */
-  enlace: (clienteId: string | null) => string | null
+  enlace: (clienteId: string | null, clienteNombre?: string | null) => string | null
 }
 
 export const APLICACIONES: readonly Aplicacion[] = [
@@ -30,7 +32,8 @@ export const APLICACIONES: readonly Aplicacion[] = [
   { clave: "calendario", paso: 6, nombre: "Calendario", descripcion: "Las publicaciones de la campaña, coloreadas por dónde están", enlace: () => null },
   { clave: "piezas", paso: 7, nombre: "Piezas", descripcion: "La bandeja para aprobar o pedir cambios", enlace: () => null },
   { clave: "equipo", paso: 8, nombre: "Equipo", descripcion: "Quién trabaja en cada equipo del departamento y qué está haciendo", enlace: () => null },
-  { clave: "gasto", paso: 9, nombre: "Gasto", descripcion: "Lo gastado en los últimos 30 días", enlace: () => "/gasto" },
+  // CC6 · 02-nov (corrección 5 de Lenovo · regla de Emilio: el gasto vive en Tu oficina › Dinero): ya no hay cifra aquí; el cuadro abre Dinero en la vista de este cliente
+  { clave: "gasto", paso: 9, nombre: "Dinero del cliente", descripcion: "Lo que cuesta este cliente, en Tu oficina › Dinero", enlace: (_id, nombre) => (nombre ? rutaDelCliente(nombre) : "/nuevo/oficina") },
 ] as const
 
 /** los apartados de la ficha del cliente a los que apuntan los cuadros (la ficha debe tener estos `id`) */

@@ -17,6 +17,10 @@ export interface Brief {
   seco: boolean
   creada_en: string | null
   actualizada_en: string | null
+  /** el encargo de la oficina que escribió esta versión (de ahí sale quién la escribió) */
+  encargo_id?: string | null
+  /** CC6 · 02-nov (reserva 4 de CC3): los empleados que escribieron esta versión, leídos de `oficina_mesa_aportes.de`; vacío = la base no lo registró */
+  quienes_escribieron?: string[]
 }
 type Fila = Record<string, unknown>
 const texto = (v: unknown): string | null => (v == null || v === "" ? null : String(v))
@@ -26,7 +30,7 @@ export function briefDesdeFila(f: Fila): Brief {
     id: String(f.id), version: Number(f.version ?? 0), estado: String(f.estado ?? "borrador"), texto_md: texto(f.texto_md),
     leido: f.leido && typeof f.leido === "object" && !Array.isArray(f.leido) ? (f.leido as Record<string, unknown>) : null,
     devolucion_texto: texto(f.devolucion_texto), motivo: texto(f.motivo), costo_usd: f.costo_usd == null ? null : Number(f.costo_usd), seco: f.seco === true,
-    creada_en: texto(f.creada_en), actualizada_en: texto(f.actualizada_en),
+    creada_en: texto(f.creada_en), actualizada_en: texto(f.actualizada_en), encargo_id: texto(f.encargo_id),
   }
 }
 
@@ -74,8 +78,6 @@ export function detalleDelBrief(x: { publicado: boolean; campana: unknown; brief
   return { texto: `Versión ${v.version} · ${e.texto}`, aviso: e.tono === "rojo" }
 }
 
-/** el empleado que escribe el brief (nombre real, para «de dónde sale») */
-export const QUIEN_ESCRIBE_EL_BRIEF = "campaign-brief-agent"
 /** lo que pasa después, según el estado del brief vigente (la barra lateral) */
 export function loQueSigueDelBrief(estado: unknown): string {
   const e = String(estado ?? "")
