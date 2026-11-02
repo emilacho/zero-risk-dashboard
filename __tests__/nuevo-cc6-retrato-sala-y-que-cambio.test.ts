@@ -14,7 +14,7 @@ describe("el retrato de la ficha es el holograma de la escena (ADENDA 3 de Lenov
     expect(ficha).toContain("<HologramaBusto semilla={agente} color={color} />")
     expect(ficha).not.toContain("RetratoInventado")
     expect(existsSync("components/nuevo/escena/RetratoInventado.tsx")).toBe(false)
-    expect(readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")).toContain("<HologramaFigura semilla={s.agente}")
+    expect(readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")).toMatch(/<HologramaFigura semilla=\{\w+\.agente\}/) // la escena siembra por el nombre del empleado (CC4 puede renombrar su variable)
   })
   it("mismo personaje: la ficha y la escena leen los mismos rasgos aunque el nombre llegue con guion bajo; estable y sin fotos ni letras", () => {
     expect(rasgosDelHolograma("brand_strategist")).toEqual(rasgosDelHolograma("brand-strategist"))
