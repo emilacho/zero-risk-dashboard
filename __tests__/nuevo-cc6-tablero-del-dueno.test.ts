@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { agruparPalabras, decisionesPara, fuenteLegible, palabrasDelManual } from "@/lib/manual-palabras"
+import { agruparPalabras, avisoAntesDeDecidir, decisionesPara, fuenteLegible, palabrasDelManual } from "@/lib/manual-palabras"
 import { ejecutarAccion } from "@/lib/tablero-acciones"
 import { PanelManual } from "@/components/nuevo/PanelManual"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
@@ -96,6 +96,17 @@ describe("el tablero en el manual de marca", () => {
     expect([...dueno.matchAll(/data-decidir="([a-z]+)"/g)].map((m) => m[1])).toEqual(["contexto", "quitar"])
     expect(dueno).toContain("No quiero esa palabra · el 2026-11-01")
     expect(dueno).not.toContain("data-confirmar") // elegir la decisión todavía no la manda: se confirma aparte
+  })
+  it("quitar o dejar como estilo una palabra prohibida por una norma avisa en una línea antes de confirmar, sin bloquear (Lenovo 02-nov)", () => {
+    expect(avisoAntesDeDecidir({ intencion: "legal", cita: "Art. 12" }, "quitar")).toBe("Esta palabra la prohíbe una norma de tu rubro (Art. 12).")
+    expect(avisoAntesDeDecidir({ intencion: "legal", cita: null }, "contexto")).toBe("Esta palabra la prohíbe una norma de tu rubro.")
+    expect(avisoAntesDeDecidir({ intencion: "del_dueno", cita: "x" }, "quitar")).toBeNull()
+    expect(avisoAntesDeDecidir({ intencion: "estilo", cita: null }, "quitar")).toBeNull()
+    const de = (t: string, d: "quitar" | "contexto" | "prohibir") => renderToStaticMarkup(createElement(PalabrasDelManual, { palabras: PALABRAS, cliente: CLIENTE, accion: async () => ({ ok: true, texto: "Guardado", detalle: {} }), onGuardado: () => {}, elegidaInicial: t, decisionInicial: d }))
+    const legal = de("gratis", "quitar")
+    expect(legal).toContain("data-aviso-norma"); expect(legal).toContain("Esta palabra la prohíbe una norma de tu rubro")
+    expect(legal).toMatch(/data-confirmar="quitar"[\s\S]*type="submit"(?![^>]*disabled="")/) // se puede confirmar igual: sin bloqueo
+    expect(de("barato", "quitar")).not.toContain("data-aviso-norma")
   })
   it("el manual de marca lo muestra en lugar de la lista plana; sin avisos de gasto", () => {
     const fila = { client_id: CLIENTE, version: 1, auto_generated: true, human_validated: false, brand_purpose: "Propósito", content_text: "{}" }

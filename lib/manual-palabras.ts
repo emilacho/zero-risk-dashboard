@@ -66,6 +66,12 @@ export type DecisionSobreLaPalabra = "prohibir" | "contexto" | "quitar"
 export function decisionesPara(p: Pick<PalabraDelManual, "intencion">): DecisionSobreLaPalabra[] {
   return p.intencion === "estilo" ? ["prohibir", "quitar"] : ["contexto", "quitar"]
 }
+/** el aviso de UNA línea antes de confirmar que una palabra prohibida por una norma deja de bloquear (quitarla o dejarla como estilo).
+ *  Lenovo 02-nov (RESPUESTA a CC1 #832 §3): está permitido, es palabra del dueño; sin bloqueo, solo se dice antes de confirmar. */
+export function avisoAntesDeDecidir(p: Pick<PalabraDelManual, "intencion" | "cita">, d: DecisionSobreLaPalabra): string | null {
+  if (p.intencion !== "legal" || d === "prohibir") return null
+  return p.cita ? `Esta palabra la prohíbe una norma de tu rubro (${p.cita}).` : "Esta palabra la prohíbe una norma de tu rubro."
+}
 export const decisionLegible = (d: DecisionSobreLaPalabra): string => (d === "prohibir" ? "Prohibir" : d === "contexto" ? "Dejar como estilo" : "Quitar de la lista")
 /** de dónde sale una palabra dura, en palabras */
 export function fuenteLegible(p: PalabraDelManual): string | null {

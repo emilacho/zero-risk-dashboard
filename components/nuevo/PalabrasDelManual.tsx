@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { agruparPalabras, decisionesPara, decisionLegible, fuenteLegible, type DecisionSobreLaPalabra, type PalabraDelManual } from "@/lib/manual-palabras"
+import { agruparPalabras, avisoAntesDeDecidir, decisionesPara, decisionLegible, fuenteLegible, type DecisionSobreLaPalabra, type PalabraDelManual } from "@/lib/manual-palabras"
 
 /**
  * TABLERO DEL DUEÑO · LAS PALABRAS DEL MANUAL (CC6 · 01-nov · encargo del equipo del manual firmado por Emilio, §1). Dentro del manual de marca de /nuevo.
@@ -21,12 +21,13 @@ const TONO: Record<PalabraDelManual["intencion"], string> = {
 const confirmacion = (texto: string, d: DecisionSobreLaPalabra) =>
   d === "prohibir" ? `Prohibir «${texto}»: ninguna pieza la usará.` : d === "contexto" ? `«${texto}» queda como estilo: ya no frena piezas.` : `Quitar «${texto}» del manual.`
 
-export function PalabrasDelManual({ palabras, cliente, accion, onGuardado, elegidaInicial = null }: {
+export function PalabrasDelManual({ palabras, cliente, accion, onGuardado, elegidaInicial = null, decisionInicial = null }: {
   palabras: PalabraDelManual[]; cliente: string | null; accion: Accion; onGuardado: (r: Resultado) => void
   /** solo pruebas y el arnés: abrir con esta palabra tocada */ elegidaInicial?: string | null
+  /** solo pruebas y el arnés: abrir con esta decisión elegida */ decisionInicial?: DecisionSobreLaPalabra | null
 }) {
   const [elegida, setElegida] = useState<string | null>(elegidaInicial)
-  const [decision, setDecision] = useState<DecisionSobreLaPalabra | null>(null)
+  const [decision, setDecision] = useState<DecisionSobreLaPalabra | null>(elegidaInicial ? (decisionInicial ?? null) : null)
   const [porque, setPorque] = useState("")
   const [nueva, setNueva] = useState("")
   const [enviando, setEnviando] = useState(false)
@@ -75,6 +76,7 @@ export function PalabrasDelManual({ palabras, cliente, accion, onGuardado, elegi
                   </div>
                 ) : (
                   <form data-confirmar={decision} className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); void decidir(p.texto, decision, porque) }}>
+                    {avisoAntesDeDecidir(p, decision) && <p data-aviso-norma className="w-full text-[11.5px] text-rose-200">{avisoAntesDeDecidir(p, decision)}</p>}
                     <span className="text-[12px] text-zinc-200">{confirmacion(p.texto, decision)}</span>
                     <input value={porque} onChange={(e) => setPorque(e.target.value)} maxLength={1000} placeholder="Por qué (opcional)" aria-label="Por qué"
                       className="min-w-[12rem] flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[12px] text-zinc-100 outline-none focus:border-amber-400/60" />
