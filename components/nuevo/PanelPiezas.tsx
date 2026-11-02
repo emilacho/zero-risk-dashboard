@@ -341,13 +341,13 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
         <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)]">
           {/* el árbol, como el panel izquierdo de un explorador: el cliente enfocado y sus carpetas por tipo de pieza */}
           <aside aria-label="Las carpetas del cliente" className={`min-h-0 overflow-y-auto border-white/10 py-2 md:border-r ${elegida ? "hidden md:block" : "border-b md:border-b-0"}`}>
-            <button type="button" data-nodo="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] text-zinc-200 hover:bg-white/[0.04]"><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>{porAprobarDelCliente + otrasPendientes > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{porAprobarDelCliente + otrasPendientes}</span>}</button>
-            {bandeja && !clienteActual && <p className="px-4 py-3 text-[12px] text-zinc-500">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
+            <button type="button" data-nodo="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13.5px] text-zinc-100 hover:bg-white/[0.04]"><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>{porAprobarDelCliente + otrasPendientes > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{porAprobarDelCliente + otrasPendientes}</span>}</button>
+            {bandeja && !clienteActual && <p className="px-4 py-3 text-[13px] text-zinc-300">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
             <ul>
               {clienteActual?.carpetas.map((k2) => (
                 <li key={k2.nombre}>
-                  <button type="button" data-nodo-carpeta={k2.nombre} onClick={() => irA(k2.nombre)} aria-current={carpeta === k2.nombre ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 py-1.5 pl-8 pr-3 text-left text-[12px] text-zinc-300 hover:bg-white/[0.04]">
-                    <IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{k2.nombre}</span><span className="num text-[10.5px] text-zinc-500">{k2.filas.length}</span>
+                  <button type="button" data-nodo-carpeta={k2.nombre} onClick={() => irA(k2.nombre)} aria-current={carpeta === k2.nombre ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 py-1.5 pl-8 pr-3 text-left text-[13px] text-zinc-200 hover:bg-white/[0.04]">
+                    <IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{k2.nombre}</span><span className="num text-[11.5px] text-zinc-300">{k2.filas.length}</span>
                     {k2.por_aprobar > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{k2.por_aprobar}</span>}
                   </button>
                 </li>
@@ -359,19 +359,19 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           <section aria-label="El contenido" className="flex min-h-0 flex-col">
             {!elegida && bandeja && vista === "kanban" && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="kanban">
-                <p className="mb-3 text-[12px] text-zinc-500">Las piezas de {nombreDelCliente} por columna, según dónde están de verdad. Lo que todavía se está haciendo o revisando antes de llegar a esta bandeja se ve en el Kanban del Centro de campaña (Calendario → Kanban). Toca una tarjeta para abrir la pieza.</p>
+                <p className="mb-3 text-[13.5px] text-zinc-300">Las piezas de {nombreDelCliente} por columna, según dónde están de verdad. Lo que todavía se está haciendo o revisando antes de llegar a esta bandeja se ve en el Kanban del Centro de campaña (Calendario → Kanban). Toca una tarjeta para abrir la pieza.</p>
                 <Kanban columnas={kanbanDePiezas} onElegir={(id) => setElegida(id)} etiqueta="Las piezas por columna" />
               </div>
             )}
             {!elegida && bandeja && vista === "lista" && !carpeta && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="carpetas">
-                {!clienteActual ? <p className="text-[13px] text-zinc-400">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-amber-200">Ver también las ya decididas</button></> : null}</p> : (
+                {!clienteActual ? <p className="text-[14.5px] text-zinc-200">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-amber-200">Ver también las ya decididas</button></> : null}</p> : (
                   <>
-                    <p className="mb-3 text-[12px] text-zinc-500">Las piezas de {clienteActual.nombre}, por tipo. Entra a una carpeta.</p>
+                    <p className="mb-3 text-[13.5px] text-zinc-300">Las piezas de {clienteActual.nombre}, por tipo. Entra a una carpeta.</p>
                     <ul className={CUADRICULA} aria-label="Las carpetas">
                       {clienteActual.carpetas.map((k2) => (
                         <li key={k2.nombre}><button type="button" data-carpeta={k2.nombre} onClick={() => irA(k2.nombre)} className={CARPETA}>
-                          <IconoCarpeta /><span className="text-[14px] font-medium text-zinc-100">{k2.nombre}</span><span className="text-[11.5px] text-zinc-400">{cuentaDeLaCarpeta({ por_aprobar: k2.por_aprobar, total: k2.filas.length })}</span></button></li>
+                          <IconoCarpeta /><span className="text-[14px] font-medium text-zinc-100">{k2.nombre}</span><span className="text-[13px] text-zinc-300">{cuentaDeLaCarpeta({ por_aprobar: k2.por_aprobar, total: k2.filas.length })}</span></button></li>
                       ))}
                     </ul>
                   </>
@@ -380,7 +380,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
             )}
             {!elegida && bandeja && vista === "lista" && carpetaActual && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="piezas">
-                <p className="mb-3 text-[12px] text-zinc-500">{carpetaActual.nombre} de {clienteActual?.nombre} · {cuentaDeLaCarpeta({ por_aprobar: carpetaActual.por_aprobar, total: carpetaActual.filas.length })}. Abre una para verla lámina por lámina.</p>
+                <p className="mb-3 text-[13.5px] text-zinc-300">{carpetaActual.nombre} de {clienteActual?.nombre} · {cuentaDeLaCarpeta({ por_aprobar: carpetaActual.por_aprobar, total: carpetaActual.filas.length })}. Abre una para verla lámina por lámina.</p>
                 <ul className={CUADRICULA} aria-label="Las piezas">
                   {carpetaActual.filas.map((p) => <TarjetaDePieza key={p.id} p={p} onAbrir={() => setElegida(p.id)} />)}
                 </ul>

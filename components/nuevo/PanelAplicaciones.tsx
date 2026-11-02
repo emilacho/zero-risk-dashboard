@@ -145,7 +145,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Los 9 pasos del Centro de campaña">
           {APLICACIONES.map((a, i) => {
             const d = detalleDelCuadro(a.clave, datos, centro)
-            const href = a.enlace(idCliente)
+            const href = a.enlace(idCliente, datos?.cliente?.nombre ?? null)
             const retraso = { animationDelay: `${i * 45}ms` }
             const dentro = (
               <>

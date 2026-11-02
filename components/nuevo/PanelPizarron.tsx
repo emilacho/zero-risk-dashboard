@@ -91,9 +91,9 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
   const resumen = useMemo(() => resumenDeLaSemana(semanaVista), [semanaVista])
 
   return (
-    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 backdrop-blur-[2px] sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{ESTILO}</style>
-      <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" data-vista-activa={vista} className="relative flex max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" data-vista-activa={vista} data-pantalla-completa className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <span aria-hidden className={`h-2 w-2 rounded-full ${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}`} />
           <h2 id="pizarron-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Calendario</h2>
@@ -127,19 +127,19 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
                 {/* arriba: la gran idea y la fase activa */}
                 <section aria-label="La campaña" className="mb-4 rounded-lg border border-white/10 bg-black/30 p-4">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h3 className="text-[15px] font-medium text-zinc-100">Campaña de {datos.cliente?.nombre}</h3>
-                    <span className="text-[12px] text-zinc-400">{estadoDeCampanaLegible(datos.campana.estado)}{datos.campana.desde ? ` · ${diaDelCalendario(datos.campana.desde)}` : ""}{datos.campana.hasta ? ` → ${diaDelCalendario(datos.campana.hasta)}` : ""}</span>
-                    <span className="text-[12px] text-zinc-500">{datos.filas.length} publicaciones{datos.campana.del_plan_anterior ? " · del plan anterior" : ""}</span>
+                    <h3 className="text-[17px] font-medium text-zinc-50">Campaña de {datos.cliente?.nombre}</h3>
+                    <span className="text-[13.5px] text-zinc-300">{estadoDeCampanaLegible(datos.campana.estado)}{datos.campana.desde ? ` · ${diaDelCalendario(datos.campana.desde)}` : ""}{datos.campana.hasta ? ` → ${diaDelCalendario(datos.campana.hasta)}` : ""}</span>
+                    <span className="text-[13.5px] text-zinc-400">{datos.filas.length} publicaciones{datos.campana.del_plan_anterior ? " · del plan anterior" : ""}</span>
                   </div>
                   {datos.campana.del_plan_anterior && <p data-calendario-anterior className="mt-2 text-[12.5px] text-amber-200/90">Este calendario se armó con el plan anterior; el plan vigente todavía no lo reemplaza.</p>}
-                  <p className="mt-2 text-[13px]"><span className="text-zinc-500">Gran idea · </span>{datos.gran_idea.texto ? <span className="text-zinc-100">{datos.gran_idea.texto}</span> : <span className="italic text-zinc-400">{datos.gran_idea.nota}</span>}</p>
-                  <p className="mt-1 text-[13px]"><span className="text-zinc-500">Fase · </span><span className="text-zinc-100">{textoDeLaFase(datos)}</span>{datos.fase_activa.fase?.objetivo ? <span className="text-zinc-400"> — {datos.fase_activa.fase.objetivo}</span> : null}</p>
+                  <p className="mt-2 text-[14.5px]"><span className="text-zinc-400">Gran idea · </span>{datos.gran_idea.texto ? <span className="text-zinc-100">{datos.gran_idea.texto}</span> : <span className="italic text-zinc-400">{datos.gran_idea.nota}</span>}</p>
+                  <p className="mt-1 text-[14.5px]"><span className="text-zinc-400">Fase · </span><span className="text-zinc-100">{textoDeLaFase(datos)}</span>{datos.fase_activa.fase?.objetivo ? <span className="text-zinc-400"> — {datos.fase_activa.fase.objetivo}</span> : null}</p>
                   {fases.length > 0 && (
                     <ol className="mt-3 flex flex-wrap gap-2" aria-label="Las fases de la estrategia">
                       {fases.map((f) => (
-                        <li key={f.clave} className={`rounded-md border px-2.5 py-1.5 text-[12px] ${faseActiva === f.clave ? "border-amber-400/70 bg-amber-400/10 text-amber-100" : "border-white/10 bg-white/[0.03] text-zinc-400"}`} aria-current={faseActiva === f.clave ? "step" : undefined}>
-                          <span className="font-medium">{f.clave}</span> <span className="opacity-70">· días {f.dia_desde}–{f.dia_hasta}</span>
-                          <span className="block max-w-[26rem] truncate text-[11.5px] opacity-80" title={f.objetivo}>{f.objetivo}</span>
+                        <li key={f.clave} className={`rounded-md border px-3 py-2 text-[13.5px] ${faseActiva === f.clave ? "border-amber-400/70 bg-amber-400/10 text-amber-100" : "border-white/10 bg-white/[0.03] text-zinc-400"}`} aria-current={faseActiva === f.clave ? "step" : undefined}>
+                          <span className="font-medium">{nombreDeLaFase(f.clave)}</span> <span className="opacity-70">· días {f.dia_desde}–{f.dia_hasta}</span>
+                          <span className="block max-w-[26rem] truncate text-[13px] opacity-90" title={f.objetivo}>{f.objetivo}</span>
                         </li>
                       ))}
                     </ol>
@@ -148,10 +148,11 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
                 </section>
 
                 {/* leyenda */}
-                <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11.5px] text-zinc-400" aria-label="Colores del calendario">
-                  {ESTADOS_DEL_TABLERO.filter((e) => (datos.totales[e.clave] ?? 0) > 0 || ["idea", "mesa", "jefatura", "emilio", "aprobada", "vencida"].includes(e.clave)).map((e) => (
-                    <li key={e.clave} className="flex items-center gap-1.5"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: e.color }} />{e.nombre}<span className="text-zinc-600">{datos.totales[e.clave] ?? 0}</span></li>
-                  ))}
+                <ul className="mb-4 flex flex-wrap gap-2 text-[13px]" aria-label="Colores del calendario" data-leyenda-en-chips>
+                  {ESTADOS_DEL_TABLERO.filter((e) => (datos.totales[e.clave] ?? 0) > 0 || ["idea", "mesa", "jefatura", "emilio", "aprobada", "vencida"].includes(e.clave)).map((e) => {
+                    const n = datos.totales[e.clave] ?? 0
+                    return <li key={e.clave} data-estado-leyenda={e.clave} className={`flex items-center gap-2 rounded-full border px-3 py-1 ${n > 0 ? "border-white/20 bg-white/[0.05] text-zinc-100" : "border-white/10 text-zinc-400"}`}><span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: e.color }} />{e.nombre}<span className={`tabular-nums font-semibold ${n > 0 ? "text-white" : "text-zinc-400"}`}>{n}</span></li>
+                  })}
                 </ul>
 
                 {/* la cuadrícula: semanas × días */}
@@ -160,26 +161,26 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
                     <div role="group" aria-label="Elegir la semana" className="mb-3 flex flex-wrap gap-1.5">
                       {datos.semanas.map((s, i) => {
                         const n = s.dias.reduce((t, d) => t + d.publicaciones.length, 0)
-                        return <button key={s.desde} type="button" data-semana={i + 1} aria-pressed={i === semana} onClick={() => setSemana(i)} className={`rounded-md border px-2.5 py-1 text-[12px] transition ${i === semana ? "border-amber-400/70 bg-amber-400/10 text-amber-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>Semana {i + 1}<span className="ml-1 opacity-70">· {diaDelCalendario(s.desde)} · {n}</span></button>
+                        return <button key={s.desde} type="button" data-semana={i + 1} aria-pressed={i === semana} onClick={() => setSemana(i)} className={`rounded-md border px-3 py-1.5 text-[13px] transition ${i === semana ? "border-amber-400/70 bg-amber-400/10 text-amber-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>Semana {i + 1}<span className="ml-1 opacity-70">· {diaDelCalendario(s.desde)} · {n}</span></button>
                       })}
                     </div>
                     {semanaVista && semanaVista.dias.every((d) => d.publicaciones.length === 0) && <p className="text-[13px] text-zinc-500">Esta semana no tiene publicaciones.</p>}
-                    <ol className="space-y-3">
+                    <ol className="space-y-4">
                       {semanaVista?.dias.filter((d) => d.publicaciones.length > 0).map((d) => (
-                        <li key={d.fecha} data-dia={d.fecha} className={`rounded-lg border p-3.5 ${d.fecha === datos.hoy ? "border-amber-400/40 bg-amber-400/[0.04]" : "border-white/10 bg-white/[0.02]"}`}>
-                          <h4 className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">{diaConNombre(d.fecha)}{d.fecha === datos.hoy ? " · hoy" : ""}</h4>
-                          <ul className="space-y-1">
+                        <li key={d.fecha} data-dia={d.fecha} className={`rounded-lg border p-4 ${d.fecha === datos.hoy ? "border-amber-400/40 bg-amber-400/[0.04]" : "border-white/10 bg-white/[0.02]"}`}>
+                          <h4 className="mb-2 text-[13px] font-semibold uppercase tracking-[0.14em] text-amber-300">{diaConNombre(d.fecha)}{d.fecha === datos.hoy ? " · hoy" : ""}</h4>
+                          <ul className="space-y-1.5">
                             {d.publicaciones.map((p) => {
                               const red = redDelTablero(p.red); const clave = `${p.id}|${p.fecha}`; const descartada = p.tablero === "descartada"
                               return (
                                 <li key={clave}>
                                   <button type="button" data-publicacion={clave} data-estado={p.tablero} aria-pressed={clave === elegida} onClick={() => setElegida(clave === elegida ? null : clave)}
-                                    className={`flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1.5 text-left text-[13px] transition hover:bg-white/[0.05] ${clave === elegida ? "bg-white/[0.07] ring-1 ring-white/20" : ""}`}>
-                                    <span className="tabular-nums text-zinc-400">{p.hora ?? "—"}</span>
+                                    className={`flex w-full flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md px-2.5 py-2 text-left text-[15px] leading-snug transition hover:bg-white/[0.05] ${clave === elegida ? "bg-white/[0.07] ring-1 ring-white/20" : ""}`}>
+                                    <span className="tabular-nums text-zinc-300">{p.hora ?? "—"}</span>
                                     <span className="text-zinc-100">{red.nombre} {formatoLegible(p.formato).toLowerCase()}</span>
-                                    <span className={`min-w-0 flex-1 truncate ${descartada ? "text-zinc-500 line-through" : "text-zinc-400"}`}>· {p.tema || "sin tema"}</span>
-                                    {p.fase && <span data-fase className="text-[11px] text-zinc-500">{nombreDeLaFase(p.fase)}{p.idea_ref ? ` · idea ${p.idea_ref}` : ""}</span>}
-                                    <span data-estado-palabras className="rounded-full border px-2 py-0.5 text-[11.5px]" style={{ borderColor: `${colorDelEstado(p.tablero)}99`, color: colorDelEstado(p.tablero) }}>{estadoCortoDeLaPublicacion(p)}</span>
+                                    <span className={`min-w-0 flex-1 truncate ${descartada ? "text-zinc-500 line-through" : "text-zinc-300"}`}>· {p.tema || "sin tema"}</span>
+                                    {p.fase && <span data-fase className="text-[12.5px] text-zinc-400">{nombreDeLaFase(p.fase)}{p.idea_ref ? ` · idea ${p.idea_ref}` : ""}</span>}
+                                    <span data-estado-palabras className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[13px] ${descartada ? "text-zinc-400" : "text-zinc-100"}`} style={{ borderColor: `${colorDelEstado(p.tablero)}aa` }}><span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: colorDelEstado(p.tablero) }} />{estadoCortoDeLaPublicacion(p)}</span>
                                   </button>
                                 </li>
                               )
@@ -232,19 +233,19 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
             ) : datos?.campana ? (
               <div className="min-h-0 flex-1 space-y-3 px-4 py-4 lg:overflow-y-auto">
                 <section data-barra="semana" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">{semanaVista ? `Semana ${datos.semanas.indexOf(semanaVista) + 1} · ${diaDelCalendario(semanaVista.desde)} – ${diaDelCalendario(semanaVista.hasta)}` : "Semana"}</p>
-                  <p className="text-[12.5px] leading-snug text-zinc-200">{resumen.total === 1 ? "1 publicación" : `${resumen.total} publicaciones`}{resumen.partes.length ? ` · ${resumen.partes.join(" · ")}` : ""}</p>
+                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-amber-300">{semanaVista ? `Semana ${datos.semanas.indexOf(semanaVista) + 1} · ${diaDelCalendario(semanaVista.desde)} – ${diaDelCalendario(semanaVista.hasta)}` : "Semana"}</p>
+                  <p className="text-[14px] leading-snug text-zinc-100">{resumen.total === 1 ? "1 publicación" : `${resumen.total} publicaciones`}{resumen.partes.length ? ` · ${resumen.partes.join(" · ")}` : ""}</p>
                 </section>
                 <section data-barra="fase" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">Fase</p>
-                  <p className="text-[12.5px] leading-snug text-zinc-200">{textoDeLaFase(datos)}</p>
-                  {datos.fase_activa.fase?.objetivo && <p className="mt-0.5 text-[11.5px] text-zinc-400">{datos.fase_activa.fase.objetivo}</p>}
+                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-amber-300">Fase</p>
+                  <p className="text-[14px] leading-snug text-zinc-100">{textoDeLaFase(datos)}</p>
+                  {datos.fase_activa.fase?.objetivo && <p className="mt-0.5 text-[13px] text-zinc-300">{datos.fase_activa.fase.objetivo}</p>}
                 </section>
                 <section data-barra="te-toca" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">Lo que te toca</p>
-                  <p className={`text-[12.5px] leading-snug ${porAprobar > 0 ? "text-amber-100" : "text-zinc-200"}`}>{loQueTeTocaEnElCalendario(porAprobar)}</p>
+                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-amber-300">Lo que te toca</p>
+                  <p className={`text-[14px] leading-snug ${porAprobar > 0 ? "text-amber-100" : "text-zinc-100"}`}>{loQueTeTocaEnElCalendario(porAprobar)}</p>
                 </section>
-                <p className="px-1 text-[12px] text-zinc-500">Haz clic en una casilla o en una publicación para ver su detalle y, si ya hay pieza, abrirla.</p>
+                <p className="px-1 text-[13px] text-zinc-400">Haz clic en una casilla o en una publicación para ver su detalle y, si ya hay pieza, abrirla.</p>
               </div>
             ) : <p className="px-4 py-4 text-[13px] text-zinc-500">Haz clic en una casilla o en una tarjeta para ver la publicación.</p>}
           </aside>
@@ -261,7 +262,7 @@ function DetalleDeLaFila({ f, onAbrirPieza }: { f: FilaDelTablero; onAbrirPieza?
   const [conLamina, setConLamina] = useState(true)
   useEffect(() => { setConLamina(true) }, [f.pieza?.id])
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-[13px]">
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-[14px]">
       <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">{diaDelCalendario(f.fecha)}{f.hora ? ` · ${f.hora}` : ""}</p>
       <h3 className="mt-1 text-[15px] font-medium text-zinc-100">{formatoLegible(f.formato)} en {red.nombre}</h3>
       <p className="mt-2 flex items-center gap-2"><span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: colorDelEstado(f.tablero) }} /><span className="font-medium text-zinc-100">{nombreDelEstado(f.tablero)}</span></p>

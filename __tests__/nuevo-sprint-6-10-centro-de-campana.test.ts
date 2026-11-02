@@ -26,7 +26,7 @@ const AHORA = new Date("2026-11-01T12:00:00Z")
 
 describe("6.10 · el Centro de campaña tiene 9 botones en el orden de la cadena", () => {
   it("1 Manual · 2 Informes · 3 Plan · 4 Brief · 5 Gran idea · 6 Calendario · 7 Piezas · 8 Equipo · 9 Gasto; los nuevos abren encima", () => {
-    expect(APLICACIONES.map((a) => `${a.paso} ${a.nombre}`)).toEqual(["1 Manual de marca", "2 Informes", "3 Plan de 90 días", "4 Brief de campaña", "5 Gran idea", "6 Calendario", "7 Piezas", "8 Equipo", "9 Gasto"])
+    expect(APLICACIONES.map((a) => `${a.paso} ${a.nombre}`)).toEqual(["1 Manual de marca", "2 Informes", "3 Plan de 90 días", "4 Brief de campaña", "5 Gran idea", "6 Calendario", "7 Piezas", "8 Equipo", "9 Dinero del cliente"]) // CC6 · 02-nov: el gasto vive en Dinero (corrección 5 de Lenovo)
     expect(APLICACIONES.map((a) => a.paso)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
     for (const k of ["brief", "gran_idea", "equipo"] as const) expect(APLICACIONES.find((a) => a.clave === k)!.enlace(NAUFRAGO)).toBeNull()
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {} }))
