@@ -29,7 +29,7 @@ export interface Paso {
   nombre?: string | null
 }
 export interface Rama { rama: string | null; costo_usd: number; pasos: Paso[] }
-export interface ListaDeCorridas { generado_en: string | null; completo: boolean; dias: number; total: number; corridas: Corrida[]; sin_enlace_a_trazas: string | null; agrupado?: boolean }
+export interface ListaDeCorridas { generado_en: string | null; completo: boolean; dias: number; total: number; corridas: Corrida[]; sin_enlace_a_trazas: string | null; agrupado?: boolean; /** 6.47 */ ejecuciones_total?: number; ejecuciones_leidas?: number }
 export interface DetalleDeCorrida { generado_en: string | null; completo: boolean; corrida: Corrida; arbol: Rama[]; sin_enlace_a_trazas: string | null }
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {})

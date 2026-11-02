@@ -47,7 +47,7 @@ describe("6.27 · 2 · nombres claros", () => {
   it("el nombre técnico y la ejecución quedan solo en Metadatos; la lista y la cabecera ya no los muestran", () => {
     const l = normalizarLista({ corridas: [corrida({ workflow_id: "ogfq56oIEoHufFPM", workflow_execution_id: "pasos-n-transcripcion-1793527592265" })] }, new Map([["ogfq56oIEoHufFPM", CEREBRO_N8N]]))
     expect(l.corridas[0].nombre_tecnico).toContain("CC-CEREBRO")
-    const h = renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: l }))
+    const h = renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: l, vistaInicial: "todas", internoInicial: true, hoy: "2026-11-02" }))
     expect(h).toContain("Cerebro · mantenimiento del portero"); expect(h).not.toContain("CC-CEREBRO"); expect(h).not.toContain(">pasos-n-transcripcion")
     expect(panel()).not.toContain("{c.workflow_execution_id}</span>")
     expect(panel()).toContain('["Nombre técnico"')
@@ -58,7 +58,7 @@ describe("6.27 · 3 · el cliente real", () => {
   it("el mantenimiento del cerebro dice «Interno · cerebro de Náufrago»; el trabajo para el cliente sigue diciendo Náufrago", () => {
     const l = normalizarLista({ corridas: [corrida({ workflow_id: "ogfq56oIEoHufFPM", workflow_execution_id: "210492" }), corrida({ workflow_id: "cc-cerebro-tendencias", workflow_execution_id: "tend-1", client_id: null, cliente: null }), corrida()] })
     expect(l.corridas.map(clienteVisible)).toEqual(["Interno · cerebro de Náufrago", "Interno", "Náufrago"])
-    const h = renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: l }))
+    const h = renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: l, vistaInicial: "todas", internoInicial: true, hoy: "2026-11-02" }))
     expect(h.match(/data-cliente="interno"/g)).toHaveLength(2)
   })
 })
