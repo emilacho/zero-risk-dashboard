@@ -17,6 +17,8 @@ const s = (v: unknown): string | null => (v == null || v === "" ? null : String(
 
 /** cuántas invocaciones recientes se miran (para cerrar despachos, para «falló» y para la última actividad del equipo) */
 export const LIMITE_DE_INVOCACIONES = 400
+/** cuánto espera la escena a la línea del cliente y el momento de su campaña antes de salir sin ella */
+export const ESPERA_DEL_CONTEXTO_MS = 1200
 
 async function directorio(supa: SupabaseClient) {
   return conCache("escena-viva-directorio", 300_000, async () => {
@@ -37,7 +39,14 @@ async function directorio(supa: SupabaseClient) {
 
 /** el cliente y el momento de su campaña (una lectura por minuto, compartida); si no se puede leer, la escena sigue sin esa línea */
 async function contexto(supa: SupabaseClient, ahora: Date): Promise<EscenaDatos["contexto"]> {
-  try { return momentoDeLaCampana(await conCache("escena-viva-contexto", 60_000, () => leerPlanDelCliente(supa, { ahora }))) } catch { return null }
+  // 02-nov · carga: la línea del cliente es un detalle y NO frena la escena. Si la lectura del plan tarda más de ESPERA_DEL_CONTEXTO_MS, la escena sale sin ella
+  // (la lectura sigue y queda en la memoria de 60 s: el siguiente sondeo ya la trae)
+  const lectura = conCache("escena-viva-contexto", 60_000, () => leerPlanDelCliente(supa, { ahora }))
+  lectura.catch(() => undefined)
+  try {
+    const plan = await Promise.race([lectura, new Promise<null>((r) => setTimeout(() => r(null), ESPERA_DEL_CONTEXTO_MS))])
+    return plan ? momentoDeLaCampana(plan) : null
+  } catch { return null }
 }
 
 export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } = {}): Promise<EscenaDatos> {
@@ -46,13 +55,14 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } =
   const [desp, inv, dir, ctx] = await Promise.all([
     // los despachos abiertos (sin importar cuándo: los viejos se cuentan como «sin fin registrado») + los que terminaron o fallaron en la ventana
     filas(supa.from("agent_dispatches").select("id, agent_name, client_id, workflow_id, workflow_execution_id, status, running_at, completed_at, created_at").or(`status.eq.running,created_at.gte.${desde}`).order("created_at", { ascending: false }).limit(300), "agent_dispatches"),
-    filas(supa.from("agent_invocations").select("agent_name, client_id, workflow_id, workflow_execution_id, status, started_at, ended_at, cost_usd, metadata").gte("created_at", desde).order("created_at", { ascending: false }).limit(LIMITE_DE_INVOCACIONES), "agent_invocations"),
+    filas(supa.from("agent_invocations").select("agent_name, client_id, workflow_id, workflow_execution_id, status, started_at, ended_at, cost_usd, step_name:metadata->>step_name, task_text:metadata->>task_text").gte("created_at", desde).order("created_at", { ascending: false }).limit(LIMITE_DE_INVOCACIONES), "agent_invocations"),
     directorio(supa),
     contexto(supa, ahora),
   ])
   const despachos: Despacho[] = desp.map((d) => ({ id: String(d.id), agent_name: String(d.agent_name ?? ""), client_id: s(d.client_id), workflow_id: s(d.workflow_id), workflow_execution_id: s(d.workflow_execution_id), status: s(d.status), running_at: s(d.running_at), completed_at: s(d.completed_at), created_at: s(d.created_at) }))
   const invocaciones: InvocacionViva[] = inv.map((i) => {
-    const m = (i.metadata && typeof i.metadata === "object" ? i.metadata : {}) as Fila
+    const meta = (i.metadata && typeof i.metadata === "object" ? i.metadata : {}) as Fila
+    const m = { step_name: i.step_name ?? meta.step_name, task_text: i.task_text ?? meta.task_text } as Fila // 02-nov · solo se pide lo que se usa de `metadata` (antes viajaba el objeto entero de 400 filas)
     return { agent_name: String(i.agent_name ?? ""), client_id: s(i.client_id), workflow_id: s(i.workflow_id), workflow_execution_id: s(i.workflow_execution_id), status: s(i.status), started_at: s(i.started_at), ended_at: s(i.ended_at), cost_usd: i.cost_usd == null ? null : Number(i.cost_usd), step_name: s(m.step_name), task_text: s(m.task_text) }
   })
   const escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx })
