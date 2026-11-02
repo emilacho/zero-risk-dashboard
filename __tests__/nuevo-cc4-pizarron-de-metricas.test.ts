@@ -3,10 +3,10 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { armarEscena } from "@/lib/escena-avatares"
-import { CUADRO_GENERAL, cuadrosDelPizarron, leerMetricas, redesDelCliente, REDES_DEL_PIZARRON, TEXTO_SIN_METRICAS } from "@/lib/escena-metricas"
+import { CUADRO_GENERAL, cuadrosDelPizarron, leerMetricas, redDeLaLlave, redesDelCliente, REDES_DEL_PIZARRON, TEXTO_SIN_METRICAS } from "@/lib/escena-metricas"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
 
-const config = (own: Record<string, string>) => ({ apify: { own_handles: own } })
+const config = (own: Record<string, unknown>) => ({ apify: { own_handles: own } })
 const escenaCon = (metricas: ReturnType<typeof armarMetricas> | undefined) => ({ ...armarEscena({ despachos: [], invocaciones: [], directorio: [], agentes: [], clientes: [], equipos: null, ahora: new Date("2026-11-02T17:00:00Z") }), metricas })
 const armarMetricas = (redes: ReturnType<typeof redesDelCliente>) => ({ cliente: "Náufrago", cuadros: cuadrosDelPizarron(redes, { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS }), lectura: "sin_datos" as const })
 
@@ -23,6 +23,16 @@ describe("pizarrón de métricas (tarea 1 del encargo de Lenovo · 02-nov)", () 
     expect(redesDelCliente(config({ instagram: "@naufrago" }), null)).toEqual(["instagram"]) // Google Maps no se declara en las cuentas propias
     expect(redesDelCliente(null, null)).toEqual([])
     expect(REDES_DEL_PIZARRON.map((r) => r.clave)).toEqual(["instagram", "facebook", "tiktok", "youtube", "whatsapp", "web", "google_maps"])
+  })
+  it("CORRECCIÓN 02-nov · las llaves de la ficha se reconocen por lo que dicen (como la barra del manual): no faltan Facebook, TikTok, YouTube ni WhatsApp de Náufrago", () => {
+    const naufrago = config({ instagram: "@naufrago.ec", facebook_page: "naufrago.ec", tiktok_handle: "@naufrago", youtube_channel: "@naufrago", whatsapp_number: "+593999", linkedin: "" })
+    expect(redesDelCliente(naufrago, "https://naufrago.ec")).toEqual(["instagram", "facebook", "tiktok", "youtube", "whatsapp", "web"])
+    expect(redesDelCliente(config({ Facebook: { handle: "n", url: "https://facebook.com/n" }, TikTok: ["a"], YouTube: { handle: "" } }), null)).toEqual(["facebook", "tiktok"]) // un objeto con cuenta cuenta; uno vacío no
+    expect(redDeLaLlave("FB")).toBe("facebook")
+    expect(redDeLaLlave("pinterest")).toBeNull()
+    // los campos de sus sedes que nombran una red (el WhatsApp de una sede)
+    expect(redesDelCliente(config({ instagram: "x" }), null, ["horario", "whatsapp", "direccion"])).toEqual(["instagram", "whatsapp"])
+    expect(redesDelCliente(config({}), null, [])).toEqual([])
   })
   it("un cuadro por red + «General» + Google Maps (siempre: no vive en las cuentas propias); cada uno dice «métricas pronto» y no trae métrica ni variación", () => {
     const c = cuadrosDelPizarron(["instagram", "web"], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS })
