@@ -38,6 +38,12 @@ describe("el calendario por día", () => {
     expect(h).toContain("Día 1 · fase Señal"); expect(h).toContain("Nada: el calendario no se firma.")
     expect(h).not.toMatch(/aprobar\b|Firmar/i)
   })
+  it("a pantalla completa, como Dinero (corrección 1 de Lenovo · reserva D7 de CC3)", () => {
+    const h = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: datos(FILAS) }))
+    expect(h).toMatch(/<div class="nv-panel fixed inset-0[^"]*p-1\.5[^"]*sm:p-2"/)
+    expect(h).toMatch(/data-seccion="pizarron"[^>]*data-pantalla-completa[^>]*class="relative flex h-full max-h-full w-full flex-col/)
+    expect(h).not.toMatch(/data-seccion="pizarron"[^>]*max-w-\[/)
+  })
   it("con piezas en tu bandeja, la barra lo dice", () => {
     expect(loQueTeTocaEnElCalendario(2)).toBe("2 piezas esperan tu aprobación: ábrelas desde su publicación (en ámbar).")
     expect(loQueTeTocaEnElCalendario(1)).toMatch(/^1 pieza espera tu aprobación: ábrela /)

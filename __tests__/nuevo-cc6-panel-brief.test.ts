@@ -35,9 +35,15 @@ describe("el brief", () => {
   it("quién lo escribió: de los aportes de su encargo, sin «sistema» ni repetidos; si la lectura falla, sin nombres", async () => {
     const base = (data: unknown, error: unknown = null) => ({ from: () => { const q: Record<string, unknown> = {}; for (const m of ["select", "in", "order", "limit"]) q[m] = () => q; q.then = (r: (x: unknown) => unknown) => r({ data, error }); return q } }) as unknown as SupabaseClient
     const briefs = [briefDesdeFila({ id: "b1", version: 1, estado: "validada", encargo_id: "e1" }), briefDesdeFila({ id: "b0", version: 0, estado: "devuelta" })]
-    const r = await conQuienesEscribieron(base([{ encargo_id: "e1", de: "sistema", n: 1 }, { encargo_id: "e1", de: "campaign-brief-agent", n: 2 }, { encargo_id: "e1", de: "campaign-brief-agent", n: 3 }]), briefs)
-    expect(r[0].quienes_escribieron).toEqual(["campaign-brief-agent"]); expect(r[1].quienes_escribieron).toEqual([])
+    const r = await conQuienesEscribieron(base([{ encargo_id: "e1", de: "sistema", n: 1 }, { encargo_id: "e1", de: "portero", n: 2 }, { encargo_id: "e1", de: "campaign-brief-agent", n: 3 }, { encargo_id: "e1", de: "campaign-brief-agent", n: 4 }]), briefs)
+    expect(r[0].quienes_escribieron).toEqual(["campaign-brief-agent"]); expect(r[1].quienes_escribieron).toEqual([]) // «sistema» y el portero hablan en la mesa pero no escriben (reserva de CC3)
     expect((await conQuienesEscribieron(base(null, { message: "caída" }), briefs))[0].quienes_escribieron).toEqual([])
+  })
+  it("quién escribió: en el orden en que hablaron (se pide a la base ordenado por n, ascendente) — reserva D3 de CC3", async () => {
+    const pedidos: string[] = []
+    const base = { from: () => { const q: Record<string, unknown> = {}; for (const m of ["select", "in", "limit"]) q[m] = () => q; q.order = (c: string, o: { ascending: boolean }) => { pedidos.push(`${c}:${o.ascending}`); return q }; q.then = (r: (x: unknown) => unknown) => r({ data: [{ encargo_id: "e1", de: "content-strategist", n: 1 }, { encargo_id: "e1", de: "campaign-brief-agent", n: 2 }], error: null }); return q } } as unknown as SupabaseClient
+    const r = await conQuienesEscribieron(base, [briefDesdeFila({ id: "b1", version: 1, estado: "validada", encargo_id: "e1" })])
+    expect(pedidos).toEqual(["n:true"]); expect(r[0].quienes_escribieron).toEqual(["content-strategist", "campaign-brief-agent"])
   })
   it("lo que sigue, según el estado", () => {
     expect(loQueSigueDelBrief("devuelta")).toMatch(/lo rehace/); expect(loQueSigueDelBrief("en_mesa")).toMatch(/está escribiendo/); expect(loQueSigueDelBrief("reemplazada")).toMatch(/más nueva/)

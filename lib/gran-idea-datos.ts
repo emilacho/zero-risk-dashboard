@@ -5,6 +5,7 @@
  * La DECISIÓN (aprobar / pedir cambios) va por `POST /api/cadena/concepto` de la plataforma, que tampoco está publicada: los botones se habilitan recién cuando
  * exista y se certifique con una corrida real (regla de Emilio: nada que escribe se publica sin certificar).
  */
+import { esAutorDeLaMesa } from "@/lib/organigrama"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { cargarConcepto, estadoDelConcepto, TIPO_CONCEPTO, type DetalleDelConcepto, type EstadoDelConcepto } from "@/lib/concepto-datos"
@@ -73,7 +74,7 @@ async function quienesPropusieron(supa: SupabaseClient, conceptoId: string): Pro
 
 /** los nombres de quien habló en la sala, sin repetir, en orden, sin «sistema» (no es un empleado) */
 export function quienesPropusieronDe(aportes: Array<{ de?: unknown }>): string[] {
-  return [...new Set(aportes.map((a) => String(a.de ?? "")).filter((x) => x && x !== "sistema"))]
+  return [...new Set(aportes.map((a) => String(a.de ?? "")).filter(esAutorDeLaMesa))]
 }
 
 /** la segunda línea del cuadro «Gran idea» */
