@@ -79,7 +79,7 @@ describe("6.11 · el Kanban (ADENDA 3): columnas genéricas que salen de estados
   it("el Calendario del Centro de campaña tiene el cambio Calendario ↔ Kanban (mismas publicaciones)", () => {
     const f = fila({ tablero: "emilio" })
     const datos: Pizarron = { clientes: [{ ...CLIENTE, con_campana: true }], cliente: CLIENTE, campana: { id: "c", estado: "pausada", desde: "2026-11-02", hasta: "2027-01-30", version_calendario: 1, version_estrategia: 1 }, fases: [], fase_activa: { situacion: "antes", fase: null, dia: -1, dias_para_empezar: 1 }, gran_idea: { texto: null, nota: "sin gran idea" }, esperas: [], filas: [f], semanas: [{ desde: "2026-11-02", hasta: "2026-11-08", dias: [{ fecha: "2026-11-05", publicaciones: [f] }] }], totales: { emilio: 1 }, hoy: "2026-11-01", leido_en: "x" }
-    const cal = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: datos }))
+    const cal = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: datos, vistaInicial: "calendario" }))
     expect(cal).toContain('data-vista-tablero="calendario" aria-pressed="true"'); expect(cal).toContain('data-vista-tablero="kanban" aria-pressed="false"'); expect(cal).toContain('role="grid"'); expect(cal).not.toContain("data-kanban")
     const kb = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: datos, vistaInicial: "kanban" }))
     expect(kb).toContain('data-vista-activa="kanban"'); expect(kb).toContain("data-kanban"); expect(kb).not.toContain('role="grid"')

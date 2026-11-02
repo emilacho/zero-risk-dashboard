@@ -6,9 +6,12 @@ import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendari
 import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible } from "@/lib/lenguaje"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDeFila } from "@/lib/kanban"
+import { diaConNombre, estadoCortoDeLaPublicacion, loQueTeTocaEnElCalendario, origenDeLaPublicacion, resumenDeLaSemana, semanaInicial } from "@/lib/calendario"
 
-/** 6.11 (ADENDA 3): las mismas publicaciones, como calendario (semanas × días) o como Kanban (columnas genéricas) */
-export type VistaDelTablero = "calendario" | "kanban"
+/** 6.11 (ADENDA 3): las mismas publicaciones, como calendario (semanas × días) o como Kanban (columnas genéricas).
+ *  CC6 · 02-nov: «dias» (por día, con el estado en palabras) es la vista de entrada; «calendario» es la cuadrícula del mes. */
+export type VistaDelTablero = "dias" | "calendario" | "kanban"
+const NOMBRE_DE_LA_VISTA: Record<VistaDelTablero, string> = { dias: "Por día", calendario: "Mes", kanban: "Kanban" }
 
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
@@ -50,7 +53,8 @@ export function agruparEsperas(esperas: Array<{ motivo: string }>): string[] {
   return [...cuenta.entries()].map(([m, n]) => (n > 1 ? `${m} ×${n}` : m))
 }
 
-export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, vistaInicial = "calendario" }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 6.6: abrir la pieza encima, en el estilo nuevo; sin esto, enlaza a la ventana de siempre */ onAbrirPieza?: (id: string) => void; vistaInicial?: VistaDelTablero }) {
+export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, vistaInicial = "dias" }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 6.6: abrir la pieza encima, en el estilo nuevo; sin esto, enlaza a la ventana de siempre */ onAbrirPieza?: (id: string) => void; vistaInicial?: VistaDelTablero }) {
+  const [semana, setSemana] = useState<number>(() => (datosIniciales ? semanaInicial(datosIniciales.semanas, datosIniciales.hoy) : 0))
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -73,7 +77,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
       const r = await fetch(`/api/pizarron${id ? `?cliente=${encodeURIComponent(id)}` : ""}`, { cache: "no-store" })
       const j = (await r.json().catch(() => null)) as Respuesta | null
       if (!r.ok || !j || !j.ok) throw new Error(r.status === 401 || r.status === 403 ? "Necesitas una sesión de administrador para ver el calendario." : (j && !j.ok && j.error) || `No pude leer el calendario (${r.status}).`)
-      setDatos(j); setCliente(j.cliente?.id ?? null); setElegida(null)
+      setDatos(j); setCliente(j.cliente?.id ?? null); setElegida(null); setSemana(semanaInicial(j.semanas, j.hoy))
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
   useEffect(() => { if (!datosIniciales) void leer(null) }, [leer, datosIniciales])
@@ -83,6 +87,8 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
   const fases = datos?.fases ?? []
   const faseActiva = datos?.fase_activa.situacion === "en_curso" ? datos.fase_activa.fase?.clave : null
   const kanban = useMemo(() => armarKanban((datos?.filas ?? []).map(tarjetaDeFila)), [datos])
+  const semanaVista = datos?.semanas[semana] ?? datos?.semanas[0]
+  const resumen = useMemo(() => resumenDeLaSemana(semanaVista), [semanaVista])
 
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
@@ -93,8 +99,8 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
           <h2 id="pizarron-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Calendario</h2>
           <p className="hidden text-[12px] text-zinc-500 md:block">La campaña del cliente, publicación por publicación · solo lectura</p>
           <div role="group" aria-label="Cómo ver la campaña" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
-            {(["calendario", "kanban"] as const).map((v) => (
-              <button key={v} type="button" data-vista-tablero={v} aria-pressed={vista === v} onClick={() => setVista(v)} className={`rounded px-2.5 py-1 transition ${vista === v ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{v === "calendario" ? "Calendario" : "Kanban"}</button>
+            {(["dias", "calendario", "kanban"] as const).map((v) => (
+              <button key={v} type="button" data-vista-tablero={v} aria-pressed={vista === v} onClick={() => setVista(v)} className={`rounded px-2.5 py-1 transition ${vista === v ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{NOMBRE_DE_LA_VISTA[v]}</button>
             ))}
           </div>
           <label className="flex items-center gap-2 text-[12px] text-zinc-400">
@@ -113,7 +119,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
         {error && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-6">{error}</p>}
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden">
-          <div className="min-h-0 overflow-y-auto px-4 py-4 sm:px-6">
+          <div className="min-h-0 px-4 py-4 sm:px-6 lg:overflow-y-auto">
             {!datos && !error && <p className="text-[13px] text-zinc-500">Leyendo el calendario…</p>}
             {datos && !datos.campana && <p className="text-[13px] text-zinc-400">{datos.cliente ? `${datos.cliente.nombre} todavía no tiene una campaña en la cadena.` : "No hay clientes para mostrar."}</p>}
             {datos && datos.campana && (
@@ -149,7 +155,41 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
                 </ul>
 
                 {/* la cuadrícula: semanas × días */}
-                {vista === "kanban" ? <Kanban columnas={kanban} elegida={elegida} onElegir={(id) => setElegida(id === elegida ? null : id)} etiqueta="Las publicaciones de la campaña por columna" /> : datos.semanas.length === 0 ? <p className="text-[13px] text-zinc-500">El calendario de esta campaña todavía no tiene publicaciones.</p> : (
+                {vista === "dias" ? (datos.semanas.length === 0 ? <p className="text-[13px] text-zinc-500">El calendario de esta campaña todavía no tiene publicaciones.</p> : (
+                  <div data-vista="por-dia">
+                    <div role="group" aria-label="Elegir la semana" className="mb-3 flex flex-wrap gap-1.5">
+                      {datos.semanas.map((s, i) => {
+                        const n = s.dias.reduce((t, d) => t + d.publicaciones.length, 0)
+                        return <button key={s.desde} type="button" data-semana={i + 1} aria-pressed={i === semana} onClick={() => setSemana(i)} className={`rounded-md border px-2.5 py-1 text-[12px] transition ${i === semana ? "border-amber-400/70 bg-amber-400/10 text-amber-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>Semana {i + 1}<span className="ml-1 opacity-70">· {diaDelCalendario(s.desde)} · {n}</span></button>
+                      })}
+                    </div>
+                    {semanaVista && semanaVista.dias.every((d) => d.publicaciones.length === 0) && <p className="text-[13px] text-zinc-500">Esta semana no tiene publicaciones.</p>}
+                    <ol className="space-y-3">
+                      {semanaVista?.dias.filter((d) => d.publicaciones.length > 0).map((d) => (
+                        <li key={d.fecha} data-dia={d.fecha} className={`rounded-lg border p-3.5 ${d.fecha === datos.hoy ? "border-amber-400/40 bg-amber-400/[0.04]" : "border-white/10 bg-white/[0.02]"}`}>
+                          <h4 className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">{diaConNombre(d.fecha)}{d.fecha === datos.hoy ? " · hoy" : ""}</h4>
+                          <ul className="space-y-1">
+                            {d.publicaciones.map((p) => {
+                              const red = redDelTablero(p.red); const clave = `${p.id}|${p.fecha}`; const descartada = p.tablero === "descartada"
+                              return (
+                                <li key={clave}>
+                                  <button type="button" data-publicacion={clave} data-estado={p.tablero} aria-pressed={clave === elegida} onClick={() => setElegida(clave === elegida ? null : clave)}
+                                    className={`flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1.5 text-left text-[13px] transition hover:bg-white/[0.05] ${clave === elegida ? "bg-white/[0.07] ring-1 ring-white/20" : ""}`}>
+                                    <span className="tabular-nums text-zinc-400">{p.hora ?? "—"}</span>
+                                    <span className="text-zinc-100">{red.nombre} {formatoLegible(p.formato).toLowerCase()}</span>
+                                    <span className={`min-w-0 flex-1 truncate ${descartada ? "text-zinc-500 line-through" : "text-zinc-400"}`}>· {p.tema || "sin tema"}</span>
+                                    {p.fase && <span data-fase className="text-[11px] text-zinc-500">{nombreDeLaFase(p.fase)}{p.idea_ref ? ` · idea ${p.idea_ref}` : ""}</span>}
+                                    <span data-estado-palabras className="rounded-full border px-2 py-0.5 text-[11.5px]" style={{ borderColor: `${colorDelEstado(p.tablero)}99`, color: colorDelEstado(p.tablero) }}>{estadoCortoDeLaPublicacion(p)}</span>
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )) : vista === "kanban" ? <Kanban columnas={kanban} elegida={elegida} onElegir={(id) => setElegida(id === elegida ? null : id)} etiqueta="Las publicaciones de la campaña por columna" /> : datos.semanas.length === 0 ? <p className="text-[13px] text-zinc-500">El calendario de esta campaña todavía no tiene publicaciones.</p> : (
                   <div role="grid" aria-label="Publicaciones del calendario por semana" className="overflow-x-auto">
                     <div role="row" className="grid min-w-[760px] grid-cols-[5.5rem_repeat(7,minmax(0,1fr))] gap-1 px-0.5 pb-1 text-[11px] uppercase tracking-wider text-zinc-500">
                       <span role="columnheader">Semana</span>{DIAS_DE_LA_SEMANA.map((d) => <span key={d} role="columnheader">{d}</span>)}
@@ -183,8 +223,30 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
           </div>
 
           {/* la pieza elegida */}
-          <aside className="flex min-h-0 flex-col border-t border-white/10 lg:border-l lg:border-t-0" aria-label="La publicación elegida">
-            {!filaElegida ? <p className="px-4 py-4 text-[13px] text-zinc-500">Haz clic en una casilla o en una tarjeta para ver la publicación y, si ya hay pieza, abrirla para aprobarla o pedir cambios.</p> : <DetalleDeLaFila f={filaElegida} onAbrirPieza={onAbrirPieza} />}
+          <aside className="flex min-h-0 flex-col border-t border-white/10 lg:border-l lg:border-t-0" aria-label="La publicación elegida" data-barra-del-calendario>
+            {filaElegida ? (
+              <>
+                <button type="button" data-accion="volver-al-resumen" onClick={() => setElegida(null)} className="mx-4 mt-3 self-start rounded px-1.5 py-0.5 text-[12px] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100">← Resumen de la semana</button>
+                <DetalleDeLaFila f={filaElegida} onAbrirPieza={onAbrirPieza} />
+              </>
+            ) : datos?.campana ? (
+              <div className="min-h-0 flex-1 space-y-3 px-4 py-4 lg:overflow-y-auto">
+                <section data-barra="semana" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">{semanaVista ? `Semana ${datos.semanas.indexOf(semanaVista) + 1} · ${diaDelCalendario(semanaVista.desde)} – ${diaDelCalendario(semanaVista.hasta)}` : "Semana"}</p>
+                  <p className="text-[12.5px] leading-snug text-zinc-200">{resumen.total === 1 ? "1 publicación" : `${resumen.total} publicaciones`}{resumen.partes.length ? ` · ${resumen.partes.join(" · ")}` : ""}</p>
+                </section>
+                <section data-barra="fase" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">Fase</p>
+                  <p className="text-[12.5px] leading-snug text-zinc-200">{textoDeLaFase(datos)}</p>
+                  {datos.fase_activa.fase?.objetivo && <p className="mt-0.5 text-[11.5px] text-zinc-400">{datos.fase_activa.fase.objetivo}</p>}
+                </section>
+                <section data-barra="te-toca" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">Lo que te toca</p>
+                  <p className={`text-[12.5px] leading-snug ${porAprobar > 0 ? "text-amber-100" : "text-zinc-200"}`}>{loQueTeTocaEnElCalendario(porAprobar)}</p>
+                </section>
+                <p className="px-1 text-[12px] text-zinc-500">Haz clic en una casilla o en una publicación para ver su detalle y, si ya hay pieza, abrirla.</p>
+              </div>
+            ) : <p className="px-4 py-4 text-[13px] text-zinc-500">Haz clic en una casilla o en una tarjeta para ver la publicación.</p>}
           </aside>
         </div>
       </section>
@@ -206,6 +268,9 @@ function DetalleDeLaFila({ f, onAbrirPieza }: { f: FilaDelTablero; onAbrirPieza?
       <p className="mt-0.5 text-zinc-400">{f.motivo}</p>
       <dl className="mt-3 space-y-1.5 text-zinc-300">
         <div><dt className="inline text-zinc-500">Tema · </dt><dd className="inline">{f.tema || "—"}</dd></div>
+        <div data-detalle="fase"><dt className="inline text-zinc-500">Fase · </dt><dd className="inline">{f.fase ? nombreDeLaFase(f.fase) : "sin fase asignada"}</dd></div>
+        <div data-detalle="idea"><dt className="inline text-zinc-500">De la gran idea · </dt><dd className="inline">{f.idea_ref ? `idea ${f.idea_ref}` : "todavía no sale de una idea de la gran idea"}</dd></div>
+        {origenDeLaPublicacion(f.origen) && <div data-detalle="origen"><dt className="inline text-zinc-500">De dónde sale · </dt><dd className="inline">{origenDeLaPublicacion(f.origen)}</dd></div>}
         {f.pilar && pilarLegible(f.pilar) ? <div><dt className="inline text-zinc-500">Pilar · </dt><dd className="inline">{pilarLegible(f.pilar)}</dd></div> : f.pilar ? <div><dt className="inline text-zinc-500">Pilar · </dt><dd className="inline">{f.pilar}</dd></div> : null}
         {f.sede && <div><dt className="inline text-zinc-500">Sede · </dt><dd className="inline">{f.sede}</dd></div>}
         <div><dt className="inline text-zinc-500">En el calendario · </dt><dd className="inline">{estadoDeFilaLegible(f.estado_fila)}{f.tanda != null ? ` · tanda ${f.tanda}` : ""}{f.pieza_fija ? " · pieza fija" : ""}</dd></div>

@@ -66,6 +66,12 @@ export interface FilaDelTablero {
   pieza: PiezaDelTablero | null
   tablero: EstadoDelTablero
   motivo: string
+  /** CC6 · 02-nov: la fase del plan a la que pertenece (clave de `estrategia.fases`) */
+  fase?: string | null
+  /** CC6 · 02-nov: la idea del banco de la gran idea que realiza (`C<fase>-I<nn>`); null = todavía sin gran idea */
+  idea_ref?: string | null
+  /** CC6 · 02-nov: de dónde sale la fila (patrón del plan o propuesta de un empleado) */
+  origen?: string | null
 }
 
 /** dónde está una publicación: la bandeja manda (si Emilio ya la tiene o la decidió), luego la oficina, luego el calendario */
