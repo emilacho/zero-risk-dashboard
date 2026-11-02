@@ -32,6 +32,8 @@ export interface Pizarron {
   filas: FilaDelTablero[]
   semanas: SemanaDelTablero[]
   totales: Partial<Record<EstadoDelTablero, number>>
+  /** CC6 · 03-nov: lo archivado de una campaña anterior (CC1 #852): fuera de las semanas y de las cuentas; la carpeta plegada del final */
+  archivo?: FilaDelTablero[]
   hoy: string
   leido_en: string
 }
@@ -68,7 +70,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   ])
   const version = ultimaVersion ? Number(ultimaVersion.calendario_version) : null
   const crudas = version == null ? [] : await filas(
-    supa.from("cadena_calendario_filas").select("id, tanda, semana, fecha, hora, red, formato, pilar, tema, sede, pieza_fija, pendientes, estado, avisos, brief_ref, fase, idea_ref, origen")
+    supa.from("cadena_calendario_filas").select("id, tanda, semana, fecha, hora, red, formato, pilar, tema, sede, pieza_fija, pendientes, estado, avisos, brief_ref, fase, idea_ref, origen, archivada_en")
       .eq("campana_id", campId).eq("seco", false).eq("calendario_version", version).order("fecha", { ascending: true }).limit(600),
     "cadena_calendario_filas",
   )
@@ -92,7 +94,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   for (const r of revisiones) { const k = String(r.artifact_id); if (!revisionDe.has(k)) revisionDe.set(k, r) }
   const piezaDe = new Map<string, Fila>(bandeja.map((b) => [String(b.id), b]))
 
-  const lista: FilaDelTablero[] = crudas.map((x) => {
+  const todas: FilaDelTablero[] = crudas.map((x) => {
     const id = String(x.id), fecha = String(x.fecha ?? "")
     const e = encargoDe.get(`${id}|${fecha}`) ?? null
     const encargo: EncargoDelTablero | null = e ? { id: String(e.id), familia: String(e.familia ?? ""), estado: String(e.estado ?? ""), gasto_usd: Number(e.gasto_usd ?? 0), creado_en: String(e.creado_en ?? "") } : null
@@ -106,8 +108,11 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
       pieza_fija: x.pieza_fija === true, tanda: x.tanda == null ? null : Number(x.tanda), semana: x.semana == null ? null : Number(x.semana), estado_fila: String(x.estado ?? ""),
       avisos: textos(x.avisos), pendientes: textos(x.pendientes), encargo, jefatura, pieza, tablero, motivo,
       fase: x.fase ? String(x.fase) : null, idea_ref: x.idea_ref ? String(x.idea_ref) : null, origen: x.origen ? String(x.origen) : null,
+      archivada: !!x.archivada_en,
     }
   })
+  const vivas = todas.filter((f) => !f.archivada)
+  const archivo = todas.filter((f) => f.archivada)
   const fases = fasesDelPlan(est?.contenido)
   // en qué momento está el plan VIGENTE (no el de la campaña): para la tarjeta «Plan de 90 días» y para no contar como pendiente lo del plan anterior
   let momentoDelPlan: string | null = null
@@ -121,7 +126,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
     fases, fase_activa: faseActiva(fases, camp.fecha_inicio ? String(camp.fecha_inicio) : null, hoy),
     gran_idea: GRAN_IDEA_SIN_TABLA,
     esperas: esperas.map((e) => ({ motivo: String(e.motivo ?? ""), vence_en: e.vence_en ? String(e.vence_en) : null })),
-    filas: lista, semanas: semanasDelTablero(lista), totales: totalesDelTablero(lista), hoy, leido_en: ahora.toISOString(),
+    filas: vivas, semanas: semanasDelTablero(vivas), totales: totalesDelTablero(vivas), archivo, hoy, leido_en: ahora.toISOString(),
   }
 }
 

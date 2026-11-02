@@ -54,7 +54,7 @@ describe("estado de una pieza · superada no es rechazada", () => {
 function baseConPiezas(filas: Array<Record<string, unknown>>, clientes: Array<Record<string, unknown>>) {
   const q = (data: unknown) => {
     const o: Record<string, unknown> = {}
-    for (const m of ["select", "eq", "neq", "in", "order", "limit"]) o[m] = () => o
+    for (const m of ["select", "eq", "neq", "in", "is", "not", "order", "limit"]) o[m] = () => o
     o.then = (res: (v: unknown) => unknown) => res({ data, error: null })
     return o
   }

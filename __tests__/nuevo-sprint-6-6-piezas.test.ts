@@ -69,7 +69,7 @@ function baseFalsa(respuestas: Record<string, unknown[]>, cuentas: Record<string
     const p = { tabla, filtros: [] as string[], cuenta: false }; pedidos.push(p)
     const q: Record<string, unknown> = {}
     const enc = (nombre: string) => (...a: unknown[]) => { p.filtros.push(`${nombre}(${a.map((x) => JSON.stringify(x)).join(",")})`); return q }
-    for (const m of ["eq", "neq", "in", "order", "limit"]) q[m] = enc(m)
+    for (const m of ["eq", "neq", "in", "is", "not", "order", "limit"]) q[m] = enc(m)
     q.select = (cols: string, o?: { head?: boolean }) => { p.filtros.push(`select(${cols})`); if (o?.head) p.cuenta = true; return q }
     q.maybeSingle = () => Promise.resolve({ data: (respuestas[tabla] ?? [])[0] ?? null, error: null })
     q.then = (res: (v: unknown) => unknown) => Promise.resolve(p.cuenta ? { count: cuentas[tabla] ?? 0, error: null } : { data: respuestas[tabla] ?? [], error: null }).then(res)
@@ -132,7 +132,9 @@ describe("sprint 6.6 · la lectura de la bandeja", () => {
   it("pide piezas, otras revisiones, la cuenta y los clientes de una vez, con los filtros de la lectura de siempre", async () => {
     const { supa, pedidos } = baseFalsa({ hitl_queue: [], clients: [] }, { hitl_queue: 2 })
     const b = await leerBandeja(supa, { estado: "todas", ahora: new Date("2026-10-31T21:00:00Z") })
-    expect(b).toEqual({ estado: "todas", por_aprobar: 2, piezas: [], otras: [], clientes: [], leido_en: "2026-10-31T21:00:00.000Z" })
+    expect(b).toEqual({ estado: "todas", por_aprobar: 2, piezas: [], otras: [], archivo: [], clientes: [], leido_en: "2026-10-31T21:00:00.000Z" })
+    // CC6 · 03-nov: lo archivado de una campaña anterior queda fuera de las listas y de la cuenta, y se lee aparte para su carpeta
+    expect(pedidos.filter((p) => p.tabla === "hitl_queue").every((p) => p.filtros.some((f) => f.startsWith("is(\"archivada_en\"") || f.startsWith("not(\"archivada_en\"")))).toBe(true)
     const hitl = pedidos.filter((p) => p.tabla === "hitl_queue").map((p) => p.filtros.join(" "))
     expect(hitl.some((f) => f.includes('eq("type","content_piece_review")') && !f.includes('eq("status","pending")'))).toBe(true) // todas las piezas
     expect(hitl.some((f) => f.includes('neq("type","content_piece_review")'))).toBe(true) // las otras

@@ -13,17 +13,20 @@ export interface Bandeja {
   piezas: FilaDeLaLista[]
   /** lo que no es pieza (plan con pendientes · lista de competidores · revisión del editor) */
   otras: FilaDeLaLista[]
+  /** CC6 · 03-nov: lo archivado de una campaña anterior (todas, decididas o no): la carpeta plegada del final */
+  archivo?: FilaDeLaLista[]
   clientes: Array<{ id: string; nombre: string }>
   leido_en: string
 }
 
 export async function leerBandeja(supa: SupabaseClient, o: { estado?: FiltroDeLaBandeja; ahora?: Date } = {}): Promise<Bandeja> {
   const estado = o.estado ?? "pendiente"
-  const [piezas, otras, por_aprobar, clientes] = await Promise.all([
+  const [piezas, otras, archivo, por_aprobar, clientes] = await Promise.all([
     listarPiezas(supa, { estado, tipo: "piezas" }),
     listarPiezas(supa, { estado, tipo: "otras" }),
+    listarPiezas(supa, { estado: "todas", tipo: "piezas", archivo: "solo", limite: 300 }),
     contarPiezasPorAprobar(supa),
     clientesParaElegir(supa),
   ])
-  return { estado, por_aprobar, piezas, otras, clientes, leido_en: (o.ahora ?? new Date()).toISOString() }
+  return { estado, por_aprobar, piezas, otras, archivo, clientes, leido_en: (o.ahora ?? new Date()).toISOString() }
 }

@@ -8,7 +8,7 @@ import { nombreDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Bandeja } from "@/lib/bandeja-datos"
 import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
-import { CAMPO_LEGIBLE, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, alcanceDeLosCambios, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuentaDeLaCarpeta, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono } from "@/lib/bandeja"
+import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, alcanceDeLosCambios, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuentaDeLaCarpeta, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono } from "@/lib/bandeja"
 import type { AccionDeLaPieza, EstadoPieza } from "@/lib/piezas"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDePieza } from "@/lib/kanban"
@@ -200,7 +200,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   // al cambiar de pieza, el visor vuelve a la primera lámina y se olvidan marcas, ediciones y diálogo
   useEffect(() => { setN(1); setJuntas(false); setMarcadas([]); setEdiciones([]); setZoom(false); setDialogo(null); setComentario(""); setCasilla(false); setErrorDialogo(null) }, [pieza?.id])
 
-  const arbol = useMemo(() => (bandeja ? arbolDeLaBandeja(bandeja.piezas, bandeja.otras) : []), [bandeja])
+  const arbol = useMemo(() => (bandeja ? arbolDeLaBandeja(bandeja.piezas, bandeja.otras, bandeja.archivo ?? []) : []), [bandeja])
   const todas = useMemo(() => (bandeja ? [...bandeja.piezas, ...bandeja.otras] : []), [bandeja])
   const filaElegida = elegida ? todas.find((f) => f.id === elegida) ?? null : null
   // la pieza que llega de afuera (calendario) ubica el explorador en su carpeta
@@ -237,7 +237,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   }, [onCerrar, zoom, dialogo, ir])
 
   const estadoVisto: EstadoPieza | null = pieza ? (resultadoLocal?.id === pieza.id ? resultadoLocal.estado : pieza.estado) : null
-  const pendiente = !!pieza && pieza.es_pieza && pieza.status === "pending" && estadoVisto === "pendiente"
+  // lo archivado de una campaña anterior no se aprueba: solo se mira y, si Emilio quiere reusarla, se recupera (CC1 #852)
+  const pendiente = !!pieza && pieza.es_pieza && !pieza.archivada && pieza.status === "pending" && estadoVisto === "pendiente"
   const avanceDePieza = pieza?.es_pieza && pieza.acompana && estadoVisto ? avanceDeLaPieza(estadoVisto, pieza.acompana, new Date()) : null
   const lamina = pieza?.laminas[n - 1]
   const src = (k: number) => `/api/piezas/${pieza?.id}/lamina/${k}`
@@ -297,6 +298,17 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
     if (!r.ok) { setErrorDialogo(r.texto); return }
     setAviso({ ok: true, texto: "Encargo enviado: la oficina creativa rehace la pieza y la versión nueva llega a esta bandeja." }); setDialogo(null); setComentario("")
     await leerLaBandeja(filtro)
+  }
+
+  /** «Recuperar» una pieza del archivo: vuelve a la bandeja (ruta de CC1 · no gasta) */
+  async function recuperar() {
+    if (!pieza) return
+    setEnviando(true); setErrorDialogo(null)
+    const r = await accion("archivo-recuperar-pieza", { hitl_id: pieza.id })
+    setEnviando(false)
+    if (!r.ok) { setErrorDialogo(r.texto); return }
+    setAviso({ ok: true, texto: "Recuperada: la pieza volvió a la bandeja para que la decidas." })
+    await leerLaBandeja(filtro); void leerLaPieza(pieza.id)
   }
 
   const botones = pieza && !pieza.es_pieza ? botonesDeRevision(pieza.tipo) : null
@@ -395,6 +407,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
                   <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
+                  {pieza.archivada && <span data-chip="archivada"><Chip>{CARPETA_ARCHIVO.toLowerCase()}</Chip></span>}
+                  {pieza.recuperada_del_archivo && !pieza.archivada && <span data-chip="recuperada"><Chip tono="azul">recuperada del archivo</Chip></span>}
                   {pieza.version != null && <Chip>versión {pieza.version}</Chip>}
                   {pieza.jefatura.resultado && <Chip tono={pieza.jefatura.desacuerdos.length ? "ambar" : "neutro"}>jefatura {resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}</Chip>}
                   {total > 0 && <button type="button" data-accion="ver-juntas" aria-pressed={juntas} onClick={() => { setJuntas((v) => !v); setZoom(false) }} className={`${B_CHICO} ml-auto`}>{juntas ? "Ver una lámina" : `Ver las ${total} juntas`}</button>}
@@ -505,6 +519,14 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   {errorDialogo && <p role="alert" className="mb-2 text-[12.5px] text-rose-300">{errorDialogo}</p>}
                   {avanceDePieza && <div className="-mt-4 mb-3"><BarraDelPedido avance={avanceDePieza} /></div>}
 
+                  {/* una pieza del archivo de una campaña anterior: sin botones de decidir; solo «Recuperar» */}
+                  {pieza.archivada && (
+                    <div data-archivada className="flex flex-wrap items-center gap-3">
+                      <p className="min-w-0 flex-1 text-[13.5px] text-zinc-300">Esta pieza es de una campaña anterior: quedó en el archivo y no se aprueba. Si quieres reusarla, recupérala y vuelve a tu bandeja.</p>
+                      <button type="button" data-accion="archivo-recuperar-pieza" disabled={enviando} onClick={() => void recuperar()} className={B_SUAVE}>{enviando ? "Recuperando…" : "Recuperar"}</button>
+                    </div>
+                  )}
+
                   {/* una pieza pendiente */}
                   {pendiente && dialogo === null && (
                     <div className="flex flex-wrap items-center gap-3">
@@ -555,7 +577,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   {pieza.es_pieza && !pendiente && dialogo !== "rehacer" && (
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="text-[13px] text-zinc-400">Esta pieza está {ESTADO_DE_PIEZA_LEGIBLE[estadoVisto]}.</span>
-                      {pieza.encargo_id && (estadoVisto === "rechazada" || estadoVisto === "otro") && <button type="button" data-accion="pieza-rehacer" onClick={() => abrir("rehacer")} className={B_SUAVE}>Rehacer esta pieza…</button>}
+                      {pieza.encargo_id && !pieza.archivada && (estadoVisto === "rechazada" || estadoVisto === "otro") && <button type="button" data-accion="pieza-rehacer" onClick={() => abrir("rehacer")} className={B_SUAVE}>Rehacer esta pieza…</button>}
                     </div>
                   )}
                   {pieza.es_pieza && !pendiente && dialogo === "rehacer" && (

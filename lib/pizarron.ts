@@ -72,6 +72,8 @@ export interface FilaDelTablero {
   idea_ref?: string | null
   /** CC6 · 02-nov: de dónde sale la fila (patrón del plan o propuesta de un empleado) */
   origen?: string | null
+  /** CC6 · 03-nov: archivada con su campaña anterior (CC1 #852 · `archivada_en` no nulo): no cuenta en el calendario; se mira en la carpeta del archivo */
+  archivada?: boolean
 }
 
 /** dónde está una publicación: la bandeja manda (si Emilio ya la tiene o la decidió), luego la oficina, luego el calendario */
