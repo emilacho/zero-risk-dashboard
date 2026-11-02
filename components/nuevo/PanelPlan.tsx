@@ -1,5 +1,6 @@
 "use client"
 
+import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
@@ -247,10 +248,11 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
       <section role="dialog" aria-modal="true" aria-labelledby="plan-titulo" data-seccion="plan" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <h2 id="plan-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Plan de 90 días</h2>
+          {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">La meta, las fases, las redes y lo que la campaña espera · se decide aquí</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(ev) => void leer(ev.target.value || null)} disabled={!datos || cargando} aria-label="Elegir el cliente"
+            <select value={cliente ?? ""} onChange={(ev) => { const id = ev.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
               {(datos?.clientes ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}{x.con_campana ? "" : " · sin campaña"}</option>)}
               {!datos && <option value="">Leyendo…</option>}

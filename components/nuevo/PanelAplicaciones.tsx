@@ -1,5 +1,6 @@
 "use client"
 
+import { clienteRecordadoEn, guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { APLICACIONES, type ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
@@ -94,7 +95,19 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
       setDatos(j); setCliente(j.cliente?.id ?? null)
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
-  useEffect(() => { if (!datosIniciales) void leer(null) }, [leer, datosIniciales])
+  // CC6 · 02-nov (corrección urgente): abre en el cliente con el que Emilio trabaja (el último que eligió, recordado); sin recuerdo, decide el servidor
+  useEffect(() => {
+    if (datosIniciales) return
+    const r = leerClienteDeTrabajo()
+    void leer(r?.id ?? null)
+  }, [leer, datosIniciales])
+  // si solo se recuerda el nombre (elegido en «Seleccionar cliente» de arriba), se pasa a ese cliente apenas llega la lista
+  useEffect(() => {
+    if (!datos) return
+    const id = clienteRecordadoEn(datos.clientes, leerClienteDeTrabajo())
+    if (id && id !== datos.cliente?.id) void leer(id)
+    else if (datos.cliente) guardarClienteDeTrabajo({ id: datos.cliente.id, nombre: datos.cliente.nombre })
+  }, [datos, leer])
   // la segunda línea de los cuadros nuevos (6.10): una lectura liviana aparte, por cliente; si falla, los cuadros quedan con su descripción fija
   const idDelCentro = datos?.cliente?.id ?? null
   useEffect(() => {
@@ -129,7 +142,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
           <p className="hidden text-[12px] text-zinc-400 md:block">Dept. Marketing · los 9 pasos de la campaña, en el orden de la cadena</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => void leer(e.target.value || null)} disabled={!datos || cargando} aria-label="Elegir el cliente"
+            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/15 bg-black/60 px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
               {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_campana ? "" : " · sin campaña"}</option>)}
               {!datos && <option value="">Leyendo…</option>}

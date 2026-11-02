@@ -1,5 +1,6 @@
 "use client"
 
+import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
@@ -259,10 +260,11 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
       <section role="dialog" aria-modal="true" aria-labelledby="manual-titulo" data-seccion="manual" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <h2 id="manual-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Manual de marca</h2>
+          {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">Lo que la marca es, cómo habla y cómo se ve · se edita aquí</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => void leer(e.target.value || null)} disabled={!datos || cargando} aria-label="Elegir el cliente"
+            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
               {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_manual ? "" : " · sin manual"}</option>)}
               {!datos && <option value="">Leyendo…</option>}
@@ -311,15 +313,15 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                       <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando"} className="rounded-md border border-white/15 px-3 py-1.5 text-[12px] text-zinc-200 transition hover:border-amber-400/60 hover:text-amber-100 disabled:opacity-50">{validando === "enviando" ? "Validando…" : "Validar el manual"}</button>
                     ) : (
                       <>
-                        <span className="text-[12px] text-zinc-300">Validar significa que tú das este manual por bueno: la oficina creativa y la planeación lo leerán como tuyo.</span>
-                        <button type="button" data-accion="confirmar-validar" onClick={() => void validar()} className="rounded-md border border-amber-400/70 bg-amber-400/15 px-3 py-1.5 text-[12px] text-amber-100 hover:bg-amber-400/25">Sí, validar</button>
+                        <span className="text-[12px] text-zinc-300">Validar significa que tú das este manual{datos?.cliente?.nombre ? <> de <b data-validar-para className="text-amber-200">{datos.cliente.nombre}</b></> : null} por bueno: la oficina creativa y la planeación lo leerán como tuyo.</span>
+                        <button type="button" data-accion="confirmar-validar" onClick={() => void validar()} className="rounded-md border border-amber-400/70 bg-amber-400/15 px-3 py-1.5 text-[12px] text-amber-100 hover:bg-amber-400/25">{datos?.cliente?.nombre ? `Sí, validar el manual de ${datos.cliente.nombre}` : "Sí, validar"}</button>
                         <button type="button" onClick={() => setValidando("quieto")} className="rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
                       </>
                     )}
                   </div>
                 )}
                 {/* pedir cambios al manual entero (como el plan); la puerta es `manual-cambios`: data-tablero-accion="manual-cambios" */}
-                <PedirCambiosAlManual cliente={cliente} ciclo={ciclo} accion={accion} validadosDelManual={validadosDe(APARTADOS_DEL_MANUAL.flatMap((a) => a.claves))} pedirEn={pedirEn}
+                <PedirCambiosAlManual cliente={cliente} clienteNombre={datos?.cliente?.nombre ?? null} ciclo={ciclo} accion={accion} validadosDelManual={validadosDe(APARTADOS_DEL_MANUAL.flatMap((a) => a.claves))} pedirEn={pedirEn}
                   onResultado={(r) => { setAviso(r); if (r.ok) void leer(cliente) }} />
                 <p className="mt-2 text-[11.5px] text-zinc-500">{m.actualizado_en ? `Última actualización ${fechaCortaEC(m.actualizado_en)}` : ""}{m.creado_en ? ` · creado ${fechaCortaEC(m.creado_en)}` : ""}</p>
               </section>
