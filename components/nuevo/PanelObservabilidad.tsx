@@ -8,7 +8,7 @@ import {
   COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo,
 } from "@/lib/direccion-corridas"
-import { diaLocal, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
+import { diaLocal, diasEntre, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
 import {
   NOMBRE_DE_AGRUPAR, agrupar, conFallosDelProceso, agruparPorEmpleado, cobertura, costoDeLaCorrida, costoDelPeriodo, costoPorEjecucion, demoraCorta, dondeFallo, enRango, esCorridaInterna, motivoEnPalabras, numerosDe,
   seriePorDia, topEmpleados, variacion, ventanaDe, type AgruparPor, type DondeFallo, type EmpleadoObs, type Grupo,
@@ -299,7 +299,7 @@ function Tarjeta({ dato, titulo, valor, pie, vs, sube_es_malo = true, xs, rojo, 
     <div data-tarjeta-obs={dato} title={titulo_ayuda} className={`${CAJA} flex min-w-0 flex-col gap-1 px-4 py-3.5`}>
       <h4 className={ROTULO}>{titulo}</h4>
       <p className="text-[30px] font-extralight leading-tight text-white" style={NUM}>{valor}</p>
-      <p data-frente-al-anterior className="text-[12.5px]" style={{ color }}>{vs === "sin" ? "sin comparación: la lectura no alcanza al período anterior" : vs ? `${vs.texto} frente al anterior` : "sin dato del período anterior"}</p>
+      <p data-frente-al-anterior className="text-[12.5px]" style={{ color }}>{vs === "sin" ? "sin comparación" : vs ? `${vs.texto} frente al anterior` : "sin dato del período anterior"}</p>
       {pie && <p className="text-[12.5px] text-zinc-400">{pie}</p>}
       <MiniGrafico xs={xs} rojo={rojo} />
       {mas && <p data-mas-alto className="truncate text-[12px] text-zinc-400">{mas}</p>}
@@ -546,13 +546,15 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   }, [onCerrar, detalle, vista, ficha, volver])
 
   const enPalabras = PERIODO_EN_PALABRAS[periodo]
+  // 6.48 · por qué no hay comparación, dicho UNA vez arriba (cuando CC1 publique la lectura agregada, esto desaparece solo: la lectura alcanzará)
+  const sinComparacion = diasEntre(v.ant.desde, hoy).length > 30 ? "la plataforma lee como máximo 30 días hacia atrás" : listaAnt && !cobAnt?.cubre ? "la plataforma entrega 200 ejecuciones por lectura y el período anterior no entra" : null
   const sobre = !cob.cubre ? `sobre las últimas ${lista?.ejecuciones_leidas ?? lista?.corridas.length ?? 0} ejecuciones (desde el ${cob.desde_dia ?? "—"})` : null
   const vsN = (a: number | null, b: number | null) => (na ? variacion(a, b) : "sin" as const)
 
   return (
-    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{".ob-gira{transform-origin:8px 8px;animation:obGira 1s linear infinite}@keyframes obGira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.ob-gira{animation:none}}"}</style>
-      <section role="dialog" aria-modal="true" aria-labelledby="observabilidad-titulo" data-seccion="observabilidad" className="relative flex h-full max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="observabilidad-titulo" data-seccion="observabilidad" data-pantalla-completa className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-6">
           {alVolver && <BotonVolver alVolver={alVolver} a="Dinero" />}
           <h2 id="observabilidad-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Observabilidad</h2>
@@ -583,8 +585,13 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
               pie={<>{sobre && <> · {sobre}: la plataforma entrega 200 por lectura</>}{!lista.completo && <> · lectura incompleta: alguna fuente no respondió entera</>}{lista.agrupado && <> · una fila por pedido</>}</>} />
             : lista && (
               <div data-vista="resumen" className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-                <div className="mx-auto flex max-w-[1300px] flex-col gap-4">
-                  {sobre && <p data-sobre-las-ultimas role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-50">Cifras de corridas {sobre}: el período tiene más de lo que la plataforma entrega en una lectura (200). El costo sí es el período entero (Dinero).</p>}
+                <div className="mx-auto flex max-w-[1600px] flex-col gap-4">
+                  {(sobre || sinComparacion) && (
+                    <div data-aviso-lectura role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] leading-relaxed text-amber-50">
+                      {sobre && <p data-sobre-las-ultimas>Cifras de corridas {sobre}: el período tiene más de lo que la plataforma entrega en una lectura (200). El costo sí es el período entero (Dinero).</p>}
+                      {sinComparacion && <p data-sin-comparacion>Sin comparación con {v.ant.nombre} en corridas, errores y demora: {sinComparacion}. El costo sí se compara (Dinero).</p>}
+                    </div>
+                  )}
                   <section data-resumen className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <Tarjeta dato="corridas" titulo="Corridas" valor={n.corridas} vs={vsN(n.corridas, na?.corridas ?? null)} sube_es_malo={false} xs={seriePorDia(delPeriodo, v.r, (x) => x.length)} pie={conInterno ? "con interno" : "sin interno"} mas={mas((g) => g.numeros.corridas, (g) => String(g.numeros.corridas))} />
                     <Tarjeta dato="con-error" titulo="Con error" valor={<>{n.con_error}{n.pct_error != null && <span className="ml-2 text-[18px] text-zinc-400">· {n.pct_error.toLocaleString("es-EC")} %</span>}</>} vs={vsN(n.pct_error, na?.pct_error ?? null)} xs={seriePorDia(delPeriodo, v.r, (x) => x.filter((c) => c.estado === "fallida").length)} rojo={n.con_error > 0} pie="las que están en curso no cuentan" mas={mas((g) => g.numeros.con_error, (g) => `${g.numeros.con_error}`)} />
