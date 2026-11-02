@@ -8,10 +8,12 @@ import {
   COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo,
 } from "@/lib/direccion-corridas"
-import { diaLocal, diasEntre, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
+import { diaLocal, diasEntre, fechaCorta, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
+import { BarraHorizontal, CascadaVisible, GRIS, GraficoDeBarras, ROJO } from "@/components/nuevo/ObservabilidadGraficos"
 import {
   NOMBRE_DE_AGRUPAR, agrupar, conFallosDelProceso, agruparPorEmpleado, cobertura, costoDeLaCorrida, costoDelPeriodo, costoPorEjecucion, demoraCorta, dondeFallo, enRango, esCorridaInterna, motivoEnPalabras, numerosDe,
-  seriePorDia, topEmpleados, variacion, ventanaDe, type AgruparPor, type DondeFallo, type EmpleadoObs, type Grupo,
+  cascadaDe, costoPorCubeta, cubetasDe, desdeDeLaLectura, noLeidas, procesoDe, rotuloDe, rotuloLargo, serieDe, topEmpleados, variacion, ventanaDe,
+  type AgruparPor, type Cascada, type DondeFallo, type EmpleadoObs, type Grupo,
 } from "@/lib/observabilidad"
 import { nombreCanonico } from "@/lib/organigrama"
 import type { Rendimiento } from "@/lib/rendimiento"
@@ -31,8 +33,6 @@ const NUM: CSSProperties = { fontVariantNumeric: "tabular-nums" }
 type Pestana = "entrada" | "salida" | "metadatos"
 const PESTANAS: { id: Pestana; nombre: string }[] = [{ id: "entrada", nombre: "Entrada" }, { id: "salida", nombre: "Salida" }, { id: "metadatos", nombre: "Metadatos" }]
 const CAJA = "rounded-xl border border-white/[0.09] bg-[#1b1815]"
-const TITULO = "text-[15px] font-medium uppercase tracking-[0.12em] text-[#ffc07a]"
-const ROTULO = "text-[12.5px] font-medium uppercase tracking-[0.08em] text-zinc-200"
 const PERIODO_EN_PALABRAS: Record<Periodo, string> = { hoy: "hoy", "7": "7 días", mes: "este mes", "30": "30 días" }
 /** el ícono de estado, como en LangSmith: visto bueno, equis, círculo que gira */
 function IconoDeEstado({ estado, tam = 14 }: { estado: EstadoCorrida; tam?: number }) {
@@ -278,55 +278,52 @@ function Texto({ nodo, pestana }: { nodo: Nodo; pestana: "entrada" | "salida" })
 }
 
 /** ─── 6.47 · LA CAPA DE LECTURA ─── */
-function MiniGrafico({ xs, color = AMBAR, rojo = false }: { xs: Array<number | null>; color?: string; rojo?: boolean }) {
-  const v = xs.map((x) => x ?? 0), max = Math.max(...v, 0)
-  if (v.length < 2 || max <= 0) return <svg data-mini-grafico viewBox="0 0 120 28" className="h-7 w-full" aria-hidden="true"><line x1={0} x2={120} y1={26} y2={26} stroke="rgba(255,255,255,.12)" /></svg>
-  const paso = 120 / (v.length - 1), y = (n: number) => 26 - (n / max) * 22
-  const d = v.map((n, i) => `${i ? "L" : "M"}${(i * paso).toFixed(1)} ${y(n).toFixed(1)}`).join(" ")
+/** ─── 6.49 · OBSERVABILIDAD VISUAL: el encabezado de cada gráfico es su cifra grande ─── */
+const TITULO_CHICO = "text-[13px] font-medium uppercase tracking-[0.12em] text-[#ffc07a]"
+const CIFRA = "text-[30px] font-light leading-tight text-white"
+const Punto = ({ color }: { color: string }) => <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: color }} />
+
+function Encabezado({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
-    <svg data-mini-grafico viewBox="0 0 120 28" className="h-7 w-full" aria-hidden="true" preserveAspectRatio="none">
-      <path d={`${d} L120 28 L0 28 Z`} fill={rojo ? "#ff5a3618" : `${color}1f`} />
-      <path d={d} fill="none" stroke={rojo ? "#ff5a36" : color} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
-    </svg>
+    <>
+      <h3 className={TITULO_CHICO}>{titulo}</h3>
+      <div className="mb-1 mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">{children}</div>
+    </>
   )
 }
+/** frente al período anterior: solo cuando hay con qué comparar (si no, lo dice una vez la línea gris de arriba) */
+function Frente({ vs, nombre, sube_es_malo = true }: { vs: { texto: string; sube: boolean } | null; nombre: string; sube_es_malo?: boolean }) {
+  if (!vs) return null
+  const color = vs.texto === "igual" ? "#a1a1aa" : vs.sube === sube_es_malo ? "#ffb86b" : "#7fc99a"
+  return <span data-frente-al-anterior className="text-[14px]" style={{ color }}>{vs.texto === "igual" ? `igual que ${nombre}` : `${vs.texto} frente a ${nombre}`}</span>
+}
 
-function Tarjeta({ dato, titulo, valor, pie, vs, sube_es_malo = true, xs, rojo, titulo_ayuda, mas }: {
-  dato: string; titulo: string; valor: ReactNode; pie?: ReactNode; vs: { texto: string; sube: boolean } | null | "sin"; sube_es_malo?: boolean; xs: Array<number | null>; rojo?: boolean; titulo_ayuda?: string; mas?: string | null
+function LoQueFallo({ fallas, donde, cascadas, periodo, abrirEn }: {
+  fallas: Corrida[]; donde: Map<string, DondeFallo | "leyendo" | "sin_lectura">; cascadas: Map<string, Cascada | null>; periodo: string; abrirEn: (c: Corrida, clave: string | null) => void
 }) {
-  const color = vs && vs !== "sin" && vs.texto !== "igual" ? ((vs.sube === sube_es_malo) ? "#f5a524" : "#7fc99a") : "#a1a1aa"
+  const titulo = <h3 className={`mr-1 ${TITULO_CHICO}`}>Lo que falló <span style={NUM}>({fallas.length})</span></h3>
   return (
-    <div data-tarjeta-obs={dato} title={titulo_ayuda} className={`${CAJA} flex min-w-0 flex-col gap-1 px-4 py-3.5`}>
-      <h4 className={ROTULO}>{titulo}</h4>
-      <p className="text-[30px] font-extralight leading-tight text-white" style={NUM}>{valor}</p>
-      <p data-frente-al-anterior className="text-[12.5px]" style={{ color }}>{vs === "sin" ? "sin comparación" : vs ? `${vs.texto} frente al anterior` : "sin dato del período anterior"}</p>
-      {pie && <p className="text-[12.5px] text-zinc-400">{pie}</p>}
-      <MiniGrafico xs={xs} rojo={rojo} />
-      {mas && <p data-mas-alto className="truncate text-[12px] text-zinc-400">{mas}</p>}
-    </div>
-  )
-}
-
-function LoQueFallo({ fallas, donde, periodo, abrirEn }: { fallas: Corrida[]; donde: Map<string, DondeFallo | "leyendo" | "sin_lectura">; periodo: string; abrirEn: (c: Corrida, clave: string | null) => void }) {
-  return (
-    <section data-lo-que-fallo className={`${CAJA} p-4 sm:p-5`}>
-      <h3 className={`mb-2 ${TITULO}`}>Lo que falló <span style={NUM}>({fallas.length})</span></h3>
-      {!fallas.length ? <p data-sin-errores className="text-[14px] text-[#8fd19e]">Sin errores en {periodo} ✓</p> : (
-        <ul className="divide-y divide-white/[0.06]">
-          {fallas.map((c) => {
-            const d = donde.get(c.workflow_execution_id), listo = d && d !== "leyendo" && d !== "sin_lectura" ? d : null
+    <section data-lo-que-fallo className={`${CAJA} px-4 py-2.5`}>
+      {!fallas.length ? <div className="flex flex-wrap items-baseline gap-3">{titulo}<p data-sin-errores className="text-[14px] text-[#8fd19e]">Sin errores en {periodo} ✓</p></div> : (
+        <ul className="flex flex-col gap-2.5">
+          {fallas.map((c, i) => {
+            const id = c.workflow_execution_id, d = donde.get(id), listo = d && d !== "leyendo" && d !== "sin_lectura" ? d : null
+            const quien = listo?.nombre ? listo.nombre.split(" · ")[0] : null, cas = i === 0 ? cascadas.get(id) : undefined
             return (
-              <li key={c.workflow_execution_id} data-falla={c.workflow_execution_id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:gap-4">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] text-zinc-50"><span className="mr-1.5 text-[#ff5a36]">✕</span>{c.nombre}</p>
-                  <p className="text-[13px] text-zinc-400">{[clienteVisible(c), cuando(c.inicio)].filter(Boolean).join(" · ")}</p>
-                  <p data-motivo className="mt-0.5 text-[13.5px] text-rose-100">
-                    {d === "leyendo" || !d ? "Leyendo el motivo…" : d === "sin_lectura" ? `«${motivoEnPalabras(null, c.estado)}» · no pude leer sus pasos` : <>«{listo!.motivo}»{listo!.paso ? <span className="text-zinc-400"> · paso {listo!.paso} de {listo!.de}{listo!.nombre ? ` (${listo!.nombre})` : ""}</span> : null}</>}
-                  </p>
-                  {listo?.error && <details data-texto-tecnico className="mt-1"><summary className="cursor-pointer text-[12px] text-zinc-500 hover:text-zinc-300">Ver el texto técnico</summary><p className="mt-1 whitespace-pre-wrap break-words font-mono text-[12px] text-zinc-300">{listo.error}</p></details>}
+              <li key={id} data-falla={id}>
+                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                  {i === 0 && titulo}
+                  <span className="text-[#ff5a36]">✕</span>
+                  <span className="text-[14px] text-zinc-50" title={c.nombre}>{procesoDe(c)}</span>
+                  <span className="text-[13.5px] text-zinc-300" style={NUM}>· {[clienteVisible(c), cuando(c.inicio).replace(/:\d{2}$/, "")].filter(Boolean).join(" · ")}</span>
+                  <span data-motivo className="text-[13.5px] text-[#ff9b85]">
+                    {d === "leyendo" || !d ? "Leyendo el motivo…" : d === "sin_lectura" ? `«${motivoEnPalabras(null, c.estado)}» · no pude leer sus pasos` : `«${listo!.motivo}»`}
+                  </span>
+                  {listo?.paso ? <span className="text-[13px] text-zinc-500" style={NUM}>· paso {listo.paso} de {listo.de}{quien ? ` · ${quien}` : ""}</span> : null}
+                  <button type="button" data-ver-donde-fallo={id} onClick={() => abrirEn(c, listo?.clave ?? null)}
+                    className="ml-auto shrink-0 self-center rounded-md border border-rose-400/45 bg-rose-500/10 px-3 py-1 text-[13px] text-rose-50 hover:bg-rose-500/20">Ver completa →</button>
                 </div>
-                <button type="button" data-ver-donde-fallo={c.workflow_execution_id} onClick={() => abrirEn(c, listo?.clave ?? null)}
-                  className="shrink-0 self-start rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-1.5 text-[13px] text-rose-50 hover:bg-rose-500/20 sm:self-center">Ver dónde falló →</button>
+                {i === 0 && (cas ? <CascadaVisible c={cas} alTocar={(k) => abrirEn(c, k)} /> : cas === undefined && d === "leyendo" ? <p className="mt-1 text-[12px] text-zinc-500">Leyendo sus pasos…</p> : null)}
               </li>
             )
           })}
@@ -336,39 +333,58 @@ function LoQueFallo({ fallas, donde, periodo, abrirEn }: { fallas: Corrida[]; do
   )
 }
 
+type Medida = "costo" | "corridas"
+const PLURAL_DE: Record<AgruparPor, string> = { proceso: "procesos", cliente: "clientes", empleado: "empleados" }
+
 function Grupos({ grupos, por, setPor, abierto, setAbierto, abrir, costoDe, oculto, mostrarInterno, empleadosListos }: {
   grupos: Grupo[]; por: AgruparPor; setPor: (p: AgruparPor) => void; abierto: string | null; setAbierto: (k: string | null) => void; abrir: (c: Corrida) => void; costoDe: (c: Corrida) => number
   oculto: { corridas: number; costo: number | null } | null; mostrarInterno: () => void; empleadosListos: boolean
 }) {
+  const [medida, setMedida] = useState<Medida>("costo")
+  const [todos, setTodos] = useState(false)
+  const cuenta = (g: Grupo) => (por === "empleado" ? g.llamadas ?? g.numeros.corridas : g.numeros.corridas)
+  const valor = (g: Grupo) => (medida === "costo" ? g.costo : cuenta(g))
+  const orden = [...grupos].sort((a, b) => valor(b) - valor(a) || b.numeros.con_error - a.numeros.con_error)
+  const mayor = Math.max(0, ...orden.map(valor))
+  const visibles = todos ? orden : orden.slice(0, 4), resto = orden.slice(4)
+  const unidad = por === "empleado" ? ["llamada", "llamadas"] : ["corrida", "corridas"]
   return (
-    <section data-grupos={por} className={`${CAJA} p-4 sm:p-5`}>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h3 className={TITULO}>Por {NOMBRE_DE_AGRUPAR[por].toLocaleLowerCase("es")}</h3>
-        <label className="ml-auto flex items-center gap-2 text-[12.5px] text-zinc-400">Agrupar por
-          <select data-agrupar-por value={por} onChange={(e) => { setPor(e.target.value as AgruparPor); setAbierto(null) }} className="h-8 rounded-md border border-white/10 bg-black/30 px-2 text-[13px] text-zinc-100 focus:border-amber-500/60 focus:outline-none">
-            {(Object.keys(NOMBRE_DE_AGRUPAR) as AgruparPor[]).map((k) => <option key={k} value={k}>{NOMBRE_DE_AGRUPAR[k]}</option>)}
-          </select>
-        </label>
+    <section data-grupos={por} className={`${CAJA} px-4 py-2.5`}>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <h3 className={TITULO_CHICO}>Por {NOMBRE_DE_AGRUPAR[por].toLocaleLowerCase("es")}</h3>
+        <span className="hidden text-[12px] text-zinc-500 sm:inline">largo = {medida === "costo" ? "costo" : unidad[1]} · tramo rojo = {unidad[1]} con error</span>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {(["costo", "corridas"] as Medida[]).map((m) => (
+            <Chip key={m} activo={medida === m} onClick={() => setMedida(m)} data-medir-por={m}>{m === "costo" ? "Costo" : mayuscula(unidad[1])}</Chip>
+          ))}
+          <label className="ml-1 flex items-center gap-2 text-[12.5px] text-zinc-400">Agrupar por
+            <select data-agrupar-por value={por} onChange={(e) => { setPor(e.target.value as AgruparPor); setAbierto(null) }} className="h-8 rounded-md border border-white/10 bg-black/30 px-2 text-[13px] text-zinc-100 focus:border-amber-500/60 focus:outline-none">
+              {(Object.keys(NOMBRE_DE_AGRUPAR) as AgruparPor[]).map((k) => <option key={k} value={k}>{NOMBRE_DE_AGRUPAR[k]}</option>)}
+            </select>
+          </label>
+        </div>
       </div>
       {por === "empleado" && !empleadosListos ? <p className="py-3 text-[13px] text-zinc-500">Leyendo a los empleados…</p> : !grupos.length ? <p className="py-3 text-[13px] text-zinc-500">Ninguna corrida con estos filtros.</p> : (
-        <ul className="divide-y divide-white/[0.06]">
-          {grupos.map((g) => {
-            const abre = abierto === g.clave, n = g.numeros
+        <ul>
+          {visibles.map((g) => {
+            const abre = abierto === g.clave, n = g.numeros, cu = cuenta(g)
+            const interno = g.corridas.length > 0 && g.corridas.every(esCorridaInterna)
             return (
               <li key={g.clave} data-grupo={g.clave}>
-                <button type="button" aria-expanded={abre} onClick={() => setAbierto(abre ? null : g.clave)} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-white/[0.02] sm:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,0.6fr))_90px]">
-                  <span className="flex min-w-0 items-center gap-2 text-[14px] text-zinc-50"><span className={`text-zinc-500 transition-transform ${abre ? "rotate-90" : ""}`}>▸</span><span className="truncate">{g.nombre}</span></span>
-                  <span className="text-right text-[13px] text-zinc-200 sm:text-left" style={NUM}>{por === "empleado" ? `${g.llamadas} llamadas` : `${n.corridas} ${n.corridas === 1 ? "corrida" : "corridas"}`}</span>
-                  <span className="col-span-2 flex flex-wrap gap-x-3 text-[12.5px] text-zinc-400 sm:contents" style={NUM}>
-                    <span data-errores-del-grupo={n.con_error} className={n.con_error ? "text-[#ff8a6a]" : ""}>{n.con_error} {n.con_error === 1 ? "error" : "errores"}</span>
-                    <span title={n.max_ms != null ? `la más lenta: ${demoraCorta(n.max_ms)}` : undefined}>{demoraCorta(n.mediana_ms)} típica</span>
-                    <span className="text-zinc-200">{usdCorto(g.costo)}</span>
+                <button type="button" aria-expanded={abre} onClick={() => setAbierto(abre ? null : g.clave)} title="Tocar para ver sus corridas"
+                  className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-1 rounded-md py-[5px] text-left hover:bg-white/[0.03] sm:grid-cols-[170px_minmax(0,1fr)_250px]">
+                  <span className="flex min-w-0 items-center gap-1.5 text-[14px] text-zinc-50"><span className={`text-[11px] text-zinc-500 transition-transform ${abre ? "rotate-90" : ""}`}>▸</span><span className="truncate" title={g.nombre}>{g.nombre}</span></span>
+                  <span className="order-last col-span-2 sm:order-none sm:col-span-1">
+                    <BarraHorizontal pct={mayor > 0 ? (valor(g) / mayor) * 100 : 0} rojo={cu > 0 ? (n.con_error / cu) * 100 : 0} color={interno ? GRIS : AMBAR} />
                   </span>
-                  <span className="hidden sm:block"><MiniGrafico xs={g.tendencia} rojo={n.con_error > 0} /></span>
+                  <span className="whitespace-nowrap text-right text-[13px] text-zinc-300 sm:text-left" style={NUM}>
+                    {usdCorto(g.costo)} · {cu} {cu === 1 ? unidad[0] : unidad[1]}
+                    <span data-errores-del-grupo={n.con_error} className="text-[#ff8a6a]">{n.con_error ? ` · ${n.con_error} con error` : ""}</span>
+                  </span>
                 </button>
                 {abre && (
                   <ul data-corridas-del-grupo className="mb-2 ml-5 divide-y divide-white/[0.04] rounded-lg border border-white/[0.06] bg-black/20">
-                    {!g.corridas.length && <li className="px-3 py-2 text-[12.5px] text-zinc-500">Sus corridas de este período no llegaron en la lectura (ver «Lo que alcanza a leer»).</li>}
+                    {!g.corridas.length && <li className="px-3 py-2 text-[12.5px] text-zinc-500">Sus corridas de este período no llegaron en la lectura.</li>}
                     {g.corridas.map((c) => (
                       <li key={c.workflow_execution_id}>
                         <button type="button" data-corrida={c.workflow_execution_id} onClick={() => abrir(c)} className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-amber-500/[0.06] sm:flex-row sm:items-center sm:gap-4">
@@ -384,38 +400,48 @@ function Grupos({ grupos, por, setPor, abierto, setAbierto, abrir, costoDe, ocul
           })}
         </ul>
       )}
-      {oculto && oculto.corridas > 0 && (
-        <p data-interno-oculto className="mt-2 text-[12.5px] text-zinc-400" style={NUM}>(interno oculto: {oculto.corridas} {oculto.corridas === 1 ? "corrida" : "corridas"} · {oculto.costo == null ? "…" : usdCorto(oculto.costo)} <button type="button" onClick={mostrarInterno} className="text-amber-200 underline underline-offset-2 hover:text-amber-100">mostrar</button>)</p>
-      )}
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+        {resto.length > 0 && (
+          <button type="button" data-ver-mas-grupos onClick={() => setTodos(!todos)} className="text-zinc-400 underline underline-offset-[3px] hover:text-zinc-200" style={NUM}>
+            {todos ? "Ver solo los 4 primeros" : `+ ${resto.length} ${PLURAL_DE[por]} más · ${usdCorto(Math.round(resto.reduce((s, g) => s + g.costo, 0) * 100) / 100)} →`}
+          </button>
+        )}
+        {oculto && oculto.corridas > 0 && (
+          <p data-interno-oculto className="text-[12.5px] text-zinc-500" style={NUM}>(interno oculto: {oculto.corridas} {oculto.corridas === 1 ? "corrida" : "corridas"} · {oculto.costo == null ? "…" : usdCorto(oculto.costo)} <button type="button" onClick={mostrarInterno} className="text-amber-200 underline underline-offset-2 hover:text-amber-100">mostrar</button>)</p>
+        )}
+      </div>
     </section>
   )
 }
 
 function Empleados({ top, verFicha, conFicha }: { top: { fallan: EmpleadoObs[]; tardan: EmpleadoObs[] } | null; verFicha: (e: EmpleadoObs) => void; conFicha: (slug: string) => boolean | null }) {
-  const Fila = ({ e, dato }: { e: EmpleadoObs; dato: ReactNode }) => {
+  const Fila = ({ e, pct, color, dato }: { e: EmpleadoObs; pct: number; color: string; dato: ReactNode }) => {
     const f = conFicha(e.slug)
     return (
-      <li data-empleado-obs={e.slug} className="flex items-center gap-3 py-1.5">
-        <span className="min-w-0 flex-1 truncate text-[14px] text-zinc-100">{e.nombre}</span>
-        <span className="text-[13px] text-zinc-300" style={NUM}>{dato}</span>
+      <li data-empleado-obs={e.slug} className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_auto_28px] items-center gap-3 py-[5px]">
+        <span className="truncate text-[14px] text-zinc-100" title={e.nombre}>{e.nombre}</span>
+        <BarraHorizontal pct={pct} color={color} alto={16} />
+        <span className="whitespace-nowrap text-[13px] text-zinc-300" style={NUM}>{dato}</span>
         <button type="button" data-ficha-de={e.slug} disabled={f === false} onClick={() => verFicha(e)} aria-label={`Ver la ficha de rendimiento de ${e.nombre}`} title={f === false ? "Todavía no tiene ficha de rendimiento" : "Ver su ficha de rendimiento"}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/15 text-amber-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-30">→</button>
       </li>
     )
   }
+  const maxErr = Math.max(1, ...(top?.fallan ?? []).map((e) => e.errores)), maxMs = Math.max(1, ...(top?.tardan ?? []).map((e) => e.mediana_ms ?? 0))
   return (
-    <section data-empleados-obs className={`${CAJA} p-4 sm:p-5`}>
-      <h3 className={`mb-2 ${TITULO}`}>Empleados</h3>
-      {!top ? <p className="text-[13px] text-zinc-500">Leyendo a los empleados…</p> : (
-        <div className="grid gap-5 md:grid-cols-2">
-          <div><h4 className={`mb-1 ${ROTULO}`}>Los que más fallan</h4>
-            {top.fallan.length ? <ul data-top="fallan">{top.fallan.map((e) => <Fila key={e.slug} e={e} dato={<><span className="text-[#ff8a6a]">{e.errores} {e.errores === 1 ? "error" : "errores"}</span> de {e.llamadas}</>} />)}</ul> : <p className="text-[13px] text-[#8fd19e]">Ningún empleado falló ✓</p>}
-          </div>
-          <div><h4 className={`mb-1 ${ROTULO}`}>Los que más tardan</h4>
-            {top.tardan.length ? <ul data-top="tardan">{top.tardan.map((e) => <Fila key={e.slug} e={e} dato={<span title={e.max_ms != null ? `la más lenta: ${demoraCorta(e.max_ms)}` : undefined}>{demoraCorta(e.mediana_ms)} típica</span>} />)}</ul> : <p className="text-[13px] text-zinc-500">Sin dato de demora todavía.</p>}
-          </div>
-        </div>
-      )}
+    <section data-empleados-obs className="grid gap-3 md:grid-cols-2">
+      <div className={`${CAJA} px-4 py-3`}>
+        <h3 className={`mb-1.5 ${TITULO_CHICO}`} style={{ color: "#ff9b85" }}>Los que más fallan</h3>
+        {!top ? <p className="text-[13px] text-zinc-500">Leyendo a los empleados…</p> : top.fallan.length
+          ? <ul data-top="fallan">{top.fallan.map((e) => <Fila key={e.slug} e={e} pct={(e.errores / maxErr) * 100} color={ROJO} dato={<>{e.errores} {e.errores === 1 ? "fallo" : "fallos"} de {e.llamadas}</>} />)}</ul>
+          : <p className="text-[13px] text-[#8fd19e]">Ningún empleado falló ✓</p>}
+      </div>
+      <div className={`${CAJA} px-4 py-3`}>
+        <h3 className={`mb-1.5 ${TITULO_CHICO}`}>Los que más tardan</h3>
+        {!top ? <p className="text-[13px] text-zinc-500">Leyendo a los empleados…</p> : top.tardan.length
+          ? <ul data-top="tardan">{top.tardan.map((e) => <Fila key={e.slug} e={e} pct={((e.mediana_ms ?? 0) / maxMs) * 100} color={AMBAR} dato={<span title={e.max_ms != null ? `la más lenta: ${demoraCorta(e.max_ms)}` : undefined}>{demoraCorta(e.mediana_ms)} típica</span>} />)}</ul>
+          : <p className="text-[13px] text-zinc-500">Sin dato de demora todavía.</p>}
+      </div>
     </section>
   )
 }
@@ -447,7 +473,9 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const [rendimiento, setRendimiento] = useState<Record<string, Rendimiento> | null>(null)
   const [ficha, setFicha] = useState<EmpleadoObs | null>(null)
   const [donde, setDonde] = useState<Map<string, DondeFallo | "leyendo" | "sin_lectura">>(new Map())
-  const [detalle, setDetalle] = useState<DetalleDeCorrida | null>(detalleInicial)
+  /** 6.49 · la cascada de cada corrida con error (sale de la misma lectura de sus pasos que «dónde falló») */
+  const [cascadas, setCascadas] = useState<Map<string, Cascada | null>>(new Map())
+  const [detalle,setDetalle] = useState<DetalleDeCorrida | null>(detalleInicial)
   const [claveInicial, setClaveInicial] = useState<string | null>(null)
   const [abriendo, setAbriendo] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -507,7 +535,12 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const top = useMemo(() => (emp ? topEmpleados(emp) : null), [emp])
   const fallas = useMemo(() => delPeriodo.filter((c) => c.estado === "fallida" || c.estado === "atascada").sort((x, y) => (y.inicio ?? "").localeCompare(x.inicio ?? "")), [delPeriodo])
   const internas = useMemo(() => (conInterno ? [] : todas.filter((c) => esCorridaInterna(c) && enRango(c, v.r))), [todas, conInterno, v])
-  const mas = (f: (g: Grupo) => number, t: (g: Grupo) => string) => { const g = [...grupos].sort((x, y) => f(y) - f(x))[0]; return g && f(g) > 0 ? `más: ${g.nombre} · ${t(g)}` : null }
+  // ─── 6.49 · las series de los gráficos grandes (por día; por hora si el período es Hoy) ───
+  const k = useMemo(() => cubetasDe(v), [v])
+  const porCubeta = useMemo(() => serieDe(delPeriodo, k, (xs) => ({ total: xs.length, con_error: xs.filter((c) => c.estado === "fallida").length, mediana_ms: numerosDe(xs).mediana_ms })), [delPeriodo, k])
+  const noLeido = useMemo(() => noLeidas(k, desdeDeLaLectura(lista?.corridas ?? [], cortadaDe(lista)), v.r.desde), [k, lista, v])
+  const costoSerie = useMemo(() => (dinero ? costoPorCubeta(dinero, v, k, conInterno) : k.rotulos.map(() => 0)), [dinero, v, k, conInterno])
+  const maxDemora = Math.max(0, ...porCubeta.map((x) => x.mediana_ms ?? 0)), enMinutos = maxDemora >= 120000, unidadDemora = enMinutos ? 60000 : 1000
 
   // ─── dónde falló cada corrida con error: se lee su traza (solo las del período, hasta 12) ───
   useEffect(() => {
@@ -516,7 +549,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
     setDonde((m) => { const x = new Map(m); for (const c of faltan) x.set(c.workflow_execution_id, "leyendo"); return x })
     for (const c of faltan) {
       leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(c.workflow_execution_id)}`, "la corrida")
-        .then((d) => setDonde((m) => new Map(m).set(c.workflow_execution_id, dondeFallo(d))), () => setDonde((m) => new Map(m).set(c.workflow_execution_id, "sin_lectura")))
+        .then((d) => { setDonde((m) => new Map(m).set(c.workflow_execution_id, dondeFallo(d))); setCascadas((m) => new Map(m).set(c.workflow_execution_id, cascadaDe(d))) }, () => setDonde((m) => new Map(m).set(c.workflow_execution_id, "sin_lectura")))
     }
   }, [fallas, donde, fetchImpl])
 
@@ -548,34 +581,39 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const enPalabras = PERIODO_EN_PALABRAS[periodo]
   // 6.48 · por qué no hay comparación, dicho UNA vez arriba (cuando CC1 publique la lectura agregada, esto desaparece solo: la lectura alcanzará)
   const sinComparacion = diasEntre(v.ant.desde, hoy).length > 30 ? "la plataforma lee como máximo 30 días hacia atrás" : listaAnt && !cobAnt?.cubre ? "la plataforma entrega 200 ejecuciones por lectura y el período anterior no entra" : null
-  const sobre = !cob.cubre ? `sobre las últimas ${lista?.ejecuciones_leidas ?? lista?.corridas.length ?? 0} ejecuciones (desde el ${cob.desde_dia ?? "—"})` : null
-  const vsN = (a: number | null, b: number | null) => (na ? variacion(a, b) : "sin" as const)
+  const sobre = !cob.cubre ? `sobre las últimas ${lista?.ejecuciones_leidas ?? lista?.corridas.length ?? 0} ejecuciones (desde el ${cob.desde_dia ? fechaCorta(cob.desde_dia) : "—"})` : null
+  // 6.49 · si ya se dijo «sobre las últimas 200», el porqué de la falta de comparación sobra: una sola línea gris
+  const porQueSinComparar = sobre && sinComparacion?.startsWith("la plataforma entrega 200") ? null : sinComparacion
+  const vsN = (a: number | null, b: number | null) => (na ? variacion(a, b) : null)
+  const contra = v.ant.nombre
+  const usdEje = (x: number) => `US$ ${x.toLocaleString("es-EC", { minimumFractionDigits: Number.isInteger(x) ? 0 : Number.isInteger(x * 10) ? 1 : 2, maximumFractionDigits: 2 })}`
+  const tituloDe = (que: string) => `${que} por ${k.porHora ? "hora" : "día"}`
 
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{".ob-gira{transform-origin:8px 8px;animation:obGira 1s linear infinite}@keyframes obGira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.ob-gira{animation:none}}"}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="observabilidad-titulo" data-seccion="observabilidad" data-pantalla-completa className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
-        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-6">
+        {/* 6.49 · un solo renglón arriba (título, período, interno, búsqueda, «ver todas»): el alto queda para los gráficos */}
+        <header className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-white/10 px-4 py-2.5 sm:px-5">
           {alVolver && <BotonVolver alVolver={alVolver} a="Dinero" />}
-          <h2 id="observabilidad-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Observabilidad</h2>
-          <p className="hidden text-[12px] text-zinc-400 md:block">Qué hicieron los empleados, qué falló y cuánto tardó</p>
-          {abriendo && <p className="text-[12px] text-zinc-500">Abriendo {abriendo}…</p>}
-          <button type="button" onClick={() => void leer()} disabled={cargando} className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-50">{cargando ? "Leyendo…" : "Actualizar"}</button>
-          <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar la observabilidad" className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
-        </header>
-        {!detalle && (
-          <div data-controles className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2.5 sm:px-6">
-            <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
-              {PERIODOS.map((p) => <button key={p.k} type="button" data-periodo={p.k} aria-pressed={periodo === p.k} onClick={() => { setPeriodo(p.k); setAbierto(null) }} className={`rounded-full border px-2.5 py-1 text-[12px] ${periodo === p.k ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{p.t}</button>)}
+          <h2 id="observabilidad-titulo" className="mr-1.5 font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Observabilidad</h2>
+          {!detalle && (
+            <div data-controles className="order-last flex w-full min-w-0 flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:flex-1">
+              <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
+                {PERIODOS.map((p) => <button key={p.k} type="button" data-periodo={p.k} aria-pressed={periodo === p.k} onClick={() => { setPeriodo(p.k); setAbierto(null) }} className={`rounded-full border px-2.5 py-1 text-[12.5px] ${periodo === p.k ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{p.t}</button>)}
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-full border border-white/10 px-2.5 py-1 text-[12.5px] text-zinc-300 hover:border-white/20">
+                <input type="checkbox" data-mostrar-interno checked={conInterno} onChange={(e) => setConInterno(e.target.checked)} className="accent-amber-500" />Mostrar interno
+              </label>
+              <input data-busca type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar proceso, cliente o ejecución"
+                className="h-8 w-full min-w-0 rounded-md border border-white/10 bg-black/30 px-3 text-[13px] text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/60 focus:outline-none sm:w-[250px]" />
+              <button type="button" data-ver-todas onClick={() => setVista(vista === "todas" ? "resumen" : "todas")} className="rounded-md border border-white/15 px-2.5 py-1 text-[12.5px] text-zinc-200 hover:bg-white/[0.06] sm:ml-auto">{vista === "todas" ? "← Resumen" : "Ver todas las corridas"}</button>
             </div>
-            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-white/10 px-2.5 py-1 text-[12.5px] text-zinc-300 hover:border-white/20">
-              <input type="checkbox" data-mostrar-interno checked={conInterno} onChange={(e) => setConInterno(e.target.checked)} className="accent-amber-500" />Mostrar interno
-            </label>
-            <input data-busca type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar proceso, cliente o ejecución"
-              className="h-8 w-full min-w-0 rounded-md border border-white/10 bg-black/30 px-3 text-[13px] text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/60 focus:outline-none sm:w-[280px]" />
-            <button type="button" data-ver-todas onClick={() => setVista(vista === "todas" ? "resumen" : "todas")} className="rounded-md border border-white/15 px-2.5 py-1 text-[12.5px] text-zinc-200 hover:bg-white/[0.06] sm:ml-auto">{vista === "todas" ? "← Resumen" : "Ver todas las corridas"}</button>
-          </div>
-        )}
+          )}
+          {abriendo && <p className="text-[12px] text-zinc-500">Abriendo {abriendo}…</p>}
+          <button type="button" onClick={() => void leer()} disabled={cargando} className={`ml-auto ${detalle ? "" : "lg:ml-0 "}rounded-md border border-white/15 px-2.5 py-1 text-[12.5px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-50`}>{cargando ? "Leyendo…" : "Actualizar"}</button>
+          <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar la observabilidad" className="rounded-md border border-white/15 px-2.5 py-1 text-[12.5px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
+        </header>
         {error && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-6">{error}</p>}
         {cargando && !lista && <p className="px-6 py-6 text-[13px] text-zinc-500">Leyendo…</p>}
         {detalle
@@ -584,23 +622,72 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
             ? <Lista corridas={delPeriodo} titulo={`Corridas · ${enPalabras}${conInterno ? " · con interno" : " · sin interno"}`} total={delPeriodo.length} cliente={cliente} setCliente={setCliente} clientes={clientes} estado={estado} setEstado={setEstado} abrir={(c) => void abrir(c)} cargando={cargando} costoDe={costoDe}
               pie={<>{sobre && <> · {sobre}: la plataforma entrega 200 por lectura</>}{!lista.completo && <> · lectura incompleta: alguna fuente no respondió entera</>}{lista.agrupado && <> · una fila por pedido</>}</>} />
             : lista && (
-              <div data-vista="resumen" className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-                <div className="mx-auto flex max-w-[1600px] flex-col gap-4">
+              <div data-vista="resumen" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-1.5 sm:px-5">
+                <div className="mx-auto flex max-w-[1600px] flex-col gap-2.5">
                   {(sobre || sinComparacion) && (
-                    <div data-aviso-lectura role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] leading-relaxed text-amber-50">
-                      {sobre && <p data-sobre-las-ultimas>Cifras de corridas {sobre}: el período tiene más de lo que la plataforma entrega en una lectura (200). El costo sí es el período entero (Dinero).</p>}
-                      {sinComparacion && <p data-sin-comparacion>Sin comparación con {v.ant.nombre} en corridas, errores y demora: {sinComparacion}. El costo sí se compara (Dinero).</p>}
-                    </div>
+                    <p data-aviso-lectura role="status" className="px-0.5 text-[12px] leading-snug text-zinc-500" style={NUM}>
+                      Corridas, errores y demora: {sobre && <span data-sobre-las-ultimas>{sobre}</span>}{sobre && sinComparacion && ", "}
+                      {sinComparacion && <span data-sin-comparacion>sin comparación con {contra}{porQueSinComparar ? ` (${porQueSinComparar})` : ""}</span>}. El costo es el período entero{sinComparacion ? " y sí se compara" : ""} (Dinero).
+                    </p>
                   )}
-                  <section data-resumen className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <Tarjeta dato="corridas" titulo="Corridas" valor={n.corridas} vs={vsN(n.corridas, na?.corridas ?? null)} sube_es_malo={false} xs={seriePorDia(delPeriodo, v.r, (x) => x.length)} pie={conInterno ? "con interno" : "sin interno"} mas={mas((g) => g.numeros.corridas, (g) => String(g.numeros.corridas))} />
-                    <Tarjeta dato="con-error" titulo="Con error" valor={<>{n.con_error}{n.pct_error != null && <span className="ml-2 text-[18px] text-zinc-400">· {n.pct_error.toLocaleString("es-EC")} %</span>}</>} vs={vsN(n.pct_error, na?.pct_error ?? null)} xs={seriePorDia(delPeriodo, v.r, (x) => x.filter((c) => c.estado === "fallida").length)} rojo={n.con_error > 0} pie="las que están en curso no cuentan" mas={mas((g) => g.numeros.con_error, (g) => `${g.numeros.con_error}`)} />
-                    <Tarjeta dato="demora" titulo="Demora típica" valor={demoraCorta(n.mediana_ms)} vs={vsN(n.mediana_ms, na?.mediana_ms ?? null)} xs={seriePorDia(delPeriodo, v.r, (x) => numerosDe(x).mediana_ms)} titulo_ayuda={n.max_ms != null ? `La más lenta: ${demoraCorta(n.max_ms)}${n.mas_lenta ? ` (${n.mas_lenta})` : ""}` : undefined} pie={n.max_ms != null ? <>la más lenta: {demoraCorta(n.max_ms)}</> : "mediana de las terminadas"} mas={mas((g) => g.numeros.mediana_ms ?? 0, (g) => demoraCorta(g.numeros.mediana_ms))} />
-                    <Tarjeta dato="costo" titulo="Costo" valor={costo ? usdCorto(costo.total) : "…"} vs={costo ? variacion(costo.total, costo.anterior) : null} xs={costo?.por_dia ?? []} pie={conInterno ? "igual que en Dinero" : costoCon ? `sin interno · con interno ${usdCorto(costoCon.total)} (Dinero)` : "sin interno"} mas={mas((g) => g.costo, (g) => usdCorto(g.costo))} />
+                  <section data-resumen className="grid gap-2.5 md:grid-cols-2">
+                    <div data-grafico-caja="corridas" className={`${CAJA} min-w-0 px-4 py-2.5`}>
+                      <Encabezado titulo={tituloDe("Corridas")}>
+                        <span className={CIFRA} style={NUM}>{n.corridas}</span>
+                        <span className="text-[14px]" style={NUM}>
+                          {n.con_error ? <span className="text-[#ff5a36]">{n.con_error} con error</span> : <span className="text-[#8fd19e]">sin errores ✓</span>}
+                          <span className="text-zinc-400">{n.con_error && n.pct_error != null ? ` · ${n.pct_error.toLocaleString("es-EC")} %` : ""} · demora típica {demoraCorta(n.mediana_ms)}</span>
+                        </span>
+                        <Frente vs={vsN(n.corridas, na?.corridas ?? null)} nombre={contra} sube_es_malo={false} />
+                      </Encabezado>
+                      <GraficoDeBarras dato="corridas" enteros titulo={tituloDe("Corridas")} rotulos={k.rotulos} rotulo={(i) => rotuloDe(k.rotulos[i], k, k.rotulos.length)} noLeido={noLeido} formato={(x) => x.toLocaleString("es-EC")} vacio={`Sin corridas en ${enPalabras}`}
+                        capas={[{ clave: "con-error", nombre: "con error", color: ROJO, valores: porCubeta.map((x) => x.con_error) }, { clave: "sin-error", nombre: "sin error", color: AMBAR, valores: porCubeta.map((x) => x.total - x.con_error) }]}
+                        detalle={(i, t) => (
+                          <>
+                            <p className="text-zinc-400">{rotuloLargo(k.rotulos[i], k)}</p>
+                            <p data-total-del-dia className="text-[19px] font-light text-white" style={NUM}>{t} {t === 1 ? "corrida" : "corridas"}</p>
+                            {t > 0 && <p className="flex items-center gap-2" style={NUM}><Punto color={AMBAR} />{t - porCubeta[i].con_error} sin error</p>}
+                            {porCubeta[i].con_error > 0 && <p className="flex items-center gap-2" style={NUM}><Punto color={ROJO} />{porCubeta[i].con_error} con error</p>}
+                          </>
+                        )} />
+                    </div>
+                    <div data-grafico-caja="costo" className={`${CAJA} min-w-0 px-4 py-2.5`}>
+                      <Encabezado titulo={tituloDe("Costo")}>
+                        <span className={CIFRA} style={NUM}>{costo ? usdCorto(costo.total) : "…"}</span>
+                        <Frente vs={costo ? variacion(costo.total, costo.anterior) : null} nombre={contra} />
+                        <span className="text-[13px] text-zinc-500" style={NUM}>{conInterno ? "igual que en Dinero" : costoCon ? `sin interno · con interno ${usdCorto(costoCon.total)}` : "sin interno"}</span>
+                      </Encabezado>
+                      <GraficoDeBarras dato="costo" titulo={tituloDe("Costo")} rotulos={k.rotulos} rotulo={(i) => rotuloDe(k.rotulos[i], k, k.rotulos.length)} formato={usdEje} vacio={dinero ? `Sin gasto en ${enPalabras}` : "Leyendo el costo…"}
+                        capas={[{ clave: "costo", nombre: "costo", color: AMBAR, valores: costoSerie }]}
+                        detalle={(i, t) => (
+                          <>
+                            <p className="text-zinc-400">{rotuloLargo(k.rotulos[i], k)}</p>
+                            <p data-total-del-dia className="text-[19px] font-light text-white" style={NUM}>{usdCorto(t)}</p>
+                            {t > 0 && t === Math.max(...costoSerie) && <p className="text-zinc-400">el {k.porHora ? "momento" : "día"} que más costó</p>}
+                          </>
+                        )} />
+                    </div>
                   </section>
-                  <LoQueFallo fallas={fallas} donde={donde} periodo={enPalabras === "hoy" ? "hoy" : enPalabras === "este mes" ? "este mes" : `${enPalabras}`} abrirEn={(c, clave) => void abrir(c, clave)} />
+                  <LoQueFallo fallas={fallas} donde={donde} cascadas={cascadas} periodo={enPalabras} abrirEn={(c, clave) => void abrir(c, clave)} />
                   <Grupos grupos={grupos} por={por} setPor={setPor} abierto={abierto} setAbierto={setAbierto} abrir={(c) => void abrir(c)} costoDe={costoDe} empleadosListos={!!emp}
                     oculto={conInterno ? null : { corridas: internas.length, costo: costoCon && costo ? Math.round((costoCon.total - costo.total) * 100) / 100 : null }} mostrarInterno={() => setConInterno(true)} />
+                  <section data-grafico-caja="demora" className={`${CAJA} min-w-0 px-4 py-2.5`}>
+                    <Encabezado titulo={tituloDe("Demora típica")}>
+                      <span className={CIFRA} style={NUM}>{demoraCorta(n.mediana_ms)}</span>
+                      {n.max_ms != null && <span className="text-[14px] text-zinc-400">la más lenta: {n.mas_lenta ? `${n.mas_lenta} · ` : ""}{demoraCorta(n.max_ms)}</span>}
+                      <Frente vs={vsN(n.mediana_ms, na?.mediana_ms ?? null)} nombre={contra} />
+                    </Encabezado>
+                    <GraficoDeBarras dato="demora" titulo={tituloDe("Demora típica")} rotulos={k.rotulos} rotulo={(i) => rotuloDe(k.rotulos[i], k, k.rotulos.length)} noLeido={noLeido} vacio="Sin corridas terminadas"
+                      formato={(x) => `${x.toLocaleString("es-EC")} ${enMinutos ? "min" : "s"}`}
+                      capas={[{ clave: "demora", nombre: "demora típica", color: AMBAR, valores: porCubeta.map((x) => (x.mediana_ms ?? 0) / unidadDemora) }]}
+                      detalle={(i) => (
+                        <>
+                          <p className="text-zinc-400">{rotuloLargo(k.rotulos[i], k)}</p>
+                          <p data-total-del-dia className="text-[19px] font-light text-white" style={NUM}>{porCubeta[i].mediana_ms == null ? "sin terminadas" : `${demoraCorta(porCubeta[i].mediana_ms)} típica`}</p>
+                          <p className="text-zinc-400" style={NUM}>{porCubeta[i].total} {porCubeta[i].total === 1 ? "corrida" : "corridas"}</p>
+                        </>
+                      )} />
+                  </section>
                   <Empleados top={top} verFicha={verFicha} conFicha={conFicha} />
                   <p data-pie-obs className="text-[12px] leading-relaxed text-zinc-500" style={NUM}>
                     Período: {enPalabras} ({v.r.desde} a {v.r.hasta}, hora de Ecuador) · comparado con {v.ant.nombre} · una corrida = un pedido · demora típica = la mediana · el costo es la misma cuenta que Dinero
