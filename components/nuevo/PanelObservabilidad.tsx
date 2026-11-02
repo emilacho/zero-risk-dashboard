@@ -5,7 +5,7 @@ import { FichaDeRendimiento } from "@/components/nuevo/escena/FichaDeRendimiento
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import {
-  COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
+  COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, tokensEnPalabras, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo, type ResumenAgregado,
 } from "@/lib/direccion-corridas"
 import { diaLocal, diasEntre, fechaCorta, horaLocal, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
@@ -170,7 +170,7 @@ function Traza({ detalle, volver, claveInicial = null, volverA = "Corridas" }: {
                       <IconoDeEstado estado={n.estado} tam={13} />
                       <span className="min-w-0">
                         <span className={`block truncate text-[13px] ${n.tipo === "corrida" ? "font-medium text-white" : "text-zinc-100"}`}>{n.nombre}</span>
-                        <span className="block truncate text-[11px] text-zinc-500" style={NUM}>{[n.sub, duracion(n.duracion_ms), n.tokens ? `${miles(n.tokens)} tokens` : null].filter(Boolean).join(" · ")}</span>
+                        <span className="block truncate text-[11px] text-zinc-500" style={NUM}>{[n.sub, duracion(n.duracion_ms), n.tokens ? tokensEnPalabras(n.tokens) : null].filter(Boolean).join(" · ")}</span>
                       </span>
                     </span>
                     <span className="relative mr-4 h-5 sm:mr-6">

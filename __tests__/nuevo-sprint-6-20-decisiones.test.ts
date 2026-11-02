@@ -86,12 +86,14 @@ describe("6.20 · la mesa del director (panel)", () => {
   const datos = normalizarDecisiones(CRUDO)
   it("la pila: la primera al frente con todo para decidir, las siguientes asomando detrás; índice por tipo; «sin dato» declarado", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('data-seccion="decisiones"'); expect(html).toContain("2 decisiones esperan tu firma"); expect(html).toContain("1 más se atiende fuera de este tablero") // la que no se firma aquí no infla el número
-    expect(html.match(/data-decision="([^"]+)"/)![1]).toBe("f4d46f59-1d22-4780-9e40-252e74fa53b4")
-    expect((html.match(/data-detras="/g) ?? []).length).toBe(2)
-    expect(html).toContain("La firma del tablero financiero todavía no está en el tablero nuevo."); expect(html).not.toContain("data-decidir=")
-    expect(html).toContain('data-filtro="plan"'); expect(html).toContain('data-filtro="pieza"'); expect(html).toContain('data-filtro="firma_de_finanzas"')
-    expect(html).toContain("1 de 3"); expect(html).toContain("gastos por aprobar")
+    expect(html).toContain('data-seccion="decisiones"'); expect(html).toContain("2 decisiones esperan tu firma"); expect(html).toContain("1 se atiende fuera de este tablero") // la que no se firma aquí no infla el número
+    // 6.52 · el carrusel recorre solo lo que espera tu firma (el mismo número que la cabecera); lo que se atiende fuera va en su grupo aparte
+    expect(html.match(/data-decision="([^"]+)"/)![1]).toBe("9ccb6924-d876-4c8a-8773-a69b0ecdab76")
+    expect((html.match(/data-detras="/g) ?? []).length).toBe(1)
+    expect(html).toContain('data-decidir="piezas"')
+    expect(html).toContain('data-filtro="plan"'); expect(html).toContain('data-filtro="pieza"'); expect(html).not.toContain('data-filtro="firma_de_finanzas"')
+    expect(html).toContain('data-grupo-aparte="fuera"')
+    expect(html).toContain("1 de 2"); expect(html).toContain("gastos por aprobar")
   })
   it("si la lista está incompleta nunca dice «estás al día»", () => {
     const vacia: Decisiones = { ...datos, total: 0, decisiones: [], completo: false }

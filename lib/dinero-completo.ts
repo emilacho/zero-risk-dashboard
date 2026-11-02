@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
 import { leerOrganizacion } from "@/lib/direccion-organizacion"
-import { nombreDeLaCorrida, procesosDeEjecuciones } from "@/lib/direccion-corridas"
+import { nombreDeLaCorrida, procesosDeEjecuciones, tokensEnPalabras } from "@/lib/direccion-corridas"
 
 export interface Movimiento {
   /** instante (ISO) */
@@ -375,7 +375,7 @@ export function ahorro(d: Dinero, r: { desde: string; hasta: string }): Ahorro {
   const porEmpleado = new Map<string, CacheDeEmpleado>()
   for (const c of filasCache) { const k = `${c.empleado}|${c.modelo}`, a = porEmpleado.get(k) ?? { ...c, entrada: 0, leido: 0, usd: 0 }; a.entrada += c.entrada; a.leido += c.leido; a.usd += c.usd; porEmpleado.set(k, a) }
   const sinCache = [...porEmpleado.values()].filter((c) => c.entrada >= 200_000 && c.leido / (c.entrada + c.leido) < 0.1 && precioDe(c.modelo) != null).sort((a, b) => b.entrada - a.entrada).slice(0, 3)
-  for (const c of sinCache) op.push({ texto: `${c.empleado}: caché en sus instrucciones fijas (${Math.round(c.entrada / 1000).toLocaleString("es-EC")} mil tokens sin caché)`, usd: r2((c.entrada / 1e6) * precioDe(c.modelo)! * 0.5) })
+  for (const c of sinCache) op.push({ texto: `${c.empleado}: caché en sus instrucciones fijas (${tokensEnPalabras(c.entrada)} sin caché)`, usd: r2((c.entrada / 1e6) * precioDe(c.modelo)! * 0.5) })
   const rh = costoDeRehacer(d, r), de = (k: Rehacer["clave"]) => rh.find((x) => x.clave === k)!.usd ?? 0
   if (de("fallidas") >= 0.5) op.push({ texto: "Arreglar las llamadas fallidas", usd: de("fallidas") })
   if (de("tope") >= 0.5) op.push({ texto: "Ajustar los topes que cortan corridas sin entregar", usd: de("tope") })

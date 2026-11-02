@@ -17,7 +17,7 @@ const TW = 236, TH = 62, DH = 92, GW = 252, GAP_G = 18, GAP_D = 44, FILA = 50, C
 const Y1 = Y0 + TH + 46, Y2 = Y1 + TH + 54, Y3 = Y2 + DH + 50
 
 const iniciales = (n: string) => n.split(/[\s_-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")
-const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—")
+const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "—")
 
 interface Caja { x: number; y: number; w: number; h: number }
 interface Plano { ancho: number; alto: number; dueno: Caja; gerente: Caja; deptos: Array<{ d: Departamento; caja: Caja; abierto: boolean; grupos: Array<{ e: EquipoDeOrg; caja: Caja }> }> }

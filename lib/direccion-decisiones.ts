@@ -34,6 +34,8 @@ export interface Decisiones {
   decisiones: Decision[]
   fuentes: FuenteDeDecisiones[]
   sin_fuente: Array<{ que: string; motivo: string }>
+  /** 6.52 · los clientes en pausa por decisión de Emilio (los agrega el servidor del tablero) */
+  pausados?: ClienteEnPausa[]
 }
 
 const txt = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
@@ -71,7 +73,8 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
     const que = txt(o.que), motivo = txt(o.motivo)
     return que ? [{ que, motivo: motivo ?? "" }] : []
   })
-  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente }
+  const pausados = (Array.isArray(r.pausados) ? r.pausados : []).flatMap((p) => { const o = (p && typeof p === "object" ? p : {}) as Record<string, unknown>; const cliente = txt(o.cliente); return cliente ? [{ cliente, motivo: txt(o.motivo) }] : [] })
+  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente, ...(pausados.length ? { pausados } : {}) }
 }
 
 /** la lectura (servidor): la ruta certificada de la plataforma con la llave interna; nunca escribe */
@@ -141,8 +144,9 @@ export function haceCuanto(desde: string | null, ahora: number = Date.now()): st
 /** lo que necesita la pantalla del arco: cuántas, si alguna apremia y si la lista está entera */
 export interface ResumenDeDecisiones { total: number; apremia: boolean; completo: boolean }
 export function resumenDeDecisiones(d: Decisiones): ResumenDeDecisiones {
-  // «esperan tu firma» cuenta solo lo que se puede firmar desde el tablero nuevo; lo demás se atiende fuera y no infla el número
-  return { total: d.decisiones.filter((x) => dondeSeDecide(x).panel !== null).length, apremia: d.decisiones.some((x) => x.vencida || prioridadLegible(x.prioridad).nivel === 3), completo: d.completo }
+  // 6.52 · «esperan tu firma» = lo que se firma desde el tablero nuevo y no es de un cliente en pausa (el mismo número en todas partes)
+  const firma = gruposDeDecisiones(d).firma
+  return { total: firma.length, apremia: firma.some((x) => x.vencida || prioridadLegible(x.prioridad).nivel === 3), completo: d.completo }
 }
 
 /** el título limpio para mostrar (la base trae marcas como «⚠️» al inicio) */
@@ -153,4 +157,50 @@ export const tituloLimpio = (t: string): string => {
     .replace(/(?<![\p{L}\p{N}])[A-Z]{2,5}-\d{2,}(?![\p{L}\p{N}])/gu, " ") // BRF-0001
     .replace(/(?<![\p{L}\p{N}])P\d+[a-z]?(?![\p{L}\p{N}])/gu, " ") // P3 · P4 · P10b
   return sinCodigos.replace(/\s+([:,;.])/g, "$1").replace(/([·:—-])\s*(?=[·:—-])/g, "").replace(/\s{2,}/g, " ").replace(/^[\s·:—-]+|[\s·:—-]+$/g, "").trim()
+}
+
+/* ───────────── 6.52 · DECISIONES HABLAN CLARO (corrección aprobada por Emilio 2-nov 20:45Z, `2026-11-02-CORRECCION-LENOVO-a-CC5-decisiones-y-riesgos-hablan-claro.md`) ───────────── */
+
+/** «content-creator» → «Content Creator» (el nombre del empleado, como en el organigrama) */
+export const nombreDeEmpleado = (slug: string): string => slug.replace(/[-_]+/g, " ").trim().replace(/\s+/g, " ").split(" ").map((w) => (w ? w[0].toLocaleUpperCase("es") + w.slice(1) : w)).join(" ")
+/** lo que pidió cada tipo de aviso interno, en una frase (el empleado se agrega después) */
+const PIDIO: Record<string, string> = {
+  editor_escalation: "El editor pidió que mires un texto",
+  content_piece_review: "Hay una pieza lista para que la revises",
+  brand_section_review: "Hay una sección del manual para que la revises",
+}
+/** el título en español: «editor_escalation · content-creator» → «El editor pidió que mires un texto de 👤 Content Creator»; nunca nombres internos */
+export function tituloDeDecision(d: Pick<Decision, "titulo" | "subtipo">): string {
+  const t = tituloLimpio(d.titulo)
+  const m = t.match(/^([a-z]+(?:_[a-z]+)+)\s*·\s*([a-z0-9]+(?:[-_][a-z0-9]+)*)$/)
+  if (m) return `${PIDIO[m[1]] ?? `${mayusculaInicial(m[1].replace(/_/g, " "))}`} de 👤 ${nombreDeEmpleado(m[2])}`
+  if (/^[a-z]+(?:_[a-z]+)+$/.test(t)) return PIDIO[t] ?? mayusculaInicial(t.replace(/_/g, " "))
+  return t
+}
+const mayusculaInicial = (s: string) => (s ? s[0].toLocaleUpperCase("es") + s.slice(1) : s)
+
+/** el costo de producir eso (regla de Emilio): el dato si la plataforma lo trae; si no, se dice */
+export function costoDeLaDecision(d: Pick<Decision, "costo_usd">): string {
+  if (d.costo_usd == null) return "sin dato todavía"
+  return d.costo_usd === 0 ? "US$ 0" : `US$ ${d.costo_usd.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: d.costo_usd < 0.01 ? 4 : 2 })}`
+}
+
+/** los clientes que Emilio puso en pausa (vienen de las pausas que decidió; lo lee el servidor del tablero) */
+export interface ClienteEnPausa { cliente: string; motivo: string | null }
+const clave = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim()
+/**
+ * UN SOLO NÚMERO: «esperan tu firma» = lo que se firma desde el tablero y no es de un cliente en pausa. Es el mismo en la tarjeta de la oficina, la cabecera,
+ * «Todas» y el carrusel. Lo que se atiende fuera y lo de clientes en pausa van en grupos aparte, cada uno con su número.
+ */
+export interface GruposDeDecisiones { firma: Decision[]; fuera: Decision[]; pausa: Array<{ cliente: string; motivo: string | null; decisiones: Decision[] }> }
+export function gruposDeDecisiones(d: Pick<Decisiones, "decisiones"> & { pausados?: ClienteEnPausa[] }): GruposDeDecisiones {
+  const pausados = new Map((d.pausados ?? []).map((p) => [clave(p.cliente), p]))
+  const firma: Decision[] = [], fuera: Decision[] = [], pausa = new Map<string, { cliente: string; motivo: string | null; decisiones: Decision[] }>()
+  for (const x of d.decisiones) {
+    const p = x.cliente ? pausados.get(clave(x.cliente)) : undefined
+    if (p) { const k = clave(p.cliente); const g = pausa.get(k) ?? { cliente: x.cliente ?? p.cliente, motivo: p.motivo, decisiones: [] }; g.decisiones.push(x); pausa.set(k, g) }
+    else if (dondeSeDecide(x).panel) firma.push(x)
+    else fuera.push(x)
+  }
+  return { firma, fuera, pausa: [...pausa.values()] }
 }

@@ -11,7 +11,8 @@ const escena = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
 describe("6.31 · el radar abre y gira al instante", () => {
   it("el radar se dibuja siempre, sin esperar la lectura", () => {
     expect(panel).not.toContain("{datos && <Radar")
-    expect(panel).toContain("cargado={!!datos}")
+    // 6.52 · el radar ya no lleva cuentas (salen una vez, en los botones de los sectores); los botones esperan la lectura con «…»
+    expect(panel).toContain('!datos ? "…" : del.length')
   })
   it("el haz gira con CSS (tarjeta gráfica), no con SMIL; se queda quieto con movimiento reducido", () => {
     expect(panel).not.toContain("<animateTransform")

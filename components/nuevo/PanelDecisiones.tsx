@@ -5,7 +5,7 @@ import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import {
-  NOMBRE_DEL_TIPO, TIPOS_DE_DECISION, dondeSeDecide, haceCuanto, prioridadLegible, resumenDeDecisiones, tituloLimpio,
+  NOMBRE_DEL_TIPO, TIPOS_DE_DECISION, costoDeLaDecision, dondeSeDecide, gruposDeDecisiones, haceCuanto, prioridadLegible, tituloDeDecision,
   type Decision, type Decisiones, type TipoDeDecision,
 } from "@/lib/direccion-decisiones"
 
@@ -53,9 +53,13 @@ const ORIGEN: Record<string, string> = {
 }
 const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
+/** 6.52 · «Zero Risk Seguridad Industrial» → «Zero Risk SI» (nombres largos en un rótulo corto) */
+export const clienteCorto = (c: string): string => { const w = c.trim().split(/\s+/); return w.length > 3 ? `${w.slice(0, 2).join(" ")} ${w.slice(2).map((x) => x[0]?.toLocaleUpperCase("es") ?? "").join("")}` : c }
+/** el grupo que se mira: lo que espera tu firma, lo que se atiende fuera, o lo de un cliente en pausa */
+type Grupo = "firma" | "fuera" | `pausa:${string}`
 
 /** la tarjeta del frente: todo lo que hace falta para decidir, en palabras de negocio */
-function TarjetaDelFrente({ d, alDecidir }: { d: Decision; alDecidir: (d: Decision) => void }) {
+function TarjetaDelFrente({ d, alDecidir, enPausa }: { d: Decision; alDecidir: (d: Decision) => void; enPausa: string | null }) {
   const pr = prioridadLegible(d.prioridad), donde = dondeSeDecide(d)
   return (
     <article data-decision={d.id} data-tipo={d.tipo} className="de-tarjeta de-frente relative flex h-full flex-col overflow-hidden rounded-2xl border border-[rgba(232,115,26,.45)] bg-[linear-gradient(160deg,#211812,#151110_55%,#110e0d)] p-5 shadow-[0_24px_60px_rgba(0,0,0,.55),0_0_40px_rgba(232,115,26,.08)] sm:p-7">
@@ -67,11 +71,13 @@ function TarjetaDelFrente({ d, alDecidir }: { d: Decision; alDecidir: (d: Decisi
         </div>
         <span data-prioridad={pr.nivel} className={`ml-auto shrink-0 rounded-full border px-2.5 py-0.5 text-[11.5px] ${pr.nivel === 3 ? "de-urge border-orange-400/60 text-orange-200" : pr.nivel === 2 ? "border-amber-300/40 text-amber-200" : "border-white/15 text-zinc-400"}`}>{pr.texto}</span>
       </header>
-      <h3 data-titulo title={tituloLimpio(d.titulo)} className="mt-5 line-clamp-3 text-[19px] font-light leading-snug text-white sm:text-[21px]">{tituloLimpio(d.titulo)}</h3>
+      <h3 data-titulo title={tituloDeDecision(d)} className="mt-5 line-clamp-3 text-[19px] font-light leading-snug text-white sm:text-[21px]">{tituloDeDecision(d)}</h3>
+      {enPausa && <p data-en-pausa className="mt-2 text-[12.5px] text-zinc-400">{enPausa} está en pausa por tu decisión: esto no cuenta en «esperan tu firma».</p>}
       <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 text-[13px] sm:grid-cols-4">
         <div><dt className="text-zinc-500">Espera</dt><dd data-espera className="text-zinc-200">{haceCuanto(d.desde)}{fecha(d.desde) ? <span className="text-zinc-500"> · {fecha(d.desde)}</span> : null}</dd></div>
         <div><dt className="text-zinc-500">Vence</dt><dd data-vence className={d.vencida ? "text-orange-300" : "text-zinc-200"}>{d.vence ? `${fecha(d.vence)}${d.vencida ? " · vencida" : ""}` : "Sin fecha límite"}</dd></div>
         <div><dt className="text-zinc-500">Viene de</dt><dd data-origen className="text-zinc-200">{ORIGEN[d.fuente ?? ""] ?? "Sin dato"}</dd></div>
+        <div><dt className="text-zinc-500">Costó producirlo</dt><dd data-costo className={d.costo_usd == null ? "text-zinc-500" : "text-zinc-200"} title={d.costo_nota ?? undefined}>{costoDeLaDecision(d)}</dd></div>
       </dl>
       <footer className="mt-auto pt-6">
         {donde.panel
@@ -87,6 +93,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [filtro, setFiltro] = useState<TipoDeDecision | null>(null)
+  const [grupo, setGrupo] = useState<Grupo>("firma")
   const [i, setI] = useState(0)
   const [abierta, setAbierta] = useState<Decision | null>(null) // la decisión abierta en su panel
   const cerrar = useRef<HTMLButtonElement>(null)
@@ -103,7 +110,11 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   useEffect(() => { if (!datosIniciales) void leer() }, [leer, datosIniciales])
   useEffect(() => { if (!abierta) cerrar.current?.focus() }, [abierta])
 
-  const lista = useMemo(() => (datos?.decisiones ?? []).filter((d) => !filtro || d.tipo === filtro), [datos, filtro])
+  // 6.52 · UN SOLO NÚMERO: «esperan tu firma» (lo mismo en la oficina, la cabecera, «Todas» y el carrusel); lo de fuera y lo de clientes en pausa, aparte
+  const g = useMemo(() => gruposDeDecisiones(datos ?? { decisiones: [] }), [datos])
+  const delGrupo = useMemo(() => (grupo === "firma" ? g.firma : grupo === "fuera" ? g.fuera : g.pausa.find((p) => `pausa:${p.cliente}` === grupo)?.decisiones ?? []), [g, grupo])
+  const lista = useMemo(() => delGrupo.filter((d) => !filtro || d.tipo === filtro), [delGrupo, filtro])
+  const enPausa = grupo.startsWith("pausa:") ? clienteCorto(grupo.slice(6)) : null
   const n = lista.length, actual = n ? lista[Math.min(i, n - 1)] : null
   const mover = useCallback((paso: number) => setI((k) => (n ? (Math.min(k, n - 1) + paso + n) % n : 0)), [n])
 
@@ -127,11 +138,16 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     if (donde.panel === "piezas") return <PanelPiezas onCerrar={volver} clienteInicial={abierta.client_id} piezaInicial={abierta.id} />
   }
 
-  const total = datos ? resumenDeDecisiones(datos).total : 0 // solo lo que se firma desde aquí
-  const fuera = datos ? datos.total - total : 0
-  const porTipo = TIPOS_DE_DECISION.map((t) => ({ t, n: (datos?.decisiones ?? []).filter((d) => d.tipo === t).length })).filter((x) => x.n > 0)
-  const aparte = fuera ? ` · ${plural(fuera, "más se atiende", "más se atienden")} fuera de este tablero` : ""
-  const resumen = !datos ? "" : total ? `${plural(total, "decisión espera", "decisiones esperan")} tu firma${aparte}${datos.completo ? "" : " · la lista puede estar incompleta"}` : fuera ? `Nada espera tu firma aquí${aparte}` : datos.completo ? "Nada espera tu firma ahora" : "No se pudo leer todo: la lista puede estar incompleta"
+  const total = g.firma.length, fuera = g.fuera.length
+  const porTipo = TIPOS_DE_DECISION.map((t) => ({ t, n: g.firma.filter((d) => d.tipo === t).length })).filter((x) => x.n > 0) // suman lo mismo que «Todas»
+  const aparte = [fuera ? `${plural(fuera, "se atiende", "se atienden")} fuera de este tablero` : null, ...g.pausa.map((p) => `${p.decisiones.length} en pausa (${clienteCorto(p.cliente)})`)].filter(Boolean).map((x) => ` · ${x}`).join("")
+  const resumen = !datos ? "" : `${total ? `${plural(total, "decisión espera", "decisiones esperan")} tu firma` : "Nada espera tu firma ahora"}${aparte}${datos.completo ? "" : " · la lista puede estar incompleta"}`
+  const elegir = (x: Grupo) => { setGrupo(x); setFiltro(null); setI(0) }
+  const grupos: Array<{ k: Grupo; nombre: string; n: number; nota?: string | null }> = [
+    { k: "firma", nombre: "Esperan tu firma", n: total },
+    ...(fuera ? [{ k: "fuera" as Grupo, nombre: "Se atienden fuera", n: fuera, nota: "todavía no se firman desde este tablero" }] : []),
+    ...g.pausa.map((p) => ({ k: `pausa:${p.cliente}` as Grupo, nombre: `En pausa · ${clienteCorto(p.cliente)}`, n: p.decisiones.length, nota: p.motivo })),
+  ]
   const detras = n > 1 ? [1, 2, 3].filter((k) => k < n).map((k) => lista[(Math.min(i, n - 1) + k) % n]) : []
   const faltan = (datos?.fuentes ?? []).filter((f) => f.estado === "error" || f.estado === "sin_credencial")
 
@@ -149,11 +165,18 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
 
         <div className="flex min-h-0 flex-1">
           <aside className="hidden w-[250px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-white/10 p-3 md:flex" aria-label="Decisiones por tipo">
-            <p className="px-2 py-1.5 text-[13px] font-medium text-zinc-100">Por tipo</p>
-            <button type="button" aria-pressed={filtro === null} onClick={() => { setFiltro(null); setI(0) }} className="de-tipo flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]"><span className="flex-1">Todas</span><span className="tabular-nums text-zinc-500">{total}</span></button>
+            <p className="px-2 py-1.5 text-[13px] font-medium text-zinc-100">Esperan tu firma</p>
+            <button type="button" data-todas aria-pressed={grupo === "firma" && filtro === null} onClick={() => elegir("firma")} className="de-tipo flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]"><span className="flex-1">Todas</span><span className="tabular-nums text-zinc-500">{total}</span></button>
             {porTipo.map(({ t, n: k }) => (
-              <button key={t} type="button" data-filtro={t} aria-pressed={filtro === t} onClick={() => { setFiltro(t); setI(0) }} className="de-tipo flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]">
+              <button key={t} type="button" data-filtro={t} aria-pressed={grupo === "firma" && filtro === t} onClick={() => { setGrupo("firma"); setFiltro(t); setI(0) }} className="de-tipo flex items-center gap-2 rounded-md border border-transparent px-2 py-1.5 pl-4 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]">
                 <span style={{ color: AMBAR }}><MarcaDelTipo tipo={t} className="h-4 w-4" /></span><span className="flex-1">{NOMBRE_DEL_TIPO[t].plural}</span><span className="tabular-nums text-zinc-500">{k}</span>
+              </button>
+            ))}
+            {grupos.slice(1).map((x) => (
+              <button key={x.k} type="button" data-grupo-aparte={x.k} aria-pressed={grupo === x.k} aria-expanded={grupo === x.k} onClick={() => elegir(grupo === x.k ? "firma" : x.k)}
+                className="de-tipo mt-2 flex flex-col gap-0.5 rounded-md border border-white/10 px-2 py-1.5 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]">
+                <span className="flex w-full items-center gap-2"><span aria-hidden className="text-zinc-500">{grupo === x.k ? "▾" : "▸"}</span><span className="flex-1">{x.nombre}</span><span className="tabular-nums text-zinc-500">{x.n}</span></span>
+                {x.nota && <span className="pl-5 text-[11px] leading-snug text-zinc-500">{x.nota}</span>}
               </button>
             ))}
             {(datos?.sin_fuente.length || faltan.length) ? (
@@ -166,6 +189,11 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-8">
+            {grupos.length > 1 && (
+              <div data-grupos-celular className="-mt-1 mb-3 flex flex-wrap gap-1.5 md:hidden">
+                {grupos.map((x) => <button key={x.k} type="button" aria-pressed={grupo === x.k} onClick={() => elegir(x.k)} className="de-tipo rounded-full border border-white/15 px-3 py-1.5 text-[12.5px] text-zinc-300">{x.nombre} <span className="tabular-nums text-zinc-500">{x.n}</span></button>)}
+              </div>
+            )}
             {actual ? (
               <>
                 <div className="de-pila relative mx-auto w-full max-w-[720px]" style={{ height: 460 }}>
@@ -174,11 +202,11 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
                     return (
                       <div key={`${d.id}-${capa}`} aria-hidden data-detras={capa} className="de-tarjeta absolute inset-x-0 rounded-2xl border border-[rgba(232,115,26,.22)] bg-[#1d1612] px-6 pt-2"
                         style={{ top: 66 - capa * 22, bottom: 0, transform: `scale(${1 - capa * 0.04})`, transformOrigin: "top center", opacity: 1 - capa * 0.22 } as CSSProperties}>
-                        <p className="truncate text-[11.5px] text-zinc-400"><span style={{ color: AMBAR }}>{NOMBRE_DEL_TIPO[d.tipo].nombre}</span> · {d.cliente ?? "Sin cliente"} · {tituloLimpio(d.titulo)}</p>
+                        <p className="truncate text-[11.5px] text-zinc-400"><span style={{ color: AMBAR }}>{NOMBRE_DEL_TIPO[d.tipo].nombre}</span> · {d.cliente ?? "Sin cliente"} · {tituloDeDecision(d)}</p>
                       </div>
                     )
                   })}
-                  <div className="absolute inset-x-0 bottom-0" style={{ top: 66 }} key={actual.id}><TarjetaDelFrente d={actual} alDecidir={setAbierta} /></div>
+                  <div className="absolute inset-x-0 bottom-0" style={{ top: 66 }} key={actual.id}><TarjetaDelFrente d={actual} alDecidir={setAbierta} enPausa={enPausa} /></div>
                 </div>
                 <nav aria-label="Pasar de una decisión a otra" className="mx-auto mt-5 flex w-full max-w-[720px] items-center gap-3">
                   <button type="button" onClick={() => mover(-1)} disabled={n < 2} className="rounded-md border border-white/15 px-3 py-1.5 text-[12.5px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40">← Anterior</button>
@@ -190,7 +218,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
             ) : (
               <div data-vacio className="m-auto max-w-[420px] text-center">
                 {cargando ? <p className="text-[13px] text-zinc-500">Leyendo tus decisiones…</p>
-                  : datos?.completo && !error ? <><p className="text-[18px] font-light text-white">Estás al día</p><p className="mt-2 text-[13px] text-zinc-500">Nada espera tu firma en este momento.</p></>
+                  : datos?.completo && !error ? <><p className="text-[18px] font-light text-white">Estás al día</p><p className="mt-2 text-[13px] text-zinc-500">Nada espera tu firma en este momento.{grupos.length > 1 ? " Lo que se atiende fuera o está en pausa sigue en su grupo, aparte." : ""}</p></>
                     : <p className="text-[13px] text-zinc-400">No pude leer todas las fuentes: no puedo asegurarte que no haya nada pendiente.</p>}
               </div>
             )}
