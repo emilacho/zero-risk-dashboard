@@ -8,6 +8,7 @@
  * (`plan_cambios`). Si esas dos tablas todavía no existen en la plataforma (antes de la «ventana» de CC1) el ciclo se marca «no disponible»: no se esconde ni se
  * inventa; cualquier OTRO error de la base sigue lanzando.
  */
+import { clientePorOmision } from "@/lib/cliente-por-omision"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { faseActiva, hoyEnEcuador, type FaseActiva } from "@/lib/pizarron"
@@ -148,7 +149,8 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     const c = await una(supa.from("clients").select("id, name").eq("id", o.cliente).maybeSingle(), "clients")
     if (c) elegido = { id: String(c.id), nombre: String(c.name) }
   }
-  if (!elegido) elegido = clientes.find((c) => c.con_campana) || clientes[0] || null
+  // CC6 · 02-nov (corrección de Lenovo): la misma regla del cliente por omisión que el Centro de campaña y los paneles (nunca un cliente fijo)
+  if (!elegido) elegido = await clientePorOmision(supa, clientes, campanas)
   const base = { clientes, hoy, leido_en: ahora.toISOString() }
   const vacio = (cliente: PlanDelCliente["cliente"]): PlanDelCliente => ({ ...base, cliente, campana: null, estrategia: null, fase_activa: faseActiva([], null, hoy), documento: null, revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, ciclo: null, topes: [] })
   if (!elegido) return vacio(null)
