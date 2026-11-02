@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
+import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
+import { ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
+import { CICLO_DEL_MANUAL_CERRADO } from "@/lib/manual-ciclo"
 import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, valorCorto } from "@/lib/manual-campo"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 import { CAMPOS_DEL_LECTOR, type CampoLeido } from "@/lib/manual-lector"
@@ -16,7 +19,7 @@ const ESTILO = `
 .mn-color:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.45)}
 @keyframes mnEntra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.mn-seccion{animation:none}.mn-color{transition:none}}
-`
+` + ESTILO_DEL_PEDIDO
 
 /** los apartados del manual, en el orden en que se leen: qué es la marca · cómo habla · a quién le habla */
 export const APARTADOS_DEL_MANUAL: ReadonlyArray<{ titulo: string; claves: string[] }> = [
@@ -176,6 +179,8 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const [editando, setEditando] = useState<string | null>(null)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
   const [validando, setValidando] = useState<"quieto" | "confirmar" | "enviando">("quieto")
+  // «Pedir cambios en esta sección» (como en el plan): el apartado lo dispara y el cuadro del pedido, en la portada, lo abre
+  const [pedirEn, setPedirEn] = useState<PedidoEnSeccion | null>(null)
   const cerrar = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cerrar.current?.focus() }, [])
@@ -211,6 +216,15 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const m = datos?.manual ?? null
   const campos = new Map((m?.lector.campos ?? []).map((c) => [c.clave, c]))
   const faltan = m ? m.lector.huecos.map(etiquetaDelHueco) : []
+  const ciclo = m?.ciclo ?? CICLO_DEL_MANUAL_CERRADO
+  const esDelDueno = (c: CampoLeido) => !!c.valor && (origenDelCampo(c) === "dueno" || origenDelCampo(c) === "aceptado")
+  const validadosDe = (claves: string[]) => claves.map((k) => campos.get(k)).filter((c): c is CampoLeido => !!c && esDelDueno(c)).map((c) => c.etiqueta)
+  const puedePedirEnSeccion = ciclo.disponible && !ciclo.abierto && !!cliente
+  const pedirEnSeccion = (titulo: string, claves: string[]) => setPedirEn((p) => ({ titulo, campos: claves, validados: validadosDe(claves), n: (p?.n ?? 0) + 1 }))
+  const BotonDeSeccion = ({ titulo, claves }: { titulo: string; claves: string[] }) => puedePedirEnSeccion ? (
+    <button type="button" data-accion="manual-pedir-cambios-seccion" data-seccion-pedir={titulo} onClick={() => pedirEnSeccion(titulo, claves)}
+      className="mt-3 text-[12px] text-violet-200 underline decoration-dotted underline-offset-4 hover:text-violet-100">Pedir cambios en esta sección</button>
+  ) : null
 
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
@@ -276,6 +290,9 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                     )}
                   </div>
                 )}
+                {/* pedir cambios al manual entero (como el plan); la puerta es `manual-cambios`: data-tablero-accion="manual-cambios" */}
+                <PedirCambiosAlManual cliente={cliente} ciclo={ciclo} accion={accion} validadosDelManual={validadosDe(APARTADOS_DEL_MANUAL.flatMap((a) => a.claves))} pedirEn={pedirEn}
+                  onResultado={(r) => { setAviso(r); if (r.ok) void leer(cliente) }} />
                 <p className="mt-2 text-[11.5px] text-zinc-500">{m.actualizado_en ? `Última actualización ${fechaCortaEC(m.actualizado_en)}` : ""}{m.creado_en ? ` · creado ${fechaCortaEC(m.creado_en)}` : ""}</p>
               </section>
 
@@ -290,6 +307,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                       <section key={ap.titulo} id={`apartado-${ap.titulo}`} aria-label={ap.titulo} className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: `${60 + i * 60}ms` }}>
                         <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>{ap.titulo}</h3>
                         <div className="space-y-2">{lista.map((c) => <Campo key={c.clave} c={c} opciones={c.clave === "eslogan" ? m.opciones_eslogan : []} enviar={enviar} editando={editando === c.clave} onEditar={setEditando} onGuardado={guardado} manualValidadoPor={m.lector.validadoPor} />)}</div>
+                        <BotonDeSeccion titulo={ap.titulo} claves={ap.claves} />
                       </section>
                     )
                   })}
@@ -304,6 +322,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                       {/* CC6 · tablero del dueño: cada palabra con su intención y lo que el dueño decide sobre ella (antes: la lista plana de «prohibidas») */}
                       <PalabrasDelManual palabras={m.palabras ?? m.palabras_prohibidas.map((t) => ({ texto: t, intencion: "estilo" as const, porque: null, cita: null, origen: null, fecha: null, por: null }))} cliente={cliente} accion={accion} onGuardado={guardado} />
                       {m.politica_competidores && <p className="text-[12.5px] text-zinc-300"><span className="text-zinc-500">Competencia · </span>{m.politica_competidores}</p>}
+                      <BotonDeSeccion titulo="Palabras" claves={[]} />
                     </section>
                   )}
                 </div>

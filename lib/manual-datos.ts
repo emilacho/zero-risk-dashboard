@@ -9,11 +9,66 @@ import { leerManual, type ManualLeido } from "@/lib/manual-lector"
 import { borradorDelManual, coloresDelManual, listaDeTextos, origenDelManualLegible, politicaDeCompetidoresLegible, tipografiasDelManual, type ColorDelManual, type TipografiaDelManual } from "@/lib/manual"
 import { revisionDeFidelidadLegible } from "@/lib/lenguaje"
 import { palabrasDelManual, type PalabraDelManual } from "@/lib/manual-palabras"
+import { avanceDelPedido } from "@/lib/plan"
+import { CICLO_DEL_MANUAL_CERRADO, esPedidoAbierto, queCambioEnElManual, type CicloDelManual, type PedidoDelManual } from "@/lib/manual-ciclo"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
 async function filas(q: R, que: string): Promise<Fila[]> { const r = await q; if (r.error) throw new Error(`${que}: ${r.error.message}`); return (r.data ?? []) as Fila[] }
 async function una(q: R, que: string): Promise<Fila | null> { const r = await q; if (r.error) throw new Error(`${que}: ${r.error.message}`); return (r.data ?? null) as Fila | null }
+/** la tabla o la columna del pedido todavía no existen (antes de la ventana de CC1): no es un error, es «aún no disponible» */
+const AUN_NO_EXISTE = /schema cache|does not exist|PGRST20[045]|42P01|42703/i
+async function opcional(q: PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>, que: string): Promise<{ falta: boolean; fila: Fila | null }> {
+  const r = await q
+  if (r.error) { if (AUN_NO_EXISTE.test(`${r.error.code ?? ""} ${r.error.message}`)) return { falta: true, fila: null }; throw new Error(`${que}: ${r.error.message}`) }
+  return { falta: false, fila: (r.data ?? null) as Fila | null }
+}
+const t = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null)
+const detalleCorto = (v: unknown): string | null => {
+  if (typeof v === "string") return v.trim() || null
+  if (v && typeof v === "object") { const o = v as Record<string, unknown>; return t(o.motivo) ?? t(o.error) ?? t(o.mensaje) }
+  return null
+}
+/** el aplicado se sigue mostrando un rato (para ver «Listo»); después solo queda «Qué cambió» */
+const HORAS_QUE_SE_VE_EL_APLICADO = 12
+
+/**
+ * EL CICLO DEL MANUAL (CC6 · 02-nov · contrato CC1): el último pedido del cliente en `plan_cambios` con `documento='manual'`, su avance con la MISMA cuenta
+ * que el plan, y «Qué cambió» entre la versión sobre la que se pidió (`manual_id`) y la vigente si salió de ese pedido (`manual_nuevo_id`).
+ */
+async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigente: Fila, ahora: Date): Promise<CicloDelManual> {
+  const pc = await opcional(supa.from("plan_cambios").select("*").eq("documento", "manual").eq("client_id", clienteId).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "plan_cambios")
+  if (pc.falta) return CICLO_DEL_MANUAL_CERRADO
+  const f = pc.fila
+  if (!f) return { disponible: true, abierto: null, avance: null, que_cambio: [] }
+  const pedido: PedidoDelManual = {
+    id: String(f.id), estado: String(f.estado ?? ""), texto: String(f.texto ?? ""), seccion: t(f.seccion), creado_en: t(f.creado_en), actualizado_en: t(f.actualizado_en),
+    despertado: typeof f.despertado === "boolean" ? f.despertado : null, despertar_detalle: detalleCorto(f.despertar_detalle), manual_id: t(f.manual_id), manual_nuevo_id: t(f.manual_nuevo_id),
+  }
+  const vigenteId = String(vigente.id)
+  const deEstaVersion = pedido.estado === "aplicado" && pedido.manual_nuevo_id === vigenteId
+  const reciente = pedido.actualizado_en ? ahora.getTime() - Date.parse(pedido.actualizado_en) <= HORAS_QUE_SE_VE_EL_APLICADO * 3_600_000 : false
+  const mostrarAvance = pedido.estado !== "aplicado" || (deEstaVersion && reciente)
+  const wfe = t(f.workflow_execution_id)
+  const [desp, invs, vivos, jef, base] = await Promise.all([
+    mostrarAvance && wfe ? filas(supa.from("agent_dispatches").select("status, created_at, running_at, completed_at").eq("workflow_execution_id", wfe).limit(50), "agent_dispatches") : Promise.resolve([] as Fila[]),
+    mostrarAvance && wfe ? filas(supa.from("agent_invocations").select("status, created_at").eq("workflow_execution_id", wfe).limit(50), "agent_invocations") : Promise.resolve([] as Fila[]),
+    mostrarAvance && pedido.creado_en && esPedidoAbierto(pedido.estado) ? filas(supa.from("agent_dispatches").select("agent_name, running_at, created_at").eq("client_id", clienteId).eq("status", "running").gte("created_at", pedido.creado_en).limit(20), "agent_dispatches") : Promise.resolve([] as Fila[]),
+    mostrarAvance && pedido.manual_nuevo_id ? opcional(supa.from("jefatura_revisiones").select("estado, resultado, creado_en, cerrado_en").eq("artifact_id", pedido.manual_nuevo_id).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "jefatura_revisiones") : Promise.resolve({ falta: false, fila: null }),
+    deEstaVersion && pedido.manual_id ? una(supa.from("client_brand_books").select("*").eq("id", pedido.manual_id).maybeSingle(), "client_brand_books") : Promise.resolve(null),
+  ])
+  const avance = mostrarAvance ? avanceDelPedido({
+    pedido: { id: pedido.id, estado: pedido.estado, creado_en: pedido.creado_en, actualizado_en: pedido.actualizado_en, despertado: pedido.despertado, despertar_detalle: pedido.despertar_detalle },
+    despachos: desp.map((x) => ({ status: String(x.status ?? ""), creado_en: t(x.created_at), empezo_en: t(x.running_at), termino_en: t(x.completed_at) })),
+    invocaciones: invs.map((x) => ({ status: String(x.status ?? ""), creado_en: t(x.created_at) })),
+    version_nueva: pedido.manual_nuevo_id ? { id: pedido.manual_nuevo_id, creado_en: pedido.estado === "aplicado" ? pedido.actualizado_en : null } : null,
+    jefatura: jef.fila ? { estado: String(jef.fila.estado ?? ""), resultado: t(jef.fila.resultado), creado_en: t(jef.fila.creado_en), cerrado_en: t(jef.fila.cerrado_en) } : null,
+    compuerta_nueva: null,
+    trabajando: vivos.map((x) => ({ agente: String(x.agent_name ?? ""), desde: t(x.running_at) ?? t(x.created_at) })),
+  }, ahora, "manual") : null
+  const antes = base ? leerManual(base) : null, ahoraL = leerManual(vigente)
+  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [] }
+}
 
 export interface ManualDelCliente {
   clientes: Array<{ id: string; nombre: string; con_manual: boolean }>
@@ -35,6 +90,8 @@ export interface ManualDelCliente {
     palabras?: PalabraDelManual[]
     terminos_propios: string[]
     politica_competidores: string | null
+    /** CC6 · pedir cambios al manual: el pedido, su avance y «Qué cambió» (cerrado mientras la plataforma no lo tenga) */
+    ciclo?: CicloDelManual
     creado_en: string | null
     actualizado_en: string | null
   }
@@ -80,6 +137,7 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
       palabras: palabrasDelManual(b),
       terminos_propios: listaDeTextos(b.required_terminology),
       politica_competidores: politicaDeCompetidoresLegible(b.competitor_mentions_policy),
+      ciclo: await leerCicloDelManual(supa, cliente.id, b, ahora),
       creado_en: typeof b.created_at === "string" ? b.created_at : null,
       actualizado_en: typeof b.updated_at === "string" ? b.updated_at : null,
     },
