@@ -34,19 +34,26 @@ describe("pizarrón de métricas (tarea 1 del encargo de Lenovo · 02-nov)", () 
     expect(redesDelCliente(config({ instagram: "x" }), null, ["horario", "whatsapp", "direccion"])).toEqual(["instagram", "whatsapp"])
     expect(redesDelCliente(config({}), null, [])).toEqual([])
   })
-  it("un cuadro por red + «General» + Google Maps (siempre: no vive en las cuentas propias); cada uno dice «métricas pronto» y no trae métrica ni variación", () => {
+  it("ESTÁNDAR (Emilio, 02-nov): General y TODAS las redes siempre; la que el cliente tiene dice «métricas pronto», la que no, se ve tenue y dice «sin cuenta todavía»; Google Maps cuenta siempre", () => {
     const c = cuadrosDelPizarron(["instagram", "web"], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS })
-    expect(c.map((x) => x.clave)).toEqual(["general", "instagram", "web", "google_maps"])
+    expect(c.map((x) => x.clave)).toEqual(["general", "instagram", "facebook", "tiktok", "youtube", "whatsapp", "web", "google_maps"])
+    const tiene = (k: string) => c.find((x) => x.clave === k)!
+    for (const k of ["general", "instagram", "web", "google_maps"]) expect(tiene(k)).toMatchObject({ tiene: true, texto: "métricas pronto" })
+    for (const k of ["facebook", "tiktok", "youtube", "whatsapp"]) expect(tiene(k)).toMatchObject({ tiene: false, texto: "sin cuenta todavía" })
+    const todas = cuadrosDelPizarron([], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS })
+    expect(todas).toHaveLength(8)
+    expect(todas.filter((x) => !x.tiene).map((x) => x.clave)).toEqual(["instagram", "facebook", "tiktok", "youtube", "whatsapp", "web"])
     expect(c[0].nombre).toBe(CUADRO_GENERAL.nombre)
-    for (const x of c) expect(x).toMatchObject({ principal: null, variacion: null, texto: "métricas pronto" })
-    expect(cuadrosDelPizarron([], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS }).map((x) => x.clave)).toEqual(["general", "google_maps"])
+    for (const x of c) expect(x).toMatchObject({ principal: null, variacion: null })
     expect(cuadrosDelPizarron(["google_maps"], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS }).filter((x) => x.clave === "google_maps")).toHaveLength(1)
   })
   it("se dibuja: cuadros por red y General con «métricas pronto»; sin gastos; sin pizarrón si no hay lectura", () => {
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escenaCon(armarMetricas(["instagram", "facebook", "web"])) as never }))
     expect(html).toContain('data-pizarron-de-metricas')
-    expect(html).toContain('data-cuadros="5"')
-    for (const k of ["general", "instagram", "facebook", "web", "google_maps"]) expect(html).toContain(`data-metrica="${k}"`)
+    expect(html).toContain('data-cuadros="8"') // el estándar: todas las redes, siempre
+    for (const k of ["general", "instagram", "facebook", "tiktok", "youtube", "whatsapp", "web", "google_maps"]) expect(html).toContain(`data-metrica="${k}"`)
+    expect(html).toMatch(/data-metrica="tiktok" data-tiene="false" opacity="0.4"/) // sin cuenta: tenue, no oculta
+    expect(html).toMatch(/data-metrica="facebook" data-tiene="true"/)
     expect(html).toContain("métricas pronto")
     const dentro = html.split("data-pizarron-de-metricas")[1].split("</svg>")[0]
     expect(dentro).not.toMatch(/US\$|gasto|costo/i)

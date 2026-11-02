@@ -36,7 +36,7 @@ export function CuadrosDeMetricas({ metricas }: { metricas: MetricasDelPizarron 
       {cuadros.map((c, i) => {
         const { x, y } = centro(i)
         return (
-          <g key={c.clave} className="nv-metrica" data-metrica={c.clave} role="img" tabIndex={0} aria-label={`${c.nombre}: ${c.principal ? `${c.principal}${c.variacion ? `, ${c.variacion}` : ""}` : c.texto}`}
+          <g key={c.clave} className="nv-metrica" data-metrica={c.clave} data-tiene={c.tiene} opacity={c.tiene ? 1 : 0.4} role="img" tabIndex={0} aria-label={`${c.nombre}: ${c.principal ? `${c.principal}${c.variacion ? `, ${c.variacion}` : ""}` : c.texto}`}
             onMouseEnter={() => setActivo(c.clave)} onMouseLeave={() => setActivo(null)} onFocus={() => setActivo(c.clave)} onBlur={() => setActivo(null)}>
             <polygon className="nv-metrica-cuadro" points={puntos(CUADROS_DEL_PIZARRON[i])} fill="#ffb347" fillOpacity={0.2} stroke="#ffd9a0" strokeOpacity={0.6} strokeWidth={0.8} />
             <text x={x} y={y + 3} textAnchor="middle" fill="#ffe2a8" fontSize={c.sigla.length > 2 ? 7.5 : 9.5} fontWeight={600} fontFamily={FUENTE} pointerEvents="none">{c.sigla}</text>
