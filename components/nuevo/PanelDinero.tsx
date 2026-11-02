@@ -69,7 +69,7 @@ function Tarjetas({ datos, hoy }: { datos: Dinero; hoy: string }) {
         <div className="my-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]" />
         presupuesto del mes: {SIN_DATO}
       </Tarjeta>
-      <Tarjeta dato="proyeccion" t="Proyección a fin de mes" v={usdCorto(k.proyeccion)}>a este ritmo cierras en {usdCorto(k.proyeccion)} · mes anterior {usdCorto(k.mes_anterior)}</Tarjeta>
+      <Tarjeta dato="proyeccion" t="Proyección a fin de mes" v={usdCorto(k.proyeccion)}>a este ritmo cierras en {usdCorto(k.proyeccion)} · ritmo de los últimos 30 días ({usdCorto(k.ritmo_diario)} al día){k.poco_dato_del_mes && <span data-poco-dato className="text-amber-300/80"> · poco dato del mes todavía</span>} · mes anterior {usdCorto(k.mes_anterior)}</Tarjeta>
     </div>
   )
 }

@@ -29,6 +29,8 @@ export interface Movimiento {
   ok: boolean
   /** el costo es una cota (la corrida se cortó por tope), no una medición */
   cota: boolean
+  /** 6.39 · el nombre limpio de la ficha cuando el cliente cae en «Pruebas y fichas viejas» */
+  ficha?: string | null
   /** 6.38 · el proceso de la corrida en palabras de oficina («Planeación del plan de 90 días»), si se sabe */
   proceso?: string | null
 }
@@ -86,7 +88,7 @@ export function diaNormal(movs: Movimiento[], hoy: string): number {
   return r2(mediana([...t.entries()].filter(([d, v]) => d >= desde && d < hoy && v > 0).map(([, v]) => v)))
 }
 
-export interface Tarjetas { hoy: number; normal: number; semana: number; semana_anterior: number; variacion_pct: number | null; mes: number; dias_del_mes: number; dia_del_mes: number; proyeccion: number; mes_anterior: number }
+export interface Tarjetas { hoy: number; normal: number; semana: number; semana_anterior: number; variacion_pct: number | null; mes: number; dias_del_mes: number; dia_del_mes: number; proyeccion: number; mes_anterior: number; ritmo_diario: number; poco_dato_del_mes: boolean }
 export function tarjetas(movs: Movimiento[], hoy: string): Tarjetas {
   const t = totalesPorDia(movs)
   const rango = (a: string, b: string) => [...t.entries()].filter(([d]) => d >= a && d <= b).reduce((s, [, v]) => s + v, 0)
@@ -96,11 +98,13 @@ export function tarjetas(movs: Movimiento[], hoy: string): Tarjetas {
   const [y, mo] = hoy.slice(0, 7).split("-").map(Number)
   const diasDelMes = new Date(Date.UTC(y, mo, 0)).getUTCDate()
   const mes = rango(inicio, hoy)
+  // 6.39 · la proyección usa el ritmo de los últimos 30 días (no los pocos días del mes, que con un pico disparan la cifra): lo gastado + ritmo × días que faltan
+  const ritmo = rango(sumarDias(hoy, -29), hoy) / 30
   const iniAnt = sumarDias(inicio, -1).slice(0, 8) + "01"
   return {
     hoy: r2(t.get(hoy) ?? 0), normal: diaNormal(movs, hoy), semana: r2(semana), semana_anterior: r2(anterior),
     variacion_pct: anterior > 0 ? Math.round(((semana - anterior) / anterior) * 100) : null,
-    mes: r2(mes), dias_del_mes: diasDelMes, dia_del_mes: dia, proyeccion: r2(dia > 0 ? (mes / dia) * diasDelMes : 0), mes_anterior: r2(rango(iniAnt, sumarDias(inicio, -1))),
+    mes: r2(mes), dias_del_mes: diasDelMes, dia_del_mes: dia, proyeccion: r2(mes + ritmo * (diasDelMes - dia)), mes_anterior: r2(rango(iniAnt, sumarDias(inicio, -1))), ritmo_diario: r2(ritmo), poco_dato_del_mes: dia < 7,
   }
 }
 
@@ -159,12 +163,12 @@ export function picos(movs: Movimiento[], hoy: string, o: { veces?: number; mini
 export const veces = (n: number): string => `${n.toLocaleString("es-EC", { maximumFractionDigits: 1 })}×`
 export type Vista = "cliente" | "equipo" | "empleado" | "modelo" | "proveedor" | "corrida"
 export const NOMBRE_DE_VISTA: Record<Vista, string> = { cliente: "Cliente", equipo: "Equipo y departamento", empleado: "Empleado", modelo: "Modelo", proveedor: "Proveedor", corrida: "Corrida" }
-export interface FilaDeDesglose { clave: string; nombre: string; usd: number; pct: number; anterior: number; variacion_pct: number | null; llamadas: number; client_id?: string | null; dia?: string; detalle?: string; corrida?: string | null }
+export interface FilaDeDesglose { clave: string; nombre: string; usd: number; pct: number; anterior: number; variacion_pct: number | null; llamadas: number; client_id?: string | null; ids?: string[]; fichas?: Array<{ nombre: string; usd: number }>; dia?: string; detalle?: string; corrida?: string | null }
 /** el desglose de Ramp (cliente · equipo · empleado · modelo · proveedor · corrida) en un período, comparado con el período anterior del mismo largo */
 export function desglose(movs: Movimiento[], vista: Vista, o: { desde: string; hasta: string }): FilaDeDesglose[] {
   const largo = diasEntre(o.desde, o.hasta).length
   const antDesde = sumarDias(o.desde, -largo), antHasta = sumarDias(o.desde, -1)
-  const clave = (x: Movimiento): string | null => vista === "corrida" ? (x.corrida ? x.corrida.split(":")[0] : null) : vista === "equipo" ? (x.equipo ?? "Sin dato") : vista === "cliente" ? (x.client_id ?? "sin-cliente") : x[vista]
+  const clave = (x: Movimiento): string | null => vista === "corrida" ? (x.corrida ? x.corrida.split(":")[0] : null) : vista === "equipo" ? (x.equipo ?? "Sin dato") : vista === "cliente" ? x.cliente : x[vista]
   const ahora = new Map<string, Movimiento[]>(), antes = new Map<string, number>()
   for (const x of movs) {
     const k = clave(x); if (!k) continue
@@ -174,8 +178,8 @@ export function desglose(movs: Movimiento[], vista: Vista, o: { desde: string; h
   const total = [...ahora.values()].reduce((s, xs) => s + suma(xs), 0)
   const filas = [...ahora.entries()].map(([k, xs]): FilaDeDesglose => {
     const usd = r2(suma(xs)), ant = r2(antes.get(k) ?? 0)
-    const base: FilaDeDesglose = { clave: k, nombre: vista === "cliente" ? xs[0].cliente : k, usd, pct: total > 0 ? Math.round((suma(xs) / total) * 1000) / 10 : 0, anterior: ant, variacion_pct: ant > 0 ? Math.round(((usd - ant) / ant) * 100) : null, llamadas: xs.length, client_id: vista === "cliente" ? xs[0].client_id : undefined }
-    if (vista === "corrida") { const c = xs.find((x) => x.client_id)?.cliente; return { ...base, nombre: [...new Set(xs.map((x) => x.empleado))].slice(0, 3).join(" · "), dia: xs[0].d, detalle: c ?? "Sin cliente", corrida: k } }
+    const base: FilaDeDesglose = { clave: k, nombre: vista === "cliente" ? xs[0].cliente : k, usd, pct: total > 0 ? Math.round((suma(xs) / total) * 1000) / 10 : 0, anterior: ant, variacion_pct: ant > 0 ? Math.round(((usd - ant) / ant) * 100) : null, llamadas: xs.length, client_id: vista === "cliente" ? xs[0].client_id : undefined, ...(vista === "cliente" ? { ids: [...new Set(xs.map((x) => x.client_id).filter((v): v is string => !!v))], ...(k === PRUEBAS_Y_FICHAS_VIEJAS ? { fichas: [...xs.reduce((m, x) => m.set(x.ficha ?? "Sin nombre", (m.get(x.ficha ?? "Sin nombre") ?? 0) + x.usd), new Map<string, number>())].map(([nombre, usd]) => ({ nombre, usd: r2(usd) })).sort((a, b) => b.usd - a.usd) } : {}) } : {}) }
+    if (vista === "corrida") { const c = xs.find((x) => x.client_id)?.cliente; return { ...base, nombre: [...new Set(xs.map((x) => x.empleado))].slice(0, 3).join(" · "), dia: xs[0].d, detalle: c ?? "Trabajo interno", corrida: k } }
     return base
   })
   return filas.sort((a, b) => b.usd - a.usd)
@@ -250,13 +254,14 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
     const e = d?.equipos.find((x) => x.clave === p.equipo)
     return p.departamento === "direccion_general" ? "Dirección general" : `${d?.nombre ?? "Sin departamento"}${e && e.clave !== "todos" ? ` · ${e.nombre}` : ""}`
   }
-  const nombreCliente = new Map(clientes.map((c) => [String(c.id), String(c.name)]))
+  const unificado = nombresUnificados(clientes.map((c) => String(c.name)))
+  const nombreCliente = new Map(clientes.map((c) => [String(c.id), unificado.get(String(c.name)) ?? String(c.name)]))
   const nombreAgente = new Map(agentes.map((a) => [String(a.name), txt(a.display_name)]))
   const movimientos: Movimiento[] = []
   for (const x of inv) {
     const usd = Number(x.cost_usd ?? 0); if (!(usd > 0)) continue
     const t = String(x.started_at ?? x.created_at), cid = txt(x.client_id), emp = String(x.agent_name ?? "sin empleado")
-    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), equipo: org ? equipoDe(emp) : undefined, cliente: cid ? nombreCliente.get(cid) ?? "Cliente sin ficha" : "Sin cliente", client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true", proceso: x.workflow_id ? nombreDeLaCorrida(String(x.workflow_id), "") : null })
+    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), equipo: org ? equipoDe(emp) : undefined, ...grupoDeCliente(cid ? nombreCliente.get(cid) ?? null : null, cid), client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true", proceso: x.workflow_id ? nombreDeLaCorrida(String(x.workflow_id), "") : null })
   }
   for (const c of costos) {
     const usd = Number(c.amount_usd_exact ?? c.amount_usd ?? 0); if (!(usd > 0)) continue
@@ -264,7 +269,7 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
     if (!servicio.toLowerCase().startsWith("apify")) continue
     const funcion = servicio.includes(":") ? servicio.split(":").slice(1).join(":") : "conciliación del día"
     const d = String(c.date).slice(0, 10)
-    movimientos.push({ t: `${d}T17:00:00.000Z`, d, proveedor: "Apify", modelo: `Apify · ${funcion}`, empleado: "Apify (raspados)", equipo: "Proveedor externo · Apify", cliente: "Sin cliente", client_id: null, corrida: null, usd, ok: true, cota: false })
+    movimientos.push({ t: `${d}T17:00:00.000Z`, d, proveedor: "Apify", modelo: `Apify · ${funcion}`, empleado: "Apify (raspados)", equipo: "Proveedor externo · Apify", cliente: TRABAJO_INTERNO, client_id: null, corrida: null, usd, ok: true, cota: false })
   }
   movimientos.sort((a, b) => a.t.localeCompare(b.t))
   const cache: Dinero["cache"] = rollup ? rollup.reduce<{ leido: number; entrada: number }>((s, r) => ({ leido: s.leido + Number(r.total_tokens_cache_read ?? 0), entrada: s.entrada + Number(r.total_tokens_input ?? 0) }), { leido: 0, entrada: 0 }) : null
@@ -360,4 +365,41 @@ export function ahorro(d: Dinero, r: { desde: string; hasta: string }): Ahorro {
   if (de("tope") >= 0.5) op.push({ texto: `Las corridas cortadas por tope costaron hasta ${usdCorto(de("tope"))} sin entregar: ajustar su tope o partir la tarea`, usd: de("tope") })
   if (de("pruebas") >= 1) op.push({ texto: `Pruebas y ensayos costaron ${usdCorto(de("pruebas"))}: reusar respuestas guardadas cuando no haga falta una llamada nueva`, usd: de("pruebas") })
   return { pct_cache: pct, ahorrado_usd: ahorrado, oportunidades: op }
+}
+
+/* ───────────── 6.39 · tabla por cliente ordenada ───────────── */
+/** el gasto sin cliente es trabajo interno: mantenimiento del cerebro, raspados de Apify aún sin cliente y tareas de la agencia */
+export const TRABAJO_INTERNO = "Trabajo interno · mantenimiento y cerebro"
+export const EXPLICACION_INTERNO = "Mantenimiento del cerebro, raspados de Apify todavía sin cliente asignado y tareas de la propia agencia."
+/** pruebas, fichas archivadas y gasto con una ficha que ya no existe: una sola fila, desplegable */
+export const PRUEBAS_Y_FICHAS_VIEJAS = "Pruebas y fichas viejas"
+const ES_FICHA_DE_PRUEBA = /archivada|prueba|práctica|practica|^zz\b|^test\b|demo|sint[eé]tic/i
+/** «ARCHIVADA 2026-10-11 · ficha de prueba del tramo 1 (96864e88)» → «Ficha de prueba del tramo 1» · «zz prueba puerta 21:22» → «Prueba puerta» (sin códigos, fechas ni horas) */
+export function nombreSinCodigos(n: string): string {
+  const limpio = n
+    .replace(/^\s*archivada\s+[0-9-]+\s*·\s*/i, "")
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/^\s*zz\s+/i, "")
+    .replace(/\s+[0-9]{1,2}:[0-9]{2}\s*$/, "")
+    .replace(/\s+[0-9]{3,}\s*$/, "")
+    .replace(/\s+/g, " ").trim()
+  const t = limpio || "Ficha sin nombre"
+  return t.charAt(0).toLocaleUpperCase("es") + t.slice(1).toLocaleLowerCase("es")
+}
+/** el nombre con que un cliente aparece en Dinero: los repetidos se juntan por nombre (sin importar mayúsculas), las pruebas van a una sola fila */
+export function grupoDeCliente(nombre: string | null, clientId: string | null): { cliente: string; ficha: string | null } {
+  if (!clientId) return { cliente: TRABAJO_INTERNO, ficha: null }
+  if (!nombre) return { cliente: PRUEBAS_Y_FICHAS_VIEJAS, ficha: "Gasto con una ficha que ya no existe" }
+  if (ES_FICHA_DE_PRUEBA.test(nombre)) return { cliente: PRUEBAS_Y_FICHAS_VIEJAS, ficha: nombreSinCodigos(nombre) }
+  return { cliente: nombre.trim(), ficha: null }
+}
+/** entre variantes del mismo nombre («GoEuropeAdventure» y «GOEUROPEADVENTURE») se queda la que no está toda en mayúsculas */
+export function nombresUnificados(nombres: string[]): Map<string, string> {
+  const elegido = new Map<string, string>()
+  for (const n of nombres) {
+    const k = n.trim().toLocaleLowerCase("es"), actual = elegido.get(k)
+    const gritado = (x: string) => x === x.toLocaleUpperCase("es") && /[a-z]/i.test(x)
+    if (!actual || (gritado(actual) && !gritado(n))) elegido.set(k, n.trim())
+  }
+  return new Map(nombres.map((n) => [n, elegido.get(n.trim().toLocaleLowerCase("es"))!]))
 }

@@ -22,7 +22,7 @@ describe("6.36 · Dinero · cálculos", () => {
   it("tarjetas: hoy, día normal (mediana), 7 días vs la semana anterior, el mes y la proyección a fin de mes", () => {
     const k = tarjetas(movs, hoy)
     expect(k.hoy).toBe(0.06); expect(diaNormal(movs, hoy)).toBe(1.2)
-    expect(k.mes).toBe(0.56); expect(k.dias_del_mes).toBe(30); expect(k.proyeccion).toBe(8.4)
+    expect(k.mes).toBe(0.56); expect(k.dias_del_mes).toBe(30); expect(k.proyeccion).toBe(36.18); expect(k.poco_dato_del_mes).toBe(true)
     expect(k.semana).toBeCloseTo(1.2 * 4 + 5.2 + 0.5 + 0.06, 2); expect(k.variacion_pct).not.toBeNull()
   })
   it("un pico es un día de 3× su normal o más (y al menos US$ 1), explicado por su corrida más cara", () => {
