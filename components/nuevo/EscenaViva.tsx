@@ -8,6 +8,7 @@ import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
 import { PanelRiesgos } from "@/components/nuevo/PanelRiesgos"
 import { PanelDinero } from "@/components/nuevo/PanelDinero"
 import { PanelObservabilidad } from "@/components/nuevo/PanelObservabilidad"
+import { PanelOrganizacion } from "@/components/nuevo/PanelOrganizacion"
 import { normalizarLista, resumenDeCorridas, type ResumenDeCorridas } from "@/lib/direccion-corridas"
 import { resumenDeDinero, type ResumenDeDinero } from "@/lib/direccion-dinero"
 import { resumenDeRiesgos, type ResumenDeRiesgos, type Riesgos } from "@/lib/direccion-riesgos"
@@ -239,6 +240,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   // 6.26 · Observabilidad: la pantalla 9 dice las corridas de las últimas 24 h (lectura liviana, sin nombres) y al tocarla abre el panel tipo LangSmith
   const [corridas, setCorridas] = useState<ResumenDeCorridas | null>(null)
   const [trazas, setTrazas] = useState(false)
+  const [organigrama, setOrganigrama] = useState(false) // 6.28-B · la pantalla 7 abre la organización
   const leerCorridas = useCallback(async () => {
     try {
       const r = await fetch("/api/direccion/corridas?dias=1&resumen=1", { cache: "no-store" })
@@ -379,7 +381,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
             {/* 6.14 · el arco de pantallas de tu oficina: solo animación (6.14b: sin centros asignados; qué abre cada una lo decide Emilio) */}
-            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} />}
+            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} alAbrirOrganizacion={() => setOrganigrama(true)} />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -408,6 +410,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)}
       {caja && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDinero onCerrar={cerrarCaja} />, document.body)}
       {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={cerrarTrazas} />, document.body)}
+      {organigrama && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelOrganizacion onCerrar={() => setOrganigrama(false)} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"

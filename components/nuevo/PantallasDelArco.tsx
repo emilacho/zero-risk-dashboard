@@ -174,12 +174,14 @@ export const PANTALLA_DE_DECISIONES = "arco-5"
 export const PANTALLA_DE_RIESGOS = "arco-6"
 export const PANTALLA_DE_DINERO = "arco-4"
 export const PANTALLA_DE_OBSERVABILIDAD = "arco-9"
-export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos, dinero = null, alAbrirDinero, corridas = null, alAbrirObservabilidad }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void; dinero?: ResumenDeDinero | null; alAbrirDinero?: () => void; corridas?: ResumenDeCorridas | null; alAbrirObservabilidad?: () => void }) {
+export const PANTALLA_DE_ORGANIZACION = "arco-7"
+export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos, dinero = null, alAbrirDinero, corridas = null, alAbrirObservabilidad, alAbrirOrganizacion }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void; dinero?: ResumenDeDinero | null; alAbrirDinero?: () => void; corridas?: ResumenDeCorridas | null; alAbrirObservabilidad?: () => void; alAbrirOrganizacion?: () => void }) {
   const abre: Record<string, { que: string; etiqueta: string; abrir: () => void } | undefined> = {
     [PANTALLA_DE_DECISIONES]: alAbrirDecisiones && { que: "decisiones", etiqueta: "Abrir tus decisiones", abrir: alAbrirDecisiones },
     [PANTALLA_DE_DINERO]: alAbrirDinero && { que: "dinero", etiqueta: "Abrir el dinero", abrir: alAbrirDinero },
     [PANTALLA_DE_RIESGOS]: alAbrirRiesgos && { que: "riesgos", etiqueta: "Abrir los riesgos y alarmas", abrir: alAbrirRiesgos },
     [PANTALLA_DE_OBSERVABILIDAD]: alAbrirObservabilidad && { que: "observabilidad", etiqueta: "Abrir la observabilidad", abrir: alAbrirObservabilidad },
+    [PANTALLA_DE_ORGANIZACION]: alAbrirOrganizacion && { que: "organizacion", etiqueta: "Abrir la organización", abrir: alAbrirOrganizacion },
   }
   const [encima, setEncima] = useState<string | null>(null) // la pantalla bajo el cursor: su título crece un poco
   const [quieto, setQuieto] = useState(false) // «menos movimiento» del sistema: sin SMIL (el CSS se apaga solo por media query)
