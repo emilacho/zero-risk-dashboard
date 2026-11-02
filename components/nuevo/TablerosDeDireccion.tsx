@@ -32,17 +32,50 @@ function Titulo({ lineas }: { lineas: readonly string[] }) {
     </g>
   )
 }
-/** 6.29 (Emilio 2-nov: «al pasar el cursor, las letras del título deben agrandarse para que sean legibles»): el título grande va en una capa SIN recorte
- * (el vidrio recortaba el título si crecía), sobre el mismo plano de la pantalla, con un halo oscuro para leerse contra la foto. Crece desde arriba al centro. */
-export const TITULO_GRANDE = { escala: 2, halo: 3.2 } as const
-export function TituloGrande({ lineas }: { lineas: readonly string[] }) {
-  const cy = TITULO.base - TITULO.tamano * 0.35
+/** 6.30 (Emilio 2-nov: «demasiado básico… animación sutil, estilo futurista, elegante, no simple y pálido»): el título grande como una lectura de HUD.
+ * Capa sin recorte sobre el plano de la pantalla (el vidrio cortaba el título si crecía). Al entrar, en ~0,6 s:
+ *  · un velo oscuro difuso detrás (se lee contra la foto sin bordes duros) · las letras se abren (el espaciado crece) y se encienden con el brillo del tono de la pantalla
+ *  · una luz barre el texto una sola vez · una línea fina se dibuja desde el centro con marcas de esquina, como un visor.
+ * Con «reducir movimiento», aparece quieto. */
+export const TITULO_GRANDE = { escala: 2, anchoMax: 190, abre: 1.6 } as const
+const anchoDeLinea = (t: string, espaciado: number) => t.length * (TITULO.tamano * 0.64 + espaciado)
+export function TituloGrande({ lineas, clave, tono }: { lineas: readonly string[]; clave: string; tono: string }) {
+  const largo = Math.max(...lineas.map((l) => anchoDeLinea(l, TITULO_GRANDE.abre)))
+  const escala = Math.min(TITULO_GRANDE.escala, TITULO_GRANDE.anchoMax / largo)
+  const cy = TITULO.base - TITULO.tamano * 0.35 + ((lineas.length - 1) * TITULO.interlinea) / 2
+  const mitad = Math.min(largo, TITULO_GRANDE.anchoMax / escala) / 2 + 3
+  const arriba = TITULO.base - TITULO.tamano - 2, abajo = TITULO.base + (lineas.length - 1) * TITULO.interlinea + 5
+  const id = `nv-tg-${clave}`
   return (
-    <g className="nv-titulo-grande" data-titulo-grande={lineas.join(" ")} transform={`translate(50 ${cy}) scale(${TITULO_GRANDE.escala}) translate(-50 ${-cy})`}>
-      {lineas.map((l, i) => (
-        <text key={i} x={50} y={TITULO.base + i * TITULO.interlinea} textAnchor="middle" fontSize={TITULO.tamano} fontWeight={700} letterSpacing={0.3}
-          fill="#fff6ea" stroke="rgba(10,6,3,.82)" strokeWidth={TITULO_GRANDE.halo / TITULO_GRANDE.escala} strokeLinejoin="round" paintOrder="stroke">{l}</text>
-      ))}
+    <g className="nv-titulo-grande" data-titulo-grande={lineas.join(" ")} style={{ "--tono": tono } as CSSProperties} transform={`translate(50 ${cy}) scale(${escala.toFixed(3)}) translate(-50 ${-cy})`}>
+      <defs>
+        <linearGradient id={`${id}-relleno`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ffffff" /><stop offset="55%" stopColor="#fff1dc" /><stop offset="100%" stopColor={tono} /></linearGradient>
+        <linearGradient id={`${id}-barrido`} gradientUnits="userSpaceOnUse" x1={-60} y1="0" x2={-20} y2="0">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0" /><stop offset="50%" stopColor="#fff" stopOpacity="0.95" /><stop offset="100%" stopColor="#fff" stopOpacity="0" />
+          <animate attributeName="x1" values="-60;140" dur="0.9s" begin="0.18s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" />
+          <animate attributeName="x2" values="-20;180" dur="0.9s" begin="0.18s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" />
+        </linearGradient>
+        <filter id={`${id}-velo`} x="-50%" y="-80%" width="200%" height="260%"><feGaussianBlur stdDeviation="4" /></filter>
+      </defs>
+      <rect className="nv-tg-velo" x={50 - mitad - 6} y={arriba - 3} width={(mitad + 6) * 2} height={abajo - arriba + 6} rx={6} fill="rgba(6,4,2,.66)" filter={`url(#${id}-velo)`} />
+      <g className="nv-tg-letras">
+        {lineas.map((l, k) => (
+          <text key={k} className="nv-tg-texto" x={50} y={TITULO.base + k * TITULO.interlinea} textAnchor="middle" fontSize={TITULO.tamano} fontWeight={700} fill={`url(#${id}-relleno)`}>{l}</text>
+        ))}
+      </g>
+      <g className="nv-tg-barrido" aria-hidden="true">
+        {lineas.map((l, k) => (
+          <text key={k} className="nv-tg-texto" x={50} y={TITULO.base + k * TITULO.interlinea} textAnchor="middle" fontSize={TITULO.tamano} fontWeight={700} fill={`url(#${id}-barrido)`}>{l}</text>
+        ))}
+      </g>
+      <g className="nv-tg-visor" fill="none" stroke={tono} strokeLinecap="round">
+        <line className="nv-tg-linea" x1={50} x2={50 + mitad} y1={abajo} y2={abajo} strokeWidth={0.45} pathLength={1} />
+        <line className="nv-tg-linea" x1={50} x2={50 - mitad} y1={abajo} y2={abajo} strokeWidth={0.45} pathLength={1} />
+        <circle className="nv-tg-punto" cx={50} cy={abajo} r={0.7} fill={tono} stroke="none" />
+        {[[-1, arriba, 1], [1, arriba, 1], [-1, abajo, -1], [1, abajo, -1]].map(([lado, y, v], k) => (
+          <path key={k} className="nv-tg-esquina" style={{ "--lado": lado } as CSSProperties} d={`M${50 + lado * (mitad + 4)} ${y + v * 3.2} V${y} H${50 + lado * (mitad + 0.8)}`} strokeWidth={0.5} />
+        ))}
+      </g>
     </g>
   )
 }
@@ -294,9 +327,21 @@ export const ESTILO_DE_DIRECCION = `
 .nv-velo-tarjeta{fill:rgba(20,12,6,.72)}
 .nv-titulo{opacity:1;transition:opacity .15s ease}
 .nv-pantalla[data-encima] .nv-titulo{opacity:0}
-.nv-titulo-grande{animation:nvTituloCrece .2s ease-out both;transform-box:view-box}
-@keyframes nvTituloCrece{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.nv-titulo-grande{animation:none}}
+.nv-titulo-grande .nv-tg-velo{animation:nvTgVelo .35s ease-out both}
+.nv-titulo-grande .nv-tg-texto{letter-spacing:1.6px}
+.nv-titulo-grande .nv-tg-letras{filter:drop-shadow(0 0 .6px var(--tono)) drop-shadow(0 0 2.4px var(--tono));animation:nvTgEnciende .55s cubic-bezier(.2,.7,.2,1) both}
+.nv-titulo-grande .nv-tg-letras .nv-tg-texto{animation:nvTgAbre .55s cubic-bezier(.2,.7,.2,1) both}
+.nv-titulo-grande .nv-tg-barrido .nv-tg-texto{animation:nvTgAbre .55s cubic-bezier(.2,.7,.2,1) both;mix-blend-mode:screen}
+.nv-titulo-grande .nv-tg-linea{stroke-dasharray:1;stroke-dashoffset:1;animation:nvTgTraza .5s .12s cubic-bezier(.4,0,.2,1) forwards;filter:drop-shadow(0 0 1px var(--tono))}
+.nv-titulo-grande .nv-tg-punto{animation:nvTgPunto 2.4s .3s ease-in-out infinite;filter:drop-shadow(0 0 1.2px var(--tono))}
+.nv-titulo-grande .nv-tg-esquina{opacity:0;transform-box:fill-box;transform-origin:center;animation:nvTgEsquina .4s .28s cubic-bezier(.2,.7,.2,1) forwards;filter:drop-shadow(0 0 .8px var(--tono))}
+@keyframes nvTgVelo{from{opacity:0}to{opacity:1}}
+@keyframes nvTgAbre{from{letter-spacing:-.6px;opacity:0}60%{opacity:1}to{letter-spacing:1.6px;opacity:1}}
+@keyframes nvTgEnciende{from{filter:drop-shadow(0 0 0 var(--tono)) drop-shadow(0 0 7px var(--tono))}to{filter:drop-shadow(0 0 .6px var(--tono)) drop-shadow(0 0 2.4px var(--tono))}}
+@keyframes nvTgTraza{to{stroke-dashoffset:0}}
+@keyframes nvTgPunto{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes nvTgEsquina{from{opacity:0;transform:translateX(calc(var(--lado) * 3px))}to{opacity:.9;transform:none}}
+@media (prefers-reduced-motion:reduce){.nv-titulo-grande *{animation:none!important;opacity:1;stroke-dashoffset:0}.nv-titulo-grande .nv-tg-barrido{display:none}}
 .nv-toque[data-abre]{cursor:pointer}
 .nv-toque[data-abre] polygon.nv-zona-toque{cursor:pointer}
 .nv-toque[data-abre]:focus-visible{outline:none}
