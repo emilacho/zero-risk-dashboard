@@ -17,9 +17,9 @@ const hoy = "2026-11-02"
 describe("6.37 · desglose", () => {
   it("por cliente: gasto, % del total y comparación con el período anterior del mismo largo", () => {
     const f = desglose(movs, "cliente", { desde: "2026-10-27", hasta: hoy })
-    const c1 = f.find((x) => x.clave === "c1")!
+    const c1 = f.find((x) => x.clave === "Náufrago")!
     expect(c1.usd).toBe(5); expect(c1.anterior).toBe(7); expect(c1.variacion_pct).toBe(-29)
-    expect(f.find((x) => x.clave === "c2")!.variacion_pct).toBeNull()
+    expect(f.find((x) => x.clave === "Peniche")!.variacion_pct).toBeNull()
     expect(Math.round(f.reduce((a, x) => a + x.pct, 0))).toBe(100)
   })
   it("por equipo sale del organigrama; por corrida trae día y detalle", () => {
@@ -44,7 +44,7 @@ describe("6.37 · la pantalla", () => {
     expect(h).toContain("data-csv"); expect(h).toContain("Exportar CSV")
   })
   it("por cliente: freno 24 h con su cifra, margen sin dato todavía, tope suave sugerido; aparece el cliente con freno y sin gasto", () => {
-    expect(h).toContain("US$ 5,62 de US$ 20,00"); expect(h).toContain("data-margen"); expect(h).toContain("data-tope-sugerido"); expect(h).toContain("/mes"); expect(h).toContain('data-fila="c9"')
+    expect(h).toContain("US$ 5,62 de US$ 20,00"); expect(h).toContain("data-margen"); expect(h).toContain("data-tope-sugerido"); expect(h).toContain("/mes"); expect(h).toContain('data-fila="Sin gasto"')
   })
   it("proveedores: los 7, Apify con saldo, corte y aviso de saldo bajo; los demás sin dato todavía", () => {
     for (const p of ["Anthropic", "GPT (OpenAI)", "Apify", "Higgsfield", "Railway", "Vercel", "Supabase"]) expect(h).toContain(`data-saldo="${p}"`)
