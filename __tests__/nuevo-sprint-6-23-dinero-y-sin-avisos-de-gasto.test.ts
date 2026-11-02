@@ -52,10 +52,10 @@ describe("6.23 · Dinero", () => {
   it("la pantalla 4 se abre al tocarla", () => {
     expect(renderToStaticMarkup(createElement(PantallasDelArco, { alAbrirDinero: () => {} }))).toMatch(/data-id="arco-4"[^>]*data-abre="dinero"[^>]*aria-label="Abrir el dinero"/)
   })
-  it("el panel (6.36) sigue mostrando los saldos (anillo) y el freno por cliente, ahora con su cifra «US$ x de US$ y»", () => {
+  it("el panel (6.37) muestra los saldos (barra de consumo) y el freno por cliente, ahora con su cifra «US$ x de US$ y»", () => {
     const h = renderToStaticMarkup(createElement(PanelDinero, { onCerrar: () => {}, datosIniciales: { movimientos: [], saldos: d.saldos, topes: d.topes, cache: null, desde: "2026-09-01T00:00:00Z", leido_en: "2026-11-02T12:00:00Z", faltan: [] } }))
     expect(h).toContain('data-seccion="dinero"'); expect(h).toContain("nv-panel")
-    expect(h).toContain('data-saldo="Apify"'); expect(h).toContain("US$ 14.77 de US$ 29.00"); expect(h).toContain("24 de noviembre")
+    expect(h).toContain('data-saldo="Apify"'); expect(h.replace(/<!-- -->/g, "")).toContain("US$ 14,77 de US$ 29,00"); expect(h).toContain("24 de noviembre")
     expect(h).toContain('data-freno="Náufrago"'); expect(h.replace(/<!-- -->/g, "")).toMatch(/data-cifra-del-freno[^>]*>US\$ 2,62 de US\$ 20,00</)
     expect(h).toContain("presupuesto del mes")
   })

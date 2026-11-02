@@ -1,15 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { Saldo, Tope } from "@/lib/direccion-riesgos"
-import { colorDelMedidor, diaDelCiclo, usd } from "@/lib/direccion-dinero"
+import { Desglose, Proveedores } from "@/components/nuevo/DineroDesglose"
 import { diaLocal, fechaCorta, loQueCambio, NOMBRE_DE_DIMENSION, picos, serie, sumarDias, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Pico, type Serie } from "@/lib/dinero-completo"
 
 /**
  * TU OFICINA · DINERO (6.36 · boceto aprobado por Emilio 2-nov): todo el gasto de la agencia en un solo lugar, con la estructura de Ramp · AI Token Spend
  * (resumen «lo que cambió», tarjetas con variación y proyección, gasto en el tiempo conmutable) · solo la fachada es nuestra. Ajustes de Emilio: cada clave
  * del gráfico con un color claramente distinto, fechas bajo las barras y el valor al pasar el cursor; sin numeritos; el freno con su cifra.
- * Parte 1 = secciones 1–3. Los saldos y el freno siguen abajo hasta la parte 2. Datos: `/api/direccion/dinero` (SOLO LECTURA).
+ * Parte 1 = secciones 1–3 · parte 2 (6.37) = desglose (4) y proveedores (5), en `DineroDesglose.tsx`. Datos: `/api/direccion/dinero` (SOLO LECTURA).
  */
 const AMBAR = "#e8731a"
 type Periodo = "hoy" | "7" | "mes" | "30"
@@ -124,35 +123,6 @@ function Grafico({ s, picosDelRango, porHora, alAbrirCorrida }: { s: Serie; pico
   )
 }
 
-/* saldos y freno (se rehacen en la parte 2 · el freno ya con su cifra) */
-function Anillo({ s }: { s: Saldo }) {
-  const R = 40, L = 2 * Math.PI * R, p = s.pct == null ? null : Math.max(0, Math.min(100, s.pct)), color = colorDelMedidor(p), cierra = diaDelCiclo(s.ciclo_hasta)
-  return (
-    <div data-saldo={s.proveedor} className="flex items-center gap-4">
-      <svg viewBox="0 0 100 100" className="h-[84px] w-[84px] shrink-0" role="img" aria-label={`${s.proveedor}: ${p == null ? "sin dato" : `${p.toFixed(0)} % usado`}`}>
-        <circle cx={50} cy={50} r={R} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth={8} />
-        {p != null && <circle cx={50} cy={50} r={R} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" strokeDasharray={`${(L * p) / 100} ${L}`} transform="rotate(-90 50 50)" />}
-        <text x={50} y={56} textAnchor="middle" fontSize={20} fontWeight={200} fill="#fff">{p == null ? "—" : `${p.toFixed(0)}%`}</text>
-      </svg>
-      <div className="min-w-0 text-[12.5px]">
-        <p className="text-[14px] text-white">{s.proveedor}</p>
-        <p className="text-zinc-300">{usd(s.usado_usd)} de {usd(s.credito_usd)}</p>
-        {cierra && <p className="text-zinc-500">El ciclo cierra el {cierra}</p>}
-      </div>
-    </div>
-  )
-}
-export function Freno({ t }: { t: Tope }) {
-  const p = t.pct == null ? null : Math.max(0, Math.min(100, t.pct)), color = colorDelMedidor(p)
-  return (
-    <div data-freno={t.cliente ?? "sin-cliente"}>
-      <div className="flex items-baseline gap-3 text-[13px]"><span className="min-w-0 truncate text-white">{t.cliente ?? "Sin cliente"}</span>
-        <span data-cifra-del-freno className="ml-auto shrink-0 tabular-nums text-zinc-200">{t.gastado_24h_usd == null ? "sin dato" : usdCorto(t.gastado_24h_usd)} de {t.techo_usd == null ? "sin dato" : usdCorto(t.techo_usd)}</span></div>
-      <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]"><div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${p ?? 0}%`, background: color }} /></div>
-    </div>
-  )
-}
-
 export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch, alAbrirCorrida }: { onCerrar: () => void; datosIniciales?: Dinero | null; fetchImpl?: typeof fetch; alAbrirCorrida?: (id: string) => void }) {
   const [datos, setDatos] = useState<Dinero | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
@@ -206,14 +176,9 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
               </div>}>
               <Grafico s={s} picosDelRango={picosDelRango} porHora={rango.porHora} alAbrirCorrida={alAbrirCorrida} />
             </Seccion>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Seccion titulo="Saldos de proveedores" dato="saldos">
-                <div className="space-y-3">{datos.saldos.map((x) => <Anillo key={x.proveedor} s={x} />)}{!datos.saldos.length && <p className="text-[13px]">{SIN_DATO}</p>}</div>
-              </Seccion>
-              <Seccion titulo="Freno de gasto · últimas 24 h" dato="freno">
-                <div className="space-y-3">{datos.topes.map((t, i) => <Freno key={t.client_id ?? i} t={t} />)}{!datos.topes.length && <p className="text-[13px]">{SIN_DATO}</p>}</div>
-                <p className="mt-3 text-[12px] text-zinc-500">El techo es el mismo con que el freno detiene a los empleados de ese cliente.</p>
-              </Seccion>
+            <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+              <Desglose datos={datos} rango={rango} hoy={hoy} alAbrirCorrida={alAbrirCorrida} />
+              <Proveedores datos={datos} rango={rango} />
             </div>
             {datos.faltan.length > 0 && <p data-faltan className="text-[12px] text-zinc-500"><span className="text-zinc-400">Sin dato todavía:</span> {datos.faltan.join(" · ")}</p>}
           </div>
