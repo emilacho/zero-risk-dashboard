@@ -29,6 +29,7 @@ export function BarraDelPedido({ avance, onOcultar }: { avance: AvanceDelPedido;
               <span className={`block text-[12.5px] ${p.estado === "pendiente" ? "text-zinc-500" : p.estado === "fallo" ? "text-rose-200" : "text-zinc-100"}`}>{p.nombre}</span>
               <span className="block text-[11px] text-zinc-500">{p.hora ? horaCortaEC(p.hora) : p.estado === "en_curso" ? "en curso" : "—"}</span>
               {p.detalle && <span className="block text-[11px] text-rose-300">{p.detalle}</span>}
+              {p.detalle_tecnico && <details data-detalle-tecnico className="text-[10.5px] text-zinc-500"><summary className="cursor-pointer">ver detalle</summary><span className="block break-words">{p.detalle_tecnico}</span></details>}
             </span>
           </li>
         ))}
