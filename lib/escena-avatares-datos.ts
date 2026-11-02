@@ -9,6 +9,7 @@ import { esDePractica } from "@/lib/clientes"
 import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
+import { armarEntregas, conRevisiones, esDevolucion, MAXIMO_DE_CUADROS, MINUTOS_DE_CORRIGE, REVISION_VIVA_H, VIGENCIA_DE_LA_ENTREGA_H, type EntregasDeLaEscena } from "@/lib/escena-entregas"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -65,7 +66,12 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } =
     const m = { step_name: i.step_name ?? meta.step_name, task_text: i.task_text ?? meta.task_text } as Fila // 02-nov · solo se pide lo que se usa de `metadata` (antes viajaba el objeto entero de 400 filas)
     return { agent_name: String(i.agent_name ?? ""), client_id: s(i.client_id), workflow_id: s(i.workflow_id), workflow_execution_id: s(i.workflow_execution_id), status: s(i.status), started_at: s(i.started_at), ended_at: s(i.ended_at), cost_usd: i.cost_usd == null ? null : Number(i.cost_usd), step_name: s(m.step_name), task_text: s(m.task_text) }
   })
-  const escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx })
+  let escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx })
+  // sprint 3 · entregas al pizarrón, revisiones de la jefatura y firmas pendientes: si la lectura falla, la escena sigue sin eso (no se inventa)
+  try {
+    const ent = await conCache("escena-viva-entregas", 15_000, () => leerEntregas(supa, ahora))
+    escena = conRevisiones(escena, ent, { directorio: dir.tarjetas, agentes: dir.agentes, ahora }).escena
+  } catch { /* sin entregas esta vez */ }
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
@@ -92,4 +98,24 @@ export async function leerAportesDeLaReunion(supa: SupabaseClient, r: ReunionDeL
     }
   })
   return conAportes(r, datos)
+}
+
+/** sprint 3 · lo que se entregó, quién revisa y cuántas firmas esperan (solo lectura; un error de la base lanza y la escena sigue sin esto) */
+export async function leerEntregas(supa: SupabaseClient, ahora: Date): Promise<EntregasDeLaEscena> {
+  const desdeEntrega = new Date(ahora.getTime() - VIGENCIA_DE_LA_ENTREGA_H * 3_600_000).toISOString()
+  const desdeRevision = new Date(ahora.getTime() - Math.max(REVISION_VIVA_H * 60, MINUTOS_DE_CORRIGE) * 60_000).toISOString()
+  const [encargos, revisiones, bandeja] = await Promise.all([
+    filas(supa.from("oficina_encargos").select("id, estado, sala_ref, cerrado_en").eq("dry_run", false).like("estado", "cerrado%").gte("cerrado_en", desdeEntrega).order("cerrado_en", { ascending: false }).limit(MAXIMO_DE_CUADROS * 3), "oficina_encargos"),
+    filas(supa.from("jefatura_revisiones").select("id, artifact_id, estado, resultado, creado_en, cerrado_en").eq("artifact_type", "pieza").gte("creado_en", desdeRevision).order("creado_en", { ascending: false }).limit(60), "jefatura_revisiones"),
+    filas(supa.from("hitl_queue").select("id, expires_at").eq("status", "pending").limit(500), "hitl_queue"),
+  ])
+  const idsEncargo = [...new Set([...encargos.map((e) => String(e.id)), ...revisiones.map((r) => s(r.artifact_id)).filter((x): x is string => !!x)])]
+  const idsFila = [...new Set(encargos.map((e) => s(((e.sala_ref as Fila | null) ?? {}).fila && (((e.sala_ref as Fila).fila as Fila).id))).filter((x): x is string => !!x))]
+  const idsRevision = revisiones.filter((r) => !s(r.cerrado_en) || esDevolucion(r.resultado)).map((r) => String(r.id))
+  const [turnos, filasCal, pasos] = await Promise.all([
+    idsEncargo.length ? filas(supa.from("oficina_turnos").select("encargo_id, agente, tipo, inicio, fin").in("encargo_id", idsEncargo).eq("tipo", "agente").limit(1500), "oficina_turnos") : Promise.resolve([] as Fila[]),
+    idsFila.length ? filas(supa.from("cadena_calendario_filas").select("id, tema, red").in("id", idsFila).limit(100), "cadena_calendario_filas") : Promise.resolve([] as Fila[]),
+    idsRevision.length ? filas(supa.from("jefatura_pasos").select("revision_id, agente, tipo, estado").in("revision_id", idsRevision).limit(400), "jefatura_pasos") : Promise.resolve([] as Fila[]),
+  ])
+  return armarEntregas({ encargos, turnos, filas: filasCal, revisiones, pasos, bandeja, ahora })
 }

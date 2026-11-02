@@ -40,10 +40,10 @@ describe("sprint 2 · caminar a la sala de reuniones y volver", () => {
     expect(decidirMovimiento(undefined, undefined, { enLaSala: true, veniaDeLaSala: false }).tipo).toBe("queda") // ya estaba en la sala al abrir: lo dibuja la sala
     expect(DE_PIE.length).toBe(3)
   })
-  it("el componente no dibuja ninguna reunión (es de CC6) ni adelanta los sprints 3 y 4 (pizarrón, puerta, clic)", () => {
+  it("el componente no dibuja ninguna reunión (es de CC6) ni adelanta el sprint 4 (clic en el agente); el sprint 3 (entregas, pizarrón, firma) ya está en `nuevo-cc4-sprint3-entregas.test.ts`", () => {
     const f = readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")
     expect(f).toContain("LUGARES.sala"); expect(f).toContain("prefers-reduced-motion")
-    for (const x of ["SalaDeReuniones", "PanelDelAgente", "pizarron", "esperaFirma", "entregas"]) expect(f, x).not.toContain(x)
+    for (const x of ["SalaDeReuniones", "PanelDelAgente", "esperaFirma"]) expect(f, x).not.toContain(x)
   })
 })
 
