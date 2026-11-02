@@ -22,6 +22,8 @@ export interface PedidoDelManual {
   despertar_detalle: string | null
   manual_id: string | null
   manual_nuevo_id: string | null
+  /** CC6 · 02-nov · `plan_cambios.resultado` (CC1 #856): qué dejó el pedido. Nulo en pedidos viejos (= sin dato, NO «sin cambios») */
+  resultado?: { sin_cambios: boolean | null } | null
 }
 export interface CicloDelManual {
   /** la tabla de pedidos ya sabe de manuales (migración de CC1 aplicada): sin esto no se ofrece «Pedir cambios» (la puerta daría 404) */
@@ -32,8 +34,20 @@ export interface CicloDelManual {
   avance: AvanceDelPedido | null
   /** lo que cambió entre la versión sobre la que se pidió y la que quedó vigente (si la vigente salió de un pedido) */
   que_cambio: string[]
+  /** CC6 · 02-nov: el último pedido no cambió nada porque tocaba lo que el dueño validó (`resultado.sin_cambios`) → el aviso «libéralo para cambiarlo» */
+  sin_cambio_por_lo_validado?: boolean
 }
 export const CICLO_DEL_MANUAL_CERRADO: CicloDelManual = { disponible: false, abierto: null, avance: null, que_cambio: [] }
+
+/**
+ * EL AVISO DEL CAMPO VALIDADO (CC6 · 02-nov · SEÑAL «desbloquear el manual» punto 3 · forma de CC1 #856): si el pedido terminó con `resultado.sin_cambios`, el equipo
+ * conservó lo validado y no reescribió nada; sin aviso, el pedido parecería ignorado. Por ahora el aviso es GENERAL, sin nombrar campos (RESPUESTA de CC1 a CC2 y Lenovo:
+ * `protegidos` nombraría campos que el pedido no mencionó, hasta que Lenovo decida). Nulo o ausente = pedido viejo: no se dice nada.
+ */
+export function quedoSinCambioPorLoValidado(resultado: unknown): boolean {
+  return !!resultado && typeof resultado === "object" && !Array.isArray(resultado) && (resultado as Record<string, unknown>).sin_cambios === true
+}
+export const AVISO_DEL_CAMPO_VALIDADO = "Tu último pedido no cambió nada: tocaba algo que ya validaste, y lo validado no se reescribe. Para cambiarlo, quítale la validación («Quitar validación» en el campo) y vuelve a pedir."
 
 export const esPedidoAbierto = (estado: string) => estado === "pendiente" || estado === "en_reescritura"
 

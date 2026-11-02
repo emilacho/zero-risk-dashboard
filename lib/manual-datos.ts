@@ -12,7 +12,7 @@ import { palabrasDelManual, type PalabraDelManual } from "@/lib/manual-palabras"
 import { avanceDelPedido } from "@/lib/plan"
 import { jerarquiaTipografica, seccionesNuevasDelBorrador, type SeccionLeida } from "@/lib/manual-secciones"
 import { canalesDelCliente, fotosDeLaBarra, logoDelManual, sedesDeLaBarra, type CanalDeLaBarra, type FotoDeLaBarra, type SedeDeLaBarra } from "@/lib/manual-barra"
-import { CICLO_DEL_MANUAL_CERRADO, esPedidoAbierto, queCambioEnElManual, type CicloDelManual, type PedidoDelManual } from "@/lib/manual-ciclo"
+import { CICLO_DEL_MANUAL_CERRADO, esPedidoAbierto, queCambioEnElManual, type CicloDelManual, type PedidoDelManual, quedoSinCambioPorLoValidado } from "@/lib/manual-ciclo"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -56,6 +56,7 @@ async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigen
   const pedido: PedidoDelManual = {
     id: String(f.id), estado: String(f.estado ?? ""), texto: String(f.texto ?? ""), seccion: t(f.seccion), creado_en: t(f.creado_en), actualizado_en: t(f.actualizado_en),
     despertado: typeof f.despertado === "boolean" ? f.despertado : null, despertar_detalle: detalleCorto(f.despertar_detalle), manual_id: t(f.manual_id), manual_nuevo_id: t(f.manual_nuevo_id),
+    resultado: f.resultado && typeof f.resultado === "object" ? { sin_cambios: typeof (f.resultado as Record<string, unknown>).sin_cambios === "boolean" ? ((f.resultado as Record<string, unknown>).sin_cambios as boolean) : null } : null,
   }
   const vigenteId = String(vigente.id)
   const deEstaVersion = pedido.estado === "aplicado" && pedido.manual_nuevo_id === vigenteId
@@ -78,7 +79,9 @@ async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigen
     trabajando: vivos.map((x) => ({ agente: String(x.agent_name ?? ""), desde: t(x.running_at) ?? t(x.created_at) })),
   }, ahora, "manual") : null
   const antes = base ? leerManual(base) : null, ahoraL = leerManual(vigente)
-  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [] }
+  // el aviso del campo validado: solo si el último pedido ya terminó (no abierto) y dejó `resultado.sin_cambios` (nulo = pedido viejo: nada)
+  const sin_cambio_por_lo_validado = !esPedidoAbierto(pedido.estado) && quedoSinCambioPorLoValidado(f.resultado)
+  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [], ...(sin_cambio_por_lo_validado ? { sin_cambio_por_lo_validado: true } : {}) }
 }
 
 export interface ManualDelCliente {

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { avisoDeLoValidado, cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual, queCambioEnElManual, rotuloMientrasSeReescribe, TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD, type CicloDelManual } from "@/lib/manual-ciclo"
+import { AVISO_DEL_CAMPO_VALIDADO, quedoSinCambioPorLoValidado, avisoDeLoValidado, cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual, queCambioEnElManual, rotuloMientrasSeReescribe, TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD, type CicloDelManual } from "@/lib/manual-ciclo"
 import { avanceDelPedido } from "@/lib/plan"
 import { ACCIONES, ejecutarAccion, TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD as TOPE_DEL_SERVIDOR } from "@/lib/tablero-acciones"
 import { leerManualDelCliente } from "@/lib/manual-datos"
@@ -181,5 +181,31 @@ describe("el panel del manual", () => {
     const fuente = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
     expect(fuente).toContain('data-tablero-accion="manual-cambios"')
     expect(readFileSync("components/nuevo/manual/PedirCambiosAlManual.tsx", "utf8")).toContain('from "@/components/nuevo/pedido/PiezasDelPedido"')
+  })
+})
+
+describe("el aviso del campo validado (CC6 · 02-nov · SEÑAL «desbloquear el manual» punto 3 · `plan_cambios.resultado` de CC1 #856)", () => {
+  const comun = (tabla: string, _f: string[], pedido: unknown) => {
+    if (tabla === "clients") return ok([{ id: CLIENTE, name: "Náufrago", status: "active" }])
+    if (tabla === "client_brand_books") return ok([libro("b2", 2)])
+    if (tabla === "plan_cambios") return ok(pedido)
+    return ok([])
+  }
+  const pedido = (estado: string, resultado: unknown) => ({ id: "pc9", documento: "manual", client_id: CLIENTE, estado, texto: "cambia el tono de WhatsApp a formal", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, despertar_detalle: "sin cambios reales", manual_id: "b2", manual_nuevo_id: null, resultado })
+  const leer = async (p: unknown) => (await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, p)), { cliente: CLIENTE, ahora: AHORA })).manual?.ciclo
+  it("solo con `resultado.sin_cambios` verdadero en un pedido terminado; nulo (pedido viejo), falso o abierto: nada", async () => {
+    expect(quedoSinCambioPorLoValidado({ sin_cambios: true, protegidos: ["tono_por_canal"] })).toBe(true)
+    for (const r of [null, undefined, {}, { sin_cambios: false }, { sin_cambios: "true" }, []]) expect(quedoSinCambioPorLoValidado(r), JSON.stringify(r)).toBe(false)
+    expect((await leer(pedido("fallido", { sin_cambios: true, protegidos: ["tono_por_canal"], declarado: ["conserva lo validado"] })))?.sin_cambio_por_lo_validado).toBe(true)
+    expect((await leer(pedido("fallido", null)))?.sin_cambio_por_lo_validado).toBeUndefined()
+    expect((await leer(pedido("aplicado", { sin_cambios: false, protegidos: ["tono_por_canal"] })))?.sin_cambio_por_lo_validado).toBeUndefined()
+    expect((await leer(pedido("en_reescritura", { sin_cambios: true })))?.sin_cambio_por_lo_validado).toBeUndefined()
+  })
+  it("el panel lo dice en general (sin nombrar campos) y da el botón para ir a lo validado; sin el dato, no aparece", () => {
+    const con = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manualCon({ disponible: true, abierto: null, avance: null, que_cambio: [], sin_cambio_por_lo_validado: true }) }))
+    expect(con).toContain("data-aviso-campo-validado"); expect(con).toContain(AVISO_DEL_CAMPO_VALIDADO); expect(con).toContain('data-accion="ir-a-lo-validado"')
+    expect(AVISO_DEL_CAMPO_VALIDADO).not.toMatch(/tono_por_canal|Tono/) // general: no nombra el campo
+    const sin = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manualCon({ disponible: true, abierto: null, avance: null, que_cambio: [] }) }))
+    expect(sin).not.toContain("data-aviso-campo-validado")
   })
 })
