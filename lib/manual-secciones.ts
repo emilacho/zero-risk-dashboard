@@ -6,6 +6,8 @@
  * vacío, `[]` o texto que empieza con `PENDIENTE` cuenta como sin dato. Lo propuesto termina en «[propuesta del agente — razón]»: se rotula y el corchete no se ve.
  * El valor se lee con tolerancia: texto, lista de textos, lista de objetos u objeto de textos/listas; lo que no es nada de eso no se pinta.
  */
+import { notasDelCampo, type NotaDelCampo } from "@/lib/manual-notas"
+
 type Fila = Record<string, unknown>
 const objeto = (v: unknown): Fila => { if (typeof v === "string") { try { v = JSON.parse(v) } catch { return {} } } return v && typeof v === "object" && !Array.isArray(v) ? (v as Fila) : {} }
 
@@ -52,7 +54,7 @@ export function valorDeSeccion(v: unknown): ValorDeSeccion | null {
 }
 
 export type OrigenDeSeccion = "propuesta" | "dueno" | "aceptado" | "sistema"
-export interface SeccionLeida { id: string; titulo: string; partes: Array<{ clave: string; etiqueta: string; valor: ValorDeSeccion; origen: OrigenDeSeccion; /** el texto para «Editar»: la lista, una por línea, sin marcas */ para_editar: string }> }
+export interface SeccionLeida { id: string; titulo: string; partes: Array<{ clave: string; etiqueta: string; valor: ValorDeSeccion; origen: OrigenDeSeccion; /** el texto para «Editar»: la lista, una por línea, sin marcas */ para_editar: string; /** CC6 · 02-nov: datos marcados por la puerta o el juez */ notas?: NotaDelCampo[] }> }
 export const ORIGEN_DE_SECCION: Record<OrigenDeSeccion, { texto: string; tono: "ambar" | "verde" | "neutro" }> = {
   propuesta: { texto: "propuesta del sistema · por validar", tono: "ambar" },
   dueno: { texto: "escrito por ti", tono: "verde" },
@@ -73,7 +75,7 @@ export function seccionesNuevasDelBorrador(borrador: unknown): SeccionLeida[] {
   const b = objeto(borrador), meta = objeto(b._field_meta)
   return SECCIONES_NUEVAS.map((s) => ({
     id: s.id, titulo: s.titulo,
-    partes: s.claves.map((k) => ({ ...k, valor: valorDeSeccion(b[k.clave]), origen: origenDe(objeto(meta[k.clave]), b[k.clave]), para_editar: paraEditar(b[k.clave]) })).filter((p): p is SeccionLeida["partes"][number] => !!p.valor),
+    partes: s.claves.map((k) => ({ ...k, valor: valorDeSeccion(b[k.clave]), origen: origenDe(objeto(meta[k.clave]), b[k.clave]), para_editar: paraEditar(b[k.clave]), notas: notasDelCampo(objeto(meta[k.clave])) })).filter((p) => !!p.valor) as SeccionLeida["partes"],
   })).filter((s) => s.partes.length > 0)
 }
 
