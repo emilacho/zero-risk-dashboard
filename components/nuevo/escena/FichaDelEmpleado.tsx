@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { RetratoInventado } from "@/components/nuevo/escena/RetratoInventado"
+import { HologramaBusto } from "@/components/nuevo/escena/Holograma"
+import { descripcionDelHolograma } from "@/lib/holograma"
 import { createPortal } from "react-dom"
 import type { FichaDelEmpleado as Ficha } from "@/lib/escena-empleado"
 import { MESAS } from "@/lib/escena-avatares"
@@ -62,7 +63,8 @@ export function FichaDelEmpleado({ agente, onCerrar, datosIniciales = null }: { 
             {ficha.sin_registro && <p data-sin-registro className="mb-4 rounded-md border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 text-[12.5px] text-amber-100">Es un proveedor externo: no está en la lista de empleados de la plataforma. Aquí va lo que hay (su mesa y su trabajo); su fecha de alta no existe.</p>}
             {/* encabezado: el nombre de persona y su puesto real */}
             <header className="flex flex-wrap items-center gap-5">
-              <RetratoInventado semilla={agente} color={color} />
+              {/* el retrato es el MISMO personaje que la silueta de la escena (CC4 · lib/holograma: mismos rasgos y su toque propio) · ADENDA 3 de Lenovo */}
+              <span title={descripcionDelHolograma(agente)} className="shrink-0"><HologramaBusto semilla={agente} color={color} /></span>
               <div className="min-w-0">
                 <h2 className="font-display text-[28px] font-semibold leading-tight text-zinc-50" data-persona>{ficha.persona}</h2>
                 <p className="text-[15px] text-amber-200" data-puesto>{ficha.puesto}</p>
