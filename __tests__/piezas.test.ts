@@ -46,6 +46,9 @@ function baseFalsa(tablas: Record<string, Array<Record<string, unknown>>>) {
     b.eq = filtro
     b.neq = (c: string, v: unknown) => { filas = filas.filter((f) => f[c] !== v); return b }
     b.in = (c: string, vs: unknown[]) => { filas = filas.filter((f) => vs.includes(f[c])); return b }
+    // CC6 · 03-nov: la marca del archivo (CC1 #852) · «is null» y «not is null»
+    b.is = (c: string, v: unknown) => { filas = filas.filter((f) => (f[c] ?? null) === v); return b }
+    b.not = (c: string, _op: string, v: unknown) => { filas = filas.filter((f) => (f[c] ?? null) !== v); return b }
     b.order = (c: string, o?: { ascending?: boolean }) => { filas.sort((x, y) => (String(x[c]) < String(y[c]) ? -1 : 1) * (o?.ascending === false ? -1 : 1)); return b }
     b.limit = (n: number) => { filas = filas.slice(0, n); return b }
     b.maybeSingle = () => Promise.resolve({ data: filas[0] ?? null, error: null })

@@ -108,21 +108,25 @@ export function proporcionDeLaLamina(l: { ancho: number | null; alto: number | n
 
 /** la carpeta de lo que no es pieza (la misma que pone la lectura) */
 export const CARPETA_OTRAS = "Otras revisiones"
+/** la carpeta del archivo de una campaña anterior (la misma que pone la lectura): siempre la última */
+export const CARPETA_ARCHIVO = "Archivo · campaña anterior"
+const ORDEN_FINAL: Record<string, number> = { [CARPETA_OTRAS]: 1, [CARPETA_ARCHIVO]: 2 }
 
 export interface CarpetaDeLaBandeja { nombre: string; filas: FilaDeLaLista[]; por_aprobar: number }
 export interface ClienteDeLaBandeja { id: string | null; nombre: string; carpetas: CarpetaDeLaBandeja[]; por_aprobar: number; total: number }
 
-/** Clientes › carpetas (Carrusel Facebook · Historias Instagram · Otras revisiones) › filas, pendientes primero. Los clientes con más por aprobar van arriba; «Otras revisiones» siempre al final. */
-export function arbolDeLaBandeja(piezas: FilaDeLaLista[], otras: FilaDeLaLista[]): ClienteDeLaBandeja[] {
+/** Clientes › carpetas (Carrusel Facebook · Historias Instagram · Otras revisiones · Archivo) › filas, pendientes primero. Los clientes con más por aprobar van arriba; «Otras revisiones» y el archivo siempre al final. */
+export function arbolDeLaBandeja(piezas: FilaDeLaLista[], otras: FilaDeLaLista[], archivo: FilaDeLaLista[] = []): ClienteDeLaBandeja[] {
   const porCliente = new Map<string, { id: string | null; nombre: string; filas: FilaDeLaLista[] }>()
-  for (const f of [...piezas, ...otras]) {
+  for (const f of [...piezas, ...otras, ...archivo]) {
     const k = f.cliente_id ?? ""
     if (!porCliente.has(k)) porCliente.set(k, { id: f.cliente_id, nombre: f.cliente ?? "Sin cliente", filas: [] })
     porCliente.get(k)!.filas.push(f)
   }
-  const pend = (fs: FilaDeLaLista[]) => fs.filter((f) => f.estado === "pendiente").length
+  // lo archivado no espera a nadie: no cuenta como «por aprobar»
+  const pend = (fs: FilaDeLaLista[]) => fs.filter((f) => f.estado === "pendiente" && !f.archivada).length
   return [...porCliente.values()].map((c) => {
-    const nombres = [...new Set(c.filas.map((f) => f.carpeta))].sort((a, b) => (a === CARPETA_OTRAS ? 1 : b === CARPETA_OTRAS ? -1 : a.localeCompare(b, "es")))
+    const nombres = [...new Set(c.filas.map((f) => f.carpeta))].sort((a, b) => (ORDEN_FINAL[a] ?? 0) - (ORDEN_FINAL[b] ?? 0) || a.localeCompare(b, "es"))
     const carpetas = nombres.map((n) => { const filas = filtrarBandeja(c.filas.filter((f) => f.carpeta === n), null); return { nombre: n, filas, por_aprobar: pend(filas) } })
     return { id: c.id, nombre: c.nombre, carpetas, por_aprobar: pend(c.filas), total: c.filas.length }
   }).sort((a, b) => b.por_aprobar - a.por_aprobar || a.nombre.localeCompare(b.nombre, "es"))

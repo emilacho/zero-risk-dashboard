@@ -158,7 +158,7 @@ describe("cada botón que pintan las pantallas nombra una acción que existe, y 
   })
   it("cada acción del catálogo tiene su botón en alguna pantalla (ninguna queda sin usar)", () => {
     // CC6 · 02-nov: «validar un campo» vive en el manual de /nuevo (su botón lleva data-tablero-accion)
-    const todo = [...PANTALLAS, "components/nuevo/PanelManual.tsx"].map(leer).join("\n")
+    const todo = [...PANTALLAS, "components/nuevo/PanelManual.tsx", "components/nuevo/PanelPiezas.tsx"].map(leer).join("\n") // CC6 · 03-nov: «Recuperar» del archivo vive en Piezas de /nuevo
     for (const a of Object.keys(ACCIONES)) expect(todo.includes(`accion="${a}"`) || todo.includes(`/api/acciones/${a}"`), a).toBe(true)
   })
 // ADENDA 4 (30-oct): las piezas salen SOLO de la campaña (planeación → brief → oficina). Desde el tablero no se puede crear una fuera de ella.

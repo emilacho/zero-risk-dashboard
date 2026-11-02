@@ -27,8 +27,10 @@ import { esDePractica } from "@/lib/clientes"
 
 /** la carpeta de lo que no es pieza */
 export const CARPETA_OTRAS = "Otras revisiones"
+/** la carpeta de lo archivado de una campaña anterior (CC1 #852 · corrección 3 de Lenovo): va plegada al final, se mira y solo se «recupera» */
+export const CARPETA_ARCHIVO = "Archivo · campaña anterior"
 
-export const COLUMNAS_DE_LA_LISTA = "id, status, client_id, created_at, title, type, agent_name, output_preview, metadata, decision"
+export const COLUMNAS_DE_LA_LISTA = "id, status, client_id, created_at, title, type, agent_name, output_preview, metadata, decision, archivada_en"
 
 export interface FilaDeLaLista {
   id: string
@@ -49,20 +51,24 @@ export interface FilaDeLaLista {
   incompleta: boolean
   desacuerdos: number
   tiene_dibujo: boolean
+  /** CC6 · 03-nov: está en el archivo de una campaña anterior (`archivada_en` no nulo): se ve, no se aprueba */
+  archivada?: boolean
 }
 
 export type FiltroDeEstado = "pendiente" | "todas"
 
 /** LA cuenta de piezas por aprobar: la usan Inicio y Piezas (una sola fuente) */
 export async function contarPiezasPorAprobar(supa: SupabaseClient): Promise<number> {
-  const r = await supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").eq("type", TIPO_PIEZA)
+  // lo archivado de una campaña anterior no espera a nadie
+  const r = await supa.from("hitl_queue").select("*", { count: "exact", head: true }).eq("status", "pending").eq("type", TIPO_PIEZA).is("archivada_en", null)
   if (r.error) throw new Error(`no pude contar las piezas por aprobar: ${r.error.message}`)
   return r.count ?? 0
 }
 
 /** `tipo`: solo piezas (por omisión), solo las otras revisiones de la bandeja, o todo */
-export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: FiltroDeEstado; limite?: number; tipo?: "piezas" | "otras" | "todas" } = {}): Promise<FilaDeLaLista[]> {
+export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: FiltroDeEstado; limite?: number; tipo?: "piezas" | "otras" | "todas"; /** «fuera» (por omisión): sin lo archivado · «solo»: únicamente lo archivado */ archivo?: "fuera" | "solo" } = {}): Promise<FilaDeLaLista[]> {
   let q = supa.from("hitl_queue").select(COLUMNAS_DE_LA_LISTA).order("created_at", { ascending: false }).limit(filtro.limite ?? 60)
+  q = filtro.archivo === "solo" ? q.not("archivada_en", "is", null) : q.is("archivada_en", null)
   const tipo = filtro.tipo ?? "piezas"
   if (tipo === "piezas") q = q.eq("type", TIPO_PIEZA)
   else if (tipo === "otras") q = q.neq("type", TIPO_PIEZA)
@@ -94,7 +100,8 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       titulo_legible: f.type === TIPO_PIEZA
         ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null, creada: String(f.created_at) })
         : [tipoDeRevisionLegible(f.type), f.client_id ? nombres.get(String(f.client_id)) : null].filter(Boolean).join(" · "),
-      carpeta: f.type === TIPO_PIEZA ? [familiaLegible(meta.familia), redLegible(f.title)].filter(Boolean).join(" ") : CARPETA_OTRAS,
+      carpeta: f.archivada_en ? CARPETA_ARCHIVO : f.type === TIPO_PIEZA ? [familiaLegible(meta.familia), redLegible(f.title)].filter(Boolean).join(" ") : CARPETA_OTRAS,
+      archivada: !!f.archivada_en,
       cliente_id: (f.client_id as string | null) ?? null,
       cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null,
       creada: String(f.created_at),
@@ -133,6 +140,9 @@ export interface DetalleDeLaPieza {
   aportes: AporteDelLibro[]
   version: number | null
   resumen_de_la_bandeja: string | null
+  /** CC6 · 03-nov: archivada con su campaña anterior (no se aprueba; solo se recupera) · y si volvió del archivo */
+  archivada?: boolean
+  recuperada_del_archivo?: boolean
   /** CC6 · 02-nov: la fila del calendario, quién la hizo y el avance tras pedir cambios (solo en piezas) */
   acompana?: AcompanaALaPieza
 }
@@ -216,6 +226,8 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     guion: video ? await leerArchivoDeTexto(meta.enlace_entrega as Record<string, unknown> | undefined, /_guion\.md$/, 8000, deps) : null,
     avisos: avisosDeLaPieza({ output_preview: (f.output_preview as string | null) ?? null, metadata: meta }, laminas, video),
     exige_casilla: exigeCasilla({ metadata: meta }),
+    archivada: !!f.archivada_en,
+    recuperada_del_archivo: !!meta.recuperada_del_archivo,
     jefatura: {
       resultado: (meta.jefatura_resultado as string | undefined) ?? null,
       desacuerdos: Array.isArray(meta.desacuerdos) ? meta.desacuerdos.map(String) : [],

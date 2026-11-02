@@ -9,6 +9,7 @@ import { vaciarCache } from "@/lib/cache-corta"
 
 export type NombreDeAccion =
   | "rehacer-pieza"
+  | "archivo-recuperar-pieza"
   | "plan-aprobar" | "plan-cambios" | "plan-responder"
   | "firmar-tablero"
   | "cliente-editar" | "cliente-nuevo" | "cliente-baja" | "cliente-tope"
@@ -47,6 +48,12 @@ const conId = (c: Cuerpo, campo: string): string | null => (typeof c[campo] === 
 const comentario = (c: Cuerpo, min: number, max = 2000): string | null => { const t = texto(c.comentario); return t.length >= min && t.length <= max ? t : null }
 
 export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
+  // CC6 · 03-nov · ruta de CC1 (#852): devuelve UNA pieza archivada de una campaña anterior a la bandeja; no gasta. Fuera del archivo la plataforma da 409
+  "archivo-recuperar-pieza": {
+    gasta: null,
+    validar: (c) => { const id = conId(c, "hitl_id"); return id ? { ok: true, cuerpo: { hitl_id: id } } : mal("falta la pieza que se recupera") },
+    ruta: () => "/api/cadena/archivo/recuperar-pieza",
+  },
   "rehacer-pieza": {
     gasta: { tope_usd: TOPE_POR_PIEZA_USD },
     validar: (c) => { const id = conId(c, "encargo_id"); return id ? { ok: true, cuerpo: { encargo_id: id, ...(texto(c.comentario) ? { comentario: texto(c.comentario).slice(0, 2000) } : {}) } } : mal("falta la pieza que se rehace") },

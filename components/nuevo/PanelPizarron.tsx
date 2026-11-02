@@ -219,6 +219,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
                     ))}
                   </div>
                 )}
+                {(datos.archivo?.length ?? 0) > 0 && <ArchivoDelCalendario filas={datos.archivo!} />}
               </>
             )}
           </div>
@@ -252,6 +253,29 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
         </div>
       </section>
     </div>
+  )
+}
+
+/** LA CARPETA DEL ARCHIVO (CC6 · 03-nov · corrección 3 de Lenovo · CC1 #852): lo de una campaña anterior, plegado al final, con su cantidad. Solo se mira: una fila
+ *  del calendario no se recupera (volver atrás la campaña entera es «desarchivar», fuera del panel); las piezas se recuperan desde el panel de Piezas. */
+export function ArchivoDelCalendario({ filas }: { filas: FilaDelTablero[] }) {
+  return (
+    <details data-carpeta-archivo className="mt-6 rounded-lg border border-white/10 bg-white/[0.02]">
+      <summary className="cursor-pointer select-none px-4 py-3 text-[14px] text-zinc-200 hover:bg-white/[0.03]">
+        <span className="font-medium">Archivo · campaña anterior</span> <span className="tabular-nums text-zinc-400">· {filas.length} {filas.length === 1 ? "publicación" : "publicaciones"}</span>
+        <span className="ml-2 text-[12.5px] text-zinc-500">quedaron de una campaña reemplazada; no se borraron y no entran a la cadena</span>
+      </summary>
+      <ul className="max-h-[50vh] space-y-1 overflow-y-auto border-t border-white/10 px-4 py-3">
+        {filas.map((p) => (
+          <li key={`${p.id}|${p.fecha}`} data-fila-archivada className="flex flex-wrap items-baseline gap-x-2 text-[13.5px] text-zinc-400">
+            <span className="tabular-nums text-zinc-300">{diaConNombre(p.fecha)}{p.hora ? ` · ${p.hora}` : ""}</span>
+            <span>{redDelTablero(p.red).nombre} {formatoLegible(p.formato).toLowerCase()}</span>
+            <span className="min-w-0 flex-1 truncate">· {p.tema || "sin tema"}</span>
+            <span className="text-[12.5px] text-zinc-500">{estadoCortoDeLaPublicacion(p)}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
   )
 }
 
