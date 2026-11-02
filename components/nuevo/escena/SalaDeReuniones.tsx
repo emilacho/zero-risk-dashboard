@@ -15,13 +15,15 @@ export const ESTILO_SALA = `
 .nv-sala-p .nv-sala-aro{transition:stroke-width .2s ease}
 .nv-sala-p:hover .nv-sala-aro,.nv-sala-p:focus-visible .nv-sala-aro{stroke-width:4}
 .nv-sala-p[data-estado="hablando"] .nv-sala-halo{animation:nvSalaHabla 1.8s ease-in-out infinite}
-.nv-sala-rotulo{pointer-events:auto;cursor:pointer;outline:none}
+.nv-sala-rotulo{pointer-events:auto;cursor:pointer;outline:none;opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease}
+.nv-sala:hover .nv-sala-rotulo,.nv-sala-rotulo:focus-visible,.nv-sala[data-sala="en_curso"] .nv-sala-rotulo,.nv-sala[data-abierta="true"] .nv-sala-rotulo{opacity:1;transform:none}
+.nv-sala-zona{pointer-events:auto;cursor:pointer}
 .nv-sala-rotulo:hover .nv-sala-t1,.nv-sala-rotulo:focus-visible .nv-sala-t1{stroke:#ffb86b}
 .nv-sala-luz{animation:nvAvLate 2.6s ease-in-out infinite}
 .nv-sala-burbuja{transition:transform 1.4s cubic-bezier(.4,0,.2,1),opacity 1s ease}
 .nv-sala-burbuja[data-luz="habla"] rect{animation:nvSalaHabla 1.4s ease-in-out infinite}
 @keyframes nvSalaHabla{0%,100%{opacity:.85}50%{opacity:.25}}
-@media (prefers-reduced-motion:reduce){.nv-sala-p[data-estado="hablando"] .nv-sala-halo,.nv-sala-luz,.nv-sala-burbuja[data-luz="habla"] rect{animation:none}.nv-sala-burbuja{transition:none}}
+@media (prefers-reduced-motion:reduce){.nv-sala-rotulo{transition:none}.nv-sala-p[data-estado="hablando"] .nv-sala-halo,.nv-sala-luz,.nv-sala-burbuja[data-luz="habla"] rect{animation:none}.nv-sala-burbuja{transition:none}}
 `
 const FUENTE = "system-ui, Arial, sans-serif"
 /** «Jefe de Marketing» → «JM» (sin «de», «del», «la», «y»…; primera y última palabra) */
@@ -62,7 +64,9 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, onFoco, onTocar }: {
   const lineas = lineasDeLaSala(sala)
   const terminada = r?.estado === "terminada"
   return (
-    <g className="nv-sala" data-sala={r ? r.estado : "vacia"} data-corridas={r?.corridas.join(",") ?? ""}>
+    <g className="nv-sala" data-sala={r ? r.estado : "vacia"} data-abierta={abierta} data-corridas={r?.corridas.join(",") ?? ""}>
+      {/* la zona del ratón: la sala de vidrio; al pasar por encima aparece el rótulo, como en las mesas */}
+      <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); onAbrir() }} />
       {r?.estado === "en_curso" && <ellipse className="nv-sala-luz" cx={SALA.mesa.x} cy={SALA.mesa.y} rx={150} ry={95} fill="url(#nv-av-ambar)" opacity={0.7} />}
       <g className="nv-sala-rotulo" role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={abierta} aria-label={`${lineas.join(". ")}. Ver la reunión`}
         onClick={(e) => { e.stopPropagation(); onAbrir() }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir() } }}>

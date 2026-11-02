@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { RetratoInventado } from "@/components/nuevo/escena/RetratoInventado"
 import { createPortal } from "react-dom"
-import { iniciales, type FichaDelEmpleado as Ficha } from "@/lib/escena-empleado"
+import type { FichaDelEmpleado as Ficha } from "@/lib/escena-empleado"
 import { MESAS } from "@/lib/escena-avatares"
 import { fechaCortaEC } from "@/lib/manual"
 import { usdES } from "@/lib/lenguaje"
@@ -11,18 +12,6 @@ type Respuesta = ({ ok: true } & Ficha) | { ok: false; error: string }
 const AMBAR = "#f5a524"
 
 /** el retrato: un busto en el mismo estilo de la escena (negro, trazo ámbar, el color del equipo en el hombro) con sus iniciales */
-function Retrato({ nombre, color }: { nombre: string; color: string }) {
-  return (
-    <svg viewBox="0 0 120 120" width={112} height={112} aria-hidden className="shrink-0 rounded-2xl border border-amber-400/40 bg-[#0d0b09]">
-      <defs><radialGradient id="ficha-luz" cx=".5" cy=".35" r=".7"><stop offset="0" stopColor="#ffb347" stopOpacity=".25" /><stop offset="1" stopColor="#ffb347" stopOpacity="0" /></radialGradient></defs>
-      <rect width="120" height="120" fill="url(#ficha-luz)" />
-      <path d="M18 120c2-24 20-36 42-36s40 12 42 36" fill="#1b1714" stroke={AMBAR} strokeOpacity=".55" strokeWidth="1.5" />
-      <path d="M28 104c8-6 18-9 32-9" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity=".85" />
-      <circle cx="60" cy="50" r="23" fill="#24201c" stroke={AMBAR} strokeOpacity=".6" strokeWidth="1.5" />
-      <text x="60" y="57" textAnchor="middle" fontSize="18" fontWeight="600" fill="#ffe2b8" fontFamily="system-ui, Arial, sans-serif">{iniciales(nombre)}</text>
-    </svg>
-  )
-}
 const Titulo = ({ children }: { children: React.ReactNode }) => <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.16em]" style={{ color: AMBAR }}>{children}</h3>
 const Vacio = ({ children }: { children: React.ReactNode }) => <p className="text-[12.5px] italic text-zinc-500">{children}</p>
 function Cifra({ etiqueta, valor, nota }: { etiqueta: string; valor: string; nota?: string }) {
@@ -70,9 +59,10 @@ export function FichaDelEmpleado({ agente, onCerrar, datosIniciales = null }: { 
         {!ficha && !error && <p className="m-6 text-[13px] text-zinc-500">Leyendo la ficha…</p>}
         {ficha && n && (
           <div className="min-h-0 overflow-y-auto p-5 sm:p-7">
+            {ficha.sin_registro && <p data-sin-registro className="mb-4 rounded-md border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 text-[12.5px] text-amber-100">No está en la lista de empleados de la plataforma: aquí va solo lo que hay de él (su mesa y su trabajo). Lo demás dice «sin dato».</p>}
             {/* encabezado: el nombre de persona y su puesto real */}
             <header className="flex flex-wrap items-center gap-5">
-              <Retrato nombre={ficha.persona} color={color} />
+              <RetratoInventado semilla={agente} color={color} />
               <div className="min-w-0">
                 <h2 className="font-display text-[28px] font-semibold leading-tight text-zinc-50" data-persona>{ficha.persona}</h2>
                 <p className="text-[15px] text-amber-200" data-puesto>{ficha.puesto}</p>
