@@ -5,13 +5,17 @@ import type { GranIdeaDelCliente } from "@/lib/gran-idea-datos"
 import type { EstadoDelConcepto } from "@/lib/concepto-datos"
 import { diaYHora, plural } from "@/lib/lenguaje"
 import { NOTA_MINIMA, type ApuntaA } from "@/lib/concepto-decision"
-import { avisoTrasDecidirGranIdea, cuerpoDeDecisionDeGranIdea, errorTrasDecidirGranIdea, rutaDeDecisionDeGranIdea, type AccionDeGranIdea, type RespuestaDeDecisionDeGranIdea } from "@/lib/gran-idea"
+import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
+import { estadoDelBriefLegible } from "@/lib/brief"
+import { AL_APROBAR_LA_GRAN_IDEA, avanceDeGranIdea, avisoTrasDecidirGranIdea, cuerpoDeDecisionDeGranIdea, errorTrasDecidirGranIdea, rutaDeDecisionDeGranIdea, type AccionDeGranIdea, type RespuestaDeDecisionDeGranIdea } from "@/lib/gran-idea"
 
 /**
  * GRAN IDEA (sprint 6.10 · encargo 01-nov §2 botón 5 · reemplaza al cuadro Cerebro): el concepto de la campaña que la sala creativa propone y Emilio aprueba.
  * 6.11 (ADENDA 7.2): la DECISIÓN ya existe en el tablero (CC#1 · PR #77: `POST /api/piezas/{id}/gran-idea` → `lib/concepto-decision.ts` → la plataforma decide) y se
  * reutiliza TAL CUAL: dos botones grandes (Aprobar · Pedir cambios con nota y a qué apunta), `estado_visto` para que una pantalla vieja reciba 409, y la plataforma aplica
  * el efecto; el tablero no escribe nada en la base. Lo que se enseña sale del lector de CC#1 (`lib/concepto-datos.ts`). Sin tarjeta (hoy, 1-nov) el panel lo dice; no inventa una.
+ * CC6 · 02-nov (boceto aprobado por Emilio): el patrón del plan y el manual · la idea y la decisión arriba, el resto en secciones plegables con su resumen, y una barra fija
+ * (estado · el brief que leyó la sala · quién la propuso con su nombre real · qué pasa al aprobar · propuestas). Tras «Pedir cambios», la misma barra de avance del plan.
  */
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & GranIdeaDelCliente) | { ok: false; error: string }
@@ -23,18 +27,37 @@ const ESTILO = `
 @keyframes giEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes giLate{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.6)}50%{box-shadow:0 0 0 6px rgba(245,165,36,0)}}
 @media (prefers-reduced-motion:reduce){.gi-entra{animation:none}.gi-punto{animation:none}}
-`
+` + ESTILO_DEL_PEDIDO
 type Tono = "neutro" | "ambar" | "verde" | "rojo" | "azul"
 const CHIP: Record<Tono, string> = { ambar: "border-amber-400/50 text-amber-200", verde: "border-emerald-400/40 text-emerald-200", azul: "border-sky-400/40 text-sky-200", rojo: "border-rose-400/40 text-rose-200", neutro: "border-white/15 text-zinc-300" }
 const Chip = ({ children, tono = "neutro" }: { children: React.ReactNode; tono?: Tono }) => <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] ${CHIP[tono]}`}>{children}</span>
 const Titulito = ({ children }: { children: React.ReactNode }) => <h4 className="mb-1 text-[11px] uppercase tracking-[0.08em] text-zinc-500">{children}</h4>
-const Caja = ({ children }: { children: React.ReactNode }) => <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">{children}</div>
 const MIGA = "rounded px-1.5 py-0.5 text-[12.5px] text-zinc-300"
 const BOTON = "rounded-xl border px-5 py-3 text-[14px] font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
 const B_VERDE = `${BOTON} border-emerald-500/70 bg-emerald-700/60 text-emerald-50 hover:bg-emerald-700/80`
 const B_AMBAR = `${BOTON} border-amber-400/70 bg-amber-400/15 text-amber-100 hover:bg-amber-400/25`
 const B_GRIS = "rounded-xl border border-white/15 px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-white/[0.06]"
 const Sep = () => <span className="text-zinc-600" aria-hidden>›</span>
+/** una sección plegable con su resumen (como el plan): cerrada, la primera línea; abierta, todo */
+function Plegable({ id, titulo, resumen, children }: { id: string; titulo: string; resumen?: string | null; children: React.ReactNode }) {
+  const [abierta, setAbierta] = useState(false)
+  const corto = resumen ? (resumen.length > 160 ? `${resumen.slice(0, 159).trimEnd()}…` : resumen) : null
+  return (
+    <section data-bloque={id} data-abierta={abierta} className={`rounded-lg border ${abierta ? "border-amber-400/30 bg-white/[0.03]" : "border-white/10 bg-white/[0.02]"}`}>
+      <button type="button" aria-expanded={abierta} onClick={() => setAbierta((v) => !v)} className="flex w-full items-start gap-3 px-3.5 py-3 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13.5px] font-medium text-zinc-100">{titulo}</span>
+          {!abierta && corto && <span className="mt-0.5 block text-[12.5px] leading-snug text-zinc-400">{corto}</span>}
+        </span>
+        <span aria-hidden className={`mt-0.5 text-zinc-500 transition ${abierta ? "rotate-90" : ""}`}>›</span>
+      </button>
+      {abierta && <div className="px-3.5 pb-3.5 text-[12.5px] leading-relaxed text-zinc-200">{children}</div>}
+    </section>
+  )
+}
+const BarraLateral = ({ id, titulo, children }: { id: string; titulo: string; children: React.ReactNode }) => (
+  <section data-barra={id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5"><Titulito>{titulo}</Titulito>{children}</section>
+)
 
 export function estadoDeLaGranIdeaLegible(e: EstadoDelConcepto): { texto: string; tono: Tono } {
   switch (e) {
@@ -87,6 +110,8 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
   const pendientes = tarjetas.filter((t) => t.estado === "pendiente").length
   const resumen = datos ? (!datos.publicado && !tarjetas.length ? "la sala creativa aún no abre" : tarjetas.length ? `${plural(tarjetas.length, "propuesta", "propuestas")}${pendientes ? ` · ${pendientes} esperan tu decisión` : ""}` : "todavía sin propuesta") : ""
   const pendiente = !!d && d.estado === "pendiente" && d.status === "pending"
+  // tras «Pedir cambios» y mientras no llegue la propuesta nueva: la misma barra de avance del plan y el manual
+  const avance = d && tarjetas[0]?.hitl_id === d.hitl_id ? avanceDeGranIdea(tarjetas, d.decidido_en, new Date()) : null
 
   /** la decisión va a la ruta de CC#1 (`POST /api/piezas/{id}/gran-idea`); la plataforma la aplica. Con 409 (la tarjeta cambió) se recarga */
   const decidir = async (accion: AccionDeGranIdea) => {
@@ -118,23 +143,6 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
         {mensaje && !dialogo && <p role="status" data-aviso={mensaje.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${mensaje.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{mensaje.texto}</p>}
 
         <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-[250px] shrink-0 overflow-y-auto border-r border-white/10 p-3 md:block" aria-label="Propuestas de gran idea">
-            <p className="px-2 py-1.5 text-[13px] font-medium text-zinc-100">Propuestas</p>
-            <ul className="mt-1 space-y-0.5 pl-2">
-              {tarjetas.map((t) => {
-                const e = estadoDeLaGranIdeaLegible(t.estado)
-                return (
-                  <li key={t.hitl_id}>
-                    <button type="button" data-nodo-tarjeta={t.hitl_id} data-estado={t.estado} onClick={() => void leer(datos?.cliente?.id ?? null, t.hitl_id)} aria-current={d?.hitl_id === t.hitl_id} className="gi-nodo flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]">
-                      {t.estado === "pendiente" && <span className="gi-punto h-2 w-2 shrink-0 rounded-full" style={{ background: AMBAR }} aria-hidden />}
-                      <span className="min-w-0 flex-1 truncate">{t.version != null ? `v${t.version} · ` : ""}{e.texto}</span>
-                    </button>
-                  </li>
-                )
-              })}
-              {datos && !tarjetas.length && <li className="px-2 py-1.5 text-[12px] text-zinc-500">{datos.publicado ? "Sin propuestas todavía" : "Llega con la cadena nueva"}</li>}
-            </ul>
-          </aside>
 
           <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
             {error && <p role="alert" className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-200">{error}</p>}
@@ -155,66 +163,84 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
             )}
 
             {datos?.cliente && d && (
-              <article data-vista="gran-idea" data-tarjeta-abierta={d.hitl_id} data-estado={d.estado} className="gi-entra max-w-[900px] space-y-4">
-                <div>
-                  <h3 className="text-[18px] font-medium leading-snug text-zinc-50">{d.gran_idea?.nombre ?? d.titulo}</h3>
-                  {d.gran_idea?.frase && <p className="mt-1 text-[14px] italic text-amber-100/90">«{d.gran_idea.frase}»</p>}
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <Chip tono={estadoDeLaGranIdeaLegible(d.estado).tono}>{estadoDeLaGranIdeaLegible(d.estado).texto}</Chip>
-                    {d.version != null && <Chip>Versión {d.version}</Chip>}
-                    {d.seco && <Chip>Ensayo en seco</Chip>}
-                    {d.creada && <Chip>{diaYHora(d.creada)}</Chip>}
-                    {d.vueltas_restantes != null && <Chip>{plural(d.vueltas_restantes, "vuelta de cambios", "vueltas de cambios")} restantes</Chip>}
+              <div data-vista="gran-idea" data-tarjeta-abierta={d.hitl_id} data-estado={d.estado} className="gi-entra grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
+                <article className="min-w-0 space-y-3">
+                  <div className={`rounded-xl border p-4 ${pendiente ? "border-amber-400/40 bg-amber-400/[0.07]" : "border-white/10 bg-white/[0.02]"}`}>
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">La gran idea</p>
+                    <h3 className="mt-1 text-[20px] font-semibold leading-snug text-zinc-50">{d.gran_idea?.nombre ?? d.titulo}</h3>
+                    {d.gran_idea?.frase && <p className="mt-1 text-[14px] italic text-amber-100/90">«{d.gran_idea.frase}»</p>}
+                    {pendiente && (
+                      <div data-bloque="decision" className="mt-3">
+                        {d.sin_concepto && <p className="mb-2 text-[12px] text-rose-200">No se puede decidir hasta que la cadena complete la tarjeta: {d.sin_concepto}.</p>}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button type="button" data-accion="aprobar-gran-idea" disabled={enviando || !!d.sin_concepto} onClick={() => void decidir("aprobar")} className={B_VERDE}>{enviando && !dialogo ? "Enviando…" : "Aprobar la gran idea"}</button>
+                          <button type="button" data-accion="pedir-cambios-gran-idea" disabled={enviando || !!d.sin_concepto} onClick={() => { setDialogo(true); setMensaje(null) }} className={B_AMBAR}>Pedir cambios…</button>
+                          {d.vueltas_restantes != null && <span className="text-[11.5px] text-zinc-400">{d.vueltas_restantes === 0 ? "No quedan vueltas de cambios: la siguiente va a revisión humana" : plural(d.vueltas_restantes, "vuelta de cambios", "vueltas de cambios") + " restantes"}</span>}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-                {pendiente && (
-                  <div data-bloque="decision" className="rounded-xl border border-amber-400/40 bg-amber-400/[0.07] p-4">
-                    <p className="text-[13px] leading-relaxed text-amber-100">Esta propuesta espera tu decisión. Apruebas la gran idea y el brief de la campaña; con eso la cadena arma el calendario de la primera tanda. Si pides cambios, dices a qué apuntan: al concepto (otra ronda de la mesa) o al brief (brief nuevo y concepto sobre él).</p>
-                    {d.sin_concepto && <p className="mt-1 text-[12px] text-rose-200">No se puede decidir hasta que la cadena complete la tarjeta: {d.sin_concepto}.</p>}
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                      <button type="button" data-accion="aprobar-gran-idea" disabled={enviando || !!d.sin_concepto} onClick={() => void decidir("aprobar")} className={B_VERDE}>{enviando && !dialogo ? "Enviando…" : "Aprobar la gran idea"}</button>
-                      <button type="button" data-accion="pedir-cambios-gran-idea" disabled={enviando || !!d.sin_concepto} onClick={() => { setDialogo(true); setMensaje(null) }} className={B_AMBAR}>Pedir cambios…</button>
-                      {d.vueltas_restantes != null && <span className="text-[11.5px] text-zinc-400">{d.vueltas_restantes === 0 ? "No quedan vueltas de cambios: la siguiente va a revisión humana" : plural(d.vueltas_restantes, "vuelta de cambios disponible", "vueltas de cambios disponibles")}</span>}
-                    </div>
-                  </div>
-                )}
-                {d.sin_concepto && <p className="rounded-md border border-white/10 bg-white/[0.03] p-2.5 text-[12px] text-zinc-400">Lo que la cadena guardó de esta propuesta está incompleto: {d.sin_concepto}.</p>}
-                {d.avisos.length > 0 && <div data-bloque="avisos"><Titulito>Avisos de la sala</Titulito><Caja><ul className="list-disc space-y-0.5 pl-4">{d.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul></Caja></div>}
-                {d.por_que_funciona && <div data-bloque="por_que_funciona"><Titulito>Por qué funciona</Titulito><Caja><p className="whitespace-pre-wrap">{d.por_que_funciona}</p></Caja></div>}
-                {d.como_se_ve && <div data-bloque="como_se_ve"><Titulito>Cómo se ve</Titulito><Caja><p className="whitespace-pre-wrap">{d.como_se_ve}</p></Caja></div>}
-                {d.como_suena && <div data-bloque="como_suena"><Titulito>Cómo suena</Titulito><Caja><p className="whitespace-pre-wrap">{d.como_suena}</p></Caja></div>}
-                {d.capitulos.length > 0 && (
-                  <div data-bloque="capitulos">
-                    <Titulito>Capítulos · {plural(d.capitulos.length, "capítulo", "capítulos")}</Titulito>
-                    <ul className="space-y-2">
-                      {d.capitulos.map((c) => (
-                        <li key={c.clave} className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">
-                          <p className="font-medium text-zinc-100">{c.nombre}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
-                          {c.que_cuenta && <p className="mt-0.5 text-zinc-300">{c.que_cuenta}</p>}
-                          {c.series.length > 0 && <ul className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((s) => <li key={s.id}>{s.nombre}{s.redes.length ? ` · ${s.redes.join(", ")}` : ""}</li>)}</ul>}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {d.resumen.total > 0 && (
-                  <div data-bloque="banco">
-                    <Titulito>Banco de ideas · {plural(d.resumen.total, "idea", "ideas")}</Titulito>
-                    <Caja>
+                  {avance && <BarraDelPedido avance={avance} />}
+                  {d.sin_concepto && !pendiente && <p className="rounded-md border border-white/10 bg-white/[0.03] p-2.5 text-[12px] text-zinc-400">Lo que la cadena guardó de esta propuesta está incompleto: {d.sin_concepto}.</p>}
+                  {d.avisos.length > 0 && <Plegable id="avisos" titulo="Avisos de la sala" resumen={d.avisos[0]}><ul className="list-disc space-y-0.5 pl-4">{d.avisos.map((a, i) => <li key={i}>{a}</li>)}</ul></Plegable>}
+                  {d.por_que_funciona && <Plegable id="por_que_funciona" titulo="Por qué funciona" resumen={d.por_que_funciona}><p className="whitespace-pre-wrap">{d.por_que_funciona}</p></Plegable>}
+                  {d.como_se_ve && <Plegable id="como_se_ve" titulo="Cómo se ve" resumen={d.como_se_ve}><p className="whitespace-pre-wrap">{d.como_se_ve}</p></Plegable>}
+                  {d.como_suena && <Plegable id="como_suena" titulo="Cómo suena" resumen={d.como_suena}><p className="whitespace-pre-wrap">{d.como_suena}</p></Plegable>}
+                  {d.capitulos.length > 0 && (
+                    <Plegable id="capitulos" titulo={`Capítulos · ${d.capitulos.length}`} resumen={d.capitulos.map((c) => c.nombre).join(" · ")}>
+                      <ul className="space-y-2">
+                        {d.capitulos.map((c) => (
+                          <li key={c.clave} className="rounded-lg border border-white/10 bg-black/20 p-2.5">
+                            <p className="font-medium text-zinc-100">{c.nombre}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
+                            {c.que_cuenta && <p className="mt-0.5 text-zinc-300">{c.que_cuenta}</p>}
+                            {c.series.length > 0 && <ul className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{x.nombre}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
+                          </li>
+                        ))}
+                      </ul>
+                    </Plegable>
+                  )}
+                  {d.resumen.total > 0 && (
+                    <Plegable id="banco" titulo={`Banco de ideas · ${d.resumen.total}`} resumen={Object.entries(d.resumen.por_red).map(([red, n]) => `${red}: ${n}`).join(" · ")}>
                       <p>{Object.entries(d.resumen.por_red).map(([red, n]) => `${red}: ${n}`).join(" · ")}</p>
-                      {d.resumen.parcial.length > 0 && <p className="mt-1 text-[11.5px] text-amber-200/80">Banco parcial: {d.resumen.parcial.map((p) => `${p.red} / ${p.capitulo} faltan ${p.faltan}`).join(" · ")}</p>}
-                    </Caja>
-                  </div>
-                )}
-                {d.caminos_descartados && <div data-bloque="caminos_descartados"><Titulito>Caminos descartados</Titulito><Caja><p className="whitespace-pre-wrap">{d.caminos_descartados}</p></Caja></div>}
-                {d.devolucion_del_brief && <div data-bloque="devolucion_del_brief"><Titulito>Devolución al brief</Titulito><Caja><p className="whitespace-pre-wrap">{d.devolucion_del_brief}</p></Caja></div>}
-                {(d.nota_de_emilio || d.decidido_en) && (
-                  <div data-bloque="decidido">
-                    <Titulito>Tu decisión</Titulito>
-                    <Caja>{d.nota_de_emilio && <p className="whitespace-pre-wrap">{d.nota_de_emilio}</p>}{d.decidido_en && <p className="text-[11.5px] text-zinc-500">Decidido el {diaYHora(d.decidido_en)}</p>}</Caja>
-                  </div>
-                )}
-              </article>
+                      {d.resumen.parcial.length > 0 && <p className="mt-1 text-[11.5px] text-amber-200/80">Banco parcial: {d.resumen.parcial.map((x) => `${x.red} / ${x.capitulo} faltan ${x.faltan}`).join(" · ")}</p>}
+                    </Plegable>
+                  )}
+                  {d.caminos_descartados && <Plegable id="caminos_descartados" titulo="Caminos descartados" resumen={d.caminos_descartados}><p className="whitespace-pre-wrap">{d.caminos_descartados}</p></Plegable>}
+                  {d.devolucion_del_brief && <Plegable id="devolucion_del_brief" titulo="Devolución al brief" resumen={d.devolucion_del_brief}><p className="whitespace-pre-wrap">{d.devolucion_del_brief}</p></Plegable>}
+                  {(d.nota_de_emilio || d.decidido_en) && (
+                    <div data-bloque="decidido" className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                      <Titulito>Tu decisión</Titulito>
+                      {d.nota_de_emilio && <p className="whitespace-pre-wrap text-[12.5px] text-zinc-200">{d.nota_de_emilio}</p>}
+                      {d.decidido_en && <p className="text-[11.5px] text-zinc-500">Decidido el {diaYHora(d.decidido_en)}</p>}
+                    </div>
+                  )}
+                </article>
+                <aside aria-label="Lo esencial de la gran idea" data-barra-de-la-gran-idea className="space-y-3 lg:sticky lg:top-0 lg:self-start">
+                  <BarraLateral id="estado" titulo="Estado">
+                    <div className="flex flex-wrap gap-1.5"><Chip tono={estadoDeLaGranIdeaLegible(d.estado).tono}>{estadoDeLaGranIdeaLegible(d.estado).texto}</Chip>{d.seco && <Chip>Ensayo en seco</Chip>}</div>
+                    {d.creada && <p className="mt-1 text-[11.5px] text-zinc-500">propuesta el {diaYHora(d.creada)}</p>}
+                  </BarraLateral>
+                  <BarraLateral id="brief" titulo="El brief que leyó la sala">
+                    {d.brief ? <><Chip tono={estadoDelBriefLegible(d.brief.estado).tono}>{estadoDelBriefLegible(d.brief.estado).texto}</Chip><p className="mt-1 text-[11.5px] text-zinc-400">Se aprueba junto con la gran idea. Se lee completo en «Brief de campaña».</p></> : <p className="text-[12px] italic text-zinc-500">sin brief guardado</p>}
+                  </BarraLateral>
+                  <BarraLateral id="quien" titulo="Quién la propuso">
+                    {(datos.quienes_propusieron ?? []).length ? <ul className="space-y-0.5">{datos.quienes_propusieron!.map((q) => <li key={q} className="font-mono text-[11.5px] text-amber-100">{q}</li>)}</ul> : <p className="text-[12px] text-zinc-400">la sala creativa <span className="text-zinc-500">(sin aportes registrados)</span></p>}
+                  </BarraLateral>
+                  <BarraLateral id="al-aprobar" titulo="Al aprobar"><p className="text-[12.5px] leading-snug text-zinc-200">{AL_APROBAR_LA_GRAN_IDEA}</p></BarraLateral>
+                  {tarjetas.length > 1 && (
+                    <BarraLateral id="propuestas" titulo={`Propuestas · ${tarjetas.length}`}>
+                      <ul className="space-y-0.5">
+                        {tarjetas.map((t) => (
+                          <li key={t.hitl_id}><button type="button" data-nodo-tarjeta={t.hitl_id} data-estado={t.estado} onClick={() => void leer(datos.cliente?.id ?? null, t.hitl_id)} aria-current={d.hitl_id === t.hitl_id} className="gi-nodo flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12px] text-zinc-300 hover:bg-white/[0.05]">
+                            {t.estado === "pendiente" && <span className="gi-punto h-2 w-2 shrink-0 rounded-full" style={{ background: AMBAR }} aria-hidden />}
+                            <span className="min-w-0 flex-1 truncate">{diaYHora(t.creada)} · {estadoDeLaGranIdeaLegible(t.estado).texto}</span>
+                          </button></li>
+                        ))}
+                      </ul>
+                    </BarraLateral>
+                  )}
+                </aside>
+              </div>
             )}
           </div>
         </div>

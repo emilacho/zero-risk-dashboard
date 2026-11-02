@@ -26,6 +26,8 @@ export interface GranIdeaDelCliente {
   tarjetas: TarjetaDeConcepto[]
   /** la tarjeta elegida (la más nueva, o la pedida), leída completa */
   detalle: DetalleDelConcepto | null
+  /** CC6 · quién la propuso: los empleados que aportaron en la sala de ese concepto (nombre real, de `oficina_mesa_aportes.de`) */
+  quienes_propusieron?: string[]
   leido_en: string
 }
 
@@ -56,7 +58,17 @@ export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string |
   const tarjetas = hitl.map(tarjetaDesdeFila)
   const elegida = (o.tarjeta && tarjetas.find((t) => t.hitl_id === o.tarjeta)) || tarjetas[0] || null
   const detalle = elegida ? await cargarConcepto(supa, elegida.hitl_id) : null
-  return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle }
+  const quienes_propusieron = detalle?.concepto_id ? await quienesPropusieron(supa, detalle.concepto_id) : []
+  return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle, quienes_propusieron }
+}
+
+/** los empleados de la sala que aportaron al encargo de ese concepto, sin repetir y en el orden en que hablaron */
+async function quienesPropusieron(supa: SupabaseClient, conceptoId: string): Promise<string[]> {
+  const c = await una(supa.from("cadena_conceptos").select("encargo_id").eq("id", conceptoId).maybeSingle(), "cadena_conceptos")
+  const encargo = c && typeof c.encargo_id === "string" ? c.encargo_id : null
+  if (!encargo) return []
+  const aportes = await filas(supa.from("oficina_mesa_aportes").select("de, n").eq("encargo_id", encargo).order("n", { ascending: true }).limit(200), "oficina_mesa_aportes")
+  return [...new Set(aportes.map((a) => String(a.de ?? "")).filter((x) => x && x !== "sistema"))]
 }
 
 /** la segunda línea del cuadro «Gran idea» */
