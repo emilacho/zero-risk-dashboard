@@ -3,7 +3,7 @@
  * Lógica PURA y la MISMA regla que la plataforma (`zero-risk-platform/src/lib/manual/palabras-con-intencion.ts` · `leerPalabras`), para que el tablero nunca
  * muestre como «bloquea» una palabra que la plataforma lee como contexto:
  *   · `legal`: la marca una norma; exige la cita. Avisa (desde el 02-nov ninguna palabra bloquea).
- *   · `del_dueno`: la prohibió el dueño; exige cita y fecha válida. Bloquea.
+ *   · `del_dueno`: la prohibió el dueño; exige cita y fecha válida. Avisa.
  *   · `estilo`: contexto de marca. Nunca bloquea. Es toda palabra de la lista que no diga otra cosa, y toda dura a la que le falte su fuente.
  * Fuentes: `client_brand_books.forbidden_words` (la lista completa, como siempre) + `client_brand_books.palabras_con_intencion` (solo lo que no es la omisión).
  */
