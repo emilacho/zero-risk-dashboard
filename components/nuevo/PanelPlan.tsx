@@ -95,6 +95,26 @@ const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibol
  * clic y «Pedir cambios» es escribir y enviar; el gasto se verá en el panel de gastos de la oficina y en Dinero. Si la última llamada no despertó al flujo se ofrece «Reintentar». Las versiones anteriores
  * quedan en segundo plano («corregido N veces · ver historial»).
  */
+/** «Qué cambió en el plan» resumido: los dos primeros cambios a la vista y el resto al desplegar, como las secciones del plan (Lenovo, 02-nov) */
+export function lineasDeQueCambio(texto: string): string[] {
+  return texto.split(/\n+/).map((l) => l.trim().replace(/^([-*•]|\d+[.)])\s+/, "")).filter((l) => l && !/^-{3,}$/.test(l))
+}
+function QueCambio({ texto }: { texto: string }) {
+  const lineas = lineasDeQueCambio(texto)
+  const [abierto, setAbierto] = useState(false)
+  const visibles = abierto ? lineas : lineas.slice(0, 2)
+  return (
+    <div data-que-cambio data-abierto={abierto} className="mt-3 rounded-lg border border-amber-400/40 bg-black/30 p-3">
+      <button type="button" aria-expanded={abierto} onClick={() => setAbierto((v) => !v)} className="flex w-full items-center gap-2 text-left">
+        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-300">Qué cambió en el plan · {plural(lineas.length, "cambio", "cambios")}</span>
+        <span aria-hidden className={`ml-auto text-zinc-500 transition ${abierto ? "rotate-90" : ""}`}>›</span>
+      </button>
+      <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-zinc-100">{visibles.map((l, i) => <li key={i} className={abierto ? "" : "line-clamp-2"}>{l}</li>)}</ul>
+      {lineas.length > 2 && <button type="button" data-accion="ver-que-cambio" onClick={() => setAbierto((v) => !v)} className="mt-1 text-[11.5px] text-amber-300 underline decoration-dotted underline-offset-4 hover:text-amber-200">{abierto ? "Ver menos" : `Ver los ${lineas.length} cambios`}</button>}
+    </div>
+  )
+}
+
 function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, palabraDelDueno = [], pedirEn = null, children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** «la palabra del dueño manda»: lo que un revisor contradijo y no entró, o lo pedido que no quedó cumplido */ palabraDelDueno?: NonNullable<PlanDelCliente["palabra_del_dueno"]>; /** pedir cambios sobre una sección del plan (lo dispara el plan en secciones; `n` cambia en cada clic) */ pedirEn?: { seccion: string; n: number } | null; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
   const lectura = leerElCiclo(statusDelDocumento, ciclo)
   // Emilio (01-nov 16:27Z): sin avisos ni confirmaciones de gasto. Aprobar = un clic; Pedir cambios = escribir y enviar. El cuerpo sigue llevando lo que la
@@ -148,10 +168,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
         )}
       </div>
       {queCambio && ciclo.version > 1 && (
-        <div data-que-cambio className="mt-3 rounded-lg border border-amber-400/40 bg-black/30 p-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-300">Qué cambió en el plan</p>
-          <p className="mt-1 whitespace-pre-wrap text-[13.5px] leading-relaxed text-zinc-100">{queCambio}</p>
-        </div>
+        <QueCambio texto={queCambio} />
       )}
       <p className="mt-2 text-[14px] leading-relaxed text-zinc-100">{lectura.detalle}</p>
       {/* «la palabra del dueño manda» (Emilio, 01-nov): lo que un revisor sugirió contra tu orden no entra al plan; aquí queda a la vista, sin tocar el texto */}
@@ -352,7 +369,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                   </Seccion>
 
                   {/* la meta y el reparto, del documento del plan */}
-                  <Seccion titulo="La meta y el reparto" nota={d ? `${rotuloDelTextoMientrasSeRehace(datos.ciclo) ? `${rotuloDelTextoMientrasSeRehace(datos.ciclo)} · ` : ""}${d.titulo}${d.caracteres ? ` · ${d.caracteres.toLocaleString("es-EC")} caracteres` : ""}` : "sin documento del plan"} retraso={120}>
+                  <Seccion titulo="La meta y el reparto" nota={d ? rotuloDelTextoMientrasSeRehace(datos.ciclo) ?? undefined : "sin documento del plan"} retraso={120}>
                     {!d && <Vacio>La oficina de planeación todavía no escribió el plan de este cliente.</Vacio>}
                     {/* el plan por secciones (Emilio, 02-nov: «que no se pierda entre párrafos gigantes») */}
                     {d && !d.plan && d.prosa && <PlanEnSecciones prosa={d.prosa} onPedirCambios={datos.ciclo && leerElCiclo(d.status, datos.ciclo).puede_pedir_cambios ? (seccion) => setPedirEn((x) => ({ seccion, n: (x?.n ?? 0) + 1 })) : undefined} />}

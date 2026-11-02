@@ -79,11 +79,11 @@ describe("la lectura (solo lectura)", () => {
     const b = baseFalsa({
       agents: (f: string[]) => (f.some((x) => x.startsWith("eq(")) ? [AG] : [AG, { id: "a2", name: "otro", display_name: "Otro", created_at: "2026-04-11T00:00:00Z" }]),
       oficina_directorio: (f: string[]) => (f.some((x) => x.startsWith("eq(")) ? [{ agente: AG.name, especialidad: "mercado", sabe_hacer: ["señales con fuente"], equipo: "estrategia" }] : [{ agente: AG.name, equipo: "estrategia" }]),
-      agent_invocations: [{ created_at: "2026-10-31T10:00:00Z", status: "completed", cost_usd: 0.2, duration_ms: 60000, client_id: "c1", workflow_id: null, workflow_execution_id: "1:analisis", metadata: {} }],
+      agent_invocations: [{ created_at: "2026-10-31T10:00:00Z", status: "completed", cost_usd: 0.2, duration_ms: 60000, client_id: "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312", workflow_id: null, workflow_execution_id: "1:analisis", metadata: {} }],
       agent_dispatches: [{ status: "running", created_at: "2026-10-30T10:00:00Z", running_at: "2026-10-30T10:00:00Z" }],
       oficina_mesa_aportes: [{ tipo: "usado" }, { tipo: "usado" }, { tipo: "descartado" }],
       agent_skill_assignments: [{ skill_id: "s1" }], agent_skills: [{ id: "s1", skill_name: "marketing-ideas", skill_source: "coreyhaines31/marketingskills" }],
-      clients: [{ id: "c1", name: "Náufrago" }],
+      clients: [{ id: "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312", name: "Náufrago" }],
     })
     const f = await leerFichaDelEmpleado(b, AG.name, { ahora: new Date("2026-11-01T17:00:00Z") })
     expect(f).toMatchObject({ agente: AG.name, puesto: "Trend Researcher", especialidad: "mercado", modelo: "Claude Sonnet", contratado_en: AG.created_at, equipo: { clave: "estrategia", nombre: "Estrategia", origen: "directorio" }, metodos: [{ nombre: "marketing-ideas", fuente: "coreyhaines31/marketingskills" }], ahora: { trabajando: 0, sin_cierre_registrado: 1 }, aportes: [{ tipo: "usado", n: 2 }, { tipo: "descartado", n: 1 }] })
@@ -103,7 +103,7 @@ describe("la ficha en pantalla y su ruta", () => {
   }
   it("dibuja el currículum: nombre de persona y puesto real, retrato, habilidades, números, «sin cierre registrado», fuente y hora; «sin dato» honesto", () => {
     const html = renderToStaticMarkup(createElement(FichaDelEmpleado, { agente: ficha.agente, onCerrar: () => {}, datosIniciales: ficha }))
-    expect(html).toContain("Valeria Ortiz"); expect(html).toContain("Trend Researcher"); expect(html).toContain(">VO<"); expect(html).toContain("señales con fuente y fecha")
+    expect(html).toContain("Valeria Ortiz"); expect(html).toContain("Trend Researcher"); expect(html).toContain('data-retrato="market_research_analyst"'); /* CC6 · 02-nov: retrato inventado con toque robótico (antes, iniciales) */ expect(html).toContain("señales con fuente y fecha")
     expect(html).toContain("67 %"); expect(html).toContain("2 sin cierre registrado"); expect(html).not.toContain("trabajando ahora")
     expect(html).toContain("sin métodos asignados en la base"); expect(html).toContain("sin tareas registradas"); expect(html).toContain("licencia: sin dato en la base")
     expect(html).toContain("leído 17:00Z"); expect(html).toContain("nv-panel") // no tapa el chat de abajo
@@ -112,5 +112,35 @@ describe("la ficha en pantalla y su ruta", () => {
     const r = readFileSync("app/api/escena-viva/empleado/route.ts", "utf8")
     expect(r).toContain("exigirAdmin()"); expect(r).toContain("agente_invalido"); expect(r).not.toMatch(/insert|update|delete|upsert/)
     expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("data-abrir-ficha={p.agente}")
+  })
+})
+
+describe("todas las fichas abren (encargo de Lenovo · 02-nov: «hay unos que al darles clic sale que no existe»)", () => {
+  it("un trabajo viejo con client_id de prueba («prueba-…») ya no rompe la ficha: no se pregunta por él", async () => {
+    const pedidos: string[][] = []
+    const b = baseFalsa({
+      agents: (f: string[]) => (f.some((x) => x.startsWith("eq(")) ? [AG] : [AG]),
+      oficina_directorio: [], agent_dispatches: [], oficina_mesa_aportes: [], agent_skill_assignments: [],
+      agent_invocations: [{ created_at: "2026-10-31T10:00:00Z", status: "completed", cost_usd: 0.1, duration_ms: 1000, client_id: "prueba-jefatura-real-servicios", workflow_id: null, workflow_execution_id: "1", metadata: {} }],
+      clients: (f: string[]) => { pedidos.push(f); return [] },
+    })
+    const f = await leerFichaDelEmpleado(b, AG.name)
+    expect(f).not.toBeNull()
+    expect(pedidos).toHaveLength(0) // sin uuids, ni se consulta
+    expect(f!.recientes[0].cliente).toBe("cliente sin nombre")
+  })
+  it("sin fila en la lista de empleados pero con rastro (el revisor externo GPT): ficha honesta, no «no existe»", async () => {
+    const b = baseFalsa({
+      agents: (f: string[]) => (f.some((x) => x.startsWith("eq(")) ? [] : [AG]),
+      oficina_directorio: [], agent_dispatches: [], oficina_mesa_aportes: [],
+      agent_invocations: [{ created_at: "2026-10-31T10:00:00Z", status: "completed", cost_usd: 0.05, duration_ms: 2000, client_id: null, workflow_id: null, workflow_execution_id: "2", metadata: {} }],
+      clients: [],
+    })
+    const f = await leerFichaDelEmpleado(b, "revisor-externo-gpt")
+    expect(f).toMatchObject({ agente: "revisor-externo-gpt", sin_registro: true, modelo: "sin dato", contratado_en: null, puesto: "Revisor externo gpt" })
+    expect(f!.numeros.tareas).toBe(1)
+    expect(f!.persona).toMatch(/^\S+ \S+$/)
+    const html = renderToStaticMarkup(createElement(FichaDelEmpleado, { agente: "revisor-externo-gpt", onCerrar: () => {}, datosIniciales: f }))
+    expect(html).toContain("data-sin-registro")
   })
 })

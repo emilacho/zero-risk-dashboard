@@ -139,4 +139,6 @@ export interface FichaDelEmpleado {
   aportes: Array<{ tipo: string; n: number }>
   fuente: string
   leido_en: string
+  /** no tiene fila en la lista de empleados de la plataforma (`agents`): la ficha muestra solo lo que hay */
+  sin_registro?: boolean
 }
