@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
-import { asignarRanuras, CuadrosDelPizarron, ESTILO_ENTREGAS, LuzDeFirma, TarjetaDeLaEntrega } from "@/components/nuevo/escena/EntregasEnLaFoto"
+import { CuadrosDeMetricas, ESTILO_ENTREGAS, LuzDeFirma, TarjetaDeLaEntrega } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
@@ -123,8 +123,6 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [sentadosEnSala, setSentadosEnSala] = useState<Set<string>>(new Set())
   const [tarjeta, setTarjeta] = useState<EntregaViva | null>(null) // sprint 3 · la entrega que se está dejando ahora en el pizarrón
   const entregasVigentes = datos?.entregas?.entregas ?? []
-  const ranuras = useRef<Array<string | null>>([])
-  ranuras.current = asignarRanuras(ranuras.current, entregasVigentes)
   const globoActual = globoVisible(datos?.sala?.reunion, enSala)
   const quienEstaEnLaSala = useMemo(() => agentesEnLaSala(datos?.sala), [datos])
   return (
@@ -163,8 +161,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} sentados={sentadosEnSala} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
-        {/* sprint 3 · el pizarrón: un cuadro encendido por entrega vigente (máx. 12) */}
-        <CuadrosDelPizarron entregas={entregasVigentes} ranuras={ranuras.current} oculta={tarjeta?.id ?? null} />
+        {/* el pizarrón de métricas: «General» y un cuadro por red del cliente; hoy «métricas pronto» (los gastos se ven en Tu oficina › Dinero). Las entregas ya no quedan fijas aquí: su tarjeta aparece 8 s */}
+        <CuadrosDeMetricas metricas={datos?.metricas} />
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}

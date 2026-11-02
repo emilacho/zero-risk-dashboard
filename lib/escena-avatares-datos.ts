@@ -9,6 +9,7 @@ import { esDePractica } from "@/lib/clientes"
 import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
+import { cuadrosDelPizarron, leerMetricas, redesDelCliente, type MetricasDelPizarron } from "@/lib/escena-metricas"
 import { armarEntregas, conRevisiones, devolvioEmilio, MAXIMO_DE_CUADROS, MINUTOS_DE_CORRIGE, REVISION_VIVA_H, VIGENCIA_DE_LA_ENTREGA_H, type EntregasDeLaEscena } from "@/lib/escena-entregas"
 
 type Fila = Record<string, unknown>
@@ -72,6 +73,8 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } =
     const ent = await conCache("escena-viva-entregas", 15_000, () => leerEntregas(supa, ahora))
     escena = conRevisiones(escena, ent, { directorio: dir.tarjetas, agentes: dir.agentes, ahora }).escena
   } catch { /* sin entregas esta vez */ }
+  // el pizarrón de métricas: las redes del cliente (de sus canales) y la lectura única de métricas (hoy «sin datos»)
+  try { escena = { ...escena, metricas: await leerElPizarronDeMetricas(supa, ahora) } } catch { /* sin pizarrón esta vez */ }
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
@@ -129,4 +132,20 @@ export async function leerEntregas(supa: SupabaseClient, ahora: Date): Promise<E
     idsDePlan.length ? filas(supa.from("jefatura_revisiones").select("id, artifact_id, productores, prueba, dry_run").in("artifact_id", idsDePlan).limit(100), "jefatura_revisiones") : Promise.resolve([] as Fila[]),
   ])
   return armarEntregas({ encargos, turnos, filas: filasCal, revisiones, pasos, bandeja, pasosDeCorreccion, decisiones, cambios, atribucion: [...atribucionPorId, ...atribucionPorPlan], ahora })
+}
+
+/** el pizarrón de métricas de marketing: el cliente de la escena, las redes que tiene (de `clients.config` y su sitio) y la lectura de métricas. Solo lectura */
+export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date): Promise<MetricasDelPizarron> {
+  return conCache("escena-viva-metricas", 60_000, async () => {
+    const plan = await conCache("escena-viva-contexto", 60_000, () => leerPlanDelCliente(supa, { ahora }))
+    const cliente = plan.cliente
+    let redes: ReturnType<typeof redesDelCliente> = []
+    if (cliente) {
+      const r = await supa.from("clients").select("config, website_url").eq("id", cliente.id).maybeSingle()
+      if (r.error) throw new Error(`clients: ${r.error.message}`)
+      redes = redesDelCliente(r.data?.config, typeof r.data?.website_url === "string" ? r.data.website_url : null)
+    }
+    const lectura = await leerMetricas(supa, { cliente: cliente?.id ?? null })
+    return { cliente: cliente?.nombre ?? null, cuadros: cuadrosDelPizarron(redes, lectura), lectura: lectura.estado }
+  })
 }

@@ -2,57 +2,53 @@
  * LA ESCENA VIVA · SPRINT 3 · lo que se ve de las entregas en la foto de marketing (CC4 · 02-nov): los cuadros encendidos del pizarrón, la tarjeta de la entrega que se acaba de dejar
  * y la luz de firma del panel del borde derecho (la puerta hacia Tu oficina). Solo dibuja lo que dicen los datos: sin entregas, el pizarrón queda apagado; sin firmas, el panel queda como está.
  */
-import type { CSSProperties } from "react"
-import { ANCLA_DE_LA_TARJETA, CUADROS_DEL_PIZARRON, ENLACE_A_TU_OFICINA, MAXIMO_DE_CUADROS, PANEL_DE_FIRMA, rotuloDeLaFirma, type EntregaViva } from "@/lib/escena-entregas"
+import { useState, type CSSProperties } from "react"
+import { ANCLA_DE_LA_TARJETA, CUADROS_DEL_PIZARRON, ENLACE_A_TU_OFICINA, PANEL_DE_FIRMA, rotuloDeLaFirma, type EntregaViva } from "@/lib/escena-entregas"
+import type { MetricasDelPizarron } from "@/lib/escena-metricas"
 
 const FUENTE = "system-ui, Arial, sans-serif"
 export const ESTILO_ENTREGAS = `
-.nv-av .nv-cuadro{transition:opacity .8s ease;filter:drop-shadow(0 0 6px rgba(255,170,60,.7))}
-.nv-av .nv-cuadro polygon{pointer-events:auto;cursor:default}
+.nv-av .nv-metrica{outline:none}
+.nv-av .nv-metrica .nv-metrica-cuadro{pointer-events:auto;cursor:default;filter:drop-shadow(0 0 4px rgba(255,170,60,.55));transition:fill-opacity .25s ease}
+.nv-av .nv-metrica:hover .nv-metrica-cuadro,.nv-av .nv-metrica:focus-visible .nv-metrica-cuadro{fill-opacity:.45}
 .nv-av .nv-firma{pointer-events:auto;cursor:pointer;outline:none}
 .nv-av .nv-firma .nv-firma-luz{animation:nvFirmaPulso 3.6s ease-in-out infinite}
 .nv-av .nv-firma .nv-firma-rotulo{opacity:0;transition:opacity .25s ease;pointer-events:none}
 .nv-av .nv-firma:hover .nv-firma-rotulo,.nv-av .nv-firma:focus-visible .nv-firma-rotulo{opacity:1}
 @keyframes nvFirmaPulso{0%,100%{opacity:.35}50%{opacity:.95}}
-@media (prefers-reduced-motion:reduce){.nv-av .nv-firma .nv-firma-luz{animation:none;opacity:.7}.nv-av .nv-cuadro{transition:none}}
+@media (prefers-reduced-motion:reduce){.nv-av .nv-firma .nv-firma-luz{animation:none;opacity:.7}.nv-av .nv-metrica .nv-metrica-cuadro{transition:none}}
 `
-
-/**
- * A cada entrega le toca UN cuadro y lo conserva mientras siga vigente (no se corren de lugar cuando llega otra). Si no hay cuadro libre, se apaga el de la más vieja.
- * `previas` = quién ocupaba cada cuadro; `entregas` = las vigentes (de la más nueva a la más vieja).
- */
-export function asignarRanuras(previas: Array<string | null>, entregas: Array<Pick<EntregaViva, "id" | "cerrado_en">>): Array<string | null> {
-  const vigentes = new Set(entregas.map((e) => e.id))
-  const ranuras: Array<string | null> = Array.from({ length: MAXIMO_DE_CUADROS }, (_, i) => (previas[i] && vigentes.has(previas[i]!) ? previas[i]! : null))
-  const puestas = new Set(ranuras.filter((x): x is string => !!x))
-  for (const e of [...entregas].sort((a, b) => (a.cerrado_en < b.cerrado_en ? -1 : 1))) {
-    if (puestas.has(e.id)) continue
-    let libre = ranuras.indexOf(null)
-    if (libre < 0) { // todo ocupado: se apaga el más viejo
-      const orden = new Map(entregas.map((x) => [x.id, x.cerrado_en]))
-      libre = ranuras.reduce((m, id, i) => ((orden.get(id!) ?? "") < (orden.get(ranuras[m]!) ?? "") ? i : m), 0)
-    }
-    ranuras[libre] = e.id; puestas.add(e.id)
-  }
-  return ranuras
-}
 
 const puntos = (p: Array<{ x: number; y: number }>) => p.map((q) => `${q.x},${q.y}`).join(" ")
 
-/** los cuadros del pizarrón: uno encendido por cada entrega vigente (el de la que se está dejando ahora aparece cuando termina su tarjeta) */
-export function CuadrosDelPizarron({ entregas, ranuras, oculta }: { entregas: EntregaViva[]; ranuras: Array<string | null>; oculta: string | null }) {
-  const por = new Map(entregas.map((e) => [e.id, e]))
+/** los cuadros del pizarrón son de MÉTRICAS: «General» y uno por red del cliente. Hoy dicen «métricas pronto»; al pasar el cursor, el nombre y el estado (la métrica principal y su variación llegan con el contrato de CC1) */
+export function CuadrosDeMetricas({ metricas }: { metricas: MetricasDelPizarron | undefined }) {
+  const [activo, setActivo] = useState<string | null>(null)
+  if (!metricas) return null
+  const cuadros = metricas.cuadros.slice(0, CUADROS_DEL_PIZARRON.length)
+  const centro = (i: number) => { const c = CUADROS_DEL_PIZARRON[i]; return { x: c.reduce((s, q) => s + q.x, 0) / c.length, y: c.reduce((s, q) => s + q.y, 0) / c.length } }
+  const a = cuadros.findIndex((c) => c.clave === activo)
+  const w = 196
   return (
-    <g data-cuadros-de-entregas data-encendidos={ranuras.filter((id) => id && id !== oculta && por.has(id)).length}>
-      {CUADROS_DEL_PIZARRON.map((c, i) => {
-        const id = ranuras[i]; const e = id ? por.get(id) : undefined
-        if (!e || e.id === oculta) return null
+    <g data-pizarron-de-metricas data-cuadros={cuadros.length} data-lectura={metricas.lectura}>
+      {cuadros.map((c, i) => {
+        const { x, y } = centro(i)
         return (
-          <g key={e.id} className="nv-cuadro" data-cuadro={i} data-entrega={e.id}>
-            <polygon points={puntos(c)} fill="#ffb347" fillOpacity={0.62} stroke="#ffe2a8" strokeOpacity={0.8} strokeWidth={0.8}><title>{`${e.titulo} · entregada${e.nombre ? ` por ${e.nombre}` : ""}`}</title></polygon>
+          <g key={c.clave} className="nv-metrica" data-metrica={c.clave} role="img" tabIndex={0} aria-label={`${c.nombre}: ${c.principal ? `${c.principal}${c.variacion ? `, ${c.variacion}` : ""}` : c.texto}`}
+            onMouseEnter={() => setActivo(c.clave)} onMouseLeave={() => setActivo(null)} onFocus={() => setActivo(c.clave)} onBlur={() => setActivo(null)}>
+            <polygon className="nv-metrica-cuadro" points={puntos(CUADROS_DEL_PIZARRON[i])} fill="#ffb347" fillOpacity={0.2} stroke="#ffd9a0" strokeOpacity={0.6} strokeWidth={0.8} />
+            <text x={x} y={y + 3} textAnchor="middle" fill="#ffe2a8" fontSize={c.sigla.length > 2 ? 7.5 : 9.5} fontWeight={600} fontFamily={FUENTE} pointerEvents="none">{c.sigla}</text>
           </g>
         )
       })}
+      {a >= 0 && (
+        <g className="nv-metrica-rotulo" data-rotulo-de={cuadros[a].clave} transform={`translate(${centro(a).x} ${centro(a).y - 30})`} pointerEvents="none">
+          <rect x={-w / 2} y={-30} width={w} height={cuadros[a].principal ? 50 : 42} rx={12} fill="#0e0c0a" fillOpacity={0.95} stroke="#ffb347" strokeOpacity={0.7} strokeWidth={1.2} />
+          <text x={-w / 2 + 12} y={-13} fontFamily={FUENTE} fontSize={11} fill="#a8a097" letterSpacing={1.5}>{cuadros[a].nombre.toUpperCase()}</text>
+          <text x={-w / 2 + 12} y={5} fontFamily={FUENTE} fontSize={14} fontWeight={600} fill="#ffe2a8">{cuadros[a].principal ?? cuadros[a].texto}</text>
+          {cuadros[a].variacion && <text x={-w / 2 + 12} y={18} fontFamily={FUENTE} fontSize={12} fill="#e8dfd2">{cuadros[a].variacion}</text>}
+        </g>
+      )}
     </g>
   )
 }

@@ -4,7 +4,6 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { armarEscena, type Despacho } from "@/lib/escena-avatares"
 import { armarCorrecciones, armarEntregas, conRevisiones, CUADROS_DEL_PIZARRON, DUENO_DEL_CAMPO_DEL_MANUAL, devolvioEmilio, MAXIMO_DE_CUADROS, PANEL_DE_FIRMA, PUESTOS_EN_EL_PIZARRON, rotuloDeLaFirma, type EntregasDeLaEscena } from "@/lib/escena-entregas"
-import { asignarRanuras } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
 
 const AHORA = new Date("2026-11-02T17:00:00Z")
@@ -148,33 +147,21 @@ describe("sprint 3 · mesa de Dirección: los jefes en su escritorio y quien ent
 })
 
 describe("sprint 3 · el pizarrón y la luz de firma", () => {
-  it("12 cuadros medidos sobre la foto; los puestos frente al pizarrón son 4 y distintos", () => {
-    expect(CUADROS_DEL_PIZARRON).toHaveLength(12)
+  it("18 cuadros medidos sobre la foto; los puestos frente al pizarrón son 4 y distintos", () => {
+    expect(CUADROS_DEL_PIZARRON).toHaveLength(18)
     expect(new Set(PUESTOS_EN_EL_PIZARRON.map((p) => `${p.x},${p.y}`)).size).toBe(4)
     expect(PANEL_DE_FIRMA).toHaveLength(4)
   })
-  it("cada entrega conserva su cuadro; sin lugar libre se apaga la más vieja", () => {
-    const e = (id: string, min: number) => ({ id, cerrado_en: hace(min) })
-    const a = asignarRanuras([], [e("x", 30), e("y", 20)])
-    expect(a.slice(0, 2)).toEqual(["x", "y"])
-    expect(asignarRanuras(a, [e("z", 5), e("x", 30), e("y", 20)]).slice(0, 3)).toEqual(["x", "y", "z"])
-    const llenas = Array.from({ length: 12 }, (_, i) => e("v" + i, 100 - i)) // v0 es la más vieja
-    const l = asignarRanuras([], llenas)
-    const nueva = asignarRanuras(l, [...llenas, e("n", 1)])
-    expect(nueva).not.toContain("v0")
-    expect(nueva).toContain("n")
-  })
-  it("se dibuja: cuadros encendidos con título al pasar el cursor y la luz de firma que lleva a Tu oficina; sin firmas no hay luz", () => {
+  it("se dibuja: la luz de firma que lleva a Tu oficina (sin firmas no hay luz); las entregas ya NO quedan fijas como cuadros del pizarrón", () => {
     const ent = armarEntregas({ ...base, encargos: [encargo("a", "cerrado_aprobado", hace(30))], turnos: [turno("a", "growth-hacker", hace(31))], filas: [{ id: "fa", tema: "Cevichería", red: "tiktok" }], bandeja: [{ id: "1", expires_at: null }] })
     const e = { ...escena(), entregas: ent }
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: e }))
-    expect(html).toContain('data-encendidos="1"')
-    expect(html).toContain("Cevichería · tiktok · entregada")
     expect(html).toMatch(/class="nv-firma"[^>]*href="\/nuevo\/oficina"/)
     expect(html).toContain("1 espera tu firma")
+    expect(html).not.toContain("data-entrega=")
+    expect(html).not.toContain("Cevichería · tiktok · entregada")
     const vacio = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena() }))
     expect(vacio).not.toContain("nv-firma\"")
-    expect(vacio).not.toContain("data-cuadro=")
   })
   it("respeta prefers-reduced-motion y no se mete con la plataforma: solo lectura", () => {
     const css = readFileSync("components/nuevo/escena/EntregasEnLaFoto.tsx", "utf8")
