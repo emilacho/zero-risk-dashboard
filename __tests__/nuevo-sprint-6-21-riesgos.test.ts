@@ -116,7 +116,7 @@ describe("6.21 · la pantalla 6 del arco", () => {
   it("la escena lee los riesgos con la misma regla que las decisiones y abre el panel en un portal", () => {
     const e = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
     expect(e).toContain('fetch("/api/direccion/riesgos", { cache: "no-store" })')
-    expect(e).toContain("createPortal(<PanelRiesgos onCerrar={cerrarRadar} />, document.body)")
+    expect(e).toContain("createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)")
   })
 })
 
