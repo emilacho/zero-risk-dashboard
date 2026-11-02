@@ -4,6 +4,7 @@
  * El tablero no escribe nada: la plataforma aplica la decisión (cierra la tarjeta, resuelve la espera, abre la versión siguiente si hay cambios).
  */
 import { NOTA_MINIMA, NOTA_MAXIMA, type ApuntaA } from "@/lib/concepto-decision"
+import type { AvanceDelPedido } from "@/lib/plan"
 
 export type AccionDeGranIdea = "aprobar" | "cambios"
 
@@ -32,3 +33,23 @@ export function errorTrasDecidirGranIdea(status: number, j: RespuestaDeDecisionD
   if (status === 501) return "La plataforma todavía no tiene la ruta de la gran idea: no se envió nada."
   return j.detalle ?? j.error ?? `No se pudo decidir (${status}).`
 }
+
+/**
+ * EL AVANCE TRAS «PEDIR CAMBIOS» (CC6 · 02-nov · el mismo patrón del plan y el manual): si la última propuesta quedó con cambios pedidos y todavía no llegó una nueva,
+ * la sala creativa está rehaciendo. Tres pasos (recibido · la sala rehace · nueva propuesta lista). Sale de las tarjetas: no inventa tiempos que la base no tiene.
+ */
+export function avanceDeGranIdea(tarjetas: Array<{ estado: string; creada: string }>, decididoEn: string | null, ahora: Date): AvanceDelPedido | null {
+  const [ultima] = tarjetas
+  if (!ultima || ultima.estado !== "con_cambios") return null
+  const minutos = decididoEn ? Math.max(0, Math.round((ahora.getTime() - Date.parse(decididoEn)) / 60000)) : null
+  return {
+    pasos: [
+      { clave: "recibido", nombre: "Recibido", estado: "hecho", hora: decididoEn, detalle: null },
+      { clave: "reescribiendo", nombre: "La sala creativa rehace la gran idea", estado: "en_curso", hora: decididoEn, detalle: null },
+      { clave: "listo", nombre: "Nueva propuesta lista para ti", estado: "pendiente", hora: null, detalle: null },
+    ],
+    minutos, estimado: minutos != null ? `Van ${minutos} min desde tu pedido` : "En curso", nota: null, fallo: null, listo: false, ahora: null,
+  }
+}
+/** lo que pasa al aprobar */
+export const AL_APROBAR_LA_GRAN_IDEA = "La cadena arma el calendario de la primera tanda con esta idea y este brief."
