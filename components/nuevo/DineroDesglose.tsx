@@ -7,6 +7,7 @@
 import { Fragment, useMemo, useState } from "react"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
 import { colorDelMedidor, diaDelCiclo } from "@/lib/direccion-dinero"
+import { Ayuda } from "@/components/nuevo/DineroAyuda"
 import { aCsv, desglose, EXPLICACION_INTERNO, grupoDeCliente, PRUEBAS_Y_FICHAS_VIEJAS, TRABAJO_INTERNO, fechaCorta, NOMBRE_DE_VISTA, topeSugerido, usdCorto, type Dinero, type FilaDeDesglose, type Movimiento, type Vista } from "@/lib/dinero-completo"
 
 const SIN_DATO = <span data-sin-dato-todavia className="italic text-zinc-500">sin dato todavía</span>
@@ -26,6 +27,18 @@ function FrenoEnLinea({ t }: { t: Tope | undefined }) {
       <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.07]"><div className="h-full rounded-full" style={{ width: `${p ?? 0}%`, background: colorDelMedidor(p) }} /></div>
     </div>
   )
+}
+
+type Columna = "nombre" | "usd" | "pct" | "variacion" | "freno"
+const sinTildes = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
+/** 6.41 · lo que antes era texto al pie, ahora en la ayuda «?» */
+const AYUDA_DE_VISTA: Record<Vista, string> = {
+  cliente: "Las fichas repetidas de un cliente se suman en una fila. El freno es el que detiene a sus empleados. El tope suave solo avisa y sale de la tendencia de 30 días (fijarlo llega con certificación). El margen aparece cuando exista lo que se cobra.",
+  equipo: "El equipo sale del organigrama vivo.",
+  empleado: "Cada empleado con su gasto en el período.",
+  modelo: "Cada modelo con su gasto en el período.",
+  proveedor: "Cada proveedor con su gasto en el período.",
+  corrida: "Las 60 corridas que más gastaron; cada una abre su detalle en Observabilidad.",
 }
 
 function descargar(nombre: string, texto: string) {
@@ -54,6 +67,23 @@ export function Desglose({ datos, rango, anterior, hoy, alAbrirCorrida }: { dato
     return [...filas, ...extra].sort((a, b) => rango(a) - rango(b) || b.usd - a.usd)
   }, [filas, vista, datos])
   const sugerido = (f: FilaDeDesglose) => (esAparte(f.clave) ? null : topeSugerido(datos.movimientos, (x: Movimiento) => vista === "cliente" && x.cliente === f.clave, hoy))
+  // 6.41 · buscar y ordenar por columna (como Ramp); pruebas y trabajo interno quedan siempre al final
+  const [busca, setBusca] = useState("")
+  const [orden, setOrden] = useState<{ col: Columna; dir: "asc" | "desc" } | null>(null)
+  const visibles = useMemo(() => {
+    const q = sinTildes(busca.trim())
+    const xs = q ? lista.filter((f) => sinTildes(`${f.nombre} ${f.detalle ?? ""} ${(f.fichas ?? []).map((x) => x.nombre).join(" ")}`).includes(q)) : lista
+    if (!orden) return xs
+    const valor = (f: FilaDeDesglose): number | string => orden.col === "nombre" ? sinTildes(f.nombre) : orden.col === "usd" ? f.usd : orden.col === "pct" ? f.pct : orden.col === "variacion" ? (f.variacion_pct ?? -Infinity) : (frenoDe(f)?.pct ?? -Infinity)
+    const fin = (f: FilaDeDesglose) => (f.clave === PRUEBAS_Y_FICHAS_VIEJAS ? 2 : f.clave === TRABAJO_INTERNO ? 1 : 0)
+    return [...xs].sort((a, b) => { const va = valor(a), vb = valor(b); const c = va < vb ? -1 : va > vb ? 1 : 0; return (vista === "cliente" ? fin(a) - fin(b) : 0) || (orden.dir === "asc" ? c : -c) })
+  }, [lista, busca, orden, vista]) // eslint-disable-line react-hooks/exhaustive-deps
+  const ordenarPor = (col: Columna) => setOrden((o) => (o?.col === col ? (o.dir === "desc" ? { col, dir: "asc" } : null) : { col, dir: col === "nombre" ? "asc" : "desc" }))
+  const Encabezado = ({ col, children }: { col: Columna; children: React.ReactNode }) => (
+    <th className={TH} aria-sort={orden?.col === col ? (orden.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button type="button" data-ordenar={col} onClick={() => ordenarPor(col)} className={`inline-flex items-center gap-1 uppercase tracking-[0.1em] hover:text-zinc-200 ${orden?.col === col ? "text-zinc-200" : ""}`}>{children}<span className="text-[10px]">{orden?.col === col ? (orden.dir === "asc" ? "▲" : "▼") : "↕"}</span></button>
+    </th>
+  )
   const exportar = () => descargar(`gasto-por-${vista}-${rango.desde}-a-${rango.hasta}.csv`, aCsv(lista.map((f) => ({
     [NOMBRE_DE_VISTA[vista]]: vista === "corrida" ? `${f.dia} · ${f.detalle} · ${f.nombre}` : f.nombre, "Gasto (US$)": f.usd.toFixed(4), "% del total": f.pct, "Período anterior (US$)": f.anterior.toFixed(4), "Variación %": f.variacion_pct ?? "", Llamadas: f.llamadas,
     ...(vista === "cliente" ? { "Freno 24 h gastado (US$)": frenoDe(f)?.gastado_24h_usd ?? "", "Freno 24 h techo (US$)": frenoDe(f)?.techo_usd ?? "", "Tope suave sugerido (US$/mes)": sugerido(f) ?? "" } : {}),
@@ -66,23 +96,26 @@ export function Desglose({ datos, rango, anterior, hoy, alAbrirCorrida }: { dato
           <button key={v} type="button" role="tab" data-vista={v} aria-selected={vista === v} onClick={() => setVista(v)}
             className={`px-2.5 py-2 text-[12.5px] ${vista === v ? "text-zinc-100 shadow-[inset_0_-2px_0_#e8731a]" : "text-zinc-400 hover:text-zinc-200"}`}>{NOMBRE_DE_VISTA[v]}</button>
         ))}
-        <button type="button" data-csv onClick={exportar} disabled={!lista.length} className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40">Exportar CSV</button>
+        <span className="ml-1"><Ayuda texto={AYUDA_DE_VISTA[vista]} /></span>
+        <input type="search" data-buscar value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar…" aria-label={`Buscar en ${NOMBRE_DE_VISTA[vista]}`}
+          className="ml-auto w-40 rounded-md border border-white/15 bg-black/30 px-2.5 py-1 text-[12.5px] text-zinc-200 placeholder:text-zinc-500 focus:border-amber-500/60 focus:outline-none" />
+        <button type="button" data-csv onClick={exportar} disabled={!lista.length} className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40">Exportar CSV</button>
       </div>
       {sinEquipo ? <p className="py-3 text-[13px]">{SIN_DATO}</p> : (
-        <div className="max-h-[420px] overflow-auto [scrollbar-width:thin]">
+        <div data-tabla-con-encabezado-fijo className="max-h-[440px] overflow-auto [scrollbar-width:thin]">
           <table className="w-full border-collapse text-[13px]">
-            <thead className="sticky top-0 bg-[#1b1815]"><tr className="border-b border-white/[0.09]">
-              <th className={TH}>{NOMBRE_DE_VISTA[vista]}</th><th className={TH}>Gasto</th><th className={TH}>%</th><th className={TH}>vs anterior</th>
-              {vista === "cliente" && <><th className={TH}>Freno 24 h</th><th className={TH}>Margen</th><th className={TH}>Tope suave</th></>}
+            <thead className="sticky top-0 z-10 bg-[#1b1815] shadow-[0_1px_0_rgba(255,255,255,.09)]"><tr>
+              <Encabezado col="nombre">{NOMBRE_DE_VISTA[vista]}</Encabezado><Encabezado col="usd">Gasto</Encabezado><Encabezado col="pct">%</Encabezado><Encabezado col="variacion">vs anterior</Encabezado>
+              {vista === "cliente" && <><Encabezado col="freno">Freno 24 h</Encabezado><th className={TH}>Margen</th><th className={TH}>Tope suave</th></>}
               {vista === "corrida" && <th className={TH} />}
             </tr></thead>
             <tbody>
-              {lista.map((f) => (
+              {visibles.map((f) => (
                 <Fragment key={f.clave}>
                 <tr data-fila={f.clave} className="border-b border-white/[0.05] hover:bg-white/[0.02]">
                   <td className={`${TD} !whitespace-normal min-w-[150px]`}>{vista === "corrida" ? <><span className="text-zinc-100">{f.nombre}</span><span className="block text-[11.5px] text-zinc-500">{fechaCorta(f.dia!)} · {f.detalle}</span></>
-                    : vista === "cliente" && f.clave === PRUEBAS_Y_FICHAS_VIEJAS ? <button type="button" data-desplegar-pruebas aria-expanded={verPruebas} onClick={() => setVerPruebas((v) => !v)} className="text-left text-zinc-300 hover:text-zinc-100"><span className="inline-block w-4 text-zinc-500">{verPruebas ? "▾" : "▸"}</span>{f.nombre}<span className="block pl-4 text-[11.5px] text-zinc-500">{f.fichas?.length ?? 0} {(f.fichas?.length ?? 0) === 1 ? "ficha" : "fichas"} · se ordena solo cuando se limpien los datos</span></button>
-                    : vista === "cliente" && f.clave === TRABAJO_INTERNO ? <><span className="text-zinc-100">{f.nombre}</span><span data-explicacion-interno className="block max-w-[260px] text-[11.5px] text-zinc-500">{EXPLICACION_INTERNO}</span></>
+                    : vista === "cliente" && f.clave === PRUEBAS_Y_FICHAS_VIEJAS ? <button type="button" data-desplegar-pruebas aria-expanded={verPruebas} onClick={() => setVerPruebas((v) => !v)} className="text-left text-zinc-300 hover:text-zinc-100"><span className="inline-block w-4 text-zinc-500">{verPruebas ? "▾" : "▸"}</span>{f.nombre}<span className="block pl-4 text-[11.5px] text-zinc-500">{f.fichas?.length ?? 0} {(f.fichas?.length ?? 0) === 1 ? "ficha" : "fichas"}</span></button>
+                    : vista === "cliente" && f.clave === TRABAJO_INTERNO ? <span className="inline-flex items-center gap-1.5"><span className="text-zinc-100">{f.nombre}</span><span data-explicacion-interno><Ayuda texto={EXPLICACION_INTERNO} /></span></span>
                     : <span className="text-zinc-100">{f.nombre}</span>}</td>
                   <td className={`${TD} tabular-nums text-zinc-100`}>{usdCorto(f.usd)}</td>
                   <td className={TD}><span className="inline-flex items-center gap-2"><span className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.07]"><span className="block h-full bg-[#e8731a]" style={{ width: `${Math.min(100, f.pct)}%` }} /></span><span className="tabular-nums text-zinc-400">{f.pct.toLocaleString("es-EC")} %</span></span></td>
@@ -103,16 +136,11 @@ export function Desglose({ datos, rango, anterior, hoy, alAbrirCorrida }: { dato
                 ))}
                 </Fragment>
               ))}
-              {!lista.length && <tr><td className={`${TD} text-zinc-500`} colSpan={7}>Sin gasto en este período</td></tr>}
+              {!visibles.length && <tr><td className={`${TD} text-zinc-500`} colSpan={7}>{busca ? "Nada coincide con la búsqueda" : "Sin gasto en este período"}</td></tr>}
             </tbody>
           </table>
         </div>
       )}
-      <p className="mt-3 text-[12px] text-zinc-500">
-        {vista === "cliente" && "Las fichas repetidas de un mismo cliente se suman en una fila. El freno es el mismo con que se detiene a los empleados de ese cliente. El tope suave solo avisa (no bloquea) y sale de la tendencia de 30 días; fijarlo desde aquí llega con su certificación. El margen aparece cuando exista lo que se cobra a cada cliente."}
-        {vista === "equipo" && "Base del panel de gastos de cada oficina: el equipo sale del organigrama vivo."}
-        {vista === "corrida" && "Las 60 corridas que más gastaron en el período; cada una abre su detalle en Observabilidad."}
-      </p>
     </section>
   )
 }
@@ -125,7 +153,7 @@ export function Proveedores({ datos, rango }: { datos: Dinero; rango: { desde: s
   const extra = [...consumo.keys()].filter((p) => !(PROVEEDORES as readonly string[]).includes(p))
   return (
     <section data-dinero="proveedores" className="rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5">
-      <h3 className="mb-3 text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]">Proveedores · consumo contra saldo</h3>
+      <h3 className="mb-3 flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]">Proveedores <Ayuda texto="Consumo del período contra el saldo o crédito de cada proveedor, con su fecha de corte. Aviso de saldo bajo desde 85 %." lado="izquierda" /></h3>
       <div className="divide-y divide-white/[0.05]">
         {[...PROVEEDORES, ...extra].map((p) => {
           const s = saldoDe(p), c = consumo.get(p) ?? null

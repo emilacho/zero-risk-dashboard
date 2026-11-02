@@ -57,7 +57,7 @@ describe("6.23 · Dinero", () => {
     expect(h).toContain('data-seccion="dinero"'); expect(h).toContain("nv-panel")
     expect(h).toContain('data-saldo="Apify"'); expect(h.replace(/<!-- -->/g, "")).toContain("US$ 14,77 de US$ 29,00"); expect(h).toContain("24 de noviembre")
     expect(h).toContain('data-freno="Náufrago"'); expect(h.replace(/<!-- -->/g, "")).toMatch(/data-cifra-del-freno[^>]*>US\$ 2,62 de US\$ 20,00</)
-    expect(h).toContain("presupuesto del mes")
+    expect(h).toContain("Presupuesto del mes")
   })
   it("es solo lectura", () => {
     const s = readFileSync("components/nuevo/PanelDinero.tsx", "utf8")
