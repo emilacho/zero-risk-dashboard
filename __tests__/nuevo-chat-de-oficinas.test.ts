@@ -59,8 +59,8 @@ describe("chat de /nuevo · el pedido propuesto", () => {
 
 describe("chat de /nuevo · lo que el servidor puede y no puede hacer", () => {
   const ruta = leer("app/api/cowork/prompt/route.ts")
-  it("la única herramienta es proponer un pedido; no hay manera de despachar un flujo", () => {
-    expect(ruta).toContain("const TOOLS = [PEDIDO_TOOL]")
+  it("la única herramienta que HACE algo es proponer un pedido (las otras tres solo leen); no hay manera de despachar un flujo", () => {
+    expect(ruta).toContain("const TOOLS = [...HERRAMIENTAS_DE_LECTURA, PEDIDO_TOOL]")
     expect(ruta).not.toMatch(/trigger_workflow|TRIGGER_WORKFLOW|suggest_form_update/)
     expect(codigo(ruta)).not.toMatch(/n8n|N8N_/i)
   })
