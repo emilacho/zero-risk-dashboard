@@ -61,6 +61,8 @@ export const NOMBRE_DE_OFICINA: Readonly<Record<string, string>> = {
   "7xdPwYhrf50h4zC8": "Portero · etiquetar fotos (prueba)",
   wLgDCPGA65OlR0zu: "Finanzas · conversación",
   LyVoKcrypS5uLyuu: "Alta de un cliente nuevo",
+  /** 6.50 · el sub-proceso con que la jefatura revisa el manual (la plataforma lo guarda con el número de ejecución en vez del proceso) */
+  ssLtwYPt7zxuvnM2: "Manual de marca · revisión de la jefatura",
   y6H7nG3FGrmCGccP: "Prueba de un empleado",
   BNXqlaX1oHSfZIpF: "Cadena · piezas por filas",
   cR22ztH1p2ihTIwD: "Cadena · calendario",
@@ -72,14 +74,17 @@ export const NOMBRE_DE_OFICINA: Readonly<Record<string, string>> = {
   "api:images-generate": "Generar imágenes",
   "api:video-generate": "Generar video",
 }
-/** el nombre de una corrida: el de oficina si se conoce; si no, el de n8n limpio; si no, su etiqueta en palabras; si no hay nada, el número de ejecución */
+/** 6.50 · lo que de verdad no trae dato de proceso (ni la plataforma ni n8n saben de dónde vino) */
+export const OTROS_PROCESOS = "Otros procesos internos"
+/** el nombre de una corrida: el de oficina si se conoce; si no, el de n8n limpio; si no, su etiqueta en palabras; si no hay nada, «Otros procesos internos» */
 export function nombreDeLaCorrida(workflowId: string | null, ejecucion: string, nombres: Map<string, string> = new Map()): string {
   if (workflowId && NOMBRE_DE_OFICINA[workflowId]) return NOMBRE_DE_OFICINA[workflowId]
   if (workflowId && nombres.has(workflowId)) return nombreLimpio(nombres.get(workflowId) as string)
   if (workflowId && /^cc-cerebro-/i.test(workflowId)) return `Cerebro · ${palabras(workflowId.replace(/^cc-cerebro-/i, "").replace(/#.*$/, ""))}`
   if (workflowId && /^api:/i.test(workflowId)) return mayuscula(palabras(workflowId.slice(4)))
   if (workflowId && !UUID.test(workflowId) && !ES_PROCESO_N8N.test(workflowId) && !/^\d+$/.test(workflowId)) return mayuscula(palabras(workflowId))
-  return /^\d+$/.test(ejecucion) ? `Ejecución ${ejecucion}` : "Corrida sin nombre de proceso"
+  void ejecucion
+  return OTROS_PROCESOS
 }
 /** el nombre técnico (solo para Metadatos): el de n8n tal cual, o la etiqueta del proceso */
 export const nombreTecnico = (workflowId: string | null, nombres: Map<string, string> = new Map()): string | null => (workflowId ? nombres.get(workflowId) ?? workflowId : null)
@@ -248,6 +253,28 @@ const conexion = (d: { plataformaUrl?: string; llave?: string }) => ({
 async function nombresDe(ids: (string | null)[], f: typeof fetch) {
   return nombresDeProcesos([...new Set(ids.filter((x): x is string => !!x && ES_PROCESO_N8N.test(x)))], f)
 }
+/** 6.50 · los sub-procesos que se lanzan «sin esperar» guardan su NÚMERO DE EJECUCIÓN donde va el proceso: n8n dice de qué proceso es cada una.
+ *  Solo lectura, hasta 60 a la vez, 4 s cada una; lo que n8n ya no recuerda queda sin proceso (y se llama «Otros procesos internos»). */
+export const ES_NUMERO_DE_EJECUCION = /^\d{1,12}$/
+export async function procesosDeEjecuciones(ids: (string | null)[], f: typeof fetch): Promise<Map<string, string>> {
+  const base = (process.env.N8N_BASE_URL ?? "").replace(/\/+$/, ""), llave = process.env.N8N_API_KEY ?? ""
+  const m = new Map<string, string>()
+  const unicos = [...new Set(ids.filter((x): x is string => !!x && ES_NUMERO_DE_EJECUCION.test(x)))].slice(0, 60)
+  if (!base || !llave || !unicos.length) return m
+  await Promise.all(unicos.map(async (id) => {
+    try {
+      const r = await f(`${base}/api/v1/executions/${encodeURIComponent(id)}?includeData=false`, { method: "GET", headers: { "X-N8N-API-KEY": llave }, cache: "no-store", signal: AbortSignal.timeout(4000) })
+      const j = r.ok ? ((await r.json().catch(() => null)) as { workflowId?: unknown } | null) : null
+      if (typeof j?.workflowId === "string" && ES_PROCESO_N8N.test(j.workflowId)) m.set(id, j.workflowId)
+    } catch { /* sin proceso */ }
+  }))
+  return m
+}
+/** cambia el número de ejecución por el proceso real, donde n8n lo sabe */
+export function conProcesoReal<T extends Record<string, unknown>>(filas: T[], reales: Map<string, string>): T[] {
+  if (!reales.size) return filas
+  return filas.map((x) => { const w = typeof x.workflow_id === "string" ? reales.get(x.workflow_id) : undefined; return w ? { ...x, workflow_id: w } : x })
+}
 
 export async function leerCorridas(o: { dias?: number; client_id?: string | null; conNombres?: boolean } = {}, d: { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch; procesosImpl?: typeof fetch } = {}): Promise<Lectura<ListaDeCorridas>> {
   const { base, llave } = conexion(d)
@@ -258,8 +285,11 @@ export async function leerCorridas(o: { dias?: number; client_id?: string | null
     const r = await (d.fetchImpl ?? fetch)(`${base}/api/direccion/corridas?${q}`, { method: "GET", headers: { "x-api-key": llave }, cache: "no-store" })
     const j = (await r.json().catch(() => null)) as Record<string, unknown> | null
     if (!r.ok || !j || j.ok !== true) return { ok: false, status: 502, error: `La plataforma no entregó las corridas (${r.status}).` }
-    const nombres = o.conNombres === false ? new Map<string, string>() : await nombresDe((Array.isArray(j.corridas) ? j.corridas : []).map((c) => txt(obj(c).workflow_id)), d.procesosImpl ?? fetch)
-    return { ok: true, datos: normalizarLista(j, nombres) }
+    const crudas = (Array.isArray(j.corridas) ? j.corridas : []).map(obj)
+    const f = d.procesosImpl ?? fetch
+    const corridas = conProcesoReal(crudas, await procesosDeEjecuciones(crudas.map((c) => txt(c.workflow_id)), f))
+    const nombres = o.conNombres === false ? new Map<string, string>() : await nombresDe(corridas.map((c) => txt(c.workflow_id)), f)
+    return { ok: true, datos: normalizarLista({ ...j, corridas }, nombres) }
   } catch {
     return { ok: false, status: 502, error: "No se pudo contactar a la plataforma." }
   }
@@ -275,9 +305,53 @@ export async function leerCorrida(id: string, d: { plataformaUrl?: string; llave
     const j = (await r.json().catch(() => null)) as Record<string, unknown> | null
     if (r.status === 404) return { ok: false, status: 404, error: "Esa corrida no existe." }
     if (!r.ok || !j || j.ok !== true) return { ok: false, status: 502, error: `La plataforma no entregó la corrida (${r.status}).` }
-    const nombres = await nombresDe([txt(obj(j.corrida).workflow_id)], d.procesosImpl ?? fetch)
-    const det = normalizarDetalle(j, nombres)
+    const f = d.procesosImpl ?? fetch
+    const [c0] = conProcesoReal([obj(j.corrida)], await procesosDeEjecuciones([txt(obj(j.corrida).workflow_id)], f))
+    const nombres = await nombresDe([txt(c0.workflow_id)], f)
+    const det = normalizarDetalle({ ...j, corrida: c0 }, nombres)
     return det ? { ok: true, datos: det } : { ok: false, status: 502, error: "La plataforma entregó una corrida sin forma." }
+  } catch {
+    return { ok: false, status: 502, error: "No se pudo contactar a la plataforma." }
+  }
+}
+
+/** ─── 6.50 · la lectura agregada de la plataforma (CC1 · #853): las cifras ENTERAS de un período, sin el tope de 200 ejecuciones ─── */
+export interface DiaAgregado { d: string; ejecuciones: number; con_error: number }
+export interface GrupoAgregado {
+  workflow_id: string | null; client_id: string | null; nombre: string; interno: boolean
+  ejecuciones: number; con_error: number; en_curso: number; atascadas: number; sin_cierre: number; mediana_ms: number | null; max_ms: number | null; costo_usd: number; por_dia: DiaAgregado[]
+}
+export interface ResumenAgregado { desde: string; hasta: string; completo: boolean; filas_sin_ejecucion: number; grupos: GrupoAgregado[] }
+export const FECHA = /^\d{4}-\d{2}-\d{2}$/
+export function normalizarResumen(j: unknown, nombres: Map<string, string> = new Map()): ResumenAgregado | null {
+  const o = obj(j), desde = txt(o.desde), hasta = txt(o.hasta)
+  if (!desde || !hasta || !Array.isArray(o.grupos)) return null
+  const grupos = o.grupos.map((g) => {
+    const x = obj(g), workflow_id = txt(x.workflow_id), nombre = nombreDeLaCorrida(workflow_id, "", nombres)
+    return {
+      workflow_id, client_id: txt(x.client_id), nombre, interno: esInterno(workflow_id, nombre),
+      ejecuciones: num(x.ejecuciones) ?? 0, con_error: num(x.con_error) ?? 0, en_curso: num(x.en_curso) ?? 0, atascadas: num(x.atascadas) ?? 0, sin_cierre: num(x.sin_cierre) ?? 0,
+      mediana_ms: num(x.mediana_ms), max_ms: num(x.max_ms), costo_usd: num(x.costo_usd) ?? 0,
+      por_dia: (Array.isArray(x.por_dia) ? x.por_dia : []).flatMap((p) => { const y = obj(p), d = txt(y.d); return d && FECHA.test(d) ? [{ d, ejecuciones: num(y.ejecuciones) ?? 0, con_error: num(y.con_error) ?? 0 }] : [] }),
+    }
+  })
+  return { desde, hasta, completo: o.completo === true, filas_sin_ejecucion: num(o.filas_sin_ejecucion) ?? 0, grupos }
+}
+export async function leerResumenDeCorridas(o: { desde: string; hasta: string; client_id?: string | null }, d: { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch; procesosImpl?: typeof fetch } = {}): Promise<Lectura<ResumenAgregado>> {
+  const { base, llave } = conexion(d)
+  if (!llave) return { ok: false, status: 503, error: "El tablero no tiene la llave con la que lee a la plataforma." }
+  const q = new URLSearchParams({ desde: o.desde, hasta: o.hasta })
+  if (o.client_id) q.set("client_id", o.client_id)
+  try {
+    const r = await (d.fetchImpl ?? fetch)(`${base}/api/direccion/corridas/resumen?${q}`, { method: "GET", headers: { "x-api-key": llave }, cache: "no-store" })
+    const j = (await r.json().catch(() => null)) as Record<string, unknown> | null
+    if (r.status === 400) return { ok: false, status: 400, error: "El período pedido no es válido (máximo 92 días)." }
+    if (!r.ok || !j || j.ok !== true) return { ok: false, status: 502, error: `La plataforma no entregó el resumen de corridas (${r.status}).` }
+    const f = d.procesosImpl ?? fetch
+    const crudos = (Array.isArray(j.grupos) ? j.grupos : []).map(obj)
+    const grupos = conProcesoReal(crudos, await procesosDeEjecuciones(crudos.map((g) => txt(g.workflow_id)), f))
+    const res = normalizarResumen({ ...j, grupos }, await nombresDe(grupos.map((g) => txt(g.workflow_id)), f))
+    return res ? { ok: true, datos: res } : { ok: false, status: 502, error: "La plataforma entregó un resumen sin forma." }
   } catch {
     return { ok: false, status: 502, error: "No se pudo contactar a la plataforma." }
   }

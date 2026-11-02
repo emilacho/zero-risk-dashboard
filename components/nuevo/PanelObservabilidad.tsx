@@ -6,13 +6,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { createPortal } from "react-dom"
 import {
   COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
-  type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo,
+  type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo, type ResumenAgregado,
 } from "@/lib/direccion-corridas"
 import { diaLocal, diasEntre, fechaCorta, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
 import { BarraHorizontal, CascadaVisible, GRIS, GraficoDeBarras, ROJO } from "@/components/nuevo/ObservabilidadGraficos"
 import {
   NOMBRE_DE_AGRUPAR, agrupar, conFallosDelProceso, agruparPorEmpleado, cobertura, costoDeLaCorrida, costoDelPeriodo, costoPorEjecucion, demoraCorta, dondeFallo, enRango, esCorridaInterna, motivoEnPalabras, numerosDe,
-  cascadaDe, costoPorCubeta, cubetasDe, desdeDeLaLectura, noLeidas, procesoDe, rotuloDe, rotuloLargo, serieDe, topEmpleados, variacion, ventanaDe,
+  cascadaDe, costoPorCubeta, cubetasDe, desdeDeLaLectura, conErroresDeLaLista, gruposVisibles, noLeidas, numerosDelAgregado, procesoDe, rotuloDe, rotuloLargo, serieDe, serieDelAgregado, topEmpleados, variacion, ventanaDe,
   type AgruparPor, type Cascada, type DondeFallo, type EmpleadoObs, type Grupo,
 } from "@/lib/observabilidad"
 import { nombreCanonico } from "@/lib/organigrama"
@@ -449,11 +449,14 @@ function Empleados({ top, verFicha, conFicha }: { top: { fallan: EmpleadoObs[]; 
 const cortadaDe = (l: ListaDeCorridas | null) => !!l && (l.ejecuciones_total ?? l.total) > (l.ejecuciones_leidas ?? l.corridas.length)
 type DatosDeEmpleados = { todo: EmpleadoObs[]; sin_interno: EmpleadoObs[] }
 type Vista = "resumen" | "todas"
+/** 6.50 · la lectura agregada del período y del anterior (null = no llegó: se vuelve a la lista, rotulada como antes) */
+type Agregado = { r: ResumenAgregado | null; ant: ResumenAgregado | null }
 
-export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null, alVolver, hoy: hoyFijo, dineroInicial = null, empleadosInicial = null, vistaInicial = "resumen", internoInicial = false }: {
+export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null, alVolver, hoy: hoyFijo, dineroInicial = null, empleadosInicial = null, vistaInicial = "resumen", internoInicial = false, agregadoInicial = null }: {
   /** 6.44 · abierta desde Dinero: la flecha regresa a Dinero */ alVolver?: () => void; onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch
   /** 6.36 · Dinero abre aquí la corrida de un pico */ corridaInicial?: string | null
   /** 6.47 · para pruebas: el día (Ecuador), Dinero, los empleados, la vista y el interruptor de interno */ hoy?: string; dineroInicial?: Dinero | null; empleadosInicial?: DatosDeEmpleados | null; vistaInicial?: Vista; internoInicial?: boolean
+  /** 6.50 · para pruebas: la lectura agregada */ agregadoInicial?: Agregado | null
 }) {
   const hoy = useMemo(() => hoyFijo ?? diaLocal(new Date().toISOString()), [hoyFijo])
   const [periodo, setPeriodo] = useState<Periodo>("7")
@@ -470,6 +473,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const [listaAnt, setListaAnt] = useState<ListaDeCorridas | null>(listaInicial)
   const [dinero, setDinero] = useState<Dinero | null>(dineroInicial)
   const [empleados, setEmpleados] = useState<DatosDeEmpleados | null>(empleadosInicial)
+  const [agr, setAgr] = useState<Agregado>(agregadoInicial ?? { r: null, ant: null })
   const [rendimiento, setRendimiento] = useState<Record<string, Rendimiento> | null>(null)
   const [ficha, setFicha] = useState<EmpleadoObs | null>(null)
   const [donde, setDonde] = useState<Map<string, DondeFallo | "leyendo" | "sin_lectura">>(new Map())
@@ -501,7 +505,13 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
     const ant = (v.dias > v.dias_periodo ? leerJson<ListaDeCorridas>(fetchImpl, q(v.dias), "las corridas del período anterior") : Promise.resolve(null)).then(setListaAnt, () => setListaAnt(null))
     const emp = leerJson<DatosDeEmpleados>(fetchImpl, `/api/direccion/observabilidad?desde=${v.r.desde}&hasta=${v.r.hasta}`, "a los empleados").then(setEmpleados).catch(() => setEmpleados({ todo: [], sin_interno: [] }))
     const din = leerDinero().then(() => setPartes((p) => ({ ...p, costo: ms() })))
-    try { await Promise.all([lis, ant, emp, din]); setCargaMs(ms()) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
+    // 6.50 · las cifras enteras (CC1 · #853): el período y el anterior; si no llegan, la pantalla vuelve a la lista y lo rotula como antes
+    const qa = (r: { desde: string; hasta: string }) => { const x = new URLSearchParams({ desde: r.desde, hasta: r.hasta }); if (cliente) x.set("client_id", cliente); return `/api/direccion/corridas/resumen?${x}` }
+    const agrego = Promise.all([
+      leerJson<ResumenAgregado>(fetchImpl, qa(v.r), "el resumen de corridas").catch(() => null),
+      leerJson<ResumenAgregado>(fetchImpl, qa(v.ant), "el resumen del período anterior").catch(() => null),
+    ]).then(([r, a]) => setAgr({ r, ant: r ? a : null }))
+    try { await Promise.all([lis, ant, emp, din, agrego]); setCargaMs(ms()) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [v, cliente, fetchImpl, leerDinero])
   useEffect(() => { if (primera.current) { primera.current = false; return } void leer() }, [leer])
   // las fichas de rendimiento (las de CC6): se leen al abrir, así la flecha sabe de antemano quién tiene ficha
@@ -539,6 +549,16 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const k = useMemo(() => cubetasDe(v), [v])
   const porCubeta = useMemo(() => serieDe(delPeriodo, k, (xs) => ({ total: xs.length, con_error: xs.filter((c) => c.estado === "fallida").length, mediana_ms: numerosDe(xs).mediana_ms })), [delPeriodo, k])
   const noLeido = useMemo(() => noLeidas(k, desdeDeLaLectura(lista?.corridas ?? [], cortadaDe(lista)), v.r.desde), [k, lista, v])
+  // 6.50 · con la lectura agregada: corridas, errores y su comparación salen ENTEROS (sin «no leído»); la búsqueda sigue sobre la lista
+  const gAgr = useMemo(() => (agr.r && !b ? gruposVisibles(agr.r.grupos, conInterno) : null), [agr, b, conInterno])
+  const gAgrAnt = useMemo(() => (gAgr && agr.ant ? gruposVisibles(agr.ant.grupos, conInterno) : null), [gAgr, agr, conInterno])
+  const nAgr = useMemo(() => (gAgr ? conErroresDeLaLista(numerosDelAgregado(gAgr), n.con_error) : null), [gAgr, n])
+  const naAgr = useMemo(() => (gAgrAnt ? conErroresDeLaLista(numerosDelAgregado(gAgrAnt), delAnterior.filter((c) => c.estado === "fallida").length) : null), [gAgrAnt, delAnterior])
+  const conAgregadoPorDia = !!gAgr && !k.porHora
+  const corridasCubeta = useMemo(() => (gAgr && !k.porHora ? serieDelAgregado(gAgr, k).map((x, i) => ({ total: x.total, con_error: Math.min(x.total, Math.max(x.con_error, porCubeta[i]?.con_error ?? 0)) })) : porCubeta), [gAgr, k, porCubeta])
+  const noLeidoCorridas = conAgregadoPorDia ? undefined : noLeido
+  // la demora por día no viene en la lectura agregada: los días que la lista no alcanzó quedan sin barra y se dice en el gráfico (no «no leído»)
+  const sinDemora = gAgr ? noLeido : undefined
   const costoSerie = useMemo(() => (dinero ? costoPorCubeta(dinero, v, k, conInterno) : k.rotulos.map(() => 0)), [dinero, v, k, conInterno])
   const maxDemora = Math.max(0, ...porCubeta.map((x) => x.mediana_ms ?? 0)), enMinutos = maxDemora >= 120000, unidadDemora = enMinutos ? 60000 : 1000
 
@@ -585,6 +605,11 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   // 6.49 · si ya se dijo «sobre las últimas 200», el porqué de la falta de comparación sobra: una sola línea gris
   const porQueSinComparar = sobre && sinComparacion?.startsWith("la plataforma entrega 200") ? null : sinComparacion
   const vsN = (a: number | null, b: number | null) => (na ? variacion(a, b) : null)
+  // 6.50 · corridas y errores: la lectura agregada si llegó (entera, con su comparación); si no, la lista como antes
+  const nc = nAgr ?? n, nca = gAgr ? naAgr : na
+  const vsC = (a: number | null, b: number | null) => (nca ? variacion(a, b) : null)
+  const demoraParcial = !!gAgr && !cob.cubre
+  const incompleta = !!gAgr && (!agr.r?.completo || (!!agr.ant && !agr.ant.completo))
   const contra = v.ant.nombre
   const usdEje = (x: number) => `US$ ${x.toLocaleString("es-EC", { minimumFractionDigits: Number.isInteger(x) ? 0 : Number.isInteger(x * 10) ? 1 : 2, maximumFractionDigits: 2 })}`
   const tituloDe = (que: string) => `${que} por ${k.porHora ? "hora" : "día"}`
@@ -624,7 +649,12 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
             : lista && (
               <div data-vista="resumen" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-1.5 sm:px-5">
                 <div className="mx-auto flex max-w-[1600px] flex-col gap-2.5">
-                  {(sobre || sinComparacion) && (
+                  {gAgr ? (incompleta || !gAgrAnt) && (
+                    <p data-aviso-lectura role="status" className="px-0.5 text-[12px] leading-snug text-zinc-500" style={NUM}>
+                      {incompleta && <span data-lectura-incompleta>Corridas y errores: lectura incompleta (alguna fuente no respondió entera); las cifras pueden quedarse cortas. </span>}
+                      {!gAgrAnt && <span data-sin-comparacion>Corridas y errores sin comparación con {contra} (no se pudo leer).</span>}
+                    </p>
+                  ) : (sobre || sinComparacion) && (
                     <p data-aviso-lectura role="status" className="px-0.5 text-[12px] leading-snug text-zinc-500" style={NUM}>
                       Corridas, errores y demora: {sobre && <span data-sobre-las-ultimas>{sobre}</span>}{sobre && sinComparacion && ", "}
                       {sinComparacion && <span data-sin-comparacion>sin comparación con {contra}{porQueSinComparar ? ` (${porQueSinComparar})` : ""}</span>}. El costo es el período entero{sinComparacion ? " y sí se compara" : ""} (Dinero).
@@ -633,21 +663,21 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
                   <section data-resumen className="grid gap-2.5 md:grid-cols-2">
                     <div data-grafico-caja="corridas" className={`${CAJA} min-w-0 px-4 py-2.5`}>
                       <Encabezado titulo={tituloDe("Corridas")}>
-                        <span className={CIFRA} style={NUM}>{n.corridas}</span>
+                        <span className={CIFRA} style={NUM} data-corridas-total={nc.corridas}>{nc.corridas}</span>
                         <span className="text-[14px]" style={NUM}>
-                          {n.con_error ? <span className="text-[#ff5a36]">{n.con_error} con error</span> : <span className="text-[#8fd19e]">sin errores ✓</span>}
-                          <span className="text-zinc-400">{n.con_error && n.pct_error != null ? ` · ${n.pct_error.toLocaleString("es-EC")} %` : ""} · demora típica {demoraCorta(n.mediana_ms)}</span>
+                          {nc.con_error ? <span className="text-[#ff5a36]">{nc.con_error} con error</span> : <span className="text-[#8fd19e]">sin errores ✓</span>}
+                          <span className="text-zinc-400">{nc.con_error && nc.pct_error != null ? ` · ${nc.pct_error.toLocaleString("es-EC")} %` : ""} · demora típica {demoraCorta(n.mediana_ms)}</span>
                         </span>
-                        <Frente vs={vsN(n.corridas, na?.corridas ?? null)} nombre={contra} sube_es_malo={false} />
+                        <Frente vs={vsC(nc.corridas, nca?.corridas ?? null)} nombre={contra} sube_es_malo={false} />
                       </Encabezado>
-                      <GraficoDeBarras dato="corridas" enteros titulo={tituloDe("Corridas")} rotulos={k.rotulos} rotulo={(i) => rotuloDe(k.rotulos[i], k, k.rotulos.length)} noLeido={noLeido} formato={(x) => x.toLocaleString("es-EC")} vacio={`Sin corridas en ${enPalabras}`}
-                        capas={[{ clave: "con-error", nombre: "con error", color: ROJO, valores: porCubeta.map((x) => x.con_error) }, { clave: "sin-error", nombre: "sin error", color: AMBAR, valores: porCubeta.map((x) => x.total - x.con_error) }]}
+                      <GraficoDeBarras dato="corridas" enteros titulo={tituloDe("Corridas")} rotulos={k.rotulos} rotulo={(i) => rotuloDe(k.rotulos[i], k, k.rotulos.length)} noLeido={noLeidoCorridas} formato={(x) => x.toLocaleString("es-EC")} vacio={`Sin corridas en ${enPalabras}`}
+                        capas={[{ clave: "con-error", nombre: "con error", color: ROJO, valores: corridasCubeta.map((x) => x.con_error) }, { clave: "sin-error", nombre: "sin error", color: AMBAR, valores: corridasCubeta.map((x) => x.total - x.con_error) }]}
                         detalle={(i, t) => (
                           <>
                             <p className="text-zinc-400">{rotuloLargo(k.rotulos[i], k)}</p>
                             <p data-total-del-dia className="text-[19px] font-light text-white" style={NUM}>{t} {t === 1 ? "corrida" : "corridas"}</p>
-                            {t > 0 && <p className="flex items-center gap-2" style={NUM}><Punto color={AMBAR} />{t - porCubeta[i].con_error} sin error</p>}
-                            {porCubeta[i].con_error > 0 && <p className="flex items-center gap-2" style={NUM}><Punto color={ROJO} />{porCubeta[i].con_error} con error</p>}
+                            {t > 0 && <p className="flex items-center gap-2" style={NUM}><Punto color={AMBAR} />{t - corridasCubeta[i].con_error} sin error</p>}
+                            {corridasCubeta[i].con_error > 0 && <p className="flex items-center gap-2" style={NUM}><Punto color={ROJO} />{corridasCubeta[i].con_error} con error</p>}
                           </>
                         )} />
                     </div>
@@ -677,20 +707,21 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
                       {n.max_ms != null && <span className="text-[14px] text-zinc-400">la más lenta: {n.mas_lenta ? `${n.mas_lenta} · ` : ""}{demoraCorta(n.max_ms)}</span>}
                       <Frente vs={vsN(n.mediana_ms, na?.mediana_ms ?? null)} nombre={contra} />
                     </Encabezado>
-                    <GraficoDeBarras dato="demora" titulo={tituloDe("Demora típica")} rotulos={k.rotulos} rotulo={(i) => rotuloDe(k.rotulos[i], k, k.rotulos.length)} noLeido={noLeido} vacio="Sin corridas terminadas"
+                    {demoraParcial && <p data-demora-parcial className="-mt-0.5 mb-1 text-[12px] text-zinc-500" style={NUM}>Demora sobre las corridas desde el {cob.desde_dia ? fechaCorta(cob.desde_dia) : "—"}: la lectura completa todavía no trae la demora por día.</p>}
+                    <GraficoDeBarras dato="demora" titulo={tituloDe("Demora típica")} rotulos={k.rotulos} rotulo={(i) => rotuloDe(k.rotulos[i], k, k.rotulos.length)} noLeido={gAgr ? undefined : noLeido} vacio="Sin corridas terminadas"
                       formato={(x) => `${x.toLocaleString("es-EC")} ${enMinutos ? "min" : "s"}`}
                       capas={[{ clave: "demora", nombre: "demora típica", color: AMBAR, valores: porCubeta.map((x) => (x.mediana_ms ?? 0) / unidadDemora) }]}
                       detalle={(i) => (
                         <>
                           <p className="text-zinc-400">{rotuloLargo(k.rotulos[i], k)}</p>
-                          <p data-total-del-dia className="text-[19px] font-light text-white" style={NUM}>{porCubeta[i].mediana_ms == null ? "sin terminadas" : `${demoraCorta(porCubeta[i].mediana_ms)} típica`}</p>
+                          <p data-total-del-dia className="text-[19px] font-light text-white" style={NUM}>{sinDemora?.[i] ? "sin dato de demora" : porCubeta[i].mediana_ms == null ? "sin terminadas" : `${demoraCorta(porCubeta[i].mediana_ms)} típica`}</p>
                           <p className="text-zinc-400" style={NUM}>{porCubeta[i].total} {porCubeta[i].total === 1 ? "corrida" : "corridas"}</p>
                         </>
                       )} />
                   </section>
                   <Empleados top={top} verFicha={verFicha} conFicha={conFicha} />
                   <p data-pie-obs className="text-[12px] leading-relaxed text-zinc-500" style={NUM}>
-                    Período: {enPalabras} ({v.r.desde} a {v.r.hasta}, hora de Ecuador) · comparado con {v.ant.nombre} · una corrida = un pedido · demora típica = la mediana · el costo es la misma cuenta que Dinero
+                    Período: {enPalabras} ({v.r.desde} a {v.r.hasta}, hora de Ecuador) · comparado con {v.ant.nombre} · {gAgr ? <span data-definicion-agregada>corridas y errores = cada ejecución de un proceso, todas las del período · lo que falló y los grupos = una fila por pedido</span> : "una corrida = un pedido"} · demora típica = la mediana · el costo es la misma cuenta que Dinero
                     {cargaMs != null && <> · <span data-carga-ms={cargaMs} data-carga-corridas={partes.corridas} data-carga-costo={partes.costo}>cargó en {(cargaMs / 1000).toLocaleString("es-EC", { maximumFractionDigits: 1 })} s{partes.corridas != null && partes.costo != null ? ` (corridas ${(partes.corridas / 1000).toLocaleString("es-EC", { maximumFractionDigits: 1 })} s · costo ${(partes.costo / 1000).toLocaleString("es-EC", { maximumFractionDigits: 1 })} s)` : ""}</span></>}
                   </p>
                 </div>

@@ -7,7 +7,7 @@ import { NextResponse } from "next/server"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { legible, todas } from "@/lib/dinero-completo"
-import { nombreDeLaCorrida } from "@/lib/direccion-corridas"
+import { nombreDeLaCorrida, procesosDeEjecuciones } from "@/lib/direccion-corridas"
 import { empleadosDe, type FilaDeInvocacion } from "@/lib/observabilidad"
 
 export const runtime = "nodejs"
@@ -31,7 +31,8 @@ export async function GET(req: Request) {
       todas((a, b) => db.from("agents").select("name, display_name").range(a, b), "agents"),
     ])
     const nombre = new Map(agentes.map((x) => [String(x.name), x.display_name ? String(x.display_name) : null]))
-    const r = empleadosDe(filas as unknown as FilaDeInvocacion[], (s) => nombre.get(s) ?? legible(s), (w) => (w ? nombreDeLaCorrida(w, "") : ""))
+    const reales = await procesosDeEjecuciones(filas.map((x) => (x.workflow_id == null ? null : String(x.workflow_id))), fetch).catch(() => new Map<string, string>())
+    const r = empleadosDe(filas as unknown as FilaDeInvocacion[], (s) => nombre.get(s) ?? legible(s), (w) => (w ? nombreDeLaCorrida(reales.get(w) ?? w, "") : ""))
     return NextResponse.json({ ok: true, desde, hasta, llamadas: filas.length, ...r }, { headers: { "Cache-Control": "no-store" } })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 502, headers: { "Cache-Control": "no-store" } })

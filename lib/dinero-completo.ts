@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
 import { leerOrganizacion } from "@/lib/direccion-organizacion"
-import { nombreDeLaCorrida } from "@/lib/direccion-corridas"
+import { nombreDeLaCorrida, procesosDeEjecuciones } from "@/lib/direccion-corridas"
 
 export interface Movimiento {
   /** instante (ISO) */
@@ -265,11 +265,14 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
   const unificado = nombresUnificados(clientes.map((c) => String(c.name)))
   const nombreCliente = new Map(clientes.map((c) => [String(c.id), unificado.get(String(c.name)) ?? String(c.name)]))
   const nombreAgente = new Map(agentes.map((a) => [String(a.name), txt(a.display_name)]))
+  // 6.50 · los sub-procesos lanzados «sin esperar» guardan el número de ejecución donde va el proceso: n8n dice cuál es (si no lo sabe: «Otros procesos internos»)
+  const reales = await procesosDeEjecuciones(inv.map((x) => (x.workflow_id == null ? null : String(x.workflow_id))), fetch).catch(() => new Map<string, string>())
+  const procesoReal = (w: unknown): string | null => (w == null || w === "" ? null : reales.get(String(w)) ?? String(w))
   const movimientos: Movimiento[] = []
   for (const x of inv) {
     const usd = Number(x.cost_usd ?? 0); if (!(usd > 0)) continue
     const t = String(x.started_at ?? x.created_at), cid = txt(x.client_id), emp = String(x.agent_name ?? "sin empleado")
-    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), equipo: org ? equipoDe(emp) : undefined, ...grupoDeCliente(cid ? nombreCliente.get(cid) ?? null : null, cid), client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true", proceso: x.workflow_id ? nombreDeLaCorrida(String(x.workflow_id), "") : null })
+    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), equipo: org ? equipoDe(emp) : undefined, ...grupoDeCliente(cid ? nombreCliente.get(cid) ?? null : null, cid), client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true", proceso: procesoReal(x.workflow_id) ? nombreDeLaCorrida(procesoReal(x.workflow_id), "") : null })
   }
   for (const c of costos) {
     const usd = Number(c.amount_usd_exact ?? c.amount_usd ?? 0); if (!(usd > 0)) continue

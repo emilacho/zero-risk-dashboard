@@ -41,7 +41,7 @@ describe("6.27 · 2 · nombres claros", () => {
     expect(nombreDeLaCorrida("cc-cerebro-fallas-y-retencion", "pasos-n-transcripcion-1793527592265")).toBe("Cerebro · fallas y retención")
     expect(nombreDeLaCorrida("cc-cerebro-nuevo-oficio", "x")).toBe("Cerebro · nuevo oficio")
     expect(nombreDeLaCorrida("api:revisor-externo", "gpt-jefatura-1")).toBe("Revisor externo")
-    expect(nombreDeLaCorrida(null, "pasos-n-transcripcion-1793527592265")).toBe("Corrida sin nombre de proceso")
+    expect(nombreDeLaCorrida(null, "pasos-n-transcripcion-1793527592265")).toBe("Otros procesos internos")
     for (const v of Object.values(NOMBRE_DE_OFICINA)) { expect(v.charAt(0)).toBe(v.charAt(0).toLocaleUpperCase("es")); expect(v).not.toMatch(/CC[#-]|Zero Risk|\(que/) }
   })
   it("el nombre técnico y la ejecución quedan solo en Metadatos; la lista y la cabecera ya no los muestran", () => {
