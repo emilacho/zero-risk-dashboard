@@ -1,5 +1,6 @@
 "use client"
 
+import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, type FilaDelTablero } from "@/lib/pizarron"
@@ -97,6 +98,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <span aria-hidden className={`h-2 w-2 rounded-full ${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}`} />
           <h2 id="pizarron-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Calendario</h2>
+          {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">La campaña del cliente, publicación por publicación · solo lectura</p>
           <div role="group" aria-label="Cómo ver la campaña" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
             {(["dias", "calendario", "kanban"] as const).map((v) => (
@@ -105,7 +107,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
           </div>
           <label className="flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => void leer(e.target.value || null)} disabled={!datos || cargando} aria-label="Elegir el cliente"
+            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
               {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_campana ? "" : " · sin campaña"}</option>)}
               {!datos && <option value="">Leyendo…</option>}

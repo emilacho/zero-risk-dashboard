@@ -319,6 +319,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
       <section role="dialog" aria-modal="true" aria-labelledby="piezas-titulo" data-seccion="piezas" className="relative flex h-full max-h-full w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
+          {nombreDelCliente && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{nombreDelCliente}</span>}
           {bandeja && <Chip tono={porAprobarDelCliente > 0 ? "ambar" : "neutro"}>{resumenDeLaBandeja({ por_aprobar: porAprobarDelCliente, otras_pendientes: otrasPendientes })}</Chip>}
           <p className="hidden text-[12px] text-zinc-500 xl:block">Lo que la oficina creativa entregó para {nombreDelCliente}, por tipo de pieza · aquí se aprueba, se piden cambios o se rechaza</p>
           <div role="group" aria-label="Cómo ver las piezas" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">

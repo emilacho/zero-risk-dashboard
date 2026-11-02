@@ -15,12 +15,14 @@ export interface PedidoEnSeccion { titulo: string; campos: string[]; validados: 
  * avance con su animación y «Qué cambió» (campo por campo). Sin aviso de gasto (Emilio, 01-nov): el cuerpo lleva la confirmación y el tope por código.
  * Mientras la plataforma no tenga el pedido de manuales (`ciclo.disponible` falso) no se ofrece nada: la puerta daría 404.
  */
-export function PedirCambiosAlManual({ cliente, ciclo, accion, validadosDelManual, pedirEn = null, onResultado }: {
+export function PedirCambiosAlManual({ cliente, clienteNombre = null, ciclo, accion, validadosDelManual, pedirEn = null, onResultado }: {
   cliente: string | null
   ciclo: CicloDelManual
   accion: Accion
   /** las etiquetas de los campos que el dueño validó o escribió, en todo el manual (para la línea de la observación general) */
   validadosDelManual: string[]
+  /** CC6 · 02-nov (corrección urgente): el nombre del cliente, para que el pedido nunca salga sin verlo */
+  clienteNombre?: string | null
   pedirEn?: PedidoEnSeccion | null
   onResultado: (r: { ok: boolean; texto: string }) => void
 }) {
@@ -81,7 +83,7 @@ export function PedirCambiosAlManual({ cliente, ciclo, accion, validadosDelManua
 
       {modo === "quieto" && puedePedir && !reintento && (
         <button type="button" data-accion="manual-pedir-cambios" disabled={enviando} onClick={() => { setError(null); setSeccion(null); setModo("escribir") }}
-          className="mt-3 rounded-md border border-white/25 bg-white/[0.06] px-4 py-2 text-[13px] font-medium text-zinc-50 transition hover:border-violet-300/70 hover:bg-violet-400/10 disabled:opacity-50">Pedir cambios al manual</button>
+          className="mt-3 rounded-md border border-white/25 bg-white/[0.06] px-4 py-2 text-[13px] font-medium text-zinc-50 transition hover:border-violet-300/70 hover:bg-violet-400/10 disabled:opacity-50">{clienteNombre ? `Pedir cambios al manual de ${clienteNombre}` : "Pedir cambios al manual"}</button>
       )}
       {modo === "quieto" && reintento && (
         <button type="button" data-accion="manual-reintentar" disabled={enviando} onClick={() => void mandar(reintento.texto, reintento.seccion)}
@@ -90,14 +92,14 @@ export function PedirCambiosAlManual({ cliente, ciclo, accion, validadosDelManua
       {modo === "escribir" && (
         <form data-editor="manual-cambios" className="mt-3 rounded-lg border border-violet-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); void mandar(observaciones, seccion) }}>
           <label className="block">
-            <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar? (el equipo del manual lo lee y reescribe el manual)</span>
+            <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar en el manual{clienteNombre ? <> de <b data-pedido-para className="text-[12.5px] normal-case tracking-normal text-amber-200">{clienteNombre}</b></> : null}? (el equipo del manual lo lee y lo reescribe)</span>
             <textarea value={observaciones} onChange={(ev) => setObservaciones(ev.target.value)} rows={4} maxLength={4000} aria-label="Qué debe cambiar en el manual" autoFocus
               className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[14px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
           </label>
           {aviso && <p data-aviso-validados className="mt-1 text-[12px] text-amber-200">{aviso}</p>}
           <p className="mt-1 text-[11px] text-zinc-500">{observaciones.trim().length}/4000</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="submit" data-accion="manual-enviar-pedido" disabled={enviando} className="rounded-md border border-violet-300/60 bg-violet-500/70 px-5 py-2 text-[13.5px] font-medium text-white hover:bg-violet-500 disabled:opacity-50">{enviando ? "Enviando…" : "Enviar el pedido"}</button>
+            <button type="submit" data-accion="manual-enviar-pedido" disabled={enviando} className="rounded-md border border-violet-300/60 bg-violet-500/70 px-5 py-2 text-[13.5px] font-medium text-white hover:bg-violet-500 disabled:opacity-50">{enviando ? "Enviando…" : clienteNombre ? `Enviar el pedido para ${clienteNombre}` : "Enviar el pedido"}</button>
             <button type="button" disabled={enviando} onClick={() => { setModo("quieto"); setSeccion(null) }} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
           </div>
         </form>

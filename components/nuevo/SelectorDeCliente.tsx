@@ -1,5 +1,6 @@
 "use client"
 
+import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useEffect, useRef, useState } from "react"
 import { CaretDown } from "@phosphor-icons/react/dist/ssr/CaretDown"
 
@@ -41,7 +42,7 @@ export function SelectorDeCliente({ inicial = null, fetchImpl }: { inicial?: Cli
           {error ? <p className="px-3 py-2 text-[13px] text-rose-300">{error}</p>
             : !clientes ? <p className="px-3 py-2 text-[13px] text-zinc-500">Leyendo…</p>
             : !clientes.length ? <p className="px-3 py-2 text-[13px] text-zinc-500">Sin clientes todavía.</p>
-            : clientes.map((c) => <a key={c.ruta} role="menuitem" href={c.ruta} data-cliente-del-selector={c.nombre} className="block rounded-md px-3 py-2 text-[13.5px] text-zinc-200 hover:bg-white/[0.07] hover:text-white">{c.nombre}</a>)}
+            : clientes.map((c) => <a key={c.ruta} role="menuitem" href={c.ruta} data-cliente-del-selector={c.nombre} onClick={() => guardarClienteDeTrabajo({ nombre: c.nombre })} className="block rounded-md px-3 py-2 text-[13.5px] text-zinc-200 hover:bg-white/[0.07] hover:text-white">{c.nombre}</a>)}
         </div>
       )}
     </div>

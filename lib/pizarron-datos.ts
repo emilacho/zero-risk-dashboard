@@ -39,6 +39,8 @@ export interface Pizarron {
 }
 
 const ESTADOS_VIVOS = ["abierta", "estrategia", "calendario", "activa", "pausada", "necesita_humano"]
+/** las campañas que de verdad están trabajando (sin la pausada): mandan al elegir el cliente por omisión */
+const ESTADOS_EN_MARCHA = ["abierta", "estrategia", "calendario", "activa", "necesita_humano"]
 
 export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date } = {}): Promise<Pizarron> {
   const ahora = o.ahora ?? new Date()
@@ -49,7 +51,12 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   ])
   const conCampana = new Set(campanas.filter((c) => ESTADOS_VIVOS.includes(String(c.estado))).map((c) => String(c.client_id)))
   const clientes = elegibles.map((c) => ({ ...c, con_campana: conCampana.has(c.id) }))
-  const elegido = (o.cliente && clientes.find((c) => c.id === o.cliente)) || clientes.find((c) => c.con_campana) || clientes[0] || null
+  // CC6 · 02-nov (corrección urgente · «el valor por defecto ya es el correcto»): sin cliente pedido, el que trabaja ahora: campaña EN MARCHA →
+  // plan más reciente (el que espera decisión) → cualquier campaña viva (pausada) → el primero. Nunca un cliente fijo.
+  const enMarcha = new Set(campanas.filter((c) => ESTADOS_EN_MARCHA.includes(String(c.estado))).map((c) => String(c.client_id)))
+  const planesRecientes = o.cliente ? [] : await filas(supa.from("client_historical_outputs").select("client_id, status, created_at").eq("output_type", "campaign_plan_90d").order("created_at", { ascending: false }).limit(30), "client_historical_outputs")
+  const delPlanReciente = planesRecientes.find((p) => p.status !== "rejected" && clientes.some((c) => c.id === String(p.client_id)))
+  const elegido = (o.cliente && clientes.find((c) => c.id === o.cliente)) || clientes.find((c) => enMarcha.has(c.id)) || (delPlanReciente && clientes.find((c) => c.id === String(delPlanReciente.client_id))) || clientes.find((c) => c.con_campana) || clientes[0] || null
   const vacio = (cliente: Pizarron["cliente"]): Pizarron => ({ clientes, cliente, campana: null, fases: [], fase_activa: faseActiva([], null, hoy), gran_idea: GRAN_IDEA_SIN_TABLA, esperas: [], filas: [], semanas: [], totales: {}, hoy, leido_en: ahora.toISOString() })
   if (!elegido) return vacio(null)
   const cliente = { id: elegido.id, nombre: elegido.nombre }

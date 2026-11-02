@@ -133,6 +133,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
       <section role="dialog" aria-modal="true" aria-labelledby="gran-idea-titulo" data-seccion="gran-idea" className="relative flex h-full max-h-full w-full max-w-[1300px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <h2 id="gran-idea-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Gran idea</h2>
+          {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">El concepto de la campaña de {nombre}{resumen ? ` · ${resumen}` : ""}</p>
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar la gran idea" className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
         </header>
