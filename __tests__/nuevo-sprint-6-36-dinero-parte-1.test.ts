@@ -48,8 +48,8 @@ describe("6.36 · Dinero · cálculos", () => {
 describe("6.36 · Dinero · la pantalla", () => {
   const panel = readFileSync("components/nuevo/PanelDinero.tsx", "utf8")
   const h = renderToStaticMarkup(createElement(PanelDinero, { onCerrar: () => {}, datosIniciales: { movimientos: movs, saldos: [], topes: [{ client_id: "c1", cliente: "Náufrago", gastado_24h_usd: 5.62, techo_usd: 20, pct: 28 }], cache: null, desde: "2026-09-01T00:00:00Z", leido_en: "2026-11-02T17:00:00Z", faltan: [] } })).replace(/<!-- -->/g, "")
-  it("secciones 1–3 en el orden de Ramp: lo que cambió, tarjetas, gasto en el tiempo; sin numeritos del boceto", () => {
-    expect(h.indexOf('data-dinero="cambios"')).toBeLessThan(h.indexOf('data-tarjeta="hoy"')); expect(h.indexOf('data-tarjeta="proyeccion"')).toBeLessThan(h.indexOf('data-dinero="tiempo"'))
+  it("secciones 1–3 en el orden de Ramp (6.40: número principal, lo que cambió, gasto en el tiempo); sin numeritos del boceto", () => {
+    expect(h.indexOf('data-tarjeta="periodo"')).toBeLessThan(h.indexOf('data-dinero="cambios"')); expect(h.indexOf('data-tarjeta="proyeccion"')).toBeLessThan(h.indexOf('data-dinero="tiempo"'))
     expect(h).toContain("a este ritmo cierras en"); expect(h).toContain("presupuesto del mes: "); expect(h).toContain("data-sin-dato-todavia")
     expect(panel).not.toMatch(/className="n8"|rounded-full bg-[#e8731a] text-black/)
   })

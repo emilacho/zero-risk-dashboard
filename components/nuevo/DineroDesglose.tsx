@@ -33,9 +33,9 @@ function descargar(nombre: string, texto: string) {
   const a = document.createElement("a"); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
 }
 
-export function Desglose({ datos, rango, hoy, alAbrirCorrida }: { datos: Dinero; rango: { desde: string; hasta: string }; hoy: string; alAbrirCorrida?: (id: string) => void }) {
+export function Desglose({ datos, rango, anterior, hoy, alAbrirCorrida }: { datos: Dinero; rango: { desde: string; hasta: string }; anterior?: { desde: string; hasta: string }; hoy: string; alAbrirCorrida?: (id: string) => void }) {
   const [vista, setVista] = useState<Vista>("cliente")
-  const filas = useMemo(() => desglose(datos.movimientos, vista, rango), [datos, vista, rango])
+  const filas = useMemo(() => desglose(datos.movimientos, vista, rango, anterior), [datos, vista, rango, anterior])
   const [verPruebas, setVerPruebas] = useState(false)
   const topes = useMemo(() => new Map(datos.topes.filter((t) => t.client_id).map((t) => [t.client_id as string, t])), [datos])
   const esAparte = (clave: string) => clave === TRABAJO_INTERNO || clave === PRUEBAS_Y_FICHAS_VIEJAS
