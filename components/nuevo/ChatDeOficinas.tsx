@@ -234,7 +234,7 @@ export function ChatDeOficinas() {
             <X size={14} weight="light" />
           </button>
         <div data-chat-respuestas aria-label="Respuestas" aria-live="polite" tabIndex={0}
-          className="max-h-[min(34vh,260px)] overflow-y-auto pr-1 text-[14px] leading-relaxed text-white outline-none min-[1100px]:max-h-[min(55vh,26rem)]">
+          className="max-h-[min(34vh,260px)] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-[14px] leading-relaxed text-white outline-none min-[1100px]:max-h-[min(55vh,26rem)]">
           {vozActiva && <p className="mb-1 text-[12px] text-white/60">{hablando ? "Hablando…" : escuchando ? "Te escucho…" : "Conversación por voz"}</p>}
           {mensajes.map((m, i) => m.rol === "user" ? null : (
             <div key={i} className="mb-3 last-of-type:mb-0">
