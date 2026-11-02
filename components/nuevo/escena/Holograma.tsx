@@ -104,7 +104,10 @@ export function HologramaFigura({ semilla, color, postura, estado = "trabajando"
   const falda = r.ropa === "falda", vestido = r.ropa === "vestido"
   const bajo = falda ? -12 : vestido ? -3 : 0 // dónde termina la tela de pie
   const wf = Math.min(w, 1.5) // el vuelo de la falda y del vestido no crece con la contextura (si no, se vería una carpa)
-  const tronco = `M${P(-10.5 * w, yS)} Q${P(-11.5 * w, (yS + yC) / 2)} ${P(-8 * w, yC)} Q0 ${yC + 3} ${P(8 * w, yC)} Q${P(11.5 * w, (yS + yC) / 2)} ${P(10.5 * w, yS)} Q0 ${yS - 4} ${P(-10.5 * w, yS)}Z`
+  const gr = r.contextura === "gruesa" // más ancha pero humana: hombros que caen, vientre y caderas redondeados, extremidades gruesas
+  const tronco = gr
+    ? `M${P(-8.5 * w, yS)} C${P(-13 * w, yS + 8)} ${P(-13 * w, yC - 9)} ${P(-9.5 * w, yC)} Q0 ${yC + 5} ${P(9.5 * w, yC)} C${P(13 * w, yC - 9)} ${P(13 * w, yS + 8)} ${P(8.5 * w, yS)} Q0 ${yS - 5} ${P(-8.5 * w, yS)}Z`
+    : `M${P(-10.5 * w, yS)} Q${P(-11.5 * w, (yS + yC) / 2)} ${P(-8 * w, yC)} Q0 ${yC + 3} ${P(8 * w, yC)} Q${P(11.5 * w, (yS + yC) / 2)} ${P(10.5 * w, yS)} Q0 ${yS - 4} ${P(-10.5 * w, yS)}Z`
   return (
     <g className="nv-holo" data-estado={estado} data-postura={postura} data-contextura={r.contextura} data-cabello={r.cabello} data-accesorio={r.accesorio} data-ropa={r.ropa} transform={`scale(${r.altura.toFixed(3)})`} style={{ transformOrigin: "0 0" }}>
       <ellipse className="nv-holo-pie" cx={0} cy={2} rx={sentado ? 24 : 15} ry={5} fill={`url(#${ID_PIE})`} />
@@ -114,19 +117,21 @@ export function HologramaFigura({ semilla, color, postura, estado = "trabajando"
         {sentado ? (
           <>
             {/* sentada: el muslo hacia delante, la pantorrilla hacia abajo, el torso erguido y los brazos hacia la computadora */}
-            <path d={`M${P(-7 * w, yC - 1)} L${P(16 * w, yC + 1)} L${P(17 * w, yC + 26)} L${P(10.5 * w, yC + 26)} L${P(10.5 * w, yC + 10)} L${P(-7 * w, yC + 10)}Z`} {...L} />
+            <path d={gr ? `M${P(-8 * w, yC - 1)} Q${P(8 * w, yC - 6)} ${P(16 * w, yC + 2)} Q${P(19 * w, yC + 12)} ${P(17 * w, yC + 26)} L${P(10.5 * w, yC + 26)} L${P(10.5 * w, yC + 12)} Q${P(0, yC + 14)} ${P(-8 * w, yC + 10)}Z` : `M${P(-7 * w, yC - 1)} L${P(16 * w, yC + 1)} L${P(17 * w, yC + 26)} L${P(10.5 * w, yC + 26)} L${P(10.5 * w, yC + 10)} L${P(-7 * w, yC + 10)}Z`} {...L} />
             {(falda || vestido) && <path d={`M${P(-9 * w, yC - 2)} L${P(17 * w, yC)} L${P((vestido ? 29 : 26) * wf, yC + (vestido ? 22 : 12))} L${P(-12 * wf, yC + (vestido ? 22 : 12))}Z`} {...L} />}
             <path d={tronco} {...L} />
-            <path d={`M${P(8 * w, yS + 2)} L${P(14 * w, yS + 14)} L${P(25 * w, yS + 16)}`} {...F} strokeWidth={3.8} opacity={0.9} />
+            <path d={`M${P(8 * w, yS + 2)} L${P(14 * w, yS + 14)} L${P(25 * w, yS + 16)}`} {...F} strokeWidth={gr ? 5.2 : 3.8} opacity={0.9} />
           </>
         ) : (
           <>
             {/* de pie: dos piernas (o la tela hasta la rodilla / el tobillo), y los brazos caídos */}
             {falda || vestido
               ? <><path d={`M${P(-8 * w, yC)} L${P(8 * w, yC)} L${P((vestido ? 17 : 19) * wf, bajo)} L${P((vestido ? -17 : -19) * wf, bajo)}Z`} {...L} />{falda && <path d={`M${P(-5 * w, bajo)} L${P(-5 * w, 0)}M${P(5 * w, bajo)} L${P(5 * w, 0)}`} {...F} strokeWidth={3.6} />}</>
-              : <><path d={`M${P(-8.4 * w, yC)} L${P(-0.6, yC)} L${P(-1, 0)} L${P(-6.4 * w, 0)}Z`} {...L} /><path d={`M${P(0.6, yC)} L${P(8.4 * w, yC)} L${P(6.4 * w, 0)} L${P(1, 0)}Z`} {...L} /></>}
+              : gr
+                ? <><path d={`M${P(-9 * w, yC)} Q${P(-10.5 * w, -20)} ${P(-6.4 * w, 0)} L${P(-1, 0)} Q${P(-1.6, -20)} ${P(-0.6, yC)}Z`} {...L} /><path d={`M${P(9 * w, yC)} Q${P(10.5 * w, -20)} ${P(6.4 * w, 0)} L${P(1, 0)} Q${P(1.6, -20)} ${P(0.6, yC)}Z`} {...L} /></>
+                : <><path d={`M${P(-8.4 * w, yC)} L${P(-0.6, yC)} L${P(-1, 0)} L${P(-6.4 * w, 0)}Z`} {...L} /><path d={`M${P(0.6, yC)} L${P(8.4 * w, yC)} L${P(6.4 * w, 0)} L${P(1, 0)}Z`} {...L} /></>}
             <path d={tronco} {...L} />
-            <path d={`M${P(-9.5 * w, yS + 2)} L${P(-11 * w, yC + 2)}M${P(9.5 * w, yS + 2)} L${P(11 * w, yC + 2)}`} {...F} strokeWidth={3.8} opacity={0.9} />
+            <path d={`M${P(-9.5 * w, yS + 2)} L${P(-11 * w, yC + 2)}M${P(9.5 * w, yS + 2)} L${P(11 * w, yC + 2)}`} {...F} strokeWidth={gr ? 5.2 : 3.8} opacity={0.9} />
           </>
         )}
         {/* la ropa de arriba: la chaqueta (solapas y bajo más ancho) y el chaleco (escote y costuras) */}

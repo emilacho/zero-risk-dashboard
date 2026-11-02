@@ -14,6 +14,9 @@ const aqui = (c: Punto, u: number, v: number): Punto => ({ x: Math.round(c.x + u
 /** dónde se para quien aporta, alrededor de la computadora (en los ejes del escritorio, desde su centro): el extremo derecho, el frente y el extremo izquierdo */
 export const DE_PIE: Array<[number, number]> = [[64, 38], [-2, 84], [-92, 66]]
 
+/** dónde va la etiqueta «+N»: sobre el borde del escritorio, junto a su monitor (pegada a su mesa, no suelta en el piso) */
+export const puntoDelMas = (m: Pick<MesaViva, "centro">): Punto => aqui(m.centro, 66, -50)
+
 /**
  * Una silla por escritorio: se sienta el que lleva más tiempo trabajando en esa mesa (el que escribe); los demás —los que aportan dentro de su dominio— se paran
  * alrededor de esa computadora. Máximo MAXIMO_EN_LA_MESA a la vista; el resto va en `deMas`.

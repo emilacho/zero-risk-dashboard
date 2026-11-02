@@ -1,7 +1,7 @@
 "use client"
 
 import { DefsDelHolograma, HologramaFigura } from "@/components/nuevo/escena/Holograma"
-import { repartirEnLaMesa } from "@/lib/escena-movimiento"
+import { puntoDelMas, repartirEnLaMesa } from "@/lib/escena-movimiento"
 import { descripcionDelHolograma } from "@/lib/holograma"
 import type { MesaViva } from "@/lib/escena-avatares"
 import { nombreCanonico } from "@/lib/organigrama"
@@ -43,7 +43,15 @@ export function Siluetas({ mesas, enLaSala }: { mesas: MesaViva[]; /** nombres c
           <text className="nv-sil-nombre" y={-92} textAnchor="middle" fill="#ffe2a8" fontSize={17} fontFamily="system-ui, Arial, sans-serif" stroke="#000" strokeWidth={3} paintOrder="stroke">{s.nombre}</text>
         </g>
       ))}
-      {deMas.map(({ m, n }) => <text key={m.clave} x={m.silla.x - 60} y={m.silla.y - 30} fill="#ffd9a0" fontSize={22} fontFamily="system-ui, Arial, sans-serif" data-de-mas={m.clave}>+{n}</text>)}
+      {deMas.map(({ m, n }) => {
+        const p = puntoDelMas(m)
+        return (
+          <g key={m.clave} data-de-mas={m.clave} transform={`translate(${p.x} ${p.y})`} aria-label={`${n} más trabajando en ${m.nombre}`}>
+            <rect x={-20} y={-14} width={40} height={26} rx={13} fill="#0e0c0a" fillOpacity={0.88} stroke="#ffb347" strokeOpacity={0.75} />
+            <text y={5} textAnchor="middle" fill="#ffd9a0" fontSize={17} fontFamily="system-ui, Arial, sans-serif">+{n}</text>
+          </g>
+        )
+      })}
     </g>
   )
 }
