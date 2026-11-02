@@ -32,6 +32,10 @@ describe("la gran idea", () => {
     expect(h).toContain("creative-director-mesa"); expect(h).toContain("content-creator")
     expect(h).toContain(AL_APROBAR_LA_GRAN_IDEA); expect(h).toContain(">Validado<")
   })
+  it("quién la propuso sale de los aportes de la sala, sin «sistema» ni repetidos (reserva P13 de CC3)", async () => {
+    const { quienesPropusieronDe } = await import("@/lib/gran-idea-datos")
+    expect(quienesPropusieronDe([{ de: "sistema" }, { de: "creative-director-mesa" }, { de: "content-creator" }, { de: "creative-director-mesa" }, { de: "" }])).toEqual(["creative-director-mesa", "content-creator"])
+  })
   it("sin aportes registrados lo dice (no inventa nombres)", () => {
     const d = concepto()
     const h = renderToStaticMarkup(createElement(PanelGranIdea, { onCerrar: () => {}, datosIniciales: { ...base, tarjetas: [tarjeta(d)], detalle: d, quienes_propusieron: [] } }))

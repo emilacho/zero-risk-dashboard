@@ -49,15 +49,18 @@ describe("la pieza con su barra", () => {
   })
   it("la lectura: fila por el encargo, productores por la revisión, la rehechura por el encargo nuevo; una lectura que falla deja el bloque vacío", async () => {
     const pedidos: string[] = []
+    const filtros: string[] = []
     const respuestas: Record<string, unknown[]> = {
       oficina_encargos: [{ sala_ref: { fila: { id: "s1-d1", fecha: "2026-11-02", hora: "11:00" } } }],
       cadena_calendario_filas: [{ fecha: "2026-11-02", hora: "11:00:00", semana: 1, red: "instagram", formato: "historia", fase: "senal", idea_ref: null }],
       jefatura_revisiones: [{ productores: [{ donde: "texto", agente: "content-creator" }] }],
     }
-    const supa = { from: (t: string) => { pedidos.push(t); const q: Record<string, unknown> = {}; for (const m of ["select", "eq", "order", "limit"]) q[m] = () => q; q.then = (r: (x: unknown) => unknown) => r(t === "hitl_queue" ? { data: null, error: { message: "caída" } } : { data: respuestas[t] ?? [], error: null }); return q } } as unknown as SupabaseClient
+    const supa = { from: (t: string) => { pedidos.push(t); const q: Record<string, unknown> = {}; for (const m of ["select", "order", "limit"]) q[m] = () => q; q.eq = (c: string, v: unknown) => { filtros.push(`${t}.${c}=${String(v)}`); return q }; q.then = (r: (x: unknown) => unknown) => r(t === "hitl_queue" ? { data: null, error: { message: "caída" } } : { data: respuestas[t] ?? [], error: null }); return q } } as unknown as SupabaseClient
     const a = await leerLoQueAcompana(supa, { hitl_id: PIEZA, encargo_id: "e1", revision_id: "r1", decision: { pidio_cambios: true } })
     expect(a.fila).toMatchObject({ fecha: "2026-11-02", hora: "11:00", fase: "senal" }); expect(a.productores).toEqual([{ donde: "texto", agente: "content-creator" }])
     expect(a.rehechura).toMatchObject({ nueva_en_bandeja: false }) // la bandeja falló: no se da por llegada
     expect(pedidos).toContain("cadena_calendario_filas")
+    // reserva P16 de CC3: la fila se busca por su id Y su fecha (el mismo id se repite en otras semanas)
+    expect(filtros).toContain("cadena_calendario_filas.id=s1-d1"); expect(filtros).toContain("cadena_calendario_filas.fecha=2026-11-02")
   })
 })

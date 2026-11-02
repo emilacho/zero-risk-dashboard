@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { BriefDelCliente } from "@/lib/brief-datos"
-import { estadoDelBriefLegible, loQueSigueDelBrief, QUIEN_ESCRIBE_EL_BRIEF, seccionesDelBrief, type Brief, type TonoDelBrief } from "@/lib/brief"
+import { estadoDelBriefLegible, loQueSigueDelBrief, seccionesDelBrief, type Brief, type TonoDelBrief } from "@/lib/brief"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 import { diaYHora, plural } from "@/lib/lenguaje"
 
@@ -122,7 +122,7 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                   </section>
                   <section data-barra="origen" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
                     <Titulito>De dónde sale</Titulito>
-                    <p className="text-[12.5px] text-zinc-200">La mesa del brief · <span className="font-mono text-[11.5px] text-amber-100">{QUIEN_ESCRIBE_EL_BRIEF}</span></p>
+                    <p className="text-[12.5px] text-zinc-200">La mesa del brief{brief.quienes_escribieron?.length ? <> · {brief.quienes_escribieron.map((q, i) => <span key={q} data-escribio={q} className="font-mono text-[11.5px] text-amber-100">{i ? " · " : ""}{q}</span>)}</> : <span className="text-zinc-500"> · sin registro de qué empleado lo escribió</span>}</p>
                     <p className="text-[11.5px] text-zinc-500">a partir del plan, el manual y lo que trajo el portero{brief.creada_en ? ` · ${diaYHora(brief.creada_en)}` : ""}</p>
                     {brief.motivo && <p className="mt-1 text-[11.5px] text-zinc-400">Por qué esta versión: {brief.motivo}</p>}
                   </section>

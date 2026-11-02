@@ -68,6 +68,11 @@ async function quienesPropusieron(supa: SupabaseClient, conceptoId: string): Pro
   const encargo = c && typeof c.encargo_id === "string" ? c.encargo_id : null
   if (!encargo) return []
   const aportes = await filas(supa.from("oficina_mesa_aportes").select("de, n").eq("encargo_id", encargo).order("n", { ascending: true }).limit(200), "oficina_mesa_aportes")
+  return quienesPropusieronDe(aportes)
+}
+
+/** los nombres de quien habló en la sala, sin repetir, en orden, sin «sistema» (no es un empleado) */
+export function quienesPropusieronDe(aportes: Array<{ de?: unknown }>): string[] {
   return [...new Set(aportes.map((a) => String(a.de ?? "")).filter((x) => x && x !== "sistema"))]
 }
 
