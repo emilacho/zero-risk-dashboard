@@ -5,14 +5,14 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
-import { leerManual, type ManualLeido } from "@/lib/manual-lector"
+import { leerManual, type ManualLeido, CAMPOS_DEL_LECTOR } from "@/lib/manual-lector"
 import { borradorDelManual, coloresDelManual, listaDeTextos, origenDelManualLegible, politicaDeCompetidoresLegible, tipografiasDelManual, type ColorDelManual, type TipografiaDelManual } from "@/lib/manual"
 import { revisionDeFidelidadLegible } from "@/lib/lenguaje"
 import { palabrasDelManual, type PalabraDelManual } from "@/lib/manual-palabras"
 import { avanceDelPedido } from "@/lib/plan"
-import { jerarquiaTipografica, seccionesNuevasDelBorrador, type SeccionLeida } from "@/lib/manual-secciones"
+import { jerarquiaTipografica, SECCIONES_NUEVAS, seccionesNuevasDelBorrador, type SeccionLeida } from "@/lib/manual-secciones"
 import { canalesDelCliente, fotosDeLaBarra, logoDelManual, sedesDeLaBarra, type CanalDeLaBarra, type FotoDeLaBarra, type SedeDeLaBarra } from "@/lib/manual-barra"
-import { CICLO_DEL_MANUAL_CERRADO, esPedidoAbierto, queCambioEnElManual, type CicloDelManual, type PedidoDelManual } from "@/lib/manual-ciclo"
+import { CICLO_DEL_MANUAL_CERRADO, esPedidoAbierto, queCambioEnElManual, type CicloDelManual, type PedidoDelManual, avisoDelPedidoSinCambio } from "@/lib/manual-ciclo"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -48,6 +48,15 @@ const HORAS_QUE_SE_VE_EL_APLICADO = 12
  * EL CICLO DEL MANUAL (CC6 · 02-nov · contrato CC1): el último pedido del cliente en `plan_cambios` con `documento='manual'`, su avance con la MISMA cuenta
  * que el plan, y «Qué cambió» entre la versión sobre la que se pidió (`manual_id`) y la vigente si salió de ese pedido (`manual_nuevo_id`).
  */
+/** la clave con la que el panel pinta el campo y su etiqueta legible: acepta la clave de la plataforma (`_field_meta`) o la del tablero; si no la conoce, la escribe legible */
+export function etiquetaDelCampo(clave: string): { clave: string; etiqueta: string } {
+  const c = CAMPOS_DEL_LECTOR.find((x) => x.clave === clave || x.meta === clave || x.columna === clave || x.borrador.includes(clave))
+  if (c) return { clave: c.clave, etiqueta: c.etiqueta }
+  for (const s of SECCIONES_NUEVAS) { const k = s.claves.find((x) => x.clave === clave); if (k) return { clave: k.clave, etiqueta: s.claves.length === 1 ? s.titulo : `${k.etiqueta} (${s.titulo})` } }
+  const t = clave.replace(/[_-]+/g, " ").trim()
+  return { clave, etiqueta: t ? t[0].toUpperCase() + t.slice(1) : clave }
+}
+
 async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigente: Fila, ahora: Date): Promise<CicloDelManual> {
   const pc = await opcional(supa.from("plan_cambios").select("*").eq("documento", "manual").eq("client_id", clienteId).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "plan_cambios")
   if (pc.falta) return CICLO_DEL_MANUAL_CERRADO
@@ -78,7 +87,9 @@ async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigen
     trabajando: vivos.map((x) => ({ agente: String(x.agent_name ?? ""), desde: t(x.running_at) ?? t(x.created_at) })),
   }, ahora, "manual") : null
   const antes = base ? leerManual(base) : null, ahoraL = leerManual(vigente)
-  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [] }
+  // el aviso del campo validado: solo si el último pedido ya terminó (no abierto); nulo = pedido viejo: nada
+  const aviso_del_pedido = esPedidoAbierto(pedido.estado) ? null : avisoDelPedidoSinCambio(f.resultado, etiquetaDelCampo)
+  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [], ...(aviso_del_pedido ? { aviso_del_pedido } : {}) }
 }
 
 export interface ManualDelCliente {
