@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
+import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
@@ -94,7 +95,7 @@ const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibol
  * clic y «Pedir cambios» es escribir y enviar; el gasto se verá en el panel de gastos de la oficina y en Dinero. Si la última llamada no despertó al flujo se ofrece «Reintentar». Las versiones anteriores
  * quedan en segundo plano («corregido N veces · ver historial»).
  */
-function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, palabraDelDueno = [], children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** «la palabra del dueño manda»: lo que un revisor contradijo y no entró, o lo pedido que no quedó cumplido */ palabraDelDueno?: NonNullable<PlanDelCliente["palabra_del_dueno"]>; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
+function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, palabraDelDueno = [], pedirEn = null, children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** «la palabra del dueño manda»: lo que un revisor contradijo y no entró, o lo pedido que no quedó cumplido */ palabraDelDueno?: NonNullable<PlanDelCliente["palabra_del_dueno"]>; /** pedir cambios sobre una sección del plan (lo dispara el plan en secciones; `n` cambia en cada clic) */ pedirEn?: { seccion: string; n: number } | null; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
   const lectura = leerElCiclo(statusDelDocumento, ciclo)
   // Emilio (01-nov 16:27Z): sin avisos ni confirmaciones de gasto. Aprobar = un clic; Pedir cambios = escribir y enviar. El cuerpo sigue llevando lo que la
   // puerta exige (`confirmo_gasto:true`, `tope_usd:8`): el tope lo cuida la plataforma; el gasto se verá en el panel de gastos de la oficina y en Dinero
@@ -106,6 +107,14 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
   // la barra se ve SIEMPRE que haya avance (sale del dato, no de la memoria del navegador); solo se oculta si Emilio la cierra, y se reabre con «Ver el avance»
   const [barraOculta, setBarraOculta] = useState(false)
   const corregido = ciclo.version - 1
+  // «Pedir cambios en esta sección»: abre el formulario con el nombre de la sección al comienzo, y lo trae a la vista
+  useEffect(() => {
+    if (!pedirEn || !lectura.puede_pedir_cambios) return
+    setError(null); setModo("escribir")
+    setObservaciones((o) => (o.trim() ? `${o.trimEnd()}\n\nSección «${pedirEn.seccion}»: ` : `Sección «${pedirEn.seccion}»: `))
+    if (typeof document !== "undefined") requestAnimationFrame(() => document.querySelector('[data-apartado="decision"]')?.scrollIntoView({ behavior: "smooth", block: "start" }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedirEn?.n])
 
   async function mandar(accion: PuertaDelCiclo, cuerpo: Record<string, unknown> | { error: string }) {
     setError(null)
@@ -215,6 +224,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? clienteInicial)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string; tono?: "info" } | null>(null)
+  const [pedirEn, setPedirEn] = useState<{ seccion: string; n: number } | null>(null) // pedir cambios sobre una sección del plan
   const cerrar = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cerrar.current?.focus() }, [])
@@ -307,7 +317,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
 
               {/* la decisión sobre el plan: para TODO plan, con el estado del ciclo a la vista y los dos botones grandes */}
               {d && datos.ciclo && (
-                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio} palabraDelDueno={datos.palabra_del_dueno ?? []}>
+                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio} palabraDelDueno={datos.palabra_del_dueno ?? []} pedirEn={pedirEn}>
                   {d.marcas.length > 0 && (
                     <div className="mt-3">
                       <p className="text-[12.5px] text-zinc-300">El chequeo del sistema marcó estos puntos antes de darlo por bueno:</p>
@@ -344,7 +354,8 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                   {/* la meta y el reparto, del documento del plan */}
                   <Seccion titulo="La meta y el reparto" nota={d ? `${rotuloDelTextoMientrasSeRehace(datos.ciclo) ? `${rotuloDelTextoMientrasSeRehace(datos.ciclo)} · ` : ""}${d.titulo}${d.caracteres ? ` · ${d.caracteres.toLocaleString("es-EC")} caracteres` : ""}` : "sin documento del plan"} retraso={120}>
                     {!d && <Vacio>La oficina de planeación todavía no escribió el plan de este cliente.</Vacio>}
-                    {d && !d.plan && d.prosa && <p className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{d.prosa}</p>}
+                    {/* el plan por secciones (Emilio, 02-nov: «que no se pierda entre párrafos gigantes») */}
+                    {d && !d.plan && d.prosa && <PlanEnSecciones prosa={d.prosa} onPedirCambios={datos.ciclo && leerElCiclo(d.status, datos.ciclo).puede_pedir_cambios ? (seccion) => setPedirEn((x) => ({ seccion, n: (x?.n ?? 0) + 1 })) : undefined} />}
                     {d && !d.plan && !d.prosa && <Vacio>El documento del plan está vacío.</Vacio>}
                     {d?.plan && (
                       <div className="space-y-4">
