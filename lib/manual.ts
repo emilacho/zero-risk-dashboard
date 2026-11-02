@@ -129,18 +129,23 @@ export function etiquetaDelHueco(clave: string): string {
 
 /**
  * Lo que Emilio puede EDITAR desde el dashboard (sprint 6.4): los campos que la plataforma acepta por `PATCH /api/manual/{client}/campos`
- * (`clave_del_tablero` en `campos-del-manual.ts` de la plataforma: 7 campos). Misión, visión, personalidad, mensajes clave, propuestas de valor,
- * productos, sedes y las palabras son editables en la plataforma pero AÚN no tienen clave de tablero: pedirlas es trabajo de la plataforma, no se finge aquí.
+ * (`campos-del-manual.ts` de la plataforma). Desde CC1 `0934662` (02-nov) la puerta acepta TODOS los campos del manual: los 12 que muestra el panel.
+ * Las palabras que no usa siguen por su propia puerta (`manual-palabra`), para no perder lo declarado.
  * `lista`: se escribe una por línea. El sistema versiona (max+1 vigente), marca «escrito por el dueño» y re-indexa el cerebro: el siguiente empleado lee lo nuevo.
  */
 export const EDITABLES_DESDE_EL_TABLERO: ReadonlyArray<{ clave: string; etiqueta: string; lista: boolean; ayuda: string }> = [
   { clave: "proposito", etiqueta: "Propósito", lista: false, ayuda: "Para qué existe la marca, en una o dos frases." },
+  { clave: "mision", etiqueta: "Misión", lista: false, ayuda: "Qué hace la marca y para quién, en una o dos frases." },
+  { clave: "vision", etiqueta: "Visión", lista: false, ayuda: "A dónde quiere llegar la marca." },
   { clave: "eslogan", etiqueta: "Eslogan", lista: false, ayuda: "La frase corta que acompaña a la marca." },
   { clave: "voz", etiqueta: "Voz de la marca", lista: false, ayuda: "Cómo habla: tono, trato, palabras que la distinguen." },
   { clave: "posicionamiento", etiqueta: "Posicionamiento", lista: false, ayuda: "Qué lugar ocupa frente a las demás y por qué." },
   { clave: "publico", etiqueta: "Público", lista: false, ayuda: "A quién le habla y qué busca esa gente." },
   { clave: "valores", etiqueta: "Valores", lista: true, ayuda: "Uno por línea." },
   { clave: "nunca", etiqueta: "Lo que la marca nunca dice o hace", lista: true, ayuda: "Uno por línea." },
+  { clave: "personalidad", etiqueta: "Personalidad", lista: true, ayuda: "Un rasgo por línea." },
+  { clave: "mensajes_clave", etiqueta: "Mensajes clave", lista: true, ayuda: "Uno por línea." },
+  { clave: "propuestas_de_valor", etiqueta: "Propuestas de valor", lista: true, ayuda: "Una por línea." },
 ]
 export const esEditableDesdeElTablero = (clave: string) => EDITABLES_DESDE_EL_TABLERO.some((e) => e.clave === clave)
 

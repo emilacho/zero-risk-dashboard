@@ -14,7 +14,7 @@ export type NombreDeAccion =
   | "cliente-editar" | "cliente-nuevo" | "cliente-baja" | "cliente-tope"
   | "oficina-estado" | "oficina-tope"
   | "revision-resolver"
-  | "manual-campos" | "manual-validar" | "manual-palabra"
+  | "manual-campos" | "manual-validar" | "manual-palabra" | "manual-validar-campo"
 
 type Cuerpo = Record<string, unknown>
 export type Validacion = { ok: true; cuerpo: Cuerpo } | { ok: false; error: string; detalle: string }
@@ -164,6 +164,17 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
     validar: (c) => { const id = conId(c, "client_id"); return id ? { ok: true, cuerpo: { client_id: id } } : mal("falta el cliente") },
   },
   // TABLERO DEL DUEÑO · palabras del manual (CC6 · 01-nov · contrato de CC1 #815): prohibir, dejar como estilo o quitar. US$ 0; versión nueva del manual.
+  // VALIDAR UN CAMPO sin versión nueva (CC6 · 02-nov · contrato CC1 `254b94f`, certificado por CC3): el dueño lo da por bueno o le quita la validación. US$ 0
+  "manual-validar-campo": {
+    gasta: null,
+    validar: (c) => {
+      const id = conId(c, "client_id"), campo = texto(c.campo)
+      if (!id) return mal("falta el cliente")
+      if (!/^[a-z_]{2,40}$/.test(campo)) return mal("falta el campo")
+      if (c.validado !== undefined && typeof c.validado !== "boolean") return mal("«validado» es verdadero o falso")
+      return { ok: true, cuerpo: { client_id: id, campo, validado: c.validado !== false } }
+    },
+  },
   "manual-palabra": {
     gasta: null,
     validar: (c) => {
@@ -177,15 +188,20 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   },
 }
 
-/** los campos del manual que Emilio puede escribir (respuesta de Lenovo antiguo, 30-oct); lo observado por el sistema es PROPUESTA y no se edita a mano */
+/** los campos del manual que Emilio puede escribir: desde CC1 `0934662` (02-nov, ADENDA 1 de Lenovo) son TODOS los que muestra el panel */
 export const CAMPOS_DEL_MANUAL: Array<{ clave: string; etiqueta: string; largo: boolean }> = [
   { clave: "proposito", etiqueta: "Propósito", largo: true },
+  { clave: "mision", etiqueta: "Misión", largo: true },
+  { clave: "vision", etiqueta: "Visión", largo: true },
   { clave: "eslogan", etiqueta: "Eslogan", largo: false },
   { clave: "voz", etiqueta: "Voz", largo: true },
   { clave: "posicionamiento", etiqueta: "Posicionamiento", largo: true },
   { clave: "publico", etiqueta: "Público", largo: true },
   { clave: "valores", etiqueta: "Valores", largo: true },
   { clave: "nunca", etiqueta: "Lo que la marca nunca dice o hace", largo: true },
+  { clave: "personalidad", etiqueta: "Personalidad", largo: true },
+  { clave: "mensajes_clave", etiqueta: "Mensajes clave", largo: true },
+  { clave: "propuestas_de_valor", etiqueta: "Propuestas de valor", largo: true },
 ]
 
 export interface RespuestaDeAccion { status: number; cuerpo: Record<string, unknown> }
