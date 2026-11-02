@@ -228,7 +228,7 @@ export const fechaCorta = (d: string): string => new Date(`${d}T12:00:00Z`).toLo
 /* ─── lectura (servidor, SOLO LECTURA) ─── */
 type Fila = Record<string, unknown>
 const txt = (v: unknown) => (v == null || v === "" ? null : String(v))
-async function todas(q: (desde: number, hasta: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>, que: string, tope = 20000): Promise<Fila[]> {
+export async function todas(q: (desde: number, hasta: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>, que: string, tope = 20000): Promise<Fila[]> {
   const out: Fila[] = []
   for (let i = 0; i < tope; i += 1000) {
     const r = await q(i, i + 999)

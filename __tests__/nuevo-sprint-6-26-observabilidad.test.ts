@@ -97,11 +97,12 @@ describe("6.26 · el árbol y la cascada (estructura de LangSmith)", () => {
 
 describe("6.26 · el panel", () => {
   const lista = normalizarLista(LISTA, NOMBRES)
-  const h = renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: lista }))
-  it("la lista: tabla con las columnas de LangSmith, búsqueda y filtros por fecha, cliente y estado; lo que falta dice «sin dato»", () => {
+  // 6.47 · la tabla quedó como segundo nivel («Ver todas las corridas»); el período es el MISMO selector de Dinero (4 opciones)
+  const h = renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: lista, vistaInicial: "todas", internoInicial: true, hoy: "2026-11-02" }))
+  it("la lista: tabla con las columnas de LangSmith, búsqueda y filtros por período, cliente y estado; lo que falta dice «sin dato»", () => {
     expect(h).toContain('data-seccion="observabilidad"'); expect(h).toContain("nv-panel")
     for (const c of ["Nombre", "Cliente", "Estado", "Inicio", "Duración", "Tokens", "Costo", "Pasos"]) expect(h).toContain(`>${c}</th>`)
-    expect(h).toContain("data-busca"); expect(h.match(/data-fecha=/g)).toHaveLength(3); expect(h).toContain("data-filtro-cliente"); expect(h.match(/data-filtro-estado=/g)).toHaveLength(6)
+    expect(h).toContain("data-busca"); expect(h.match(/data-periodo=/g)).toHaveLength(4); expect(h).toContain("data-filtro-cliente"); expect(h.match(/data-filtro-estado=/g)).toHaveLength(6)
     expect(h.match(/data-corrida=/g)).toHaveLength(3); expect(h).toContain('data-estado="fallida"')
     expect(h).toContain("entrada y salida de cada paso: los primeros 2.000 caracteres") // 6.27: ya se leen
   })

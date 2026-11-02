@@ -1,26 +1,39 @@
 "use client"
 
 import { BotonVolver } from "@/components/nuevo/BotonVolver"
+import { FichaDeRendimiento } from "@/components/nuevo/escena/FichaDeRendimiento"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import {
   COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo,
 } from "@/lib/direccion-corridas"
+import { diaLocal, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
+import {
+  NOMBRE_DE_AGRUPAR, agrupar, conFallosDelProceso, agruparPorEmpleado, cobertura, costoDeLaCorrida, costoDelPeriodo, costoPorEjecucion, demoraCorta, dondeFallo, enRango, esCorridaInterna, motivoEnPalabras, numerosDe,
+  seriePorDia, topEmpleados, variacion, ventanaDe, type AgruparPor, type DondeFallo, type EmpleadoObs, type Grupo,
+} from "@/lib/observabilidad"
+import { nombreCanonico } from "@/lib/organigrama"
+import type { Rendimiento } from "@/lib/rendimiento"
 
 /**
- * TU OFICINA · PANTALLA 9 · OBSERVABILIDAD (6.26). Estructura COPIADA de LangSmith (regla de Emilio: «copia del mejor del mercado; adaptar solo la fachada»):
- *  1 · la tabla de corridas con búsqueda y filtros (fecha, cliente, estado) · 2 · al abrir una, el árbol de pasos con la cascada de tiempos ·
- *  3 · al tocar un paso, su detalle con pestañas Entrada / Salida / Metadatos · 4 · los errores en rojo arriba del árbol.
- * Datos: `/api/direccion/corridas` y `/api/direccion/corridas/{ejecución}` (servidor del tablero → rutas certificadas de la plataforma). SOLO LECTURA.
- * El costo es un dato de la corrida, como en LangSmith: sin avisos.
+ * TU OFICINA · PANTALLA 9 · OBSERVABILIDAD.
+ * 6.26 · estructura COPIADA de LangSmith (tabla de corridas → árbol de pasos con cascada de tiempos → detalle con pestañas Entrada / Salida / Metadatos).
+ * 6.47 · «fácil de leer» (Emilio: «veo una lista gigante, nada user friendly»): una capa de lectura ENCIMA de la tabla, que se conserva.
+ *  Arriba el resumen (LangSmith / Langfuse: corridas · % con error · demora típica · costo, con mini gráfico y frente al período anterior), después
+ *  «lo que falló» con el motivo en palabras y el salto al paso (Datadog), los grupos por proceso · cliente · empleado (gráficos agrupados de LangSmith),
+ *  el trabajo interno oculto por defecto, y los empleados que más fallan y más tardan con la flecha a su ficha de rendimiento (la de CC6).
+ * Datos: `/api/direccion/corridas`, `/api/direccion/corridas/{ejecución}`, `/api/direccion/observabilidad` y `/api/direccion/dinero` (el costo, la MISMA cuenta
+ * que Dinero). SOLO LECTURA. El costo es un dato, nunca un aviso.
  */
 const AMBAR = "#e8731a"
 const NUM: CSSProperties = { fontVariantNumeric: "tabular-nums" }
-type Dias = 1 | 7 | 30
-const FECHAS: { dias: Dias; nombre: string }[] = [{ dias: 1, nombre: "Últimas 24 h" }, { dias: 7, nombre: "7 días" }, { dias: 30, nombre: "30 días" }]
 type Pestana = "entrada" | "salida" | "metadatos"
 const PESTANAS: { id: Pestana; nombre: string }[] = [{ id: "entrada", nombre: "Entrada" }, { id: "salida", nombre: "Salida" }, { id: "metadatos", nombre: "Metadatos" }]
-
+const CAJA = "rounded-xl border border-white/[0.09] bg-[#1b1815]"
+const TITULO = "text-[15px] font-medium uppercase tracking-[0.12em] text-[#ffc07a]"
+const ROTULO = "text-[12.5px] font-medium uppercase tracking-[0.08em] text-zinc-200"
+const PERIODO_EN_PALABRAS: Record<Periodo, string> = { hoy: "hoy", "7": "7 días", mes: "este mes", "30": "30 días" }
 /** el ícono de estado, como en LangSmith: visto bueno, equis, círculo que gira */
 function IconoDeEstado({ estado, tam = 14 }: { estado: EstadoCorrida; tam?: number }) {
   const c = COLOR_DEL_ESTADO[estado]
@@ -51,30 +64,25 @@ async function leerJson<T>(f: typeof fetch, url: string, que: string): Promise<T
   return j
 }
 
-/** ─── 1 · LA LISTA DE CORRIDAS (la tabla «Runs» de LangSmith) ─── */
-function Lista({ lista, dias, setDias, cliente, setCliente, clientes, estado, setEstado, busca, setBusca, abrir, cargando }: {
-  lista: ListaDeCorridas | null; dias: Dias; setDias: (d: Dias) => void; cliente: string; setCliente: (c: string) => void; clientes: { id: string; nombre: string }[]
-  estado: EstadoCorrida | "todas"; setEstado: (e: EstadoCorrida | "todas") => void; busca: string; setBusca: (b: string) => void; abrir: (c: Corrida) => void; cargando: boolean
+/** ─── 1 · LA LISTA DE CORRIDAS (la tabla «Runs» de LangSmith) · 6.47: segundo nivel, ya filtrada por período, interno y búsqueda ─── */
+function Lista({ corridas, titulo, total, cliente, setCliente, clientes, estado, setEstado, abrir, cargando, pie, costoDe }: {
+  corridas: Corrida[]; titulo: string; total: number; cliente: string; setCliente: (c: string) => void; clientes: { id: string; nombre: string }[]
+  estado: EstadoCorrida | "todas"; setEstado: (e: EstadoCorrida | "todas") => void; abrir: (c: Corrida) => void; cargando: boolean; pie: ReactNode; costoDe: (c: Corrida) => number
 }) {
-  const corridas = lista?.corridas ?? []
-  const b = busca.trim().toLowerCase()
-  const buscadas = b ? corridas.filter((c) => [c.nombre, clienteVisible(c) ?? "", c.nombre_tecnico ?? "", c.workflow_execution_id].some((x) => x.toLowerCase().includes(b))) : corridas
-  const visibles = estado === "todas" ? buscadas : buscadas.filter((c) => c.estado === estado)
-  const cuenta = (e: EstadoCorrida) => buscadas.filter((c) => c.estado === e).length
+  const visibles = estado === "todas" ? corridas : corridas.filter((c) => c.estado === estado)
+  const cuenta = (e: EstadoCorrida) => corridas.filter((c) => c.estado === e).length
   return (
     <div data-vista="lista" className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-6">
-        <input data-busca type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nombre, cliente o ejecución"
-          className="h-8 w-full min-w-0 rounded-md border border-white/10 bg-black/30 px-3 text-[13px] text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/60 focus:outline-none sm:w-[320px]" />
-        <div className="flex items-center gap-1" role="group" aria-label="Fecha">{FECHAS.map((f) => <Chip key={f.dias} data-fecha={String(f.dias)} activo={dias === f.dias} onClick={() => setDias(f.dias)}>{f.nombre}</Chip>)}</div>
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2 sm:px-6">
+        <h3 className="mr-2 text-[14px] text-white">{titulo}</h3>
         <select data-filtro-cliente value={cliente} onChange={(e) => setCliente(e.target.value)} aria-label="Cliente" className="h-8 rounded-md border border-white/10 bg-black/30 px-2 text-[12.5px] text-zinc-200 focus:border-amber-500/60 focus:outline-none">
           <option value="">Todos los clientes</option>
           {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
-      </div>
-      <div className="flex flex-wrap items-center gap-1 border-b border-white/10 px-4 py-2 sm:px-6" role="group" aria-label="Estado">
-        <Chip data-filtro-estado="todas" activo={estado === "todas"} onClick={() => setEstado("todas")}>Todas <span style={NUM}>{buscadas.length}</span></Chip>
-        {ESTADOS.map((e) => <Chip key={e} data-filtro-estado={e} activo={estado === e} onClick={() => setEstado(e)}><span style={{ color: COLOR_DEL_ESTADO[e] }}>●</span> {NOMBRE_DEL_ESTADO[e]} <span style={NUM}>{cuenta(e)}</span></Chip>)}
+        <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Estado">
+          <Chip data-filtro-estado="todas" activo={estado === "todas"} onClick={() => setEstado("todas")}>Todas <span style={NUM}>{corridas.length}</span></Chip>
+          {ESTADOS.map((e) => <Chip key={e} data-filtro-estado={e} activo={estado === e} onClick={() => setEstado(e)}><span style={{ color: COLOR_DEL_ESTADO[e] }}>●</span> {NOMBRE_DEL_ESTADO[e]} <span style={NUM}>{cuenta(e)}</span></Chip>)}
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         <table data-tabla-corridas className="w-full min-w-[860px] border-collapse text-left text-[13px]">
@@ -92,32 +100,27 @@ function Lista({ lista, dias, setDias, cliente, setCliente, clientes, estado, se
                 <td className="whitespace-nowrap px-3 py-2 text-zinc-400" style={NUM}>{cuando(c.inicio)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-200" style={NUM}>{duracion(c.duracion_ms)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-300" style={NUM}>{miles(c.tokens)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-300" style={NUM}>{costoComoDato(c.costo_usd)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-300" style={NUM}>{costoComoDato(costoDe(c))}</td>
                 <td className="whitespace-nowrap px-3 py-2 pr-4 text-right text-zinc-400 sm:pr-6" style={NUM}>{c.pasos}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {lista && !visibles.length && <p className="px-6 py-8 text-center text-[13px] text-zinc-500">{cargando ? "Leyendo…" : "Ninguna corrida con estos filtros."}</p>}
+        {!visibles.length && <p className="px-6 py-8 text-center text-[13px] text-zinc-500">{cargando ? "Leyendo…" : "Ninguna corrida con estos filtros."}</p>}
       </div>
-      {lista && (
-        <div data-sin-dato className="border-t border-white/10 px-4 py-2 text-[12px] leading-relaxed text-zinc-500 sm:px-6">
-          <span style={NUM}>Mostrando {visibles.length} de {lista.total} corridas</span>
-          {lista.total > corridas.length && <> · las más antiguas no entran: la plataforma entrega 200 ejecuciones por lectura</>}
-          {!lista.completo && <> · lectura incompleta: alguna fuente no respondió entera</>}
-          {lista.agrupado && <> · una fila por pedido</>}
-          <> · horas en la zona de tu equipo · entrada y salida de cada paso: los primeros {TOPE_DEL_TEXTO.toLocaleString("es-EC")} caracteres</>
-        </div>
-      )}
+      <div data-sin-dato className="border-t border-white/10 px-4 py-2 text-[12px] leading-relaxed text-zinc-500 sm:px-6">
+        <span style={NUM}>Mostrando {visibles.length} de {total} corridas</span>{pie}
+        <> · horas en la zona de tu equipo · entrada y salida de cada paso: los primeros {TOPE_DEL_TEXTO.toLocaleString("es-EC")} caracteres</>
+      </div>
     </div>
   )
 }
 
 /** ─── 2 · UNA CORRIDA: árbol de pasos + cascada de tiempos (izquierda) · 3 · detalle con pestañas (derecha) ─── */
-function Traza({ detalle, volver }: { detalle: DetalleDeCorrida; volver: () => void }) {
+function Traza({ detalle, volver, claveInicial = null, volverA = "Corridas" }: { detalle: DetalleDeCorrida; volver: () => void; /** 6.47 · «ver dónde falló» abre en el paso en rojo */ claveInicial?: string | null; volverA?: string }) {
   const nodos = useMemo(() => arbolDeNodos(detalle), [detalle])
   const tiempo = useMemo(() => lineaDeTiempo(nodos), [nodos])
-  const [clave, setClave] = useState("corrida")
+  const [clave, setClave] = useState(claveInicial ?? "corrida")
   const [pestana, setPestana] = useState<Pestana>("metadatos")
   const elegido = nodos.find((n) => n.clave === clave) ?? nodos[0]
   const errores = nodos.filter((n) => n.tipo === "paso" && n.estado === "fallida")
@@ -126,7 +129,7 @@ function Traza({ detalle, volver }: { detalle: DetalleDeCorrida; volver: () => v
   return (
     <div data-vista="traza" className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-6">
-        <button type="button" data-volver onClick={volver} className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06]">← Corridas</button>
+        <button type="button" data-volver onClick={volver} className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06]">← {volverA}</button>
         <h3 className="min-w-0 truncate text-[15px] text-white">{c.nombre}</h3>
         <Estado estado={c.estado} />
         <div className="ml-auto flex flex-wrap gap-1.5">
@@ -147,7 +150,7 @@ function Traza({ detalle, volver }: { detalle: DetalleDeCorrida; volver: () => v
           {errores.length > 0 && (
             <div data-errores role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 sm:px-6">
               <p className="text-[12.5px] font-medium text-rose-200">{errores.length} {errores.length === 1 ? "paso con error" : "pasos con error"}</p>
-              {errores.map((n) => <button key={n.clave} type="button" onClick={() => { setClave(n.clave); setPestana("metadatos") }} className="block max-w-full truncate text-left text-[12px] text-rose-200/80 hover:text-rose-100">✕ {n.nombre}{n.error ? ` · ${n.error}` : ""}</button>)}
+              {errores.map((n) => <button key={n.clave} type="button" data-paso-con-error={n.clave} onClick={() => { setClave(n.clave); setPestana("metadatos") }} className="block max-w-full truncate text-left text-[12px] text-rose-200/80 hover:text-rose-100">✕ {n.nombre} · {motivoEnPalabras(n.error, n.estado)}</button>)}
             </div>
           )}
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-b border-white/10 bg-[#1b1815] text-[10.5px] uppercase tracking-[0.12em] text-zinc-500 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1fr)]">
@@ -223,7 +226,13 @@ function Detalle({ nodo, corrida, pestana, setPestana }: { nodo: Nodo; corrida: 
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        {nodo.error && <div data-error className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3"><p className="text-[11px] uppercase tracking-[0.14em] text-rose-300">Error</p><p className="mt-1 whitespace-pre-wrap break-words text-[13px] text-rose-100">{nodo.error}</p></div>}
+        {(nodo.error || nodo.estado === "fallida" || nodo.estado === "atascada") && nodo.tipo === "paso" && (
+          <div data-error className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-rose-300">Por qué falló</p>
+            <p data-motivo className="mt-1 text-[14px] text-rose-50">{mayuscula(motivoEnPalabras(nodo.error, nodo.estado))}</p>
+            {nodo.error && <details data-texto-tecnico className="mt-2"><summary className="cursor-pointer text-[12px] text-rose-200/70 hover:text-rose-100">Ver el texto técnico</summary><p className="mt-1 whitespace-pre-wrap break-words font-mono text-[12px] text-rose-100/90">{nodo.error}</p></details>}
+          </div>
+        )}
         {pestana === "metadatos" && (
           <dl data-metadatos className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)] gap-x-4 gap-y-2 text-[13px]">
             {filas.map(([k, v]) => <div key={k} className="contents"><dt className="text-zinc-500">{k}</dt><dd className="min-w-0 text-zinc-100" style={NUM}>{v}</dd></div>)}
@@ -268,70 +277,333 @@ function Texto({ nodo, pestana }: { nodo: Nodo; pestana: "entrada" | "salida" })
   )
 }
 
-export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null, alVolver }: { /** 6.44 · abierta desde Dinero: la flecha regresa a Dinero */ alVolver?: () => void; onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch; /** 6.36 · Dinero abre aquí la corrida de un pico */ corridaInicial?: string | null }) {
-  const [dias, setDias] = useState<Dias>(7)
+/** ─── 6.47 · LA CAPA DE LECTURA ─── */
+function MiniGrafico({ xs, color = AMBAR, rojo = false }: { xs: Array<number | null>; color?: string; rojo?: boolean }) {
+  const v = xs.map((x) => x ?? 0), max = Math.max(...v, 0)
+  if (v.length < 2 || max <= 0) return <svg data-mini-grafico viewBox="0 0 120 28" className="h-7 w-full" aria-hidden="true"><line x1={0} x2={120} y1={26} y2={26} stroke="rgba(255,255,255,.12)" /></svg>
+  const paso = 120 / (v.length - 1), y = (n: number) => 26 - (n / max) * 22
+  const d = v.map((n, i) => `${i ? "L" : "M"}${(i * paso).toFixed(1)} ${y(n).toFixed(1)}`).join(" ")
+  return (
+    <svg data-mini-grafico viewBox="0 0 120 28" className="h-7 w-full" aria-hidden="true" preserveAspectRatio="none">
+      <path d={`${d} L120 28 L0 28 Z`} fill={rojo ? "#ff5a3618" : `${color}1f`} />
+      <path d={d} fill="none" stroke={rojo ? "#ff5a36" : color} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+function Tarjeta({ dato, titulo, valor, pie, vs, sube_es_malo = true, xs, rojo, titulo_ayuda, mas }: {
+  dato: string; titulo: string; valor: ReactNode; pie?: ReactNode; vs: { texto: string; sube: boolean } | null | "sin"; sube_es_malo?: boolean; xs: Array<number | null>; rojo?: boolean; titulo_ayuda?: string; mas?: string | null
+}) {
+  const color = vs && vs !== "sin" && vs.texto !== "igual" ? ((vs.sube === sube_es_malo) ? "#f5a524" : "#7fc99a") : "#a1a1aa"
+  return (
+    <div data-tarjeta-obs={dato} title={titulo_ayuda} className={`${CAJA} flex min-w-0 flex-col gap-1 px-4 py-3.5`}>
+      <h4 className={ROTULO}>{titulo}</h4>
+      <p className="text-[30px] font-extralight leading-tight text-white" style={NUM}>{valor}</p>
+      <p data-frente-al-anterior className="text-[12.5px]" style={{ color }}>{vs === "sin" ? "sin comparación: la lectura no alcanza al período anterior" : vs ? `${vs.texto} frente al anterior` : "sin dato del período anterior"}</p>
+      {pie && <p className="text-[12.5px] text-zinc-400">{pie}</p>}
+      <MiniGrafico xs={xs} rojo={rojo} />
+      {mas && <p data-mas-alto className="truncate text-[12px] text-zinc-400">{mas}</p>}
+    </div>
+  )
+}
+
+function LoQueFallo({ fallas, donde, periodo, abrirEn }: { fallas: Corrida[]; donde: Map<string, DondeFallo | "leyendo" | "sin_lectura">; periodo: string; abrirEn: (c: Corrida, clave: string | null) => void }) {
+  return (
+    <section data-lo-que-fallo className={`${CAJA} p-4 sm:p-5`}>
+      <h3 className={`mb-2 ${TITULO}`}>Lo que falló <span style={NUM}>({fallas.length})</span></h3>
+      {!fallas.length ? <p data-sin-errores className="text-[14px] text-[#8fd19e]">Sin errores en {periodo} ✓</p> : (
+        <ul className="divide-y divide-white/[0.06]">
+          {fallas.map((c) => {
+            const d = donde.get(c.workflow_execution_id), listo = d && d !== "leyendo" && d !== "sin_lectura" ? d : null
+            return (
+              <li key={c.workflow_execution_id} data-falla={c.workflow_execution_id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] text-zinc-50"><span className="mr-1.5 text-[#ff5a36]">✕</span>{c.nombre}</p>
+                  <p className="text-[13px] text-zinc-400">{[clienteVisible(c), cuando(c.inicio)].filter(Boolean).join(" · ")}</p>
+                  <p data-motivo className="mt-0.5 text-[13.5px] text-rose-100">
+                    {d === "leyendo" || !d ? "Leyendo el motivo…" : d === "sin_lectura" ? `«${motivoEnPalabras(null, c.estado)}» · no pude leer sus pasos` : <>«{listo!.motivo}»{listo!.paso ? <span className="text-zinc-400"> · paso {listo!.paso} de {listo!.de}{listo!.nombre ? ` (${listo!.nombre})` : ""}</span> : null}</>}
+                  </p>
+                  {listo?.error && <details data-texto-tecnico className="mt-1"><summary className="cursor-pointer text-[12px] text-zinc-500 hover:text-zinc-300">Ver el texto técnico</summary><p className="mt-1 whitespace-pre-wrap break-words font-mono text-[12px] text-zinc-300">{listo.error}</p></details>}
+                </div>
+                <button type="button" data-ver-donde-fallo={c.workflow_execution_id} onClick={() => abrirEn(c, listo?.clave ?? null)}
+                  className="shrink-0 self-start rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-1.5 text-[13px] text-rose-50 hover:bg-rose-500/20 sm:self-center">Ver dónde falló →</button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function Grupos({ grupos, por, setPor, abierto, setAbierto, abrir, costoDe, oculto, mostrarInterno, empleadosListos }: {
+  grupos: Grupo[]; por: AgruparPor; setPor: (p: AgruparPor) => void; abierto: string | null; setAbierto: (k: string | null) => void; abrir: (c: Corrida) => void; costoDe: (c: Corrida) => number
+  oculto: { corridas: number; costo: number | null } | null; mostrarInterno: () => void; empleadosListos: boolean
+}) {
+  return (
+    <section data-grupos={por} className={`${CAJA} p-4 sm:p-5`}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h3 className={TITULO}>Por {NOMBRE_DE_AGRUPAR[por].toLocaleLowerCase("es")}</h3>
+        <label className="ml-auto flex items-center gap-2 text-[12.5px] text-zinc-400">Agrupar por
+          <select data-agrupar-por value={por} onChange={(e) => { setPor(e.target.value as AgruparPor); setAbierto(null) }} className="h-8 rounded-md border border-white/10 bg-black/30 px-2 text-[13px] text-zinc-100 focus:border-amber-500/60 focus:outline-none">
+            {(Object.keys(NOMBRE_DE_AGRUPAR) as AgruparPor[]).map((k) => <option key={k} value={k}>{NOMBRE_DE_AGRUPAR[k]}</option>)}
+          </select>
+        </label>
+      </div>
+      {por === "empleado" && !empleadosListos ? <p className="py-3 text-[13px] text-zinc-500">Leyendo a los empleados…</p> : !grupos.length ? <p className="py-3 text-[13px] text-zinc-500">Ninguna corrida con estos filtros.</p> : (
+        <ul className="divide-y divide-white/[0.06]">
+          {grupos.map((g) => {
+            const abre = abierto === g.clave, n = g.numeros
+            return (
+              <li key={g.clave} data-grupo={g.clave}>
+                <button type="button" aria-expanded={abre} onClick={() => setAbierto(abre ? null : g.clave)} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-white/[0.02] sm:grid-cols-[minmax(0,1.6fr)_repeat(4,minmax(0,0.6fr))_90px]">
+                  <span className="flex min-w-0 items-center gap-2 text-[14px] text-zinc-50"><span className={`text-zinc-500 transition-transform ${abre ? "rotate-90" : ""}`}>▸</span><span className="truncate">{g.nombre}</span></span>
+                  <span className="text-right text-[13px] text-zinc-200 sm:text-left" style={NUM}>{por === "empleado" ? `${g.llamadas} llamadas` : `${n.corridas} ${n.corridas === 1 ? "corrida" : "corridas"}`}</span>
+                  <span className="col-span-2 flex flex-wrap gap-x-3 text-[12.5px] text-zinc-400 sm:contents" style={NUM}>
+                    <span data-errores-del-grupo={n.con_error} className={n.con_error ? "text-[#ff8a6a]" : ""}>{n.con_error} {n.con_error === 1 ? "error" : "errores"}</span>
+                    <span title={n.max_ms != null ? `la más lenta: ${demoraCorta(n.max_ms)}` : undefined}>{demoraCorta(n.mediana_ms)} típica</span>
+                    <span className="text-zinc-200">{usdCorto(g.costo)}</span>
+                  </span>
+                  <span className="hidden sm:block"><MiniGrafico xs={g.tendencia} rojo={n.con_error > 0} /></span>
+                </button>
+                {abre && (
+                  <ul data-corridas-del-grupo className="mb-2 ml-5 divide-y divide-white/[0.04] rounded-lg border border-white/[0.06] bg-black/20">
+                    {!g.corridas.length && <li className="px-3 py-2 text-[12.5px] text-zinc-500">Sus corridas de este período no llegaron en la lectura (ver «Lo que alcanza a leer»).</li>}
+                    {g.corridas.map((c) => (
+                      <li key={c.workflow_execution_id}>
+                        <button type="button" data-corrida={c.workflow_execution_id} onClick={() => abrir(c)} className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-amber-500/[0.06] sm:flex-row sm:items-center sm:gap-4">
+                          <span className="min-w-0 flex-1 text-[13.5px] text-zinc-100">{c.nombre}</span>
+                          <span className="flex flex-wrap items-center gap-x-3 text-[12.5px] text-zinc-400" style={NUM}><Estado estado={c.estado} /><span>{clienteVisible(c) ?? "sin cliente"}</span><span>{cuando(c.inicio)}</span><span>{duracion(c.duracion_ms)}</span><span className="text-zinc-200">{costoComoDato(costoDe(c))}</span></span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {oculto && oculto.corridas > 0 && (
+        <p data-interno-oculto className="mt-2 text-[12.5px] text-zinc-400" style={NUM}>(interno oculto: {oculto.corridas} {oculto.corridas === 1 ? "corrida" : "corridas"} · {oculto.costo == null ? "…" : usdCorto(oculto.costo)} <button type="button" onClick={mostrarInterno} className="text-amber-200 underline underline-offset-2 hover:text-amber-100">mostrar</button>)</p>
+      )}
+    </section>
+  )
+}
+
+function Empleados({ top, verFicha, conFicha }: { top: { fallan: EmpleadoObs[]; tardan: EmpleadoObs[] } | null; verFicha: (e: EmpleadoObs) => void; conFicha: (slug: string) => boolean | null }) {
+  const Fila = ({ e, dato }: { e: EmpleadoObs; dato: ReactNode }) => {
+    const f = conFicha(e.slug)
+    return (
+      <li data-empleado-obs={e.slug} className="flex items-center gap-3 py-1.5">
+        <span className="min-w-0 flex-1 truncate text-[14px] text-zinc-100">{e.nombre}</span>
+        <span className="text-[13px] text-zinc-300" style={NUM}>{dato}</span>
+        <button type="button" data-ficha-de={e.slug} disabled={f === false} onClick={() => verFicha(e)} aria-label={`Ver la ficha de rendimiento de ${e.nombre}`} title={f === false ? "Todavía no tiene ficha de rendimiento" : "Ver su ficha de rendimiento"}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/15 text-amber-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-30">→</button>
+      </li>
+    )
+  }
+  return (
+    <section data-empleados-obs className={`${CAJA} p-4 sm:p-5`}>
+      <h3 className={`mb-2 ${TITULO}`}>Empleados</h3>
+      {!top ? <p className="text-[13px] text-zinc-500">Leyendo a los empleados…</p> : (
+        <div className="grid gap-5 md:grid-cols-2">
+          <div><h4 className={`mb-1 ${ROTULO}`}>Los que más fallan</h4>
+            {top.fallan.length ? <ul data-top="fallan">{top.fallan.map((e) => <Fila key={e.slug} e={e} dato={<><span className="text-[#ff8a6a]">{e.errores} {e.errores === 1 ? "error" : "errores"}</span> de {e.llamadas}</>} />)}</ul> : <p className="text-[13px] text-[#8fd19e]">Ningún empleado falló ✓</p>}
+          </div>
+          <div><h4 className={`mb-1 ${ROTULO}`}>Los que más tardan</h4>
+            {top.tardan.length ? <ul data-top="tardan">{top.tardan.map((e) => <Fila key={e.slug} e={e} dato={<span title={e.max_ms != null ? `la más lenta: ${demoraCorta(e.max_ms)}` : undefined}>{demoraCorta(e.mediana_ms)} típica</span>} />)}</ul> : <p className="text-[13px] text-zinc-500">Sin dato de demora todavía.</p>}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+const cortadaDe = (l: ListaDeCorridas | null) => !!l && (l.ejecuciones_total ?? l.total) > (l.ejecuciones_leidas ?? l.corridas.length)
+type DatosDeEmpleados = { todo: EmpleadoObs[]; sin_interno: EmpleadoObs[] }
+type Vista = "resumen" | "todas"
+
+export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null, alVolver, hoy: hoyFijo, dineroInicial = null, empleadosInicial = null, vistaInicial = "resumen", internoInicial = false }: {
+  /** 6.44 · abierta desde Dinero: la flecha regresa a Dinero */ alVolver?: () => void; onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch
+  /** 6.36 · Dinero abre aquí la corrida de un pico */ corridaInicial?: string | null
+  /** 6.47 · para pruebas: el día (Ecuador), Dinero, los empleados, la vista y el interruptor de interno */ hoy?: string; dineroInicial?: Dinero | null; empleadosInicial?: DatosDeEmpleados | null; vistaInicial?: Vista; internoInicial?: boolean
+}) {
+  const hoy = useMemo(() => hoyFijo ?? diaLocal(new Date().toISOString()), [hoyFijo])
+  const [periodo, setPeriodo] = useState<Periodo>("7")
+  const v = useMemo(() => ventanaDe(periodo, hoy), [periodo, hoy])
+  const [vista, setVista] = useState<Vista>(vistaInicial)
+  const [por, setPor] = useState<AgruparPor>("proceso")
+  const [abierto, setAbierto] = useState<string | null>(null)
+  const [conInterno, setConInterno] = useState(internoInicial)
   const [cliente, setCliente] = useState("")
   const [estado, setEstado] = useState<EstadoCorrida | "todas">("todas")
   const [busca, setBusca] = useState("")
   const [lista, setLista] = useState<ListaDeCorridas | null>(listaInicial)
+  /** 6.47 · la lectura del período MÁS el anterior, solo para comparar (la del período va aparte: así el tope de 200 no se la come el anterior) */
+  const [listaAnt, setListaAnt] = useState<ListaDeCorridas | null>(listaInicial)
+  const [dinero, setDinero] = useState<Dinero | null>(dineroInicial)
+  const [empleados, setEmpleados] = useState<DatosDeEmpleados | null>(empleadosInicial)
+  const [rendimiento, setRendimiento] = useState<Record<string, Rendimiento> | null>(null)
+  const [ficha, setFicha] = useState<EmpleadoObs | null>(null)
+  const [donde, setDonde] = useState<Map<string, DondeFallo | "leyendo" | "sin_lectura">>(new Map())
   const [detalle, setDetalle] = useState<DetalleDeCorrida | null>(detalleInicial)
+  const [claveInicial, setClaveInicial] = useState<string | null>(null)
   const [abriendo, setAbriendo] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!listaInicial)
+  const [cargaMs, setCargaMs] = useState<number | null>(null)
+  const [partes, setPartes] = useState<{ corridas?: number; costo?: number }>({})
   const [conocidos, setConocidos] = useState<Map<string, string>>(new Map())
   const cerrar = useRef<HTMLButtonElement>(null)
   const primera = useRef(!!listaInicial)
 
+  // el costo: lo mismo que lee Dinero (una sola lectura de 62 días; el período se recorta aquí con la misma función)
+  const dineroEnCamino = useRef<Promise<void> | null>(null)
+  const leerDinero = useCallback(() => {
+    if (dineroInicial) return Promise.resolve()
+    dineroEnCamino.current ??= leerJson<Dinero>(fetchImpl, "/api/direccion/dinero", "el costo").then(setDinero, () => { dineroEnCamino.current = null })
+    return dineroEnCamino.current
+  }, [fetchImpl, dineroInicial])
+  // el período, el período + el anterior, los empleados y el costo, en paralelo; el tiempo de carga (hasta la última cifra) se mide y se muestra
   const leer = useCallback(async () => {
-    setCargando(true); setError(null)
-    try {
-      const q = new URLSearchParams({ dias: String(dias) }); if (cliente) q.set("client_id", cliente)
-      setLista(await leerJson<ListaDeCorridas>(fetchImpl, `/api/direccion/corridas?${q}`, "las corridas"))
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
-  }, [dias, cliente, fetchImpl])
+    setCargando(true); setError(null); setCargaMs(null); setPartes({}); const t0 = performance.now(), ms = () => Math.round(performance.now() - t0)
+    const q = (dias: number) => { const x = new URLSearchParams({ dias: String(dias) }); if (cliente) x.set("client_id", cliente); return `/api/direccion/corridas?${x}` }
+    const lis = leerJson<ListaDeCorridas>(fetchImpl, q(v.dias_periodo), "las corridas").then((l) => { setLista(l); setPartes((p) => ({ ...p, corridas: ms() })) })
+    const ant = (v.dias > v.dias_periodo ? leerJson<ListaDeCorridas>(fetchImpl, q(v.dias), "las corridas del período anterior") : Promise.resolve(null)).then(setListaAnt, () => setListaAnt(null))
+    const emp = leerJson<DatosDeEmpleados>(fetchImpl, `/api/direccion/observabilidad?desde=${v.r.desde}&hasta=${v.r.hasta}`, "a los empleados").then(setEmpleados).catch(() => setEmpleados({ todo: [], sin_interno: [] }))
+    const din = leerDinero().then(() => setPartes((p) => ({ ...p, costo: ms() })))
+    try { await Promise.all([lis, ant, emp, din]); setCargaMs(ms()) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
+  }, [v, cliente, fetchImpl, leerDinero])
   useEffect(() => { if (primera.current) { primera.current = false; return } void leer() }, [leer])
-  // los clientes del filtro: los que aparecieron en alguna lectura (no desaparecen al filtrar por uno)
+  // las fichas de rendimiento (las de CC6): se leen al abrir, así la flecha sabe de antemano quién tiene ficha
+  useEffect(() => {
+    if (listaInicial) return
+    let vivo = true
+    leerJson<{ empleados: Record<string, Rendimiento> }>(fetchImpl, "/api/rendimiento", "las fichas").then((j) => { if (vivo) setRendimiento(j.empleados) }, () => { if (vivo) setRendimiento({}) })
+    return () => { vivo = false }
+  }, [fetchImpl, listaInicial])
   useEffect(() => { if (!lista) return; setConocidos((m) => { const n = new Map(m); for (const c of lista.corridas) if (c.client_id && c.cliente) n.set(c.client_id, c.cliente); return n.size === m.size ? m : n }) }, [lista])
   const clientes = useMemo(() => [...conocidos.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre)), [conocidos])
 
-  const abrir = useCallback(async (c: Corrida) => {
+  // ─── las cifras ───
+  const b = busca.trim().toLowerCase()
+  const todas = useMemo(() => (lista?.corridas ?? []).filter((c) => !b || [c.nombre, clienteVisible(c) ?? "", c.nombre_tecnico ?? "", c.workflow_execution_id].some((x) => x.toLowerCase().includes(b))), [lista, b])
+  const visibles = useMemo(() => (conInterno ? todas : todas.filter((c) => !esCorridaInterna(c))), [todas, conInterno])
+  const delPeriodo = useMemo(() => visibles.filter((c) => enRango(c, v.r)), [visibles, v])
+  const filtrar = useCallback((l: ListaDeCorridas | null) => (l?.corridas ?? []).filter((c) => (!b || [c.nombre, clienteVisible(c) ?? "", c.nombre_tecnico ?? "", c.workflow_execution_id].some((x) => x.toLowerCase().includes(b))) && (conInterno || !esCorridaInterna(c))), [b, conInterno])
+  const delAnterior = useMemo(() => filtrar(listaAnt).filter((c) => enRango(c, v.ant)), [filtrar, listaAnt, v])
+  const cob = useMemo(() => cobertura(lista?.corridas ?? [], cortadaDe(lista), v.dias_periodo, v.r.desde, hoy), [lista, v, hoy])
+  const cobAnt = useMemo(() => (listaAnt ? cobertura(listaAnt.corridas, cortadaDe(listaAnt), v.dias, v.ant.desde, hoy) : null), [listaAnt, v, hoy])
+  const n = useMemo(() => numerosDe(delPeriodo), [delPeriodo])
+  const na = useMemo(() => (cobAnt?.cubre ? numerosDe(delAnterior) : null), [cobAnt, delAnterior])
+  const costo = useMemo(() => (dinero ? costoDelPeriodo(dinero, v, hoy, conInterno) : null), [dinero, v, hoy, conInterno])
+  const costoCon = useMemo(() => (dinero && !conInterno ? costoDelPeriodo(dinero, v, hoy, true) : null), [dinero, v, hoy, conInterno])
+  const porEj = useMemo(() => (dinero ? costoPorEjecucion(dinero) : null), [dinero])
+  const costoDe = useCallback((c: Corrida) => costoDeLaCorrida(c, porEj), [porEj])
+  const fallosDelProceso = useMemo(() => [...donde.values()].flatMap((d) => (d !== "leyendo" && d !== "sin_lectura" ? [d] : [])), [donde])
+  const emp = useMemo(() => (empleados ? conFallosDelProceso(conInterno ? empleados.todo : empleados.sin_interno, fallosDelProceso, nombreCanonico) : null), [empleados, conInterno, fallosDelProceso])
+  const grupos = useMemo(() => (por === "empleado" ? (emp ? agruparPorEmpleado(emp, delPeriodo, v.r) : []) : agrupar(delPeriodo, por, porEj, v.r)), [por, emp, delPeriodo, porEj, v])
+  const top = useMemo(() => (emp ? topEmpleados(emp) : null), [emp])
+  const fallas = useMemo(() => delPeriodo.filter((c) => c.estado === "fallida" || c.estado === "atascada").sort((x, y) => (y.inicio ?? "").localeCompare(x.inicio ?? "")), [delPeriodo])
+  const internas = useMemo(() => (conInterno ? [] : todas.filter((c) => esCorridaInterna(c) && enRango(c, v.r))), [todas, conInterno, v])
+  const mas = (f: (g: Grupo) => number, t: (g: Grupo) => string) => { const g = [...grupos].sort((x, y) => f(y) - f(x))[0]; return g && f(g) > 0 ? `más: ${g.nombre} · ${t(g)}` : null }
+
+  // ─── dónde falló cada corrida con error: se lee su traza (solo las del período, hasta 12) ───
+  useEffect(() => {
+    const faltan = fallas.slice(0, 12).filter((c) => !donde.has(c.workflow_execution_id))
+    if (!faltan.length) return
+    setDonde((m) => { const x = new Map(m); for (const c of faltan) x.set(c.workflow_execution_id, "leyendo"); return x })
+    for (const c of faltan) {
+      leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(c.workflow_execution_id)}`, "la corrida")
+        .then((d) => setDonde((m) => new Map(m).set(c.workflow_execution_id, dondeFallo(d))), () => setDonde((m) => new Map(m).set(c.workflow_execution_id, "sin_lectura")))
+    }
+  }, [fallas, donde, fetchImpl])
+
+  const abrir = useCallback(async (c: Corrida, clave: string | null = null) => {
     setAbriendo(c.nombre); setError(null)
-    try { setDetalle(await leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(c.workflow_execution_id)}`, "la corrida")) }
+    try { const d = await leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(c.workflow_execution_id)}`, "la corrida"); setClaveInicial(clave ?? dondeFallo(d).clave); setDetalle(d) }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setAbriendo(null) }
   }, [fetchImpl])
-  // 6.36 · desde Dinero: abre directo la corrida del pico
   useEffect(() => {
     if (!corridaInicial) return
     setAbriendo("la corrida")
     leerJson<DetalleDeCorrida>(fetchImpl, `/api/direccion/corridas/${encodeURIComponent(corridaInicial)}`, "la corrida").then(setDetalle, (e) => setError(e instanceof Error ? e.message : String(e))).finally(() => setAbriendo(null))
   }, [corridaInicial, fetchImpl])
-  const volver = useCallback(() => setDetalle(null), [])
+  const volver = useCallback(() => { setDetalle(null); setClaveInicial(null) }, [])
+
+  // la ficha de rendimiento (la de CC6): se lee al tocar la primera flecha
+  const verFicha = useCallback((e: EmpleadoObs) => setFicha(e), [])
+  const conFicha = useCallback((slug: string) => (rendimiento ? !!rendimiento[nombreCanonico(slug)] : null), [rendimiento])
+  const rFicha = ficha && rendimiento ? rendimiento[nombreCanonico(ficha.slug)] ?? null : null
+  useEffect(() => { if (ficha && rendimiento && !rFicha) setFicha(null) }, [ficha, rendimiento, rFicha])
 
   useEffect(() => { cerrar.current?.focus() }, [])
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); if (detalle) setDetalle(null); else onCerrar() }
+    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape" || ficha) return; e.stopPropagation(); e.preventDefault(); if (detalle) volver(); else if (vista === "todas") setVista("resumen"); else onCerrar() }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
-  }, [onCerrar, detalle])
+  }, [onCerrar, detalle, vista, ficha, volver])
+
+  const enPalabras = PERIODO_EN_PALABRAS[periodo]
+  const sobre = !cob.cubre ? `sobre las últimas ${lista?.ejecuciones_leidas ?? lista?.corridas.length ?? 0} ejecuciones (desde el ${cob.desde_dia ?? "—"})` : null
+  const vsN = (a: number | null, b: number | null) => (na ? variacion(a, b) : "sin" as const)
 
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <style>{".ob-gira{transform-origin:8px 8px;animation:obGira 1s linear infinite}@keyframes obGira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.ob-gira{animation:none}}"}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="observabilidad-titulo" data-seccion="observabilidad" className="relative flex h-full max-h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
-        <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-6">
           {alVolver && <BotonVolver alVolver={alVolver} a="Dinero" />}
           <h2 id="observabilidad-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Observabilidad</h2>
-          <p className="text-[12px] text-zinc-400">Cada corrida de los empleados, paso a paso</p>
+          <p className="hidden text-[12px] text-zinc-400 md:block">Qué hicieron los empleados, qué falló y cuánto tardó</p>
           {abriendo && <p className="text-[12px] text-zinc-500">Abriendo {abriendo}…</p>}
           <button type="button" onClick={() => void leer()} disabled={cargando} className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-50">{cargando ? "Leyendo…" : "Actualizar"}</button>
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar la observabilidad" className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
         </header>
+        {!detalle && (
+          <div data-controles className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2.5 sm:px-6">
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
+              {PERIODOS.map((p) => <button key={p.k} type="button" data-periodo={p.k} aria-pressed={periodo === p.k} onClick={() => { setPeriodo(p.k); setAbierto(null) }} className={`rounded-full border px-2.5 py-1 text-[12px] ${periodo === p.k ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{p.t}</button>)}
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-white/10 px-2.5 py-1 text-[12.5px] text-zinc-300 hover:border-white/20">
+              <input type="checkbox" data-mostrar-interno checked={conInterno} onChange={(e) => setConInterno(e.target.checked)} className="accent-amber-500" />Mostrar interno
+            </label>
+            <input data-busca type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar proceso, cliente o ejecución"
+              className="h-8 w-full min-w-0 rounded-md border border-white/10 bg-black/30 px-3 text-[13px] text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/60 focus:outline-none sm:w-[280px]" />
+            <button type="button" data-ver-todas onClick={() => setVista(vista === "todas" ? "resumen" : "todas")} className="rounded-md border border-white/15 px-2.5 py-1 text-[12.5px] text-zinc-200 hover:bg-white/[0.06] sm:ml-auto">{vista === "todas" ? "← Resumen" : "Ver todas las corridas"}</button>
+          </div>
+        )}
         {error && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-6">{error}</p>}
         {cargando && !lista && <p className="px-6 py-6 text-[13px] text-zinc-500">Leyendo…</p>}
         {detalle
-          ? <Traza key={detalle.corrida.workflow_execution_id} detalle={detalle} volver={volver} />
-          : lista && <Lista lista={lista} dias={dias} setDias={setDias} cliente={cliente} setCliente={setCliente} clientes={clientes} estado={estado} setEstado={setEstado} busca={busca} setBusca={setBusca} abrir={(c) => void abrir(c)} cargando={cargando} />}
+          ? <Traza key={detalle.corrida.workflow_execution_id} detalle={detalle} volver={volver} claveInicial={claveInicial} volverA={vista === "todas" ? "Corridas" : "Resumen"} />
+          : lista && vista === "todas"
+            ? <Lista corridas={delPeriodo} titulo={`Corridas · ${enPalabras}${conInterno ? " · con interno" : " · sin interno"}`} total={delPeriodo.length} cliente={cliente} setCliente={setCliente} clientes={clientes} estado={estado} setEstado={setEstado} abrir={(c) => void abrir(c)} cargando={cargando} costoDe={costoDe}
+              pie={<>{sobre && <> · {sobre}: la plataforma entrega 200 por lectura</>}{!lista.completo && <> · lectura incompleta: alguna fuente no respondió entera</>}{lista.agrupado && <> · una fila por pedido</>}</>} />
+            : lista && (
+              <div data-vista="resumen" className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+                <div className="mx-auto flex max-w-[1300px] flex-col gap-4">
+                  {sobre && <p data-sobre-las-ultimas role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-50">Cifras de corridas {sobre}: el período tiene más de lo que la plataforma entrega en una lectura (200). El costo sí es el período entero (Dinero).</p>}
+                  <section data-resumen className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <Tarjeta dato="corridas" titulo="Corridas" valor={n.corridas} vs={vsN(n.corridas, na?.corridas ?? null)} sube_es_malo={false} xs={seriePorDia(delPeriodo, v.r, (x) => x.length)} pie={conInterno ? "con interno" : "sin interno"} mas={mas((g) => g.numeros.corridas, (g) => String(g.numeros.corridas))} />
+                    <Tarjeta dato="con-error" titulo="Con error" valor={<>{n.con_error}{n.pct_error != null && <span className="ml-2 text-[18px] text-zinc-400">· {n.pct_error.toLocaleString("es-EC")} %</span>}</>} vs={vsN(n.pct_error, na?.pct_error ?? null)} xs={seriePorDia(delPeriodo, v.r, (x) => x.filter((c) => c.estado === "fallida").length)} rojo={n.con_error > 0} pie="las que están en curso no cuentan" mas={mas((g) => g.numeros.con_error, (g) => `${g.numeros.con_error}`)} />
+                    <Tarjeta dato="demora" titulo="Demora típica" valor={demoraCorta(n.mediana_ms)} vs={vsN(n.mediana_ms, na?.mediana_ms ?? null)} xs={seriePorDia(delPeriodo, v.r, (x) => numerosDe(x).mediana_ms)} titulo_ayuda={n.max_ms != null ? `La más lenta: ${demoraCorta(n.max_ms)}${n.mas_lenta ? ` (${n.mas_lenta})` : ""}` : undefined} pie={n.max_ms != null ? <>la más lenta: {demoraCorta(n.max_ms)}</> : "mediana de las terminadas"} mas={mas((g) => g.numeros.mediana_ms ?? 0, (g) => demoraCorta(g.numeros.mediana_ms))} />
+                    <Tarjeta dato="costo" titulo="Costo" valor={costo ? usdCorto(costo.total) : "…"} vs={costo ? variacion(costo.total, costo.anterior) : null} xs={costo?.por_dia ?? []} pie={conInterno ? "igual que en Dinero" : costoCon ? `sin interno · con interno ${usdCorto(costoCon.total)} (Dinero)` : "sin interno"} mas={mas((g) => g.costo, (g) => usdCorto(g.costo))} />
+                  </section>
+                  <LoQueFallo fallas={fallas} donde={donde} periodo={enPalabras === "hoy" ? "hoy" : enPalabras === "este mes" ? "este mes" : `${enPalabras}`} abrirEn={(c, clave) => void abrir(c, clave)} />
+                  <Grupos grupos={grupos} por={por} setPor={setPor} abierto={abierto} setAbierto={setAbierto} abrir={(c) => void abrir(c)} costoDe={costoDe} empleadosListos={!!emp}
+                    oculto={conInterno ? null : { corridas: internas.length, costo: costoCon && costo ? Math.round((costoCon.total - costo.total) * 100) / 100 : null }} mostrarInterno={() => setConInterno(true)} />
+                  <Empleados top={top} verFicha={verFicha} conFicha={conFicha} />
+                  <p data-pie-obs className="text-[12px] leading-relaxed text-zinc-500" style={NUM}>
+                    Período: {enPalabras} ({v.r.desde} a {v.r.hasta}, hora de Ecuador) · comparado con {v.ant.nombre} · una corrida = un pedido · demora típica = la mediana · el costo es la misma cuenta que Dinero
+                    {cargaMs != null && <> · <span data-carga-ms={cargaMs} data-carga-corridas={partes.corridas} data-carga-costo={partes.costo}>cargó en {(cargaMs / 1000).toLocaleString("es-EC", { maximumFractionDigits: 1 })} s{partes.corridas != null && partes.costo != null ? ` (corridas ${(partes.corridas / 1000).toLocaleString("es-EC", { maximumFractionDigits: 1 })} s · costo ${(partes.costo / 1000).toLocaleString("es-EC", { maximumFractionDigits: 1 })} s)` : ""}</span></>}
+                  </p>
+                </div>
+              </div>
+            )}
       </section>
+      {ficha && rFicha && typeof document !== "undefined" && createPortal(<FichaDeRendimiento r={rFicha} nombre={ficha.nombre} color={AMBAR} onCerrar={() => setFicha(null)} />, document.body)}
     </div>
   )
 }

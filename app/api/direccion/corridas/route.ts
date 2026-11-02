@@ -18,7 +18,8 @@ export async function GET(req: Request) {
   const puerta = await exigirAdmin()
   if (!puerta.ok) return NextResponse.json({ ok: false, error: puerta.status === 401 ? "sin_sesion" : "sin_permiso" }, { status: puerta.status })
   const q = new URL(req.url).searchParams
-  const dias = [1, 7, 30].includes(Number(q.get("dias"))) ? Number(q.get("dias")) : 7
+  // 6.47 · 1 a 30 días: Observabilidad pide el período elegido MÁS el anterior (mismo selector que Dinero), hasta lo que lee la plataforma
+  const d = Number(q.get("dias")), dias = Number.isInteger(d) && d >= 1 && d <= 30 ? d : 7
   const cliente = q.get("client_id")
   if (cliente && !UUID.test(cliente)) return NextResponse.json({ ok: false, error: "pedido_invalido" }, { status: 400 })
   const r = await leerCorridas({ dias, client_id: cliente, conNombres: q.get("resumen") !== "1" })
@@ -27,5 +28,6 @@ export async function GET(req: Request) {
   let agrupacion: Awaited<ReturnType<typeof leerAgrupacion>> = null
   try { agrupacion = await leerAgrupacion(getServiceRoleClient() as unknown as BaseDeLectura, r.datos.corridas.map((x) => x.workflow_execution_id)) } catch { agrupacion = null }
   const datos = agrupacion ? agruparLista(r.datos, agrupacion) : r.datos
-  return NextResponse.json({ ok: true, ...datos, agrupado: !!agrupacion }, { headers: { "Cache-Control": "no-store" } })
+  // 6.47 · cuántas ejecuciones tiene el período y cuántas llegaron (la plataforma entrega 200 por lectura): con esto la pantalla rotula «sobre las últimas N»
+  return NextResponse.json({ ok: true, ...datos, agrupado: !!agrupacion, ejecuciones_total: r.datos.total, ejecuciones_leidas: r.datos.corridas.length }, { headers: { "Cache-Control": "no-store" } })
 }
