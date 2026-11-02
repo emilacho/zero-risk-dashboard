@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { HologramaBusto } from "@/components/nuevo/escena/Holograma"
+import { FichaDeRendimiento } from "@/components/nuevo/escena/FichaDeRendimiento"
+import type { Rendimiento } from "@/lib/rendimiento"
 import { PanelObservabilidad } from "@/components/nuevo/PanelObservabilidad"
 import { descripcionDelHolograma } from "@/lib/holograma"
 import { nombreCanonico } from "@/lib/organigrama"
@@ -50,16 +52,31 @@ const Fila = ({ etiqueta, children }: { etiqueta: string; children: React.ReactN
  * corrida en Observabilidad. La flecha de forma (CC6) abre la ficha de rendimiento; el currículum completo se abre desde aquí. Dos huecos reservados, sin construir:
  * la barra de rendimiento (métrica por definir con Emilio) y «Preguntarle» (el chat con el agente lo construye CC2). Solo lectura; lleva `nv-panel` (el chat de abajo sigue visible).
  */
-export function ElAgenteAhora({ datos, onCerrar, onFicha, onAporte, corridaInicial = false }: { datos: ElAgenteAhoraDatos; onCerrar: () => void; onFicha: () => void; /** solo en la sala: abre su aporte a la reunión */ onAporte?: () => void; /** solo pruebas y el arnés */ corridaInicial?: boolean }) {
+export function ElAgenteAhora({ datos, onCerrar, onFicha, onAporte, corridaInicial = false, rendimientoInicial = null }: { datos: ElAgenteAhoraDatos; onCerrar: () => void; onFicha: () => void; /** solo en la sala: abre su aporte a la reunión */ onAporte?: () => void; /** solo pruebas y el arnés */ corridaInicial?: boolean; /** solo pruebas y el arnés: su rendimiento ya leído */ rendimientoInicial?: Rendimiento | null }) {
   const [corrida, setCorrida] = useState(corridaInicial)
+  const [rend, setRend] = useState<Rendimiento | null>(rendimientoInicial)
+  const [rendAbierto, setRendAbierto] = useState(rendimientoInicial !== null)
+  const [leyendo, setLeyendo] = useState(false)
+  const [sinRendimiento, setSinRendimiento] = useState(false)
+  // «Rendimiento» abre la MISMA ficha de la flecha de forma (CC6), con los datos de su ruta de lectura; sin dato, lo dice
+  const abrirRendimiento = async () => {
+    if (rend) { setRendAbierto(true); return }
+    setLeyendo(true)
+    try {
+      const r = await fetch("/api/rendimiento", { cache: "no-store" })
+      const j = (await r.json()) as { ok: boolean; empleados?: Record<string, Rendimiento> }
+      const x = j.ok ? j.empleados?.[nombreCanonico(datos.agente)] ?? null : null
+      if (x) { setRend(x); setRendAbierto(true) } else setSinRendimiento(true)
+    } catch { setSinRendimiento(true) } finally { setLeyendo(false) }
+  }
   const cerrar = useRef<HTMLButtonElement>(null)
   useEffect(() => { cerrar.current?.focus() }, [])
   useEffect(() => {
-    if (corrida) return
+    if (corrida || rendAbierto) return
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
-  }, [onCerrar, corrida])
+  }, [onCerrar, corrida, rendAbierto])
   const a = datos.ahora
   const cuerpo = (
     <div data-el-agente-ahora={datos.agente} className="nv-panel fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) onCerrar() }}>
@@ -81,9 +98,8 @@ export function ElAgenteAhora({ datos, onCerrar, onFicha, onAporte, corridaInici
               <div data-ahora={a.donde} className="space-y-0.5">
                 {a.donde === "sala" && <p>En la reunión «{a.reunion}»{a.fase ? <span className="text-zinc-400"> · {a.fase}</span> : null}</p>}
                 {a.donde === "mesa" && <p>{a.fallo ? "Tuvo un fallo" : "Trabajando"}{a.cliente ? <> para <span className="text-amber-200">{a.cliente}</span></> : null}</p>}
-                {a.flujo && <p className="text-[12.5px] text-zinc-400">{a.flujo}</p>}
                 {a.tarea && <p data-tarea className="text-[12.5px]">{a.tarea}</p>}
-                {a.paso && <p data-paso className="text-[12.5px] text-zinc-400">Paso: {a.paso}</p>}
+                {a.paso && /\s/.test(a.paso) && <p data-paso className="text-[12.5px] text-zinc-400">{a.paso}</p>}
                 <p className="text-[12px] text-zinc-500">{a.hace}</p>
               </div>
             )}
@@ -100,7 +116,7 @@ export function ElAgenteAhora({ datos, onCerrar, onFicha, onAporte, corridaInici
           </div>
           {/* huecos reservados (sin construir): la barra de rendimiento y el chat con el agente */}
           <div className="grid grid-cols-2 gap-2 text-[11.5px] text-zinc-500">
-            <div data-reservado="rendimiento" className="rounded-md border border-dashed border-white/10 px-3 py-2">Rendimiento · pronto</div>
+            <button type="button" data-rendimiento onClick={() => void abrirRendimiento()} className="rounded-md border border-white/15 px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.07]">{leyendo ? "Leyendo…" : sinRendimiento ? "Sin dato de rendimiento" : "Rendimiento"}</button>
             <div data-reservado="preguntarle" aria-disabled className="rounded-md border border-dashed border-white/10 px-3 py-2">Preguntarle · pronto</div>
           </div>
         </div>
@@ -109,6 +125,7 @@ export function ElAgenteAhora({ datos, onCerrar, onFicha, onAporte, corridaInici
   )
   // la corrida abierta va SOLA (su panel queda debajo de esta tarjeta); al cerrarla se vuelve a la tarjeta
   const salida = corrida && datos.ejecucion ? <PanelObservabilidad onCerrar={() => setCorrida(false)} corridaInicial={datos.ejecucion} /> : cuerpo
-  if (typeof document === "undefined") return salida
-  return createPortal(salida, document.body)
+  const ficha = rendAbierto && rend ? <FichaDeRendimiento r={rend} nombre={datos.nombre} color={datos.color} onCerrar={() => setRendAbierto(false)} /> : null
+  if (typeof document === "undefined") return <>{salida}{ficha}</>
+  return createPortal(<>{salida}{ficha}</>, document.body)
 }

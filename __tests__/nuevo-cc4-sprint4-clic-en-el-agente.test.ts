@@ -31,11 +31,14 @@ describe("sprint 4 · clic en el agente (cola de CC4 · 03-nov)", () => {
     expect(html).toContain('data-el-agente-ahora="growth-hacker"')
     expect(html).toContain("nv-panel") // el chat de abajo sigue visible
     expect(html).toContain("Armar el calendario de TikTok")
-    expect(html).toContain("Paso: Paso 2 de 5")
+    expect(html).toContain("Paso 2 de 5") // un paso legible sí; un identificador no
+    expect(html).not.toContain("Plan de 90 días") // el flujo no se muestra (texto técnico)
+    expect(renderToStaticMarkup(createElement(ElAgenteAhora, { datos: { ...datosDelAgente("growth-hacker", conAsiento(), ahora), ahora: { donde: "mesa", cliente: "Náufrago", flujo: "w1", tarea: null, paso: "calendario", hace: "hace 1 min", fallo: false } }, onCerrar: () => {}, onFicha: () => {} }))).not.toMatch(/w1|calendario/)
     expect(html).toContain("Cevichería · tiktok")
     expect(html).toContain("Ver su corrida en Observabilidad")
     expect(html).toContain("Ver su ficha completa")
-    expect(html).toContain('data-reservado="rendimiento"')
+    expect(html).toContain("data-rendimiento") // «Rendimiento» abre la ficha que ya existe (la de la flecha de CC6)
+    expect(html).not.toContain("Rendimiento · pronto")
     expect(html).toContain('data-reservado="preguntarle"')
     expect(html).not.toContain("data-aporte") // fuera de la sala no hay «aporte»
     const vacia = renderToStaticMarkup(createElement(ElAgenteAhora, { datos: datosDelAgente("nadie", base, ahora), onCerrar: () => {}, onFicha: () => {} }))
@@ -52,6 +55,8 @@ describe("sprint 4 · clic en el agente (cola de CC4 · 03-nov)", () => {
     expect(av).toContain("<FlechasDeForma />")
     const tarjeta = readFileSync("components/nuevo/escena/ElAgenteAhora.tsx", "utf8")
     expect(tarjeta).not.toMatch(/\.(insert|update|delete|upsert|rpc)\(/)
-    expect(tarjeta).not.toMatch(/fetch\(/) // no pide nada nuevo: usa lo que ya trae la escena
+    expect(tarjeta.match(/fetch\(/g)).toHaveLength(1) // lo único que pide: el rendimiento, por la ruta que ya lee la flecha
+    expect(tarjeta).toContain('fetch("/api/rendimiento"')
+    expect(tarjeta).toContain("FichaDeRendimiento") // su componente, sin tocar su código
   })
 })

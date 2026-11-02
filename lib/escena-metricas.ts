@@ -19,6 +19,8 @@ export const REDES_DEL_PIZARRON: Array<{ clave: ClaveDeRed; nombre: string; sigl
 ]
 export const CUADRO_GENERAL = { clave: "general" as const, nombre: "General", sigla: "GEN" }
 export const TEXTO_SIN_METRICAS = "métricas pronto"
+/** lo que dice el cuadro de una red que el cliente todavía no tiene (no se oculta: el estándar es mostrarlas todas) */
+export const TEXTO_SIN_CUENTA = "sin cuenta todavía"
 
 /** lo que devuelve la lectura: hoy solo «sin datos» (la forma del dato con métricas la define el contrato de CC1) */
 export type LecturaDeMetricas = { estado: "sin_datos"; motivo: string }
@@ -37,6 +39,8 @@ export interface CuadroDeMetrica {
   variacion: string | null
   /** lo que dice el cuadro */
   texto: string
+  /** el cliente tiene cuenta en esa red (false = el cuadro se ve tenue y dice «sin cuenta todavía») */
+  tiene: boolean
 }
 export interface MetricasDelPizarron { cliente: string | null; cuadros: CuadroDeMetrica[]; lectura: LecturaDeMetricas["estado"] }
 
@@ -78,11 +82,12 @@ export function redesDelCliente(config: unknown, sitio: string | null, camposDeS
   return REDES_DEL_PIZARRON.map((r) => r.clave).filter((c) => tiene.has(c))
 }
 
-/** Google Maps va SIEMPRE en el pizarrón: no está en las cuentas propias del cliente (`own_handles`) sino en el resultado de la función de Apify `own_google_maps_profile` (un negocio local la tiene aunque no la declare), y hasta que Emilio fije cuál de los negocios hallados es el suyo no hay forma de saberlo desde la ficha (contrato de CC1, 02-nov) */
+/** Google Maps cuenta SIEMPRE como «tiene»: no está en las cuentas propias del cliente (`own_handles`) sino en el resultado de la función de Apify `own_google_maps_profile` (un negocio local la tiene aunque no la declare), y hasta que Emilio fije cuál de los negocios hallados es el suyo no hay forma de saberlo desde la ficha (contrato de CC1, 02-nov) */
 const SIEMPRE_EN_EL_PIZARRON: ClaveDeRed[] = ["google_maps"]
 
-/** un cuadro por red del cliente + «General» + Google Maps; sin métricas todos dicen «métricas pronto» */
+/** EL ESTÁNDAR (Emilio, 02-nov): «General» y TODAS las redes, siempre; la red que el cliente no tiene se ve tenue y dice «sin cuenta todavía»; la que tiene dice «métricas pronto» hasta que lleguen */
 export function cuadrosDelPizarron(redes: ClaveDeRed[], lectura: LecturaDeMetricas): CuadroDeMetrica[] {
-  const cuadro = (c: { clave: ClaveDelCuadro; nombre: string; sigla: string }): CuadroDeMetrica => ({ ...c, principal: null, variacion: null, texto: lectura.motivo || TEXTO_SIN_METRICAS })
-  return [cuadro(CUADRO_GENERAL), ...REDES_DEL_PIZARRON.filter((r) => redes.includes(r.clave) || SIEMPRE_EN_EL_PIZARRON.includes(r.clave)).map(cuadro)]
+  const hay = (c: ClaveDeRed) => redes.includes(c) || SIEMPRE_EN_EL_PIZARRON.includes(c)
+  const cuadro = (c: { clave: ClaveDelCuadro; nombre: string; sigla: string }, tiene: boolean): CuadroDeMetrica => ({ ...c, principal: null, variacion: null, texto: tiene ? (lectura.motivo || TEXTO_SIN_METRICAS) : TEXTO_SIN_CUENTA, tiene })
+  return [cuadro(CUADRO_GENERAL, true), ...REDES_DEL_PIZARRON.map((r) => cuadro(r, hay(r.clave)))]
 }
