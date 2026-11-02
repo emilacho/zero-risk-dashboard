@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
-import { agentesEnLaSala } from "@/lib/escena-sala"
+import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
-import { ESTILO_SALA, GloboEnLaFoto, globoVisible, PanelDeLaSala, SalaEnLaFoto } from "@/components/nuevo/escena/SalaDeReuniones"
+import { ESTILO_SALA, GloboEnLaFoto, globoVisible, PanelDeLaSala, SalaEnLaFoto, subidaDelRotulo } from "@/components/nuevo/escena/SalaDeReuniones"
 import { AporteCompleto } from "@/components/nuevo/escena/AporteCompleto"
 import { SALA } from "@/lib/escena-sala"
 import {
@@ -117,6 +117,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
+  const globoActual = globoVisible(datos?.sala?.reunion, enSala)
   const quienEstaEnLaSala = useMemo(() => agentesEnLaSala(datos?.sala), [datos])
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
@@ -152,10 +153,10 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           )
         })}
         {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
-        <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} />
+        <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} />
-        <GloboEnLaFoto g={globoVisible(datos?.sala?.reunion, enSala)} />
+        <GloboEnLaFoto g={globoActual} />
       </svg>
       {salaAbierta && (
         <div role="dialog" aria-label="La reunión de la sala" className="nv-av-lista nv-sala-panel absolute z-[4] w-[24rem] max-h-[60%] overflow-auto rounded-xl border border-white/15 bg-[#121110]/95 p-3 text-[12px] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
