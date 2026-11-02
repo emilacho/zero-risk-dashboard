@@ -109,6 +109,8 @@ export const equiposDelAgente = (nombre: unknown): ClaveDeEquipo[] => [...new Se
 /** el equipo principal (el primero del mapa) · «otros» si no está asignado */
 export const equipoDelAgente = (nombre: unknown): ClaveDeEquipo => equiposDelAgente(nombre)[0] ?? "otros"
 export const equipoPorClave = (k: ClaveDeEquipo): Equipo => EQUIPOS.find((e) => e.clave === k)!
+/** quién cuenta como AUTOR de lo que sale de una mesa (brief, gran idea): un empleado del departamento. «sistema» y los proveedores (el portero, el etiquetador del cerebro…) hablan en la mesa pero no escriben (reserva de CC3 · 03-nov) */
+export const esAutorDeLaMesa = (de: unknown): boolean => { const k = String(de ?? "").trim(); return !!k && k !== "sistema" && equipoDelAgente(k) !== "proveedores" }
 export const EQUIPOS_DE_MARKETING: ClaveDeEquipo[] = ["direccion", "estrategia", "creativo", "web", "medios", "relaciones"]
 
 /** ─── 6.11 · el equipo como dato de la plataforma (`oficina_equipos`) ─── */

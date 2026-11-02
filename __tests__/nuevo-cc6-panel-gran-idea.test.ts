@@ -34,7 +34,7 @@ describe("la gran idea", () => {
   })
   it("quién la propuso sale de los aportes de la sala, sin «sistema» ni repetidos (reserva P13 de CC3)", async () => {
     const { quienesPropusieronDe } = await import("@/lib/gran-idea-datos")
-    expect(quienesPropusieronDe([{ de: "sistema" }, { de: "creative-director-mesa" }, { de: "content-creator" }, { de: "creative-director-mesa" }, { de: "" }])).toEqual(["creative-director-mesa", "content-creator"])
+    expect(quienesPropusieronDe([{ de: "sistema" }, { de: "portero" }, { de: "portero-del-cerebro" }, { de: "creative-director-mesa" }, { de: "content-creator" }, { de: "creative-director-mesa" }, { de: "" }])).toEqual(["creative-director-mesa", "content-creator"])
   })
   it("sin aportes registrados lo dice (no inventa nombres)", () => {
     const d = concepto()

@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { briefDesdeFila, ordenarBriefs, type Brief } from "@/lib/brief"
+import { esAutorDeLaMesa } from "@/lib/organigrama"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -54,7 +55,7 @@ export async function conQuienesEscribieron(supa: SupabaseClient, briefs: Brief[
   const por = new Map<string, string[]>()
   for (const f of filas) {
     const de = String(f.de ?? ""); const e = String(f.encargo_id ?? "")
-    if (!de || de === "sistema") continue
+    if (!esAutorDeLaMesa(de)) continue
     const l = por.get(e) ?? []; if (!l.includes(de)) l.push(de); por.set(e, l)
   }
   return briefs.map((b) => ({ ...b, quienes_escribieron: b.encargo_id ? por.get(b.encargo_id) ?? [] : [] }))
