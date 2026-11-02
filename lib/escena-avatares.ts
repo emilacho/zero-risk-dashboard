@@ -21,6 +21,7 @@ import { nombreLegible } from "@/lib/trabajo-en-vivo"
 import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
 import type { EntregasDeLaEscena } from "@/lib/escena-entregas"
 import type { MetricasDelPizarron } from "@/lib/escena-metricas"
+import type { VitrinaDeLaEscena } from "@/lib/escena-vitrina"
 
 export const FOTO = { w: 2560, h: 1440 } as const
 /** «12:15» en hora de Ecuador (UTC-5, sin horario de verano) */
@@ -216,6 +217,8 @@ export interface EscenaDatos {
   entregas?: EntregasDeLaEscena
   /** el pizarrón de métricas: un cuadro por red del cliente + «General»; hoy todos dicen «métricas pronto» (`lib/escena-metricas.ts`) */
   metricas?: MetricasDelPizarron
+  /** la pantalla vertical: la vitrina de las mejores piezas (hoy «métricas pronto» + la última pieza aprobada) (`lib/escena-vitrina.ts`) */
+  vitrina?: VitrinaDeLaEscena
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */

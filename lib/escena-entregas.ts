@@ -48,8 +48,8 @@ export const LUGAR_DEL_PIZARRON: Punto = { x: 1010, y: 548 }
 export const PUESTOS_EN_EL_PIZARRON: Punto[] = [{ x: 0, y: 0 }, { x: -34, y: 14 }, { x: 34, y: -12 }, { x: -6, y: 30 }].map((d) => ({ x: LUGAR_DEL_PIZARRON.x + d.x, y: LUGAR_DEL_PIZARRON.y + d.y }))
 /** la tarjeta de la entrega se dibuja sobre el pizarrón */
 export const ANCLA_DE_LA_TARJETA: Punto = { x: 985, y: 392 }
-/** el panel luminoso vertical del borde derecho: la «puerta» hacia Tu oficina (medido sobre la foto) */
-export const PANEL_DE_FIRMA: Punto[] = [{ x: 1692, y: 525 }, { x: 1733, y: 546 }, { x: 1733, y: 613 }, { x: 1692, y: 598 }]
+/** la lámpara del escritorio de Dirección (a la izquierda del monitor, sobre la mesa): se enciende cuando algo espera la firma de Emilio y lleva a Tu oficina. Antes era el panel vertical del borde derecho, que ahora es la vitrina */
+export const LAMPARA_DE_FIRMA: Punto = { x: 1081, y: 563 }
 export const ENLACE_A_TU_OFICINA = "/nuevo/oficina"
 
 export interface EntregaViva { id: string; agente: string | null; titulo: string; cerrado_en: string; /** su escritorio (clave de mesa) y su nombre legible: los pone `conRevisiones` con el directorio */ mesa?: string | null; nombre?: string | null }

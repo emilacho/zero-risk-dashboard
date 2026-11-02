@@ -9,6 +9,7 @@ import { esDePractica } from "@/lib/clientes"
 import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
+import { leerLaVitrina, type VitrinaDeLaEscena } from "@/lib/escena-vitrina"
 import { cuadrosDelPizarron, leerMetricas, redesDelCliente, type MetricasDelPizarron } from "@/lib/escena-metricas"
 import { armarEntregas, conRevisiones, devolvioEmilio, MAXIMO_DE_CUADROS, MINUTOS_DE_CORRIGE, REVISION_VIVA_H, VIGENCIA_DE_LA_ENTREGA_H, type EntregasDeLaEscena } from "@/lib/escena-entregas"
 
@@ -75,6 +76,8 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } =
   } catch { /* sin entregas esta vez */ }
   // el pizarrón de métricas: las redes del cliente (de sus canales) y la lectura única de métricas (hoy «sin datos»)
   try { escena = { ...escena, metricas: await leerElPizarronDeMetricas(supa, ahora) } } catch { /* sin pizarrón esta vez */ }
+  // la pantalla vertical: la vitrina de las mejores piezas (hoy «métricas pronto» + la última pieza aprobada)
+  try { escena = { ...escena, vitrina: await leerLaVitrinaDeMarketing(supa, ahora) } } catch { /* sin vitrina esta vez */ }
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
@@ -147,5 +150,13 @@ export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date
     }
     const lectura = await leerMetricas(supa, { cliente: cliente?.id ?? null })
     return { cliente: cliente?.nombre ?? null, cuadros: cuadrosDelPizarron(redes, lectura), lectura: lectura.estado }
+  })
+}
+
+/** la vitrina de la pantalla vertical de marketing: el cliente de la escena y su última pieza aprobada. Solo lectura */
+export async function leerLaVitrinaDeMarketing(supa: SupabaseClient, ahora: Date): Promise<VitrinaDeLaEscena> {
+  return conCache("escena-viva-vitrina", 60_000, async () => {
+    const plan = await conCache("escena-viva-contexto", 60_000, () => leerPlanDelCliente(supa, { ahora }))
+    return leerLaVitrina(supa, { cliente: plan.cliente?.id ?? null })
   })
 }
