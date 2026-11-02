@@ -9,6 +9,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
+import { leerOrganizacion } from "@/lib/direccion-organizacion"
 
 export interface Movimiento {
   /** instante (ISO) */
@@ -18,6 +19,8 @@ export interface Movimiento {
   proveedor: string
   modelo: string
   empleado: string
+  /** 6.37 · departamento y equipo del empleado (organigrama vivo), p. ej. «Marketing · Creativo» */
+  equipo?: string
   cliente: string
   client_id: string | null
   corrida: string | null
@@ -141,6 +144,42 @@ export function picos(movs: Movimiento[], hoy: string, o: { veces?: number; mini
 }
 
 export const veces = (n: number): string => `${n.toLocaleString("es-EC", { maximumFractionDigits: 1 })}×`
+export type Vista = "cliente" | "equipo" | "empleado" | "modelo" | "proveedor" | "corrida"
+export const NOMBRE_DE_VISTA: Record<Vista, string> = { cliente: "Cliente", equipo: "Equipo y departamento", empleado: "Empleado", modelo: "Modelo", proveedor: "Proveedor", corrida: "Corrida" }
+export interface FilaDeDesglose { clave: string; nombre: string; usd: number; pct: number; anterior: number; variacion_pct: number | null; llamadas: number; client_id?: string | null; dia?: string; detalle?: string; corrida?: string | null }
+/** el desglose de Ramp (cliente · equipo · empleado · modelo · proveedor · corrida) en un período, comparado con el período anterior del mismo largo */
+export function desglose(movs: Movimiento[], vista: Vista, o: { desde: string; hasta: string }): FilaDeDesglose[] {
+  const largo = diasEntre(o.desde, o.hasta).length
+  const antDesde = sumarDias(o.desde, -largo), antHasta = sumarDias(o.desde, -1)
+  const clave = (x: Movimiento): string | null => vista === "corrida" ? x.corrida : vista === "equipo" ? (x.equipo ?? "Sin dato") : vista === "cliente" ? (x.client_id ?? "sin-cliente") : x[vista]
+  const ahora = new Map<string, Movimiento[]>(), antes = new Map<string, number>()
+  for (const x of movs) {
+    const k = clave(x); if (!k) continue
+    if (x.d >= o.desde && x.d <= o.hasta) ahora.set(k, [...(ahora.get(k) ?? []), x])
+    else if (x.d >= antDesde && x.d <= antHasta) antes.set(k, (antes.get(k) ?? 0) + x.usd)
+  }
+  const total = [...ahora.values()].reduce((s, xs) => s + suma(xs), 0)
+  const filas = [...ahora.entries()].map(([k, xs]): FilaDeDesglose => {
+    const usd = r2(suma(xs)), ant = r2(antes.get(k) ?? 0)
+    const base: FilaDeDesglose = { clave: k, nombre: vista === "cliente" ? xs[0].cliente : k, usd, pct: total > 0 ? Math.round((suma(xs) / total) * 1000) / 10 : 0, anterior: ant, variacion_pct: ant > 0 ? Math.round(((usd - ant) / ant) * 100) : null, llamadas: xs.length, client_id: vista === "cliente" ? xs[0].client_id : undefined }
+    if (vista === "corrida") { const c = xs.find((x) => x.client_id)?.cliente; return { ...base, nombre: [...new Set(xs.map((x) => x.empleado))].slice(0, 3).join(" · "), dia: xs[0].d, detalle: c ?? "Sin cliente", corrida: k } }
+    return base
+  })
+  return filas.sort((a, b) => b.usd - a.usd)
+}
+/** tope suave sugerido por la tendencia (como Ramp): lo que llevaría al mes a este ritmo, con 20 % de holgura, redondeado hacia arriba a US$ 5 */
+export function topeSugerido(movs: Movimiento[], filtro: (x: Movimiento) => boolean, hoy: string): number | null {
+  const desde = sumarDias(hoy, -29), xs = movs.filter((x) => x.d >= desde && x.d <= hoy && filtro(x))
+  if (!xs.length) return null
+  return Math.max(5, Math.ceil((suma(xs) * 1.2) / 5) * 5)
+}
+export function aCsv(filas: Array<Record<string, string | number | null | undefined>>): string {
+  if (!filas.length) return ""
+  const cols = Object.keys(filas[0])
+  const celda = (v: unknown) => { const t = v == null ? "" : String(v); return /[",;\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t }
+  return [cols.join(","), ...filas.map((f) => cols.map((c) => celda(f[c])).join(","))].join("\n")
+}
+
 export interface Cambio { tipo: "mayor" | "pico" | "ahorro"; texto: string; corrida?: string | null }
 /** «Lo que cambió esta semana» (como el resumen semanal de Ramp): el mayor cambio, el pico inusual y dónde ahorrar, en lenguaje claro */
 export function loQueCambio(movs: Movimiento[], hoy: string, cache: Dinero["cache"]): Cambio[] {
@@ -188,13 +227,21 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
     todas((a, b) => db.from("agents").select("name, display_name").range(a, b), "agents"),
     todas((a, b) => db.from("agent_invocations_daily_rollup").select("day, total_tokens_input, total_tokens_cache_read").gte("day", new Date(ahora.getTime() - 30 * 86400_000).toISOString().slice(0, 10)).range(a, b), "rollup").catch(() => null),
   ])
+  // 6.37 · el equipo de cada empleado sale del organigrama vivo (si no se puede leer, el desglose por equipo lo dice)
+  const org = await leerOrganizacion(db, { ahora }).catch(() => { faltan.push("Departamento y equipo de cada empleado (no se pudo leer la organización)"); return null })
+  const equipoDe = (slug: string): string => {
+    const p = org?.personas[slug]; if (!p) return "Sin equipo asignado"
+    const d = org!.departamentos.find((x) => x.clave === p.departamento)
+    const e = d?.equipos.find((x) => x.clave === p.equipo)
+    return p.departamento === "direccion_general" ? "Dirección general" : `${d?.nombre ?? "Sin departamento"}${e && e.clave !== "todos" ? ` · ${e.nombre}` : ""}`
+  }
   const nombreCliente = new Map(clientes.map((c) => [String(c.id), String(c.name)]))
   const nombreAgente = new Map(agentes.map((a) => [String(a.name), txt(a.display_name)]))
   const movimientos: Movimiento[] = []
   for (const x of inv) {
     const usd = Number(x.cost_usd ?? 0); if (!(usd > 0)) continue
     const t = String(x.started_at ?? x.created_at), cid = txt(x.client_id), emp = String(x.agent_name ?? "sin empleado")
-    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), cliente: cid ? nombreCliente.get(cid) ?? "Cliente sin ficha" : "Sin cliente", client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true" })
+    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), equipo: org ? equipoDe(emp) : undefined, cliente: cid ? nombreCliente.get(cid) ?? "Cliente sin ficha" : "Sin cliente", client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true" })
   }
   for (const c of costos) {
     const usd = Number(c.amount_usd_exact ?? c.amount_usd ?? 0); if (!(usd > 0)) continue
@@ -202,7 +249,7 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
     if (!servicio.toLowerCase().startsWith("apify")) continue
     const funcion = servicio.includes(":") ? servicio.split(":").slice(1).join(":") : "conciliación del día"
     const d = String(c.date).slice(0, 10)
-    movimientos.push({ t: `${d}T17:00:00.000Z`, d, proveedor: "Apify", modelo: `Apify · ${funcion}`, empleado: "Apify (raspados)", cliente: "Sin cliente", client_id: null, corrida: null, usd, ok: true, cota: false })
+    movimientos.push({ t: `${d}T17:00:00.000Z`, d, proveedor: "Apify", modelo: `Apify · ${funcion}`, empleado: "Apify (raspados)", equipo: "Proveedor externo · Apify", cliente: "Sin cliente", client_id: null, corrida: null, usd, ok: true, cota: false })
   }
   movimientos.sort((a, b) => a.t.localeCompare(b.t))
   const cache: Dinero["cache"] = rollup ? rollup.reduce<{ leido: number; entrada: number }>((s, r) => ({ leido: s.leido + Number(r.total_tokens_cache_read ?? 0), entrada: s.entrada + Number(r.total_tokens_input ?? 0) }), { leido: 0, entrada: 0 }) : null
