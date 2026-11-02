@@ -8,13 +8,14 @@ import {
   COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo, type ResumenAgregado,
 } from "@/lib/direccion-corridas"
-import { diaLocal, diasEntre, fechaCorta, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
+import { diaLocal, diasEntre, fechaCorta, horaLocal, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
 import { BarraHorizontal, CascadaVisible, GRIS, GraficoDeBarras, ROJO } from "@/components/nuevo/ObservabilidadGraficos"
 import {
   NOMBRE_DE_AGRUPAR, agrupar, conFallosDelProceso, agruparPorEmpleado, cobertura, costoDeLaCorrida, costoDelPeriodo, costoPorEjecucion, demoraCorta, dondeFallo, enRango, esCorridaInterna, motivoEnPalabras, numerosDe,
   cascadaDe, costoPorCubeta, cubetasDe, desdeDeLaLectura, conErroresDeLaLista, gruposVisibles, noLeidas, numerosDelAgregado, procesoDe, rotuloDe, rotuloLargo, serieDe, serieDelAgregado, topEmpleados, variacion, ventanaDe,
   type AgruparPor, type Cascada, type DondeFallo, type EmpleadoObs, type Grupo,
 } from "@/lib/observabilidad"
+import { conFallasDelFlujo, corridaDelPedido, procesoDeLaFalla, type FallaDelFlujo } from "@/lib/fallas-del-flujo"
 import { nombreCanonico } from "@/lib/organigrama"
 import type { Rendimiento } from "@/lib/rendimiento"
 
@@ -298,17 +299,41 @@ function Frente({ vs, nombre, sube_es_malo = true }: { vs: { texto: string; sube
   return <span data-frente-al-anterior className="text-[14px]" style={{ color }}>{vs.texto === "igual" ? `igual que ${nombre}` : `${vs.texto} frente a ${nombre}`}</span>
 }
 
-function LoQueFallo({ fallas, donde, cascadas, periodo, abrirEn }: {
+function LoQueFallo({ fallas, donde, cascadas, periodo, abrirEn, delFlujo, flujoSinLectura, corridas }: {
   fallas: Corrida[]; donde: Map<string, DondeFallo | "leyendo" | "sin_lectura">; cascadas: Map<string, Cascada | null>; periodo: string; abrirEn: (c: Corrida, clave: string | null) => void
+  /** 6.51 · los pedidos cuyo flujo falló aunque los empleados terminaran bien */ delFlujo: FallaDelFlujo[]; flujoSinLectura: boolean; corridas: Corrida[]
 }) {
-  const titulo = <h3 className={`mr-1 ${TITULO_CHICO}`}>Lo que falló <span style={NUM}>({fallas.length})</span></h3>
+  const total = fallas.length + delFlujo.length
+  const titulo = <h3 className={`mr-1 ${TITULO_CHICO}`}>Lo que falló <span style={NUM}>({total})</span></h3>
+  // primero lo más reciente, sea del flujo o de un empleado; la cascada va con la primera falla de un empleado
+  const filas = [...fallas.map((c) => ({ t: c.inicio ?? "", c, f: null as FallaDelFlujo | null })), ...delFlujo.map((f) => ({ t: f.inicio, c: null as Corrida | null, f }))].sort((a, b) => b.t.localeCompare(a.t))
+  const conCascada = fallas[0]?.workflow_execution_id
+  const aviso = flujoSinLectura ? <p data-flujo-sin-lectura className="mt-1 text-[12px] text-zinc-500">No pude leer las fallas de los flujos (pedidos): aquí solo están las de los empleados.</p> : null
   return (
     <section data-lo-que-fallo className={`${CAJA} px-4 py-2.5`}>
-      {!fallas.length ? <div className="flex flex-wrap items-baseline gap-3">{titulo}<p data-sin-errores className="text-[14px] text-[#8fd19e]">Sin errores en {periodo} ✓</p></div> : (
+      {!total ? <><div className="flex flex-wrap items-baseline gap-3">{titulo}<p data-sin-errores className="text-[14px] text-[#8fd19e]">Sin errores en {periodo} ✓</p></div>{aviso}</> : (
         <ul className="flex flex-col gap-2.5">
-          {fallas.map((c, i) => {
+          {filas.map(({ c: cc, f }, i) => {
+            if (f) {
+              const hija = corridaDelPedido(f, corridas)
+              return (
+                <li key={`flujo-${f.id}`} data-falla-del-flujo={f.id}>
+                  <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                    {i === 0 && titulo}
+                    <span className="text-[#ff5a36]">✕</span>
+                    <span className="text-[14px] text-zinc-50">{procesoDeLaFalla(f)}</span>
+                    <span className="text-[13.5px] text-zinc-300" style={NUM}>· {[f.cliente, cuando(f.inicio).replace(/:\d{2}$/, "")].filter(Boolean).join(" · ")}</span>
+                    <span data-motivo className="text-[13.5px] text-[#ff9b85]">«{f.motivo}»</span>
+                    <span className="text-[13px] text-zinc-500">· falló el flujo; los empleados terminaron bien</span>
+                    {hija && <button type="button" data-ver-donde-fallo={hija.workflow_execution_id} onClick={() => abrirEn(hija, null)}
+                      className="ml-auto shrink-0 self-center rounded-md border border-rose-400/45 bg-rose-500/10 px-3 py-1 text-[13px] text-rose-50 hover:bg-rose-500/20">Ver completa →</button>}
+                  </div>
+                </li>
+              )
+            }
+            const c = cc as Corrida
             const id = c.workflow_execution_id, d = donde.get(id), listo = d && d !== "leyendo" && d !== "sin_lectura" ? d : null
-            const quien = listo?.nombre ? listo.nombre.split(" · ")[0] : null, cas = i === 0 ? cascadas.get(id) : undefined
+            const quien = listo?.nombre ? listo.nombre.split(" · ")[0] : null, cas = id === conCascada ? cascadas.get(id) : undefined
             return (
               <li key={id} data-falla={id}>
                 <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -323,12 +348,13 @@ function LoQueFallo({ fallas, donde, cascadas, periodo, abrirEn }: {
                   <button type="button" data-ver-donde-fallo={id} onClick={() => abrirEn(c, listo?.clave ?? null)}
                     className="ml-auto shrink-0 self-center rounded-md border border-rose-400/45 bg-rose-500/10 px-3 py-1 text-[13px] text-rose-50 hover:bg-rose-500/20">Ver completa →</button>
                 </div>
-                {i === 0 && (cas ? <CascadaVisible c={cas} alTocar={(k) => abrirEn(c, k)} /> : cas === undefined && d === "leyendo" ? <p className="mt-1 text-[12px] text-zinc-500">Leyendo sus pasos…</p> : null)}
+                {id === conCascada && (cas ? <CascadaVisible c={cas} alTocar={(k) => abrirEn(c, k)} /> : cas === undefined && d === "leyendo" ? <p className="mt-1 text-[12px] text-zinc-500">Leyendo sus pasos…</p> : null)}
               </li>
             )
           })}
         </ul>
       )}
+      {total > 0 && aviso}
     </section>
   )
 }
@@ -452,11 +478,12 @@ type Vista = "resumen" | "todas"
 /** 6.50 · la lectura agregada del período y del anterior (null = no llegó: se vuelve a la lista, rotulada como antes) */
 type Agregado = { r: ResumenAgregado | null; ant: ResumenAgregado | null }
 
-export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null, alVolver, hoy: hoyFijo, dineroInicial = null, empleadosInicial = null, vistaInicial = "resumen", internoInicial = false, agregadoInicial = null }: {
+export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInicial = null, fetchImpl = fetch, corridaInicial = null, alVolver, hoy: hoyFijo, dineroInicial = null, empleadosInicial = null, vistaInicial = "resumen", internoInicial = false, agregadoInicial = null, flujoInicial }: {
   /** 6.44 · abierta desde Dinero: la flecha regresa a Dinero */ alVolver?: () => void; onCerrar: () => void; listaInicial?: ListaDeCorridas | null; detalleInicial?: DetalleDeCorrida | null; fetchImpl?: typeof fetch
   /** 6.36 · Dinero abre aquí la corrida de un pico */ corridaInicial?: string | null
   /** 6.47 · para pruebas: el día (Ecuador), Dinero, los empleados, la vista y el interruptor de interno */ hoy?: string; dineroInicial?: Dinero | null; empleadosInicial?: DatosDeEmpleados | null; vistaInicial?: Vista; internoInicial?: boolean
   /** 6.50 · para pruebas: la lectura agregada */ agregadoInicial?: Agregado | null
+  /** 6.51 · para pruebas: las fallas del flujo (null = no se pudieron leer) */ flujoInicial?: FallaDelFlujo[] | null
 }) {
   const hoy = useMemo(() => hoyFijo ?? diaLocal(new Date().toISOString()), [hoyFijo])
   const [periodo, setPeriodo] = useState<Periodo>("7")
@@ -474,6 +501,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const [dinero, setDinero] = useState<Dinero | null>(dineroInicial)
   const [empleados, setEmpleados] = useState<DatosDeEmpleados | null>(empleadosInicial)
   const [agr, setAgr] = useState<Agregado>(agregadoInicial ?? { r: null, ant: null })
+  const [flujo, setFlujo] = useState<FallaDelFlujo[] | null | undefined>(flujoInicial)
   const [rendimiento, setRendimiento] = useState<Record<string, Rendimiento> | null>(null)
   const [ficha, setFicha] = useState<EmpleadoObs | null>(null)
   const [donde, setDonde] = useState<Map<string, DondeFallo | "leyendo" | "sin_lectura">>(new Map())
@@ -511,7 +539,10 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
       leerJson<ResumenAgregado>(fetchImpl, qa(v.r), "el resumen de corridas").catch(() => null),
       leerJson<ResumenAgregado>(fetchImpl, qa(v.ant), "el resumen del período anterior").catch(() => null),
     ]).then(([r, a]) => setAgr({ r, ant: r ? a : null }))
-    try { await Promise.all([lis, ant, emp, din, agrego]); setCargaMs(ms()) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
+    // 6.51 · los pedidos cuyo flujo falló (del período anterior a hoy: sirven para el período y para la comparación)
+    const fq = new URLSearchParams({ desde: v.ant.desde, hasta: v.r.hasta }); if (cliente) fq.set("client_id", cliente)
+    const flu = leerJson<{ fallas: FallaDelFlujo[] }>(fetchImpl, `/api/direccion/fallas-del-flujo?${fq}`, "las fallas de los flujos").then((j) => setFlujo(j.fallas), () => setFlujo(null))
+    try { await Promise.all([lis, ant, emp, din, agrego, flu]); setCargaMs(ms()) } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [v, cliente, fetchImpl, leerDinero])
   useEffect(() => { if (primera.current) { primera.current = false; return } void leer() }, [leer])
   // las fichas de rendimiento (las de CC6): se leen al abrir, así la flecha sabe de antemano quién tiene ficha
@@ -552,10 +583,18 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   // 6.50 · con la lectura agregada: corridas, errores y su comparación salen ENTEROS (sin «no leído»); la búsqueda sigue sobre la lista
   const gAgr = useMemo(() => (agr.r && !b ? gruposVisibles(agr.r.grupos, conInterno) : null), [agr, b, conInterno])
   const gAgrAnt = useMemo(() => (gAgr && agr.ant ? gruposVisibles(agr.ant.grupos, conInterno) : null), [gAgr, agr, conInterno])
-  const nAgr = useMemo(() => (gAgr ? conErroresDeLaLista(numerosDelAgregado(gAgr), n.con_error) : null), [gAgr, n])
-  const naAgr = useMemo(() => (gAgrAnt ? conErroresDeLaLista(numerosDelAgregado(gAgrAnt), delAnterior.filter((c) => c.estado === "fallida").length) : null), [gAgrAnt, delAnterior])
+  // 6.51 · las fallas del flujo del período y del anterior (la búsqueda las filtra por proceso y cliente)
+  const flujoDe = useCallback((r: { desde: string; hasta: string }) => (flujo ?? []).filter((f) => f.dia >= r.desde && f.dia <= r.hasta && (!b || [procesoDeLaFalla(f), f.cliente ?? ""].some((x) => x.toLowerCase().includes(b)))), [flujo, b])
+  const flujoPeriodo = useMemo(() => flujoDe(v.r), [flujoDe, v])
+  const flujoAnt = useMemo(() => flujoDe(v.ant), [flujoDe, v])
+  const nAgr = useMemo(() => (gAgr ? conFallasDelFlujo(conErroresDeLaLista(numerosDelAgregado(gAgr), n.con_error), flujoPeriodo.length) : null), [gAgr, n, flujoPeriodo])
+  const naAgr = useMemo(() => (gAgrAnt ? conFallasDelFlujo(conErroresDeLaLista(numerosDelAgregado(gAgrAnt), delAnterior.filter((c) => c.estado === "fallida").length), flujoAnt.length) : null), [gAgrAnt, delAnterior, flujoAnt])
   const conAgregadoPorDia = !!gAgr && !k.porHora
-  const corridasCubeta = useMemo(() => (gAgr && !k.porHora ? serieDelAgregado(gAgr, k).map((x, i) => ({ total: x.total, con_error: Math.min(x.total, Math.max(x.con_error, porCubeta[i]?.con_error ?? 0)) })) : porCubeta), [gAgr, k, porCubeta])
+  const corridasCubeta = useMemo(() => {
+    const base = gAgr && !k.porHora ? serieDelAgregado(gAgr, k).map((x, i) => ({ total: x.total, con_error: Math.min(x.total, Math.max(x.con_error, porCubeta[i]?.con_error ?? 0)) })) : porCubeta.map((x) => ({ total: x.total, con_error: x.con_error }))
+    const extra = new Map<string, number>(); for (const f of flujoPeriodo) { const r = k.porHora ? String(horaLocal(f.inicio)).padStart(2, "0") : f.dia; extra.set(r, (extra.get(r) ?? 0) + 1) }
+    return base.map((x, i) => { const e = extra.get(k.rotulos[i]) ?? 0; const con_error = x.con_error + e; return { total: Math.max(x.total, con_error), con_error } })
+  }, [gAgr, k, porCubeta, flujoPeriodo])
   const noLeidoCorridas = conAgregadoPorDia ? undefined : noLeido
   // la demora por día no viene en la lectura agregada: los días que la lista no alcanzó quedan sin barra y se dice en el gráfico (no «no leído»)
   const sinDemora = gAgr ? noLeido : undefined
@@ -606,7 +645,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const porQueSinComparar = sobre && sinComparacion?.startsWith("la plataforma entrega 200") ? null : sinComparacion
   const vsN = (a: number | null, b: number | null) => (na ? variacion(a, b) : null)
   // 6.50 · corridas y errores: la lectura agregada si llegó (entera, con su comparación); si no, la lista como antes
-  const nc = nAgr ?? n, nca = gAgr ? naAgr : na
+  const nc = nAgr ?? conFallasDelFlujo(n, flujoPeriodo.length), nca = gAgr ? naAgr : na ? conFallasDelFlujo(na, flujoAnt.length) : null
   const vsC = (a: number | null, b: number | null) => (nca ? variacion(a, b) : null)
   const demoraParcial = !!gAgr && !cob.cubre
   const incompleta = !!gAgr && (!agr.r?.completo || (!!agr.ant && !agr.ant.completo))
@@ -698,7 +737,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
                         )} />
                     </div>
                   </section>
-                  <LoQueFallo fallas={fallas} donde={donde} cascadas={cascadas} periodo={enPalabras} abrirEn={(c, clave) => void abrir(c, clave)} />
+                  <LoQueFallo fallas={fallas} donde={donde} cascadas={cascadas} periodo={enPalabras} abrirEn={(c, clave) => void abrir(c, clave)} delFlujo={flujoPeriodo} flujoSinLectura={flujo === null} corridas={lista.corridas} />
                   <Grupos grupos={grupos} por={por} setPor={setPor} abierto={abierto} setAbierto={setAbierto} abrir={(c) => void abrir(c)} costoDe={costoDe} empleadosListos={!!emp}
                     oculto={conInterno ? null : { corridas: internas.length, costo: costoCon && costo ? Math.round((costoCon.total - costo.total) * 100) / 100 : null }} mostrarInterno={() => setConInterno(true)} />
                   <section data-grafico-caja="demora" className={`${CAJA} min-w-0 px-4 py-2.5`}>
