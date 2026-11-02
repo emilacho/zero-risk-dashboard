@@ -114,6 +114,12 @@ describe("el plantel en pantalla", () => {
     const solo = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa, mesas: e.mesas, agenteInicial: "video-editor", onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: rend, plantelInicial: plantel, ahora }))
     expect(solo).toContain('data-moral-detalle="sin"'); expect(solo).toContain("En espera") // inactivo
   })
+  it("corrección 02-nov: ocupa toda la pantalla hasta el chat (nv-panel, sin ancho ni alto máximos) y ningún nombre ni puesto se corta", () => {
+    expect(html).toContain("nv-panel"); expect(html).toMatch(/relative flex h-full w-full flex-col/)
+    const pl = readFileSync("components/nuevo/escena/PlantelDelEquipo.tsx", "utf8")
+    expect(pl).not.toMatch(/max-w-\[1240px\]|max-h-full|truncate/) // nada se corta con «…»
+    expect(html).toMatch(/data-nombre[^>]*>Carousel Designer</); expect(html).toContain("Gran idea +1")
+  })
   it("equipo vacío: lo dice, sin inventar empleados", () => {
     const vacio = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa: { ...mesa, equipo: [] }, mesas: e.mesas, onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: {}, plantelInicial: {}, ahora }))
     expect(vacio).toContain("Todavía no hay nadie asignado a este equipo."); expect(vacio).toContain("Sin empleados que mostrar.")

@@ -44,7 +44,7 @@ function Circulo({ k, v, n, color }: { k: string; v: string; n: number | null; c
 }
 
 const Linea = ({ k, children }: { k: string; children: React.ReactNode }) => <div className="grid grid-cols-[130px_1fr] py-1 text-[13.5px]"><span className="text-zinc-400">{k}</span><span className="min-w-0 text-zinc-100">{children}</span></div>
-const Dato = ({ k, v }: { k: string; v: string }) => <div className="min-w-0"><p className="text-[11.5px] text-zinc-400">{k}</p><p className="truncate text-[14px] font-semibold text-zinc-100">{v}</p></div>
+const Dato = ({ k, v }: { k: string; v: string }) => <div className="min-w-0"><p className="text-[11.5px] text-zinc-400">{k}</p><p className="break-words text-[14px] font-semibold leading-tight text-zinc-100">{v}</p></div>
 const corto = (d: string | null) => { if (!d) return "—"; const t = new Date(d); return Number.isNaN(t.getTime()) ? "—" : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", timeZone: "America/Guayaquil" }).replace(".", "") }
 
 export interface PropsDelPlantel {
@@ -104,11 +104,11 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
   const dim = (n: number) => x?.dimensiones.find((q) => q.n === n) ?? null
   const f = x?.forma ? FORMA_LEGIBLE[x.forma] : null
   const mo = elegido ? moral(elegido.p.agente) : null
-  const grilla = "grid-cols-[22px_70px_36px_minmax(0,1fr)_40px_84px_40px_44px]"
+  const grilla = "grid-cols-[26px_minmax(92px,150px)_36px_minmax(0,1fr)_44px_92px_44px_48px]"
 
   const salida = (
-    <div className="nv-panel nv-av-lista fixed inset-0 z-[76] flex items-center justify-center bg-black/70 p-2 backdrop-blur-[2px] sm:p-5" data-plantel={mesa.clave} onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="plantel-titulo" className="relative flex max-h-full w-full max-w-[1240px] flex-col overflow-hidden rounded-2xl border border-amber-400/40 bg-[#0f0d0b] text-zinc-200 shadow-2xl">
+    <div className="nv-panel nv-av-lista fixed inset-0 z-[76] flex items-stretch justify-center bg-black/80 p-1.5 backdrop-blur-[2px] sm:p-2" data-plantel={mesa.clave} onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="plantel-titulo" className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-amber-400/40 bg-[#0f0d0b] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 pr-12">
           <h2 id="plantel-titulo" className="text-[14px] font-light uppercase tracking-[0.3em]" style={{ color: AMBAR }}>Plantel · {mesa.nombre}</h2>
           <span className="text-[12px] text-zinc-500">{fallo ? `sin lectura: ${fallo}` : !rend || !plantel ? "leyendo…" : `${miembros.length} ${miembros.length === 1 ? "empleado" : "empleados"}`}</span>
@@ -119,7 +119,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
           </div>
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 hover:bg-white/[0.07]"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg></button>
         </header>
-        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,0.55fr)]">
+        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.6fr)]">
           {/* A · la lista del plantel */}
           <section aria-label="El plantel" className="min-w-0 self-start rounded-md border border-white/10 bg-[#141210]/95">
             <div className={`grid ${grilla} items-center gap-2 border-b border-white/10 px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-zinc-400`}>
@@ -132,9 +132,9 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                 <div key={a} data-fila={a} data-elegida={es || undefined} className={es ? "mx-1 my-1 rounded-md border border-amber-400/70 bg-amber-400/[0.06]" : ""}>
                   <button type="button" aria-expanded={es && menu} onClick={() => { if (es) setMenu((v) => !v); else { setSel(a); setMenu(true); setDiez(false) } }} className={`grid w-full ${grilla} items-center gap-2 border-b border-white/[0.06] px-3 py-1.5 text-left text-[13.5px] hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400`}>
                     <span className="tabular-nums text-zinc-400">{i + 1}</span>
-                    <span className="truncate text-[12px] text-zinc-300" title={m.todos.join(" · ")}>{m.puesto}</span>
+                    <span className="break-words text-[12px] leading-tight text-zinc-300" title={m.todos.join(" · ")}>{m.puesto}</span>
                     <HologramaBusto semilla={a} color={AMBAR} tam={34} />
-                    <span className="min-w-0 truncate text-zinc-100">{m.p.nombre}</span>
+                    <span className="min-w-0 break-words leading-tight text-zinc-100" data-nombre>{m.p.nombre}</span>
                     <span data-val className="text-center text-[16px] font-bold tabular-nums" style={{ color: colorDeNota(x1?.puntaje ?? null) }}>{x1?.puntaje ?? "–"}</span>
                     <span data-rol className="text-[12.5px]" style={{ color: ro ? COLOR_DEL_ROL[ro] : "#71717a" }}>{ro ?? "–"}</span>
                     <span data-forma-fila className="text-center">{x1?.forma ? <span className="text-[16px] font-bold leading-none" style={{ color: FORMA_LEGIBLE[x1.forma].color }} title={FORMA_LEGIBLE[x1.forma].texto}>{`${FORMA_LEGIBLE[x1.forma].flecha}︎`}</span> : <span className="text-zinc-500" title={x1?.motivo_sin_flecha ?? "sin dato todavía"}>–</span>}</span>
@@ -161,7 +161,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
             {!elegido ? <p className="text-[13px] text-zinc-500">Sin empleados que mostrar.</p> : (
               <>
                 <p className="flex items-baseline gap-2"><span data-ovr className="text-[34px] font-bold leading-none" style={{ color: colorDeNota(x?.puntaje ?? null) }}>{x?.puntaje ?? "–"}</span><span className="text-[13px] uppercase text-zinc-300">{mesa.nombre} · {elegido.puesto}</span></p>
-                <p className="mt-1 truncate text-[11.5px] uppercase tracking-[0.18em] text-zinc-400">{elegido.p.agente}</p>
+                <p className="mt-1 break-all text-[11.5px] uppercase tracking-[0.18em] text-zinc-400">{elegido.p.agente}</p>
                 <h3 className="text-[26px] font-extrabold uppercase leading-tight tracking-wide text-zinc-50">{elegido.p.nombre}</h3>
                 <div className="mt-3 grid grid-cols-3 gap-3 border-b border-white/10 pb-3"><Dato k="Equipo" v={mesa.nombre} /><Dato k="Modelo" v={d?.modelo ?? "–"} /><Dato k="Trabaja desde" v={corto(d?.desde ?? null)} /></div>
                 <p className="mt-3 text-[14px] font-semibold text-zinc-100">Estado del empleado</p>
@@ -185,7 +185,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                     {BLOQUES_DE_DIMENSIONES.map(([t, ns]) => (
                       <div key={t}><p className="mb-1 text-[11px] uppercase tracking-[0.16em] text-amber-300">{t}</p>
                         {ns.map((n) => { const q = x?.dimensiones.find((z) => z.n === n); const solo = q ? !q.cuenta : false
-                          return <div key={n} data-dimension={n} className="flex items-baseline justify-between gap-2 py-0.5 text-[13px]"><span className="truncate text-zinc-300" title={solo ? "solo informa, no baja la nota" : q?.detalle}>{q?.nombre ?? `Dimensión ${n}`}</span>
+                          return <div key={n} data-dimension={n} className="flex items-baseline justify-between gap-2 py-0.5 text-[13px]"><span className="break-words text-zinc-300" title={solo ? "solo informa, no baja la nota" : q?.detalle}>{q?.nombre ?? `Dimensión ${n}`}</span>
                             <span className="font-bold tabular-nums" style={{ color: solo ? "#a1a1aa" : colorDeNota(q?.puntaje ?? null), opacity: q?.puntaje == null && !solo ? 0.45 : 1 }} title={q?.puntaje == null && !q?.valor ? "sin dato todavía" : undefined}>{solo ? (q?.valor ? "dato" : "–") : q?.puntaje ?? "–"}</span></div> })}
                       </div>
                     ))}
@@ -198,7 +198,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
 
           {/* C · su holograma de cuerpo entero */}
           <section aria-label="Su holograma" className="hidden min-w-0 items-end justify-center self-stretch rounded-md border border-white/10 bg-gradient-to-b from-[#1a1612] to-[#0d0b09] lg:flex">
-            {elegido && <svg viewBox="-34 -128 68 136" className="h-full max-h-[540px] w-full" role="img" aria-label={`Holograma de ${elegido.p.nombre}`}><defs><DefsDelHolograma /></defs><HologramaFigura semilla={elegido.p.agente} color={AMBAR} postura="de_pie" /></svg>}
+            {elegido && <svg viewBox="-34 -128 68 136" className="h-full max-h-[640px] w-full" role="img" aria-label={`Holograma de ${elegido.p.nombre}`}><defs><DefsDelHolograma /></defs><HologramaFigura semilla={elegido.p.agente} color={AMBAR} postura="de_pie" /></svg>}
           </section>
         </div>
         <p className="border-t border-white/10 px-4 py-2 text-[11px] text-zinc-500">Informa; no bloquea ni decide nada sobre el empleado. Rol: por trabajos en {VENTANA_DE_TRABAJO_DIAS} días · Moral: por entregas que le devolvieron · Forma: sus últimas 10 entregas revisadas frente a las 10 anteriores.</p>
