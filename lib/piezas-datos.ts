@@ -108,6 +108,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
 
 export interface AporteDelLibro { n: number; de: string; para: string | null; tipo: string; texto: string; costo_usd: number | null }
 
+import { leerLoQueAcompana, type AcompanaALaPieza } from "@/lib/pieza-acompana"
 export interface DetalleDeLaPieza {
   id: string
   estado: EstadoPieza
@@ -132,6 +133,8 @@ export interface DetalleDeLaPieza {
   aportes: AporteDelLibro[]
   version: number | null
   resumen_de_la_bandeja: string | null
+  /** CC6 · 02-nov: la fila del calendario, quién la hizo y el avance tras pedir cambios (solo en piezas) */
+  acompana?: AcompanaALaPieza
 }
 
 export interface DepsDeLectura { fetchImpl?: typeof fetch; urlBase?: string }
@@ -222,6 +225,7 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     aportes,
     version,
     resumen_de_la_bandeja: (f.output_preview as string | null) ?? null,
+    acompana: f.type === TIPO_PIEZA ? await leerLoQueAcompana(supa, { hitl_id: String(f.id), encargo_id: encargoId, revision_id: (meta.jefatura_revision_id as string | undefined) ?? null, decision: f.decision }) : undefined,
   }
 }
 

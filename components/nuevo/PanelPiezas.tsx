@@ -1,5 +1,10 @@
 "use client"
 
+import { avanceDeLaPieza, quienLaHizo } from "@/lib/pieza-acompana"
+import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
+import { diaConNombre } from "@/lib/calendario"
+import { formatoLegible, redDelTablero } from "@/lib/pizarron"
+import { nombreDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Bandeja } from "@/lib/bandeja-datos"
 import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
@@ -233,6 +238,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
   const estadoVisto: EstadoPieza | null = pieza ? (resultadoLocal?.id === pieza.id ? resultadoLocal.estado : pieza.estado) : null
   const pendiente = !!pieza && pieza.es_pieza && pieza.status === "pending" && estadoVisto === "pendiente"
+  const avanceDePieza = pieza?.es_pieza && pieza.acompana && estadoVisto ? avanceDeLaPieza(estadoVisto, pieza.acompana, new Date()) : null
   const lamina = pieza?.laminas[n - 1]
   const src = (k: number) => `/api/piezas/${pieza?.id}/lamina/${k}`
   const marcar = (k: number) => setMarcadas((m) => (m.includes(k) ? m.filter((x) => x !== k) : [...m, k].sort((a, b) => a - b)))
@@ -297,7 +303,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-5" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) onCerrar() }}>
-      <style>{ESTILO}</style>
+      <style>{ESTILO + ESTILO_DEL_PEDIDO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="piezas-titulo" data-seccion="piezas" className="relative flex h-full max-h-full w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
@@ -332,9 +338,9 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
         {errorBandeja && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-5">{errorBandeja}</p>}
         {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-5 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
 
-        <div className="grid min-h-0 flex-1 grid-cols-[250px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)]">
           {/* el árbol, como el panel izquierdo de un explorador: el cliente enfocado y sus carpetas por tipo de pieza */}
-          <aside aria-label="Las carpetas del cliente" className="min-h-0 overflow-y-auto border-r border-white/10 py-2">
+          <aside aria-label="Las carpetas del cliente" className={`min-h-0 overflow-y-auto border-white/10 py-2 md:border-r ${elegida ? "hidden md:block" : "border-b md:border-b-0"}`}>
             <button type="button" data-nodo="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] text-zinc-200 hover:bg-white/[0.04]"><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>{porAprobarDelCliente + otrasPendientes > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{porAprobarDelCliente + otrasPendientes}</span>}</button>
             {bandeja && !clienteActual && <p className="px-4 py-3 text-[12px] text-zinc-500">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
             <ul>
@@ -394,8 +400,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   {total > 0 && <button type="button" data-accion="ver-juntas" aria-pressed={juntas} onClick={() => { setJuntas((v) => !v); setZoom(false) }} className={`${B_CHICO} ml-auto`}>{juntas ? "Ver una lámina" : `Ver las ${total} juntas`}</button>}
                 </div>
 
-                <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_23rem]">
-                  <div className="flex min-h-0 flex-col items-center gap-2 overflow-auto bg-black/40 p-4">
+                <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_23rem] lg:overflow-hidden">
+                  <div className="flex min-h-[60vh] flex-col items-center gap-2 overflow-auto bg-black/40 p-4 lg:min-h-0">
                     {total === 0 && pieza.es_pieza && <div className="max-w-md rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-[13px] text-rose-200">Sin dibujo: esta pieza no tiene láminas que mirar.</div>}
                     {!pieza.es_pieza && <div className="max-w-md rounded-xl border border-white/10 bg-white/[0.03] p-4 text-[13px] text-zinc-300">Esta revisión no lleva láminas: es una decisión sobre «{tipoDeRevisionLegible(pieza.tipo).toLowerCase()}». Lo que hay que saber está al costado y la decisión abajo.</div>}
                     {total > 0 && !juntas && lamina && (
@@ -438,8 +444,29 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     )}
                   </div>
 
-                  <aside className="min-h-0 space-y-3 overflow-y-auto border-l border-white/10 p-4" aria-label="Lo que acompaña a la pieza">
+                  <aside className="min-h-0 space-y-3 border-t border-white/10 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Lo que acompaña a la pieza" data-barra-de-la-pieza>
                     {(pieza.es_pieza ? pieza.avisos : []).map((a, i) => <div key={i} role={a.nivel === "rojo" ? "alert" : undefined} data-aviso-pieza={a.nivel} className={`rounded-lg border p-2.5 text-[12.5px] ${COLOR_AVISO[a.nivel]}`}>{a.texto}</div>)}
+                    {pieza.es_pieza && <Bloque titulo="De la fila del calendario" etiqueta="fila">
+                      {pieza.acompana?.fila ? (() => { const f = pieza.acompana!.fila!; return (
+                        <dl className="space-y-0.5 text-[12.5px]">
+                          <div><dt className="inline text-zinc-500">Cuándo · </dt><dd className="inline text-zinc-200">{f.fecha ? diaConNombre(f.fecha) : "sin fecha"}{f.hora ? ` · ${f.hora}` : ""}{f.semana != null ? ` · semana ${f.semana}` : ""}</dd></div>
+                          {(f.red || f.formato) && <div><dt className="inline text-zinc-500">Dónde · </dt><dd className="inline text-zinc-200">{f.red ? redDelTablero(f.red).nombre : ""} {f.formato ? formatoLegible(f.formato).toLowerCase() : ""}</dd></div>}
+                          {f.tema && <div><dt className="inline text-zinc-500">Tema · </dt><dd className="inline text-zinc-200">{f.tema}</dd></div>}
+                          {(f.pilar || f.sede) && <div><dt className="inline text-zinc-500">Pilar y sede · </dt><dd className="inline text-zinc-200">{[f.pilar, f.sede].filter(Boolean).join(" · ")}</dd></div>}
+                          <div><dt className="inline text-zinc-500">Fase · </dt><dd className="inline text-zinc-200">{f.fase ? nombreDeLaFase(f.fase) : "sin fase asignada"}{f.idea_ref ? ` · idea ${f.idea_ref}` : ""}</dd></div>
+                        </dl>
+                      ) })() : <p className="italic text-zinc-500">Esta pieza no está atada a una fila del calendario.</p>}
+                    </Bloque>}
+                    {pieza.es_pieza && <Bloque titulo={`Jefatura · ${resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}`} etiqueta="jefatura">
+                      {pieza.jefatura.desacuerdos.length > 0 && <><Titulito>Desacuerdos ({pieza.jefatura.desacuerdos.length})</Titulito><ul className="list-disc space-y-1 pl-4">{pieza.jefatura.desacuerdos.map((d, i) => <li key={i}>{d}</li>)}</ul></>}
+                      {pieza.jefatura.opinion_externa && <details className="mt-2"><summary className="cursor-pointer text-[12px] text-zinc-400">Opinión externa (otro modelo, no vota)</summary><p className="mt-1 whitespace-pre-wrap text-[12px] text-zinc-300">{pieza.jefatura.opinion_externa.slice(0, 1400)}</p></details>}
+                      {pieza.jefatura.desacuerdos.length === 0 && !pieza.jefatura.opinion_externa && <p className="italic text-zinc-500">Sin desacuerdos ni opinión externa guardados.</p>}
+                    </Bloque>}
+                    {pieza.es_pieza && <Bloque titulo="Quién la hizo" etiqueta="quien">
+                      {pieza.acompana && pieza.acompana.productores.length > 0 ? (
+                        <ul className="space-y-1">{quienLaHizo(pieza.acompana.productores).map((q) => <li key={q.agente} data-productor={q.agente}><span className="font-mono text-[11.5px] text-amber-100">{q.agente}</span>{q.que.length ? <span className="text-zinc-400"> · {q.que.join(" · ")}</span> : null}</li>)}</ul>
+                      ) : <p className="italic text-zinc-500">La jefatura no guardó quién hizo cada parte.</p>}
+                    </Bloque>}
                     {lamina && !juntas && (
                       <Bloque titulo={`Lámina ${lamina.n} · ${ORIGEN_CORTO[lamina.origen]}`} etiqueta="lamina">
                         <div className="space-y-2">
@@ -456,11 +483,6 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                       </Bloque>
                     )}
                     {!pieza.es_pieza && pieza.resumen_de_la_bandeja && <Bloque titulo="Lo que dice la bandeja" etiqueta="bandeja"><p className="whitespace-pre-wrap">{pieza.resumen_de_la_bandeja.slice(0, 1200)}</p></Bloque>}
-                    {pieza.es_pieza && <Bloque titulo={`Jefatura · ${resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}`} etiqueta="jefatura">
-                      {pieza.jefatura.desacuerdos.length > 0 && <><Titulito>Desacuerdos ({pieza.jefatura.desacuerdos.length})</Titulito><ul className="list-disc space-y-1 pl-4">{pieza.jefatura.desacuerdos.map((d, i) => <li key={i}>{d}</li>)}</ul></>}
-                      {pieza.jefatura.opinion_externa && <details className="mt-2"><summary className="cursor-pointer text-[12px] text-zinc-400">Opinión externa (otro modelo, no vota)</summary><p className="mt-1 whitespace-pre-wrap text-[12px] text-zinc-300">{pieza.jefatura.opinion_externa.slice(0, 1400)}</p></details>}
-                      {pieza.jefatura.desacuerdos.length === 0 && !pieza.jefatura.opinion_externa && <p className="italic text-zinc-500">Sin desacuerdos ni opinión externa guardados.</p>}
-                    </Bloque>}
                     {pieza.es_pieza && <Bloque titulo={`La mesa de la oficina (${pieza.aportes.length})`} etiqueta="mesa">
                       {pieza.aportes.length === 0 ? <p className="italic text-zinc-500">La mesa no dejó aportes guardados para esta pieza.</p> : (
                         <ul className="space-y-2">{pieza.aportes.map((a) => <li key={a.n}><p className="text-[11px] text-zinc-400">{rolDeLaMesaLegible(a.de)} {tipoDeAporteLegible(a.tipo)}{a.para ? ` a ${rolDeLaMesaLegible(a.para)}` : ""}</p><p className="whitespace-pre-wrap">{a.texto.slice(0, 600)}</p></li>)}</ul>
@@ -481,6 +503,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                 {/* la decisión · botones grandes */}
                 <footer className="border-t border-white/10 bg-black/30 px-4 py-3 sm:px-5" data-decision={dialogo ?? (pendiente || (botones && pieza.status === "pending") ? "quieto" : "resuelta")}>
                   {errorDialogo && <p role="alert" className="mb-2 text-[12.5px] text-rose-300">{errorDialogo}</p>}
+                  {avanceDePieza && <div className="-mt-4 mb-3"><BarraDelPedido avance={avanceDePieza} /></div>}
 
                   {/* una pieza pendiente */}
                   {pendiente && dialogo === null && (
