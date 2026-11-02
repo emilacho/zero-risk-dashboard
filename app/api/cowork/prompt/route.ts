@@ -18,6 +18,8 @@
  */
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { getSessionClient } from "@/lib/supabase-session"
+import { ejecutarHerramienta, HERRAMIENTAS_DE_LECTURA, leerTraspaso, lineasDeAccesoAlSistema, MAX_VUELTAS_DE_HERRAMIENTAS, NOMBRES_DE_LECTURA } from "@/lib/chat-herramientas"
+import { lectoresDeLaPlataforma } from "@/lib/chat-plataforma"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -71,7 +73,8 @@ const PEDIDO_TOOL = {
   },
 } as const
 
-const TOOLS = [PEDIDO_TOOL]
+/** 02-nov: tres herramientas de LECTURA (vault y plataforma) + la que propone un pedido como botón */
+const TOOLS = [...HERRAMIENTAS_DE_LECTURA, PEDIDO_TOOL]
 
 function summarizeBrandVoice(voice: Record<string, unknown> | null): string | null {
   if (!voice) return null
@@ -156,6 +159,8 @@ export async function POST(req: Request) {
     ? `\n\nSurface state (JSON) ·\n\`\`\`json\n${JSON.stringify(context.surface_state, null, 2)}\n\`\`\``
     : ""
   const porVoz = !!context.surface_state && (context.surface_state as Record<string, unknown>).voz === true
+  // 02-nov: el traspaso vivo entra completo al arrancar la conversación (con caché de pedido: repetirlo cuesta ~10 %)
+  const traspaso = await leerTraspaso(svc)
   const systemPrompt = [
     "Eres el asistente de Zero Risk dentro del tablero. Hablas con Emilio Pérez, el dueño y único administrador, desde el cuadro de chat de abajo.",
     "Responde en español de Ecuador, con tuteo (nunca voseo). Sé breve, claro y práctico, como un jefe de operaciones: cuentas, empleados, servicios, proveedores, entregas.",
@@ -171,11 +176,18 @@ export async function POST(req: Request) {
     formStateBlock,
     surfaceStateBlock,
     "",
-    "No tienes acceso en vivo a los datos del sistema desde este cuadro: si te preguntan por cifras o estados, dilo con honestidad y remite a la pantalla correspondiente.",
+    ...lineasDeAccesoAlSistema(traspaso),
     "Si Emilio pide construir, cambiar o arreglar algo, usa la herramienta proponer_pedido (sale como botón; nunca ejecutas nada). No afirmes haber hecho algo que no hiciste.",
   ]
     .filter(Boolean)
     .join("\n")
+
+  const systemBlocks: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> = [
+    ...(traspaso.texto
+      ? [{ type: "text" as const, text: `TRASPASO DEL SISTEMA (léelo como lo haría un orquestador al empezar su turno)\n\n${traspaso.texto}`, cache_control: { type: "ephemeral" as const } }]
+      : []),
+    { type: "text", text: systemPrompt },
+  ]
 
   // Multimodal user content
   type ContentBlock =
@@ -237,143 +249,209 @@ export async function POST(req: Request) {
       }
 
       let assistantText = ""
-      const toolBlocks = new Map<number, { name: string; partial: string }>()
       const toolCalls: Array<{ name: string; input: Record<string, unknown> }> = []
       let usage: { input_tokens?: number; output_tokens?: number } | null = null
       let stopReason: string | null = null
+      let vueltasDeHerramientas = 0
+      let fallo = false
+      const deps = { svc, plataforma: lectoresDeLaPlataforma(svc) }
+      const mensajes: Array<{ role: string; content: unknown }> = [...claudeMessages]
 
-      let claudeRes: Response
-      try {
-        claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-6",
-            max_tokens: 1600,
-            stream: true,
-            system: systemPrompt,
-            tools: TOOLS,
-            messages: claudeMessages,
-          }),
-          signal: req.signal,
-        })
-      } catch (e) {
-        emit("error", { message: e instanceof Error ? e.message : "anthropic_fetch_failed" })
-        done()
-        return
+      type BloqueDeTexto = { type: "text"; text: string }
+      type BloqueDeHerramienta = { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+      interface ResultadoDeVuelta {
+        ok: boolean
+        bloques: Array<BloqueDeTexto | BloqueDeHerramienta>
+        parada: string | null
       }
 
-      if (!claudeRes.ok || !claudeRes.body) {
-        const errText = await claudeRes.text().catch(() => "")
-        // 01-nov: queda en los registros de Vercel (sin la llave) para saber el motivo real cuando el cuadro de /nuevo no puede responder
-        console.error("cowork/prompt: anthropic_api_error", claudeRes.status, errText.slice(0, 300))
-        emit("error", {
-          message: "anthropic_api_error",
-          status: claudeRes.status,
-          details: errText.slice(0, 500),
-        })
-        done()
-        return
-      }
+      /** una llamada al modelo: emite el texto al cliente a medida que llega y devuelve los bloques completos de esa vuelta */
+      async function unaVuelta(): Promise<ResultadoDeVuelta> {
+        const toolBlocks = new Map<number, { id: string; name: string; partial: string }>()
+        const textBlocks = new Map<number, string>()
+        const orden: number[] = []
+        const bloquesDeHerramienta: BloqueDeHerramienta[] = []
+        let parada: string | null = null
 
-      const reader = claudeRes.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-      let curEvent = ""
-      let curData = ""
-
-      const handleEvent = (event: string, dataStr: string) => {
-        if (!dataStr) return
-        let parsed: Record<string, unknown>
+        let claudeRes: Response
         try {
-          parsed = JSON.parse(dataStr)
-        } catch {
-          return
+          claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey as string,
+              "anthropic-version": "2023-06-01",
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-6",
+              max_tokens: 1600,
+              stream: true,
+              system: systemBlocks,
+              tools: TOOLS,
+              messages: mensajes,
+            }),
+            signal: req.signal,
+          })
+        } catch (e) {
+          emit("error", { message: e instanceof Error ? e.message : "anthropic_fetch_failed" })
+          return { ok: false, bloques: [], parada: null }
         }
-        if (event === "content_block_start") {
-          const idx = Number(parsed.index ?? -1)
-          const block = parsed.content_block as Record<string, unknown> | undefined
-          if (block?.type === "tool_use") {
-            toolBlocks.set(idx, {
-              name: String(block.name ?? ""),
-              partial: "",
-            })
+
+        if (!claudeRes.ok || !claudeRes.body) {
+          const errText = await claudeRes.text().catch(() => "")
+          // 01-nov: queda en los registros de Vercel (sin la llave) para saber el motivo real cuando el cuadro de /nuevo no puede responder
+          console.error("cowork/prompt: anthropic_api_error", claudeRes.status, errText.slice(0, 300))
+          emit("error", {
+            message: "anthropic_api_error",
+            status: claudeRes.status,
+            details: errText.slice(0, 500),
+          })
+          return { ok: false, bloques: [], parada: null }
+        }
+
+        const reader = claudeRes.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        let curEvent = ""
+        let curData = ""
+
+        const handleEvent = (event: string, dataStr: string) => {
+          if (!dataStr) return
+          let parsed: Record<string, unknown>
+          try {
+            parsed = JSON.parse(dataStr)
+          } catch {
+            return
           }
-        } else if (event === "content_block_delta") {
-          const idx = Number(parsed.index ?? -1)
-          const delta = parsed.delta as Record<string, unknown> | undefined
-          if (delta?.type === "text_delta" && typeof delta.text === "string") {
-            assistantText += delta.text
-            emit("text", { value: delta.text })
-          } else if (
-            delta?.type === "input_json_delta" &&
-            typeof delta.partial_json === "string"
-          ) {
-            const t = toolBlocks.get(idx)
-            if (t) t.partial += delta.partial_json
-          }
-        } else if (event === "content_block_stop") {
-          const idx = Number(parsed.index ?? -1)
-          const t = toolBlocks.get(idx)
-          if (t) {
-            try {
-              const input = t.partial ? (JSON.parse(t.partial) as Record<string, unknown>) : {}
-              toolCalls.push({ name: t.name, input })
-              emit("tool_use", { name: t.name, input })
-            } catch {
-              emit("tool_use", { name: t.name, input: { _raw: t.partial } })
+          if (event === "content_block_start") {
+            const idx = Number(parsed.index ?? -1)
+            const block = parsed.content_block as Record<string, unknown> | undefined
+            orden.push(idx)
+            if (block?.type === "tool_use") {
+              toolBlocks.set(idx, { id: String(block.id ?? ""), name: String(block.name ?? ""), partial: "" })
+            } else if (block?.type === "text") {
+              textBlocks.set(idx, "")
             }
-            toolBlocks.delete(idx)
+          } else if (event === "content_block_delta") {
+            const idx = Number(parsed.index ?? -1)
+            const delta = parsed.delta as Record<string, unknown> | undefined
+            if (delta?.type === "text_delta" && typeof delta.text === "string") {
+              assistantText += delta.text
+              textBlocks.set(idx, (textBlocks.get(idx) ?? "") + delta.text)
+              emit("text", { value: delta.text })
+            } else if (
+              delta?.type === "input_json_delta" &&
+              typeof delta.partial_json === "string"
+            ) {
+              const t = toolBlocks.get(idx)
+              if (t) t.partial += delta.partial_json
+            }
+          } else if (event === "content_block_stop") {
+            const idx = Number(parsed.index ?? -1)
+            const t = toolBlocks.get(idx)
+            if (t) {
+              let input: Record<string, unknown>
+              try {
+                input = t.partial ? (JSON.parse(t.partial) as Record<string, unknown>) : {}
+              } catch {
+                input = { _raw: t.partial }
+              }
+              bloquesDeHerramienta.push({ type: "tool_use", id: t.id, name: t.name, input })
+              toolBlocks.delete(idx)
+            }
+          } else if (event === "message_delta") {
+            const delta = parsed.delta as Record<string, unknown> | undefined
+            if (delta && typeof delta.stop_reason === "string") {
+              stopReason = delta.stop_reason
+              parada = delta.stop_reason
+            }
+            if (parsed.usage && typeof parsed.usage === "object") {
+              const u = parsed.usage as { input_tokens?: number; output_tokens?: number }
+              usage = { input_tokens: (usage?.input_tokens ?? 0) + (u.input_tokens ?? 0), output_tokens: (usage?.output_tokens ?? 0) + (u.output_tokens ?? 0) }
+            }
           }
-        } else if (event === "message_delta") {
-          const delta = parsed.delta as Record<string, unknown> | undefined
-          if (delta && typeof delta.stop_reason === "string") {
-            stopReason = delta.stop_reason
-          }
-          if (parsed.usage && typeof parsed.usage === "object") {
-            usage = parsed.usage as typeof usage
-          }
-        } else if (event === "message_stop") {
-          // handled after the read loop
         }
+
+        try {
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const { done: isDone, value } = await reader.read()
+            if (isDone) break
+            buffer += decoder.decode(value, { stream: true })
+            // SSE frames are separated by \n\n · within a frame, "event:"
+            // and "data:" lines accumulate.
+            let nl: number
+            while ((nl = buffer.indexOf("\n")) !== -1) {
+              const line = buffer.slice(0, nl).replace(/\r$/, "")
+              buffer = buffer.slice(nl + 1)
+              if (line === "") {
+                if (curEvent || curData) {
+                  handleEvent(curEvent, curData)
+                  curEvent = ""
+                  curData = ""
+                }
+                continue
+              }
+              if (line.startsWith(":")) continue // comment
+              if (line.startsWith("event:")) curEvent = line.slice(6).trim()
+              else if (line.startsWith("data:"))
+                curData = (curData ? curData + "\n" : "") + line.slice(5).trim()
+            }
+          }
+        } catch (e) {
+          // Client abort or upstream error · we still persist what we have
+          emit("error", {
+            message: e instanceof Error ? e.message : "stream_interrupted",
+            partial: true,
+          })
+          return { ok: false, bloques: [], parada }
+        }
+
+        // los bloques de la vuelta en el orden en que llegaron (texto y herramientas)
+        const bloques: Array<BloqueDeTexto | BloqueDeHerramienta> = []
+        for (const idx of orden) {
+          if (textBlocks.has(idx)) {
+            const tx = textBlocks.get(idx) ?? ""
+            if (tx) bloques.push({ type: "text", text: tx })
+          }
+        }
+        bloques.push(...bloquesDeHerramienta)
+        return { ok: true, bloques, parada }
       }
 
-      try {
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const { done: isDone, value } = await reader.read()
-          if (isDone) break
-          buffer += decoder.decode(value, { stream: true })
-          // SSE frames are separated by \n\n · within a frame, "event:"
-          // and "data:" lines accumulate.
-          let nl: number
-          while ((nl = buffer.indexOf("\n")) !== -1) {
-            const line = buffer.slice(0, nl).replace(/\r$/, "")
-            buffer = buffer.slice(nl + 1)
-            if (line === "") {
-              if (curEvent || curData) {
-                handleEvent(curEvent, curData)
-                curEvent = ""
-                curData = ""
-              }
-              continue
-            }
-            if (line.startsWith(":")) continue // comment
-            if (line.startsWith("event:")) curEvent = line.slice(6).trim()
-            else if (line.startsWith("data:"))
-              curData = (curData ? curData + "\n" : "") + line.slice(5).trim()
+      // bucle: el modelo puede LEER (buscar en el vault, leer un documento, consultar la plataforma) hasta MAX_VUELTAS_DE_HERRAMIENTAS veces; proponer_pedido nunca ejecuta nada
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        if (vueltasDeHerramientas > 0 && assistantText && !assistantText.endsWith("\n\n")) {
+          assistantText += "\n\n"
+          emit("text", { value: "\n\n" })
+        }
+        const v = await unaVuelta()
+        if (!v.ok) { fallo = true; break }
+        const usos = v.bloques.filter((b): b is BloqueDeHerramienta => b.type === "tool_use")
+        for (const u of usos) {
+          toolCalls.push({ name: u.name, input: u.input })
+          if (!NOMBRES_DE_LECTURA.has(u.name)) emit("tool_use", { name: u.name, input: u.input })
+        }
+        const lecturas = usos.filter((u) => NOMBRES_DE_LECTURA.has(u.name))
+        if (v.parada !== "tool_use" || lecturas.length === 0 || vueltasDeHerramientas >= MAX_VUELTAS_DE_HERRAMIENTAS) break
+        vueltasDeHerramientas += 1
+        const resultados: Array<{ type: "tool_result"; tool_use_id: string; content: string }> = []
+        for (const u of usos) {
+          if (NOMBRES_DE_LECTURA.has(u.name)) {
+            emit("estado", { value: u.name })
+            resultados.push({ type: "tool_result", tool_use_id: u.id, content: await ejecutarHerramienta(u.name, u.input, deps) })
+          } else {
+            resultados.push({ type: "tool_result", tool_use_id: u.id, content: "El botón ya se le mostró a Emilio; no se ejecuta nada hasta que lo toque." })
           }
         }
-      } catch (e) {
-        // Client abort or upstream error · we still persist what we have
-        emit("error", {
-          message: e instanceof Error ? e.message : "stream_interrupted",
-          partial: true,
-        })
+        mensajes.push({ role: "assistant", content: v.bloques })
+        mensajes.push({ role: "user", content: resultados })
+      }
+      // si la primera llamada falló y no hay nada que guardar, el error ya salió: no se registra una fila vacía
+      if (fallo && !assistantText) {
+        done()
+        return
       }
 
       // Final · persist + emit done
