@@ -41,10 +41,13 @@ async function directorio(supa: SupabaseClient) {
 }
 
 /** el cliente y el momento de su campaña (una lectura por minuto, compartida); si no se puede leer, la escena sigue sin esa línea */
-async function contexto(supa: SupabaseClient, ahora: Date): Promise<EscenaDatos["contexto"]> {
+/** el plan del cliente de la escena: el que pide el navegador (el de trabajo de Emilio) o, sin pedido, el de la regla por omisión; una lectura por minuto y por cliente */
+const planDeLaEscena = (supa: SupabaseClient, ahora: Date, cliente: string | null) => conCache(`escena-viva-contexto:${cliente ?? "omision"}`, 60_000, () => leerPlanDelCliente(supa, { ahora, cliente }))
+
+async function contexto(supa: SupabaseClient, ahora: Date, cliente: string | null): Promise<EscenaDatos["contexto"]> {
   // 02-nov · carga: la línea del cliente es un detalle y NO frena la escena. Si la lectura del plan tarda más de ESPERA_DEL_CONTEXTO_MS, la escena sale sin ella
   // (la lectura sigue y queda en la memoria de 60 s: el siguiente sondeo ya la trae)
-  const lectura = conCache("escena-viva-contexto", 60_000, () => leerPlanDelCliente(supa, { ahora }))
+  const lectura = planDeLaEscena(supa, ahora, cliente)
   lectura.catch(() => undefined)
   try {
     const plan = await Promise.race([lectura, new Promise<null>((r) => setTimeout(() => r(null), ESPERA_DEL_CONTEXTO_MS))])
@@ -52,15 +55,16 @@ async function contexto(supa: SupabaseClient, ahora: Date): Promise<EscenaDatos[
   } catch { return null }
 }
 
-export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } = {}): Promise<EscenaDatos> {
+export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /** CC6 · 02-nov: el cliente de trabajo que manda el navegador */ cliente?: string | null } = {}): Promise<EscenaDatos> {
   const ahora = o.ahora ?? new Date()
+  const cliente = o.cliente ?? null
   const desde = new Date(ahora.getTime() - HORAS_RECIENTE * 3_600_000).toISOString()
   const [desp, inv, dir, ctx] = await Promise.all([
     // los despachos abiertos (sin importar cuándo: los viejos se cuentan como «sin fin registrado») + los que terminaron o fallaron en la ventana
     filas(supa.from("agent_dispatches").select("id, agent_name, client_id, workflow_id, workflow_execution_id, status, running_at, completed_at, created_at").or(`status.eq.running,created_at.gte.${desde}`).order("created_at", { ascending: false }).limit(300), "agent_dispatches"),
     filas(supa.from("agent_invocations").select("agent_name, client_id, workflow_id, workflow_execution_id, status, started_at, ended_at, cost_usd, step_name:metadata->>step_name, task_text:metadata->>task_text").gte("created_at", desde).order("created_at", { ascending: false }).limit(LIMITE_DE_INVOCACIONES), "agent_invocations"),
     directorio(supa),
-    contexto(supa, ahora),
+    contexto(supa, ahora, cliente),
   ])
   const despachos: Despacho[] = desp.map((d) => ({ id: String(d.id), agent_name: String(d.agent_name ?? ""), client_id: s(d.client_id), workflow_id: s(d.workflow_id), workflow_execution_id: s(d.workflow_execution_id), status: s(d.status), running_at: s(d.running_at), completed_at: s(d.completed_at), created_at: s(d.created_at) }))
   const invocaciones: InvocacionViva[] = inv.map((i) => {
@@ -75,9 +79,9 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date } =
     escena = conRevisiones(escena, ent, { directorio: dir.tarjetas, agentes: dir.agentes, ahora }).escena
   } catch { /* sin entregas esta vez */ }
   // el pizarrón de métricas: las redes del cliente (de sus canales) y la lectura única de métricas (hoy «sin datos»)
-  try { escena = { ...escena, metricas: await leerElPizarronDeMetricas(supa, ahora) } } catch { /* sin pizarrón esta vez */ }
+  try { escena = { ...escena, metricas: await leerElPizarronDeMetricas(supa, ahora, cliente) } } catch { /* sin pizarrón esta vez */ }
   // la pantalla vertical: la vitrina de las mejores piezas (hoy «métricas pronto» + la última pieza aprobada)
-  try { escena = { ...escena, vitrina: await leerLaVitrinaDeMarketing(supa, ahora) } } catch { /* sin vitrina esta vez */ }
+  try { escena = { ...escena, vitrina: await leerLaVitrinaDeMarketing(supa, ahora, cliente) } } catch { /* sin vitrina esta vez */ }
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
@@ -139,9 +143,9 @@ export async function leerEntregas(supa: SupabaseClient, ahora: Date): Promise<E
 }
 
 /** el pizarrón de métricas de marketing: el cliente de la escena, las redes que tiene (de `clients.config` y su sitio) y la lectura de métricas. Solo lectura */
-export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date): Promise<MetricasDelPizarron> {
-  return conCache("escena-viva-metricas", 60_000, async () => {
-    const plan = await conCache("escena-viva-contexto", 60_000, () => leerPlanDelCliente(supa, { ahora }))
+export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null): Promise<MetricasDelPizarron> {
+  return conCache(`escena-viva-metricas:${clientePedido ?? "omision"}`, 60_000, async () => {
+    const plan = await planDeLaEscena(supa, ahora, clientePedido)
     const cliente = plan.cliente
     let redes: ReturnType<typeof redesDelCliente> = []
     if (cliente) {
@@ -158,9 +162,9 @@ export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date
 }
 
 /** la vitrina de la pantalla vertical de marketing: el cliente de la escena y su última pieza aprobada. Solo lectura */
-export async function leerLaVitrinaDeMarketing(supa: SupabaseClient, ahora: Date): Promise<VitrinaDeLaEscena> {
-  return conCache("escena-viva-vitrina", 60_000, async () => {
-    const plan = await conCache("escena-viva-contexto", 60_000, () => leerPlanDelCliente(supa, { ahora }))
+export async function leerLaVitrinaDeMarketing(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null): Promise<VitrinaDeLaEscena> {
+  return conCache(`escena-viva-vitrina:${clientePedido ?? "omision"}`, 60_000, async () => {
+    const plan = await planDeLaEscena(supa, ahora, clientePedido)
     return leerLaVitrina(supa, { cliente: plan.cliente?.id ?? null })
   })
 }

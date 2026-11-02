@@ -4,6 +4,8 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { clienteRecordadoEn, guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { leerPizarron } from "@/lib/pizarron-datos"
+import { leerPlanDelCliente } from "@/lib/plan-datos"
+import { readFileSync } from "node:fs"
 import { PedirCambiosAlManual } from "@/components/nuevo/manual/PedirCambiosAlManual"
 import { PanelPizarron } from "@/components/nuevo/PanelPizarron"
 import { faseActiva } from "@/lib/pizarron"
@@ -83,5 +85,24 @@ describe("el cliente a la vista", () => {
   it("«Pedir cambios al manual» dice para qué cliente, antes de enviar", () => {
     const h = renderToStaticMarkup(createElement(PedirCambiosAlManual, { cliente: NAUFRAGO, clienteNombre: "Náufrago", ciclo: { disponible: true, abierto: null, avance: null, que_cambio: [] }, accion: async () => ({ ok: true, texto: "", detalle: {} }) as never, validadosDelManual: [], onResultado: () => {} }))
     expect(h).toContain(">Pedir cambios al manual de Náufrago</button>")
+  })
+})
+
+describe("la escena de marketing sigue al mismo cliente (corrección de Lenovo 20:05Z)", () => {
+  it("la línea de la escena sale del plan del cliente: con los datos de hoy, Náufrago (no Zero Risk SI)", async () => {
+    const p = await leerPlanDelCliente(base({
+      clients: clientes,
+      cadena_campanas: [{ id: "c-zr", client_id: ZR, estado: "pausada", seco: false, creada_en: "2026-10-20" }, { id: "c-n", client_id: NAUFRAGO, estado: "reemplazada", seco: false, creada_en: "2026-10-30" }],
+      client_historical_outputs: [{ client_id: NAUFRAGO, status: "draft", created_at: "2026-11-01T19:49:20Z", output_type: "campaign_plan_90d" }, { client_id: ZR, status: "draft", created_at: "2026-10-20T20:11:31Z", output_type: "campaign_plan_90d" }],
+    }), { ahora: new Date("2026-11-02T20:00:00Z") })
+    expect(p.cliente?.id).toBe(NAUFRAGO)
+  })
+  it("el navegador manda el cliente de trabajo a la escena; la ruta solo acepta un id válido; el plan, las métricas y la vitrina de la escena usan ese cliente", () => {
+    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toMatch(/leerClienteDeTrabajo\(\)\?\.id[\s\S]{0,120}\/api\/escena-viva\$\{id \? `\?cliente=/)
+    const ruta = readFileSync("app/api/escena-viva/route.ts", "utf8")
+    expect(ruta).toContain('searchParams.get("cliente")'); expect(ruta).toContain("UUID.test(pedido)")
+    const datos = readFileSync("lib/escena-avatares-datos.ts", "utf8")
+    expect(datos).toContain("contexto(supa, ahora, cliente)"); expect(datos).toContain("leerElPizarronDeMetricas(supa, ahora, cliente)"); expect(datos).toContain("leerLaVitrinaDeMarketing(supa, ahora, cliente)")
+    expect(datos).not.toContain('conCache("escena-viva-contexto"') // la memoria es por cliente
   })
 })

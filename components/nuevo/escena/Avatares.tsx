@@ -1,5 +1,6 @@
 "use client"
 
+import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { CuadrosDeMetricas, ESTILO_ENTREGAS, LamparaDeFirma, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
@@ -86,7 +87,9 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
 
   const leer = useCallback(async () => {
     try {
-      const r = await fetch("/api/escena-viva", { cache: "no-store" })
+      // CC6 · 02-nov (corrección de Lenovo): la escena sigue al cliente con el que Emilio trabaja (el mismo que abren los paneles)
+      const id = leerClienteDeTrabajo()?.id
+      const r = await fetch(`/api/escena-viva${id ? `?cliente=${encodeURIComponent(id)}` : ""}`, { cache: "no-store" })
       const j = (await r.json()) as Respuesta
       if (!j.ok) throw new Error(j.error)
       setDatos(j); setError(null)
