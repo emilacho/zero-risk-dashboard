@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { armarEscena, type Despacho, type EntradaDeLaEscena, type InvocacionViva } from "@/lib/escena-avatares"
 import { conAportes, globoDe, lineasDelResultado, pasoDeAnalisis, resumenDeLaRevision, resumenDelAporte, SALA, tituloDelResultado } from "@/lib/escena-sala"
-import { destinoEnElCentro, globoVisible, luzDeLaBurbuja } from "@/components/nuevo/escena/SalaDeReuniones"
+import { destinoEnElCentro, globoVisible, luzDeLaBurbuja, SalaEnLaFoto } from "@/components/nuevo/escena/SalaDeReuniones"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
 import { AporteCompleto, bloquesDelTexto } from "@/components/nuevo/escena/AporteCompleto"
 import { mismoComienzo } from "@/lib/escena-aporte-datos"
@@ -119,9 +119,17 @@ describe("los aportes de la sala · S4", () => {
     const e = armarEscena(entrada(30, { invocaciones: [...analisis(), redaccion, jefatura] }))
     e.sala = { ...e.sala!, reunion: conAportes(e.sala!.reunion!, { salidas: SALIDAS, informesEnElCerebro: FICHAS, revision: REVISION }) }
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: e }))
-    expect((html.match(/data-burbuja=/g) ?? []).length).toBe(7)
-    expect(html).toContain('data-luz="apagado"')
+    // 03-nov · el globito de cada quien vive mientras su silueta sigue sentada: con la sala vacía (todos se levantaron) solo quedan los que viajaron al centro
+    const sinSentados = (html.match(/data-burbuja=/g) ?? []).length
+    expect(sinSentados).toBeLessThan(7)
+    expect(html).not.toContain('data-luz="apagado"')
     expect(html).toContain('data-luz="centro"')
+    const todos = renderToStaticMarkup(createElement("svg", null, createElement(SalaEnLaFoto, { sala: e.sala, abierta: false, onAbrir: () => {} })))
+    expect((todos.match(/data-burbuja=/g) ?? []).length).toBe(7)
+    expect(todos).toContain('data-luz="apagado"')
+    const algunos = renderToStaticMarkup(createElement("svg", null, createElement(SalaEnLaFoto, { sala: e.sala, abierta: false, onAbrir: () => {}, sentados: new Set(["growth-hacker"]) })))
+    expect(algunos).toContain('data-burbuja="growth-hacker"')
+    expect(algunos).not.toContain('data-burbuja="x-twitter-intelligence-analyst"')
     expect(html).toContain('data-globo="resultado"')
     expect(html).toContain("usó 3 de 5 informes de la mesa de análisis")
     expect(html).not.toMatch(/class="nv-sil"[^>]*data-lugar="sala"/) // la reunión terminó: ya nadie sigue sentado en la sala (se levantaron y salieron)

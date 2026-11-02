@@ -52,7 +52,7 @@ const suave = (f: number) => (f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) 
 const dentroDeLaSala = (p: Punto): boolean => p.x > 1300 && p.x < 1500 && p.y > 405 && p.y < 585
 const pegar = (...rutas: Punto[][]): Punto[] => rutaPorVarios(rutas.flat())
 
-export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar }: {
+export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onSentados }: {
   mesas: MesaViva[]
   /** la reunión real de la sala (de CC6): quién, en qué silla, quién habla; `null` = sin reunión */
   reunion?: ReunionDeLaSala | null
@@ -60,6 +60,8 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar }: {
   enLaSala: Set<string>
   onFoco?: (agente: string | null) => void
   onTocar?: (agente: string) => void
+  /** 03-nov · quiénes están SENTADOS en la sala ahora (nombres canónicos): la sala dibuja el globito de cada uno solo mientras su silueta sigue sentada */
+  onSentados?: (agentes: Set<string>) => void
 }) {
   // lo que DEBE verse ahora: los de la reunión, sentados en su silla; y los demás que trabajan, en su escritorio
   const deseos = useMemo(() => {
@@ -180,6 +182,8 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar }: {
   useEffect(() => () => { if (raf.current != null) cancelAnimationFrame(raf.current); raf.current = null }, [])
 
   const dibujo = [...almacen.current!.values()].sort((x, y) => x.pos.y - y.pos.y)
+  const sentadosEnLaSala = dibujo.filter((c) => c.lugar === "sala" && c.sentadoK > 0.5).map((c) => nombreCanonico(c.agente)).sort().join("|")
+  useEffect(() => { onSentados?.(new Set(sentadosEnLaSala ? sentadosEnLaSala.split("|") : [])) }, [sentadosEnLaSala]) // eslint-disable-line react-hooks/exhaustive-deps
   const deMas = mesas.map((m) => ({ m, n: repartirEnLaMesa({ ...m, sentados: m.sentados.filter((s) => !enLaSala.has(nombreCanonico(s.agente))) }).deMas })).filter((x) => x.n > 0)
   return (
     <g data-siluetas>
