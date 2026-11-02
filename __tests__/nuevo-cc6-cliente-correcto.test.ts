@@ -38,6 +38,24 @@ describe("el cliente por omisión (sin cliente pedido)", () => {
   })
 })
 
+describe("el cliente por omisión · reservas R1-R3 de CC3 (#205)", () => {
+  const T = { ahora: new Date("2026-11-02T19:00:00Z") }
+  const plan = (client_id: string, created_at: string, status = "draft") => ({ client_id, status, created_at, output_type: "campaign_plan_90d" })
+  it("R1 · un plan RECHAZADO no cuenta como el más reciente", async () => {
+    const p = await leerPizarron(base({ clients: clientes, cadena_campanas: [], client_historical_outputs: [plan(ZR, "2026-11-02T10:00:00Z", "rejected"), plan(NAUFRAGO, "2026-11-01T10:00:00Z")] }), T)
+    expect(p.cliente?.id).toBe(NAUFRAGO)
+  })
+  it("R2 · manda el plan MÁS RECIENTE, no el más antiguo", async () => {
+    const p = await leerPizarron(base({ clients: clientes, cadena_campanas: [], client_historical_outputs: [plan(ZR, "2026-10-01T10:00:00Z"), plan(NAUFRAGO, "2026-11-01T10:00:00Z")] }), T)
+    expect(p.cliente?.id).toBe(NAUFRAGO)
+  })
+  it("R3 · sin campaña en marcha ni plan, la campaña en pausa manda antes que «el primero»", async () => {
+    const p = await leerPizarron(base({ clients: clientes, cadena_campanas: [{ id: "c-zr", client_id: ZR, estado: "pausada", seco: false, creada_en: "2026-10-30" }], client_historical_outputs: [] }), T)
+    expect(p.clientes[0].id).toBe(NAUFRAGO) // la lista va por nombre: Náufrago es «el primero»…
+    expect(p.cliente?.id).toBe(ZR) // …pero manda la campaña en pausa de Zero Risk SI
+  })
+})
+
 describe("el cliente recordado (este navegador)", () => {
   const g = globalThis as unknown as { window?: unknown }
   afterEach(() => { delete g.window })
