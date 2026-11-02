@@ -8,6 +8,7 @@ import { Fragment, useMemo, useState } from "react"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
 import { colorDelMedidor, diaDelCiclo } from "@/lib/direccion-dinero"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
+import { NO_ES_CLIENTE, rutaDelCliente } from "@/lib/cliente-financiero"
 import { aCsv, desglose, EXPLICACION_INTERNO, grupoDeCliente, PRUEBAS_Y_FICHAS_VIEJAS, TRABAJO_INTERNO, fechaCorta, NOMBRE_DE_VISTA, topeSugerido, usdCorto, type Dinero, type FilaDeDesglose, type Movimiento, type Vista } from "@/lib/dinero-completo"
 
 const SIN_DATO = <span data-sin-dato-todavia className="italic text-zinc-500">sin dato todavía</span>
@@ -116,6 +117,7 @@ export function Desglose({ datos, rango, anterior, hoy, alAbrirCorrida }: { dato
                   <td className={`${TD} !whitespace-normal min-w-[150px]`}>{vista === "corrida" ? <><span className="text-zinc-100">{f.nombre}</span><span className="block text-[11.5px] text-zinc-500">{fechaCorta(f.dia!)} · {f.detalle}</span></>
                     : vista === "cliente" && f.clave === PRUEBAS_Y_FICHAS_VIEJAS ? <button type="button" data-desplegar-pruebas aria-expanded={verPruebas} onClick={() => setVerPruebas((v) => !v)} className="text-left text-zinc-300 hover:text-zinc-100"><span className="inline-block w-4 text-zinc-500">{verPruebas ? "▾" : "▸"}</span>{f.nombre}<span className="block pl-4 text-[11.5px] text-zinc-500">{f.fichas?.length ?? 0} {(f.fichas?.length ?? 0) === 1 ? "ficha" : "fichas"}</span></button>
                     : vista === "cliente" && f.clave === TRABAJO_INTERNO ? <span className="inline-flex items-center gap-1.5"><span className="text-zinc-100">{f.nombre}</span><span data-explicacion-interno><Ayuda texto={EXPLICACION_INTERNO} /></span></span>
+                    : vista === "cliente" && !esAparte(f.clave) && !NO_ES_CLIENTE(f.clave) ? <span className="flex items-center justify-between gap-3 pr-4"><span className="text-zinc-100">{f.nombre}</span><a href={rutaDelCliente(f.nombre)} data-ver-cliente={f.nombre} className="shrink-0 rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[12px] text-zinc-100 hover:bg-amber-500/20">Ver cliente ↗</a></span>
                     : <span className="text-zinc-100">{f.nombre}</span>}</td>
                   <td className={`${TD} tabular-nums text-zinc-100`}>{usdCorto(f.usd)}</td>
                   <td className={TD}><span className="inline-flex items-center gap-2"><span className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.07]"><span className="block h-full bg-[#e8731a]" style={{ width: `${Math.min(100, f.pct)}%` }} /></span><span className="tabular-nums text-zinc-400">{f.pct.toLocaleString("es-EC")} %</span></span></td>

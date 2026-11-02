@@ -1,6 +1,7 @@
 import { preload } from "react-dom"
 import { CapaNueva } from "@/components/nuevo/CapaNueva"
 import { EscenaViva } from "@/components/nuevo/EscenaViva"
+import { PanelCliente } from "@/components/nuevo/PanelCliente"
 import { BarraDeChat, BarraSuperior, MenuLateral } from "@/components/nuevo/MarcoNuevo"
 
 /**
@@ -8,7 +9,8 @@ import { BarraDeChat, BarraSuperior, MenuLateral } from "@/components/nuevo/Marc
  * (para quien entra directo a /nuevo/marketing o recarga); `oficina` (6.12) igual con tu oficina (/nuevo/oficina). Cubre toda la ventana (incluido el menú del dashboard actual, que no se toca).
  * 5.8 (31-oct): el fondo es NEGRO puro, igual que las esquinas de las fotos (0-2 de 255), para que no se vean los bordes de las imágenes.
  */
-export function PantallaNuevo({ marketing = false, cerebro = false, oficina = false }: { marketing?: boolean; cerebro?: boolean; oficina?: boolean }) {
+/** 6.42 · `cliente` (slug) abre encima la vista financiera de ese cliente (/nuevo/cliente/<cliente>) */
+export function PantallaNuevo({ marketing = false, cerebro = false, oficina = false, cliente }: { marketing?: boolean; cerebro?: boolean; oficina?: boolean; cliente?: string }) {
   // 01-nov · carga lenta: la pantalla se pinta en el navegador (CapaNueva), así que las fotos no estaban en el HTML y se pedían DESPUÉS de bajar y arrancar todo el JavaScript.
   // Con estas pistas van en la cabecera del HTML y se bajan a la vez que el JavaScript (la del departamento primero si se entra directo a él).
   const depto = marketing ? "marketing" : oficina ? "oficina" : null
@@ -26,6 +28,7 @@ export function PantallaNuevo({ marketing = false, cerebro = false, oficina = fa
         <div className="absolute inset-x-0 bottom-40 top-14 flex items-center justify-center px-4 sm:px-16">
           <EscenaViva inicial={marketing ? "marketing" : oficina ? "oficina" : false} cerebroInicial={cerebro} />
         </div>
+        {cliente && <PanelCliente slug={cliente} />}
         <BarraDeChat />
       </main>
     </CapaNueva>
