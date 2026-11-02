@@ -32,8 +32,7 @@ const TAM_ROTULO = 26
 const ESTILO = `
 .nv-av{pointer-events:none}
 .nv-av .nv-av-zona{pointer-events:auto;cursor:pointer;outline:none}
-.nv-av .nv-av-zona polygon{fill:rgba(255,140,40,0);stroke:none;transition:fill .3s ease}
-.nv-av .nv-av-zona:hover polygon,.nv-av .nv-av-zona:focus-visible polygon,.nv-av .nv-av-zona[aria-expanded="true"] polygon{fill:rgba(255,140,40,.06)}
+.nv-av .nv-av-zona polygon{fill:rgba(0,0,0,0);stroke:none} /* 02-nov · al pasar el cursor NO se pinta nada sobre el escritorio: solo aparece el rótulo del equipo */
 .nv-av .nv-av-rotulo{opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
 .nv-av .nv-av-zona:hover .nv-av-rotulo,.nv-av .nv-av-zona:focus-visible .nv-av-rotulo,.nv-av .nv-av-zona[aria-expanded="true"] .nv-av-rotulo{opacity:1;transform:none}
 .nv-av .nv-av-luz{opacity:0;transition:opacity .6s ease}
