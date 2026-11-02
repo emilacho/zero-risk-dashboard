@@ -156,10 +156,6 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <Siluetas mesas={mesas} enLaSala={quienEstaEnLaSala} />
         {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} />
-        {/* trabajando ahora sin mesa conocida: se dice, no se inventa una mesa */}
-        {datos && datos.sin_mesa.length > 0 && (
-          <text x={560} y={1120} fill="#bdb3a4" fontSize={18} fontFamily="system-ui, Arial, sans-serif" data-sin-mesa>sin equipo asignado · {datos.sin_mesa.map((s) => `${s.nombre} (${s.estado === "trabajando" ? "trabajando" : "falló"})`).join(" · ")}</text>
-        )}
       </svg>
       {/* S4 · el globo de la sala: el aporte del que está bajo el cursor, del que habla, o el resultado al centro al cerrar */}
       {(() => {
