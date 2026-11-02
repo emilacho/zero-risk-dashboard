@@ -8,11 +8,12 @@ import { Fragment, useMemo, useState } from "react"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
 import { colorDelMedidor, diaDelCiclo } from "@/lib/direccion-dinero"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
+import { ENCABEZADO_TABLA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
 import { NO_ES_CLIENTE, rutaDelCliente } from "@/lib/cliente-financiero"
 import { aCsv, desglose, EXPLICACION_INTERNO, grupoDeCliente, PRUEBAS_Y_FICHAS_VIEJAS, TRABAJO_INTERNO, fechaCorta, NOMBRE_DE_VISTA, topeSugerido, usdCorto, type Dinero, type FilaDeDesglose, type Movimiento, type Vista } from "@/lib/dinero-completo"
 
 const SIN_DATO = <span data-sin-dato-todavia className="italic text-zinc-500">sin dato todavía</span>
-const TH = "px-2 py-2 text-left whitespace-nowrap text-[11px] font-normal uppercase tracking-[0.1em] text-zinc-500"
+const TH = `px-2 py-2 text-left whitespace-nowrap ${ENCABEZADO_TABLA}`
 const TD = "px-2 py-2.5 align-middle whitespace-nowrap"
 
 function Variacion({ v }: { v: number | null }) {
@@ -114,7 +115,7 @@ export function Desglose({ datos, rango, anterior, hoy, alAbrirCorrida }: { dato
               {visibles.map((f) => (
                 <Fragment key={f.clave}>
                 <tr data-fila={f.clave} className="border-b border-white/[0.05] hover:bg-white/[0.02]">
-                  <td className={`${TD} !whitespace-normal min-w-[150px]`}>{vista === "corrida" ? <><span className="text-zinc-100">{f.nombre}</span><span className="block text-[11.5px] text-zinc-500">{fechaCorta(f.dia!)} · {f.detalle}</span></>
+                  <td className={`${TD} !whitespace-normal ${vista === "cliente" ? "min-w-[300px]" : "min-w-[150px]"}`}>{vista === "corrida" ? <><span className="text-zinc-100">{f.nombre}</span><span className="block text-[11.5px] text-zinc-500">{fechaCorta(f.dia!)} · {f.detalle}</span></>
                     : vista === "cliente" && f.clave === PRUEBAS_Y_FICHAS_VIEJAS ? <button type="button" data-desplegar-pruebas aria-expanded={verPruebas} onClick={() => setVerPruebas((v) => !v)} className="text-left text-zinc-300 hover:text-zinc-100"><span className="inline-block w-4 text-zinc-500">{verPruebas ? "▾" : "▸"}</span>{f.nombre}<span className="block pl-4 text-[11.5px] text-zinc-500">{f.fichas?.length ?? 0} {(f.fichas?.length ?? 0) === 1 ? "ficha" : "fichas"}</span></button>
                     : vista === "cliente" && f.clave === TRABAJO_INTERNO ? <span className="inline-flex items-center gap-1.5"><span className="text-zinc-100">{f.nombre}</span><span data-explicacion-interno><Ayuda texto={EXPLICACION_INTERNO} /></span></span>
                     : vista === "cliente" && !esAparte(f.clave) && !NO_ES_CLIENTE(f.clave) ? <span className="flex items-center justify-between gap-3 pr-4"><span className="text-zinc-100">{f.nombre}</span><a href={rutaDelCliente(f.nombre)} data-ver-cliente={f.nombre} className="shrink-0 rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[12px] text-zinc-100 hover:bg-amber-500/20">Ver cliente ↗</a></span>
@@ -155,7 +156,7 @@ export function Proveedores({ datos, rango }: { datos: Dinero; rango: { desde: s
   const extra = [...consumo.keys()].filter((p) => !(PROVEEDORES as readonly string[]).includes(p))
   return (
     <section data-dinero="proveedores" className="rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5">
-      <h3 className="mb-3 flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]">Proveedores <Ayuda texto="Consumo del período contra el saldo o crédito de cada proveedor, con su fecha de corte. Aviso de saldo bajo desde 85 %." lado="izquierda" /></h3>
+      <h3 className={`mb-3 flex items-center gap-2 ${TITULO_SECCION}`}>Proveedores <Ayuda texto="Consumo del período contra el saldo o crédito de cada proveedor, con su fecha de corte. Aviso de saldo bajo desde 85 %." lado="izquierda" /></h3>
       <div className="divide-y divide-white/[0.05]">
         {[...PROVEEDORES, ...extra].map((p) => {
           const s = saldoDe(p), c = consumo.get(p) ?? null

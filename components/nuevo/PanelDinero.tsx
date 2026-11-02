@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Desglose, Proveedores } from "@/components/nuevo/DineroDesglose"
 import { Ahorro, Anomalias, CostoPorResultado } from "@/components/nuevo/DineroResultados"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
+import { ROTULO_TARJETA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
 import { anteriorDe, cacheDelRango, costoDeRehacer, diaLocal, fechaCorta, frenteA, loQueCambio, NOMBRE_DE_DIMENSION, PERIODOS, picos, rangoDe, resumenDelPeriodo, serie, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Periodo, type Pico, type Serie } from "@/lib/dinero-completo"
 
 /**
@@ -25,7 +26,7 @@ const Ancla = ({ id, children }: { id: string; children: React.ReactNode }) => <
 
 const Seccion = ({ titulo, children, extra, dato, ayuda }: { titulo: string; children: React.ReactNode; extra?: React.ReactNode; dato: string; ayuda?: string }) => (
   <section data-dinero={dato} className="rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5">
-    <div className="mb-3 flex flex-wrap items-center gap-2"><h3 className="text-[12px] uppercase tracking-[0.2em] text-[#ffb86b]">{titulo}</h3>{ayuda && <Ayuda texto={ayuda} />}{extra}</div>
+    <div className="mb-3 flex flex-wrap items-center gap-2"><h3 className={TITULO_SECCION}>{titulo}</h3>{ayuda && <Ayuda texto={ayuda} />}{extra}</div>
     {children}
   </section>
 )
@@ -41,7 +42,7 @@ function LoQueCambio({ datos, hoy, rango, anterior, alAbrirCorrida }: { datos: D
     <section data-dinero="cambios" className="grid gap-3 md:grid-cols-3">
       {cambios.map((c) => (
         <div key={c.tipo} data-cambio={c.tipo} className="rounded-xl border border-white/[0.09] bg-[#1b1815] px-4 py-3.5">
-          <p className="text-[11px] uppercase tracking-[0.14em]" style={{ color: AMBAR }}>{ETIQUETA[c.tipo]}</p>
+          <h4 className={ROTULO_TARJETA}>{ETIQUETA[c.tipo]}</h4>
           <p data-cambio-numero className="mt-1 text-[30px] font-extralight leading-tight [font-variant-numeric:tabular-nums]" style={{ color: color(c) }}>{c.numero ?? "—"}</p>
           <p data-cambio-linea className="text-[13px] text-zinc-300">{c.linea ?? c.texto}</p>
           <div className="mt-2 flex items-center gap-3 text-[12px]">
@@ -58,7 +59,7 @@ function LoQueCambio({ datos, hoy, rango, anterior, alAbrirCorrida }: { datos: D
 /* 2 · el número principal (Ramp): gasto del período + variación frente al anterior igual + proyección; lo demás más chico */
 const Chica = ({ t, v, children, dato, ayuda }: { t: string; v: React.ReactNode; children?: React.ReactNode; dato: string; ayuda?: string }) => (
   <div data-tarjeta={dato} className="min-w-0">
-    <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-zinc-500">{t}{ayuda && <Ayuda texto={ayuda} lado="izquierda" />}</p>
+    <p className={`flex items-center gap-1.5 ${ROTULO_TARJETA}`}>{t}{ayuda && <Ayuda texto={ayuda} lado="izquierda" />}</p>
     <p className="mt-0.5 text-[20px] font-extralight text-white [font-variant-numeric:tabular-nums]">{v}</p>
     {children && <div className="text-[12px] text-zinc-400">{children}</div>}
   </div>
@@ -70,7 +71,7 @@ function Resumen({ datos, hoy, rango, anterior }: { datos: Dinero; hoy: string; 
   return (
     <section data-dinero="resumen" className="grid gap-5 rounded-xl border border-white/[0.09] bg-[#1b1815] p-5 sm:p-6 lg:grid-cols-[1.3fr_1fr] lg:items-end">
       <div data-tarjeta="periodo">
-        <p className="text-[12px] uppercase tracking-[0.18em] text-zinc-400">Gasto del período</p>
+        <h3 className={TITULO_SECCION}>Gasto del período</h3>
         <p data-numero-principal className="mt-1 text-[clamp(44px,6vw,72px)] font-extralight leading-none text-white [font-variant-numeric:tabular-nums]">{usdCorto(k.total)}</p>
         <p className="mt-3 text-[14px] text-zinc-300">
           {k.variacion_pct == null ? <span className="text-zinc-500">sin gasto en {anterior.nombre} para comparar</span>
@@ -203,7 +204,7 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <section role="dialog" aria-modal="true" aria-labelledby="dinero-titulo" data-seccion="dinero" data-pantalla-completa className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 px-4 py-2.5 sm:px-6">
-          <h2 id="dinero-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Dinero</h2>
+          <h2 id="dinero-titulo" className="font-display text-[18px] font-normal uppercase tracking-[0.24em]" style={{ color: AMBAR }}>Dinero</h2>
           <div role="group" aria-label="Período" data-selector-unico className="flex gap-1.5">
             {PERIODOS.map((p) => <button key={p.k} type="button" data-periodo={p.k} aria-pressed={periodo === p.k} onClick={() => setPeriodo(p.k)} className={`rounded-full border px-2.5 py-1 text-[12px] ${periodo === p.k ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{p.t}</button>)}
           </div>
