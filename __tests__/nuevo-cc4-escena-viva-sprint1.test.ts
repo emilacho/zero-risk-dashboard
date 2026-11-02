@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { readFileSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { EQUIPOS, nombreCanonico } from "@/lib/organigrama"
@@ -22,7 +23,11 @@ describe("ADENDA 3 · cada empleado lleva su propio toque, estable y sin repetir
     expect(rasgosDelHolograma("content_creator")).toEqual(rasgosDelHolograma("Content-Creator"))
     expect(descripcionDelHolograma("content-creator")).toMatch(/contextura/)
   })
-  it("la contextura gruesa es CLARAMENTE más ancha (más del doble que la media)", () => { expect(ANCHO_DE_LA_CONTEXTURA.gruesa / ANCHO_DE_LA_CONTEXTURA.media).toBeGreaterThan(2) })
+  it("la contextura gruesa es ~1,5 veces la media y se dibuja redondeada (curvas), no como una caja", () => {
+    const k = ANCHO_DE_LA_CONTEXTURA.gruesa / ANCHO_DE_LA_CONTEXTURA.media
+    expect(k).toBeGreaterThan(1.4); expect(k).toBeLessThan(1.7)
+    expect(readFileSync("components/nuevo/escena/Holograma.tsx", "utf8")).toMatch(/gr\s*\?\s*`M[^`]*C\$\{P\(/)
+  })
   it("todas las contexturas, cabellos, accesorios y ropas aparecen en el equipo", () => {
     const r = roster.map(rasgosDelHolograma)
     for (const c of CONTEXTURAS) expect(r.some((x) => x.contextura === c)).toBe(true)

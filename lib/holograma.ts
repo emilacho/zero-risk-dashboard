@@ -23,8 +23,8 @@ export const NOMBRE_DEL_ACCESORIO: Record<Accesorio, string> = { ninguno: "sin a
 export const NOMBRE_DE_LA_ROPA: Record<Ropa, string> = { pantalon: "pantalón", falda: "falda", vestido: "vestido largo", chaqueta: "chaqueta", chaleco: "chaleco" }
 export const NOMBRE_DE_LA_CONTEXTURA: Record<Contextura, string> = { delgada: "contextura delgada", media: "contextura media", gruesa: "contextura más gruesa" }
 
-/** el ancho relativo del cuerpo: la gruesa tiene que verse CLARAMENTE más ancha (más del doble de la media) */
-export const ANCHO_DE_LA_CONTEXTURA: Record<Contextura, number> = { delgada: 0.9, media: 1.06, gruesa: 2.2 }
+/** el ancho relativo del cuerpo: la gruesa tiene que verse CLARAMENTE más ancha (~1,5 veces la media, con forma humana redondeada, no una caja) */
+export const ANCHO_DE_LA_CONTEXTURA: Record<Contextura, number> = { delgada: 0.9, media: 1.06, gruesa: 1.6 }
 
 /** cambia este número si dos empleados del organigrama llegaran a chocar (la prueba lo avisa) */
 export const SAL = "h1"
