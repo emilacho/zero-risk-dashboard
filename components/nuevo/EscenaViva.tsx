@@ -223,6 +223,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   // 6.21 · Riesgos: la pantalla 6 dibuja los riesgos reales en su radar (misma lectura cada minuto) y al tocarla abre el panel del radar
   const [riesgos, setRiesgos] = useState<ResumenDeRiesgos | null>(null)
   const [radar, setRadar] = useState(false)
+  const [riesgosCrudos, setRiesgosCrudos] = useState<Riesgos | null>(null) // 6.31 · la última lectura entera: el panel abre con ella al instante
   // 6.23 · Dinero: la pantalla 4 lee la misma respuesta (saldos y freno de gasto) y al tocarla abre su panel
   const [dinero, setDinero] = useState<ResumenDeDinero | null>(null)
   const [caja, setCaja] = useState(false)
@@ -231,8 +232,9 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       const r = await fetch("/api/direccion/riesgos", { cache: "no-store" })
       const j = (await r.json().catch(() => null)) as ({ ok: true } & Riesgos) | null
       setRiesgos(r.ok && j?.ok ? resumenDeRiesgos(j) : null) // sin lectura: la pantalla vuelve al dibujo, nunca a un «sin riesgos» falso
+      setRiesgosCrudos(r.ok && j?.ok ? j : null)
       setDinero(r.ok && j?.ok ? resumenDeDinero(j) : null)
-    } catch { setRiesgos(null); setDinero(null) }
+    } catch { setRiesgos(null); setDinero(null); setRiesgosCrudos(null) }
   }, [])
   // 6.26 · Observabilidad: la pantalla 9 dice las corridas de las últimas 24 h (lectura liviana, sin nombres) y al tocarla abre el panel tipo LangSmith
   const [corridas, setCorridas] = useState<ResumenDeCorridas | null>(null)
@@ -403,7 +405,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)}
       {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
       {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
-      {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} />, document.body)}
+      {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)}
       {caja && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDinero onCerrar={cerrarCaja} />, document.body)}
       {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={cerrarTrazas} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}

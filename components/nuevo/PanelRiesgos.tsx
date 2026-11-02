@@ -35,7 +35,10 @@ const ESTILO = `
 .ri-sector[aria-pressed="true"]{background:rgba(232,115,26,.12);border-color:rgba(232,115,26,.6)}
 .ri-ficha{animation:riFicha .4s cubic-bezier(.2,.8,.2,1) both}
 @keyframes riFicha{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.ri-punto[data-anima="detecta"],.ri-eco,.ri-ficha{animation:none}}
+.ri-haz{transform-box:view-box;transform-origin:200px 200px;will-change:transform;animation:riGira ${VUELTA}s linear infinite}
+@keyframes riGira{to{transform:rotate(360deg)}}
+.ri-halo{pointer-events:none}
+@media (prefers-reduced-motion:reduce){.ri-punto[data-anima="detecta"],.ri-eco,.ri-ficha,.ri-haz{animation:none}}
 `
 
 const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }
@@ -45,7 +48,8 @@ const arco = (C: number, r: number, a0: number, a1: number) => `M${punto(C, r, a
 const gajo = (C: number, r: number, a0: number, a1: number) => `M${C} ${C} L${punto(C, r, a0)} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${punto(C, r, a1)} Z`
 
 /** el radar: bisel con graduación, anillos de gravedad, 8 sectores con su arco de estado, el haz con estela y un punto por riesgo */
-function Radar({ riesgos, todos, elegido, alElegir, sector, quieto }: { riesgos: Riesgo[]; todos: Riesgo[]; elegido: string | null; alElegir: (id: string) => void; sector: Sector | null; quieto: boolean }) {
+/** 6.31 (Emilio 2-nov: «se demora mucho en cargar y empezar la animación»): el radar se dibuja y gira desde el primer instante; los puntos y las cuentas llegan con la lectura (`cargado`) */
+function Radar({ riesgos, todos, elegido, alElegir, sector, quieto, cargado = true }: { riesgos: Riesgo[]; todos: Riesgo[]; elegido: string | null; alElegir: (id: string) => void; sector: Sector | null; quieto: boolean; cargado?: boolean }) {
   const C = 200, R = 150, lugar = useMemo(() => lugarEnElRadar(riesgos), [riesgos])
   return (
     <svg viewBox="-16 -8 432 416" className="h-full w-full" role="img" aria-label={`Radar de riesgos: ${riesgos.length} puntos en 8 sectores`}>
@@ -81,16 +85,15 @@ function Radar({ riesgos, todos, elegido, alElegir, sector, quieto }: { riesgos:
             <g data-placa={s}>
               <rect x={tx - ancho / 2} y={ty - 14} width={ancho} height={29} rx={7} fill="#1d1813" stroke={g ? `${COLOR_DE_LA_GRAVEDAD[g]}88` : "rgba(255,226,190,.22)"} strokeWidth={0.8} />
               <text x={tx} y={ty - 2} fontSize={9} fontWeight={600} letterSpacing=".12em" textAnchor="middle" fill={del.length ? "#fff3e4" : "rgba(255,236,215,.72)"}>{NOMBRE_DEL_SECTOR[s].corto.toUpperCase()}</text>
-              <text x={tx} y={ty + 10} fontSize={10} fontWeight={700} textAnchor="middle" fill={g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,236,215,.5)"} style={{ fontVariantNumeric: "tabular-nums" }}>{sinFuente ? "sin dato" : del.length}</text>
+              <text x={tx} y={ty + 10} fontSize={10} fontWeight={700} textAnchor="middle" fill={g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,236,215,.5)"} style={{ fontVariantNumeric: "tabular-nums" }}>{!cargado ? "…" : sinFuente ? "sin dato" : del.length}</text>
             </g>
           </g>
         )
       })}
       {/* el haz con su estela (arranca arriba, sentido del reloj) */}
-      <g>
+      <g data-haz className={quieto ? undefined : "ri-haz"}>
         {Array.from({ length: ESTELA }, (_, k) => <path key={k} d={gajo(C, R, 360 - (k + 1) * 3, 360 - k * 3)} fill={`rgba(255,170,90,${(0.2 * (1 - k / ESTELA) ** 1.6).toFixed(3)})`} />)}
         <line x1={C} y1={C} x2={C} y2={C - R} stroke="rgba(255,200,140,.85)" strokeWidth={1} />
-        {!quieto && <animateTransform attributeName="transform" type="rotate" from={`0 ${C} ${C}`} to={`360 ${C} ${C}`} dur={`${VUELTA}s`} repeatCount="indefinite" />}
       </g>
       {/* la mira del centro */}
       <circle cx={C} cy={C} r={5} fill="none" stroke="rgba(255,226,190,.35)" strokeWidth={0.7} />
@@ -103,7 +106,8 @@ function Radar({ riesgos, todos, elegido, alElegir, sector, quieto }: { riesgos:
           <g key={x.id}>
             {x.gravedad === 3 && <circle className="ri-eco" cx={px} cy={py} r={r} fill="none" stroke={COLOR_DE_LA_GRAVEDAD[3]} strokeWidth={1} style={tarde} />}
             {elegido === x.id && <circle cx={px} cy={py} r={r + 5} fill="none" stroke="rgba(255,255,255,.9)" strokeWidth={0.9} />}
-            <circle className="ri-punto" data-riesgo={x.id} data-gravedad={x.gravedad} data-anima="detecta" style={tarde} cx={px} cy={py} r={r} fill={COLOR_DE_LA_GRAVEDAD[x.gravedad]} filter="url(#ri-brillo)"
+            <circle className="ri-halo" cx={px} cy={py} r={r * 2.1} fill={COLOR_DE_LA_GRAVEDAD[x.gravedad]} opacity={0.22} />
+            <circle className="ri-punto" data-riesgo={x.id} data-gravedad={x.gravedad} data-anima="detecta" style={tarde} cx={px} cy={py} r={r} fill={COLOR_DE_LA_GRAVEDAD[x.gravedad]}
               onClick={() => alElegir(x.id)}><title>{x.titulo}</title></circle>
           </g>
         )
@@ -124,6 +128,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
 
   const leer = useCallback(async () => {
     setCargando(true); setError(null)
+    // 6.31 · si ya hay datos (los que la oficina lee cada minuto), se quedan a la vista mientras se refrescan
     try {
       const r = await fetchImpl("/api/direccion/riesgos", { cache: "no-store" })
       const j = (await r.json().catch(() => null)) as Respuesta | null
@@ -131,7 +136,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
       setDatos(j)
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [fetchImpl])
-  useEffect(() => { if (!datosIniciales) void leer() }, [leer, datosIniciales])
+  useEffect(() => { void leer() }, [leer]) // 6.31 · siempre se refresca al abrir; con datos iniciales, sin pantalla vacía
   useEffect(() => { cerrar.current?.focus(); setQuieto(window.matchMedia("(prefers-reduced-motion: reduce)").matches) }, [])
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar() }
@@ -173,7 +178,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
           {/* izquierda: el radar (más chico, centrado) y los 8 sectores como tarjetas que filtran */}
           <div className="flex min-h-0 min-w-0 flex-col gap-3 border-white/10 p-4 lg:border-r sm:p-5">
             <div data-radar className="relative aspect-square w-full lg:aspect-auto lg:min-h-0 lg:flex-1">
-              {datos && <Radar riesgos={visibles} todos={todos} elegido={ficha?.id ?? null} alElegir={setElegido} sector={sector} quieto={quieto} />}
+              <Radar riesgos={datos ? visibles : []} todos={todos} elegido={ficha?.id ?? null} alElegir={setElegido} sector={sector} quieto={quieto} cargado={!!datos} />
               {datos && !total && <p data-vacio className="absolute inset-x-0 bottom-1 text-center text-[12.5px] text-zinc-400">{datos.completo && !error ? "Sin riesgos abiertos ahora." : "No pude leer todas las fuentes: no puedo asegurarte que no haya riesgos."}</p>}
             </div>
             <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
