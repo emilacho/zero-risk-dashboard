@@ -5,6 +5,7 @@
  * cerebro). Solo los 7 campos que la plataforma acepta por clave de tablero llevan botón; los demás lo dicen.
  */
 import { describe, expect, it } from "vitest"
+import { SECCIONES_NUEVAS } from "@/lib/manual-secciones"
 import { readFileSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -51,7 +52,8 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     const datos: ManualDelCliente = { clientes: [{ id: CLIENTE, nombre: "Náufrago", con_manual: true }], cliente: { id: CLIENTE, nombre: "Náufrago" }, manual: { version: 1, versiones: 1, lector, fidelidad: "Sin revisión de fidelidad", origen: null, colores: [], tipografias: [], opciones_eslogan: [], palabras_prohibidas: [], terminos_propios: [], politica_competidores: null, creado_en: null, actualizado_en: null }, leido_en: "x" }
     const html = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toMatch(/data-campo="proposito" data-estado="lleno" data-editable="true"/); expect(html).toMatch(/data-campo="mision" data-estado="lleno" data-editable="true"/); expect(html).toMatch(/data-campo="vision" data-estado="hueco" data-editable="true"/); expect(html).not.toContain('data-editable="false"')
-    expect(html.match(/data-accion="editar-campo"/g)?.length).toBe(EDITABLES_DESDE_EL_TABLERO.length) // todos los editables se muestran, llenos o vacíos, cada uno con su botón
+    const deLasSecciones = new Set(SECCIONES_NUEVAS.flatMap((x) => x.claves.map((k) => k.clave)))
+    expect(html.match(/data-accion="editar-campo"/g)?.length).toBe(EDITABLES_DESDE_EL_TABLERO.filter((e) => !deLasSecciones.has(e.clave)).length) // todos los campos editables se muestran, llenos o vacíos; las secciones nuevas solo con dato (CC6 02-nov)
     expect(html).toContain('data-campo-editar="eslogan"'); expect(html).toContain('data-campo-editar="mision"'); expect(html).toContain('data-campo-editar="vision"'); expect(html).not.toContain("todavía no se cambia desde aquí") /* CC6 · 02-nov · ADENDA 1 de Lenovo: todos los campos se editan */
     expect(html).not.toContain("Cada «Guardar» crea una versión nueva"); expect(html).not.toContain("cuando la plataforma los acepte") /* ADENDA 2: sin texto técnico en el pie */
     expect(html).toContain('data-accion="validar-manual"'); expect(html).not.toContain('data-editor=') // nada abierto de entrada

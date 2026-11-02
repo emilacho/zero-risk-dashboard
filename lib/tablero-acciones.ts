@@ -222,6 +222,12 @@ export const CAMPOS_DEL_MANUAL: Array<{ clave: string; etiqueta: string; largo: 
   { clave: "personalidad", etiqueta: "Personalidad", largo: true },
   { clave: "mensajes_clave", etiqueta: "Mensajes clave", largo: true },
   { clave: "propuestas_de_valor", etiqueta: "Propuestas de valor", largo: true },
+  { clave: "tono_por_canal", etiqueta: "Tono según el canal", largo: true },
+  { clave: "reglas_de_escritura", etiqueta: "Reglas de escritura", largo: true },
+  { clave: "direccion_de_fotografia", etiqueta: "Dirección de fotografía", largo: true },
+  { clave: "uso_del_logo", etiqueta: "Uso del logo", largo: true },
+  { clave: "jerarquia_tipografica", etiqueta: "Jerarquía tipográfica", largo: true },
+  { clave: "historia_y_origen", etiqueta: "Historia y origen", largo: true },
 ]
 
 export interface RespuestaDeAccion { status: number; cuerpo: Record<string, unknown> }

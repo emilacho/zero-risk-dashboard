@@ -107,6 +107,29 @@ export function resumenDelGuardado(d: Record<string, unknown>): string {
   return `Guardado · ${cerebro}`
 }
 
+/** Validar · Quitar validación · Editar de una parte de las secciones nuevas: las mismas puertas y los mismos rótulos que un campo */
+function AccionesDeParte({ clave, etiqueta, validado, escrito, enviar, editando, onEditar, onGuardado }: { clave: string; etiqueta: string; validado: boolean; escrito: boolean; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void }) {
+  const [validando, setValidando] = useState(false)
+  async function validar(v: boolean) {
+    if (!enviar.cliente) return
+    setValidando(true)
+    const r = await enviar.accion("manual-validar-campo", { client_id: enviar.cliente, campo: clave, validado: v })
+    setValidando(false)
+    onGuardado(r.ok ? { ...r, texto: v ? "Campo validado" : "Validación quitada" } : r)
+  }
+  if (editando) return null
+  return (
+    <>
+      {!validado && <button type="button" data-accion="validar-campo" data-tablero-accion="manual-validar-campo" data-campo-validar={clave} disabled={validando} onClick={() => void validar(true)} title="Lo das por bueno tal cual; el texto no cambia"
+        className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-50">{validando ? "Validando…" : "Validar"}</button>}
+      {validado && !escrito && <button type="button" data-accion="desvalidar-campo" data-campo-desvalidar={clave} disabled={validando} onClick={() => void validar(false)} title="Quita tu validación; el texto no cambia"
+        className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-white/30 hover:text-zinc-200 disabled:opacity-50">{validando ? "…" : "Quitar validación"}</button>}
+      <button type="button" data-accion="editar-campo" data-campo-editar={clave} onClick={() => onEditar(clave)} aria-label={`Editar ${etiqueta}`} title="Editar"
+        className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-amber-400/60 hover:text-amber-200">Editar</button>
+    </>
+  )
+}
+
 function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado, manualValidadoPor = "propuesta" }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void; /** quién validó el manual entero */ manualValidadoPor?: "jefatura" | "dueno" | "propuesta" }) {
   const sep = separarPropuesta(crudo.valor)
   const c: CampoLeido = sep.propuesta ? { ...crudo, valor: sep.valor, estado: "propuesta" } : crudo
@@ -316,7 +339,9 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                   })}
 
                   {/* las secciones nuevas del manual (ADENDA 1): aparecen solas cuando el manual las trae */}
-                  <SeccionesNuevas secciones={m.secciones_nuevas ?? []} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null} />
+                  <SeccionesNuevas secciones={m.secciones_nuevas ?? []} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null}
+                    acciones={(p) => <AccionesDeParte clave={p.clave} etiqueta={p.etiqueta} validado={p.origen === "aceptado" || p.origen === "dueno"} escrito={p.origen === "dueno"} enviar={enviar} editando={editando === p.clave} onEditar={setEditando} onGuardado={guardado} />}
+                    editor={(p) => editando === p.clave ? <Editor clave={p.clave} valor={p.para_editar} enviar={enviar} onCancelar={() => setEditando(null)} onGuardado={guardado} /> : null} />
 
                   {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
                     <section id="apartado-Palabras" aria-label="Palabras" className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: "240ms" }}>

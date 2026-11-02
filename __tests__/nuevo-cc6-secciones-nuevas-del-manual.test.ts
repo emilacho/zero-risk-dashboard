@@ -42,6 +42,36 @@ describe("la lectura de las secciones nuevas", () => {
   })
 })
 
+describe("el contrato de CC1 (listas de textos, PENDIENTE y la marca de propuesta)", () => {
+  const CONTRATO = {
+    tono_por_canal: ["Instagram: cercano [propuesta del agente — por la voz del sitio]", "WhatsApp: directo"],
+    reglas_de_escritura: ["PENDIENTE"],
+    historia_y_origen: "PENDIENTE: falta la fecha de apertura",
+    jerarquia_tipografica: ["Títulos: Alfa Slab One", "Texto: Inter"],
+    uso_del_logo: [],
+    _field_meta: { tono_por_canal: { estado: "propuesta_del_agente", fuente: "content-creator" } },
+  }
+  it("PENDIENTE, vacío o [] cuentan como sin dato; la marca de propuesta se rotula y no se ve", () => {
+    const s = seccionesNuevasDelBorrador(CONTRATO)
+    expect(s.map((x) => x.id)).toEqual(["tono-por-canal", "logo-y-letras"])
+    expect(s[0].partes).toHaveLength(1)
+    expect(s[0].partes[0]).toMatchObject({ origen: "propuesta", valor: { tipo: "lista", items: ["Instagram: cercano", "WhatsApp: directo"] }, para_editar: "Instagram: cercano\nWhatsApp: directo" })
+  })
+  it("la marca sola, sin _field_meta, también es propuesta", () => {
+    expect(seccionesNuevasDelBorrador({ historia_y_origen: "Nació en Olón [propuesta del agente — por su Instagram]" })[0].partes[0]).toMatchObject({ origen: "propuesta", valor: { tipo: "texto", texto: "Nació en Olón" } })
+  })
+  it("la jerarquía tipográfica de la lista «Títulos: …»", () => {
+    expect(jerarquiaTipografica(CONTRATO)).toEqual([{ uso: "Títulos", familia: "Alfa Slab One" }, { uso: "Texto", familia: "Inter" }])
+  })
+  it("las 6 claves se editan y se validan por las mismas puertas (tablero y servidor del tablero)", async () => {
+    const { EDITABLES_DESDE_EL_TABLERO } = await import("@/lib/manual")
+    const { CAMPOS_DEL_MANUAL } = await import("@/lib/tablero-acciones")
+    const seis = SECCIONES_NUEVAS.flatMap((x) => x.claves.map((k) => k.clave))
+    expect(seis).toEqual(["tono_por_canal", "reglas_de_escritura", "direccion_de_fotografia", "uso_del_logo", "jerarquia_tipografica", "historia_y_origen"])
+    for (const k of seis) { expect(EDITABLES_DESDE_EL_TABLERO.some((e) => e.clave === k), k).toBe(true); expect(CAMPOS_DEL_MANUAL.some((e) => e.clave === k), k).toBe(true) }
+  })
+})
+
 describe("en pantalla", () => {
   it("mismo patrón que el manual: tarjeta por parte, su origen, «Pedir cambios en esta sección»; lo propuesto, distinto de «falta»", () => {
     const pedidas: string[] = []

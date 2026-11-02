@@ -146,6 +146,13 @@ export const EDITABLES_DESDE_EL_TABLERO: ReadonlyArray<{ clave: string; etiqueta
   { clave: "personalidad", etiqueta: "Personalidad", lista: true, ayuda: "Un rasgo por línea." },
   { clave: "mensajes_clave", etiqueta: "Mensajes clave", lista: true, ayuda: "Uno por línea." },
   { clave: "propuestas_de_valor", etiqueta: "Propuestas de valor", lista: true, ayuda: "Una por línea." },
+  // las secciones nuevas (CONTRATO CC1 · 02-nov): mismas puertas, con su clave
+  { clave: "tono_por_canal", etiqueta: "Tono según el canal", lista: true, ayuda: "Un canal por línea: «Instagram: …»." },
+  { clave: "reglas_de_escritura", etiqueta: "Reglas de escritura", lista: true, ayuda: "Una regla por línea." },
+  { clave: "direccion_de_fotografia", etiqueta: "Dirección de fotografía", lista: true, ayuda: "Una indicación por línea." },
+  { clave: "uso_del_logo", etiqueta: "Uso del logo", lista: true, ayuda: "Una indicación por línea." },
+  { clave: "jerarquia_tipografica", etiqueta: "Jerarquía tipográfica", lista: true, ayuda: "Una por línea: «Títulos: Alfa Slab One»." },
+  { clave: "historia_y_origen", etiqueta: "Historia y origen", lista: false, ayuda: "La historia de la marca, en uno o dos párrafos." },
 ]
 export const esEditableDesdeElTablero = (clave: string) => EDITABLES_DESDE_EL_TABLERO.some((e) => e.clave === clave)
 

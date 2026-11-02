@@ -25,9 +25,16 @@ function Valor({ v }: { v: ValorDeSeccion }) {
 /**
  * LAS SECCIONES NUEVAS DEL MANUAL (CC6 · 02-nov · ADENDA 1 firmada por Emilio): mismo patrón que las demás (tarjeta por parte, su origen, «Pedir cambios en esta
  * sección»). Lo que propuso el sistema se rotula «propuesta del sistema · por validar» (distinto de «falta»). Solo se pintan las que tienen dato.
- * Validar y Editar aparecen cuando la plataforma acepte estas claves en sus puertas (contrato con CC1); hasta entonces, se piden cambios por la sección.
+ * Validar y Editar usan las mismas puertas de los demás campos con su clave (contrato CC1); el panel pone los botones y el editor.
  */
-export function SeccionesNuevas({ secciones, pedirCambios }: { secciones: SeccionLeida[]; pedirCambios?: ((titulo: string, claves: string[]) => void) | null }) {
+export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor }: {
+  secciones: SeccionLeida[]
+  pedirCambios?: ((titulo: string, claves: string[]) => void) | null
+  /** los botones de cada parte (Validar · Quitar validación · Editar): los pone el panel con las mismas puertas de los demás campos */
+  acciones?: (p: SeccionLeida["partes"][number]) => React.ReactNode
+  /** el cuadro de edición abierto de una parte, si lo hay */
+  editor?: (p: SeccionLeida["partes"][number]) => React.ReactNode
+}) {
   if (!secciones.length) return null
   return (
     <>
@@ -42,8 +49,10 @@ export function SeccionesNuevas({ secciones, pedirCambios }: { secciones: Seccio
                   <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                     <h4 className="mr-1 text-[12px] font-medium uppercase tracking-[0.08em] text-zinc-300">{p.etiqueta}</h4>
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] ${TONO[o.tono]}`}>{o.texto}</span>
+                    {acciones && <span className="ml-auto flex gap-1">{acciones(p)}</span>}
                   </div>
                   <Valor v={p.valor} />
+                  {editor?.(p)}
                 </div>
               )
             })}
