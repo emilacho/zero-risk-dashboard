@@ -174,6 +174,21 @@ describe("6.47 · en pantalla", () => {
     expect(h).toContain("data-errores"); expect(h).toContain("se acabó el tiempo")
     expect(h).toContain("data-arbol"); expect(h).toContain("data-barra")
   }, 60000)
+  it("6.48 · pantalla completa como Dinero (el borde de abajo respeta el chat)", async () => {
+    const h = await render()
+    expect(h).toContain('data-seccion="observabilidad" data-pantalla-completa'); expect(h).not.toContain("max-w-[1400px]")
+    expect(h).toMatch(/^<div class="nv-panel fixed inset-0 z-\[70\] flex items-center justify-center bg-black\/80 p-1.5 sm:p-2"/)
+    expect(readFileSync("app/globals.css", "utf8")).toContain("body:has([data-chat-de-oficinas]) .nv-panel { bottom: var(--nv-chat-reserva); }")
+  }, 60000)
+  it("6.48 · «sin comparación» se explica UNA vez arriba; las tarjetas dicen solo «sin comparación»", async () => {
+    const cortada = { ...LISTA, ejecuciones_total: 500, ejecuciones_leidas: 7 }
+    const h = await render({ listaInicial: cortada })
+    expect(h.match(/data-sin-comparacion/g)).toHaveLength(1); expect(h).toContain("Sin comparación con los 7 días anteriores en corridas, errores y demora: la plataforma entrega 200 ejecuciones por lectura")
+    expect(h).not.toContain("la lectura no alcanza"); expect(h.match(/>sin comparación</g)).toHaveLength(3)
+    expect(h.indexOf("data-aviso-lectura")).toBeLessThan(h.indexOf("data-resumen"))
+    const completa = await render()
+    expect(completa).not.toContain("data-sin-comparacion"); expect(completa).not.toContain(">sin comparación<")
+  }, 60000)
   it("solo lectura; la ruta nueva exige administrador y no escribe", () => {
     const ruta = readFileSync("app/api/direccion/observabilidad/route.ts", "utf8")
     expect(ruta).toContain("await exigirAdmin()"); expect(ruta).not.toMatch(/\.(insert|update|upsert|delete)\(/); expect(ruta).not.toMatch(/export async function (POST|PUT|PATCH|DELETE)/)
