@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
+import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, PORQUE_DE_VALIDAR, valorCorto } from "@/lib/manual-campo"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 import { CAMPOS_DEL_LECTOR, type CampoLeido } from "@/lib/manual-lector"
 import { EDITABLES_DESDE_EL_TABLERO, contrasteDelTexto, cuerpoDeEdicion, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, procedenciaLegible, rolDeLaLetraLegible, rolDelColorLegible, separarPropuesta, textoParaEditar } from "@/lib/manual"
@@ -23,7 +24,6 @@ export const APARTADOS_DEL_MANUAL: ReadonlyArray<{ titulo: string; claves: strin
   { titulo: "Cómo habla", claves: ["voz", "mensajes_clave", "propuestas_de_valor", "nunca"] },
   { titulo: "A quién le habla", claves: ["publico"] },
 ]
-const LARGO_PLEGADO = 650
 const esLista = (clave: string) => CAMPOS_DEL_LECTOR.find((c) => c.clave === clave)?.lista === true
 
 /** un valor de lista guardado como «a · b · c» vuelve a ser lista para leerse como viñetas */
@@ -102,37 +102,57 @@ export function resumenDelGuardado(d: Record<string, unknown>): string {
   return `${v[0].toUpperCase()}${v.slice(1)} · ${cerebro}`
 }
 
-function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void }) {
+function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado, manualValidadoPor = "propuesta" }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void; /** quién validó el manual entero */ manualValidadoPor?: "jefatura" | "dueno" | "propuesta" }) {
   const sep = separarPropuesta(crudo.valor)
   const c: CampoLeido = sep.propuesta ? { ...crudo, valor: sep.valor, estado: "propuesta" } : crudo
   const viñetas = viñetasDelCampo(c)
-  const largo = !!c.valor && !viñetas && c.valor.length > LARGO_PLEGADO
+  const [entero, setEntero] = useState(false)
+  const [validando, setValidando] = useState(false)
   const opcionesLeidas = c.valor ? [] : opciones.map((o) => separarPropuesta(o)).filter((o): o is { valor: string; propuesta: boolean } => !!o.valor)
   const editable = esEditableDesdeElTablero(c.clave)
+  // CC6 · 02-nov · tarjeta corta: de dónde salió, si está validado, y el texto recortado (Emilio revisa, corrige y certifica campo por campo)
+  const origen = origenDelCampo(c)
+  const validado = campoValidado(c, manualValidadoPor)
+  const corto = valorCorto(c.valor)
+  const viñetasVisibles = viñetas && !entero ? viñetas.slice(0, 4) : viñetas
+  async function validar() {
+    if (!enviar.cliente || !c.valor) return
+    const cuerpo = cuerpoDeEdicion(enviar.cliente, c.clave, textoParaEditar(c.clave, c.valor), PORQUE_DE_VALIDAR)
+    if ("error" in cuerpo) { onGuardado({ ok: false, texto: cuerpo.error }); return }
+    setValidando(true)
+    const r = await enviar.accion("manual-campos", cuerpo)
+    setValidando(false)
+    onGuardado(r)
+  }
   return (
-    <div data-campo={c.clave} data-estado={c.estado} data-editable={editable} className="group/campo border-t border-white/[0.06] py-3 first:border-t-0 first:pt-0">
-      <div className="mb-1 flex flex-wrap items-center gap-2">
-        <h4 className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">{c.etiqueta}</h4>
-        {c.estado === "propuesta" && <Chip tono="ambar">propuesta del agente · sin validar</Chip>}
-        {c.origen === "dueno" && <Chip tono="verde">escrito por el dueño</Chip>}
-        {c.origen === "aceptado" && <Chip>aceptado por el dueño</Chip>}
-        {editable && !editando && (
-          <button type="button" data-accion="editar-campo" data-campo-editar={c.clave} onClick={() => onEditar(c.clave)} aria-label={`Editar ${c.etiqueta}`} title="Editar"
-            className="ml-auto inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-amber-400/60 hover:text-amber-200 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-            <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden><path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>Editar
-          </button>
-        )}
-        {!editable && <span className="ml-auto text-[10.5px] text-zinc-600" title="La plataforma todavía no acepta este campo desde el tablero">se edita en el próximo paso</span>}
+    <div id={`campo-${c.clave}`} data-campo={c.clave} data-estado={c.estado} data-editable={editable} data-origen={origen} data-validado={validado} className="scroll-mt-2 rounded-lg border border-white/10 bg-black/20 p-3">
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        <h4 className="mr-1 text-[12px] font-medium uppercase tracking-[0.08em] text-zinc-300">{c.etiqueta}</h4>
+        {c.valor && <Chip tono={origen === "propuesta" ? "ambar" : origen === "dueno" || origen === "aceptado" ? "verde" : "neutro"}>{ORIGEN_LEGIBLE[origen]}</Chip>}
+        {c.valor && <Chip tono={validado ? "verde" : "ambar"}>{validado ? "validado" : "sin validar"}</Chip>}
+        {!c.valor && <Chip tono="ambar">falta</Chip>}
+        <span className="ml-auto flex gap-1">
+          {editable && !editando && c.valor && !validado && (
+            <button type="button" data-accion="validar-campo" data-campo-validar={c.clave} disabled={validando} onClick={() => void validar()} title="Lo das por bueno tal cual: queda como tuyo"
+              className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-50">{validando ? "Validando…" : "Validar"}</button>
+          )}
+          {editable && !editando && (
+            <button type="button" data-accion="editar-campo" data-campo-editar={c.clave} onClick={() => onEditar(c.clave)} aria-label={`Editar ${c.etiqueta}`} title="Editar"
+              className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-amber-400/60 hover:text-amber-200 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
+              <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden><path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>Editar
+            </button>
+          )}
+        </span>
       </div>
+      {!editable && <p className="mb-1 text-[10.5px] text-zinc-600" title="La plataforma todavía no acepta este campo desde el tablero">se edita en el próximo paso · se valida con «Validar el manual»</p>}
       {editando && <Editor clave={c.clave} valor={c.valor} enviar={enviar} onCancelar={() => onEditar(null)} onGuardado={onGuardado} />}
       {!editando && !c.valor && <p className="text-[13px] italic text-amber-200/80">{c.nota ?? "Sin dato"}</p>}
-      {!editando && c.valor && viñetas && <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-zinc-200">{viñetas.map((v, i) => <li key={i}>{v}</li>)}</ul>}
-      {!editando && c.valor && !viñetas && !largo && <p className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{c.valor}</p>}
-      {!editando && c.valor && !viñetas && largo && (
-        <details className="group">
-          <summary className="cursor-pointer list-none whitespace-pre-line text-[13px] leading-relaxed text-zinc-200 group-open:hidden">{c.valor.slice(0, LARGO_PLEGADO).trimEnd()}… <span className="text-amber-300">Leer todo</span></summary>
-          <p className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{c.valor}</p>
-        </details>
+      {!editando && c.valor && viñetasVisibles && (
+        <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-zinc-200">{viñetasVisibles.map((v, i) => <li key={i}>{v}</li>)}</ul>
+      )}
+      {!editando && c.valor && !viñetas && <p className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{entero ? c.valor : corto.texto}</p>}
+      {!editando && c.valor && ((viñetas && viñetas.length > 4) || (!viñetas && corto.recortado)) && (
+        <button type="button" data-accion="leer-todo" onClick={() => setEntero((v) => !v)} className="mt-1 text-[11.5px] text-amber-300 underline decoration-dotted underline-offset-4 hover:text-amber-200">{entero ? "Ver menos" : viñetas ? `Ver ${viñetas.length - 4} más` : "Leer todo"}</button>
       )}
       {c.explicacion && <details className="mt-1 text-[11.5px] text-zinc-500"><summary className="cursor-pointer">Por qué se propone</summary><p className="mt-1">{c.explicacion}</p></details>}
       {opcionesLeidas.length > 0 && (
@@ -227,7 +247,20 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                   <Chip>{m.fidelidad}</Chip>
                   {m.origen && <Chip>{m.origen}</Chip>}
                 </div>
-                {!m.lector.completo && faltan.length > 0 && <p className="mt-2 text-[12px] text-amber-200/80">Falta: {faltan.join(" · ")}</p>}
+                {!m.lector.completo && faltan.length > 0 && (
+                  <div data-lo-que-falta className="mt-3 rounded-md border border-amber-400/30 bg-amber-400/[0.06] p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-amber-300">Lo que falta · {faltan.length}</p>
+                    <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                      {m.lector.huecos.map((k) => (
+                        <li key={k}><button type="button" data-ir-campo={k} onClick={() => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} className="rounded-md border border-amber-400/30 px-2 py-0.5 text-[12px] text-amber-100 hover:bg-amber-400/10">{etiquetaDelHueco(k)}</button></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <nav aria-label="Apartados del manual" className="mt-3 flex flex-wrap gap-1.5">
+                  {APARTADOS_DEL_MANUAL.map((ap) => <button key={ap.titulo} type="button" data-ir-apartado={ap.titulo} onClick={() => document.getElementById(`apartado-${ap.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{ap.titulo}</button>)}
+                  <button type="button" data-ir-apartado="Palabras" onClick={() => document.getElementById("apartado-Palabras")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">Palabras</button>
+                </nav>
                 {m.lector.validadoPor !== "dueno" && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {validando !== "confirmar" ? (
@@ -252,15 +285,15 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                     const lista = ap.claves.map((k) => campos.get(k) ?? vacio(k)).filter((c): c is CampoLeido => !!c)
                     if (!lista.length) return null
                     return (
-                      <section key={ap.titulo} aria-label={ap.titulo} className="mn-seccion rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: `${60 + i * 60}ms` }}>
+                      <section key={ap.titulo} id={`apartado-${ap.titulo}`} aria-label={ap.titulo} className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: `${60 + i * 60}ms` }}>
                         <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>{ap.titulo}</h3>
-                        {lista.map((c) => <Campo key={c.clave} c={c} opciones={c.clave === "eslogan" ? m.opciones_eslogan : []} enviar={enviar} editando={editando === c.clave} onEditar={setEditando} onGuardado={guardado} />)}
+                        <div className="space-y-2">{lista.map((c) => <Campo key={c.clave} c={c} opciones={c.clave === "eslogan" ? m.opciones_eslogan : []} enviar={enviar} editando={editando === c.clave} onEditar={setEditando} onGuardado={guardado} manualValidadoPor={m.lector.validadoPor} />)}</div>
                       </section>
                     )
                   })}
 
                   {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
-                    <section aria-label="Palabras" className="mn-seccion rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: "240ms" }}>
+                    <section id="apartado-Palabras" aria-label="Palabras" className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: "240ms" }}>
                       <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>Palabras</h3>
                       {m.terminos_propios.length > 0 && (
                         <div className="mb-3"><h4 className="mb-1.5 text-[11px] uppercase tracking-[0.08em] text-zinc-500">Términos propios · se usan</h4>
