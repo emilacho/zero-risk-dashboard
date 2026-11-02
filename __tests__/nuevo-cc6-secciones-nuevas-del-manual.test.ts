@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { jerarquiaTipografica, seccionesNuevasDelBorrador, valorDeSeccion, SECCIONES_NUEVAS } from "@/lib/manual-secciones"
+import { jerarquiaTipografica, seccionesNuevasDelBorrador, valorDeSeccion, SECCIONES_NUEVAS, faltantesDeLasSecciones } from "@/lib/manual-secciones"
 import { SeccionesNuevas } from "@/components/nuevo/manual/SeccionesNuevas"
 
 const BORRADOR = {
@@ -18,16 +18,20 @@ describe("la lectura de las secciones nuevas", () => {
   it("son las cuatro del encargo, en su orden", () => {
     expect(SECCIONES_NUEVAS.map((s) => s.titulo)).toEqual(["Tono según el canal", "Dirección de fotografía", "Uso del logo y jerarquía tipográfica", "Historia y origen"])
   })
-  it("solo las que tienen dato; cada parte con su origen (propuesta del sistema · escrito por ti · validado por ti)", () => {
+  it("las 6 secciones SIEMPRE (auditoría 02-nov); cada parte con su origen (propuesta del sistema · escrito por ti · validado por ti · falta)", () => {
     const s = seccionesNuevasDelBorrador(BORRADOR)
     expect(s.map((x) => x.id)).toEqual(["tono-por-canal", "fotografia", "logo-y-letras", "historia"])
     expect(s[0].partes.map((p) => `${p.clave}:${p.origen}`)).toEqual(["tono_por_canal:propuesta", "reglas_de_escritura:aceptado"])
     expect(s[3].partes[0].origen).toBe("dueno")
-    expect(s[2].partes.map((p) => p.clave)).toEqual(["jerarquia_tipografica"]) // sin uso_del_logo: esa parte no aparece
+    expect(s[2].partes.map((p) => p.clave)).toEqual(["uso_del_logo", "jerarquia_tipografica"]) // uso_del_logo sin dato: aparece como «falta»
+    expect(s[2].partes.find((p) => p.clave === "uso_del_logo")).toMatchObject({ valor: null, origen: "falta", para_editar: "" })
   })
-  it("el manual de hoy (sin estas claves) no muestra ninguna sección vacía", () => {
-    expect(seccionesNuevasDelBorrador({ positioning: "x", _field_meta: {} })).toEqual([])
-    expect(seccionesNuevasDelBorrador({ historia_y_origen: "  ", reglas_de_escritura: [], direccion_de_fotografia: {} })).toEqual([])
+  it("el manual de hoy (sin estas claves) muestra las 6 partes como «falta» (auditoría 02-nov) y todas cuentan en «Lo que falta»", () => {
+    const s = seccionesNuevasDelBorrador({ positioning: "x", _field_meta: {} })
+    expect(s.map((x) => x.id)).toEqual(["tono-por-canal", "fotografia", "logo-y-letras", "historia"])
+    expect(s.flatMap((x) => x.partes).every((p) => p.origen === "falta" && p.valor === null)).toBe(true)
+    expect(faltantesDeLasSecciones(s).map((f) => f.etiqueta)).toEqual(["Tono según el canal", "Reglas de escritura", "Dirección de fotografía", "Uso del logo", "Jerarquía tipográfica", "Historia y origen"])
+    expect(faltantesDeLasSecciones(seccionesNuevasDelBorrador({ historia_y_origen: "  ", reglas_de_escritura: [], direccion_de_fotografia: {} }))).toHaveLength(6)
   })
   it("lee con tolerancia: texto, lista, filas y apartados", () => {
     expect(valorDeSeccion("hola")).toEqual({ tipo: "texto", texto: "hola" })
@@ -53,12 +57,12 @@ describe("el contrato de CC1 (listas de textos, PENDIENTE y la marca de propuest
   }
   it("PENDIENTE, vacío o [] cuentan como sin dato; la marca de propuesta se rotula y no se ve", () => {
     const s = seccionesNuevasDelBorrador(CONTRATO)
-    expect(s.map((x) => x.id)).toEqual(["tono-por-canal", "logo-y-letras"])
-    expect(s[0].partes).toHaveLength(1)
+    expect(s.map((x) => x.id)).toEqual(["tono-por-canal", "fotografia", "logo-y-letras", "historia"]) // siempre las 6 (auditoría 02-nov)
+    expect(s[0].partes.filter((p) => p.valor)).toHaveLength(1)
     expect(s[0].partes[0]).toMatchObject({ origen: "propuesta", valor: { tipo: "lista", items: ["Instagram: cercano", "WhatsApp: directo"] }, para_editar: "Instagram: cercano\nWhatsApp: directo" })
   })
   it("la marca sola, sin _field_meta, también es propuesta", () => {
-    expect(seccionesNuevasDelBorrador({ historia_y_origen: "Nació en Olón [propuesta del agente — por su Instagram]" })[0].partes[0]).toMatchObject({ origen: "propuesta", valor: { tipo: "texto", texto: "Nació en Olón" } })
+    expect(seccionesNuevasDelBorrador({ historia_y_origen: "Nació en Olón [propuesta del agente — por su Instagram]" }).find((x) => x.id === "historia")!.partes[0]).toMatchObject({ origen: "propuesta", valor: { tipo: "texto", texto: "Nació en Olón" } })
   })
   it("la jerarquía tipográfica de la lista «Títulos: …»", () => {
     expect(jerarquiaTipografica(CONTRATO)).toEqual([{ uso: "Títulos", familia: "Alfa Slab One" }, { uso: "Texto", familia: "Inter" }])

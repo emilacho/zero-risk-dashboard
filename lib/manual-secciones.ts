@@ -53,13 +53,14 @@ export function valorDeSeccion(v: unknown): ValorDeSeccion | null {
   return apartados.length ? { tipo: "apartados", apartados } : null
 }
 
-export type OrigenDeSeccion = "propuesta" | "dueno" | "aceptado" | "sistema"
-export interface SeccionLeida { id: string; titulo: string; partes: Array<{ clave: string; etiqueta: string; valor: ValorDeSeccion; origen: OrigenDeSeccion; /** el texto para «Editar»: la lista, una por línea, sin marcas */ para_editar: string; /** CC6 · 02-nov: datos marcados por la puerta o el juez */ notas?: NotaDelCampo[] }> }
+export type OrigenDeSeccion = "propuesta" | "dueno" | "aceptado" | "sistema" | "falta"
+export interface SeccionLeida { id: string; titulo: string; partes: Array<{ clave: string; etiqueta: string; /** null = falta (auditoría 02-nov: las 6 secciones se ven siempre, aunque estén vacías) */ valor: ValorDeSeccion | null; origen: OrigenDeSeccion; /** el texto para «Editar»: la lista, una por línea, sin marcas */ para_editar: string; /** CC6 · 02-nov: datos marcados por la puerta o el juez */ notas?: NotaDelCampo[] }> }
 export const ORIGEN_DE_SECCION: Record<OrigenDeSeccion, { texto: string; tono: "ambar" | "verde" | "neutro" }> = {
   propuesta: { texto: "propuesta del sistema · por validar", tono: "ambar" },
   dueno: { texto: "escrito por ti", tono: "verde" },
   aceptado: { texto: "validado por ti", tono: "verde" },
   sistema: { texto: "del sistema", tono: "neutro" },
+  falta: { texto: "falta · la propone el equipo nuevo", tono: "ambar" },
 }
 function origenDe(meta: Fila, crudo: unknown): OrigenDeSeccion {
   if (meta.fuente === "dueno") return "dueno"
@@ -70,13 +71,20 @@ function origenDe(meta: Fila, crudo: unknown): OrigenDeSeccion {
 }
 const paraEditar = (v: unknown): string => (Array.isArray(v) ? v.map(limpio).filter(Boolean).join("\n") : limpio(v))
 
-/** las secciones nuevas que TIENEN dato (las vacías no se muestran) */
+/** las 6 secciones nuevas, SIEMPRE (auditoría 02-nov, aprobada por Emilio): las partes sin dato salen como «falta · la propone el equipo nuevo» y cuentan en «Lo que falta» */
 export function seccionesNuevasDelBorrador(borrador: unknown): SeccionLeida[] {
   const b = objeto(borrador), meta = objeto(b._field_meta)
   return SECCIONES_NUEVAS.map((s) => ({
     id: s.id, titulo: s.titulo,
-    partes: s.claves.map((k) => ({ ...k, valor: valorDeSeccion(b[k.clave]), origen: origenDe(objeto(meta[k.clave]), b[k.clave]), para_editar: paraEditar(b[k.clave]), notas: notasDelCampo(objeto(meta[k.clave])) })).filter((p) => !!p.valor) as SeccionLeida["partes"],
-  })).filter((s) => s.partes.length > 0)
+    partes: s.claves.map((k) => {
+      const valor = valorDeSeccion(b[k.clave])
+      return { ...k, valor, origen: valor ? origenDe(objeto(meta[k.clave]), b[k.clave]) : ("falta" as const), para_editar: valor ? paraEditar(b[k.clave]) : "", notas: notasDelCampo(objeto(meta[k.clave])) }
+    }),
+  }))
+}
+/** lo que falta de las secciones nuevas, con su nombre legible (para sumarlo a «Lo que falta» del manual) */
+export function faltantesDeLasSecciones(secciones: SeccionLeida[]): Array<{ clave: string; etiqueta: string }> {
+  return secciones.flatMap((s) => s.partes.filter((p) => !p.valor).map((p) => ({ clave: p.clave, etiqueta: s.partes.length === 1 ? s.titulo : p.etiqueta === "Por canal" ? s.titulo : p.etiqueta })))
 }
 
 /** la jerarquía tipográfica en filas (para la barra, junto a Tipografías) */

@@ -237,7 +237,7 @@ describe("CC6 · ADENDA 1 · la barra de progreso del pedido de cambios", () => 
     expect(fallo.pasos.map((p) => p.estado)).toEqual(["hecho", "hecho", "fallo", "pendiente", "pendiente"])
     expect(fallo.fallo!.texto).toContain("el plan sigue como estaba"); expect(fallo.fallo!.que_hacer).toContain("pedir cambios otra vez")
     const dormido = avanceDelPedido(vacio({ pedido: ped({ despertado: false, despertar_detalle: "sin llave de despacho" }) }), AHORA)
-    expect(dormido.pasos[1]).toMatchObject({ estado: "fallo", detalle: "No se pudo avisar a la oficina de planeación (sin llave de despacho)." }); expect(dormido.fallo!.que_hacer).toContain("Reintentar")
+    expect(dormido.pasos[1]).toMatchObject({ estado: "fallo", detalle: "No se pudo avisar a la oficina de planeación.", detalle_tecnico: "sin llave de despacho", nombre: "El jefe de marketing no terminó" }) // auditoría 02-nov: lo técnico, detrás de «ver detalle»; expect(dormido.fallo!.que_hacer).toContain("Reintentar")
     expect(avanceDelPedido(vacio({ pedido: ped({ estado: "en_reescritura", creado_en: "2026-11-01T15:30:00Z" }) }), AHORA).nota).toContain("Lleva 60 min")
   })
   it("«QUÉ CAMBIÓ EN ESTA VERSIÓN» sale del texto del plan; sin el apartado, nada", () => {

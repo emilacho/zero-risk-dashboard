@@ -26,7 +26,7 @@ const Chip = ({ children, tono = "neutro" }: { children: React.ReactNode; tono?:
  * LA BARRA LATERAL DEL MANUAL (CC6 · 02-nov · boceto aprobado por Emilio tal cual): fija al bajar, con lo esencial del manual a la vista mientras se lee.
  * Datos reales: si algo no existe, se dice que falta. Los textos largos siguen en sus tarjetas de la izquierda; aquí va lo corto.
  */
-export function BarraDelManual({ m, nombre, campos, delDueno, faltan, irA }: {
+export function BarraDelManual({ m, nombre, campos, delDueno, faltan, huecos, irA }: {
   m: Manual
   /** el nombre del cliente: la primera tipografía lo escribe con su letra */
   nombre: string | null
@@ -35,6 +35,8 @@ export function BarraDelManual({ m, nombre, campos, delDueno, faltan, irA }: {
   delDueno: (c: CampoLeido) => boolean
   /** las etiquetas de lo que falta */
   faltan: string[]
+  /** las claves de lo que falta, en el mismo orden que `faltan` (campos de siempre + secciones nuevas) */
+  huecos?: string[]
   /** llevar a la tarjeta de un campo (al tocar un faltante) */
   irA: (clave: string) => void
 }) {
@@ -54,7 +56,7 @@ export function BarraDelManual({ m, nombre, campos, delDueno, faltan, irA }: {
           {estado.faltan.length > 0 && <span className="rounded-full border border-amber-400/50 px-2 py-0.5 text-amber-200">{`faltan ${estado.faltan.length}`}</span>}
         </div>
         <div className="mt-2 h-1.5 rounded-full bg-white/10" role="meter" aria-label="Qué tan completo está" aria-valuenow={estado.completo_pct} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full" style={{ width: `${estado.completo_pct}%`, background: AMBAR }} /></div>
-        {estado.faltan.length > 0 && <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[11px] text-zinc-400">{m.lector.huecos.map((k, i) => <button key={k} type="button" data-ir-campo={k} onClick={() => irA(k)} className="underline decoration-dotted underline-offset-2 hover:text-amber-200">{faltan[i]}</button>)}</p>}
+        {estado.faltan.length > 0 && <p className="mt-1.5 flex flex-wrap gap-x-1.5 text-[11px] text-zinc-400">{(huecos ?? m.lector.huecos).map((k, i) => <button key={k} type="button" data-ir-campo={k} onClick={() => irA(k)} className="underline decoration-dotted underline-offset-2 hover:text-amber-200">{faltan[i]}</button>)}</p>}
       </Bloque>
 
       <Bloque id="colores" titulo="Colores" nota={m.colores[0]?.procedencia ? `Tomados ${procedenciaLegible(m.colores[0].procedencia)}.` : null}>

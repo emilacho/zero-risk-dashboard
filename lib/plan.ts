@@ -394,7 +394,28 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
 // Fuentes (solo lectura): la fila del pedido (`plan_cambios`), los despachos e invocaciones de su corrida (`workflow_execution_id`), la versión nueva
 // (`client_historical_outputs` con `provenance_tag.plan_cambio_id`), su revisión de la jefatura (`jefatura_revisiones`) y su compuerta (`plan_aprobaciones`).
 export type EstadoDelPaso = "hecho" | "en_curso" | "pendiente" | "fallo"
-export interface PasoDelPedido { clave: "recibido" | "reescribiendo" | "controles" | "jefatura" | "listo"; nombre: string; estado: EstadoDelPaso; hora: string | null; detalle: string | null }
+export interface PasoDelPedido { clave: "recibido" | "reescribiendo" | "controles" | "jefatura" | "listo"; nombre: string; estado: EstadoDelPaso; hora: string | null; detalle: string | null; /** CC6 · 02-nov (auditoría): el texto técnico tal cual, solo detrás de «ver detalle» */ detalle_tecnico?: string | null }
+
+/**
+ * EL ERROR EN PALABRAS (CC6 · 02-nov · auditoría de Lenovo, aprobada por Emilio): lo que devuelve la plataforma suele venir en inglés y técnico («The connection
+ * to the server was closed unexpectedly…»). Se dice en una frase simple qué pasó y que el documento no cambió; el texto crudo queda detrás de «ver detalle».
+ */
+export function errorEnPalabras(crudo: string | null | undefined, doc: "el plan" | "el manual"): string {
+  const t = String(crudo ?? "").toLowerCase()
+  if (!t.trim()) return `Algo falló; ${doc} no cambió.`
+  if (/connection|socket|econnreset|econnrefused|closed unexpectedly|network|fetch failed|hang up/.test(t)) return `Se cortó la conexión con el equipo; ${doc} no cambió.`
+  if (/timeout|timed out|tiempo|504|deadline/.test(t)) return `El equipo tardó demasiado y se cortó; ${doc} no cambió.`
+  if (/credit|saldo|balance|quota|rate limit|429/.test(t)) return `El proveedor de inteligencia artificial no respondió (saldo o límite); ${doc} no cambió.`
+  if (/\b5\d\d\b|internal server|bad gateway|unavailable/.test(t)) return `El servidor del equipo falló; ${doc} no cambió.`
+  // ya está en español (sin palabras técnicas en inglés) y es corto: se deja tal cual
+  if (!/\b(the|was|is|to|of|server|error|failed|unexpected|connection|request|invalid|undefined|null|exception)\b/.test(t) && t.length <= 200) return String(crudo).trim()
+  return `Hubo un error técnico; ${doc} no cambió.`
+}
+/** el nombre del paso de reescritura según su estado: «está reescribiendo» · «reescribió» · «no terminó» */
+export function nombreDelPasoDeReescritura(manual: boolean, estado: EstadoDelPaso): string {
+  const quien = manual ? "El equipo del manual" : "El jefe de marketing"
+  return estado === "hecho" ? `${quien} reescribió` : estado === "fallo" ? `${quien} no terminó` : `${quien} está reescribiendo`
+}
 export interface AvanceCrudo {
   pedido: { id: string; estado: string; creado_en: string | null; actualizado_en: string | null; despertado: boolean | null; despertar_detalle: string | null }
   despachos: Array<{ status: string; creado_en: string | null; empezo_en: string | null; termino_en: string | null }>
@@ -456,21 +477,23 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date, documento: Document
   if (sinDespertar && !empezo) {
     const paso = pasos[1]
     const quien = manual ? "al equipo del manual" : "a la oficina de planeación"
-    paso.estado = "fallo"; paso.detalle = `No se pudo avisar ${quien}${p.despertar_detalle ? ` (${p.despertar_detalle})` : ""}.`
+    paso.estado = "fallo"; paso.detalle = `No se pudo avisar ${quien}.`; paso.detalle_tecnico = p.despertar_detalle ?? null
     fallo = { texto: manual ? "El pedido quedó guardado, pero el equipo del manual no recibió el aviso." : "El pedido quedó guardado, pero la oficina de planeación no recibió el aviso.", que_hacer: "Usa «Reintentar»: repite el aviso." }
   } else if (fallido) {
     const paso = pasos.find((x) => x.estado !== "hecho") ?? pasos[pasos.length - 1]
     paso.estado = "fallo"; paso.hora = p.actualizado_en; paso.detalle = p.estado === "cancelado" ? "El pedido se canceló." : "La reescritura no terminó."
     const doc = manual ? "el manual" : "el plan"
-    if (manual && p.despertar_detalle) paso.detalle = `${paso.detalle} ${p.despertar_detalle}`
+    if (p.despertar_detalle) { paso.detalle = errorEnPalabras(p.despertar_detalle, manual ? "el manual" : "el plan"); paso.detalle_tecnico = p.despertar_detalle }
     // «sin cambios reales» (CC1 02-nov, ANEXO 2): el equipo terminó, pero lo reescrito quedó igual; no es una falla de la corrida
     if (manual && p.estado === "fallido" && /sin cambios reales/i.test(p.despertar_detalle ?? "")) {
-      paso.detalle = "Lo reescrito quedó igual a lo que había."
+      paso.detalle = "Lo reescrito quedó igual a lo que había."; paso.detalle_tecnico = null
       fallo = { texto: "El equipo revisó tu pedido y el manual quedó igual: no se guardó una versión nueva.", que_hacer: "Si querías un cambio, pídelo con más detalle (qué campo y cómo)." }
     } else
       fallo = { texto: p.estado === "cancelado" ? `El pedido de cambios se canceló: ${doc} sigue como estaba.` : `La reescritura no terminó: ${doc} sigue como estaba (la versión actual no cambió).`, que_hacer: manual ? "Puedes pedir cambios otra vez." : "Puedes pedir cambios otra vez o aprobar la versión actual." }
   }
   for (let i = 1; i < pasos.length; i++) if (pasos[i].estado !== "pendiente" && pasos[i - 1].estado === "pendiente") pasos[i - 1].estado = "hecho" // nunca un paso posterior encendido con uno anterior apagado
+  // el título del paso dice lo que de verdad pasó (auditoría 02-nov: decía «está reescribiendo» con el círculo rojo)
+  const reesc = pasos.find((x) => x.clave === "reescribiendo"); if (reesc) reesc.nombre = nombreDelPasoDeReescritura(manual, reesc.estado)
   const minutos = p.creado_en && !Number.isNaN(minDe(p.creado_en)) ? Math.max(0, Math.round((ahora.getTime() - minDe(p.creado_en)) / 60000)) : null
   const nota = !fallo && !listo && minutos != null && minutos > 45 ? `Lleva ${minutos} min: más de lo esperado. Si no avanza, puede que la corrida se haya cortado (todavía no hay vigía que lo marque).` : null
   const estimado = listo ? "Terminó" : fallo ? "Se detuvo" : `Suele tardar ≈ ${MINUTOS_ESTIMADOS.min}–${MINUTOS_ESTIMADOS.max} min${minutos != null ? ` · van ${minutos} min` : ""}`

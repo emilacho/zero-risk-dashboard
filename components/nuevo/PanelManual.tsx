@@ -1,5 +1,6 @@
 "use client"
 
+import { faltantesDeLasSecciones } from "@/lib/manual-secciones"
 import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
@@ -243,7 +244,11 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
 
   const m = datos?.manual ?? null
   const campos = new Map((m?.lector.campos ?? []).map((c) => [c.clave, c]))
-  const faltan = m ? m.lector.huecos.map(etiquetaDelHueco) : []
+  // auditoría 02-nov: las secciones nuevas vacías también faltan (Historia y origen, Tono según el canal, Reglas de escritura, Dirección de fotografía, Uso del logo, Jerarquía tipográfica)
+  const faltanSecciones = m ? faltantesDeLasSecciones(m.secciones_nuevas ?? []) : []
+  const huecos = m ? [...m.lector.huecos, ...faltanSecciones.map((f) => f.clave)] : []
+  const faltan = m ? [...m.lector.huecos.map(etiquetaDelHueco), ...faltanSecciones.map((f) => f.etiqueta)] : []
+  const completo = !!m && m.lector.completo && faltanSecciones.length === 0
   const ciclo = m?.ciclo ?? CICLO_DEL_MANUAL_CERRADO
   const esDelDueno = (c: CampoLeido) => !!c.valor && (origenDelCampo(c) === "dueno" || origenDelCampo(c) === "aceptado")
   const validadosDe = (claves: string[]) => claves.map((k) => campos.get(k)).filter((c): c is CampoLeido => !!c && esDelDueno(c)).map((c) => c.etiqueta)
@@ -288,16 +293,16 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                 <h3 className="font-display text-[24px] font-semibold leading-tight tracking-tight text-zinc-50">{datos.cliente?.nombre}</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Chip tono={m.lector.validadoPor === "propuesta" ? "ambar" : "verde"}>{m.lector.rotulo}</Chip>
-                  <Chip tono={m.lector.completo ? "neutro" : "ambar"}>{m.lector.completo ? (m.lector.rotuloVisual ?? "Completo") : `Incompleto · faltan ${faltan.length}`}</Chip>
+                  <Chip tono={completo ? "neutro" : "ambar"}>{completo ? (m.lector.rotuloVisual ?? "Completo") : `Incompleto · faltan ${faltan.length}`}</Chip>
                   <Chip>{m.fidelidad}</Chip>
                   {m.origen && <Chip>{m.origen}</Chip>}
                 </div>
-                {!m.lector.completo && faltan.length > 0 && (
+                {!completo && faltan.length > 0 && (
                   <div data-lo-que-falta className="mt-3 rounded-md border border-amber-400/30 bg-amber-400/[0.06] p-3">
                     <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-amber-300">Lo que falta · {faltan.length}</p>
                     <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                      {m.lector.huecos.map((k) => (
-                        <li key={k}><button type="button" data-ir-campo={k} onClick={() => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} className="rounded-md border border-amber-400/30 px-2 py-0.5 text-[12px] text-amber-100 hover:bg-amber-400/10">{etiquetaDelHueco(k)}</button></li>
+                      {huecos.map((k, i) => (
+                        <li key={k}><button type="button" data-ir-campo={k} onClick={() => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} className="rounded-md border border-amber-400/30 px-2 py-0.5 text-[12px] text-amber-100 hover:bg-amber-400/10">{faltan[i]}</button></li>
                       ))}
                     </ul>
                   </div>
@@ -364,7 +369,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
 
                 {/* la identidad visual: colores y letras con su procedencia */}
                 {/* la barra lateral (boceto aprobado por Emilio, 02-nov): fija al bajar, lo esencial del manual con datos reales */}
-                <BarraDelManual m={m} nombre={datos.cliente?.nombre ?? null} campos={campos} delDueno={esDelDueno} faltan={faltan} irA={(k) => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} />
+                <BarraDelManual m={m} nombre={datos.cliente?.nombre ?? null} campos={campos} delDueno={esDelDueno} faltan={faltan} huecos={huecos} irA={(k) => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} />
               </div>
             </>
           )}
