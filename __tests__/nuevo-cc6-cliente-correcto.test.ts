@@ -97,6 +97,12 @@ describe("la escena de marketing sigue al mismo cliente (corrección de Lenovo 2
     }), { ahora: new Date("2026-11-02T20:00:00Z") })
     expect(p.cliente?.id).toBe(NAUFRAGO)
   })
+  it("reserva R2 de CC3 (#209): el plan usa la regla común aunque el primero de la lista sea otro (Zero Risk SI en pausa manda sobre «el primero», Náufrago)", async () => {
+    const p = await leerPlanDelCliente(base({ clients: clientes, cadena_campanas: [{ id: "c-zr", client_id: ZR, estado: "pausada", seco: false, creada_en: "2026-10-30" }], client_historical_outputs: [] }), { ahora: new Date("2026-11-02T20:00:00Z") })
+    expect(p.clientes[0].id).toBe(NAUFRAGO); expect(p.cliente?.id).toBe(ZR)
+    const conPlan = await leerPlanDelCliente(base({ clients: clientes, cadena_campanas: [{ id: "c-zr", client_id: ZR, estado: "pausada", seco: false, creada_en: "2026-10-30" }], client_historical_outputs: [{ client_id: NAUFRAGO, status: "draft", created_at: "2026-11-01", output_type: "campaign_plan_90d" }] }), { ahora: new Date("2026-11-02T20:00:00Z") })
+    expect(conPlan.cliente?.id).toBe(NAUFRAGO) // el plan más reciente manda sobre la campaña en pausa
+  })
   it("el navegador manda el cliente de trabajo a la escena; la ruta solo acepta un id válido; el plan, las métricas y la vitrina de la escena usan ese cliente", () => {
     expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toMatch(/leerClienteDeTrabajo\(\)\?\.id[\s\S]{0,120}\/api\/escena-viva\$\{id \? `\?cliente=/)
     const ruta = readFileSync("app/api/escena-viva/route.ts", "utf8")
@@ -104,5 +110,8 @@ describe("la escena de marketing sigue al mismo cliente (corrección de Lenovo 2
     const datos = readFileSync("lib/escena-avatares-datos.ts", "utf8")
     expect(datos).toContain("contexto(supa, ahora, cliente)"); expect(datos).toContain("leerElPizarronDeMetricas(supa, ahora, cliente)"); expect(datos).toContain("leerLaVitrinaDeMarketing(supa, ahora, cliente)")
     expect(datos).not.toContain('conCache("escena-viva-contexto"') // la memoria es por cliente
+    // reserva R1 de CC3 (#209): las métricas y la vitrina también se guardan por cliente (si no, con dos clientes alternando uno vería las cifras del otro)
+    expect(datos).toContain("conCache(`escena-viva-metricas:${clientePedido ?? \"omision\"}`"); expect(datos).toContain("conCache(`escena-viva-vitrina:${clientePedido ?? \"omision\"}`")
+    expect(datos).not.toMatch(/conCache\("escena-viva-(metricas|vitrina)"/)
   })
 })
