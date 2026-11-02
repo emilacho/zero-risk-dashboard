@@ -416,11 +416,16 @@ export interface AvanceDelPedido {
 /** los agentes de la jefatura (ADR-020: los 3 jefes) y su revisor externo */
 const JEFATURA = new Set(["editor-en-jefe", "editor_en_jefe", "brand-strategist", "brand_strategist", "jefe-client-success", "jefe_client_success", "revisor-externo-gpt"])
 const MINUTOS_TOPE_DESPACHO = 20
-export function quienTrabajaAhora(trabajando: AvanceCrudo["trabajando"], ahora: Date): AvanceDelPedido["ahora"] {
+/** qué documento se reescribe: el plan (por omisión) o el manual de marca (CC6 · 02-nov · mismo ciclo, otras palabras) */
+export type DocumentoDelPedido = "plan" | "manual"
+const nombreDeAgente = (k: string) => k.replace(/[-_]+/g, " ").trim()
+export function quienTrabajaAhora(trabajando: AvanceCrudo["trabajando"], ahora: Date, documento: DocumentoDelPedido = "plan"): AvanceDelPedido["ahora"] {
   const vivos = (trabajando ?? []).filter((x) => x.desde && ahora.getTime() - Date.parse(x.desde) <= MINUTOS_TOPE_DESPACHO * 60_000).sort((a, b) => (b.desde ?? "").localeCompare(a.desde ?? ""))
   const x = vivos[0]
   if (!x) return null
   const k = x.agente.trim().toLowerCase()
+  // en el manual el equipo (las tres lentes, el consolidador, el juez) reescribe y revisa: se dice quién, sin inventar su papel
+  if (documento === "manual") return { quien: "otro", texto: `El equipo del manual está trabajando: ${nombreDeAgente(k)}`, desde: x.desde }
   if (k === "jefe-marketing" || k === "jefe_marketing") return { quien: "redactor", texto: "El jefe de marketing está reescribiendo el plan", desde: x.desde }
   if (JEFATURA.has(k)) return { quien: "jefatura", texto: "La jefatura está revisando la versión nueva", desde: x.desde }
   return { quien: "otro", texto: `Trabajando: ${x.agente}`, desde: x.desde }
@@ -428,8 +433,9 @@ export function quienTrabajaAhora(trabajando: AvanceCrudo["trabajando"], ahora: 
 export const MINUTOS_ESTIMADOS = { min: 15, max: 30 } as const
 const minDe = (iso: string | null) => (iso ? Date.parse(iso) : NaN)
 const primera = (xs: Array<string | null>): string | null => xs.filter((x): x is string => !!x).sort()[0] ?? null
-export function avanceDelPedido(a: AvanceCrudo, ahora: Date): AvanceDelPedido {
+export function avanceDelPedido(a: AvanceCrudo, ahora: Date, documento: DocumentoDelPedido = "plan"): AvanceDelPedido {
   const p = a.pedido
+  const manual = documento === "manual"
   const terminado = p.estado === "aplicado"
   const fallido = p.estado === "fallido" || p.estado === "cancelado"
   const sinDespertar = p.despertado === false
@@ -439,26 +445,36 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date): AvanceDelPedido {
   const listo = terminado || a.compuerta_nueva?.estado === "pendiente"
   const pasos: PasoDelPedido[] = [
     { clave: "recibido", nombre: "Recibido", estado: "hecho", hora: p.creado_en, detalle: null },
-    { clave: "reescribiendo", nombre: "El jefe de marketing está reescribiendo", estado: redactorListo ? "hecho" : empezo ? "en_curso" : "pendiente", hora: empezo, detalle: null },
+    { clave: "reescribiendo", nombre: manual ? "El equipo del manual está reescribiendo" : "El jefe de marketing está reescribiendo", estado: redactorListo ? "hecho" : empezo ? "en_curso" : "pendiente", hora: empezo, detalle: null },
     { clave: "controles", nombre: "Controles automáticos", estado: a.version_nueva ? "hecho" : redactorListo ? "en_curso" : "pendiente", hora: a.version_nueva?.creado_en ?? null, detalle: null },
     { clave: "jefatura", nombre: "La jefatura revisa", estado: jefaturaCerrada ? "hecho" : a.version_nueva ? "en_curso" : "pendiente", hora: a.jefatura?.cerrado_en ?? a.jefatura?.creado_en ?? null, detalle: null },
-    { clave: "listo", nombre: "Listo para ti", estado: listo ? "hecho" : "pendiente", hora: a.compuerta_nueva?.creado_en ?? (terminado ? p.actualizado_en : null), detalle: null },
+    { clave: "listo", nombre: manual ? "Listo: ya es el manual vigente" : "Listo para ti", estado: listo ? "hecho" : "pendiente", hora: a.compuerta_nueva?.creado_en ?? (terminado ? p.actualizado_en : null), detalle: null },
   ]
+  // el manual NO pasa por la jefatura (CC1 y CC2, 02-nov): ese paso no se muestra (no hay fila que lo encienda)
+  if (manual) pasos.splice(pasos.findIndex((x) => x.clave === "jefatura"), 1)
   let fallo: AvanceDelPedido["fallo"] = null
   if (sinDespertar && !empezo) {
     const paso = pasos[1]
-    paso.estado = "fallo"; paso.detalle = `No se pudo avisar a la oficina de planeación${p.despertar_detalle ? ` (${p.despertar_detalle})` : ""}.`
-    fallo = { texto: "El pedido quedó guardado, pero la oficina de planeación no recibió el aviso.", que_hacer: "Usa «Reintentar»: repite el aviso." }
+    const quien = manual ? "al equipo del manual" : "a la oficina de planeación"
+    paso.estado = "fallo"; paso.detalle = `No se pudo avisar ${quien}${p.despertar_detalle ? ` (${p.despertar_detalle})` : ""}.`
+    fallo = { texto: manual ? "El pedido quedó guardado, pero el equipo del manual no recibió el aviso." : "El pedido quedó guardado, pero la oficina de planeación no recibió el aviso.", que_hacer: "Usa «Reintentar»: repite el aviso." }
   } else if (fallido) {
     const paso = pasos.find((x) => x.estado !== "hecho") ?? pasos[pasos.length - 1]
     paso.estado = "fallo"; paso.hora = p.actualizado_en; paso.detalle = p.estado === "cancelado" ? "El pedido se canceló." : "La reescritura no terminó."
-    fallo = { texto: p.estado === "cancelado" ? "El pedido de cambios se canceló: el plan sigue como estaba." : "La reescritura no terminó: el plan sigue como estaba (la versión actual no cambió).", que_hacer: "Puedes pedir cambios otra vez o aprobar la versión actual." }
+    const doc = manual ? "el manual" : "el plan"
+    if (manual && p.despertar_detalle) paso.detalle = `${paso.detalle} ${p.despertar_detalle}`
+    // «sin cambios reales» (CC1 02-nov, ANEXO 2): el equipo terminó, pero lo reescrito quedó igual; no es una falla de la corrida
+    if (manual && p.estado === "fallido" && /sin cambios reales/i.test(p.despertar_detalle ?? "")) {
+      paso.detalle = "Lo reescrito quedó igual a lo que había."
+      fallo = { texto: "El equipo revisó tu pedido y el manual quedó igual: no se guardó una versión nueva.", que_hacer: "Si querías un cambio, pídelo con más detalle (qué campo y cómo)." }
+    } else
+      fallo = { texto: p.estado === "cancelado" ? `El pedido de cambios se canceló: ${doc} sigue como estaba.` : `La reescritura no terminó: ${doc} sigue como estaba (la versión actual no cambió).`, que_hacer: manual ? "Puedes pedir cambios otra vez." : "Puedes pedir cambios otra vez o aprobar la versión actual." }
   }
   for (let i = 1; i < pasos.length; i++) if (pasos[i].estado !== "pendiente" && pasos[i - 1].estado === "pendiente") pasos[i - 1].estado = "hecho" // nunca un paso posterior encendido con uno anterior apagado
   const minutos = p.creado_en && !Number.isNaN(minDe(p.creado_en)) ? Math.max(0, Math.round((ahora.getTime() - minDe(p.creado_en)) / 60000)) : null
   const nota = !fallo && !listo && minutos != null && minutos > 45 ? `Lleva ${minutos} min: más de lo esperado. Si no avanza, puede que la corrida se haya cortado (todavía no hay vigía que lo marque).` : null
   const estimado = listo ? "Terminó" : fallo ? "Se detuvo" : `Suele tardar ≈ ${MINUTOS_ESTIMADOS.min}–${MINUTOS_ESTIMADOS.max} min${minutos != null ? ` · van ${minutos} min` : ""}`
-  return { pasos, minutos, estimado, nota, fallo, listo, ahora: listo || fallo ? null : quienTrabajaAhora(a.trabajando, ahora) }
+  return { pasos, minutos, estimado, nota, fallo, listo, ahora: listo || fallo ? null : quienTrabajaAhora(a.trabajando, ahora, documento) }
 }
 
 /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» del texto del plan (la reescritura abre con ese apartado): su contenido, sin el título; null si no está */

@@ -14,7 +14,7 @@ export type NombreDeAccion =
   | "cliente-editar" | "cliente-nuevo" | "cliente-baja" | "cliente-tope"
   | "oficina-estado" | "oficina-tope"
   | "revision-resolver"
-  | "manual-campos" | "manual-validar" | "manual-palabra" | "manual-validar-campo"
+  | "manual-campos" | "manual-validar" | "manual-palabra" | "manual-validar-campo" | "manual-cambios"
 
 type Cuerpo = Record<string, unknown>
 export type Validacion = { ok: true; cuerpo: Cuerpo } | { ok: false; error: string; detalle: string }
@@ -29,6 +29,8 @@ export const OFICINAS_MANEJABLES = ["creativa", "financiera", "jefatura", "plane
 export const REDES = ["instagram", "facebook", "tiktok", "linkedin", "youtube"] as const
 /** tope de un pedido de cambios al plan (contrato CC1: ≤ 8 · el panel lo muestra y lo confirma) */
 export const TOPE_PEDIR_CAMBIOS_USD = 8
+/** el tope de un pedido de cambios al manual (CC1 02-nov, provisional): el mismo valor que manda el panel (`lib/manual-ciclo.ts`) */
+export const TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD = 5
 /** tope por pieza de la mesa creativa (firma de Emilio, 30-oct): se muestra antes de confirmar */
 export const TOPE_POR_PIEZA_USD = 5
 
@@ -165,6 +167,24 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   },
   // TABLERO DEL DUEÑO · palabras del manual (CC6 · 01-nov · contrato de CC1 #815): prohibir, dejar como estilo o quitar. US$ 0; versión nueva del manual.
   // VALIDAR UN CAMPO sin versión nueva (CC6 · 02-nov · contrato CC1 `254b94f`, certificado por CC3): el dueño lo da por bueno o le quita la validación. US$ 0
+  // PEDIR CAMBIOS AL MANUAL (CC6 · 02-nov · contrato CC1): como «plan-cambios», GASTA en la plataforma (el equipo del manual reescribe y la jefatura revisa);
+  // el servidor exige la confirmación y el tope (US$ 5 provisional), no solo la pantalla. Sin aviso de gasto en /nuevo (Emilio, 01-nov): se manda por código
+  "manual-cambios": {
+    gasta: null,
+    validar: (c) => {
+      const id = conId(c, "client_id"), t = texto(c.texto), tope = Number(c.tope_usd)
+      if (!id) return mal("falta el cliente")
+      if (t.length < 5 || t.length > 4000) return mal("cuenta qué debe cambiar (de 5 a 4.000 caracteres)")
+      if (c.confirmo_gasto !== true) return { ok: false, error: "falta_confirmar_gasto", detalle: `pedir cambios al manual gasta (tope hasta US$ ${TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD}): confírmalo antes` }
+      if (!Number.isFinite(tope) || tope <= 0) return mal("falta el tope del gasto")
+      if (tope > TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD) return mal(`el tope pasa de US$ ${TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD}`)
+      const seccion = texto(c.seccion)
+      if (seccion.length > 80) return mal("la sección es demasiado larga")
+      const campos = Array.isArray(c.campos) ? c.campos : []
+      if (campos.length > 30 || campos.some((x) => typeof x !== "string" || !/^[a-z_]{2,40}$/.test(x))) return mal("los campos de la sección no son válidos")
+      return { ok: true, cuerpo: { client_id: id, texto: t, ...(seccion ? { seccion, campos } : {}), confirmo_gasto: true, tope_usd: tope } }
+    },
+  },
   "manual-validar-campo": {
     gasta: null,
     validar: (c) => {

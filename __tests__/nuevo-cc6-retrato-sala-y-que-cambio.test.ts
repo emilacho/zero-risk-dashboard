@@ -43,6 +43,6 @@ describe("«Qué cambió» resumido y sin versiones a la vista", () => {
     expect(lineasDeQueCambio("- uno\n2. dos\n\n---\n* tres")).toEqual(["uno", "dos", "tres"])
     const fuente = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
     expect(fuente).not.toMatch(/caracteres` : ""\}/)
-    expect(fuente).toContain("<QueCambio texto={queCambio} />")
+    expect(fuente).toContain('<QueCambio titulo="Qué cambió en el plan" lineas={lineasDeQueCambio(queCambio)} />') // CC6 02-nov: la pieza se movió a components/nuevo/pedido; mismo dibujo
   })
 })
