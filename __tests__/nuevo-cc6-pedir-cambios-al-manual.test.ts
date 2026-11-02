@@ -49,8 +49,12 @@ describe("la lógica del pedido (pura)", () => {
     const abierto = { id: "p", estado: "en_reescritura", texto: "x", seccion: null, creado_en: null, actualizado_en: null, despertado: true, despertar_detalle: null, manual_id: null, manual_nuevo_id: null }
     expect(rotuloMientrasSeReescribe({ abierto, avance: vivo })).toMatch(/El equipo está reescribiendo el manual/)
     const fallo = avanceDelPedido({ ...base, pedido: { id: "p", estado: "fallido", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:30:00Z", despertado: true, despertar_detalle: "sin cambios reales" } }, AHORA, "manual")
-    expect(fallo.fallo?.texto).toBe("La reescritura no terminó: el manual sigue como estaba (la versión actual no cambió).")
-    expect(fallo.pasos.find((p) => p.estado === "fallo")?.detalle).toMatch(/sin cambios reales/)
+    // «sin cambios reales» (CC1 ANEXO 2): se dice como lo que es, no como una corrida rota
+    expect(fallo.fallo?.texto).toBe("El equipo revisó tu pedido y el manual quedó igual: no se guardó una versión nueva.")
+    expect(fallo.pasos.find((p) => p.estado === "fallo")?.detalle).toBe("Lo reescrito quedó igual a lo que había.")
+    const roto = avanceDelPedido({ ...base, pedido: { id: "p", estado: "fallido", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:30:00Z", despertado: true, despertar_detalle: "tope de gasto" } }, AHORA, "manual")
+    expect(roto.fallo?.texto).toBe("La reescritura no terminó: el manual sigue como estaba (la versión actual no cambió).")
+    expect(roto.pasos.find((p) => p.estado === "fallo")?.detalle).toMatch(/tope de gasto/)
     expect(rotuloMientrasSeReescribe({ abierto, avance: fallo })).toBeNull()
     expect(rotuloMientrasSeReescribe({ abierto, avance: { ...vivo, minutos: 120 } })).toBeNull()
     // el plan no cambia: sus nombres siguen como estaban

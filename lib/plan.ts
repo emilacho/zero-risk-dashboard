@@ -463,7 +463,12 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date, documento: Document
     paso.estado = "fallo"; paso.hora = p.actualizado_en; paso.detalle = p.estado === "cancelado" ? "El pedido se canceló." : "La reescritura no terminó."
     const doc = manual ? "el manual" : "el plan"
     if (manual && p.despertar_detalle) paso.detalle = `${paso.detalle} ${p.despertar_detalle}`
-    fallo = { texto: p.estado === "cancelado" ? `El pedido de cambios se canceló: ${doc} sigue como estaba.` : `La reescritura no terminó: ${doc} sigue como estaba (la versión actual no cambió).`, que_hacer: manual ? "Puedes pedir cambios otra vez." : "Puedes pedir cambios otra vez o aprobar la versión actual." }
+    // «sin cambios reales» (CC1 02-nov, ANEXO 2): el equipo terminó, pero lo reescrito quedó igual; no es una falla de la corrida
+    if (manual && p.estado === "fallido" && /sin cambios reales/i.test(p.despertar_detalle ?? "")) {
+      paso.detalle = "Lo reescrito quedó igual a lo que había."
+      fallo = { texto: "El equipo revisó tu pedido y el manual quedó igual: no se guardó una versión nueva.", que_hacer: "Si querías un cambio, pídelo con más detalle (qué campo y cómo)." }
+    } else
+      fallo = { texto: p.estado === "cancelado" ? `El pedido de cambios se canceló: ${doc} sigue como estaba.` : `La reescritura no terminó: ${doc} sigue como estaba (la versión actual no cambió).`, que_hacer: manual ? "Puedes pedir cambios otra vez." : "Puedes pedir cambios otra vez o aprobar la versión actual." }
   }
   for (let i = 1; i < pasos.length; i++) if (pasos[i].estado !== "pendiente" && pasos[i - 1].estado === "pendiente") pasos[i - 1].estado = "hecho" // nunca un paso posterior encendido con uno anterior apagado
   const minutos = p.creado_en && !Number.isNaN(minDe(p.creado_en)) ? Math.max(0, Math.round((ahora.getTime() - minDe(p.creado_en)) / 60000)) : null
