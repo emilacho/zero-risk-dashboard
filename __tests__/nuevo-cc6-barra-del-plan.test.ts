@@ -43,11 +43,24 @@ describe("la barra del plan (pura)", () => {
   })
 })
 
+describe("la meta entera (Lenovo 02-nov: no se corta en la parte importante)", () => {
+  const LARGA = "El número que persigue el plan: 130 tickets semanales promedio los jueves a lunes al cierre de la semana 12 (24 de enero de 2027), frente a los ~103 semanales estimados del período de octubre. Es una meta provisional: se recalcula con la base propia real y con la señal de las primeras cuatro semanas."
+  const conMetaLarga = () => base({ documento: { ...base().documento!, prosa: `# PLAN\n**Olón · 2 de noviembre de 2026 – 24 de enero de 2027**\n\n## Resumen\n${LARGA}\n` } })
+  it("la barra trae la línea completa, no el resumen recortado", () => {
+    expect(barraDelPlan(conMetaLarga()).meta).toBe(LARGA)
+  })
+  it("en pantalla: completa en el texto, con «Ver más» si es larga", () => {
+    const h = renderToStaticMarkup(createElement(BarraDelPlan, { b: barraDelPlan(conMetaLarga()) }))
+    expect(h).toContain("se recalcula con la base propia real"); expect(h).toContain('data-accion="ver-meta"'); expect(h).toContain("Ver más"); expect(h).not.toMatch(/provisional:…/)
+  })
+})
+
 describe("la barra del plan en pantalla", () => {
   it("los siete bloques del boceto, sin cifras de gasto, y fija al bajar en el panel", () => {
     const h = renderToStaticMarkup(createElement(BarraDelPlan, { b: barraDelPlan(base()) }))
     expect([...h.matchAll(/data-barra="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["decision", "meta", "fechas", "presupuesto", "sedes-y-canales", "fases", "te-toca"])
-    expect(h).toContain("Hoy es el día 1 de 90."); expect(h).toContain("Lo gastado está en Dinero.")
+    expect(h).toContain("Hoy es el día 1 de 90."); expect(h).toContain("Tomado de la sección «Presupuesto» del plan. Lo gastado está en Dinero.")
+    expect(h).not.toContain("Lo que propone el plan") // un solo rótulo, verdadero (Lenovo 02-nov)
     expect(h).not.toMatch(/gastado:|US\$ \d/)
     const panel = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
     expect(panel).toContain("<BarraDelPlan b={barraDelPlan(datos)} />"); expect(panel).toMatch(/aria-label="Lo esencial del plan" className="[^"]*lg:sticky/)

@@ -4,7 +4,7 @@
  * Sin cifras de gasto: lo gastado vive en Dinero (regla de Emilio), aquí solo el presupuesto que el plan propone.
  */
 import type { PlanDelCliente } from "@/lib/plan-datos"
-import { datosClave, seccionesDelPlan } from "@/lib/plan-documento"
+import { datosClave, resumenDeLaSeccion, seccionesDelPlan } from "@/lib/plan-documento"
 import { leerElCiclo, sedeLegible, textoDeLaMeta } from "@/lib/plan"
 import { redDelTablero } from "@/lib/pizarron"
 
@@ -32,15 +32,24 @@ export interface BarraDelPlan {
 export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
   const c = p.campana, e = p.estrategia, d = p.documento
   const lectura = d && p.ciclo ? leerElCiclo(d.status, p.ciclo) : null
-  const claves = d?.prosa ? datosClave(seccionesDelPlan(d.prosa)) : []
+  const doc = d?.prosa ? seccionesDelPlan(d.prosa) : null
+  const claves = doc ? datosClave(doc) : []
   const dato = (k: string) => claves.find((x) => x.clave === k)?.valor ?? null
+  // la meta ENTERA (Lenovo 02-nov: se cortaba con «…» en la parte importante): el resumen recorta, así que se busca la línea completa en su sección
+  const metaDelDocumento = (): string | null => {
+    const m = claves.find((x) => x.clave === "meta")
+    if (!m?.valor || !m.valor.endsWith("…") || !doc) return m?.valor ?? null
+    const inicio = m.valor.slice(0, -1).trim()
+    const sec = doc.secciones.find((x) => x.id === m.seccion)
+    return (sec && resumenDeLaSeccion(sec.cuerpo, 200, 100_000).find((l) => l.startsWith(inicio))) || m.valor
+  }
   // fechas: las de la campaña (lo que corre de verdad); sin campaña, las que escribe el documento
   let fechas: BarraDelPlan["fechas"] = null, total: number | null = null
   if (c?.desde && c?.hasta) {
     total = Math.round((fecha(c.hasta).getTime() - fecha(c.desde).getTime()) / DIA_MS) + 1
     fechas = { texto: `${corta(c.desde)} → ${corta(c.hasta)} · ${Math.round(total / 7)} semanas`, detalle: null }
   } else if (dato("fechas")) fechas = { texto: dato("fechas")!, detalle: "según el documento (todavía sin campaña)" }
-  const meta = (d?.plan ? textoDeLaMeta(d.plan) : null) ?? dato("meta")
+  const meta = (d?.plan ? textoDeLaMeta(d.plan) : null) ?? metaDelDocumento()
   const dia = p.fase_activa.situacion === "en_curso" ? p.fase_activa.dia : null
   const fases: FaseDeLaBarra[] = (e?.fases ?? []).slice().sort((a, b) => a.dia_desde - b.dia_desde).map((f) => ({
     clave: f.clave, objetivo: f.objetivo, desde: f.dia_desde, hasta: f.dia_hasta,

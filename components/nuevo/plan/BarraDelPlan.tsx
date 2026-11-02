@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import type { BarraDelPlan as Barra } from "@/lib/plan-barra"
 
 const AMBAR = "#f5a524"
@@ -13,6 +14,18 @@ function Bloque({ id, titulo, children, nota, realce = false }: { id: string; ti
       {children}
       {nota && <p className="mt-1 text-[10.5px] text-zinc-500">{nota}</p>}
     </section>
+  )
+}
+/** la meta entera; si es larga, las primeras líneas y «Ver más» (Lenovo 02-nov: no cortar la parte importante) */
+const LARGO_DE_LA_META = 220
+function Meta({ texto }: { texto: string }) {
+  const [abierta, setAbierta] = useState(false)
+  const larga = texto.length > LARGO_DE_LA_META
+  return (
+    <div data-meta data-abierta={abierta}>
+      <p className={`text-[13.5px] leading-snug text-zinc-100 ${larga && !abierta ? "line-clamp-4" : ""}`}>{texto}</p>
+      {larga && <button type="button" data-accion="ver-meta" onClick={() => setAbierta((v) => !v)} className="mt-1 text-[11.5px] text-amber-300 underline decoration-dotted underline-offset-4 hover:text-amber-200">{abierta ? "Ver menos" : "Ver más"}</button>}
+    </div>
   )
 }
 const Falta = ({ children }: { children: React.ReactNode }) => <p className="text-[12px] italic text-zinc-500">{children}</p>
@@ -29,9 +42,9 @@ export function BarraDelPlan({ b }: { b: Barra }) {
       <Bloque id="decision" titulo="Estado de la decisión">
         {b.decision ? <span data-decision={b.decision.estado} className={`inline-flex rounded-full border px-2.5 py-0.5 text-[12px] ${COLOR_DECISION[b.decision.estado] ?? "border-white/15 text-zinc-200"}`}>{b.decision.titulo}</span> : <Falta>Todavía no hay plan escrito.</Falta>}
       </Bloque>
-      <Bloque id="meta" titulo="Meta">{b.meta ? <p className="text-[13.5px] leading-snug text-zinc-100">{b.meta}</p> : <Falta>El plan todavía no dice su meta.</Falta>}</Bloque>
+      <Bloque id="meta" titulo="Meta">{b.meta ? <Meta texto={b.meta} /> : <Falta>El plan todavía no dice su meta.</Falta>}</Bloque>
       <Bloque id="fechas" titulo="Fechas" nota={b.fechas?.detalle}>{b.fechas ? <p className="text-[13px] text-zinc-100">{b.fechas.texto}</p> : <Falta>Sin fechas todavía.</Falta>}</Bloque>
-      <Bloque id="presupuesto" titulo="Presupuesto" nota={b.presupuesto ? "Lo que propone el plan. Lo gastado está en Dinero." : null}>{b.presupuesto ? <p className="text-[13px] leading-snug text-zinc-100">{b.presupuesto}</p> : <Falta>El plan todavía no trae la cifra.</Falta>}</Bloque>
+      <Bloque id="presupuesto" titulo="Presupuesto" nota={b.presupuesto ? "Tomado de la sección «Presupuesto» del plan. Lo gastado está en Dinero." : null}>{b.presupuesto ? <p className="text-[13px] leading-snug text-zinc-100">{b.presupuesto}</p> : <Falta>El plan todavía no trae la cifra.</Falta>}</Bloque>
       <Bloque id="sedes-y-canales" titulo="Sedes y canales">
         {b.sedes.length + b.canales.length === 0 ? <Falta>Sin sedes ni canales todavía.</Falta> : <div className="flex flex-wrap gap-1.5">{b.sedes.map((s) => <Chip key={`s-${s}`}>{s}</Chip>)}{b.canales.map((c) => <Chip key={`c-${c}`}>{c}</Chip>)}</div>}
       </Bloque>
