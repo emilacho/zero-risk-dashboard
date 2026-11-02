@@ -12,7 +12,7 @@ import { diaLocal, diasEntre, fechaCorta, PERIODOS, usdCorto, type Dinero, type 
 import { BarraHorizontal, CascadaVisible, GRIS, GraficoDeBarras, ROJO } from "@/components/nuevo/ObservabilidadGraficos"
 import {
   NOMBRE_DE_AGRUPAR, agrupar, conFallosDelProceso, agruparPorEmpleado, cobertura, costoDeLaCorrida, costoDelPeriodo, costoPorEjecucion, demoraCorta, dondeFallo, enRango, esCorridaInterna, motivoEnPalabras, numerosDe,
-  cascadaDe, costoPorCubeta, cubetasDe, desdeDeLaLectura, gruposVisibles, noLeidas, numerosDelAgregado, procesoDe, rotuloDe, rotuloLargo, serieDe, serieDelAgregado, topEmpleados, variacion, ventanaDe,
+  cascadaDe, costoPorCubeta, cubetasDe, desdeDeLaLectura, conErroresDeLaLista, gruposVisibles, noLeidas, numerosDelAgregado, procesoDe, rotuloDe, rotuloLargo, serieDe, serieDelAgregado, topEmpleados, variacion, ventanaDe,
   type AgruparPor, type Cascada, type DondeFallo, type EmpleadoObs, type Grupo,
 } from "@/lib/observabilidad"
 import { nombreCanonico } from "@/lib/organigrama"
@@ -552,10 +552,10 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   // 6.50 · con la lectura agregada: corridas, errores y su comparación salen ENTEROS (sin «no leído»); la búsqueda sigue sobre la lista
   const gAgr = useMemo(() => (agr.r && !b ? gruposVisibles(agr.r.grupos, conInterno) : null), [agr, b, conInterno])
   const gAgrAnt = useMemo(() => (gAgr && agr.ant ? gruposVisibles(agr.ant.grupos, conInterno) : null), [gAgr, agr, conInterno])
-  const nAgr = useMemo(() => (gAgr ? numerosDelAgregado(gAgr) : null), [gAgr])
-  const naAgr = useMemo(() => (gAgrAnt ? numerosDelAgregado(gAgrAnt) : null), [gAgrAnt])
+  const nAgr = useMemo(() => (gAgr ? conErroresDeLaLista(numerosDelAgregado(gAgr), n.con_error) : null), [gAgr, n])
+  const naAgr = useMemo(() => (gAgrAnt ? conErroresDeLaLista(numerosDelAgregado(gAgrAnt), delAnterior.filter((c) => c.estado === "fallida").length) : null), [gAgrAnt, delAnterior])
   const conAgregadoPorDia = !!gAgr && !k.porHora
-  const corridasCubeta = useMemo(() => (gAgr && !k.porHora ? serieDelAgregado(gAgr, k) : porCubeta), [gAgr, k, porCubeta])
+  const corridasCubeta = useMemo(() => (gAgr && !k.porHora ? serieDelAgregado(gAgr, k).map((x, i) => ({ total: x.total, con_error: Math.min(x.total, Math.max(x.con_error, porCubeta[i]?.con_error ?? 0)) })) : porCubeta), [gAgr, k, porCubeta])
   const noLeidoCorridas = conAgregadoPorDia ? undefined : noLeido
   // la demora por día no viene en la lectura agregada: los días que la lista no alcanzó quedan sin barra y se dice en el gráfico (no «no leído»)
   const sinDemora = gAgr ? noLeido : undefined

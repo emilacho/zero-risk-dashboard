@@ -271,6 +271,13 @@ export function numerosDelAgregado(gs: GrupoAgregado[]): NumerosAgregados {
   const maxs = gs.flatMap((g) => (g.max_ms == null ? [] : [g.max_ms]))
   return { corridas, con_error, pct_error: cuentan > 0 ? Math.round((con_error / cuentan) * 1000) / 10 : null, max_ms: maxs.length ? Math.max(...maxs) : null }
 }
+/** la lectura agregada solo cuenta las EJECUCIONES caídas; un pedido que la revisión de la jefatura marcó con error (se anota aparte) no entra.
+ *  Para que el número nunca contradiga a «lo que falló», los errores son al menos los pedidos con error que trae la lista. */
+export function conErroresDeLaLista(a: NumerosAgregados, fallidasDeLaLista: number): NumerosAgregados {
+  if (fallidasDeLaLista <= a.con_error) return a
+  const con_error = Math.min(a.corridas, fallidasDeLaLista), cuentan = a.pct_error != null && a.con_error > 0 ? Math.round(a.con_error / (a.pct_error / 100)) : a.corridas
+  return { ...a, con_error, pct_error: cuentan > 0 ? Math.round((con_error / cuentan) * 1000) / 10 : null }
+}
 /** corridas y errores de cada día del período (por día: la lectura agregada no trae horas) */
 export function serieDelAgregado(gs: GrupoAgregado[], k: Cubetas): Array<{ total: number; con_error: number }> {
   const por = new Map<string, { total: number; con_error: number }>()

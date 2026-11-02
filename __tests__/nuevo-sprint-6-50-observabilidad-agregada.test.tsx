@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { OTROS_PROCESOS, conProcesoReal, leerCorridas, leerResumenDeCorridas, nombreDeLaCorrida, normalizarLista, normalizarResumen, procesosDeEjecuciones, type ResumenAgregado } from "@/lib/direccion-corridas"
-import { cubetasDe, gruposVisibles, numerosDelAgregado, procesoDe, serieDelAgregado, ventanaDe } from "@/lib/observabilidad"
+import { conErroresDeLaLista, cubetasDe, gruposVisibles, numerosDelAgregado, procesoDe, serieDelAgregado, ventanaDe } from "@/lib/observabilidad"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, refresh: () => {}, back: () => {} }) }))
 
@@ -85,6 +85,11 @@ describe("6.50 · la lectura agregada", () => {
     const sin = gruposVisibles(RES.grupos, false)
     expect(sin.map((x) => x.workflow_id)).toEqual(["X9F0zp6LQ2xGEYVS", "bTbWL9lUvQCfStAz"])
     expect(numerosDelAgregado([{ ...RES.grupos[0], en_curso: 50 }]).pct_error).toBe(6)
+  })
+  it("un pedido que la revisión marcó con error (se anota aparte) cuenta: el número nunca contradice a «lo que falló»", () => {
+    const a = { corridas: 126, con_error: 0, pct_error: 0, max_ms: 1 }
+    expect(conErroresDeLaLista(a, 1)).toMatchObject({ corridas: 126, con_error: 1, pct_error: 0.8 })
+    expect(conErroresDeLaLista({ ...a, con_error: 3, pct_error: 2.4 }, 1)).toMatchObject({ con_error: 3, pct_error: 2.4 })
   })
   it("la serie por día sale entera (incluidos los días que la lista no alcanzaba)", () => {
     const k = cubetasDe(v)
