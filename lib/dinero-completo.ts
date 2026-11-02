@@ -35,7 +35,7 @@ export interface Movimiento {
   proceso?: string | null
 }
 /** 6.38 · una pieza que pasó por la bandeja de revisión: su estado y lo que costó hacerla (si quedó anotado) */
-export interface PiezaRevisada { d: string; estado: string; usd: number | null }
+export interface PiezaRevisada { d: string; estado: string; usd: number | null; /** 6.42 · de qué cliente es la pieza (vista del cliente) */ client_id?: string | null }
 /** 6.38 · uso del caché por empleado y modelo en 30 días (tabla resumen diaria) */
 export interface CacheDeEmpleado { empleado: string; modelo: string; entrada: number; leido: number; usd: number; /** 6.40 · día (para seguir al período elegido) */ d?: string }
 export interface Dinero {
@@ -53,6 +53,8 @@ export interface Dinero {
   manuales?: string[] | null
   /** 6.38 · caché por empleado y modelo (null = no se pudo leer) */
   cache_por_empleado?: CacheDeEmpleado[] | null
+  /** 6.42 · días de versión del manual con su cliente (vista del cliente; null = no se pudo leer) */
+  manuales_de?: Array<{ d: string; client_id: string | null }> | null
 }
 
 export const DIAS_LEIDOS = 62
@@ -244,8 +246,8 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
     todas((a, b) => db.from("clients").select("id, name").range(a, b), "clients"),
     todas((a, b) => db.from("agents").select("name, display_name").range(a, b), "agents"),
     todas((a, b) => db.from("agent_invocations_daily_rollup").select("day, agent_id, model, total_tokens_input, total_tokens_cache_read, total_cost_usd").gte("day", new Date(ahora.getTime() - DIAS_LEIDOS * 86400_000).toISOString().slice(0, 10)).range(a, b), "rollup").catch(() => null),
-    todas((a, b) => db.from("hitl_queue").select("status, created_at, metadata->costo_usd").eq("type", "content_piece_review").gte("created_at", desde).range(a, b), "hitl_queue").catch(() => null),
-    todas((a, b) => db.from("client_brand_books").select("created_at").gte("created_at", desde).range(a, b), "client_brand_books").catch(() => null),
+    todas((a, b) => db.from("hitl_queue").select("status, created_at, client_id, metadata->costo_usd").eq("type", "content_piece_review").gte("created_at", desde).range(a, b), "hitl_queue").catch(() => null),
+    todas((a, b) => db.from("client_brand_books").select("created_at, client_id").gte("created_at", desde).range(a, b), "client_brand_books").catch(() => null),
   ])
   // 6.37 · el equipo de cada empleado sale del organigrama vivo (si no se puede leer, el desglose por equipo lo dice)
   const org = await leerOrganizacion(db, { ahora }).catch(() => { faltan.push("Departamento y equipo de cada empleado (no se pudo leer la organización)"); return null })
@@ -280,8 +282,8 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
   for (const r of rollup ?? []) { const emp = String(r.agent_id ?? "sin empleado"), mod = String(r.model ?? "sin modelo"), dia = String(r.day).slice(0, 10), k = `${emp}|${mod}|${dia}`; const c = porEmp.get(k) ?? { empleado: nombreAgente.get(emp) ?? legible(emp), modelo: mod, entrada: 0, leido: 0, usd: 0, d: dia }; c.entrada += Number(r.total_tokens_input ?? 0); c.leido += Number(r.total_tokens_cache_read ?? 0); c.usd += Number(r.total_cost_usd ?? 0); porEmp.set(k, c) }
   if (!revisadas) faltan.push("Piezas de la bandeja de revisión (costo por pieza aprobada)")
   if (!versiones) faltan.push("Versiones del manual")
-  const piezas = revisadas ? revisadas.map((r) => ({ d: diaLocal(String(r.created_at)), estado: String(r.status ?? ""), usd: r.costo_usd == null ? null : Number(r.costo_usd) })) : null
-  return { movimientos, saldos: extra.saldos ?? [], topes: extra.topes ?? [], cache, desde, leido_en: ahora.toISOString(), faltan, piezas, manuales: versiones ? versiones.map((v) => diaLocal(String(v.created_at))) : null, cache_por_empleado: rollup ? [...porEmp.values()] : null }
+  const piezas = revisadas ? revisadas.map((r) => ({ d: diaLocal(String(r.created_at)), estado: String(r.status ?? ""), usd: r.costo_usd == null ? null : Number(r.costo_usd), client_id: txt(r.client_id) })) : null
+  return { movimientos, saldos: extra.saldos ?? [], topes: extra.topes ?? [], cache, desde, leido_en: ahora.toISOString(), faltan, piezas, manuales: versiones ? versiones.map((v) => diaLocal(String(v.created_at))) : null, cache_por_empleado: rollup ? [...porEmp.values()] : null, manuales_de: versiones ? versiones.map((v) => ({ d: diaLocal(String(v.created_at)), client_id: txt(v.client_id) })) : null }
 }
 
 /* ───────────── 6.38 · parte 3: costo por resultado, costo de rehacer, anomalías y ahorro ───────────── */

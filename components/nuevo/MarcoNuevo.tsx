@@ -6,8 +6,9 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { ChatDeOficinas } from "@/components/nuevo/ChatDeOficinas"
+import { SelectorDeCliente } from "@/components/nuevo/SelectorDeCliente"
 import {
-  Bell, BookOpen, Books, CaretDown, CurrencyDollar, Flower, House, List, MagnifyingGlass, Plus, Robot, SignOut, SquaresFour, Sun, Waveform,
+  Bell, BookOpen, Books, CurrencyDollar, Flower, House, List, MagnifyingGlass, Plus, Robot, SignOut, SquaresFour, Sun, Waveform,
 } from "@phosphor-icons/react/dist/ssr"
 
 const AMBAR = "#e8731a"
@@ -30,7 +31,8 @@ export function BarraSuperior() {
       <span role="img" aria-label="Menú" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300"><List size={18} /></span>
       {/* la marca como palabra en CONTORNO ámbar (relleno transparente), como la de la referencia */}
       <svg role="img" aria-label="Zero Risk" width="132" height="22" viewBox="0 0 132 22" className="shrink-0"><text x="1" y="16.5" fill="none" stroke={AMBAR} strokeWidth="0.9" fontSize="16" fontWeight="500" letterSpacing="3.4" fontFamily="system-ui, Arial, sans-serif">ZERO RISK</text></svg>
-      <span aria-disabled="true" className="ml-1 hidden items-center gap-2 whitespace-nowrap text-[13px] text-zinc-200 sm:flex">Seleccionar cliente <CaretDown size={12} className="text-zinc-400" /></span>
+      {/* 6.42 · el selector abre la vista financiera del cliente (a un clic desde cualquier pantalla) */}
+      <SelectorDeCliente />
       </div>
       {/* sprint 5: el buscador va en el grupo del medio, en fila (ya no flota en absoluto): nunca se encima con «Seleccionar cliente» */}
       <div className="pointer-events-none mx-auto hidden w-[min(34vw,420px)] md:block">
