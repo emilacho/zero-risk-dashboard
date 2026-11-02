@@ -173,7 +173,7 @@ describe("6.10 · Brief de campaña (botón 4) · solo lectura, honesto cuando l
     const sin = renderToStaticMarkup(createElement(PanelBrief, { onCerrar: () => {}, datosIniciales: { clientes: [CLIENTE], cliente: CLIENTE, campana: { id: "c", estado: "pausada" }, publicado: false, briefs: [], leido_en: "x" } }))
     expect(sin).toContain('data-vista="no-publicado"'); expect(sin).toContain("La cadena todavía no publica el brief"); expect(sin).not.toContain('data-vista="brief"')
     const con = renderToStaticMarkup(createElement(PanelBrief, { onCerrar: () => {}, datosIniciales: { clientes: [CLIENTE], cliente: CLIENTE, campana: { id: "c", estado: "activa" }, publicado: true, briefs: [briefDesdeFila({ id: "b1", version: 1, estado: "validada", texto_md: "## Insight\nAlgo real." })], leido_en: "x" } }))
-    expect(con).toContain('data-vista="brief"'); expect(con).toContain('data-bloque="Insight"'); expect(con).toContain("Algo real."); expect(con).toContain(">Validado<")
+    expect(con).toContain('data-vista="brief"'); expect(con).toContain('data-seccion="insight"'); expect(con).toContain("Algo real."); expect(con).toContain(">Validado<") // CC6 02-nov: secciones al estilo del plan
   })
 })
 

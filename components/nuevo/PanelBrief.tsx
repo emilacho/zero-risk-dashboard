@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { BriefDelCliente } from "@/lib/brief-datos"
-import { estadoDelBriefLegible, seccionesDelBrief, type Brief, type TonoDelBrief } from "@/lib/brief"
+import { estadoDelBriefLegible, loQueSigueDelBrief, QUIEN_ESCRIBE_EL_BRIEF, seccionesDelBrief, type Brief, type TonoDelBrief } from "@/lib/brief"
+import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 import { diaYHora, plural } from "@/lib/lenguaje"
 
 /**
  * BRIEF DE CAMPAÑA (sprint 6.10 · encargo 01-nov §2 botón 4): lo que la mesa del brief le entrega a los creativos, corto y con secciones fijas. SOLO LECTURA.
- * Hoy (1-nov) la tabla del brief no está en producción (llega con T9): el panel lo dice tal cual y no inventa un brief. Versiones a la izquierda · el brief abierto al centro.
+ * CC6 · 02-nov (boceto aprobado por Emilio): el mismo patrón del plan y el manual · el brief en secciones plegables (índice + resumen, `PlanEnSecciones` sin los datos
+ * clave del plan) y una barra fija con el estado, de dónde sale (empleado real), lo que sigue y las versiones. Sin botones: Emilio lo ve, no lo firma.
  */
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & BriefDelCliente) | { ok: false; error: string }
@@ -69,26 +71,10 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
         </header>
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 px-4 py-2 sm:px-6">
           <span data-miga="cliente" className={`${MIGA} ${!brief ? "text-white" : ""}`}>{nombre}</span>
-          {brief && <><Sep /><span data-miga="brief" className="px-1.5 text-[12.5px] text-white">Brief v{brief.version}</span></>}
+          {brief && <><Sep /><span data-miga="brief" className="px-1.5 text-[12.5px] text-white">Brief</span></>}
         </nav>
 
         <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-[230px] shrink-0 overflow-y-auto border-r border-white/10 p-3 md:block" aria-label="Versiones del brief">
-            <p className="px-2 py-1.5 text-[13px] font-medium text-zinc-100">Versiones</p>
-            <ul className="mt-1 space-y-0.5 pl-2">
-              {briefs.map((b) => {
-                const e = estadoDelBriefLegible(b.estado)
-                return (
-                  <li key={b.id}>
-                    <button type="button" data-nodo-brief={b.id} onClick={() => setBriefId(b.id)} aria-current={brief?.id === b.id} className="br-nodo flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-zinc-300 hover:bg-white/[0.05]">
-                      <span className="min-w-0 flex-1 truncate">v{b.version} · {e.texto}</span>
-                    </button>
-                  </li>
-                )
-              })}
-              {datos && !briefs.length && <li className="px-2 py-1.5 text-[12px] text-zinc-500">{datos.publicado ? "Sin versiones todavía" : "Llega con la cadena nueva"}</li>}
-            </ul>
-          </aside>
 
           <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
             {error && <p role="alert" className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-200">{error}</p>}
@@ -115,30 +101,49 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
             )}
 
             {datos?.cliente && brief && (
-              <article data-vista="brief" data-brief-abierto={brief.id} className="br-entra max-w-[860px] space-y-4">
-                <div>
-                  <h3 className="text-[16px] font-medium leading-snug text-zinc-50">Brief de campaña · versión {brief.version}</h3>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <Chip tono={estadoDelBriefLegible(brief.estado).tono}>{estadoDelBriefLegible(brief.estado).texto}</Chip>
-                    {brief.seco && <Chip>Ensayo en seco</Chip>}
-                    {brief.creada_en && <Chip>{diaYHora(brief.creada_en)}</Chip>}
+              <div data-vista="brief" data-brief-abierto={brief.id} className="br-entra grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
+                <article className="min-w-0 space-y-4">
+                  <div>
+                    <h3 className="text-[16px] font-medium leading-snug text-zinc-50">Brief de campaña</h3>
+                    <p className="mt-0.5 text-[12px] text-zinc-500">Lo que la mesa del brief le entrega a los creativos. Solo lectura: no se firma.</p>
                   </div>
-                </div>
-                {brief.devolucion_texto && (
-                  <div data-bloque="devolucion" className="rounded-lg border border-rose-400/30 bg-rose-500/[0.06] p-2.5 text-[12.5px] leading-relaxed text-rose-100">
-                    <Titulito>Devuelto por la dirección creativa</Titulito>
-                    <p className="whitespace-pre-wrap">{brief.devolucion_texto}</p>
-                  </div>
-                )}
-                {seccionesDelBrief(brief.texto_md).map((s, i) => (
-                  <div key={i} data-bloque={s.titulo}>
-                    <Titulito>{s.titulo}</Titulito>
-                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200"><p className="whitespace-pre-wrap">{s.cuerpo}</p></div>
-                  </div>
-                ))}
-                {!seccionesDelBrief(brief.texto_md).length && <p className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
-                {brief.motivo && <p className="text-[11.5px] text-zinc-500">Motivo de la versión: {brief.motivo}</p>}
-              </article>
+                  {brief.devolucion_texto && (
+                    <div data-bloque="devolucion" className="rounded-lg border border-rose-400/30 bg-rose-500/[0.06] p-2.5 text-[12.5px] leading-relaxed text-rose-100">
+                      <Titulito>Devuelto por la dirección creativa</Titulito>
+                      <p className="whitespace-pre-wrap">{brief.devolucion_texto}</p>
+                    </div>
+                  )}
+                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave /> : <p className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
+                </article>
+                <aside aria-label="Lo esencial del brief" data-barra-del-brief className="space-y-3 lg:sticky lg:top-0 lg:self-start">
+                  <section data-barra="estado" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                    <Titulito>Estado</Titulito>
+                    <div className="flex flex-wrap gap-1.5"><Chip tono={estadoDelBriefLegible(brief.estado).tono}>{estadoDelBriefLegible(brief.estado).texto}</Chip>{brief.seco && <Chip>Ensayo en seco</Chip>}</div>
+                  </section>
+                  <section data-barra="origen" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                    <Titulito>De dónde sale</Titulito>
+                    <p className="text-[12.5px] text-zinc-200">La mesa del brief · <span className="font-mono text-[11.5px] text-amber-100">{QUIEN_ESCRIBE_EL_BRIEF}</span></p>
+                    <p className="text-[11.5px] text-zinc-500">a partir del plan, el manual y lo que trajo el portero{brief.creada_en ? ` · ${diaYHora(brief.creada_en)}` : ""}</p>
+                    {brief.motivo && <p className="mt-1 text-[11.5px] text-zinc-400">Por qué esta versión: {brief.motivo}</p>}
+                  </section>
+                  <section data-barra="sigue" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                    <Titulito>Lo que sigue</Titulito>
+                    <p className="text-[12.5px] leading-snug text-zinc-200">{loQueSigueDelBrief(brief.estado)}</p>
+                  </section>
+                  {briefs.length > 1 && (
+                    <section data-barra="versiones" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                      <Titulito>Versiones · {briefs.length}</Titulito>
+                      <ul className="space-y-0.5">
+                        {briefs.map((b) => (
+                          <li key={b.id}><button type="button" data-nodo-brief={b.id} onClick={() => setBriefId(b.id)} aria-current={brief.id === b.id} className="br-nodo flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12px] text-zinc-300 hover:bg-white/[0.05]">
+                            <span className="min-w-0 flex-1 truncate">{b.creada_en ? diaYHora(b.creada_en) : "sin fecha"} · {estadoDelBriefLegible(b.estado).texto}</span>
+                          </button></li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </aside>
+              </div>
             )}
           </div>
         </div>

@@ -73,3 +73,15 @@ export function detalleDelBrief(x: { publicado: boolean; campana: unknown; brief
   const e = estadoDelBriefLegible(v.estado)
   return { texto: `Versión ${v.version} · ${e.texto}`, aviso: e.tono === "rojo" }
 }
+
+/** el empleado que escribe el brief (nombre real, para «de dónde sale») */
+export const QUIEN_ESCRIBE_EL_BRIEF = "campaign-brief-agent"
+/** lo que pasa después, según el estado del brief vigente (la barra lateral) */
+export function loQueSigueDelBrief(estado: unknown): string {
+  const e = String(estado ?? "")
+  if (/^valid/.test(e)) return "La sala creativa propone la gran idea a partir de este brief."
+  if (/^devuelt/.test(e)) return "La mesa del brief lo rehace con lo que pidió la dirección creativa."
+  if (e === "en_mesa" || e === "abierta") return "La mesa del brief está escribiendo; al validarlo pasa a la sala creativa."
+  if (/reemplaz|retirad/.test(e)) return "Hay una versión más nueva: esa es la que manda."
+  return "Cuando la mesa lo valide, pasa a la sala creativa."
+}
