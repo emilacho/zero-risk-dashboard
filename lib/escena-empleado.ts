@@ -109,7 +109,7 @@ export function tareasRecientes(invs: InvocacionDelEmpleado[], clientes: Map<str
     const meta = objeto(i.metadata)
     return {
       fecha: i.created_at,
-      cliente: i.client_id ? clientes.get(i.client_id) ?? "cliente sin nombre" : "sin cliente",
+      cliente: i.client_id ? clientes.get(i.client_id) ?? "pruebas y sin cliente" : "pruebas y sin cliente", // solo cuenta como cliente un id que existe en `clients` (CC1, 02-nov); el resto se ve, no se esconde
       flujo: nombreDelFlujo(i.workflow_id),
       paso: texto(meta.step_name) || pasoDe(i.workflow_execution_id),
       estado: i.status === "completed" ? "completada" : esFallo(i.status) ? "fallida" : "otra",

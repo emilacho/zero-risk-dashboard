@@ -59,7 +59,7 @@ export function FichaDelEmpleado({ agente, onCerrar, datosIniciales = null }: { 
         {!ficha && !error && <p className="m-6 text-[13px] text-zinc-500">Leyendo la ficha…</p>}
         {ficha && n && (
           <div className="min-h-0 overflow-y-auto p-5 sm:p-7">
-            {ficha.sin_registro && <p data-sin-registro className="mb-4 rounded-md border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 text-[12.5px] text-amber-100">No está en la lista de empleados de la plataforma: aquí va solo lo que hay de él (su mesa y su trabajo). Lo demás dice «sin dato».</p>}
+            {ficha.sin_registro && <p data-sin-registro className="mb-4 rounded-md border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 text-[12.5px] text-amber-100">Es un proveedor externo: no está en la lista de empleados de la plataforma. Aquí va lo que hay (su mesa y su trabajo); su fecha de alta no existe.</p>}
             {/* encabezado: el nombre de persona y su puesto real */}
             <header className="flex flex-wrap items-center gap-5">
               <RetratoInventado semilla={agente} color={color} />

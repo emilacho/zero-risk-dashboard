@@ -127,17 +127,17 @@ describe("todas las fichas abren (encargo de Lenovo · 02-nov: «hay unos que al
     const f = await leerFichaDelEmpleado(b, AG.name)
     expect(f).not.toBeNull()
     expect(pedidos).toHaveLength(0) // sin uuids, ni se consulta
-    expect(f!.recientes[0].cliente).toBe("cliente sin nombre")
+    expect(f!.recientes[0].cliente).toBe("pruebas y sin cliente") // CC1 · 02-nov: solo es cliente un id que existe en clients; el resto se ve aparte
   })
   it("sin fila en la lista de empleados pero con rastro (el revisor externo GPT): ficha honesta, no «no existe»", async () => {
     const b = baseFalsa({
       agents: (f: string[]) => (f.some((x) => x.startsWith("eq(")) ? [] : [AG]),
       oficina_directorio: [], agent_dispatches: [], oficina_mesa_aportes: [],
-      agent_invocations: [{ created_at: "2026-10-31T10:00:00Z", status: "completed", cost_usd: 0.05, duration_ms: 2000, client_id: null, workflow_id: null, workflow_execution_id: "2", metadata: {} }],
+      agent_invocations: [{ created_at: "2026-10-31T10:00:00Z", status: "completed", cost_usd: 0.05, duration_ms: 2000, client_id: null, workflow_id: null, workflow_execution_id: "2", metadata: {}, model: "gpt-6.1-sol" }],
       clients: [],
     })
     const f = await leerFichaDelEmpleado(b, "revisor-externo-gpt")
-    expect(f).toMatchObject({ agente: "revisor-externo-gpt", sin_registro: true, modelo: "sin dato", contratado_en: null, puesto: "Revisor externo gpt" })
+    expect(f).toMatchObject({ agente: "revisor-externo-gpt", sin_registro: true, modelo: "GPT 6.1 SOL (de sus trabajos)", contratado_en: null, puesto: "Revisor externo gpt · proveedor externo" })
     expect(f!.numeros.tareas).toBe(1)
     expect(f!.persona).toMatch(/^\S+ \S+$/)
     const html = renderToStaticMarkup(createElement(FichaDelEmpleado, { agente: "revisor-externo-gpt", onCerrar: () => {}, datosIniciales: f }))
