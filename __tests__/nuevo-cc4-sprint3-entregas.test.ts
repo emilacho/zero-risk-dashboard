@@ -3,7 +3,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { armarEscena, type Despacho } from "@/lib/escena-avatares"
-import { armarEntregas, conRevisiones, CUADROS_DEL_PIZARRON, esDevolucion, MAXIMO_DE_CUADROS, PANEL_DE_FIRMA, PUESTOS_EN_EL_PIZARRON, rotuloDeLaFirma, type EntregasDeLaEscena } from "@/lib/escena-entregas"
+import { armarCorrecciones, armarEntregas, conRevisiones, CUADROS_DEL_PIZARRON, DUENO_DEL_CAMPO_DEL_MANUAL, devolvioEmilio, MAXIMO_DE_CUADROS, PANEL_DE_FIRMA, PUESTOS_EN_EL_PIZARRON, rotuloDeLaFirma, type EntregasDeLaEscena } from "@/lib/escena-entregas"
 import { asignarRanuras } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
 
@@ -44,22 +44,76 @@ describe("sprint 3 · las entregas salen de lo que dicen las tablas", () => {
     expect(rotuloDeLaFirma(1)).toBe("1 espera tu firma")
     expect(rotuloDeLaFirma(3)).toBe("3 esperan tu firma")
   })
-  it("revisión viva = sin cerrar y reciente; devuelta = cerrada hace poco con resultado de devolución; el resto no cuenta", () => {
+  it("revisión viva = sin cerrar y reciente; las cerradas no cuentan (lo que devuelven va en las correcciones, no en el resultado de la revisión)", () => {
     const r = armarEntregas({
       ...base,
-      turnos: [turno("p1", "growth-hacker", hace(50)), turno("p2", "growth-hacker", hace(50))],
+      turnos: [turno("p1", "growth-hacker", hace(50))],
       revisiones: [
         { id: "r1", artifact_id: "p1", creado_en: hace(10), cerrado_en: null, resultado: null },
         { id: "r2", artifact_id: "p2", creado_en: hace(20), cerrado_en: hace(4), resultado: "devuelve_con_correcciones" },
-        { id: "r3", artifact_id: "p3", creado_en: hace(20), cerrado_en: hace(4), resultado: "aprobada" },
         { id: "r4", artifact_id: "p4", creado_en: hace(600), cerrado_en: null, resultado: null },
-        { id: "r5", artifact_id: "p5", creado_en: hace(60), cerrado_en: hace(30), resultado: "devuelve" },
       ],
       pasos: [{ revision_id: "r1", agente: "jefe-marketing", tipo: "agente" }, { revision_id: "r1", agente: "editor_en_jefe", tipo: "agente" }, { revision_id: "r1", agente: "jefe-marketing", tipo: "agente" }],
     })
-    expect(r.revisiones.map((x) => [x.id, x.estado])).toEqual([["r1", "viva"], ["r2", "devuelta"]])
+    expect(r.revisiones.map((x) => [x.id, x.estado])).toEqual([["r1", "viva"]])
     expect(r.revisiones[0]).toMatchObject({ entregador: "growth-hacker", revisores: ["jefe-marketing", "editor_en_jefe"] })
-    expect(esDevolucion("aprobada")).toBe(false)
+    expect(r.correcciones).toEqual([]) // `resultado` ya no se interpreta: nada de valores adivinados
+  })
+})
+
+describe("sprint 3 · «corrige» con los datos reales (reglas de CC1)", () => {
+  const rev = (id: string, artifact: string, agentes: string[], extra: object = {}) => ({ id, artifact_id: artifact, productores: agentes.map((a) => ({ donde: "x", agente: a })), prueba: false, dry_run: false, ...extra })
+  it("la jefatura devolvió: paso correccion:% hecho y reciente, atribuido a quien corrigió; los de prueba o ensayo no cuentan", () => {
+    const c = armarCorrecciones({
+      ...base,
+      pasosDeCorreccion: [
+        { revision_id: "r1", paso: "correccion:1", estado: "hecho", agente: "content-creator", inicio: hace(8), fin: hace(6) },
+        { revision_id: "r2", paso: "correccion:1", estado: "hecho", agente: "copywriter", inicio: hace(8), fin: hace(6) },
+        { revision_id: "r1", paso: "correccion:2", estado: "hecho", agente: "growth-hacker", inicio: hace(80), fin: hace(70) },
+      ],
+      atribucion: [rev("r1", "p1", ["content-creator"]), rev("r2", "p2", ["copywriter"], { prueba: true })],
+    })
+    expect(c).toEqual([{ agente: "content-creator", origen: "jefatura", desde: hace(6) }])
+  })
+  it("Emilio devolvió una pieza: pidió cambios, o la rechazó él de verdad; las limpiezas, superadas, vencidas y pruebas NO", () => {
+    const d = (status: string, extra: object) => ({ id: "h" + Math.random(), status, decided_at: hace(3), metadata: { jefatura_revision_id: "r1" }, decision: {}, reviewer: "emilio", ...extra })
+    expect(devolvioEmilio(d("edited", { decision: { pidio_cambios: "true" } }))).toBe(true)
+    expect(devolvioEmilio(d("edited", { decision: { pidio_cambios: false } }))).toBe(false)
+    expect(devolvioEmilio(d("rejected", {}))).toBe(true)
+    expect(devolvioEmilio(d("rejected", { decision: { vencida: true } }))).toBe(false)
+    expect(devolvioEmilio(d("rejected", { decision: { superada: true } }))).toBe(false)
+    expect(devolvioEmilio(d("rejected", { decision: { no_es_decision_del_dueno: true } }))).toBe(false)
+    expect(devolvioEmilio(d("rejected", { reviewer: "sistema-limpieza" }))).toBe(false)
+    expect(devolvioEmilio(d("rejected", { reviewer: "oficina-vigia" }))).toBe(false)
+    expect(devolvioEmilio(d("rejected", { reviewer: "usuario-prueba" }))).toBe(false)
+    expect(devolvioEmilio(d("rejected", { reviewer: null }))).toBe(false)
+    const c = armarCorrecciones({ ...base, decisiones: [d("edited", { decision: { pidio_cambios: true } })], atribucion: [rev("r1", "p1", ["content-creator", "carousel-designer"])] })
+    expect(c.map((x) => x.agente).sort()).toEqual(["carousel-designer", "content-creator"]) // varios autores: a todos
+  })
+  it("pieza sin revisión: se atribuye a quien hizo el encargo; sin dato, a nadie", () => {
+    const d = { id: "h", status: "rejected", reviewer: "emilio", decided_at: hace(2), decision: {}, metadata: { oficina_encargo_id: "enc9" } }
+    expect(armarCorrecciones({ ...base, decisiones: [d], turnos: [turno("enc9", "copywriter", hace(30))] })).toMatchObject([{ agente: "copywriter", origen: "emilio_pieza" }])
+    expect(armarCorrecciones({ ...base, decisiones: [d] })).toEqual([])
+  })
+  it("Emilio pidió cambios al plan (a los productores de su revisión) o al manual (al dueño del campo); cuenta al crearse el pedido", () => {
+    const c = armarCorrecciones({
+      ...base,
+      cambios: [{ id: "c1", plan_id: "plan7", documento: "plan", creado_en: hace(4) }, { id: "c2", documento: "manual", campos_liberados: ["mision", "voice_description"], creado_en: hace(5) }, { id: "c3", documento: "plan", plan_id: "plan7", creado_en: hace(300) }],
+      atribucion: [rev("r9", "plan7", ["jefe-marketing"])],
+    })
+    expect(c.map((x) => `${x.agente}:${x.origen}`).sort()).toEqual(["brand-strategist:emilio_manual", "content-creator:emilio_manual", "jefe-marketing:emilio_plan"])
+    expect(DUENO_DEL_CAMPO_DEL_MANUAL.mision).toBe("brand-strategist")
+  })
+  it("un empleado, una marca; y sin datos no hay marca (nunca «cero por defecto» inventado)", () => {
+    expect(armarCorrecciones(base)).toEqual([])
+    const c = armarCorrecciones({
+      ...base,
+      pasosDeCorreccion: [{ revision_id: "r1", paso: "correccion:1", estado: "hecho", agente: "content-creator", fin: hace(9) }],
+      cambios: [{ id: "c", documento: "manual", campos_liberados: ["voice_description"], creado_en: hace(2) }],
+      atribucion: [rev("r1", "p1", ["content-creator"])],
+    })
+    expect(c).toHaveLength(1)
+    expect(c[0]).toMatchObject({ agente: "content-creator", desde: hace(2) })
   })
 })
 
@@ -80,12 +134,16 @@ describe("sprint 3 · mesa de Dirección: los jefes en su escritorio y quien ent
     expect(sinEscritorio).toContain("revisor-que-nadie-ubico")
     expect(e.mesas.flatMap((m) => m.sentados).some((s) => s.agente === "revisor-que-nadie-ubico")).toBe(false)
   })
-  it("si la jefatura devuelve: quien entregó vuelve a SU escritorio con la marca «corrige»", () => {
-    const devuelta: EntregasDeLaEscena = { ...viva, revisiones: [{ ...viva.revisiones[0], estado: "devuelta", cerrado_en: hace(2) }] }
-    const { escena: e } = conRevisiones(escena(), devuelta, opciones)
-    const s = e.mesas.find((m) => m.clave === "estrategia")!.sentados.find((x) => x.agente === "growth-hacker")
-    expect(s).toMatchObject({ corrige: true })
+  it("«corrige»: quien recibió una devolución vuelve a SU escritorio con la marca, no a Dirección", () => {
+    const con: EntregasDeLaEscena = { entregas: [], firma: { pendientes: 0 }, revisiones: [], correcciones: [{ agente: "growth-hacker", origen: "jefatura", desde: hace(2) }] }
+    const { escena: e } = conRevisiones(escena(), con, opciones)
+    expect(e.mesas.find((m) => m.clave === "estrategia")!.sentados.find((x) => x.agente === "growth-hacker")).toMatchObject({ corrige: true })
     expect(e.mesas.find((m) => m.clave === "direccion")!.sentados).toHaveLength(0)
+  })
+  it("Dirección no se filtra por «activo»: los jefes con activo=false (no entran a los turnos) igual se encienden", () => {
+    const { escena: e } = conRevisiones(escena(), viva, { ...opciones, directorio: DIRECTORIO.map((d) => ({ ...d, activo: false })) })
+    expect(e.mesas.find((m) => m.clave === "direccion")!.sentados.map((s) => s.agente)).toContain("editor_en_jefe")
+    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).not.toMatch(/oficina_directorio[^\n]*\.eq\("activo"/)
   })
 })
 
