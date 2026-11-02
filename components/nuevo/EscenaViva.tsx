@@ -240,6 +240,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   // 6.26 · Observabilidad: la pantalla 9 dice las corridas de las últimas 24 h (lectura liviana, sin nombres) y al tocarla abre el panel tipo LangSmith
   const [corridas, setCorridas] = useState<ResumenDeCorridas | null>(null)
   const [trazas, setTrazas] = useState(false)
+  const [corridaDeDinero, setCorridaDeDinero] = useState<string | null>(null) // 6.36 · un pico de Dinero abre su corrida en Observabilidad
   const [organigrama, setOrganigrama] = useState(false) // 6.28-B · la pantalla 7 abre la organización
   const leerCorridas = useCallback(async () => {
     try {
@@ -408,8 +409,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
       {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
       {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)}
-      {caja && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDinero onCerrar={cerrarCaja} />, document.body)}
-      {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={cerrarTrazas} />, document.body)}
+      {caja && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDinero onCerrar={cerrarCaja} alAbrirCorrida={(id) => { setCaja(false); setCorridaDeDinero(id); setTrazas(true) }} />, document.body)}
+      {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={() => { setCorridaDeDinero(null); cerrarTrazas() }} corridaInicial={corridaDeDinero} />, document.body)}
       {organigrama && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelOrganizacion onCerrar={() => setOrganigrama(false)} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
       {fase !== "cerrado" && (
