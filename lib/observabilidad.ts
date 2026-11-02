@@ -7,7 +7,7 @@
  *  · costo = misma fuente y misma función que Dinero (`resumenDelPeriodo` sobre los movimientos de Dinero) · interno = cerebro, portero, pruebas y ensayos.
  */
 import { anteriorDe, diaLocal, diasEntre, horaLocal, rangoDe, resumenDelPeriodo, sumarDias, type Dinero, type Movimiento, type Periodo } from "@/lib/dinero-completo"
-import { clienteVisible, mayuscula, type Corrida, type DetalleDeCorrida, arbolDeNodos } from "@/lib/direccion-corridas"
+import { OTROS_PROCESOS, clienteVisible, mayuscula, type Corrida, type DetalleDeCorrida, type GrupoAgregado, arbolDeNodos } from "@/lib/direccion-corridas"
 
 /** ─── interno: mantenimiento del cerebro y del portero, pruebas y ensayos ─── */
 const NOMBRE_INTERNO = /^Cerebro ·|^Portero · .*\bprueba\b|\bprueba\b|\bensayo\b/i
@@ -116,7 +116,7 @@ export function procesoDe(c: Pick<Corrida, "nombre">): string {
   if (/oficina|encargo de un turno/i.test(n)) return "Oficina"
   if (/^Finanzas/i.test(n)) return "Finanzas"
   if (/prueba|ensayo/i.test(n)) return "Pruebas y ensayos"
-  if (/^Ejecución \d+$|^Corrida sin nombre/.test(n)) return "Sin nombre de proceso"
+  if (n === OTROS_PROCESOS || /^Ejecución \d+$|^Corrida sin nombre/.test(n)) return OTROS_PROCESOS
   return n.split(" · ")[0]
 }
 export function agrupar(cs: Corrida[], por: Exclude<AgruparPor, "empleado">, porEj: Map<string, number> | null, r: { desde: string; hasta: string }): Grupo[] {
@@ -257,4 +257,23 @@ export function cascadaDe(d: DetalleDeCorrida): Cascada | null {
     return { nombre, pasos: g.length, desde_ms: a - t0, dur_ms: b - a, fallo: !!mal, clave: (mal ?? g[0]).n.clave }
   })
   return { fases, total_ms: Math.max(1, tf - t0), inicio: new Date(t0).toISOString() }
+}
+
+/**
+ * ─── 6.50 · LA LECTURA AGREGADA (CC1 · #853): corridas y errores ENTEROS del período y del anterior, sin el tope de 200 ───
+ * Aquí una corrida = una ejecución de un proceso (así cuenta la plataforma); la lista y «lo que falló» siguen agrupando por pedido.
+ * La demora por día no viene en la lectura agregada: ese gráfico sigue saliendo de la lista.
+ */
+export const gruposVisibles = (gs: GrupoAgregado[], conInterno: boolean): GrupoAgregado[] => (conInterno ? gs : gs.filter((g) => !g.interno && !esNombreInterno(g.nombre)))
+export interface NumerosAgregados { corridas: number; con_error: number; pct_error: number | null; max_ms: number | null }
+export function numerosDelAgregado(gs: GrupoAgregado[]): NumerosAgregados {
+  const corridas = gs.reduce((s, g) => s + g.ejecuciones, 0), con_error = gs.reduce((s, g) => s + g.con_error, 0), cuentan = corridas - gs.reduce((s, g) => s + g.en_curso, 0)
+  const maxs = gs.flatMap((g) => (g.max_ms == null ? [] : [g.max_ms]))
+  return { corridas, con_error, pct_error: cuentan > 0 ? Math.round((con_error / cuentan) * 1000) / 10 : null, max_ms: maxs.length ? Math.max(...maxs) : null }
+}
+/** corridas y errores de cada día del período (por día: la lectura agregada no trae horas) */
+export function serieDelAgregado(gs: GrupoAgregado[], k: Cubetas): Array<{ total: number; con_error: number }> {
+  const por = new Map<string, { total: number; con_error: number }>()
+  for (const g of gs) for (const x of g.por_dia) { const c = por.get(x.d) ?? { total: 0, con_error: 0 }; c.total += x.ejecuciones; c.con_error += x.con_error; por.set(x.d, c) }
+  return k.rotulos.map((r) => por.get(r) ?? { total: 0, con_error: 0 })
 }

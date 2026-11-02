@@ -64,7 +64,7 @@ describe("6.47 · definiciones", () => {
     expect(motivoEnPalabras(null, "atascada")).toBe("se quedó sin dar señales de vida")
   })
   it("el proceso en palabras de oficina", () => {
-    expect(procesoDe({ nombre: "Ejecución 205994" })).toBe("Sin nombre de proceso"); expect(procesoDe({ nombre: "Encargo de oficina · un turno" })).toBe("Oficina")
+    expect(procesoDe({ nombre: "Ejecución 205994" })).toBe("Otros procesos internos"); expect(procesoDe({ nombre: "Otros procesos internos" })).toBe("Otros procesos internos"); expect(procesoDe({ nombre: "Encargo de oficina · un turno" })).toBe("Oficina")
     expect(LISTA.corridas.map(procesoDe)).toEqual(["Plan de 90 días", "Cambios al plan", "Mantenimiento del cerebro", "Mantenimiento del cerebro", "Manual de marca y alta", "Plan de 90 días", "Plan de 90 días"])
   })
 })

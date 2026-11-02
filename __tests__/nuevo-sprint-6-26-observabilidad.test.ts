@@ -45,7 +45,7 @@ describe("6.26 · lectura y nombres", () => {
     expect(nombreLimpio("Jefatura · un turno (agente → resultado → siguiente) · CC#2")).toBe("Jefatura · un turno")
     expect(nombreDeLaCorrida("X9F0zp6LQ2xGEYVS", "210273", NOMBRES)).toBe("Planeación del plan de 90 días") // 6.27: nombre de oficina
     expect(nombreDeLaCorrida("cc-cerebro-fallas-y-retencion", "p1")).toBe("Cerebro · fallas y retención")
-    expect(nombreDeLaCorrida("AbCdEfGhIjKlMnOp", "210273")).toBe("Ejecución 210273")
+    expect(nombreDeLaCorrida("AbCdEfGhIjKlMnOp", "210273")).toBe("Otros procesos internos")
     expect(nombreDeLaRama("analisis-voz_del_publico")).toBe("analisis · voz del publico")
   })
   it("normaliza la lista y resume la pantalla 9 (errores y en curso)", () => {
