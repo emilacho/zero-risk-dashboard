@@ -6,6 +6,7 @@ import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
+import { FlechasDeForma } from "@/components/nuevo/escena/FlechasDeForma"
 import { ESTILO_SALA, GloboEnLaFoto, globoVisible, PanelDeLaSala, SalaEnLaFoto, subidaDelRotulo } from "@/components/nuevo/escena/SalaDeReuniones"
 import { AporteCompleto } from "@/components/nuevo/escena/AporteCompleto"
 import { SALA } from "@/lib/escena-sala"
@@ -157,6 +158,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} sentados={sentadosEnSala} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} onSentados={setSentadosEnSala} />
+        {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
+        <FlechasDeForma />
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {salaAbierta && (
