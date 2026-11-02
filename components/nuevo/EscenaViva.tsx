@@ -410,7 +410,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
       {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)}
       {caja && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDinero onCerrar={cerrarCaja} alAbrirCorrida={(id) => { setCaja(false); setCorridaDeDinero(id); setTrazas(true) }} />, document.body)}
-      {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={() => { setCorridaDeDinero(null); cerrarTrazas() }} corridaInicial={corridaDeDinero} />, document.body)}
+      {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={() => { setCorridaDeDinero(null); cerrarTrazas() }} corridaInicial={corridaDeDinero} alVolver={corridaDeDinero ? () => { setTrazas(false); setCorridaDeDinero(null); setCaja(true) } : undefined} />, document.body)}
       {organigrama && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelOrganizacion onCerrar={() => setOrganigrama(false)} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
       {fase !== "cerrado" && (

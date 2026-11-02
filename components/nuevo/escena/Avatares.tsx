@@ -8,6 +8,7 @@ import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
+import { FlechasDeForma } from "@/components/nuevo/escena/FlechasDeForma"
 import { ESTILO_SALA, GloboEnLaFoto, globoVisible, PanelDeLaSala, SalaEnLaFoto, subidaDelRotulo } from "@/components/nuevo/escena/SalaDeReuniones"
 import { AporteCompleto } from "@/components/nuevo/escena/AporteCompleto"
 import { SALA } from "@/lib/escena-sala"
@@ -166,6 +167,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <CuadrosDelPizarron entregas={entregasVigentes} ranuras={ranuras.current} oculta={tarjeta?.id ?? null} />
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
+        {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
+        <FlechasDeForma />
         {/* sprint 3 · la luz de firma: el panel del borde derecho, hacia Tu oficina */}
         <LuzDeFirma pendientes={datos?.entregas?.firma.pendientes ?? 0} />
         <GloboEnLaFoto g={globoActual} />

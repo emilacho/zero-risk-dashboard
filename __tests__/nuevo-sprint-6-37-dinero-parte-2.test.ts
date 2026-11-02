@@ -23,7 +23,7 @@ describe("6.37 · desglose", () => {
     expect(Math.round(f.reduce((a, x) => a + x.pct, 0))).toBe(100)
   })
   it("por equipo sale del organigrama; por corrida trae día y detalle", () => {
-    expect(desglose(movs, "equipo", { desde: "2026-11-01", hasta: hoy }).map((x) => x.nombre).sort()).toEqual(["Marketing · Creativo", "Proveedor externo · Apify"])
+    expect(desglose(movs, "equipo", { desde: "2026-11-01", hasta: hoy }).map((x) => x.nombre).sort()).toEqual(["Marketing · Creativo"]) // 6.44 · Apify solo en Proveedor
     const r = desglose(movs, "corrida", { desde: "2026-11-01", hasta: hoy })
     expect(r).toHaveLength(1); expect(r[0]).toMatchObject({ corrida: "r-x", dia: "2026-11-01" })
   })
