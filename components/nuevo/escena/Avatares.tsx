@@ -117,6 +117,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
+  const [sentadosEnSala, setSentadosEnSala] = useState<Set<string>>(new Set())
   const globoActual = globoVisible(datos?.sala?.reunion, enSala)
   const quienEstaEnLaSala = useMemo(() => agentesEnLaSala(datos?.sala), [datos])
   return (
@@ -153,9 +154,9 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           )
         })}
         {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
-        <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
+        <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} sentados={sentadosEnSala} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
-        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} />
+        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} onSentados={setSentadosEnSala} />
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {salaAbierta && (

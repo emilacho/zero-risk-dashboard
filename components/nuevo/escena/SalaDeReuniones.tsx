@@ -1,6 +1,7 @@
 "use client"
 
 import type { CSSProperties } from "react"
+import { nombreCanonico } from "@/lib/organigrama"
 import { globoDe, lineasDeLaSala, lineasDelResultado, SALA, type ParticipanteDeLaSala, type ReunionDeLaSala, type SalaDeReuniones, type UsoDelAporte } from "@/lib/escena-sala"
 
 /**
@@ -51,10 +52,12 @@ export function destinoEnElCentro(i: number, n: number, esResultado: boolean): {
 }
 export const posBurbuja = (s: { x: number; y: number }) => ({ x: s.x + 14, y: s.y - 66 })
 
-export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0 }: {
+export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
   sala: SalaDeReuniones | null | undefined
   /** px de la foto que sube el rótulo para no quedar debajo del globo del que habla */
   subir?: number
+  /** 03-nov · quiénes siguen sentados (nombres canónicos): el globito de quien se levanta desaparece con él; sin dato (`undefined`) se dibujan todos */
+  sentados?: Set<string>
   abierta: boolean
   onAbrir: () => void
 }) {
@@ -77,7 +80,7 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0 }: {
       {/* S4 · las burbujas de aporte (encima de las figuras): la que habla se enciende; al cerrar, lo usado viaja al centro y lo que no se usó se apaga */}
       {r && (() => {
         const viajan = r.participantes.filter((p) => p.silla && !p.cabecera && luzDeLaBurbuja(p, r) === "centro")
-        return r.participantes.filter((p) => p.silla).map((p) => {
+        return r.participantes.filter((p) => p.silla).filter((p) => !sentados || sentados.has(nombreCanonico(p.agente)) || luzDeLaBurbuja(p, r) === "centro").map((p) => {
           const luz = luzDeLaBurbuja(p, r)
           const b = posBurbuja(p.silla!)
           const destino = luz === "centro" ? destinoEnElCentro(viajan.indexOf(p), viajan.length, p.cabecera) : null
