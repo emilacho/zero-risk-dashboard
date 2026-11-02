@@ -3,6 +3,7 @@
  * columna primero y, si está vacía, el borrador (`content_text.brand_book_draft`). Dice quién lo validó y qué falta, con la misma lectura que la plataforma
  * (`src/lib/manual/campos-del-manual.ts`). El tablero no importa código de la plataforma: esta lista es un espejo pequeño y una prueba la compara con la definición.
  */
+import { notasDelCampo, type NotaDelCampo } from '@/lib/manual-notas'
 export interface CampoDelLector { clave: string; etiqueta: string; columna: string; borrador: string[]; lista?: boolean; obligatorio: boolean; /** la clave de este campo en la definición de la plataforma (donde vive su `_field_meta`) */ meta?: string }
 
 export const CAMPOS_DEL_LECTOR: readonly CampoDelLector[] = [
@@ -21,7 +22,7 @@ export const CAMPOS_DEL_LECTOR: readonly CampoDelLector[] = [
 ] as const
 
 export type EstadoDelCampo = 'lleno' | 'propuesta' | 'hueco'
-export interface CampoLeido { clave: string; etiqueta: string; valor: string | null; estado: EstadoDelCampo; nota: string | null; /** la razón de la propuesta del agente, aparte del valor (para mostrarla discreta) */ explicacion: string | null; /** quién puso el valor: lo escribió el dueño desde el tablero, o lo aceptó al validar */ origen: 'dueno' | 'aceptado' | null; /** la nota de fuente que dejó la corrida (`_field_meta.fuente`), tal cual; null si no hay */ fuente?: string | null }
+export interface CampoLeido { clave: string; etiqueta: string; valor: string | null; estado: EstadoDelCampo; nota: string | null; /** la razón de la propuesta del agente, aparte del valor (para mostrarla discreta) */ explicacion: string | null; /** quién puso el valor: lo escribió el dueño desde el tablero, o lo aceptó al validar */ origen: 'dueno' | 'aceptado' | null; /** la nota de fuente que dejó la corrida (`_field_meta.fuente`), tal cual; null si no hay */ fuente?: string | null; /** CC6 · 02-nov: datos marcados por la puerta o el juez (`datos_sin_fuente` · `notas_del_juez`) */ notas?: NotaDelCampo[] }
 export interface ManualLeido {
   campos: CampoLeido[]
   /** quién lo validó: la jefatura, el dueño o nadie (propuesta) */
@@ -93,7 +94,7 @@ export function leerManual(fila: Record<string, unknown> | null): ManualLeido | 
     const esPropuesta = valor != null && (sep.propuesta || m.estado === 'propuesta')
     const estado: EstadoDelCampo = valor == null ? 'hueco' : esPropuesta ? 'propuesta' : 'lleno'
     const nota = estado === 'hueco' ? 'Sin dato: se buscó en lo raspado del sitio, las redes y los mapas' : estado === 'propuesta' ? 'Propuesta del agente, sin validar' : null
-    return { clave: c.clave, etiqueta: c.etiqueta, valor, estado, nota, explicacion: sep.explicacion, origen: valor == null ? null : m.fuente === 'dueno' ? 'dueno' : m.aceptado_por_el_dueno ? 'aceptado' : null, fuente: typeof m.fuente === 'string' && m.fuente.trim() ? m.fuente.trim() : null }
+    return { clave: c.clave, etiqueta: c.etiqueta, valor, estado, nota, explicacion: sep.explicacion, origen: valor == null ? null : m.fuente === 'dueno' ? 'dueno' : m.aceptado_por_el_dueno ? 'aceptado' : null, fuente: typeof m.fuente === 'string' && m.fuente.trim() ? m.fuente.trim() : null, notas: notasDelCampo(m) }
   })
   const faltan = campos.filter((c, i) => CAMPOS_DEL_LECTOR[i].obligatorio && c.estado === 'hueco').map((c) => c.clave)
   const huecos = huecosDeclarados ?? faltan

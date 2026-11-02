@@ -8,6 +8,7 @@ import { SeccionesNuevas } from "@/components/nuevo/manual/SeccionesNuevas"
 import { ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { CICLO_DEL_MANUAL_CERRADO } from "@/lib/manual-ciclo"
 import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, valorCorto } from "@/lib/manual-campo"
+import { NotasDelCampo } from "@/components/nuevo/manual/NotasDelCampo"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 import { CAMPOS_DEL_LECTOR, type CampoLeido } from "@/lib/manual-lector"
 import { EDITABLES_DESDE_EL_TABLERO, cuerpoDeEdicion, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, separarPropuesta, textoParaEditar } from "@/lib/manual"
@@ -186,6 +187,7 @@ function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado
         <button type="button" data-accion="leer-todo" onClick={() => setEntero((v) => !v)} className="mt-1 text-[11.5px] text-amber-300 underline decoration-dotted underline-offset-4 hover:text-amber-200">{entero ? "Ver menos" : viñetas ? `Ver ${viñetas.length - 4} más` : "Leer todo"}</button>
       )}
       {c.explicacion && <details className="mt-1 text-[11.5px] text-zinc-500"><summary className="cursor-pointer">Por qué se propone</summary><p className="mt-1">{c.explicacion}</p></details>}
+      {!editando && <NotasDelCampo notas={c.notas} />}
       {opcionesLeidas.length > 0 && (
         <div className="mt-2" data-opciones={c.clave}>
           <h5 className="mb-1 text-[11px] text-zinc-500">Opciones de eslogan · sin decidir</h5>

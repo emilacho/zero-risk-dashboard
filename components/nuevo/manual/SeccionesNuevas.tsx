@@ -1,5 +1,6 @@
 "use client"
 
+import { NotasDelCampo } from "@/components/nuevo/manual/NotasDelCampo"
 import { ORIGEN_DE_SECCION, type SeccionLeida, type ValorDeSeccion } from "@/lib/manual-secciones"
 
 const AMBAR = "#f5a524"
@@ -52,6 +53,7 @@ export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor }: {
                     {acciones && <span className="ml-auto flex gap-1">{acciones(p)}</span>}
                   </div>
                   <Valor v={p.valor} />
+                  <NotasDelCampo notas={p.notas} />
                   {editor?.(p)}
                 </div>
               )
