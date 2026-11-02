@@ -119,8 +119,9 @@ describe("la sala de reuniones · S3", () => {
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: e }))
     expect(html).toContain('data-sala="en_curso"')
     expect(html).toContain('data-cabecera="true"')
-    expect(html).toContain("DIRIGE")
-    expect(html).toContain('data-estado="hablando"')
+    expect(html).toContain("· dirige") // 02-nov: ya no hay círculo con «DIRIGE»; el nombre de quien dirige sale al pasar el cursor
+    expect(html).toContain('data-habla="true"') // la que habla se ilumina
+    expect(html).toContain("Ver su aporte completo") // tocar a un participante abre su aporte
     expect(html).toContain("Plan de 90 días · Náufrago")
     expect(html).toMatch(/dirige Jefe de marketing \(Dirección\)/)
     const vacia = renderToStaticMarkup(createElement(Avatares, { datosIniciales: armarEscena(entrada(60)) }))
