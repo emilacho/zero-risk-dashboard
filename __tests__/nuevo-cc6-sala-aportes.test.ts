@@ -78,7 +78,7 @@ describe("los aportes de la sala · S4", () => {
     expect(resumenDelAporte("```json\n{\"fichas\":[{\"que\":\"El plan usa «el mejor de Olón»\",\"gravedad\":\"bloquea\"},{\"que\":\"Otra\",\"gravedad\":\"mejora\"}]}")).toBe("2 observaciones, 1 bloquea. La primera: El plan usa «el mejor de Olón»")
     expect(resumenDelAporte("{\"fichas\":[{\"que\":\"Una\",\"gravedad\":\"bloquea\"}" + " ".repeat(2000))).toMatch(/^al menos 1 observación, 1 bloquea/)
     expect(resumenDelAporte("{\"fichas\":[]}")).toBe("sin observaciones")
-    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toMatch(/top: pct\(g\.ancla\.y - 14, FOTO\.h\), pointerEvents: "none"/)
+    expect(readFileSync("components/nuevo/escena/SalaDeReuniones.tsx", "utf8")).toMatch(/export function GloboEnLaFoto[\s\S]*pointerEvents="none"/) // 02-nov: el globo va dentro de la foto, con nuestro estilo, y no recibe el ratón
     expect(mismoComienzo("# PLAN DE CAMPAÑA\n\nTres  apuestas", "# PLAN DE CAMPAÑA Tres apuestas")).toBe(true)
     expect(mismoComienzo("# PLAN DE CAMPAÑA", "{\"fichas\":[]}")).toBe(false)
     expect(mismoComienzo(null, null)).toBe(false)
@@ -124,7 +124,7 @@ describe("los aportes de la sala · S4", () => {
     expect(html).toContain('data-luz="centro"')
     expect(html).toContain('data-globo="resultado"')
     expect(html).toContain("usó 3 de 5 informes de la mesa de análisis")
-    expect(html).toContain("Ver su aporte completo")
+    expect(html).not.toMatch(/class="nv-sil"[^>]*data-lugar="sala"/) // la reunión terminó: ya nadie sigue sentado en la sala (se levantaron y salieron)
     expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toMatch(/onTocar=\{\(a\) => setAporteDe\(a\)\}/)
   })
 

@@ -5,6 +5,7 @@
  * Sprint 2 (abajo): caminar a la sala de reuniones y volver. La entrega al pizarrón y el clic en el agente son los sprints 3 y 4: NO están aquí.
  */
 import { U, V, type MesaViva, type Punto, type Sentado } from "@/lib/escena-avatares"
+import { SILLAS_DE_LA_SALA } from "@/lib/escena-sala"
 
 export const MAXIMO_EN_LA_MESA = 4 // 1 sentado + 3 de pie; el resto se dice «+N»
 export type Postura = "sentado" | "de_pie"
@@ -31,11 +32,35 @@ export function repartirEnLaMesa(m: Pick<MesaViva, "sentados" | "silla" | "centr
 }
 
 // ── SPRINT 2 · caminar a la sala de reuniones y volver ──
-/** los lugares de la oficina, en píxeles de `marketing-2560` (medidos sobre la foto) */
+/** los lugares de la oficina, en píxeles de `marketing-2560` (medidos sobre la foto, 02-nov: la puerta es el hueco de cristal de la pared del frente de la sala) */
 export const LUGARES = {
-  /** la entrada de la sala de vidrio, sobre el piso frente a su pared de vidrio: ahí entra (y de ahí sale) quien va a una reunión; adentro lo sienta la sala de CC6 */
-  sala: { x: 1262, y: 585 },
+  /** el piso frente a la puerta de la sala de vidrio: ahí termina el camino desde un escritorio (y de ahí empieza el de vuelta) */
+  sala: { x: 1335, y: 628 },
+  /** la puerta de cristal, sobre la pared del frente de la sala */
+  puerta: { x: 1367, y: 598 },
+  /** adentro, junto a la puerta */
+  dentro: { x: 1385, y: 568 },
 } as const satisfies Record<string, Punto>
+/** por dónde se rodea la mesa redonda para llegar a cada silla (índice de `SILLAS_DE_LA_SALA`): las del frente van directo; la cabecera y las del fondo, por el lado izquierdo; la de la derecha, por el frente */
+const RODEOS: Record<number, Punto[]> = {
+  0: [{ x: 1318, y: 540 }], 1: [{ x: 1318, y: 540 }, { x: 1314, y: 450 }], 2: [{ x: 1318, y: 540 }, { x: 1314, y: 450 }, { x: 1350, y: 418 }], 3: [{ x: 1318, y: 540 }, { x: 1314, y: 450 }, { x: 1350, y: 418 }, { x: 1400, y: 414 }],
+  4: [{ x: 1452, y: 536 }], 5: [], 6: [], 7: [],
+}
+const mismo = (a: Punto, b: Punto) => Math.hypot(a.x - b.x, a.y - b.y) <= 1
+/** une tramos por las líneas del piso en un solo recorrido */
+export function rutaPorVarios(puntos: Punto[]): Punto[] {
+  const out: Punto[] = []
+  for (let i = 1; i < puntos.length; i++) for (const p of rutaPorLasLineas(puntos[i - 1], puntos[i])) if (!out.length || !mismo(out[out.length - 1], p)) out.push(p)
+  return out.length ? out : [puntos[0]]
+}
+/** la silla de la sala (índice) más cercana a un punto */
+export const sillaMasCercana = (silla: Punto): number => SILLAS_DE_LA_SALA.reduce((mejor, s, i) => (Math.hypot(s.x - silla.x, s.y - silla.y) < Math.hypot(SILLAS_DE_LA_SALA[mejor].x - silla.x, SILLAS_DE_LA_SALA[mejor].y - silla.y) ? i : mejor), 0)
+/** del piso frente a la puerta hasta la silla: puerta → adentro → rodeo de la mesa → silla (de pie) */
+export function rutaDeLaPuertaALaSilla(silla: Punto): Punto[] {
+  return rutaPorVarios([LUGARES.sala, LUGARES.puerta, LUGARES.dentro, ...RODEOS[sillaMasCercana(silla)], silla])
+}
+/** de la silla a la calle: el mismo camino al revés */
+export const rutaDeLaSillaALaPuerta = (silla: Punto): Punto[] => [...rutaDeLaPuertaALaSilla(silla)].reverse()
 
 /** de A a B por las líneas de luz del piso: primero a lo largo de un eje de la vista isométrica y luego del otro (nunca en diagonal por el aire) */
 export function rutaPorLasLineas(a: Punto, b: Punto): Punto[] {
@@ -59,7 +84,7 @@ export function puntoEnLaRuta(r: Punto[], f: number): Punto {
 }
 /** lo que tarda un recorrido: velocidad pausada de oficina (px de la foto por segundo), entre 0,8 y 4 s */
 export const VELOCIDAD_PX_S = 260
-export const duracionDelRecorrido = (r: Punto[]): number => Math.min(Math.max((largoDeLaRuta(r) / VELOCIDAD_PX_S) * 1000, 800), 4000)
+export const duracionDelRecorrido = (r: Punto[], tope = 4000): number => Math.min(Math.max((largoDeLaRuta(r) / VELOCIDAD_PX_S) * 1000, 800), tope)
 
 /** qué debe hacer cada empleado cuando llega una lectura nueva: comparar lo que se veía con lo que dicen los datos ahora */
 export type Intencion =

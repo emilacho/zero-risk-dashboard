@@ -2,7 +2,6 @@
 
 import type { CSSProperties } from "react"
 import { globoDe, lineasDeLaSala, lineasDelResultado, SALA, type ParticipanteDeLaSala, type ReunionDeLaSala, type SalaDeReuniones, type UsoDelAporte } from "@/lib/escena-sala"
-import { mesaPorClave } from "@/lib/escena-avatares"
 
 /**
  * LA SALA DE REUNIONES en la foto (CC6 · S3): dentro del SVG de la escena. Cada participante de la reunión real se sienta en una silla de la mesa redonda
@@ -28,7 +27,6 @@ export const ESTILO_SALA = `
 const FUENTE = "system-ui, Arial, sans-serif"
 /** «Jefe de Marketing» → «JM» (sin «de», «del», «la», «y»…; primera y última palabra) */
 export const inicialesDe = (nombre: string): string => { const p = nombre.split(/[\s/·-]+/).filter((w) => w && !/^(de|del|la|las|el|los|y|en)$/i.test(w)); return ((p[0]?.[0] ?? "") + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase() }
-const colorDe = (p: ParticipanteDeLaSala) => (p.mesa ? mesaPorClave(p.mesa)?.color ?? "#bbb" : p.equipo.startsWith("Jefatura") ? "#f5a524" : "#9a9a9a")
 export const estadoLegible = (p: ParticipanteDeLaSala) => (p.estado === "hablando" ? "hablando ahora" : p.estado === "fallo" ? `falló ${p.hace}` : p.estado === "hablo" ? `aportó ${p.hace}` : "en espera")
 
 export const usoLegible = (u: UsoDelAporte): string => (u === "resultado" ? "resultado" : u === "usado" ? "usado" : u === "apagado" ? "no se usó" : u === "revision" ? "revisión" : "sin dato de uso")
@@ -53,17 +51,14 @@ export function destinoEnElCentro(i: number, n: number, esResultado: boolean): {
 }
 export const posBurbuja = (s: { x: number; y: number }) => ({ x: s.x + 14, y: s.y - 66 })
 
-export function SalaEnLaFoto({ sala, abierta, onAbrir, onFoco, onTocar }: {
+export function SalaEnLaFoto({ sala, abierta, onAbrir }: {
   sala: SalaDeReuniones | null | undefined
   abierta: boolean
   onAbrir: () => void
-  onFoco: (agente: string | null) => void
-  onTocar: (agente: string) => void
 }) {
   const r = sala?.reunion ?? null
   const lineas = lineasDeLaSala(sala)
-  const terminada = r?.estado === "terminada"
-  return (
+    return (
     <g className="nv-sala" data-sala={r ? r.estado : "vacia"} data-abierta={abierta} data-corridas={r?.corridas.join(",") ?? ""}>
       {/* la zona del ratón: la sala de vidrio; al pasar por encima aparece el rótulo, como en las mesas */}
       <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); onAbrir() }} />
@@ -76,23 +71,7 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, onFoco, onTocar }: {
           <text key={i} x={SALA.rotulo.x} y={SALA.rotulo.y + 26 + i * 22} textAnchor="middle" fill={i === 0 && r ? "#ffd9a0" : "#a8a097"} fontSize={i === 0 && r ? 19 : 16} fontWeight={i === 0 && r ? 600 : 400} fontFamily={FUENTE} stroke="#0b0a09" strokeWidth={4} strokeOpacity={0.85} paintOrder="stroke" data-sala-linea={i + 1}>{l}</text>
         ))}
       </g>
-      {r?.participantes.filter((p) => p.silla).map((p) => {
-        const s = p.silla!, c = colorDe(p)
-        const aro = p.estado === "fallo" ? "#ff5a4a" : p.cabecera ? "#ffb347" : c
-        return (
-          <g key={p.agente} className="nv-sala-p" data-agente={p.agente} data-estado={p.estado} data-cabecera={p.cabecera} opacity={terminada ? 0.6 : 1} role="button" tabIndex={0}
-            aria-label={`${p.nombre}${p.cabecera ? ", dirige" : ""}. ${p.equipo}. ${p.fase}. ${estadoLegible(p)}. Ver su aporte completo`}
-            onMouseEnter={() => onFoco(p.agente)} onMouseLeave={() => onFoco(null)} onFocus={() => onFoco(p.agente)} onBlur={() => onFoco(null)}
-            onClick={(e) => { e.stopPropagation(); onTocar(p.agente) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTocar(p.agente) } }}>
-            <ellipse cx={s.x} cy={s.y + 4} rx={16} ry={6} fill="rgba(0,0,0,.45)" />
-            {(p.estado === "hablando" || p.estado === "fallo") && <circle className="nv-sala-halo" cx={s.x} cy={s.y - 30} r={26} fill={p.estado === "fallo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} />}
-            <line x1={s.x} y1={s.y - 12} x2={s.x} y2={s.y} stroke={c} strokeOpacity={0.5} strokeWidth={2} />
-            <circle className="nv-sala-aro" cx={s.x} cy={s.y - 30} r={17} fill="#141210" stroke={aro} strokeWidth={p.cabecera ? 3 : 2} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,.6))" } as CSSProperties} />
-            <text x={s.x} y={s.y - 25} textAnchor="middle" fill={p.estado === "espera" ? "#8a8a8a" : "#f3e7d6"} fontSize={13} fontWeight={600} fontFamily={FUENTE}>{inicialesDe(p.nombre)}</text>
-            {p.cabecera && <text x={s.x} y={s.y - 54} textAnchor="middle" fill="#ffb347" fontSize={11} fontWeight={600} letterSpacing={1} fontFamily={FUENTE}>DIRIGE</text>}
-          </g>
-        )
-      })}
+      {/* 02-nov · los participantes ya no son círculos con iniciales: son las siluetas holográficas de `Siluetas.tsx` (que camina, entra, se sienta, habla y sale) */}
       {/* S4 · las burbujas de aporte (encima de las figuras): la que habla se enciende; al cerrar, lo usado viaja al centro y lo que no se usó se apaga */}
       {r && (() => {
         const viajan = r.participantes.filter((p) => p.silla && !p.cabecera && luzDeLaBurbuja(p, r) === "centro")
@@ -134,6 +113,28 @@ export function globoVisible(r: ReunionDeLaSala | null | undefined, foco: string
   const l = lineasDelResultado(r)
   // a la derecha de la sala (no tapa la mesa ni las burbujas que llegaron al centro)
   return l.length ? { tipo: "resultado", ancla: { x: SALA.mesa.x + 100, y: SALA.mesa.y - 60 }, lineas: l } : null
+}
+
+/** 02-nov · el globo del aporte DENTRO de la foto, con nuestro estilo (sin depender de clases de CSS): una tarjeta oscura con borde ámbar y las líneas ajustadas al ancho */
+const ancho = (l: string) => Math.min(Math.max(l.length * 7.4, 120), 300)
+function ajustar(texto: string, max = 38): string[] {
+  const out: string[] = []; let cur = ""
+  for (const w of texto.split(/\s+/)) { if ((cur + " " + w).trim().length > max && cur) { out.push(cur); cur = w } else cur = (cur + " " + w).trim() }
+  if (cur) out.push(cur)
+  return out
+}
+export function GloboEnLaFoto({ g }: { g: Globo | null }) {
+  if (!g) return null
+  const lineas = g.lineas.flatMap((l, i) => (i === 0 ? [l] : ajustar(l))).slice(0, 7)
+  const w = Math.max(...lineas.map(ancho)) + 24, h = lineas.length * 19 + 18
+  const x = g.tipo === "resultado" ? g.ancla.x : g.ancla.x - w / 2, y = g.ancla.y - 14 - h
+  return (
+    <g data-globo={g.tipo === "participante" ? g.p.agente : "resultado"} role="status" aria-label={g.lineas.join(". ")} pointerEvents="none" style={{ filter: "drop-shadow(0 6px 14px rgba(0,0,0,.6))" } as CSSProperties}>
+      <rect x={x} y={y} width={w} height={h} rx={14} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.6} strokeWidth={1.4} />
+      {g.tipo === "participante" && <path d={`M ${g.ancla.x - 7} ${y + h} l 7 10 l 7 -10 z`} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.6} strokeWidth={1.2} strokeLinejoin="round" />}
+      {lineas.map((l, i) => <text key={i} x={x + 12} y={y + 20 + i * 19} fontFamily={FUENTE} fontSize={i === 0 ? 14 : 13} fontWeight={i === 0 ? 600 : 400} fill={i === 0 ? "#ffe2a8" : i === lineas.length - 1 && g.tipo === "participante" ? "#a8a097" : "#e8dfd2"}>{l}</text>)}
+    </g>
+  )
 }
 
 /** el panel de la reunión al tocar el rótulo: fases, participantes (tocar = su ficha) y de dónde sale el dato */

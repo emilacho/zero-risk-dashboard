@@ -43,6 +43,24 @@ describe("sprint 2 · caminar a la sala de reuniones y volver", () => {
   it("el componente no dibuja ninguna reunión (es de CC6) ni adelanta los sprints 3 y 4 (pizarrón, puerta, clic)", () => {
     const f = readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")
     expect(f).toContain("LUGARES.sala"); expect(f).toContain("prefers-reduced-motion")
-    for (const x of ["SalaDeReuniones", "PanelDelAgente", "pizarron", "onClick", "esperaFirma", "entregas"]) expect(f, x).not.toContain(x)
+    for (const x of ["SalaDeReuniones", "PanelDelAgente", "pizarron", "esperaFirma", "entregas"]) expect(f, x).not.toContain(x)
   })
+})
+
+describe("la sala con siluetas holográficas (reasignada a CC4, 02-nov)", () => {
+  it("la puerta, el interior y el piso de afuera están ordenados y el camino entra por la puerta y rodea la mesa hasta cada silla", async () => {
+    const { rutaDeLaPuertaALaSilla, rutaDeLaSillaALaPuerta } = await import("@/lib/escena-movimiento")
+    for (const s of SILLAS_DE_LA_SALA) {
+      const r = rutaDeLaPuertaALaSilla(s)
+      expect(r[0]).toEqual(LUGARES.sala); expect(r[r.length - 1]).toEqual(s)
+      expect(r.some((p) => Math.hypot(p.x - LUGARES.puerta.x, p.y - LUGARES.puerta.y) < 3)).toBe(true) // pasa por la puerta
+      expect(rutaDeLaSillaALaPuerta(s)[0]).toEqual(s)
+    }
+  })
+  it("los participantes ya no son círculos con iniciales ni hay texto sin estilo: el globo es una tarjeta SVG con nuestro estilo", () => {
+    const sala = readFileSync("components/nuevo/escena/SalaDeReuniones.tsx", "utf8")
+    expect(sala).not.toContain('className="nv-sala-aro"'); expect(sala).toContain("GloboEnLaFoto")
+    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).not.toContain("toca su avatar")
+  })
+  it("respeta «reducir movimiento»", () => { expect(readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")).toContain("(prefers-reduced-motion: reduce)") })
 })
