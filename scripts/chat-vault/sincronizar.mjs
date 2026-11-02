@@ -10,7 +10,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { CARPETAS_PERMITIDAS, planDeSubida, shaDe, tituloDe } from './nucleo.mjs'
+import { CARPETAS_PERMITIDAS, motivoDeSecreto, planDeSubida, shaDe, tituloDe } from './nucleo.mjs'
 
 const VAULT = process.env.VAULT_DIR || 'C:/Users/emili/OneDrive/Documents/zr-vault'
 const SECO = process.argv.includes('--seco')
@@ -48,39 +48,41 @@ function leerArchivos() {
 const primeraLinea = (t) => String(t).split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#') && !l.startsWith('---')) ?? ''
 
 /** parte viva del traspaso: solo lo que está en el vault (los datos de la plataforma los trae la herramienta consultar_plataforma al momento de preguntar) */
-export function armarParteViva(archivos, ahora = new Date()) {
-  const porRuta = new Map(archivos.map((a) => [a.ruta, a]))
+export function armarParteViva(archivos, ahora = new Date(), omitidos = []) {
+  // todo fragmento que entra al traspaso pasa por el mismo filtro de secretos que los archivos (observación de CC3 sobre #149)
+  const seguro = (t, que) => { const m = motivoDeSecreto(t); if (!m) return t; omitidos.push(que + ': parece traer ' + m); return '(omitido: parece traer ' + m + ')' }
   const L = ['## Parte viva (se regenera sola · ' + ahora.toISOString().slice(0, 13) + ':00Z)', '']
   const marcas = archivos.filter((a) => /^raw\/estado\/CC\d+-marca$/i.test(a.ruta.replace(/\.md$/i, '')) || /^raw\/estado\/.*marca.*\.md$/i.test(a.ruta))
   if (marcas.length) {
     L.push('### Qué dice cada empleado técnico (última línea de su marca)')
     for (const m of marcas.sort((a, b) => a.ruta.localeCompare(b.ruta))) {
       const ult = String(m.cuerpo).split(/\r?\n/).filter(Boolean).pop() ?? ''
-      L.push('- ' + path.basename(m.ruta).replace(/\.md$/i, '') + ': ' + ult.slice(0, 280))
+      L.push('- ' + path.basename(m.ruta).replace(/\.md$/i, '') + ': ' + seguro(ult.slice(0, 280), m.ruta))
     }
     L.push('')
   }
   const dec = archivos.filter((a) => a.ruta.startsWith('wiki/decisions/')).sort((a, b) => String(b.modificado_en).localeCompare(String(a.modificado_en))).slice(0, 10)
   if (dec.length) {
     L.push('### Últimas decisiones')
-    for (const d of dec) L.push('- ' + tituloDe(d.ruta, d.cuerpo) + ' (' + d.ruta + ')')
+    for (const d of dec) L.push('- ' + seguro(tituloDe(d.ruta, d.cuerpo), d.ruta) + ' (' + d.ruta + ')')
     L.push('')
   }
   const hace2d = ahora.getTime() - 48 * 3600e3
   const pap = archivos.filter((a) => a.ruta.startsWith('raw/tasks/') && Date.parse(a.modificado_en) >= hace2d && /(ENCARGO|LISTO|ESTADO|SENAL|AVISO|HALLAZGO)/.test(a.ruta)).sort((a, b) => String(b.modificado_en).localeCompare(String(a.modificado_en))).slice(0, 25)
   if (pap.length) {
     L.push('### Papeles de las últimas 48 horas')
-    for (const p of pap) L.push('- ' + path.basename(p.ruta).replace(/\.md$/i, '') + ' — ' + primeraLinea(p.cuerpo).replace(/\[[A-Z-]+\d*\]\s*/g, '').slice(0, 160))
+    for (const p of pap) L.push('- ' + path.basename(p.ruta).replace(/\.md$/i, '') + ' — ' + seguro(primeraLinea(p.cuerpo), p.ruta).replace(/\[[A-Z-]+\d*\]\s*/g, '').slice(0, 160))
     L.push('')
   }
-  void porRuta
   return L.join('\n').slice(0, 14_000)
 }
 
-export function armarTraspaso(archivos, ahora = new Date()) {
+export function armarTraspaso(archivos, ahora = new Date(), omitidos = []) {
   const nucleo = archivos.find((a) => a.ruta === '00-meta/HANDOFF-chat-de-nuevo.md')
-  const base = nucleo ? String(nucleo.cuerpo) : '# Traspaso del chat\n\n(Falta el núcleo fijo 00-meta/HANDOFF-chat-de-nuevo.md.)'
-  return base.trimEnd() + '\n\n' + armarParteViva(archivos, ahora) + '\n'
+  let base = nucleo ? String(nucleo.cuerpo) : '# Traspaso del chat\n\n(Falta el núcleo fijo 00-meta/HANDOFF-chat-de-nuevo.md.)'
+  const m = motivoDeSecreto(base)
+  if (m) { omitidos.push('núcleo fijo: parece traer ' + m); base = '# Traspaso del chat\n\n(El núcleo fijo no se incluyó: parece traer ' + m + '.)' }
+  return base.trimEnd() + '\n\n' + armarParteViva(archivos, ahora, omitidos) + '\n'
 }
 
 async function rest(metodo, ruta, { cuerpo, cabeceras } = {}) {
@@ -93,39 +95,44 @@ async function rest(metodo, ruta, { cuerpo, cabeceras } = {}) {
   return t ? JSON.parse(t) : null
 }
 
-async function existentes() {
+async function existentes(llamar = rest) {
   const todas = []
   for (let desde = 0; ; desde += 1000) {
-    const f = await rest('GET', `${TABLA}?select=ruta,sha&order=ruta&limit=1000&offset=${desde}`)
+    const f = await llamar('GET', `${TABLA}?select=ruta,sha&order=ruta&limit=1000&offset=${desde}`)
     todas.push(...f)
     if (f.length < 1000) break
   }
   return todas
 }
 
-export async function principal() {
-  const archivos = leerArchivos()
-  const traspaso = armarTraspaso(archivos)
+export async function principal({ leer = leerArchivos, llamar = rest, seco = SECO, log = console.log } = {}) {
+  const archivos = leer()
+  const omitidos = []
+  let traspaso = armarTraspaso(archivos, new Date(), omitidos)
+  // última red: si el traspaso final aún parece traer un secreto, NO se sube (queda el anterior) y se dice por qué
+  const secretoFinal = motivoDeSecreto(traspaso)
+  if (secretoFinal) { omitidos.push('traspaso final: parece traer ' + secretoFinal); traspaso = null }
+  for (const o of omitidos) log('  traspaso: ' + o)
   // en --seco la tabla puede no existir todavía (antes de la migración): se simula vacía; sin --seco un fallo se dice y se para
-  const ya = await existentes().catch((e) => { if (SECO) { console.log('(la tabla aún no existe o no se pudo leer: se simula vacía)'); return [] } throw e })
+  const ya = await existentes(llamar).catch((e) => { if (seco) { log('(la tabla aún no existe o no se pudo leer: se simula vacía)'); return [] } throw e })
   const plan = planDeSubida(archivos, ya)
-  const tr = { ruta: 'traspaso', titulo: 'Traspaso vivo del chat', cuerpo: traspaso, sha: shaDe(traspaso), modificado_en: new Date().toISOString() }
+  const tr = traspaso == null ? null : { ruta: 'traspaso', titulo: 'Traspaso vivo del chat', cuerpo: traspaso, sha: shaDe(traspaso), modificado_en: new Date().toISOString() }
   const yaTr = ya.find((e) => e.ruta === 'traspaso')
-  const subir = yaTr && yaTr.sha === tr.sha ? plan.subir : [...plan.subir, tr]
-  console.log(`vault: ${archivos.length} archivos · suben ${subir.length} · se retiran ${plan.retirar.length} · saltados ${plan.saltados.length}`)
-  for (const s of plan.saltados.filter((x) => x.motivo.startsWith('parece') || x.motivo.startsWith('pasa')).slice(0, 30)) console.log('  salta: ' + s.ruta + ' — ' + s.motivo)
-  if (SECO) { console.log('(--seco: no se escribió nada)'); return { subir, retirar: plan.retirar, saltados: plan.saltados } }
+  const subir = !tr || (yaTr && yaTr.sha === tr.sha) ? plan.subir : [...plan.subir, tr]
+  log(`vault: ${archivos.length} archivos · suben ${subir.length} · se retiran ${plan.retirar.length} · saltados ${plan.saltados.length}`)
+  for (const s of plan.saltados.filter((x) => x.motivo.startsWith('parece') || x.motivo.startsWith('pasa')).slice(0, 30)) log('  salta: ' + s.ruta + ' — ' + s.motivo)
+  if (seco) { log('(--seco: no se escribió nada)'); return { subir, retirar: plan.retirar, saltados: plan.saltados } }
   for (let i = 0; i < subir.length; i += LOTE) {
     const lote = subir.slice(i, i + LOTE).map((d) => ({ ...d, actualizado_en: new Date().toISOString() }))
-    await rest('POST', `${TABLA}?on_conflict=ruta`, { cuerpo: lote, cabeceras: { Prefer: 'resolution=merge-duplicates,return=minimal' } })
+    await llamar('POST', `${TABLA}?on_conflict=ruta`, { cuerpo: lote, cabeceras: { Prefer: 'resolution=merge-duplicates,return=minimal' } })
   }
   for (let i = 0; i < plan.retirar.length; i += LOTE) {
     const rutas = plan.retirar.slice(i, i + LOTE).map((r) => '"' + r.replace(/"/g, '') + '"').join(',')
-    await rest('DELETE', `${TABLA}?ruta=in.(${encodeURIComponent(rutas)})`)
+    await llamar('DELETE', `${TABLA}?ruta=in.(${encodeURIComponent(rutas)})`)
   }
   // registro de lo saltado por parecer secreto: solo ruta y motivo, nunca el valor
   const reg = plan.saltados.filter((x) => x.motivo.startsWith('parece'))
-  console.log(`listo · ${subir.length} subidos · ${plan.retirar.length} retirados · ${reg.length} con aspecto de secreto sin subir`)
+  log(`listo · ${subir.length} subidos · ${plan.retirar.length} retirados · ${reg.length} con aspecto de secreto sin subir`)
   return { subir, retirar: plan.retirar, saltados: plan.saltados }
 }
 
