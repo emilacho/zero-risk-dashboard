@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
+import { SeccionesNuevas } from "@/components/nuevo/manual/SeccionesNuevas"
 import { ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { CICLO_DEL_MANUAL_CERRADO } from "@/lib/manual-ciclo"
 import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, valorCorto } from "@/lib/manual-campo"
@@ -104,6 +105,29 @@ export function resumenDelGuardado(d: Record<string, unknown>): string {
   const env = Array.isArray(c.enviados) ? c.enviados.length : 0
   const cerebro = pend ? `el cerebro recibió ${env} y quedan ${pend} pendientes` : env ? "el cerebro ya lo tiene: el siguiente empleado lo lee así" : c.indice === "sin_cambios" ? "sin cambios" : "el cerebro lo recibe en breve"
   return `Guardado · ${cerebro}`
+}
+
+/** Validar · Quitar validación · Editar de una parte de las secciones nuevas: las mismas puertas y los mismos rótulos que un campo */
+function AccionesDeParte({ clave, etiqueta, validado, escrito, enviar, editando, onEditar, onGuardado }: { clave: string; etiqueta: string; validado: boolean; escrito: boolean; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void }) {
+  const [validando, setValidando] = useState(false)
+  async function validar(v: boolean) {
+    if (!enviar.cliente) return
+    setValidando(true)
+    const r = await enviar.accion("manual-validar-campo", { client_id: enviar.cliente, campo: clave, validado: v })
+    setValidando(false)
+    onGuardado(r.ok ? { ...r, texto: v ? "Campo validado" : "Validación quitada" } : r)
+  }
+  if (editando) return null
+  return (
+    <>
+      {!validado && <button type="button" data-accion="validar-campo" data-tablero-accion="manual-validar-campo" data-campo-validar={clave} disabled={validando} onClick={() => void validar(true)} title="Lo das por bueno tal cual; el texto no cambia"
+        className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-50">{validando ? "Validando…" : "Validar"}</button>}
+      {validado && !escrito && <button type="button" data-accion="desvalidar-campo" data-campo-desvalidar={clave} disabled={validando} onClick={() => void validar(false)} title="Quita tu validación; el texto no cambia"
+        className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-white/30 hover:text-zinc-200 disabled:opacity-50">{validando ? "…" : "Quitar validación"}</button>}
+      <button type="button" data-accion="editar-campo" data-campo-editar={clave} onClick={() => onEditar(clave)} aria-label={`Editar ${etiqueta}`} title="Editar"
+        className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-amber-400/60 hover:text-amber-200">Editar</button>
+    </>
+  )
 }
 
 function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado, manualValidadoPor = "propuesta" }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void; /** quién validó el manual entero */ manualValidadoPor?: "jefatura" | "dueno" | "propuesta" }) {
@@ -276,6 +300,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                 )}
                 <nav aria-label="Apartados del manual" className="mt-3 flex flex-wrap gap-1.5">
                   {APARTADOS_DEL_MANUAL.map((ap) => <button key={ap.titulo} type="button" data-ir-apartado={ap.titulo} onClick={() => document.getElementById(`apartado-${ap.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{ap.titulo}</button>)}
+                  {(m.secciones_nuevas ?? []).map((sn) => <button key={sn.id} type="button" data-ir-apartado={sn.titulo} onClick={() => document.getElementById(`apartado-${sn.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{sn.titulo}</button>)}
                   <button type="button" data-ir-apartado="Palabras" onClick={() => document.getElementById("apartado-Palabras")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">Palabras</button>
                 </nav>
                 {m.lector.validadoPor !== "dueno" && (
@@ -312,6 +337,11 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                       </section>
                     )
                   })}
+
+                  {/* las secciones nuevas del manual (ADENDA 1): aparecen solas cuando el manual las trae */}
+                  <SeccionesNuevas secciones={m.secciones_nuevas ?? []} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null}
+                    acciones={(p) => <AccionesDeParte clave={p.clave} etiqueta={p.etiqueta} validado={p.origen === "aceptado" || p.origen === "dueno"} escrito={p.origen === "dueno"} enviar={enviar} editando={editando === p.clave} onEditar={setEditando} onGuardado={guardado} />}
+                    editor={(p) => editando === p.clave ? <Editor clave={p.clave} valor={p.para_editar} enviar={enviar} onCancelar={() => setEditando(null)} onGuardado={guardado} /> : null} />
 
                   {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
                     <section id="apartado-Palabras" aria-label="Palabras" className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: "240ms" }}>
