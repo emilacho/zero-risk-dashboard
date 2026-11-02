@@ -10,6 +10,7 @@ import { borradorDelManual, coloresDelManual, listaDeTextos, origenDelManualLegi
 import { revisionDeFidelidadLegible } from "@/lib/lenguaje"
 import { palabrasDelManual, type PalabraDelManual } from "@/lib/manual-palabras"
 import { avanceDelPedido } from "@/lib/plan"
+import { jerarquiaTipografica, seccionesNuevasDelBorrador, type SeccionLeida } from "@/lib/manual-secciones"
 import { canalesDelCliente, fotosDeLaBarra, logoDelManual, sedesDeLaBarra, type CanalDeLaBarra, type FotoDeLaBarra, type SedeDeLaBarra } from "@/lib/manual-barra"
 import { CICLO_DEL_MANUAL_CERRADO, esPedidoAbierto, queCambioEnElManual, type CicloDelManual, type PedidoDelManual } from "@/lib/manual-ciclo"
 
@@ -104,6 +105,9 @@ export interface ManualDelCliente {
     ciclo?: CicloDelManual
     /** CC6 · la barra lateral (boceto aprobado por Emilio, 02-nov): lo que no está en las columnas del manual, con datos reales */
     barra?: { logo: { url: string; procedencia: string | null } | null; fotos: FotoDeLaBarra[]; sedes: SedeDeLaBarra[]; canales: CanalDeLaBarra[] }
+    /** CC6 · las secciones nuevas del manual (ADENDA 1): solo las que tienen dato; y la jerarquía tipográfica para la barra */
+    secciones_nuevas?: SeccionLeida[]
+    jerarquia_tipografica?: Array<{ uso: string; familia: string }>
     creado_en: string | null
     actualizado_en: string | null
   }
@@ -151,6 +155,8 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
       politica_competidores: politicaDeCompetidoresLegible(b.competitor_mentions_policy),
       ciclo: await leerCicloDelManual(supa, cliente.id, b, ahora),
       barra: await leerLaBarra(supa, cliente.id, b),
+      secciones_nuevas: seccionesNuevasDelBorrador(borradorDelManual(b)),
+      jerarquia_tipografica: jerarquiaTipografica(borradorDelManual(b)),
       creado_en: typeof b.created_at === "string" ? b.created_at : null,
       actualizado_en: typeof b.updated_at === "string" ? b.updated_at : null,
     },

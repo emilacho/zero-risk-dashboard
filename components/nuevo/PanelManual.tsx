@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
+import { SeccionesNuevas } from "@/components/nuevo/manual/SeccionesNuevas"
 import { ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { CICLO_DEL_MANUAL_CERRADO } from "@/lib/manual-ciclo"
 import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, valorCorto } from "@/lib/manual-campo"
@@ -276,6 +277,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                 )}
                 <nav aria-label="Apartados del manual" className="mt-3 flex flex-wrap gap-1.5">
                   {APARTADOS_DEL_MANUAL.map((ap) => <button key={ap.titulo} type="button" data-ir-apartado={ap.titulo} onClick={() => document.getElementById(`apartado-${ap.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{ap.titulo}</button>)}
+                  {(m.secciones_nuevas ?? []).map((sn) => <button key={sn.id} type="button" data-ir-apartado={sn.titulo} onClick={() => document.getElementById(`apartado-${sn.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{sn.titulo}</button>)}
                   <button type="button" data-ir-apartado="Palabras" onClick={() => document.getElementById("apartado-Palabras")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">Palabras</button>
                 </nav>
                 {m.lector.validadoPor !== "dueno" && (
@@ -312,6 +314,9 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                       </section>
                     )
                   })}
+
+                  {/* las secciones nuevas del manual (ADENDA 1): aparecen solas cuando el manual las trae */}
+                  <SeccionesNuevas secciones={m.secciones_nuevas ?? []} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null} />
 
                   {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
                     <section id="apartado-Palabras" aria-label="Palabras" className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: "240ms" }}>

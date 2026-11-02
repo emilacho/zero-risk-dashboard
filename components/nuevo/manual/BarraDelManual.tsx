@@ -83,6 +83,12 @@ export function BarraDelManual({ m, nombre, campos, delDueno, faltan, irA }: {
         )}
       </Bloque>
 
+      {(m.jerarquia_tipografica ?? []).length > 0 && (
+        <Bloque id="jerarquia" titulo="Jerarquía tipográfica">
+          <ul className="space-y-1">{m.jerarquia_tipografica!.map((j) => <li key={j.uso} className="flex items-baseline justify-between gap-3"><span className="text-[11.5px] text-zinc-400">{j.uso}</span><span className="truncate text-[15px] text-zinc-100" style={{ fontFamily: `"${j.familia}", system-ui, sans-serif` }}>{j.familia}</span></li>)}</ul>
+        </Bloque>
+      )}
+
       <Bloque id="logo-y-fotos" titulo="Logo y estilo de fotos" nota={barra.fotos.length ? "Fotos reales del cliente (sus redes y su ficha de Mapas)." : null}>
         {!barra.logo && barra.fotos.length === 0 ? <Falta>Todavía no hay logo ni fotos propias guardadas.</Falta> : (
           <div className="grid grid-cols-4 gap-1.5">
