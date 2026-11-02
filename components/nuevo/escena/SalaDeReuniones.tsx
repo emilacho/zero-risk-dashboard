@@ -51,8 +51,10 @@ export function destinoEnElCentro(i: number, n: number, esResultado: boolean): {
 }
 export const posBurbuja = (s: { x: number; y: number }) => ({ x: s.x + 14, y: s.y - 66 })
 
-export function SalaEnLaFoto({ sala, abierta, onAbrir }: {
+export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0 }: {
   sala: SalaDeReuniones | null | undefined
+  /** px de la foto que sube el rótulo para no quedar debajo del globo del que habla */
+  subir?: number
   abierta: boolean
   onAbrir: () => void
 }) {
@@ -63,7 +65,7 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir }: {
       {/* la zona del ratón: la sala de vidrio; al pasar por encima aparece el rótulo, como en las mesas */}
       <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); onAbrir() }} />
       {r?.estado === "en_curso" && <ellipse className="nv-sala-luz" cx={SALA.mesa.x} cy={SALA.mesa.y} rx={150} ry={95} fill="url(#nv-av-ambar)" opacity={0.7} />}
-      <g className="nv-sala-rotulo" role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={abierta} aria-label={`${lineas.join(". ")}. Ver la reunión`}
+      <g className="nv-sala-rotulo" style={{ transform: `translateY(${-subir}px)`, transition: "transform .25s ease" } as CSSProperties} role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={abierta} aria-label={`${lineas.join(". ")}. Ver la reunión`}
         onClick={(e) => { e.stopPropagation(); onAbrir() }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir() } }}>
         <rect x={SALA.rotulo.x - 330} y={SALA.rotulo.y - 34} width={660} height={lineas.length > 2 ? 92 : 64} fill="rgba(0,0,0,0)" />
         <text className="nv-sala-t1" x={SALA.rotulo.x} y={SALA.rotulo.y} textAnchor="middle" fill="none" stroke={r ? "#e8731a" : "#9a9a9a"} strokeWidth={1.4} fontSize={24} fontWeight="500" letterSpacing={5} fontFamily={FUENTE}>{lineas[0]}</text>
@@ -123,11 +125,22 @@ function ajustar(texto: string, max = 38): string[] {
   if (cur) out.push(cur)
   return out
 }
-export function GloboEnLaFoto({ g }: { g: Globo | null }) {
-  if (!g) return null
+function medidasDelGlobo(g: Globo) {
   const lineas = g.lineas.flatMap((l, i) => (i === 0 ? [l] : ajustar(l))).slice(0, 7)
   const w = Math.max(...lineas.map(ancho)) + 24, h = lineas.length * 19 + 18
   const x = g.tipo === "resultado" ? g.ancla.x : g.ancla.x - w / 2, y = g.ancla.y - 14 - h
+  return { lineas, w, h, x, y }
+}
+/** 03-nov · cuánto hay que subir el rótulo de la sala («Plan de 90 días · …» y su subtítulo) para que el globo no lo tape: el globo manda, el título se aparta (tope 130 px) */
+export function subidaDelRotulo(g: Globo | null, lineasDelRotulo: number): number {
+  if (!g || lineasDelRotulo < 1) return 0
+  const fondo = SALA.rotulo.y + 6 + (lineasDelRotulo > 1 ? 26 + 22 * (lineasDelRotulo - 2) : 0) // la última línea del rótulo (con su cola)
+  const { y } = medidasDelGlobo(g)
+  return Math.min(Math.max(0, Math.ceil(fondo - (y - 8))), 130)
+}
+export function GloboEnLaFoto({ g }: { g: Globo | null }) {
+  if (!g) return null
+  const { lineas, w, h, x, y } = medidasDelGlobo(g)
   return (
     <g data-globo={g.tipo === "participante" ? g.p.agente : "resultado"} role="status" aria-label={g.lineas.join(". ")} pointerEvents="none" style={{ filter: "drop-shadow(0 6px 14px rgba(0,0,0,.6))" } as CSSProperties}>
       <rect x={x} y={y} width={w} height={h} rx={14} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.6} strokeWidth={1.4} />
