@@ -114,7 +114,8 @@ export async function leerEntregas(supa: SupabaseClient, ahora: Date): Promise<E
   const [encargos, revisiones, bandeja, pasosDeCorreccion, decisiones, cambios] = await Promise.all([
     filas(supa.from("oficina_encargos").select("id, estado, sala_ref, cerrado_en").eq("dry_run", false).like("estado", "cerrado%").gte("cerrado_en", desdeEntrega).order("cerrado_en", { ascending: false }).limit(MAXIMO_DE_CUADROS * 3), "oficina_encargos"),
     filas(supa.from("jefatura_revisiones").select("id, artifact_id, estado, creado_en, cerrado_en").eq("artifact_type", "pieza").is("cerrado_en", null).gte("creado_en", desdeRevision).order("creado_en", { ascending: false }).limit(60), "jefatura_revisiones"),
-    filas(supa.from("hitl_queue").select("id, expires_at").eq("status", "pending").limit(500), "hitl_queue"),
+    // lo archivado de una campaña anterior no espera a nadie (CC1 #852 · reserva de CC3 a #199)
+    filas(supa.from("hitl_queue").select("id, expires_at").eq("status", "pending").is("archivada_en", null).limit(500), "hitl_queue"),
     // «corrige» (reglas de CC1): la jefatura devolvió = un paso `correccion:%` hecho · Emilio devolvió = pieza / plan / manual
     filas(supa.from("jefatura_pasos").select("revision_id, paso, estado, agente, inicio, fin").like("paso", "correccion:%").eq("estado", "hecho").gte("fin", desdeCorrige).limit(100), "jefatura_pasos"),
     filas(supa.from("hitl_queue").select("id, status, reviewer, decision, metadata, decided_at").eq("type", "content_piece_review").in("status", ["edited", "rejected"]).gte("decided_at", desdeCorrige).limit(100), "hitl_queue"),
