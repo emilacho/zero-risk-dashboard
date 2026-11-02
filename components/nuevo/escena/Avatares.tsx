@@ -9,6 +9,8 @@ import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
 import { FlechasDeForma } from "@/components/nuevo/escena/FlechasDeForma"
+import { PlantelDelEquipo } from "@/components/nuevo/escena/PlantelDelEquipo"
+import { nombreCanonico } from "@/lib/organigrama"
 import { ESTILO_SALA, GloboEnLaFoto, globoVisible, PanelDeLaSala, SalaEnLaFoto, subidaDelRotulo } from "@/components/nuevo/escena/SalaDeReuniones"
 import { AporteCompleto } from "@/components/nuevo/escena/AporteCompleto"
 import { datosDelAgente, ElAgenteAhora } from "@/components/nuevo/escena/ElAgenteAhora"
@@ -74,6 +76,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [datos, setDatos] = useState<EscenaDatos | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
+  const [agenteDelPlantel, setAgenteDelPlantel] = useState<string | null>(null) // el empleado que el plantel muestra en su detalle al abrirse (si vino de tocar su flecha)
   const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
   const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
   const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
@@ -98,16 +101,6 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
     document.addEventListener("visibilitychange", alVolver)
     return () => { vivo = false; if (temporizador.current) clearTimeout(temporizador.current); document.removeEventListener("visibilitychange", alVolver) }
   }, [leer])
-  // Esc o clic fuera cierran la lista del equipo
-  useEffect(() => {
-    if (!mesaAbierta) return
-    const alTeclear = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setMesaAbierta(null) } }
-    const alClic = (e: MouseEvent) => { if (!(e.target as Element | null)?.closest?.(".nv-av-lista,.nv-av-zona")) setMesaAbierta(null) }
-    window.addEventListener("keydown", alTeclear, true)
-    window.addEventListener("click", alClic, true)
-    return () => { window.removeEventListener("keydown", alTeclear, true); window.removeEventListener("click", alClic, true) }
-  }, [mesaAbierta])
-
   // Esc o clic fuera cierran el panel de la sala
   useEffect(() => {
     if (!salaAbierta) return
@@ -122,6 +115,14 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
+  const cerrarPlantel = useCallback(() => { setMesaAbierta(null); setAgenteDelPlantel(null) }, [])
+  // tocar la flecha de un empleado: su detalle dentro del plantel de su equipo (false = no está en ningún plantel: se abre la ficha de rendimiento de siempre)
+  const abrirPlantelDe = useCallback((agente: string) => {
+    const m = mesas.find((q) => q.equipo.some((p) => nombreCanonico(p.agente) === nombreCanonico(agente)))
+    if (!m) return false
+    setAgenteDelPlantel(agente); setMesaAbierta(m.clave)
+    return true
+  }, [mesas])
   const [sentadosEnSala, setSentadosEnSala] = useState<Set<string>>(new Set())
   const [tarjeta, setTarjeta] = useState<EntregaViva | null>(null) // sprint 3 · la entrega que se está dejando ahora en el pizarrón
   const entregasVigentes = datos?.entregas?.entregas ?? []
@@ -168,7 +169,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
-        <FlechasDeForma />
+        <FlechasDeForma onAbrir={abrirPlantelDe} />
         {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
         <VitrinaVertical vitrina={datos?.vitrina} />
         {/* la lámpara de firma: sobre el escritorio de Dirección, hacia Tu oficina */}
@@ -181,33 +182,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           <PanelDeLaSala sala={datos?.sala} onCerrar={() => setSalaAbierta(false)} onTocar={(a) => setAporteDe(a)} />
         </div>
       )}
-      {/* el equipo de la mesa, al tocarla: todos, con su estado real; los que trabajan ahora primero */}
-      {abierta && (
-        <div role="dialog" aria-label={`Equipo ${abierta.nombre}`} className="nv-av-lista absolute z-[4] w-[22rem] max-h-[60%] overflow-auto rounded-xl border border-white/15 bg-[#121110]/95 p-3 text-[12px] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
-          style={{ left: pct(Math.min(abierta.centro.x + 130, FOTO.w - 700), FOTO.w), top: pct(Math.max(abierta.centro.y - 160, 40), FOTO.h) }} onClick={(e) => e.stopPropagation()}>
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <div><span className="text-[13px] font-semibold" style={{ color: abierta.color }}>{abierta.nombre}</span><span className="ml-2 text-[11px] text-zinc-500" data-estado-de-la-mesa>{estadoDeLaMesa(abierta)}</span></div>
-            <button type="button" onClick={() => setMesaAbierta(null)} aria-label="Cerrar" className="rounded px-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">×</button>
-          </div>
-          {abierta.equipo.length === 0 ? (
-            <p className="text-zinc-500">{datos ? "Todavía no hay nadie asignado a este equipo." : "leyendo…"}</p>
-          ) : (
-            <ul className="space-y-1">
-              {abierta.equipo.map((p) => (
-                <li key={p.agente} className="flex items-baseline justify-between gap-2" data-miembro={p.agente} data-estado={p.estado}>
-                  <span className="min-w-0 truncate"><button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); setFichaDe(p.agente) }} title={`Ver la ficha de ${p.nombre}`} className="truncate text-left underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100 hover:decoration-amber-300 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">{p.nombre}</button></span>
-                  <span className={`shrink-0 text-[11px] ${p.estado === "trabajando" ? "text-amber-200" : p.estado === "fallo" ? "text-red-300" : p.estado === "reciente" ? "text-zinc-300" : "text-zinc-500"}`}>
-                    {p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? `falló ${p.hace}` : p.estado === "reciente" ? `trabajó ${p.hace}` : p.ultima ? `última ${p.hace}` : "sin trabajo en 24 h"}
-                    {p.nota && <span className="block text-[10px] text-zinc-500">{p.nota}</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(abierta.por_instalar?.length ?? 0) > 0 && <p data-por-instalar className="mt-2 text-[11px] text-zinc-500">Firmados, todavía sin instalar: {abierta.por_instalar!.join(" · ")}</p>}
-          <p className="mt-2 text-[10px] text-zinc-600">{datos ? datos.fuente : "sin dato todavía"}</p>
-        </div>
-      )}
+      {/* 02-nov · «Ver el equipo» abre el PLANTEL del equipo (como el Squad Hub de EA FC); tocar la flecha de un empleado abre su detalle dentro de su plantel */}
+      {abierta && <PlantelDelEquipo mesa={abierta} mesas={mesas} agenteInicial={agenteDelPlantel} onCerrar={cerrarPlantel} onFicha={(a) => { cerrarPlantel(); setFichaDe(a) }} onTrabajo={(a) => { cerrarPlantel(); setTocado(a) }} />}
       {/* en qué se trabaja: el cliente y el momento de su campaña, discreto, abajo a la izquierda */}
       {datos?.contexto && <p data-contexto className="pointer-events-none absolute bottom-[3.2%] left-[2.6%] max-w-[44%] text-[12px] tracking-wide text-zinc-400/85">{datos.contexto.cliente}<span className="mx-1.5 text-zinc-600">·</span>{datos.contexto.momento}</p>}
       {error && <span className="sr-only" data-error-lectura>{error}</span>}

@@ -122,7 +122,7 @@ describe("en pantalla", () => {
     expect(h).toContain("cayó de golpe"); expect(h).toContain("no bloquea ni decide nada"); expect(h).toContain("sin dato todavía"); expect(h).toMatch(/class="nv-panel /)
   })
   it("la escena la monta sin tocar la animación de CC4 (solo una línea en Avatares)", () => {
-    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("<FlechasDeForma />")
+    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("<FlechasDeForma onAbrir={abrirPlantelDe} />") // CC4 · 02-nov: la flecha abre el plantel; sin él, la ficha de siempre
     expect(readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")).not.toContain("FlechasDeForma")
   })
 })

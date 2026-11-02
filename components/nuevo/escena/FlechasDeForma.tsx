@@ -38,7 +38,7 @@ export function leerPuestos(raiz: ParentNode): Puesto[] {
 }
 const igual = (a: Puesto[], b: Puesto[]) => a.length === b.length && a.every((p, i) => p.agente === b[i].agente && Math.abs(p.x - b[i].x) < 0.5 && Math.abs(p.y - b[i].y) < 0.5 && p.sentado === b[i].sentado)
 
-export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null }: { /** solo pruebas y el arnés */ datosIniciales?: Record<string, Rendimiento> | null; /** solo pruebas */ puestosIniciales?: Puesto[] | null }) {
+export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null, onAbrir }: { /** solo pruebas y el arnés */ datosIniciales?: Record<string, Rendimiento> | null; /** solo pruebas */ puestosIniciales?: Puesto[] | null; /** tocar la flecha abre el detalle del empleado en su plantel; devuelve false si no pudo (entonces se abre la ficha de rendimiento de siempre) */ onAbrir?: (agente: string) => boolean }) {
   const capa = useRef<SVGGElement>(null)
   const [datos, setDatos] = useState<Record<string, Rendimiento> | null>(datosIniciales)
   const [puestos, setPuestos] = useState<Puesto[]>(puestosIniciales ?? [])
@@ -62,6 +62,7 @@ export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null 
   }, [puestosIniciales])
 
   const r = (a: string) => datos?.[nombreCanonico(a)] ?? null
+  const abrir = (p: Puesto) => { if (!onAbrir?.(p.agente)) setAbierta(p) }
   // con el nombre a la vista (cursor encima de la silueta), la flecha va junto al nombre en vez de encima de la cabeza
   const junto = puestos.filter((p) => r(p.agente)?.forma).map((p) => {
     const a = CSS_SEGURO(p.agente)
@@ -79,7 +80,7 @@ export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null 
         const f = FORMA_LEGIBLE[x.forma]
         return (
           <g key={p.agente} data-forma-de={p.agente} data-forma={x.forma} transform={`translate(${p.x.toFixed(1)} ${y.toFixed(1)})`} style={{ pointerEvents: "auto", cursor: "pointer" }} role="button" tabIndex={0} aria-label={`${p.nombre}: ${f.texto}. Toca para ver su rendimiento.`}
-            onClick={(e) => { e.stopPropagation(); setAbierta(p) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAbierta(p) } }}>
+            onClick={(e) => { e.stopPropagation(); abrir(p) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(p) } }}>
             {/* el área de toque, invisible y generosa */}
             <rect data-toque x={-16} y={-24} width={32} height={30} fill="transparent" />
             <g className="nv-flecha">

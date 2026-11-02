@@ -111,7 +111,7 @@ describe("la ficha en pantalla y su ruta", () => {
   it("la ruta es solo para administrador, valida el identificador y no escribe", () => {
     const r = readFileSync("app/api/escena-viva/empleado/route.ts", "utf8")
     expect(r).toContain("exigirAdmin()"); expect(r).toContain("agente_invalido"); expect(r).not.toMatch(/insert|update|delete|upsert/)
-    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("data-abrir-ficha={p.agente}")
+    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("onFicha={(a) => { cerrarPlantel(); setFichaDe(a) }}") // CC4 · 02-nov: la ficha se abre desde «Ver su ficha» del plantel
   })
 })
 
