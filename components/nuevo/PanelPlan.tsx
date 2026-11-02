@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
+import { BarraDelPlan } from "@/components/nuevo/plan/BarraDelPlan"
+import { barraDelPlan } from "@/lib/plan-barra"
 import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
@@ -420,7 +422,9 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 </div>
 
                 {/* al costado: lo que espera la campaña y lo que el sistema no buscó */}
-                <aside aria-label="Lo que espera la campaña" className="pl-seccion space-y-5 lg:sticky lg:top-0 lg:self-start" style={{ animationDelay: "120ms" }}>
+                <aside aria-label="Lo esencial del plan" className="pl-seccion space-y-5 lg:sticky lg:top-0 lg:max-h-[calc(100vh-10rem)] lg:self-start lg:overflow-y-auto lg:pr-1" style={{ animationDelay: "120ms" }}>
+                  {/* la barra del plan (boceto aprobado por Emilio, 02-nov): lo esencial arriba, fija al bajar */}
+                  <BarraDelPlan b={barraDelPlan(datos)} />
                   <section className="rounded-lg border border-white/10 bg-white/[0.02] p-4" data-apartado="esperas">
                     <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>Lo que espera la campaña</h3>
                     {!c ? <Vacio>Sin campaña, nada espera.</Vacio> : datos.esperas.vivas === 0 ? <Vacio>Nada en espera ahora.</Vacio> : (
