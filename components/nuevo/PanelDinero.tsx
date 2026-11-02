@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Desglose, Proveedores } from "@/components/nuevo/DineroDesglose"
+import { Ahorro, Anomalias, CostoPorResultado } from "@/components/nuevo/DineroResultados"
 import { diaLocal, fechaCorta, loQueCambio, NOMBRE_DE_DIMENSION, picos, serie, sumarDias, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Pico, type Serie } from "@/lib/dinero-completo"
 
 /**
  * TU OFICINA · DINERO (6.36 · boceto aprobado por Emilio 2-nov): todo el gasto de la agencia en un solo lugar, con la estructura de Ramp · AI Token Spend
  * (resumen «lo que cambió», tarjetas con variación y proyección, gasto en el tiempo conmutable) · solo la fachada es nuestra. Ajustes de Emilio: cada clave
  * del gráfico con un color claramente distinto, fechas bajo las barras y el valor al pasar el cursor; sin numeritos; el freno con su cifra.
- * Parte 1 = secciones 1–3 · parte 2 (6.37) = desglose (4) y proveedores (5), en `DineroDesglose.tsx`. Datos: `/api/direccion/dinero` (SOLO LECTURA).
+ * Parte 1 = secciones 1–3 · parte 2 (6.37) = desglose (4) y proveedores (5), en `DineroDesglose.tsx` · parte 3 (6.38) = resultado, anomalías y ahorro (6–8), en `DineroResultados.tsx`. Datos: `/api/direccion/dinero` (SOLO LECTURA).
  */
 const AMBAR = "#e8731a"
 type Periodo = "hoy" | "7" | "mes" | "30"
@@ -179,6 +180,11 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
             <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
               <Desglose datos={datos} rango={rango} hoy={hoy} alAbrirCorrida={alAbrirCorrida} />
               <Proveedores datos={datos} rango={rango} />
+            </div>
+            <CostoPorResultado datos={datos} rango={rango} />
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Anomalias datos={datos} rango={rango} hoy={hoy} alAbrirCorrida={alAbrirCorrida} />
+              <Ahorro datos={datos} rango={rango} />
             </div>
             {datos.faltan.length > 0 && <p data-faltan className="text-[12px] text-zinc-500"><span className="text-zinc-400">Sin dato todavía:</span> {datos.faltan.join(" · ")}</p>}
           </div>

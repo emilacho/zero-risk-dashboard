@@ -10,6 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
 import { leerOrganizacion } from "@/lib/direccion-organizacion"
+import { nombreDeLaCorrida } from "@/lib/direccion-corridas"
 
 export interface Movimiento {
   /** instante (ISO) */
@@ -28,7 +29,13 @@ export interface Movimiento {
   ok: boolean
   /** el costo es una cota (la corrida se cortó por tope), no una medición */
   cota: boolean
+  /** 6.38 · el proceso de la corrida en palabras de oficina («Planeación del plan de 90 días»), si se sabe */
+  proceso?: string | null
 }
+/** 6.38 · una pieza que pasó por la bandeja de revisión: su estado y lo que costó hacerla (si quedó anotado) */
+export interface PiezaRevisada { d: string; estado: string; usd: number | null }
+/** 6.38 · uso del caché por empleado y modelo en 30 días (tabla resumen diaria) */
+export interface CacheDeEmpleado { empleado: string; modelo: string; entrada: number; leido: number; usd: number }
 export interface Dinero {
   movimientos: Movimiento[]
   saldos: Saldo[]
@@ -38,6 +45,12 @@ export interface Dinero {
   leido_en: string
   /** lo que no se pudo leer (se muestra «sin dato todavía», nunca un cero inventado) */
   faltan: string[]
+  /** 6.38 · piezas de la bandeja de revisión (null = no se pudo leer) */
+  piezas?: PiezaRevisada[] | null
+  /** 6.38 · días en que se guardó una versión del manual (null = no se pudo leer) */
+  manuales?: string[] | null
+  /** 6.38 · caché por empleado y modelo (null = no se pudo leer) */
+  cache_por_empleado?: CacheDeEmpleado[] | null
 }
 
 export const DIAS_LEIDOS = 62
@@ -151,7 +164,7 @@ export interface FilaDeDesglose { clave: string; nombre: string; usd: number; pc
 export function desglose(movs: Movimiento[], vista: Vista, o: { desde: string; hasta: string }): FilaDeDesglose[] {
   const largo = diasEntre(o.desde, o.hasta).length
   const antDesde = sumarDias(o.desde, -largo), antHasta = sumarDias(o.desde, -1)
-  const clave = (x: Movimiento): string | null => vista === "corrida" ? x.corrida : vista === "equipo" ? (x.equipo ?? "Sin dato") : vista === "cliente" ? (x.client_id ?? "sin-cliente") : x[vista]
+  const clave = (x: Movimiento): string | null => vista === "corrida" ? (x.corrida ? x.corrida.split(":")[0] : null) : vista === "equipo" ? (x.equipo ?? "Sin dato") : vista === "cliente" ? (x.client_id ?? "sin-cliente") : x[vista]
   const ahora = new Map<string, Movimiento[]>(), antes = new Map<string, number>()
   for (const x of movs) {
     const k = clave(x); if (!k) continue
@@ -220,12 +233,14 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
   const ahora = o.ahora ?? new Date()
   const desde = new Date(ahora.getTime() - DIAS_LEIDOS * 86400_000).toISOString()
   const faltan = [...(extra.faltan ?? [])]
-  const [inv, costos, clientes, agentes, rollup] = await Promise.all([
-    todas((a, b) => db.from("agent_invocations").select("agent_name, model, client_id, cost_usd, created_at, started_at, workflow_execution_id, status, metadata->cost_is_upper_bound").gte("created_at", desde).order("created_at", { ascending: true }).range(a, b), "agent_invocations"),
+  const [inv, costos, clientes, agentes, rollup, revisadas, versiones] = await Promise.all([
+    todas((a, b) => db.from("agent_invocations").select("agent_name, model, client_id, cost_usd, created_at, started_at, workflow_id, workflow_execution_id, status, metadata->cost_is_upper_bound").gte("created_at", desde).order("created_at", { ascending: true }).range(a, b), "agent_invocations"),
     todas((a, b) => db.from("costs").select("service, amount_usd, amount_usd_exact, date, description").gte("date", desde.slice(0, 10)).order("date", { ascending: true }).range(a, b), "costs").catch(() => { faltan.push("Gasto de Apify (libreta de costos)"); return [] as Fila[] }),
     todas((a, b) => db.from("clients").select("id, name").range(a, b), "clients"),
     todas((a, b) => db.from("agents").select("name, display_name").range(a, b), "agents"),
-    todas((a, b) => db.from("agent_invocations_daily_rollup").select("day, total_tokens_input, total_tokens_cache_read").gte("day", new Date(ahora.getTime() - 30 * 86400_000).toISOString().slice(0, 10)).range(a, b), "rollup").catch(() => null),
+    todas((a, b) => db.from("agent_invocations_daily_rollup").select("day, agent_id, model, total_tokens_input, total_tokens_cache_read, total_cost_usd").gte("day", new Date(ahora.getTime() - 30 * 86400_000).toISOString().slice(0, 10)).range(a, b), "rollup").catch(() => null),
+    todas((a, b) => db.from("hitl_queue").select("status, created_at, metadata->costo_usd").eq("type", "content_piece_review").gte("created_at", desde).range(a, b), "hitl_queue").catch(() => null),
+    todas((a, b) => db.from("client_brand_books").select("created_at").gte("created_at", desde).range(a, b), "client_brand_books").catch(() => null),
   ])
   // 6.37 · el equipo de cada empleado sale del organigrama vivo (si no se puede leer, el desglose por equipo lo dice)
   const org = await leerOrganizacion(db, { ahora }).catch(() => { faltan.push("Departamento y equipo de cada empleado (no se pudo leer la organización)"); return null })
@@ -241,7 +256,7 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
   for (const x of inv) {
     const usd = Number(x.cost_usd ?? 0); if (!(usd > 0)) continue
     const t = String(x.started_at ?? x.created_at), cid = txt(x.client_id), emp = String(x.agent_name ?? "sin empleado")
-    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), equipo: org ? equipoDe(emp) : undefined, cliente: cid ? nombreCliente.get(cid) ?? "Cliente sin ficha" : "Sin cliente", client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true" })
+    movimientos.push({ t, d: diaLocal(t), proveedor: proveedorDelModelo(txt(x.model)), modelo: txt(x.model) ?? "sin modelo", empleado: nombreAgente.get(emp) ?? legible(emp), equipo: org ? equipoDe(emp) : undefined, cliente: cid ? nombreCliente.get(cid) ?? "Cliente sin ficha" : "Sin cliente", client_id: cid, corrida: txt(x.workflow_execution_id), usd, ok: !/error|fail|timeout|cancel/i.test(String(x.status ?? "")), cota: x.cost_is_upper_bound === true || x.cost_is_upper_bound === "true", proceso: x.workflow_id ? nombreDeLaCorrida(String(x.workflow_id), "") : null })
   }
   for (const c of costos) {
     const usd = Number(c.amount_usd_exact ?? c.amount_usd ?? 0); if (!(usd > 0)) continue
@@ -254,5 +269,95 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
   movimientos.sort((a, b) => a.t.localeCompare(b.t))
   const cache: Dinero["cache"] = rollup ? rollup.reduce<{ leido: number; entrada: number }>((s, r) => ({ leido: s.leido + Number(r.total_tokens_cache_read ?? 0), entrada: s.entrada + Number(r.total_tokens_input ?? 0) }), { leido: 0, entrada: 0 }) : null
   if (!rollup) faltan.push("Uso del caché de los modelos")
-  return { movimientos, saldos: extra.saldos ?? [], topes: extra.topes ?? [], cache, desde, leido_en: ahora.toISOString(), faltan }
+  const porEmp = new Map<string, CacheDeEmpleado>()
+  for (const r of rollup ?? []) { const emp = String(r.agent_id ?? "sin empleado"), mod = String(r.model ?? "sin modelo"), k = `${emp}|${mod}`; const c = porEmp.get(k) ?? { empleado: nombreAgente.get(emp) ?? legible(emp), modelo: mod, entrada: 0, leido: 0, usd: 0 }; c.entrada += Number(r.total_tokens_input ?? 0); c.leido += Number(r.total_tokens_cache_read ?? 0); c.usd += Number(r.total_cost_usd ?? 0); porEmp.set(k, c) }
+  if (!revisadas) faltan.push("Piezas de la bandeja de revisión (costo por pieza aprobada)")
+  if (!versiones) faltan.push("Versiones del manual")
+  const piezas = revisadas ? revisadas.map((r) => ({ d: diaLocal(String(r.created_at)), estado: String(r.status ?? ""), usd: r.costo_usd == null ? null : Number(r.costo_usd) })) : null
+  return { movimientos, saldos: extra.saldos ?? [], topes: extra.topes ?? [], cache, desde, leido_en: ahora.toISOString(), faltan, piezas, manuales: versiones ? versiones.map((v) => diaLocal(String(v.created_at))) : null, cache_por_empleado: rollup ? [...porEmp.values()] : null }
+}
+
+/* ───────────── 6.38 · parte 3: costo por resultado, costo de rehacer, anomalías y ahorro ───────────── */
+export const PROCESO_DEL_PLAN = "Planeación del plan de 90 días"
+export const PROCESO_DEL_ALTA = "Alta de un cliente nuevo"
+const ES_PRUEBA = /prueba|ensayo/i
+const enRango = (x: { d: string }, r: { desde: string; hasta: string }) => x.d >= r.desde && x.d <= r.hasta
+/** «209744:analisis-mercado» → «209744»: las ramas de una corrida son la misma corrida */
+export const raizDeCorrida = (id: string): string => id.split(":")[0]
+const porCorrida = (xs: Movimiento[]) => { const m = new Map<string, Movimiento[]>(); for (const x of xs) if (x.corrida) { const k = raizDeCorrida(x.corrida); m.set(k, [...(m.get(k) ?? []), x]) } return m }
+/** una corrida del alta arma el manual: la del proceso de alta o la que hace trabajar al especialista de alta o a los jefes que revisan el manual */
+const ES_DEL_MANUAL = (x: Movimiento) => x.proceso === PROCESO_DEL_ALTA || /onboarding|bb lens|faithfulness/i.test(x.empleado)
+
+export interface Resultado { clave: "plan" | "manual" | "pieza"; nombre: string; por_unidad: number | null; cuantos: number; total: number; nota: string }
+/** costo de un plan, de un manual y de una pieza aprobada en el período. Plan y manual: lo que costó cada corrida de su proceso; pieza: lo anotado en la bandeja. */
+export function costoPorResultado(d: Dinero, r: { desde: string; hasta: string }): Resultado[] {
+  const movs = d.movimientos.filter((x) => enRango(x, r))
+  const delProceso = (p: string) => { const c = porCorrida(movs.filter((x) => (p === PROCESO_DEL_ALTA ? ES_DEL_MANUAL(x) : x.proceso === p))); const total = r2([...c.values()].reduce((s, xs) => s + suma(xs), 0)); return { cuantos: c.size, total, por_unidad: c.size ? r2(total / c.size) : null } }
+  const plan = delProceso(PROCESO_DEL_PLAN), alta = delProceso(PROCESO_DEL_ALTA)
+  const versiones = d.manuales == null ? null : d.manuales.filter((x) => x >= r.desde && x <= r.hasta).length
+  const out: Resultado[] = [
+    { clave: "plan", nombre: "Un plan de 90 días", ...plan, nota: plan.cuantos ? `${plan.cuantos} ${plan.cuantos === 1 ? "plan hecho" : "planes hechos"} en el período` : "ningún plan en el período" },
+    { clave: "manual", nombre: "Un manual de marca (alta de cliente)", ...alta, nota: `${alta.cuantos} ${alta.cuantos === 1 ? "alta" : "altas"}${versiones == null ? "" : ` · ${versiones} ${versiones === 1 ? "versión guardada" : "versiones guardadas"} del manual`}` },
+  ]
+  if (d.piezas == null) out.push({ clave: "pieza", nombre: "Una pieza aprobada", por_unidad: null, cuantos: 0, total: 0, nota: "sin dato todavía" })
+  else {
+    const ps = d.piezas.filter((x) => enRango(x, r)), ok = ps.filter((x) => x.estado === "approved" || x.estado === "edited"), conCosto = ok.filter((x) => x.usd != null)
+    const total = r2(conCosto.reduce((s, x) => s + (x.usd ?? 0), 0))
+    out.push({ clave: "pieza", nombre: "Una pieza aprobada", por_unidad: conCosto.length ? r2(total / conCosto.length) : null, cuantos: ok.length, total, nota: `${ok.length} ${ok.length === 1 ? "aprobada" : "aprobadas"} de ${ps.length} ${ps.length === 1 ? "revisada" : "revisadas"}` })
+  }
+  return out
+}
+
+export interface Rehacer { clave: "cambios" | "fallidas" | "tope" | "pruebas"; nombre: string; usd: number | null; cuantos: number; nota: string }
+/** lo que costó rehacer: piezas devueltas con «Pedir cambios» o rechazadas, llamadas fallidas, cortadas por tope y pruebas/ensayos */
+export function costoDeRehacer(d: Dinero, r: { desde: string; hasta: string }): Rehacer[] {
+  const movs = d.movimientos.filter((x) => enRango(x, r))
+  const fallidas = movs.filter((x) => !x.ok), tope = movs.filter((x) => x.cota), pruebas = movs.filter((x) => x.proceso && ES_PRUEBA.test(x.proceso))
+  const devueltas = d.piezas == null ? null : d.piezas.filter((x) => enRango(x, r) && x.estado === "rejected")
+  return [
+    { clave: "cambios", nombre: "Piezas devueltas o rechazadas", usd: devueltas == null ? null : r2(devueltas.reduce((s, x) => s + (x.usd ?? 0), 0)), cuantos: devueltas?.length ?? 0, nota: devueltas == null ? "sin dato todavía" : `${devueltas.length} en el período${devueltas.some((x) => x.usd == null) ? " · algunas sin costo anotado" : ""}` },
+    { clave: "fallidas", nombre: "Llamadas fallidas", usd: r2(suma(fallidas)), cuantos: fallidas.length, nota: `${porCorrida(fallidas).size} corridas afectadas` },
+    { clave: "tope", nombre: "Cortadas por tope", usd: r2(suma(tope)), cuantos: tope.length, nota: "costo máximo posible (no medido exacto)" },
+    { clave: "pruebas", nombre: "Pruebas y ensayos", usd: r2(suma(pruebas)), cuantos: porCorrida(pruebas).size, nota: "corridas de prueba de empleados y ensayos" },
+  ]
+}
+
+export interface Anomalia { tipo: "dia" | "corrida"; d: string; usd: number; veces: number; texto: string; corrida: string | null }
+/** días 3× su normal (como los picos del gráfico) y corridas 3× la mediana de su mismo proceso (con al menos 3 corridas y US$ 0,50), las más recientes primero */
+export function anomalias(d: Dinero, hoy: string, r: { desde: string; hasta: string }, o: { veces?: number } = {}): Anomalia[] {
+  const k = o.veces ?? 3
+  const dias: Anomalia[] = picos(d.movimientos, hoy, { veces: k }).filter((p) => enRango(p, r)).map((p) => ({ tipo: "dia", d: p.d, usd: p.usd, veces: p.veces, texto: `El día gastó ${veces(p.veces)} lo normal · ${p.explicacion}`, corrida: p.corrida }))
+  const grupos = new Map<string, Array<{ id: string; xs: Movimiento[]; usd: number }>>()
+  for (const [id, xs] of porCorrida(d.movimientos)) { const p = xs[0].proceso ?? legible(xs[0].empleado); grupos.set(p, [...(grupos.get(p) ?? []), { id, xs, usd: suma(xs) }]) }
+  const corridas: Anomalia[] = []
+  for (const [p, cs] of grupos) {
+    if (cs.length < 3) continue
+    const med = mediana(cs.map((c) => c.usd)); if (med <= 0) continue
+    for (const c of cs) {
+      const dia = c.xs[0].d
+      if (dia < r.desde || dia > r.hasta || c.usd < 0.5 || c.usd < k * med) continue
+      const v = Math.round((c.usd / med) * 10) / 10, cliente = c.xs.find((x) => x.client_id)?.cliente
+      corridas.push({ tipo: "corrida", d: dia, usd: r2(c.usd), veces: v, texto: `${p}${cliente ? ` · ${cliente}` : ""} costó ${veces(v)} lo habitual de ese proceso (${usdCorto(med)})`, corrida: c.id })
+    }
+  }
+  return [...dias, ...corridas].sort((a, b) => b.d.localeCompare(a.d) || b.usd - a.usd).slice(0, 25)
+}
+
+/** precio de entrada por millón de tokens (la lectura de caché cuesta 10 %); solo para ESTIMAR lo ahorrado */
+const PRECIO_ENTRADA: Array<[RegExp, number]> = [[/opus/i, 5], [/sonnet/i, 3], [/haiku/i, 1]]
+const precioDe = (modelo: string): number | null => PRECIO_ENTRADA.find(([re]) => re.test(modelo))?.[1] ?? null
+export interface Oportunidad { texto: string; usd: number | null }
+export interface Ahorro { pct_cache: number | null; ahorrado_usd: number | null; oportunidades: Oportunidad[] }
+/** el caché que ya ahorra (30 días) y oportunidades que NO bajan la calidad (nunca se propone pasar a un modelo más barato) */
+export function ahorro(d: Dinero, r: { desde: string; hasta: string }): Ahorro {
+  const pct = d.cache && d.cache.leido + d.cache.entrada > 0 ? Math.round((d.cache.leido / (d.cache.leido + d.cache.entrada)) * 100) : null
+  const ahorrado = d.cache_por_empleado ? r2(d.cache_por_empleado.reduce((s, c) => { const p = precioDe(c.modelo); return p ? s + (c.leido / 1e6) * p * 0.9 : s }, 0)) : null
+  const op: Oportunidad[] = []
+  const sinCache = (d.cache_por_empleado ?? []).filter((c) => c.entrada >= 200_000 && c.leido / (c.entrada + c.leido) < 0.1 && precioDe(c.modelo) != null).sort((a, b) => b.entrada - a.entrada).slice(0, 3)
+  for (const c of sinCache) op.push({ texto: `${c.empleado} leyó ${Math.round(c.entrada / 1000).toLocaleString("es-EC")} mil tokens sin caché en 30 días: guardar en caché sus instrucciones fijas ahorra sin tocar la calidad`, usd: r2((c.entrada / 1e6) * precioDe(c.modelo)! * 0.5) })
+  const rh = costoDeRehacer(d, r), de = (k: Rehacer["clave"]) => rh.find((x) => x.clave === k)!.usd ?? 0
+  if (de("fallidas") >= 0.5) op.push({ texto: `Las llamadas fallidas costaron ${usdCorto(de("fallidas"))}: arreglar su causa ahorra sin tocar la calidad`, usd: de("fallidas") })
+  if (de("tope") >= 0.5) op.push({ texto: `Las corridas cortadas por tope costaron hasta ${usdCorto(de("tope"))} sin entregar: ajustar su tope o partir la tarea`, usd: de("tope") })
+  if (de("pruebas") >= 1) op.push({ texto: `Pruebas y ensayos costaron ${usdCorto(de("pruebas"))}: reusar respuestas guardadas cuando no haga falta una llamada nueva`, usd: de("pruebas") })
+  return { pct_cache: pct, ahorrado_usd: ahorrado, oportunidades: op }
 }
