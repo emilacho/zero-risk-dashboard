@@ -6,10 +6,10 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { AVISO_DEL_CAMPO_VALIDADO, quedoSinCambioPorLoValidado, avisoDeLoValidado, cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual, queCambioEnElManual, rotuloMientrasSeReescribe, TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD, type CicloDelManual } from "@/lib/manual-ciclo"
+import { avisoDelPedidoSinCambio, avisoDeLoValidado, cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual, queCambioEnElManual, rotuloMientrasSeReescribe, TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD, type CicloDelManual } from "@/lib/manual-ciclo"
 import { avanceDelPedido } from "@/lib/plan"
 import { ACCIONES, ejecutarAccion, TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD as TOPE_DEL_SERVIDOR } from "@/lib/tablero-acciones"
-import { leerManualDelCliente } from "@/lib/manual-datos"
+import { etiquetaDelCampo, leerManualDelCliente } from "@/lib/manual-datos"
 import { PanelManual } from "@/components/nuevo/PanelManual"
 import type { CampoLeido } from "@/lib/manual-lector"
 import type { ManualDelCliente } from "@/lib/manual-datos"
@@ -184,7 +184,7 @@ describe("el panel del manual", () => {
   })
 })
 
-describe("el aviso del campo validado (CC6 · 02-nov · SEÑAL «desbloquear el manual» punto 3 · `plan_cambios.resultado` de CC1 #856)", () => {
+describe("el aviso del pedido que no cambió (CC6 · 02-nov · SEÑAL «desbloquear el manual» punto 3 · forma final de CC1 #856)", () => {
   const comun = (tabla: string, _f: string[], pedido: unknown) => {
     if (tabla === "clients") return ok([{ id: CLIENTE, name: "Náufrago", status: "active" }])
     if (tabla === "client_brand_books") return ok([libro("b2", 2)])
@@ -193,18 +193,30 @@ describe("el aviso del campo validado (CC6 · 02-nov · SEÑAL «desbloquear el 
   }
   const pedido = (estado: string, resultado: unknown) => ({ id: "pc9", documento: "manual", client_id: CLIENTE, estado, texto: "cambia el tono de WhatsApp a formal", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, despertar_detalle: "sin cambios reales", manual_id: "b2", manual_nuevo_id: null, resultado })
   const leer = async (p: unknown) => (await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, p)), { cliente: CLIENTE, ahora: AHORA })).manual?.ciclo
-  it("solo con `resultado.sin_cambios` verdadero en un pedido terminado; nulo (pedido viejo), falso o abierto: nada", async () => {
-    expect(quedoSinCambioPorLoValidado({ sin_cambios: true, protegidos: ["tono_por_canal"] })).toBe(true)
-    for (const r of [null, undefined, {}, { sin_cambios: false }, { sin_cambios: "true" }, []]) expect(quedoSinCambioPorLoValidado(r), JSON.stringify(r)).toBe(false)
-    expect((await leer(pedido("fallido", { sin_cambios: true, protegidos: ["tono_por_canal"], declarado: ["conserva lo validado"] })))?.sin_cambio_por_lo_validado).toBe(true)
-    expect((await leer(pedido("fallido", null)))?.sin_cambio_por_lo_validado).toBeUndefined()
-    expect((await leer(pedido("aplicado", { sin_cambios: false, protegidos: ["tono_por_canal"] })))?.sin_cambio_por_lo_validado).toBeUndefined()
-    expect((await leer(pedido("en_reescritura", { sin_cambios: true })))?.sin_cambio_por_lo_validado).toBeUndefined()
+  it("los cuatro casos de CC1: con `tocados_validados` nombra el campo; solo `protegidos`, general; nada, «no cambió nada»; con cambios, avisa solo de lo tocado", () => {
+    const a = (r: unknown) => avisoDelPedidoSinCambio(r, etiquetaDelCampo)
+    const t = a({ sin_cambios: true, protegidos: ["tono_por_canal", "reglas_de_escritura", "valores"], tocados_validados: ["tono_por_canal"], declarado: ["conserva lo validado"] })!
+    expect(t.campos).toEqual([{ clave: "tono_por_canal", etiqueta: "Por canal (Tono según el canal)" }]); expect(t.texto).toMatch(/^El pedido no cambió nada: «Por canal \(Tono según el canal\)» está validado/); expect(t.texto).toMatch(/Libéralo/)
+    expect(t.texto).not.toMatch(/Reglas|valores/i) // nunca nombra lo de `protegidos`
+    const g = a({ sin_cambios: true, protegidos: ["valores"], tocados_validados: [] })!
+    expect(g.campos).toEqual([]); expect(g.texto).toMatch(/puede ser por algo que validaste/); expect(g.texto).not.toMatch(/valores/i)
+    expect(a({ sin_cambios: true, protegidos: [], tocados_validados: [] })).toEqual({ texto: "Este pedido no cambió nada.", campos: [] })
+    const m = a({ sin_cambios: false, protegidos: ["tono_por_canal"], tocados_validados: ["voice_description"] })!
+    expect(m.campos).toEqual([{ clave: "voz", etiqueta: "Voz de la marca" }]); expect(m.texto).toMatch(/^Se cambió lo demás; «Voz de la marca» está validado y no se tocó/)
+    for (const r of [null, undefined, [], "x", { sin_cambios: false, protegidos: ["x"], tocados_validados: [] }, {}]) expect(a(r), JSON.stringify(r)).toBeNull()
+    expect(etiquetaDelCampo("clave_desconocida")).toEqual({ clave: "clave_desconocida", etiqueta: "Clave desconocida" })
   })
-  it("el panel lo dice en general (sin nombrar campos) y da el botón para ir a lo validado; sin el dato, no aparece", () => {
-    const con = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manualCon({ disponible: true, abierto: null, avance: null, que_cambio: [], sin_cambio_por_lo_validado: true }) }))
-    expect(con).toContain("data-aviso-campo-validado"); expect(con).toContain(AVISO_DEL_CAMPO_VALIDADO); expect(con).toContain('data-accion="ir-a-lo-validado"')
-    expect(AVISO_DEL_CAMPO_VALIDADO).not.toMatch(/tono_por_canal|Tono/) // general: no nombra el campo
+  it("en la lectura: solo en un pedido ya terminado; nulo (pedido viejo) o abierto, nada", async () => {
+    expect((await leer(pedido("fallido", { sin_cambios: true, protegidos: ["tono_por_canal"], tocados_validados: ["tono_por_canal"] })))?.aviso_del_pedido?.campos.map((c) => c.clave)).toEqual(["tono_por_canal"])
+    expect((await leer(pedido("fallido", null)))?.aviso_del_pedido).toBeUndefined()
+    expect((await leer(pedido("en_reescritura", { sin_cambios: true, tocados_validados: ["tono_por_canal"] })))?.aviso_del_pedido).toBeUndefined()
+  })
+  it("el panel muestra el texto y un botón por campo validado nombrado; sin aviso, nada", () => {
+    const aviso = avisoDelPedidoSinCambio({ sin_cambios: true, tocados_validados: ["tono_por_canal"] }, etiquetaDelCampo)!
+    const con = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manualCon({ disponible: true, abierto: null, avance: null, que_cambio: [], aviso_del_pedido: aviso }) }))
+    expect(con).toContain("data-aviso-campo-validado"); expect(con).toContain('data-campo-ir="tono_por_canal"'); expect(con).toContain("Ir a «Por canal (Tono según el canal)»")
+    const general = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manualCon({ disponible: true, abierto: null, avance: null, que_cambio: [], aviso_del_pedido: { texto: "Este pedido no cambió nada.", campos: [] } }) }))
+    expect(general).toContain("Este pedido no cambió nada."); expect(general).not.toContain('data-accion="ir-al-campo-validado"')
     const sin = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manualCon({ disponible: true, abierto: null, avance: null, que_cambio: [] }) }))
     expect(sin).not.toContain("data-aviso-campo-validado")
   })

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
-import { avisoDeLoValidado, cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual, rotuloMientrasSeReescribe, type CicloDelManual, AVISO_DEL_CAMPO_VALIDADO } from "@/lib/manual-ciclo"
+import { avisoDeLoValidado, cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual, rotuloMientrasSeReescribe, type CicloDelManual } from "@/lib/manual-ciclo"
 
 type Resultado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string }
 type Accion = (nombre: string, cuerpo: Record<string, unknown>) => Promise<Resultado>
@@ -65,11 +65,17 @@ export function PedirCambiosAlManual({ cliente, ciclo, accion, validadosDelManua
       {ciclo.avance && !barraOculta && <BarraDelPedido avance={ciclo.avance} onOcultar={() => setBarraOculta(true)} />}
       {ciclo.abierto?.texto && <blockquote className="mt-2 border-l-2 border-violet-400/50 pl-3 text-[12.5px] italic text-zinc-300">Lo que pediste: {ciclo.abierto.texto}</blockquote>}
       {ciclo.que_cambio.length > 0 && <QueCambio titulo="Qué cambió en el manual" lineas={ciclo.que_cambio} />}
-      {ciclo.sin_cambio_por_lo_validado && (
-        <div data-aviso-campo-validado className="mt-3 rounded-md border border-amber-400/40 bg-amber-400/[0.06] px-3 py-2.5 text-[13px] leading-snug text-amber-50">
-          <p>{AVISO_DEL_CAMPO_VALIDADO}</p>
-          <button type="button" data-accion="ir-a-lo-validado" onClick={() => { if (typeof document !== "undefined") document.querySelector("[data-accion=\"desvalidar-campo\"]")?.scrollIntoView({ behavior: "smooth", block: "center" }) }}
-            className="mt-2 rounded-md border border-amber-300/60 px-3 py-1 text-[12.5px] text-amber-100 hover:bg-amber-400/15">Ir a lo que validaste</button>
+      {ciclo.aviso_del_pedido && (
+        <div data-aviso-campo-validado data-con-campos={ciclo.aviso_del_pedido.campos.length > 0} className="mt-3 rounded-md border border-amber-400/40 bg-amber-400/[0.06] px-3 py-2.5 text-[13px] leading-snug text-amber-50">
+          <p>{ciclo.aviso_del_pedido.texto}</p>
+          {ciclo.aviso_del_pedido.campos.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {ciclo.aviso_del_pedido.campos.map((c) => (
+                <button key={c.clave} type="button" data-accion="ir-al-campo-validado" data-campo-ir={c.clave} onClick={() => { if (typeof document !== "undefined") document.querySelector(`[data-campo="${c.clave}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }) }}
+                  className="rounded-md border border-amber-300/60 px-3 py-1 text-[12.5px] text-amber-100 hover:bg-amber-400/15">Ir a «{c.etiqueta}»</button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

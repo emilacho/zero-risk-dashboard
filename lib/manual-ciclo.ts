@@ -22,8 +22,6 @@ export interface PedidoDelManual {
   despertar_detalle: string | null
   manual_id: string | null
   manual_nuevo_id: string | null
-  /** CC6 · 02-nov · `plan_cambios.resultado` (CC1 #856): qué dejó el pedido. Nulo en pedidos viejos (= sin dato, NO «sin cambios») */
-  resultado?: { sin_cambios: boolean | null } | null
 }
 export interface CicloDelManual {
   /** la tabla de pedidos ya sabe de manuales (migración de CC1 aplicada): sin esto no se ofrece «Pedir cambios» (la puerta daría 404) */
@@ -34,20 +32,39 @@ export interface CicloDelManual {
   avance: AvanceDelPedido | null
   /** lo que cambió entre la versión sobre la que se pidió y la que quedó vigente (si la vigente salió de un pedido) */
   que_cambio: string[]
-  /** CC6 · 02-nov: el último pedido no cambió nada porque tocaba lo que el dueño validó (`resultado.sin_cambios`) → el aviso «libéralo para cambiarlo» */
-  sin_cambio_por_lo_validado?: boolean
+  /** CC6 · 02-nov: lo que dejó el último pedido terminado (`plan_cambios.resultado`): el aviso del campo validado o «no cambió nada» */
+  aviso_del_pedido?: AvisoDelPedido
 }
 export const CICLO_DEL_MANUAL_CERRADO: CicloDelManual = { disponible: false, abierto: null, avance: null, que_cambio: [] }
 
 /**
- * EL AVISO DEL CAMPO VALIDADO (CC6 · 02-nov · SEÑAL «desbloquear el manual» punto 3 · forma de CC1 #856): si el pedido terminó con `resultado.sin_cambios`, el equipo
- * conservó lo validado y no reescribió nada; sin aviso, el pedido parecería ignorado. Por ahora el aviso es GENERAL, sin nombrar campos (RESPUESTA de CC1 a CC2 y Lenovo:
- * `protegidos` nombraría campos que el pedido no mencionó, hasta que Lenovo decida). Nulo o ausente = pedido viejo: no se dice nada.
+ * EL AVISO DEL PEDIDO QUE NO CAMBIÓ (CC6 · 02-nov · SEÑAL «desbloquear el manual» punto 3 · forma final de CC1 #856: `plan_cambios.resultado`
+ * = { sin_cambios, protegidos[], tocados_validados[], declarado[] }). Se nombra un campo SOLO con `tocados_validados` (lo validado que el pedido parece tocar y no
+ * liberó: CC2); nunca con `protegidos`, que nombraría campos que el pedido ni mencionó. No se afirma una causa que no consta.
+ *  · nulo o sin objeto → nada (pedido viejo)
+ *  · sin_cambios + tocados → «X está validado; libéralo para cambiarlo», con botón a ese campo
+ *  · sin_cambios + solo protegidos → general: puede ser por algo validado
+ *  · sin_cambios + nada → «Este pedido no cambió nada.» (no culpa a lo validado)
+ *  · con cambios + tocados → cambió lo demás; X no se tocó
  */
-export function quedoSinCambioPorLoValidado(resultado: unknown): boolean {
-  return !!resultado && typeof resultado === "object" && !Array.isArray(resultado) && (resultado as Record<string, unknown>).sin_cambios === true
+export interface AvisoDelPedido { texto: string; campos: Array<{ clave: string; etiqueta: string }> }
+const lista = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : [])
+const enumerar = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`)
+export function avisoDelPedidoSinCambio(resultado: unknown, etiquetaDe: (clave: string) => { clave: string; etiqueta: string }): AvisoDelPedido | null {
+  if (!resultado || typeof resultado !== "object" || Array.isArray(resultado)) return null
+  const r = resultado as Record<string, unknown>
+  const tocados = [...new Set(lista(r.tocados_validados))].map(etiquetaDe)
+  const protegidos = lista(r.protegidos)
+  const nombres = enumerar(tocados.map((c) => `«${c.etiqueta}»`))
+  const uno = tocados.length === 1
+  if (r.sin_cambios === true) {
+    if (tocados.length) return { texto: `El pedido no cambió nada: ${nombres} ${uno ? "está validado" : "están validados"} y lo validado no se reescribe. ${uno ? "Libéralo" : "Libéralos"} (quítale${uno ? "" : "s"} la validación) para cambiar${uno ? "lo" : "los"} y vuelve a pedir.`, campos: tocados }
+    if (protegidos.length) return { texto: "El pedido no cambió nada: puede ser por algo que validaste. Si quieres cambiar un campo validado, quítale la validación y vuelve a pedir.", campos: [] }
+    return { texto: "Este pedido no cambió nada.", campos: [] }
+  }
+  if (r.sin_cambios === false && tocados.length) return { texto: `Se cambió lo demás; ${nombres} ${uno ? "está validado y no se tocó" : "están validados y no se tocaron"}. ${uno ? "Libéralo" : "Libéralos"} si quieres cambiar${uno ? "lo" : "los"}.`, campos: tocados }
+  return null
 }
-export const AVISO_DEL_CAMPO_VALIDADO = "Tu último pedido no cambió nada: tocaba algo que ya validaste, y lo validado no se reescribe. Para cambiarlo, quítale la validación («Quitar validación» en el campo) y vuelve a pedir."
 
 export const esPedidoAbierto = (estado: string) => estado === "pendiente" || estado === "en_reescritura"
 
