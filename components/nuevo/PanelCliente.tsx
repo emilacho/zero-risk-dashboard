@@ -5,17 +5,17 @@ import { useRouter } from "next/navigation"
 import { Ayuda } from "@/components/nuevo/DineroAyuda"
 import { BotonVolver } from "@/components/nuevo/BotonVolver"
 import { ROTULO_TARJETA, SUBCATEGORIA, TITULO_SECCION } from "@/components/nuevo/estilos-titulos"
-import { vistaDelCliente, type Tarjeta, type VistaDelCliente } from "@/lib/cliente-financiero"
+import { pasoRedondo } from "@/components/nuevo/PanelDinero"
+import { vistaDelCliente, type VistaDelCliente } from "@/lib/cliente-financiero"
 import { anteriorDe, diaLocal, fechaCorta, PERIODOS, rangoDe, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"
 
 /**
- * VISTA FINANCIERA DEL CLIENTE (6.42 · boceto aprobado por Emilio 2-nov con 3 cambios): a un clic desde Dinero («Ver cliente ↗») y desde el selector
- * «Seleccionar cliente» de arriba. Estructura de Tableau Pulse (resumen en palabras, tarjetas con número + mini tendencia + variación + una línea,
- * preguntas sugeridas) + Ramp (qué pasó · por qué · qué conviene). Solo el estilo es nuestro. Detalle solo al desplegar. Datos: `/api/direccion/dinero` (SOLO LECTURA).
+ * VISTA FINANCIERA DEL CLIENTE · a un clic desde Dinero («Ver cliente ↗») y desde el selector «Seleccionar cliente» de arriba (6.42).
+ * 6.46 · v2 «solo dinero» (boceto aprobado por Emilio 2-nov): estructura de Harvest (los 4 números y el mes a mes) + Productive (pronóstico, costos compartidos)
+ * + CloudZero (costo por entrega en el tiempo). Solo el estilo es nuestro. Mismas reglas y mismo período que Dinero. Datos: `/api/direccion/dinero` (SOLO LECTURA).
  */
 const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Dinero) | { ok: false; error: string }
-const SIN_DATO = <span data-sin-dato-todavia className="italic font-light text-zinc-500">sin dato todavía</span>
 
 /** la mini tendencia de cada tarjeta (como Pulse): línea fina; la proyección termina punteada */
 export function MiniTendencia({ xs, proyectada = false, color = AMBAR }: { xs: number[]; proyectada?: boolean; color?: string }) {
@@ -31,20 +31,128 @@ export function MiniTendencia({ xs, proyectada = false, color = AMBAR }: { xs: n
   )
 }
 
-function TarjetaPulse({ t }: { t: Tarjeta }) {
-  const tono = t.variacion?.tono === "sube" ? "#f5a524" : t.variacion?.tono === "baja" ? "#7fc99a" : undefined
-  return (
-    <div data-tarjeta-cliente={t.clave} className="flex min-h-[168px] min-w-0 flex-col gap-1 rounded-xl border border-white/[0.09] bg-[#1b1815] px-4 py-3.5">
-      <h4 className={ROTULO_TARJETA}>{t.rotulo}</h4>
-      <p data-valor className={`leading-tight [font-variant-numeric:tabular-nums] ${t.valor == null ? "text-[22px]" : "text-[30px] font-extralight text-white"}`}>
-        {t.valor ?? SIN_DATO}{t.valor != null && t.extra && <span className="ml-1.5 text-[15px] text-zinc-400">{t.extra}</span>}
-      </p>
-      {t.barra != null ? (
-        <div className="my-3 h-2 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden><div className="h-full rounded-full" style={{ width: `${t.barra}%`, background: t.barra >= 80 ? "#f5a524" : "#7fc99a" }} /></div>
-      ) : t.valor != null ? <MiniTendencia xs={t.tendencia} proyectada={t.proyectada} color={t.clave === "rehacer" ? "#a1a1aa" : AMBAR} /> : null}
-      {t.valor != null && t.variacion && <p data-variacion-cliente className="text-[13px] [font-variant-numeric:tabular-nums]" style={{ color: tono ?? "#a1a1aa" }}>{t.variacion.texto}</p>}
-      <p data-lectura className="mt-auto text-[13px] text-zinc-200">{t.lectura}</p>
+const CAJA = "rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5"
+const COLOR_DEL_TIPO: Record<string, string> = { "Piezas y video": "#e8731a", Planeación: "#4fa3ff", Cerebro: "#7fc99a", Alta: "#c58cff", Manual: "#ffd166", Otros: "#8a8580" }
+const SinDato = ({ chico = false }: { chico?: boolean }) => <span data-sin-dato-todavia className={`italic font-light text-zinc-400 ${chico ? "text-[14px]" : "text-[22px]"}`}>sin dato todavía</span>
+const Fila = ({ t, children, dato }: { t: React.ReactNode; children: React.ReactNode; dato?: string }) => (
+  <div data-fila-cliente={dato} className="flex items-baseline justify-between gap-3 border-b border-white/[0.05] py-2 text-[14px] last:border-b-0"><span className="text-zinc-100">{t}</span><span className="text-right [font-variant-numeric:tabular-nums] text-zinc-200">{children}</span></div>
+)
+
+/* 2 · los 4 números juntos (Harvest) */
+function CuatroNumeros({ v }: { v: VistaDelCliente }) {
+  const n = v.numeros, sube = (n.variacion_pct ?? 0) > 0
+  const Celda = ({ dato, t, children, pie }: { dato: string; t: string; children: React.ReactNode; pie: React.ReactNode }) => (
+    <div data-numero={dato} className="flex min-w-0 flex-col gap-1 border-white/[0.09] px-4 py-4 sm:px-5 [&:not(:first-child)]:border-t sm:[&:not(:first-child)]:border-l sm:[&:not(:first-child)]:border-t-0">
+      <h4 className={ROTULO_TARJETA}>{t}</h4><div className="leading-tight">{children}</div><div className="text-[12.5px] text-zinc-400">{pie}</div>
     </div>
+  )
+  return (
+    <section data-cuatro-numeros className="grid rounded-xl border border-white/[0.09] bg-[#1b1815] sm:grid-cols-2 xl:grid-cols-4">
+      <Celda dato="ingreso" t="Ingreso" pie="lo que se le cobra">{n.ingreso == null ? <SinDato /> : usdCorto(n.ingreso)}</Celda>
+      <Celda dato="costo" t="Costo" pie={<><span data-variacion style={{ color: n.variacion_pct == null ? (n.costo > 0 ? "#f5a524" : undefined) : sube ? "#f5a524" : "#7fc99a" }}>{n.variacion_pct == null ? (n.costo > 0 ? `▲ nuevo · antes ${usdCorto(n.costo_anterior)}` : "sin costo en ninguno de los dos períodos") : n.variacion_pct > 500 ? `▲ desde ${usdCorto(n.costo_anterior)}` : `${sube ? "▲" : "▼"} ${Math.abs(n.variacion_pct)} % · antes ${usdCorto(n.costo_anterior)}`}</span><span className="block">{usdCorto(n.costo_con_compartido)} con lo compartido</span></>}>
+        <span data-costo className="text-[32px] font-extralight text-white [font-variant-numeric:tabular-nums]">{usdCorto(n.costo)}</span>
+      </Celda>
+      <Celda dato="ganancia" t="Ganancia" pie="ingreso − costo">{n.ganancia == null ? <SinDato /> : usdCorto(n.ganancia)}</Celda>
+      <Celda dato="margen" t="Margen" pie="ganancia ÷ ingreso">{n.margen_pct == null ? <SinDato /> : `${n.margen_pct} %`}</Celda>
+    </section>
+  )
+}
+
+/* 3 · mes a mes (Harvest): barras de costo (y de ingreso cuando exista) con el total al pasar el cursor */
+function MesAMes({ meses }: { meses: VistaDelCliente["meses"] }) {
+  const [sobre, setSobre] = useState<number | null>(null)
+  const tope = Math.max(0.01, ...meses.map((m) => Math.max(m.costo, m.ingreso ?? 0))), pasoEje = pasoRedondo(tope / 4), max = Math.ceil((tope * 1.1) / pasoEje) * pasoEje
+  const W = 1300, H = 210, IZQ = 78, ABAJO = 26, ARRIBA = 18, paso = (W - IZQ - 8) / Math.max(1, meses.length), ancho = Math.min(110, paso * 0.4)
+  const y = (v: number) => H - ABAJO - (v / max) * (H - ABAJO - ARRIBA)
+  const lineas = Array.from({ length: Math.round(max / pasoEje) + 1 }, (_, i) => i * pasoEje)
+  return (
+    <div className="relative" onMouseLeave={() => setSobre(null)}>
+      <svg data-mes-a-mes viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="Costo mes a mes">
+        {lineas.map((v) => <g key={v}><line x1={IZQ} x2={W - 4} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,.06)" /><text data-eje x={IZQ - 8} y={y(v) + 4} textAnchor="end" fontSize={11} fill="#8a8580">{usdCorto(v).replace(",00", "")}</text></g>)}
+        {meses.map((m, i) => {
+          const x = IZQ + i * paso + (paso - ancho) / 2
+          return (
+            <g key={m.mes} data-mes={m.mes} onMouseEnter={() => setSobre(i)}>
+              <rect x={IZQ + i * paso} y={ARRIBA} width={paso} height={H - ABAJO - ARRIBA} fill={sobre === i ? "rgba(255,255,255,.04)" : "transparent"} />
+              <rect x={x} y={y(m.costo)} width={ancho} height={Math.max(m.costo > 0 ? 1 : 0, y(0) - y(m.costo))} fill={AMBAR} opacity={m.en_curso ? 0.6 : 1} strokeDasharray={m.en_curso ? "4 3" : undefined} stroke={m.en_curso ? AMBAR : undefined} />
+              <text x={x + ancho / 2} y={y(m.costo) - 6} textAnchor="middle" fontSize={12} fill="#f4f4f5">{usdCorto(m.costo)}</text>
+              <text x={x + ancho / 2} y={H - 7} textAnchor="middle" fontSize={12} fill="#d4d4d8">{m.rotulo}{m.en_curso ? " (en curso)" : ""}</text>
+            </g>
+          )
+        })}
+      </svg>
+      {sobre != null && (
+        <div data-total-del-mes className="pointer-events-none absolute top-1 z-10 min-w-[220px] rounded-lg border border-white/10 bg-[#0f0d0c]/95 px-3 py-2 text-[13px] shadow-xl" style={{ left: `${Math.min(72, Math.max(4, ((IZQ + sobre * paso) / W) * 100))}%` }}>
+          <p className="text-zinc-400">{meses[sobre].rotulo}{meses[sobre].en_curso ? " · en curso" : ""}</p>
+          <p className="text-[15px] text-white [font-variant-numeric:tabular-nums]">Costo {usdCorto(meses[sobre].costo)}</p>
+          <p className="text-zinc-400">Ingreso {meses[sobre].ingreso == null ? "sin dato todavía" : usdCorto(meses[sobre].ingreso!)}</p>
+        </div>
+      )}
+      <p className="mt-2 flex items-center gap-2 text-[12.5px] text-zinc-400"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: AMBAR }} />Costo · el ingreso y la línea de ganancia aparecen cuando exista lo que se le cobra.</p>
+    </div>
+  )
+}
+
+/* 4 · costo por tipo */
+function CostoPorTipo({ v }: { v: VistaDelCliente }) {
+  const total = v.numeros.costo
+  return (
+    <section data-costo-por-tipo className={CAJA}>
+      <div className="mb-3 flex flex-wrap items-baseline gap-2"><h3 className={TITULO_SECCION}>Costo por tipo</h3><span className="text-[12.5px] text-zinc-400 [font-variant-numeric:tabular-nums]">{usdCorto(total)}</span></div>
+      <div className="mb-3 flex h-2.5 overflow-hidden rounded-full bg-white/[0.06]">{v.por_tipo.filter((t) => t.usd > 0).map((t) => <span key={t.tipo} style={{ width: `${t.pct}%`, background: COLOR_DEL_TIPO[t.tipo] }} />)}</div>
+      {v.por_tipo.map((t) => <Fila key={t.tipo} dato={t.tipo} t={<><span className="mr-2 inline-block h-2.5 w-2.5 rounded-sm align-[-1px]" style={{ background: COLOR_DEL_TIPO[t.tipo] }} />{t.tipo}</>}>{usdCorto(t.usd)}<span className="ml-3 inline-block w-14 text-zinc-400">{t.pct.toLocaleString("es-EC")} %</span></Fila>)}
+      <div data-rehacer className="-mx-3 mt-2 flex items-baseline justify-between gap-3 rounded-lg bg-black/20 px-3 py-2 text-[14px]">
+        <span className="flex items-center gap-1.5 text-zinc-100">De eso, rehacer <Ayuda texto={`Misma regla que Dinero: ${v.rehacer.partes.filter((p) => (p.usd ?? 0) > 0 || p.cuantos > 0).map((p) => `${p.nombre.toLocaleLowerCase("es")} ${p.usd == null ? "sin dato" : usdCorto(p.usd)} (${p.cuantos})`).join(" · ") || "nada en el período"}. Ya está dentro de los tipos de arriba: no se suma otra vez.`} /></span>
+        <span className="text-right [font-variant-numeric:tabular-nums] text-zinc-200">{usdCorto(v.rehacer.usd)}<span className="ml-3 inline-block w-14 text-zinc-400">{v.rehacer.pct.toLocaleString("es-EC")} %</span></span>
+      </div>
+    </section>
+  )
+}
+
+/* 6 · costo por entrega en el tiempo (CloudZero) */
+function Entregas({ v }: { v: VistaDelCliente }) {
+  return (
+    <section data-entregas className={CAJA}>
+      <div className="mb-3 flex flex-wrap items-baseline gap-2"><h3 className={TITULO_SECCION}>Costo por entrega</h3><span className="text-[12.5px] text-zinc-400">¿sube o baja frente a {v.comparado_con}?</span></div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {v.entregas.map((e) => (
+          <div key={e.clave} data-entrega={e.clave} className="flex min-w-0 flex-col gap-1 rounded-lg border border-white/[0.07] bg-black/20 px-3.5 py-3">
+            <h4 className={ROTULO_TARJETA}>{e.nombre}</h4>
+            <p className="leading-tight">{e.ahora == null ? <SinDato chico /> : <span className="text-[26px] font-extralight text-white [font-variant-numeric:tabular-nums]">{usdCorto(e.ahora)}</span>}</p>
+            <MiniTendencia xs={e.tendencia} />
+            <p data-nota-entrega className="text-[12.5px]" style={{ color: e.nota.startsWith("▲") ? "#f5a524" : e.nota.startsWith("▼") ? "#7fc99a" : "#a1a1aa" }}>{e.nota}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/* 5 · pronóstico (Productive) */
+function Pronostico({ v }: { v: VistaDelCliente }) {
+  const p = v.pronostico
+  return (
+    <section data-pronostico className={CAJA}>
+      <h3 className={`mb-2 ${TITULO_SECCION}`}>Pronóstico</h3>
+      <Fila dato="cierre" t="Cierre del mes a este ritmo">{usdCorto(p.cierre)}{p.poco_dato && <span className="block text-[12px] text-amber-300/80">poco dato del mes todavía</span>}</Fila>
+      <Fila dato="margen-esperado" t="Margen esperado">{p.margen_esperado == null ? <SinDato chico /> : `${p.margen_esperado} %`}</Fila>
+      <Fila dato="presupuesto" t="Presupuesto del mes">{p.presupuesto == null ? <SinDato chico /> : usdCorto(p.presupuesto)}</Fila>
+      <Fila dato="freno" t="Freno 24 h">{p.freno?.techo_usd == null ? <SinDato chico /> : <>{usdCorto(p.freno.gastado_24h_usd ?? 0)} de {usdCorto(p.freno.techo_usd)} · {(p.freno.pct ?? 0) >= 80 ? "casi lleno" : "holgado"}</>}</Fila>
+      {p.avisos.length ? p.avisos.map((a) => <p key={a} data-aviso role="alert" className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">{a}</p>)
+        : <p className="mt-2 text-[12.5px] text-zinc-400">Sin avisos: el freno está holgado. El aviso de presupuesto llega cuando exista el presupuesto del cliente.</p>}
+    </section>
+  )
+}
+
+/* 7 · costos compartidos repartidos (regla A, aprobada por Emilio) */
+function Compartidos({ v }: { v: VistaDelCliente }) {
+  const c = v.compartido
+  return (
+    <section data-compartidos className={CAJA}>
+      <h3 className={`mb-2 ${TITULO_SECCION}`}>Costos compartidos</h3>
+      <p className="text-[15px] text-zinc-50 [font-variant-numeric:tabular-nums]">Le tocan <b>{usdCorto(c.toca)}</b> de los {usdCorto(c.interno)} de trabajo interno (mantenimiento del cerebro y tareas de la agencia) → costo real <b>{usdCorto(c.real)}</b>.</p>
+      <p data-regla className="mt-1 text-[12.5px] text-zinc-400">Regla: {c.regla} A {v.nombre} le toca el {c.cuota_pct.toLocaleString("es-EC")} %.</p>
+    </section>
   )
 }
 
@@ -69,7 +177,7 @@ function Desplegable({ id, titulo, nota, children }: { id: string; titulo: strin
 }
 const TablaCorta = ({ filas, conDia = false }: { filas: VistaDelCliente["detalle"]["por_empleado"]; conDia?: boolean }) => filas.length ? (
   <table className="w-full border-collapse text-[13px]"><tbody>
-    {filas.map((f) => <tr key={f.clave} className="border-b border-white/[0.05]"><td className="py-1.5 pr-3 text-zinc-200">{f.nombre}{conDia && f.dia && <span className="block text-[11.5px] text-zinc-500">{fechaCorta(f.dia)} · {f.detalle}</span>}</td><td className="py-1.5 text-right tabular-nums text-zinc-100">{usdCorto(f.usd)}</td><td className="w-16 py-1.5 text-right tabular-nums text-zinc-500">{f.pct.toLocaleString("es-EC")} %</td></tr>)}
+    {filas.map((f) => <tr key={f.clave} className="border-b border-white/[0.05]"><td className="py-1.5 pr-3 text-zinc-200">{f.nombre}{conDia && f.dia && <span className="block text-[11.5px] text-zinc-500">{fechaCorta(f.dia)} · {f.detalle}</span>}</td><td className="py-1.5 text-right [font-variant-numeric:tabular-nums] text-zinc-100">{usdCorto(f.usd)}</td><td className="w-16 py-1.5 text-right [font-variant-numeric:tabular-nums] text-zinc-500">{f.pct.toLocaleString("es-EC")} %</td></tr>)}
   </tbody></table>
 ) : <p className="text-[13px] text-zinc-500">Nada en el período.</p>
 
@@ -148,14 +256,30 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
                 ))}
               </div>
             </section>
-            {/* 2 · tarjetas tipo Pulse */}
-            <h3 data-titulo-grupo className={`-mb-1 px-0.5 pt-1 ${TITULO_SECCION}`}>Lo que gasta la agencia en este cliente</h3>
-            <section data-tarjetas-cliente className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {v.tarjetas.map((t) => <TarjetaPulse key={t.clave} t={t} />)}
+            {/* 2 · los 4 números (Harvest) */}
+            <CuatroNumeros v={v} />
+            {/* 3 · mes a mes (Harvest) */}
+            <section data-seccion-mes-a-mes className={CAJA}>
+              <div className="mb-2 flex flex-wrap items-baseline gap-2"><h3 className={TITULO_SECCION}>Mes a mes</h3><span className="text-[12.5px] text-zinc-400">el total aparece al pasar el cursor</span></div>
+              <MesAMes meses={v.meses} />
             </section>
-            {/* 3 · el negocio del cliente: una sola línea mientras no haya dato (cambio 2 de Emilio) */}
-            <p data-negocio className="rounded-xl border border-white/[0.09] bg-[#1b1815] px-4 py-3 text-[14px] text-zinc-300">Cómo le va al negocio: {SIN_DATO}<span className="ml-2 text-[12px] text-zinc-500">(ventas del punto de venta, pedidos de la web y anuncios)</span></p>
-            <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+            {/* 4 · dos desgloses */}
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+              <section data-ingreso className={CAJA}>
+                <h3 className={`mb-2 ${TITULO_SECCION}`}>Ingreso</h3>
+                <Fila dato="cobrado" t="Cobrado"><SinDato chico /></Fila>
+                <Fila dato="por-cobrar" t="Por cobrar"><SinDato chico /></Fila>
+              </section>
+              <CostoPorTipo v={v} />
+            </div>
+            {/* 5 · pronóstico · 6 · costo por entrega */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Pronostico v={v} />
+              <Entregas v={v} />
+            </div>
+            {/* 7 · costos compartidos */}
+            <Compartidos v={v} />
+            <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr] lg:items-start">
               {/* 4 · preguntas sugeridas */}
               <section data-preguntas className="rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5">
                 <h3 className={`mb-3 ${TITULO_SECCION}`}>Preguntas sugeridas</h3>
@@ -167,12 +291,9 @@ export function PanelCliente({ slug, datosIniciales = null, fetchImpl = fetch, a
               {/* 5 · detalle solo al desplegar */}
               <section data-detalles className="rounded-xl border border-white/[0.09] bg-[#1b1815] px-4 pt-3 sm:px-5">
                 <h3 className={`mb-1 ${TITULO_SECCION}`}>Detalle</h3>
-                <Desplegable id="tiempo" titulo="Gasto en el tiempo" nota="por día"><GastoPorDia xs={v.detalle.por_dia} /></Desplegable>
-                <Desplegable id="empleado" titulo="Por empleado" nota="quién gastó qué"><TablaCorta filas={v.detalle.por_empleado} /></Desplegable>
                 <Desplegable id="corridas" titulo="Corridas" nota="las más caras"><TablaCorta filas={v.detalle.corridas} conDia /></Desplegable>
-                <Desplegable id="anomalias" titulo="Anomalías" nota="3× lo normal">
-                  {v.detalle.anomalias.length ? <ul className="grid gap-1.5 text-[13px]">{v.detalle.anomalias.map((a) => <li key={a.d + a.texto} className="text-zinc-300"><span className="text-zinc-500">{fechaCorta(a.d)} · {usdCorto(a.usd)} · </span>{a.texto}</li>)}</ul> : <p className="text-[13px] text-zinc-500">Nada fuera de lo normal en el período.</p>}
-                </Desplegable>
+                <Desplegable id="empleado" titulo="Por empleado" nota="quién gastó qué"><TablaCorta filas={v.detalle.por_empleado} /></Desplegable>
+                <Desplegable id="tiempo" titulo="Por día" nota="costo diario"><GastoPorDia xs={v.detalle.por_dia} /></Desplegable>
               </section>
             </div>
           </div>
