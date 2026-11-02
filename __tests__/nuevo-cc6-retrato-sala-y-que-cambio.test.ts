@@ -2,21 +2,30 @@
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { readFileSync } from "node:fs"
-import { rasgosDelRetrato, RetratoInventado } from "@/components/nuevo/escena/RetratoInventado"
+import { existsSync, readFileSync } from "node:fs"
+import { HologramaBusto, HologramaFigura } from "@/components/nuevo/escena/Holograma"
+import { descripcionDelHolograma, rasgosDelHolograma } from "@/lib/holograma"
 import { ESTILO_SALA } from "@/components/nuevo/escena/SalaDeReuniones"
 import { lineasDeQueCambio } from "@/components/nuevo/PanelPlan"
 
-describe("el retrato inventado", () => {
-  it("es estable por empleado, distinto entre empleados, con su toque robótico, y no lleva fotos ni iniciales", () => {
-    expect(rasgosDelRetrato("growth-hacker")).toEqual(rasgosDelRetrato("growth-hacker"))
-    const varios = ["a", "b", "c", "d", "e", "f", "g", "h"].map((x) => JSON.stringify(rasgosDelRetrato(`empleado-${x}`)))
-    expect(new Set(varios).size).toBeGreaterThan(6)
-    const svg = renderToStaticMarkup(createElement(RetratoInventado, { semilla: "growth-hacker", color: "#e8731a" }))
-    expect(svg).toContain('data-retrato="growth-hacker"')
-    expect(svg).toMatch(/-lente\)/) // la lente ámbar
-    expect(svg).not.toMatch(/<image|https?:\/\//) // nada de fotos ni caras de afuera
-    expect(svg).not.toContain("<text")
+describe("el retrato de la ficha es el holograma de la escena (ADENDA 3 de Lenovo, 02-nov)", () => {
+  it("la ficha usa el busto holográfico con la misma semilla que la silueta; el retrato caricatura ya no existe", () => {
+    const ficha = readFileSync("components/nuevo/escena/FichaDelEmpleado.tsx", "utf8")
+    expect(ficha).toContain("<HologramaBusto semilla={agente} color={color} />")
+    expect(ficha).not.toContain("RetratoInventado")
+    expect(existsSync("components/nuevo/escena/RetratoInventado.tsx")).toBe(false)
+    expect(readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")).toMatch(/<HologramaFigura semilla=\{\w+\.agente\}/) // la escena siembra por el nombre del empleado (CC4 puede renombrar su variable)
+  })
+  it("mismo personaje: la ficha y la escena leen los mismos rasgos aunque el nombre llegue con guion bajo; estable y sin fotos ni letras", () => {
+    expect(rasgosDelHolograma("brand_strategist")).toEqual(rasgosDelHolograma("brand-strategist"))
+    const busto = renderToStaticMarkup(createElement(HologramaBusto, { semilla: "growth-hacker", color: "#e8731a" }))
+    expect(busto).toContain('data-holograma-busto="growth-hacker"')
+    expect(busto).toBe(renderToStaticMarkup(createElement(HologramaBusto, { semilla: "growth-hacker", color: "#e8731a" })))
+    expect(busto).not.toMatch(/<image|https?:\/\/|<text/)
+    const r = rasgosDelHolograma("growth-hacker")
+    const figura = renderToStaticMarkup(createElement("svg", null, createElement(HologramaFigura, { semilla: "growth_hacker", color: "#e8731a", postura: "de_pie" })))
+    expect(figura).toContain(`data-cabello="${r.cabello}"`); expect(figura).toContain(`data-accesorio="${r.accesorio}"`); expect(figura).toContain(`data-ropa="${r.ropa}"`)
+    expect(descripcionDelHolograma("growth-hacker")).toMatch(/\S/)
   })
 })
 

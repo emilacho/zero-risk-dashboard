@@ -103,7 +103,7 @@ describe("la ficha en pantalla y su ruta", () => {
   }
   it("dibuja el currículum: nombre de persona y puesto real, retrato, habilidades, números, «sin cierre registrado», fuente y hora; «sin dato» honesto", () => {
     const html = renderToStaticMarkup(createElement(FichaDelEmpleado, { agente: ficha.agente, onCerrar: () => {}, datosIniciales: ficha }))
-    expect(html).toContain("Valeria Ortiz"); expect(html).toContain("Trend Researcher"); expect(html).toContain('data-retrato="market_research_analyst"'); /* CC6 · 02-nov: retrato inventado con toque robótico (antes, iniciales) */ expect(html).toContain("señales con fuente y fecha")
+    expect(html).toContain("Valeria Ortiz"); expect(html).toContain("Trend Researcher"); expect(html).toContain('data-holograma-busto="market_research_analyst"'); /* ADENDA 3 (02-nov): el busto holográfico de la escena */ /* CC6 · 02-nov: retrato inventado con toque robótico (antes, iniciales) */ expect(html).toContain("señales con fuente y fecha")
     expect(html).toContain("67 %"); expect(html).toContain("2 sin cierre registrado"); expect(html).not.toContain("trabajando ahora")
     expect(html).toContain("sin métodos asignados en la base"); expect(html).toContain("sin tareas registradas"); expect(html).toContain("licencia: sin dato en la base")
     expect(html).toContain("leído 17:00Z"); expect(html).toContain("nv-panel") // no tapa el chat de abajo
