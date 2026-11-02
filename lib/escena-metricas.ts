@@ -41,15 +41,39 @@ export interface CuadroDeMetrica {
 export interface MetricasDelPizarron { cliente: string | null; cuadros: CuadroDeMetrica[]; lectura: LecturaDeMetricas["estado"] }
 
 const objeto = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
-const cuenta = (v: unknown): boolean => typeof v === "string" ? v.trim().replace(/^@/, "") !== "" : v === true || (typeof v === "number" && v > 0)
-/** las llaves de `clients.config.apify.own_handles` (o su equivalente) que se reconocen como WhatsApp y Google Maps */
-const ALIAS: Record<string, ClaveDeRed> = { instagram: "instagram", facebook: "facebook", tiktok: "tiktok", youtube: "youtube", whatsapp: "whatsapp", google_maps: "google_maps", googlemaps: "google_maps", maps: "google_maps", gmaps: "google_maps" }
+/** hay una cuenta declarada: texto no vacío, un sí, un número, o un objeto/lista con algo dentro (la ficha puede guardar {handle, url} y no solo el texto) */
+const cuenta = (v: unknown): boolean => {
+  if (typeof v === "string") return v.trim().replace(/^@/, "") !== ""
+  if (typeof v === "number") return v > 0
+  if (v === true) return true
+  if (Array.isArray(v)) return v.some(cuenta)
+  if (v && typeof v === "object") return Object.values(v as Record<string, unknown>).some(cuenta)
+  return false
+}
+/**
+ * qué red es una llave de la ficha. La barra del manual lista CUALQUIER llave de `own_handles` tal como esté escrita («facebook_page», «tiktok_handle», «youtube_channel»,
+ * «whatsapp_number»…); aquí se reconoce por lo que dice la llave, no solo si es exactamente «facebook». Corrección del 02-nov: en producción faltaban 4 redes que sí estaban.
+ */
+export function redDeLaLlave(llave: string): ClaveDeRed | null {
+  const k = llave.toLowerCase().replace(/[^a-z]/g, "")
+  if (k.includes("instagram") || k === "ig" || k === "insta") return "instagram"
+  if (k.includes("facebook") || k === "fb") return "facebook"
+  if (k.includes("tiktok")) return "tiktok"
+  if (k.includes("youtube") || k === "yt") return "youtube"
+  if (k.includes("whatsapp") || k === "wa" || k === "wsp") return "whatsapp"
+  if (k.includes("maps") || k.includes("gmaps") || k.includes("googlebusiness") || k === "gmb") return "google_maps"
+  return null
+}
 
-/** qué redes tiene el cliente, de sus canales propios (las cuentas de su ficha y su sitio web); lo que no tiene no sale */
-export function redesDelCliente(config: unknown, sitio: string | null): ClaveDeRed[] {
+/**
+ * qué redes tiene el cliente, de sus canales propios: las cuentas de su ficha (`config.apify.own_handles`, la MISMA fuente de la barra del manual), el sitio web y, si se pasan,
+ * los campos de sus sedes que nombran una red (p. ej. el WhatsApp de una sede). Lo que no tiene no sale.
+ */
+export function redesDelCliente(config: unknown, sitio: string | null, camposDeSedes: string[] = []): ClaveDeRed[] {
   const propias = objeto(objeto(objeto(config).apify).own_handles)
   const tiene = new Set<ClaveDeRed>()
-  for (const [k, v] of Object.entries(propias)) { const c = ALIAS[k.toLowerCase()]; if (c && cuenta(v)) tiene.add(c) }
+  for (const [k, v] of Object.entries(propias)) { const c = redDeLaLlave(k); if (c && cuenta(v)) tiene.add(c) }
+  for (const campo of camposDeSedes) { const c = redDeLaLlave(campo); if (c) tiene.add(c) }
   if (typeof sitio === "string" && /^https?:\/\//.test(sitio.trim())) tiene.add("web")
   return REDES_DEL_PIZARRON.map((r) => r.clave).filter((c) => tiene.has(c))
 }

@@ -146,7 +146,10 @@ export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date
     if (cliente) {
       const r = await supa.from("clients").select("config, website_url").eq("id", cliente.id).maybeSingle()
       if (r.error) throw new Error(`clients: ${r.error.message}`)
-      redes = redesDelCliente(r.data?.config, typeof r.data?.website_url === "string" ? r.data.website_url : null)
+      // los campos de sus sedes con dato que nombran una red (p. ej. el WhatsApp de una sede): la barra del manual los muestra en «Sedes y canales»
+      const s = await supa.from("client_sede_datos").select("campo, valor_texto").eq("client_id", cliente.id).limit(200)
+      const deSedes = s.error ? [] : ((s.data ?? []) as Array<{ campo?: unknown; valor_texto?: unknown }>).filter((x) => typeof x.campo === "string" && typeof x.valor_texto === "string" && x.valor_texto.trim() !== "").map((x) => String(x.campo))
+      redes = redesDelCliente(r.data?.config, typeof r.data?.website_url === "string" ? r.data.website_url : null, deSedes)
     }
     const lectura = await leerMetricas(supa, { cliente: cliente?.id ?? null })
     return { cliente: cliente?.nombre ?? null, cuadros: cuadrosDelPizarron(redes, lectura), lectura: lectura.estado }
