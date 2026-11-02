@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react"
 import { GRUPOS_DE_PANTALLAS, LUZ_DE_LA_INTERFAZ, lienzoDelMarco, marcoDeLaForma, type Animacion, type Caja, type TableroDeDireccion } from "@/lib/pantallas-de-la-oficina"
-import { ESTILO_DE_DIRECCION, LIENZO_DE_DIRECCION, TableroDeDireccionVivo } from "@/components/nuevo/TablerosDeDireccion"
+import { ESTILO_DE_DIRECCION, LIENZO_DE_DIRECCION, TableroDeDireccionVivo, TituloGrande } from "@/components/nuevo/TablerosDeDireccion"
 import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import type { ResumenDeRiesgos } from "@/lib/direccion-riesgos"
 import type { ResumenDeDinero } from "@/lib/direccion-dinero"
@@ -241,6 +241,17 @@ export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos
             <polygon className="nv-luz" points={p.forma} />
           </g>
         ))}
+      </svg>
+      {/* 5 · 6.29 · el título de la pantalla bajo el cursor, grande y legible (capa sin recorte y sin ratón: el toque sigue siendo del vidrio) */}
+      <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="nv-titulos-grandes pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        {todas.filter(({ id, p }) => id === encima && p.titulo).map(({ id, p }) => {
+          const m = marcoDeLaForma(p.forma)
+          return (
+            <g key={id} data-titulo-de={id} transform={`matrix(${m.matriz.map((v) => v.toFixed(5)).join(" ")})`}>
+              <g transform={`scale(${(m.W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(m.H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TituloGrande lineas={p.titulo as readonly string[]} /></g>
+            </g>
+          )
+        })}
       </svg>
     </>
   )

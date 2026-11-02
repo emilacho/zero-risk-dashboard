@@ -135,7 +135,7 @@ describe("6.26 · el arco", () => {
     expect(renderToStaticMarkup(createElement(PantallasDelArco, { alAbrirObservabilidad: () => {} }))).toMatch(/data-id="arco-9"[^>]*data-abre="observabilidad"[^>]*aria-label="Abrir la observabilidad"/)
   })
   it("REGLA de Emilio · al pasar el cursor por una pantalla su título crece un poco para leerse", () => {
-    expect(ESTILO_DE_DIRECCION).toContain(".nv-pantalla[data-encima] .nv-titulo{transform:scale(1.14)}")
+    expect(ESTILO_DE_DIRECCION).toContain(".nv-pantalla[data-encima] .nv-titulo{opacity:0}") // 6.29: el título grande va en su propia capa
     const s = readFileSync("components/nuevo/PantallasDelArco.tsx", "utf8")
     expect(s).toContain("onMouseEnter={() => setEncima(id)}"); expect(s).toContain("data-encima={encima === id || undefined}")
   })
