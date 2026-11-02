@@ -42,15 +42,17 @@ function Bloques({ bloques }: { bloques: Bloque[] }) {
   )
 }
 
-export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [] }: {
+export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [], sinDatosClave = false }: {
   prosa: string
+  /** sin las tarjetas de fechas/lugar/presupuesto/meta (son del plan; el brief las reusa sin ellas) */
+  sinDatosClave?: boolean
   /** pedir cambios sobre una sección (solo si el plan admite pedir cambios ahora) */
   onPedirCambios?: (seccion: string) => void
   /** solo pruebas y el arnés: abrir estas secciones de entrada */
   abiertasIniciales?: string[]
 }) {
   const doc = useMemo(() => seccionesDelPlan(prosa), [prosa])
-  const datos = useMemo(() => datosClave(doc), [doc])
+  const datos = useMemo(() => (sinDatosClave ? [] : datosClave(doc)), [doc, sinDatosClave])
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set(abiertasIniciales))
   const alternar = (id: string) => setAbiertas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const ir = (id: string) => {
