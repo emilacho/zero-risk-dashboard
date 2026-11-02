@@ -73,10 +73,10 @@ describe("chat de /nuevo · el estilo del texto y el lugar de las respuestas", (
     expect(zona).not.toContain("whitespace-pre-wrap")
   })
   it("en pantalla angosta las respuestas van ENCIMA del cuadro y nunca lo tapan; en ancha, al lado y más altas", () => {
-    expect(zona).toContain("bottom-[calc(100%+0.5rem)]")
-    expect(zona).not.toMatch(/absolute bottom-0 left-0 right-0/)
-    expect(zona).toContain("min-[1100px]:left-full")
-    expect(zona).toContain("min-[1100px]:h-[min(55vh,26rem)]")
+    expect(c).toContain("bottom-[calc(100%+0.5rem)]")
+    expect(c).not.toMatch(/absolute bottom-0 left-0 right-0/)
+    expect(c).toContain("min-[1100px]:left-full")
+    expect(zona).toContain("min-[1100px]:max-h-[min(55vh,26rem)]") // 6.32: crece desde la esquina de abajo, no un alto fijo
     expect(zona).toContain("overflow-y-auto")
   })
 })
