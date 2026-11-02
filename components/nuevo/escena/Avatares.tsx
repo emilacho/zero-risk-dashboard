@@ -1,6 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
+import { agentesEnLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
 import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
@@ -8,10 +10,9 @@ import { ESTILO_SALA, globoVisible, PanelDeLaSala, SalaEnLaFoto } from "@/compon
 import { AporteCompleto } from "@/components/nuevo/escena/AporteCompleto"
 import { SALA } from "@/lib/escena-sala"
 import {
-  colocarFiguras, ESCENA_AVATARES, estadoDeLaMesa, FOTO, lineasDeLaFicha, lineasDelMiembro, MESAS, puestosDeLaMesa, tableroDeLaMesa,
-  type ClaveDeMesa, type EscenaDatos, type EstadoDelMiembro, type Mesa, type MesaViva, type MiembroDeMesa, type Punto,
+  colocarFiguras, ESCENA_AVATARES, estadoDeLaMesa, FOTO, MESAS, tableroDeLaMesa,
+  type ClaveDeMesa, type EscenaDatos, type Mesa, type MesaViva,
 } from "@/lib/escena-avatares"
-import { nombreCanonico } from "@/lib/organigrama"
 
 /**
  * LA ESCENA VIVA · AVATARES (CC6 · Sprint 1 · 01-nov): la capa que va ENCIMA de la foto de la oficina de marketing, dentro de la proyección de `EscenaViva`.
@@ -34,10 +35,12 @@ const ESTILO = `
 .nv-av .nv-av-zona polygon{fill:rgba(255,140,40,0);stroke:none;transition:fill .3s ease}
 .nv-av .nv-av-zona:hover polygon,.nv-av .nv-av-zona:focus-visible polygon,.nv-av .nv-av-zona[aria-expanded="true"] polygon{fill:rgba(255,140,40,.06)}
 .nv-av .nv-av-rotulo{opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
-.nv-av .nv-av-zona:hover .nv-av-rotulo,.nv-av .nv-av-zona:focus-visible .nv-av-rotulo,.nv-av .nv-av-zona[aria-expanded="true"] .nv-av-rotulo,.nv-av .nv-av-mesa[data-ocupada="true"] .nv-av-rotulo{opacity:1;transform:none}
+.nv-av .nv-av-zona:hover .nv-av-rotulo,.nv-av .nv-av-zona:focus-visible .nv-av-rotulo,.nv-av .nv-av-zona[aria-expanded="true"] .nv-av-rotulo{opacity:1;transform:none}
 .nv-av .nv-av-luz{opacity:0;transition:opacity .6s ease}
 .nv-av .nv-av-luz[data-on="ambar"]{opacity:.9;animation:nvAvLate 2.6s ease-in-out infinite}
 .nv-av .nv-av-luz[data-on="rojo"]{opacity:.85;animation:nvAvLateRojo 1.4s ease-in-out infinite}
+.nv-av .nv-av-luz[data-on="tenue"]{opacity:.2;animation:nvAvTenue 5s ease-in-out infinite}
+@keyframes nvAvTenue{0%,100%{opacity:.14}50%{opacity:.26}}
 .nv-av .nv-av-asiento{pointer-events:auto;cursor:default;outline:none}
 .nv-av .nv-av-asiento rect{fill:transparent}
 .nv-av .nv-av-sombra{fill:rgba(0,0,0,.45)}
@@ -61,29 +64,6 @@ const ESTILO = `
 @media (prefers-reduced-motion:reduce){.nv-av .nv-av-fig{animation:none!important}.nv-av .nv-av-luz[data-on]{animation:none}.nv-av .nv-av-ficha,.nv-av .nv-av-lista{animation:none}.nv-av .nv-av-rotulo,.nv-av .nv-av-luz{transition:none}}
 `
 
-/** una persona sentada en su puesto, de espaldas a la cámara frente al escritorio, en el estilo de la escena: silla y cuerpo oscuros con borde de luz, la franja del color de su equipo en los hombros;
- *  brilla si trabaja (y se inclina un poco hacia el monitor), late en rojo si falló. El origen es el asiento. */
-function Figura({ x, y, color, estado }: { x: number; y: number; color: string; estado: EstadoDelMiembro }) {
-  return (
-    <g className="nv-av-fig" data-estado={estado} transform={`translate(${x} ${y}) scale(1.15)`}>
-      <ellipse className="nv-av-sombra" cx={0} cy={4} rx={25} ry={8} />
-      <path className="nv-av-silla" d="M-19 -8 C-21 -34 -17 -52 -9 -54 L9 -54 C17 -52 21 -34 19 -8 Q0 0 -19 -8 Z" />
-      <rect className="nv-av-silla" x={-3} y={-2} width={6} height={9} rx={2} />
-      <g className="nv-av-persona">
-        <path className="nv-av-cuerpo" d="M-17 -12 C-19 -30 -14 -44 -7 -47 L7 -47 C14 -44 19 -30 17 -12 Q0 -6 -17 -12 Z" />
-        <path className="nv-av-franja" d="M-12.5 -38 L12.5 -38 L13.8 -31 L-13.8 -31 Z" fill={color} />
-        <circle className="nv-av-cabeza" cx={0} cy={-58} r={11.5} />
-      </g>
-    </g>
-  )
-}
-/** quién se dibuja en la mesa y dónde: todo el equipo menos quien está ahora en la sala de reuniones (ahí se ve) */
-const puestosDelEquipo = (m: MesaViva): Array<{ p: MiembroDeMesa; pt: Punto }> => {
-  const visibles = m.equipo.filter((p) => !p.en_sala)
-  const pts = puestosDeLaMesa(m, visibles.length)
-  return visibles.slice(0, pts.length).map((p, i) => ({ p, pt: pts[i] }))
-}
-
 /** la mesa vacía que se dibuja antes de que llegue el dato (y si la lectura falla): sin sentados, sin equipo, sin inventar */
 const vacia = (m: Mesa): MesaViva => ({ ...m, sentados: [], equipo: [], trabajando: 0, fallando: 0 })
 
@@ -91,7 +71,6 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [datos, setDatos] = useState<EscenaDatos | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
-  const [ficha, setFicha] = useState<string | null>(null) // «mesa|agente» de la figura bajo el cursor
   const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
   const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
   const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
@@ -139,18 +118,10 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
-  // la ficha al pasar el cursor: de quien trabaja (completa) o de quien está en su puesto (estado y última tarea)
-  const enFicha = ficha ? (() => {
-    const [mk, ag] = ficha.split("|"); const m = mesas.find((x) => x.clave === mk); if (!m) return null
-    const puesto = puestosDelEquipo(m).find((x) => x.p.agente === ag); if (!puesto) return null
-    const s = m.sentados.find((x) => nombreCanonico(x.agente) === nombreCanonico(ag))
-    return { m, pt: puesto.pt, lineas: s ? lineasDeLaFicha(s, m) : lineasDelMiembro(puesto.p, m), agente: ag }
-  })() : null
-  const posFicha = enFicha ? enFicha.pt : null
-
+  const quienEstaEnLaSala = useMemo(() => agentesEnLaSala(datos?.sala), [datos])
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
-      <style>{ESTILO + ESTILO_PANTALLAS + ESTILO_SALA}</style>
+      <style>{ESTILO + ESTILO_PANTALLAS + ESTILO_SALA + ESTILO_SILUETAS}</style>
       {hayFiguras && <FigurasSpline colocaciones={colocaciones} />}
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Las mesas de la oficina de marketing y quién trabaja ahora" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -161,9 +132,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* Sprint A · la pantalla de cada monitor: negra si nadie trabaja, viva según el oficio si alguien trabaja, roja si falló */}
         {mesas.map((m) => <PantallaDeLaMesa key={`pantalla-${m.clave}`} m={m} />)}
         {mesas.map((m) => {
-          const on = m.trabajando > 0 ? "ambar" : m.fallando > 0 ? "rojo" : ""
-          const puestos = puestosDelEquipo(m)
-          const deMas = m.equipo.filter((p) => !p.en_sala).length - puestos.length
+          const on = m.trabajando > 0 ? "ambar" : m.fallando > 0 ? "rojo" : "tenue" // sin nadie: brillo tenue (la oficina no se ve muerta; la pantalla sigue negra)
           const subtitulo = estadoDeLaMesa(m)
           return (
             <g key={m.clave} className="nv-av-mesa" data-mesa={m.clave} data-etapa={m.etapa} data-ocupada={m.sentados.length > 0} data-trabajando={m.trabajando} opacity={m.etapa === "segunda_etapa" && !m.sentados.length ? 0.75 : 1}>
@@ -180,21 +149,11 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
                   <text x={m.rotulo.x} y={m.rotulo.y + 24} textAnchor="middle" fill={m.sentados.length ? "#ffd9a0" : "#9a9a9a"} fontSize={17} fontFamily="system-ui, Arial, sans-serif">{subtitulo}</text>
                 </g>
               </g>
-              {/* los que caben, sentados en su puesto al frente del escritorio, de izquierda a derecha. Trabajando = brilla; sin trabajo = figura quieta (el monitor de la mesa sigue negro) */}
-              {[...puestos].sort((a, b) => a.pt.y - b.pt.y).map(({ p, pt }) => {
-                const k = `${m.clave}|${p.agente}`
-                return (
-                  <g key={k} className="nv-av-asiento" data-agente={p.agente} data-estado={p.estado} role="img" tabIndex={p.estado === "trabajando" || p.estado === "fallo" ? 0 : -1} aria-label={`${p.nombre}. ${m.nombre}. ${p.estado === "trabajando" ? "trabajando ahora" : p.estado === "fallo" ? "con fallo" : "sin trabajar ahora"}`}
-                    onMouseEnter={() => setFicha(k)} onMouseLeave={() => setFicha((f) => (f === k ? null : f))} onFocus={() => setFicha(k)} onBlur={() => setFicha((f) => (f === k ? null : f))}>
-                    <Figura x={pt.x} y={pt.y} color={m.color} estado={p.estado} />
-                    <rect x={pt.x - 30} y={pt.y - 92} width={60} height={100} />
-                  </g>
-                )
-              })}
-              {deMas > 0 && puestos.length > 0 && <text x={puestos[0].pt.x - 46} y={puestos[0].pt.y - 30} fill="#ffd9a0" fontSize={24} fontFamily="system-ui, Arial, sans-serif">+{deMas}</text>}
             </g>
           )
         })}
+        {/* 02-nov · sprint 1 · los agentes holográficos: solo los que trabajan ahora, una silla por escritorio y los que aportan de pie alrededor */}
+        <Siluetas mesas={mesas} enLaSala={quienEstaEnLaSala} />
         {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} />
         {/* trabajando ahora sin mesa conocida: se dice, no se inventa una mesa */}
@@ -202,15 +161,6 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           <text x={560} y={1120} fill="#bdb3a4" fontSize={18} fontFamily="system-ui, Arial, sans-serif" data-sin-mesa>sin equipo asignado · {datos.sin_mesa.map((s) => `${s.nombre} (${s.estado === "trabajando" ? "trabajando" : "falló"})`).join(" · ")}</text>
         )}
       </svg>
-      {/* la ficha al pasar el cursor por una figura */}
-      {enFicha && posFicha && (
-        <div role="tooltip" className="nv-av-ficha absolute z-[3] w-max max-w-[22rem] -translate-y-full rounded-xl border border-amber-400/60 bg-[#0e0c0a]/95 px-3.5 py-2.5 text-[12px] leading-[1.45] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
-          style={{ left: pct(posFicha.x + 24, FOTO.w), top: pct(posFicha.y - 96, FOTO.h) }} data-ficha={enFicha.agente}>
-          {enFicha.lineas.map((l, i) => (
-            <div key={i} className={i === 0 ? "text-[13px] font-semibold text-amber-100" : enFicha.lineas.length > 2 && i === enFicha.lineas.length - 1 ? "mt-1 text-[11px] text-zinc-500" : undefined}>{l}</div>
-          ))}
-        </div>
-      )}
       {/* S4 · el globo de la sala: el aporte del que está bajo el cursor, del que habla, o el resultado al centro al cerrar */}
       {(() => {
         const g = globoVisible(datos?.sala?.reunion, enSala)

@@ -94,12 +94,11 @@ describe("punto 1 · todos en su puesto", () => {
     expect(puestosDeLaMesa(MESAS[0], 0)).toEqual([])
     expect(puestosDeLaMesa(MESAS[0], 99)).toHaveLength(MAXIMO_DE_PUESTOS)
   })
-  it("la escena dibuja una figura por empleado: el monitor sigue negro si nadie trabaja, la figura de quien trabaja brilla", () => {
+  it("la escena (sprint 1, 02-nov) dibuja solo a quien trabaja ahora, como silueta de luz: el monitor sigue negro si nadie trabaja", () => {
     const datos = armarEscena(entrada({ despachos: [{ id: "d1", agent_name: "content-creator", client_id: NAUFRAGO, workflow_id: null, workflow_execution_id: "210300", status: "running", running_at: hace(3), completed_at: null, created_at: hace(3) }] }))
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: datos }))
-    const figuras = html.match(/class="nv-av-fig"/g)!.length
-    expect(figuras).toBe(datos.mesas.reduce((n, m) => n + Math.min(m.equipo.length, MAXIMO_DE_PUESTOS), 0)) // las que caben, sin amontonar
-    expect(html).toMatch(/>\+8</) // Creativo tiene 12 y caben 4: el resto se dice «+8»
+    expect(html.match(/class="nv-sil"/g)).toHaveLength(1) // solo content-creator trabaja: los demás no aparecen
+    expect(html).not.toMatch(/>\+\d+</)
     expect(html).toContain('data-estado="trabajando"')
   })
 })
