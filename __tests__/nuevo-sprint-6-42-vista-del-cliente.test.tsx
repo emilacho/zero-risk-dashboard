@@ -1,13 +1,14 @@
 /**
  * DASHBOARD NUEVO · SPRINT 6.42 · VISTA FINANCIERA DEL CLIENTE (boceto aprobado por Emilio 2-nov con 3 cambios): a un clic desde Dinero y desde el selector
- * de arriba; «lo que tienes que saber» en 3 líneas; tarjetas tipo Pulse; el negocio en UNA línea mientras no haya dato; preguntas que escriben en el chat.
+ * de arriba; «lo que tienes que saber» en 3 líneas; preguntas que escriben en el chat.
+ * 6.46 · v2 «solo dinero» (boceto aprobado 2-nov): los 4 números, mes a mes, costo por tipo con rehacer, pronóstico, costo por entrega y compartidos (regla A).
  */
 import { describe, expect, it, vi } from "vitest"
 import { readFileSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { clientesDelSelector, dineroDelCliente, rutaDelCliente, slugDeCliente, vistaDelCliente } from "@/lib/cliente-financiero"
-import { PRUEBAS_Y_FICHAS_VIEJAS, TRABAJO_INTERNO, type Dinero, type Movimiento } from "@/lib/dinero-completo"
+import { costoDeRehacer, PRUEBAS_Y_FICHAS_VIEJAS, TRABAJO_INTERNO, type Dinero, type Movimiento } from "@/lib/dinero-completo"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, refresh: () => {} }) }))
 
@@ -42,41 +43,56 @@ describe("6.42 · la ruta del cliente", () => {
   })
 })
 
-describe("6.42 · la vista", () => {
+describe("6.46 · la vista solo de dinero", () => {
   const v = vistaDelCliente(datos, "naufrago", "30", hoy)!
-  it("«lo que tienes que saber»: qué pasó · por qué · qué conviene, escrito por el código", () => {
-    expect(v.saber.que_paso).toContain("Náufrago gastó US$ 4,70 en los últimos 30 días")
-    expect(v.saber.por_que).toContain("planeación del plan de 90 días (US$ 2,20)")
-    expect(v.saber.que_conviene).toMatch(/^A este ritmo cierra el mes en US\$ /); expect(v.saber.que_conviene).toContain("holgado (28 %)")
+  it("«lo que tienes que saber»: 3 líneas, solo dinero", () => {
+    expect(v.saber.que_paso).toBe("Náufrago costó US$ 4,70 en los últimos 30 días (antes US$ 0,00). Con su parte de lo compartido, US$ 5,31.")
+    expect(v.saber.por_que).toBe("Lo que más costó: planeación (US$ 2,20) y alta (US$ 2,00).")
+    expect(v.saber.que_conviene).toContain("A este ritmo cierra el mes en US$ 4,89."); expect(v.saber.que_conviene).toContain("falta registrar lo que se le cobra")
   })
-  it("cambio 3 de Emilio: «N vueltas de la planeación», no «planes»", () => {
-    const plan = v.tarjetas.find((t) => t.clave === "plan")!
-    expect(plan.variacion?.texto).toBe("2 vueltas de la planeación"); expect(plan.valor).toBe("US$ 1,10")
-    expect(JSON.stringify(v)).not.toMatch(/planes en|planes hechos/)
+  it("los 4 números: sin ingreso, ganancia y margen quedan «sin dato» (null), nunca un ejemplo", () => {
+    expect(v.numeros).toMatchObject({ ingreso: null, costo: 4.7, costo_anterior: 0, ganancia: null, margen_pct: null, costo_con_compartido: 5.31 })
   })
-  it("tarjetas tipo Pulse: número, tendencia, variación y una línea; margen sin dato", () => {
-    expect(v.tarjetas.map((t) => t.clave)).toEqual(["gasto", "proyeccion", "freno", "rehacer", "plan", "manual", "pieza", "margen"])
-    expect(v.tarjetas.find((t) => t.clave === "margen")!.valor).toBeNull()
-    expect(v.tarjetas.find((t) => t.clave === "pieza")!.valor).toBe("US$ 1,50")
-    expect(v.tarjetas.find((t) => t.clave === "rehacer")!.valor).toBe("US$ 1,20")
-    for (const t of v.tarjetas) expect(t.lectura.length).toBeGreaterThan(5)
+  it("costo por tipo suma el costo; rehacer es la MISMA cuenta de Dinero y va «de eso», no sumado", () => {
+    expect(v.por_tipo.map((t) => t.tipo)).toEqual(["Planeación", "Alta", "Otros"])
+    expect(Math.round(v.por_tipo.reduce((s, t) => s + t.usd, 0) * 100) / 100).toBe(v.numeros.costo)
+    const d = dineroDelCliente(datos, "naufrago")!.dinero, r = { desde: "2026-10-04", hasta: hoy }
+    expect(v.rehacer.usd).toBe(Math.round(costoDeRehacer(d, r).reduce((s, x) => s + (x.usd ?? 0), 0) * 100) / 100)
+    expect(v.rehacer.usd).toBe(1.2)
   })
-  it("cambio 2 de Emilio: el negocio va en UNA línea mientras no haya dato", () => { expect(v.negocio).toBe("Cómo le va al negocio: sin dato todavía") })
-  it("preguntas sugeridas con el nombre del cliente", () => {
-    expect(v.preguntas).toContain("¿Por qué subió el gasto de Náufrago?"); expect(v.preguntas).toContain("¿Cuánto me costó el plan de Náufrago?")
-    expect(v.preguntas).toContain("¿Por qué se devolvieron piezas de Náufrago?")
+  it("mes a mes desde el primer mes con datos hasta el mes en curso; sin ingreso todavía", () => {
+    expect(v.meses.map((x) => [x.rotulo, x.costo, x.en_curso])).toEqual([["sep", 0, false], ["oct", 4.2, false], ["nov", 0.5, true]])
+    expect(v.meses.every((x) => x.ingreso === null)).toBe(true)
+  })
+  it("costo por entrega: vuelta del plan, manual y pieza aprobada con su comparación", () => {
+    expect(v.entregas.map((e) => [e.clave, e.ahora, e.cuantos])).toEqual([["plan", 1.1, 2], ["manual", 2, 1], ["pieza", 1.5, 1]])
+    expect(vistaDelCliente(datos, "naufrago", "7", hoy)!.entregas[0]).toMatchObject({ ahora: null, antes: 1.1, nota: "ninguna en el período" })
+  })
+  it("compartidos con la regla A: proporcional al gasto directo; pruebas no se reparten", () => {
+    expect(v.compartido).toMatchObject({ interno: 1, cuota_pct: 61, toca: 0.61, real: 5.31 })
+    expect(v.compartido.regla).toMatch(/^Se reparte en proporción al gasto directo/)
+  })
+  it("pronóstico: cierre, freno; presupuesto y margen esperado sin dato", () => {
+    expect(v.pronostico).toMatchObject({ cierre: 4.89, presupuesto: null, margen_esperado: null, avisos: [] }); expect(v.pronostico.freno?.pct).toBe(28)
+  })
+  it("preguntas solo de dinero, con el nombre del cliente; nada de «qué me espera» ni conteo de piezas", () => {
+    expect(v.preguntas).toEqual(["¿Por qué subió el costo de Náufrago?", "¿Cuánto me cuesta Náufrago con lo compartido?", "¿A cuánto cierra el mes Náufrago?"])
+    expect(JSON.stringify(v)).not.toMatch(/me espera|aprobación|piezas devueltas de/)
   })
 })
 
-describe("6.42 · en pantalla", () => {
-  it("panel con el chat visible, 8 tarjetas, el negocio en una línea, preguntas y el detalle plegado", async () => {
+describe("6.46 · en pantalla", () => {
+  it("panel con el chat visible y los bloques del boceto v2 en orden; el detalle plegado", async () => {
     const { PanelCliente } = await import("@/components/nuevo/PanelCliente")
     const h = renderToStaticMarkup(createElement(PanelCliente, { slug: "naufrago", datosIniciales: datos })).replace(/<!-- -->/g, "")
     expect(h).toMatch(/^<div class="nv-panel fixed inset-0 z-\[70\]/)
-    expect(h.match(/data-tarjeta-cliente=/g)).toHaveLength(8); expect(h.match(/data-negocio/g)).toHaveLength(1)
-    expect(h).not.toContain('data-tarjeta-cliente="ventas"')
-    expect(h.match(/data-saber-linea=/g)).toHaveLength(3); expect(h).toContain("data-pregunta=")
-    expect(h.match(/<details/g)).toHaveLength(4); expect(h).not.toContain("<details open")
+    const orden = ["data-saber", "data-cuatro-numeros", "data-mes-a-mes", "data-ingreso", "data-costo-por-tipo", "data-pronostico", "data-entregas", "data-compartidos", "data-pregunta=", "data-detalles"]
+    const pos = orden.map((x) => h.indexOf(x)); expect(pos.every((x) => x > 0)).toBe(true); expect([...pos].sort((a, b) => a - b)).toEqual(pos)
+    expect(h.match(/data-numero=/g)).toHaveLength(4); expect(h.match(/data-entrega=/g)).toHaveLength(3)
+    expect(h.match(/data-sin-dato-todavia/g)!.length).toBeGreaterThanOrEqual(7)
+    expect(h).not.toMatch(/Qué me espera|data-tarjeta-cliente|data-negocio|¿Cuál regla/)
+    expect(h.match(/data-saber-linea=/g)).toHaveLength(3); expect(h).toContain("data-rehacer"); expect(h).toContain("data-regla")
+    expect(h).not.toContain("<details open")
     expect(h).toContain('href="/nuevo/cliente/naufrago"'); expect(h).toContain("comparado con los 30 días anteriores")
    }, 60000)
   it("las preguntas escriben en el chat de CC2 sin tocar su código", () => {
@@ -112,8 +128,8 @@ describe("6.42 · sin porcentajes absurdos", () => {
   it("si antes casi no hubo gasto, dice de cuánto partió en vez de «subió 7638 %»", () => {
     const d2: Dinero = { ...datos, movimientos: [m("2026-10-22", 0.05), m("2026-11-01", 10)] }
     const v = vistaDelCliente(d2, "naufrago", "7", hoy)!
-    expect(v.saber.que_paso).toBe("Náufrago gastó US$ 10,00 en los últimos 7 días; en los 7 días anteriores casi no tuvo gasto (US$ 0,05).")
-    expect(v.tarjetas[0].variacion?.texto).toBe("▲ desde US$ 0,05")
+    expect(v.saber.que_paso).toBe("Náufrago costó US$ 10,00 en los últimos 7 días; en los 7 días anteriores casi no tuvo costo (US$ 0,05).")
+    expect(v.saber.por_que).toContain("otros · US$ 10,00")
   })
 })
 

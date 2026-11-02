@@ -22,7 +22,9 @@ const CRUDO = {
 
 describe("6.23 · REGLA · nada de avisos de gasto en botones ni pantallas de /nuevo", () => {
   // el panel del plan es de CC6 (lo corrige en su cola); el resto de los paneles ya no avisa gasto
-  const PANELES = readdirSync("components/nuevo").filter((f) => /^Panel.*\.tsx$/.test(f) && f !== "PanelPlan.tsx" && f !== "PanelDinero.tsx")
+  const PANELES = readdirSync("components/nuevo").filter((f) => /^Panel.*\.tsx$/.test(f) && f !== "PanelPlan.tsx" && f !== "PanelDinero.tsx"
+    // 6.46 · la vista financiera del cliente ES parte de Dinero (se abre desde «Ver cliente ↗»; boceto v2 «solo dinero» aprobado por Emilio 2-nov)
+    && f !== "PanelCliente.tsx")
   it.each(PANELES)("%s no muestra costos, topes ni «vuelve a gastar»", (f) => {
     const s = readFileSync(`components/nuevo/${f}`, "utf8")
     expect(s).not.toMatch(/data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|data-costo|Sin costo ·/)
