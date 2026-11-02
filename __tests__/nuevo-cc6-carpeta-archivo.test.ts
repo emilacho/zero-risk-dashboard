@@ -1,5 +1,6 @@
 /** LA CARPETA «ARCHIVO · CAMPAÑA ANTERIOR» (CC6 · 03-nov · corrección 3 de Lenovo · marca de CC1 #852: `archivada_en`). Se mira, no se aprueba; las piezas se recuperan. US$ 0 · sin red. */
 import { describe, expect, it } from "vitest"
+import { readFileSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
@@ -7,7 +8,8 @@ import { ArchivoDelCalendario, PanelPizarron } from "@/components/nuevo/PanelPiz
 import { arbolDeLaBandeja, CARPETA_ARCHIVO, CARPETA_OTRAS } from "@/lib/bandeja"
 import { ACCIONES } from "@/lib/tablero-acciones"
 import { faseActiva, semanasDelTablero, totalesDelTablero, type FilaDelTablero } from "@/lib/pizarron"
-import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
+import { cargarPieza, type DetalleDeLaPieza, type FilaDeLaLista } from "@/lib/piezas-datos"
+import { leerPizarron } from "@/lib/pizarron-datos"
 
 const N = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312"
 const HITL = "70b922a5-e9f8-4f48-9134-24f3418d9a0b"
@@ -41,5 +43,38 @@ describe("el archivo de una campaña anterior", () => {
     expect(h).toMatch(/<details data-carpeta-archivo/); expect(h).not.toMatch(/<details data-carpeta-archivo[^>]* open/) // plegada
     expect(h).toContain('data-dia="2026-11-02"'); expect(h).not.toContain('data-dia="2026-11-03"') // lo archivado no entra a las semanas
     expect(renderToStaticMarkup(createElement(ArchivoDelCalendario, { filas: archivo }))).not.toMatch(/<button/) // solo se mira
+  })
+  // reservas G4 y G7 de CC3 (#199): la LECTURA (no solo la pantalla) deja lo archivado fuera, y el detalle de la pieza conserva su marca
+  const base = (tablas: Record<string, Array<Record<string, unknown>>>) => ({ from: (t: string) => {
+    let d = [...(tablas[t] ?? [])]
+    const q: Record<string, unknown> = {}
+    for (const m of ["select", "order", "limit", "like", "gte", "neq", "not"]) q[m] = () => q
+    q.eq = (c: string, v: unknown) => { d = d.filter((f) => f[c] === v); return q }
+    q.in = (c: string, v: unknown[]) => { d = d.filter((f) => v.includes(f[c])); return q }
+    q.is = (c: string, v: unknown) => { d = d.filter((f) => (f[c] ?? null) === v); return q }
+    q.maybeSingle = () => Promise.resolve({ data: d[0] ?? null, error: null })
+    q.then = (ok: (r: unknown) => unknown) => Promise.resolve({ data: d, error: null }).then(ok)
+    return q
+  } }) as never
+  it("G4 · la lectura del calendario saca lo archivado de las filas, las semanas y las cuentas, y lo entrega aparte", async () => {
+    const C = "c1"
+    const fl = (id: string, fecha: string, archivada_en: string | null = null) => ({ campana_id: C, calendario_version: 1, id, fecha, hora: "08:00:00", red: "instagram", formato: "historia", tema: id, estado: "validada", seco: false, avisos: [], pendientes: [], archivada_en })
+    const p = await leerPizarron(base({
+      clients: [{ id: N, name: "Náufrago", industry: "restaurante", status: "active", archived_at: null }],
+      cadena_campanas: [{ id: C, client_id: N, estado: "reemplazada", fecha_inicio: "2026-11-02", seco: false, creada_en: "2026-10-30" }],
+      cadena_calendario_filas: [fl("viva", "2026-11-02"), fl("arch1", "2026-11-03", "2026-11-02T16:40:05Z"), fl("arch2", "2026-11-04", "2026-11-02T16:40:05Z")],
+    }), { cliente: N, ahora: new Date("2026-11-02T12:00:00Z") })
+    expect(p.filas.map((f) => f.id)).toEqual(["viva"]); expect(p.archivo?.map((f) => f.id)).toEqual(["arch1", "arch2"])
+    expect(p.totales).toEqual({ idea: 1 }); expect(p.semanas.flatMap((s) => s.dias.flatMap((d) => d.publicaciones.map((x) => x.id)))).toEqual(["viva"])
+  })
+  it("G7 · el detalle de una pieza archivada conserva su marca (y la recuperada, la suya)", async () => {
+    const hitl = { id: HITL, status: "rejected", type: "content_piece_review", client_id: null, created_at: "2026-10-31T13:38:01Z", title: "x", output_preview: null, decision: {}, metadata: {}, archivada_en: "2026-11-02T16:40:05Z" }
+    expect((await cargarPieza(base({ hitl_queue: [hitl] }), HITL))?.archivada).toBe(true)
+    const vuelta = { ...hitl, archivada_en: null, status: "pending", metadata: { recuperada_del_archivo: true } }
+    const d = await cargarPieza(base({ hitl_queue: [vuelta] }), HITL)
+    expect(d?.archivada).toBe(false); expect(d?.recuperada_del_archivo).toBe(true)
+  })
+  it("la escena de la oficina no cuenta como pendiente una pieza archivada (reserva de CC3 a #199)", () => {
+    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toMatch(/from\("hitl_queue"\)\.select\("id, expires_at"\)\.eq\("status", "pending"\)\.is\("archivada_en", null\)/)
   })
 })
