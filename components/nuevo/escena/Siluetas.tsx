@@ -7,6 +7,7 @@ import { descripcionDelHolograma } from "@/lib/holograma"
 import { mesaPorClave, type MesaViva, type Punto } from "@/lib/escena-avatares"
 import type { ReunionDeLaSala } from "@/lib/escena-sala"
 import { nombreCanonico } from "@/lib/organigrama"
+import { LUGAR_DEL_PIZARRON, MAXIMO_JUNTOS_EN_EL_PIZARRON, PUESTOS_EN_EL_PIZARRON, TARJETA_MS, type EntregaViva } from "@/lib/escena-entregas"
 
 /**
  * LOS AGENTES HOLOGRÁFICOS DE LA OFICINA (CC4 · 02-nov · sprints 1 y 2 + la sala): UN solo dueño de toda la animación, de punta a punta.
@@ -23,11 +24,13 @@ type Accion =
   | { k: "fade"; a: 0 | 1; dur: number }
 interface Camina {
   clave: string; agente: string; nombre: string; mesa: string; color: string; descripcion: string
-  pos: Punto; sentadoK: number; fallo: boolean; habla: boolean; cabecera: boolean
+  pos: Punto; sentadoK: number; fallo: boolean; habla: boolean; cabecera: boolean; corrige: boolean
   op: number; lugar: "mesa" | "sala"; caminando: boolean
   acciones: Accion[]; t0: number; ini: number
 }
-interface Deseo { agente: string; nombre: string; mesa: string; color: string; pos: Punto; sentado: boolean; lugar: "mesa" | "sala"; fallo: boolean; habla: boolean; cabecera: boolean }
+interface Deseo { agente: string; nombre: string; mesa: string; color: string; pos: Punto; sentado: boolean; lugar: "mesa" | "sala"; fallo: boolean; habla: boolean; cabecera: boolean; corrige?: boolean; /** de dónde viene caminando si aparece ahora (sprint 3) */ desde?: Punto }
+/** una entrega que lleva su pieza al pizarrón: llega a su escritorio, camina al pizarrón, deja la tarjeta y vuelve */
+interface Visita { entrega: EntregaViva; fase: "llega" | "ida" | "vuelta"; slot: number; silla: Punto; color: string; mesa: string }
 const FADE_MS = 600, LEVANTA_MS = 550, SIENTA_MS = 650
 export const ESTILO_SILUETAS = `
 .nv-av .nv-holo{filter:drop-shadow(0 0 5px rgba(255,170,60,.75))}
@@ -52,7 +55,7 @@ const suave = (f: number) => (f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) 
 const dentroDeLaSala = (p: Punto): boolean => p.x > 1300 && p.x < 1500 && p.y > 405 && p.y < 585
 const pegar = (...rutas: Punto[][]): Punto[] => rutaPorVarios(rutas.flat())
 
-export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onSentados }: {
+export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onSentados, entregas, onTarjeta }: {
   mesas: MesaViva[]
   /** la reunión real de la sala (de CC6): quién, en qué silla, quién habla; `null` = sin reunión */
   reunion?: ReunionDeLaSala | null
@@ -62,27 +65,66 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onS
   onTocar?: (agente: string) => void
   /** 03-nov · quiénes están SENTADOS en la sala ahora (nombres canónicos): la sala dibuja el globito de cada uno solo mientras su silueta sigue sentada */
   onSentados?: (agentes: Set<string>) => void
+  /** sprint 3 · las entregas vigentes: una NUEVA (que no estaba en la lectura anterior) manda a su autor a dejar la tarjeta en el pizarrón */
+  entregas?: EntregaViva[]
+  /** la tarjeta que está frente al pizarrón ahora (null = ninguna) */
+  onTarjeta?: (e: EntregaViva | null) => void
 }) {
+  const [visitas, setVisitas] = useState<Map<string, Visita>>(new Map())
+  const [excedentes, setExcedentes] = useState(0)
   // lo que DEBE verse ahora: los de la reunión, sentados en su silla; y los demás que trabajan, en su escritorio
   const deseos = useMemo(() => {
     const m = new Map<string, Deseo>()
     const enCurso = reunion?.estado === "en_curso" ? reunion : null
     for (const mesa of mesas) {
       const visibles = { ...mesa, sentados: mesa.sentados.filter((s) => !enLaSala.has(nombreCanonico(s.agente))) }
-      for (const p of repartirEnLaMesa(visibles).puestos) m.set(nombreCanonico(p.s.agente), { agente: p.s.agente, nombre: p.s.nombre, mesa: mesa.nombre, color: mesa.color, pos: p.pos, sentado: p.postura === "sentado", lugar: "mesa", fallo: p.s.estado === "fallo", habla: false, cabecera: false })
+      for (const p of repartirEnLaMesa(visibles).puestos) m.set(nombreCanonico(p.s.agente), { agente: p.s.agente, nombre: p.s.nombre, mesa: mesa.nombre, color: mesa.color, pos: p.pos, sentado: p.postura === "sentado", lugar: "mesa", fallo: p.s.estado === "fallo", habla: false, cabecera: false, corrige: p.s.corrige === true, desde: p.s.viene_de ? mesaPorClave(p.s.viene_de)?.silla : undefined })
     }
+    // sprint 3 · quien lleva una entrega al pizarrón: de pie en su escritorio, luego frente al pizarrón, luego de vuelta
+    for (const [k, v] of visitas) m.set(k, { agente: v.entrega.agente ?? k, nombre: v.entrega.nombre ?? k, mesa: v.mesa, color: v.color, pos: v.fase === "ida" ? PUESTOS_EN_EL_PIZARRON[v.slot] : v.silla, sentado: false, lugar: "mesa", fallo: false, habla: false, cabecera: false })
     for (const p of enCurso?.participantes ?? []) {
       if (!p.silla) continue
       m.set(nombreCanonico(p.agente), { agente: p.agente, nombre: p.nombre, mesa: p.equipo, color: (p.mesa ? mesaPorClave(p.mesa)?.color : null) ?? "#f5a524", pos: p.silla, sentado: true, lugar: "sala", fallo: p.estado === "fallo", habla: p.estado === "hablando", cabecera: p.cabecera })
     }
     return m
-  }, [mesas, reunion, enLaSala])
+  }, [mesas, reunion, enLaSala, visitas])
+
+  // sprint 3 · la entrega NUEVA manda a su autor al pizarrón. La primera lectura no cuenta (nada de teatro por cada recarga). Los tiempos son de la escena, no del dato.
+  const vistas = useRef<Set<string> | null>(null)
+  const temporizadores = useRef<number[]>([])
+  const visitasRef = useRef(visitas); visitasRef.current = visitas
+  useEffect(() => () => { temporizadores.current.forEach((x) => window.clearTimeout(x)); temporizadores.current = [] }, [])
+  useEffect(() => {
+    if (!entregas) return
+    if (vistas.current === null) { vistas.current = new Set(entregas.map((e) => e.id)); return }
+    const nuevas = entregas.filter((e) => !vistas.current!.has(e.id))
+    for (const e of entregas) vistas.current.add(e.id)
+    const quieto = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    for (const e of nuevas) {
+      const mesa = e.mesa ? mesas.find((q) => q.clave === e.mesa) : undefined
+      const k = e.agente ? nombreCanonico(e.agente) : null
+      const espera = (ms: number, f: () => void) => { temporizadores.current.push(window.setTimeout(f, ms)) }
+      if (quieto || !mesa || !k) { onTarjeta?.(e); espera(TARJETA_MS, () => onTarjeta?.(null)); continue } // sin movimiento: solo la tarjeta
+      const usados = new Set([...visitasRef.current.values()].map((v) => v.slot))
+      const slot = [...Array(MAXIMO_JUNTOS_EN_EL_PIZARRON).keys()].find((i) => !usados.has(i))
+      if (slot === undefined || visitasRef.current.has(k)) { setExcedentes((n) => n + 1); espera(TARJETA_MS, () => setExcedentes((n) => Math.max(0, n - 1))); continue } // se amontonan: se agrupan con «+N»
+      const silla = { x: mesa.silla.x, y: mesa.silla.y }
+      const cambiar = (fase: Visita["fase"] | null) => setVisitas((prev) => { const m = new Map(prev); if (!fase) m.delete(k); else m.set(k, { entrega: e, fase, slot, silla, color: mesa.color, mesa: mesa.nombre }); return m })
+      const ida = duracionDelRecorrido(rutaPorLasLineas(silla, PUESTOS_EN_EL_PIZARRON[slot]), 7000)
+      cambiar("llega")
+      espera(1300, () => cambiar("ida"))
+      espera(1300 + ida + 400, () => onTarjeta?.(e))
+      espera(1300 + ida + 400 + TARJETA_MS, () => { onTarjeta?.(null); cambiar("vuelta") })
+      espera(1300 + ida + 400 + TARJETA_MS + ida + 900, () => cambiar(null))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entregas])
 
   const almacen = useRef<Map<string, Camina> | null>(null)
   const primera = useRef(true)
   const nuevoCamina = (k: string, d: Deseo, o: Partial<Camina> = {}): Camina => ({
     clave: k, agente: d.agente, nombre: d.nombre, mesa: d.mesa, color: d.color, descripcion: descripcionDelHolograma(d.agente), pos: d.pos, sentadoK: d.sentado ? 1 : 0, fallo: d.fallo, habla: d.habla, cabecera: d.cabecera,
-    op: 1, lugar: d.lugar, caminando: false, acciones: [], t0: 0, ini: 1, ...o,
+    corrige: d.corrige === true, op: 1, lugar: d.lugar, caminando: false, acciones: [], t0: 0, ini: 1, ...o,
   })
   // los que ya están al abrir la escena están en su sitio desde el primer cuadro (nada de entrada teatral por cada recarga)
   if (almacen.current === null) { const m = new Map<string, Camina>(); for (const [k, d] of deseos) m.set(k, nuevoCamina(k, d)); almacen.current = m }
@@ -116,11 +158,12 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onS
         if (esPrimera) { a.set(k, nuevoCamina(k, d)); continue }
         // aparece: quien se sienta en la sala sin haber estado en un escritorio entra por la puerta; quien llega a su escritorio se enciende ahí
         const n = d.lugar === "sala" ? nuevoCamina(k, d, { pos: LUGARES.sala, sentadoK: 0, op: 0, lugar: "sala" }) : nuevoCamina(k, d, { op: 0 })
+        if (d.desde && d.lugar === "mesa" && !sinAnimar) { const ruta = rutaPorLasLineas(d.desde, d.pos); n.pos = d.desde; n.sentadoK = 0; n.acciones = [{ k: "fade", a: 1, dur: FADE_MS }, { k: "camina", ruta, dur: duracionDelRecorrido(ruta, 7000) }]; a.set(k, n); continue }
         n.acciones = [{ k: "fade", a: 1, dur: FADE_MS }, ...(d.lugar === "sala" ? [{ k: "camina", ruta: rutaDeLaPuertaALaSilla(d.pos), dur: duracionDelRecorrido(rutaDeLaPuertaALaSilla(d.pos), 7000) } as Accion, { k: "sienta", dur: SIENTA_MS } as Accion] : d.sentado ? [] : [])]
         n.lugar = d.lugar; n.pos = d.lugar === "sala" ? LUGARES.sala : d.pos
         a.set(k, n); continue
       }
-      c.fallo = d.fallo; c.habla = d.habla; c.nombre = d.nombre; c.cabecera = d.cabecera; c.color = d.color; c.mesa = d.mesa
+      c.fallo = d.fallo; c.corrige = d.corrige === true; c.habla = d.habla; c.nombre = d.nombre; c.cabecera = d.cabecera; c.color = d.color; c.mesa = d.mesa
       const destinoActual = c.acciones.length ? (() => { const cam = [...c.acciones].reverse().find((x) => x.k === "camina") as Extract<Accion, { k: "camina" }> | undefined; return cam ? cam.ruta[cam.ruta.length - 1] : c.pos })() : c.pos
       const yaVa = c.acciones.length > 0 && Math.hypot(destinoActual.x - d.pos.x, destinoActual.y - d.pos.y) < 1 && c.lugar === d.lugar
       if (c.op < 1 && !c.acciones.some((x) => x.k === "fade" && x.a === 1) && !yaVa) c.acciones = [{ k: "fade", a: 1, dur: FADE_MS }, ...c.acciones.filter((x) => x.k !== "fade")]
@@ -192,7 +235,7 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onS
         const estado = c.fallo ? "falla" : c.caminando ? "camina" : "trabajando"
         const k = c.sentadoK
         return (
-          <g key={c.clave} className="nv-sil" data-agente={c.agente} data-lugar={c.lugar} data-postura={k > 0.5 ? "sentado" : "de_pie"} data-estado={c.fallo ? "fallo" : "trabajando"} data-habla={c.habla} data-cabecera={c.cabecera} data-caminando={c.caminando ? "true" : undefined}
+          <g key={c.clave} className="nv-sil" data-agente={c.agente} data-lugar={c.lugar} data-postura={k > 0.5 ? "sentado" : "de_pie"} data-estado={c.fallo ? "fallo" : "trabajando"} data-habla={c.habla} data-cabecera={c.cabecera} data-corrige={c.corrige ? "true" : undefined} data-caminando={c.caminando ? "true" : undefined}
             opacity={c.op} transform={`translate(${c.pos.x.toFixed(1)} ${c.pos.y.toFixed(1)})`} role="img" tabIndex={0} aria-label={`${c.nombre}. ${c.mesa}. ${c.fallo ? "con fallo" : c.habla ? "hablando ahora" : "trabajando ahora"}. ${c.descripcion}${c.lugar === "sala" ? ". Ver su aporte completo" : ""}`}
             onMouseEnter={c.lugar === "sala" && onFoco ? () => onFoco(c.agente) : undefined} onMouseLeave={c.lugar === "sala" && onFoco ? () => onFoco(null) : undefined}
             onFocus={c.lugar === "sala" && onFoco ? () => onFoco(c.agente) : undefined} onBlur={c.lugar === "sala" && onFoco ? () => onFoco(null) : undefined}
@@ -200,11 +243,18 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onS
             {c.habla && <ellipse className="nv-sil-halo" cx={0} cy={-40} rx={34} ry={46} fill="url(#nv-av-ambar)" />}
             {k < 0.99 && <g opacity={1 - k} transform={`translate(0 ${(12 * k).toFixed(1)})`}><HologramaFigura semilla={c.agente} color={c.color} postura="de_pie" estado={estado} /></g>}
             {k > 0.01 && <g opacity={k}><HologramaFigura semilla={c.agente} color={c.color} postura="sentado" estado={c.fallo ? "falla" : "trabajando"} /></g>}
+            {c.corrige && <g data-marca-corrige transform="translate(0 -100)"><rect x={-27} y={-12} width={54} height={20} rx={10} fill="#0e0c0a" fillOpacity={0.9} stroke="#ffb347" strokeOpacity={0.85} /><text y={3} textAnchor="middle" fill="#ffd9a0" fontSize={13} fontFamily="system-ui, Arial, sans-serif">corrige</text></g>}
             <rect x={-22} y={-86} width={44} height={96} fill="transparent" />
             <text className="nv-sil-nombre" y={-92} textAnchor="middle" fill="#ffe2a8" fontSize={17} fontFamily="system-ui, Arial, sans-serif" stroke="#000" strokeWidth={3} paintOrder="stroke">{c.nombre}{c.cabecera ? " · dirige" : ""}</text>
           </g>
         )
       })}
+      {excedentes > 0 && (
+        <g data-de-mas="centro-de-campana" transform={`translate(${LUGAR_DEL_PIZARRON.x + 52} ${LUGAR_DEL_PIZARRON.y - 40})`} aria-label={`${excedentes} más dejando su entrega en el centro de campaña`}>
+          <rect x={-20} y={-14} width={40} height={26} rx={13} fill="#0e0c0a" fillOpacity={0.88} stroke="#ffb347" strokeOpacity={0.75} />
+          <text y={5} textAnchor="middle" fill="#ffd9a0" fontSize={17} fontFamily="system-ui, Arial, sans-serif">+{excedentes}</text>
+        </g>
+      )}
       {deMas.map(({ m, n }) => {
         const p = puntoDelMas(m)
         return (

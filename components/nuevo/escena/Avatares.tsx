@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
+import { asignarRanuras, CuadrosDelPizarron, ESTILO_ENTREGAS, LuzDeFirma, TarjetaDeLaEntrega } from "@/components/nuevo/escena/EntregasEnLaFoto"
+import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
 import { ESTILO_PANTALLAS, PantallaDeLaMesa } from "@/components/nuevo/escena/PantallaDeLaMesa"
@@ -118,11 +120,15 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
   const [sentadosEnSala, setSentadosEnSala] = useState<Set<string>>(new Set())
+  const [tarjeta, setTarjeta] = useState<EntregaViva | null>(null) // sprint 3 · la entrega que se está dejando ahora en el pizarrón
+  const entregasVigentes = datos?.entregas?.entregas ?? []
+  const ranuras = useRef<Array<string | null>>([])
+  ranuras.current = asignarRanuras(ranuras.current, entregasVigentes)
   const globoActual = globoVisible(datos?.sala?.reunion, enSala)
   const quienEstaEnLaSala = useMemo(() => agentesEnLaSala(datos?.sala), [datos])
   return (
     <div className="nv-av absolute inset-0" data-escena-viva data-leido={datos?.leido_en ?? ""} data-error={error ?? ""}>
-      <style>{ESTILO + ESTILO_PANTALLAS + ESTILO_SALA + ESTILO_SILUETAS}</style>
+      <style>{ESTILO + ESTILO_PANTALLAS + ESTILO_SALA + ESTILO_SILUETAS + ESTILO_ENTREGAS}</style>
       {hayFiguras && <FigurasSpline colocaciones={colocaciones} />}
       <svg viewBox={`0 0 ${FOTO.w} ${FOTO.h}`} className="absolute inset-0 h-full w-full" role="group" aria-label="Las mesas de la oficina de marketing y quién trabaja ahora" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -156,7 +162,12 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* S3 · la sala de reuniones: la reunión real con sus participantes sentados; sin reunión, vacía */}
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} sentados={sentadosEnSala} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
-        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} onSentados={setSentadosEnSala} />
+        {/* sprint 3 · el pizarrón: un cuadro encendido por entrega vigente (máx. 12) */}
+        <CuadrosDelPizarron entregas={entregasVigentes} ranuras={ranuras.current} oculta={tarjeta?.id ?? null} />
+        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
+        <TarjetaDeLaEntrega e={tarjeta} />
+        {/* sprint 3 · la luz de firma: el panel del borde derecho, hacia Tu oficina */}
+        <LuzDeFirma pendientes={datos?.entregas?.firma.pendientes ?? 0} />
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {salaAbierta && (

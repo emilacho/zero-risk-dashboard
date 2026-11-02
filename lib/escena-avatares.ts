@@ -19,6 +19,7 @@ import { leerElCiclo } from "@/lib/plan"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { nombreLegible } from "@/lib/trabajo-en-vivo"
 import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
+import type { EntregasDeLaEscena } from "@/lib/escena-entregas"
 
 export const FOTO = { w: 2560, h: 1440 } as const
 /** «12:15» en hora de Ecuador (UTC-5, sin horario de verano) */
@@ -191,6 +192,10 @@ export interface Sentado {
   /** de dónde salió cada cosa */
   fuente: string
   origen_de_la_mesa: OrigenDeLaMesa
+  /** sprint 3 · la jefatura devolvió su pieza y vuelve a su escritorio a corregir: lleva la marca «corrige» */
+  corrige?: boolean
+  /** sprint 3 · el escritorio del que viene caminando (quien entregó y lleva su pieza al escritorio de Dirección) */
+  viene_de?: ClaveDeMesa
 }
 export interface MiembroDeMesa { agente: string; nombre: string; estado: EstadoDelMiembro; ultima: string | null; hace: string; nota: string | null; origen_de_la_mesa: OrigenDeLaMesa; /** está ahora en la sala de reuniones: no se dibuja en su puesto */ en_sala?: boolean }
 export interface MesaViva extends Mesa { sentados: Sentado[]; equipo: MiembroDeMesa[]; trabajando: number; fallando: number; /** firmados en el mapa que todavía no están instalados: se dicen, no se sientan */ por_instalar?: string[] }
@@ -206,6 +211,8 @@ export interface EscenaDatos {
   sala?: SalaDeReuniones
   /** en qué se trabaja: el cliente y el momento de su campaña, en lenguaje de oficina (null si no se pudo leer) */
   contexto?: { cliente: string; momento: string } | null
+  /** sprint 3 · lo que se entregó (pizarrón), las revisiones de la jefatura y las firmas que esperan a Emilio; ausente = no se pudo leer (la escena sigue sin eso) */
+  entregas?: EntregasDeLaEscena
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
