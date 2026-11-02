@@ -8,8 +8,8 @@ export type Forma = "arriba" | "sube" | "estable" | "baja" | "cae"
 export interface Dimension { n: number; nombre: string; puntaje: number | null; valor: string | null; detalle: string; cuenta: boolean }
 export interface Rendimiento { agente: string; revisadas: number; previas: number; forma: Forma | null; motivo_sin_flecha: string | null; puntaje: number | null; puntaje_previo: number | null; dimensiones: Dimension[] }
 
-/** una revisión de la jefatura de una entrega del empleado: su resultado y cuántas observaciones que bloquean le hizo */
-export interface RevisionCruda { creado_en: string; resultado: string; bloqueos: number }
+/** una revisión de la jefatura de una entrega del empleado: su resultado y si se la DEVOLVIERON (la jefatura le pidió corregir, o Emilio pidió cambios o la rechazó) */
+export interface RevisionCruda { creado_en: string; resultado: string; devuelta: boolean }
 export interface TrabajoCrudo { creado_en: string; status: string; stop_reason: string | null; num_turns: number | null; brain_hit: boolean | null; cost_usd: number | null; duration_ms: number | null }
 export interface EscaladaCruda { creado_en: string }
 
@@ -40,9 +40,9 @@ const seg = (ms: number) => `${Math.round(ms / 1000)} s`
 
 /** el puntaje 0–100 de un tramo (las revisiones, y el trabajo y las escaladas de su mismo periodo) y el detalle de cada dimensión */
 function tramo(revs: RevisionCruda[], trabajos: TrabajoCrudo[], escaladas: EscaladaCruda[], todos: TrabajoCrudo[]): { puntaje: number | null; dimensiones: Dimension[] } {
-  // 1 · aprobado a la primera: «limpia» o «con desacuerdo» sin ninguna observación que bloquee (si bloqueó, se la devolvieron a corregir); por tope o fallida no cuentan
+  // 1 · aprobado a la primera: «limpia» o «con desacuerdo» que NADIE le devolvió (ni la jefatura con un paso de corrección suyo, ni Emilio); por tope o fallida no cuentan
   const contables = revs.filter((r) => r.resultado === "limpia" || r.resultado === "con_desacuerdo")
-  const aprobadas = contables.filter((r) => r.bloqueos === 0).length
+  const aprobadas = contables.filter((r) => !r.devuelta).length
   const d1 = pct(aprobadas, contables.length)
   // 2 · cumplió la tarea: terminó completa y sin cortarse por largo
   const completas = trabajos.filter((t) => t.status === "completed" && t.stop_reason !== "max_tokens").length
@@ -60,7 +60,7 @@ function tramo(revs: RevisionCruda[], trabajos: TrabajoCrudo[], escaladas: Escal
   const c = mediana(trabajos.map((t) => t.cost_usd).filter((x): x is number => x != null)), cT = mediana(todos.map((t) => t.cost_usd).filter((x): x is number => x != null))
   const s = mediana(trabajos.map((t) => t.duration_ms).filter((x): x is number => x != null)), sT = mediana(todos.map((t) => t.duration_ms).filter((x): x is number => x != null))
   const dimensiones: Dimension[] = [
-    { n: 1, nombre: "Aprobado a la primera", puntaje: d1, valor: d1 == null ? null : `${aprobadas} de ${contables.length}`, detalle: contables.length ? `la jefatura lo aprobó sin devolver${revs.length > contables.length ? ` · ${revs.length - contables.length} no cuentan (cortadas por tope o fallidas)` : ""}` : "ninguna revisión terminó: las cortadas por tope o fallidas no cuentan", cuenta: true },
+    { n: 1, nombre: "Aprobado a la primera", puntaje: d1, valor: d1 == null ? null : `${aprobadas} de ${contables.length}`, detalle: contables.length ? `ni la jefatura ni tú se lo devolvieron${revs.length > contables.length ? ` · ${revs.length - contables.length} no cuentan (cortadas por tope o fallidas)` : ""}` : "ninguna revisión terminó: las cortadas por tope o fallidas no cuentan", cuenta: true },
     { n: 2, nombre: "Cumplió la tarea", puntaje: d2, valor: d2 == null ? null : `${completas} de ${trabajos.length}`, detalle: trabajos.length ? "terminó completa, sin cortarse" : "sin trabajos registrados en el periodo", cuenta: true },
     { n: 3, nombre: "Veracidad", puntaje: null, valor: null, detalle: "el evaluador automático no recibe registros; la jefatura no marca «sin fuente» aparte", cuenta: true },
     { n: 4, nombre: "Camino", puntaje: d4, valor: promVueltas == null ? null : `${Math.round(promVueltas * 10) / 10} ${promVueltas === 1 ? "vuelta" : "vueltas"}`, detalle: "por trabajo, en promedio · reintentos: sin dato todavía", cuenta: true },
