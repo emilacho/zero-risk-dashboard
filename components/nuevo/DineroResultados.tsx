@@ -74,7 +74,7 @@ export function Ahorro({ datos, rango }: { datos: Dinero; rango: Rango }) {
       <h3 className={TITULO}>Ahorro · sin bajar la calidad</h3>
       <div className="grid grid-cols-2 gap-3">
         <div data-ahorro="cache" className="rounded-lg border border-white/[0.07] bg-black/20 p-3">
-          <p className="text-[12px] text-zinc-400">Leído desde el caché (30 días)</p>
+          <p className="text-[12px] text-zinc-400">Leído desde el caché (período)</p>
           <p className="mt-1 text-[22px] tabular-nums text-zinc-100">{a.pct_cache == null ? SIN_DATO : `${a.pct_cache} %`}</p>
         </div>
         <div data-ahorro="usd" className="rounded-lg border border-white/[0.07] bg-black/20 p-3">

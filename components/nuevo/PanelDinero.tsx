@@ -3,25 +3,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Desglose, Proveedores } from "@/components/nuevo/DineroDesglose"
 import { Ahorro, Anomalias, CostoPorResultado } from "@/components/nuevo/DineroResultados"
-import { diaLocal, fechaCorta, loQueCambio, NOMBRE_DE_DIMENSION, picos, serie, sumarDias, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Pico, type Serie } from "@/lib/dinero-completo"
+import { anteriorDe, cacheDelRango, diaLocal, fechaCorta, frenteA, loQueCambio, NOMBRE_DE_DIMENSION, PERIODOS, picos, rangoDe, resumenDelPeriodo, serie, tarjetas, usdCorto, veces, type Dimension, type Dinero, type Periodo, type Pico, type Serie } from "@/lib/dinero-completo"
 
 /**
  * TU OFICINA · DINERO (6.36 · boceto aprobado por Emilio 2-nov): todo el gasto de la agencia en un solo lugar, con la estructura de Ramp · AI Token Spend
  * (resumen «lo que cambió», tarjetas con variación y proyección, gasto en el tiempo conmutable) · solo la fachada es nuestra. Ajustes de Emilio: cada clave
  * del gráfico con un color claramente distinto, fechas bajo las barras y el valor al pasar el cursor; sin numeritos; el freno con su cifra.
+ * 6.40 (Tarea A): pantalla completa, UN selector de período que manda en todo frente a su anterior igual, número principal grande arriba e índice fijo.
  * Parte 1 = secciones 1–3 · parte 2 (6.37) = desglose (4) y proveedores (5), en `DineroDesglose.tsx` · parte 3 (6.38) = resultado, anomalías y ahorro (6–8), en `DineroResultados.tsx`. Datos: `/api/direccion/dinero` (SOLO LECTURA).
  */
 const AMBAR = "#e8731a"
-type Periodo = "hoy" | "7" | "mes" | "30"
-const PERIODOS: Array<{ k: Periodo; t: string }> = [{ k: "hoy", t: "Hoy" }, { k: "7", t: "7 días" }, { k: "mes", t: "Este mes" }, { k: "30", t: "30 días" }]
 type Respuesta = ({ ok: true } & Dinero) | { ok: false; error: string }
-
-function rangoDe(p: Periodo, hoy: string): { desde: string; hasta: string; porHora: boolean } {
-  if (p === "hoy") return { desde: hoy, hasta: hoy, porHora: true }
-  if (p === "7") return { desde: sumarDias(hoy, -6), hasta: hoy, porHora: false }
-  if (p === "mes") return { desde: `${hoy.slice(0, 8)}01`, hasta: hoy, porHora: false }
-  return { desde: sumarDias(hoy, -29), hasta: hoy, porHora: false }
-}
+type Anterior = { desde: string; hasta: string; nombre: string }
+/** 6.40 · el índice fijo de Ramp: saltar a cada sección sin desplazarse */
+export const INDICE: Array<{ id: string; t: string }> = [
+  { id: "resumen", t: "Resumen" }, { id: "tiempo", t: "En el tiempo" }, { id: "desglose", t: "Desglose" }, { id: "proveedores", t: "Proveedores" },
+  { id: "resultados", t: "Resultados" }, { id: "anomalias", t: "Anomalías" }, { id: "ahorro", t: "Ahorro" },
+]
+const Ancla = ({ id, children }: { id: string; children: React.ReactNode }) => <div id={`dinero-${id}`} data-indice-seccion={id} className="scroll-mt-14">{children}</div>
 
 const Seccion = ({ titulo, children, extra, dato }: { titulo: string; children: React.ReactNode; extra?: React.ReactNode; dato: string }) => (
   <section data-dinero={dato} className="rounded-xl border border-white/[0.09] bg-[#1b1815] p-4 sm:p-5">
@@ -32,11 +31,11 @@ const Seccion = ({ titulo, children, extra, dato }: { titulo: string; children: 
 const SIN_DATO = <span data-sin-dato-todavia className="italic text-zinc-500">sin dato todavía</span>
 
 /* 1 · lo que cambió esta semana */
-function LoQueCambio({ datos, hoy, alAbrirCorrida }: { datos: Dinero; hoy: string; alAbrirCorrida?: (id: string) => void }) {
-  const cambios = useMemo(() => loQueCambio(datos.movimientos, hoy, datos.cache), [datos, hoy])
+function LoQueCambio({ datos, hoy, rango, anterior, alAbrirCorrida }: { datos: Dinero; hoy: string; rango: { desde: string; hasta: string }; anterior: Anterior; alAbrirCorrida?: (id: string) => void }) {
+  const cambios = useMemo(() => loQueCambio(datos.movimientos, hoy, cacheDelRango(datos, rango) ?? datos.cache, { r: rango, ant: anterior }), [datos, hoy, rango, anterior])
   const ETIQUETA = { mayor: "Mayor cambio", pico: "Pico inusual", ahorro: "Para ahorrar" } as const
   return (
-    <Seccion titulo="Lo que cambió esta semana" dato="cambios">
+    <Seccion titulo="Lo que cambió" dato="cambios">
       <div className="grid gap-4 md:grid-cols-3">
         {cambios.map((c) => (
           <p key={c.tipo} data-cambio={c.tipo} className="text-[13px] leading-relaxed text-zinc-200">
@@ -50,27 +49,34 @@ function LoQueCambio({ datos, hoy, alAbrirCorrida }: { datos: Dinero; hoy: strin
   )
 }
 
-/* 2 · tarjetas */
-function Tarjetas({ datos, hoy }: { datos: Dinero; hoy: string }) {
-  const k = useMemo(() => tarjetas(datos.movimientos, hoy), [datos, hoy])
-  const Tarjeta = ({ t, v, children, dato }: { t: string; v: string; children: React.ReactNode; dato: string }) => (
-    <div data-tarjeta={dato} className="rounded-xl border border-white/[0.09] bg-[#1b1815] px-4 py-3.5">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">{t}</p>
-      <p className="mt-1 text-[28px] font-extralight text-white [font-variant-numeric:tabular-nums]">{v}</p>
-      <div className="text-[12px] text-zinc-400">{children}</div>
-    </div>
-  )
+/* 2 · el número principal (Ramp): gasto del período + variación frente al anterior igual + proyección; lo demás más chico */
+const Chica = ({ t, v, children, dato }: { t: string; v: React.ReactNode; children?: React.ReactNode; dato: string }) => (
+  <div data-tarjeta={dato} className="min-w-0">
+    <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">{t}</p>
+    <p className="mt-0.5 text-[20px] font-extralight text-white [font-variant-numeric:tabular-nums]">{v}</p>
+    {children && <div className="text-[12px] text-zinc-400">{children}</div>}
+  </div>
+)
+function Resumen({ datos, hoy, rango, anterior }: { datos: Dinero; hoy: string; rango: { desde: string; hasta: string }; anterior: Anterior }) {
+  const k = useMemo(() => resumenDelPeriodo(datos.movimientos, rango, anterior, hoy), [datos, rango, anterior, hoy])
   const sube = (k.variacion_pct ?? 0) > 0
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Tarjeta dato="hoy" t="Gasto hoy" v={usdCorto(k.hoy)}>día normal {usdCorto(k.normal)}</Tarjeta>
-      <Tarjeta dato="semana" t="Últimos 7 días" v={usdCorto(k.semana)}>{k.variacion_pct == null ? "sin semana anterior para comparar" : <><span style={{ color: sube ? "#f5a524" : "#7fc99a" }}>{sube ? "▲" : "▼"} {Math.abs(k.variacion_pct)} %</span> vs semana anterior</>}</Tarjeta>
-      <Tarjeta dato="mes" t="Este mes · vs presupuesto" v={usdCorto(k.mes)}>
-        <div className="my-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]" />
-        presupuesto del mes: {SIN_DATO}
-      </Tarjeta>
-      <Tarjeta dato="proyeccion" t="Proyección a fin de mes" v={usdCorto(k.proyeccion)}>a este ritmo cierras en {usdCorto(k.proyeccion)} · ritmo de los últimos 30 días ({usdCorto(k.ritmo_diario)} al día){k.poco_dato_del_mes && <span data-poco-dato className="text-amber-300/80"> · poco dato del mes todavía</span>} · mes anterior {usdCorto(k.mes_anterior)}</Tarjeta>
-    </div>
+    <section data-dinero="resumen" className="grid gap-5 rounded-xl border border-white/[0.09] bg-[#1b1815] p-5 sm:p-6 lg:grid-cols-[1.3fr_1fr] lg:items-end">
+      <div data-tarjeta="periodo">
+        <p className="text-[12px] uppercase tracking-[0.18em] text-zinc-400">Gasto del período</p>
+        <p data-numero-principal className="mt-1 text-[clamp(44px,6vw,72px)] font-extralight leading-none text-white [font-variant-numeric:tabular-nums]">{usdCorto(k.total)}</p>
+        <p className="mt-3 text-[14px] text-zinc-300">
+          {k.variacion_pct == null ? <span className="text-zinc-500">sin gasto en {anterior.nombre} para comparar</span>
+            : <><span data-variacion style={{ color: sube ? "#f5a524" : "#7fc99a" }}>{sube ? "▲" : "▼"} {Math.abs(k.variacion_pct)} %</span> {frenteA(anterior.nombre)} <span className="text-zinc-500">({usdCorto(k.anterior)})</span></>}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.07] pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <Chica dato="proyeccion" t="Proyección a fin de mes" v={usdCorto(k.proyeccion)}>a este ritmo cierras en {usdCorto(k.proyeccion)} · ritmo de 30 días {usdCorto(k.ritmo_diario)}/día{k.poco_dato_del_mes && <span data-poco-dato className="text-amber-300/80"> · poco dato del mes todavía</span>}</Chica>
+        <Chica dato="presupuesto" t="Presupuesto del mes" v={SIN_DATO}>presupuesto del mes: {SIN_DATO} · mes anterior {usdCorto(k.mes_anterior)}</Chica>
+        <Chica dato="por-dia" t="Promedio por día" v={usdCorto(k.por_dia)}>{k.dias} {k.dias === 1 ? "día" : "días"}</Chica>
+        <Chica dato="llamadas" t="Llamadas con costo" v={k.llamadas.toLocaleString("es-EC")} />
+      </div>
+    </section>
   )
 }
 
@@ -149,44 +155,71 @@ export function PanelDinero({ onCerrar, datosIniciales = null, fetchImpl = fetch
   }, [onCerrar])
 
   const hoy = useMemo(() => diaLocal(datos?.leido_en ?? new Date().toISOString()), [datos])
-  const rango = rangoDe(periodo, hoy)
-  const s = useMemo(() => (datos ? serie(datos.movimientos, dim, { ...rango, normal: tarjetas(datos.movimientos, hoy).normal }) : null), [datos, dim, rango.desde, rango.hasta, rango.porHora, hoy]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rango = useMemo(() => rangoDe(periodo, hoy), [periodo, hoy])
+  const anterior = useMemo(() => anteriorDe(periodo, rango), [periodo, rango])
+  const cuerpo = useRef<HTMLDivElement>(null)
+  const [activa, setActiva] = useState("resumen")
+  // el índice marca la sección que está a la vista (como Ramp)
+  useEffect(() => {
+    const c = cuerpo.current; if (!c || typeof IntersectionObserver === "undefined") return
+    const obs = new IntersectionObserver((es) => { const v = es.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (v) setActiva((v.target as HTMLElement).dataset.indiceSeccion ?? "resumen") }, { root: c, rootMargin: "-56px 0px -60% 0px" })
+    c.querySelectorAll("[data-indice-seccion]").forEach((n) => obs.observe(n))
+    return () => obs.disconnect()
+  }, [datos])
+  const irA = (id: string) => {
+    setActiva(id)
+    const c = cuerpo.current, el = c?.querySelector<HTMLElement>(`#dinero-${id}`); if (!c || !el) return
+    const nav = c.querySelector<HTMLElement>("[data-indice]")?.offsetHeight ?? 0
+    c.scrollTo({ top: el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - nav - 8, behavior: "smooth" })
+  }
+  const s = useMemo(() => (datos ? serie(datos.movimientos, dim, { ...rango, normal: tarjetas(datos.movimientos, hoy).normal }) : null), [datos, dim, rango, hoy])
   const picosDelRango = useMemo(() => (datos ? picos(datos.movimientos, hoy).filter((p) => p.d >= rango.desde && p.d <= rango.hasta) : []), [datos, hoy, rango.desde, rango.hasta])
 
   return (
-    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="dinero-titulo" data-seccion="dinero" className="relative flex h-full max-h-full w-full max-w-[1440px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
-        <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-1.5 sm:p-2" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="dinero-titulo" data-seccion="dinero" data-pantalla-completa className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 px-4 py-2.5 sm:px-6">
           <h2 id="dinero-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Dinero</h2>
-          <p className="text-[12px] text-zinc-400">Todo el gasto de la agencia en un solo lugar</p>
-          <div role="group" aria-label="Período" className="flex gap-1.5">
+          <div role="group" aria-label="Período" data-selector-unico className="flex gap-1.5">
             {PERIODOS.map((p) => <button key={p.k} type="button" data-periodo={p.k} aria-pressed={periodo === p.k} onClick={() => setPeriodo(p.k)} className={`rounded-full border px-2.5 py-1 text-[12px] ${periodo === p.k ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{p.t}</button>)}
           </div>
+          <p data-comparado-con className="text-[12px] text-zinc-500">comparado con {anterior.nombre}</p>
           <button type="button" onClick={() => void leer()} disabled={cargando} className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-50">{cargando ? "Leyendo…" : "Actualizar"}</button>
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar el dinero" className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
         </header>
         {error && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-6">{error}</p>}
         {cargando && !datos && <p className="px-6 py-6 text-[13px] text-zinc-500">Leyendo…</p>}
         {datos && s && (
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
-            <LoQueCambio datos={datos} hoy={hoy} alAbrirCorrida={alAbrirCorrida} />
-            <Tarjetas datos={datos} hoy={hoy} />
-            <Seccion titulo="Gasto en el tiempo" dato="tiempo" extra={
-              <div role="group" aria-label="Ver por" className="ml-auto flex gap-1.5">
-                {(Object.keys(NOMBRE_DE_DIMENSION) as Dimension[]).map((d) => <button key={d} type="button" data-dimension={d} aria-pressed={dim === d} onClick={() => setDim(d)} className={`rounded-full border px-2.5 py-1 text-[12px] ${dim === d ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{NOMBRE_DE_DIMENSION[d]}</button>)}
-              </div>}>
-              <Grafico s={s} picosDelRango={picosDelRango} porHora={rango.porHora} alAbrirCorrida={alAbrirCorrida} />
-            </Seccion>
-            <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-              <Desglose datos={datos} rango={rango} hoy={hoy} alAbrirCorrida={alAbrirCorrida} />
-              <Proveedores datos={datos} rango={rango} />
+          <div ref={cuerpo} className="min-h-0 flex-1 overflow-y-auto">
+            <nav aria-label="Secciones" data-indice className="sticky top-0 z-10 flex gap-1 overflow-x-auto border-b border-white/[0.08] bg-[#161412]/95 px-4 py-2 backdrop-blur [scrollbar-width:none] sm:px-6">
+              {INDICE.map((x) => <button key={x.id} type="button" data-ir-a={x.id} aria-current={activa === x.id ? "true" : undefined} onClick={() => irA(x.id)} className={`whitespace-nowrap rounded-md px-2.5 py-1 text-[12.5px] ${activa === x.id ? "bg-white/[0.07] text-zinc-100 shadow-[inset_0_-2px_0_#e8731a]" : "text-zinc-400 hover:text-zinc-200"}`}>{x.t}</button>)}
+            </nav>
+            <div className="space-y-4 p-4 sm:p-6">
+              <Ancla id="resumen">
+                <div className="space-y-4">
+                  <Resumen datos={datos} hoy={hoy} rango={rango} anterior={anterior} />
+                  <LoQueCambio datos={datos} hoy={hoy} rango={rango} anterior={anterior} alAbrirCorrida={alAbrirCorrida} />
+                </div>
+              </Ancla>
+              <Ancla id="tiempo">
+                <Seccion titulo="Gasto en el tiempo" dato="tiempo" extra={
+                  <div role="group" aria-label="Ver por" className="ml-auto flex gap-1.5">
+                    {(Object.keys(NOMBRE_DE_DIMENSION) as Dimension[]).map((d) => <button key={d} type="button" data-dimension={d} aria-pressed={dim === d} onClick={() => setDim(d)} className={`rounded-full border px-2.5 py-1 text-[12px] ${dim === d ? "border-amber-500/60 bg-amber-500/10 text-zinc-100" : "border-white/10 text-zinc-400 hover:text-zinc-200"}`}>{NOMBRE_DE_DIMENSION[d]}</button>)}
+                  </div>}>
+                  <Grafico s={s} picosDelRango={picosDelRango} porHora={rango.porHora} alAbrirCorrida={alAbrirCorrida} />
+                </Seccion>
+              </Ancla>
+              <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+                <Ancla id="desglose"><Desglose datos={datos} rango={rango} anterior={anterior} hoy={hoy} alAbrirCorrida={alAbrirCorrida} /></Ancla>
+                <Ancla id="proveedores"><Proveedores datos={datos} rango={rango} /></Ancla>
+              </div>
+              <Ancla id="resultados"><CostoPorResultado datos={datos} rango={rango} /></Ancla>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Ancla id="anomalias"><Anomalias datos={datos} rango={rango} hoy={hoy} alAbrirCorrida={alAbrirCorrida} /></Ancla>
+                <Ancla id="ahorro"><Ahorro datos={datos} rango={rango} /></Ancla>
+              </div>
+              {datos.faltan.length > 0 && <p data-faltan className="text-[12px] text-zinc-500"><span className="text-zinc-400">Sin dato todavía:</span> {datos.faltan.join(" · ")}</p>}
             </div>
-            <CostoPorResultado datos={datos} rango={rango} />
-            <div className="grid gap-4 xl:grid-cols-2">
-              <Anomalias datos={datos} rango={rango} hoy={hoy} alAbrirCorrida={alAbrirCorrida} />
-              <Ahorro datos={datos} rango={rango} />
-            </div>
-            {datos.faltan.length > 0 && <p data-faltan className="text-[12px] text-zinc-500"><span className="text-zinc-400">Sin dato todavía:</span> {datos.faltan.join(" · ")}</p>}
           </div>
         )}
       </section>

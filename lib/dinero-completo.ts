@@ -37,7 +37,7 @@ export interface Movimiento {
 /** 6.38 · una pieza que pasó por la bandeja de revisión: su estado y lo que costó hacerla (si quedó anotado) */
 export interface PiezaRevisada { d: string; estado: string; usd: number | null }
 /** 6.38 · uso del caché por empleado y modelo en 30 días (tabla resumen diaria) */
-export interface CacheDeEmpleado { empleado: string; modelo: string; entrada: number; leido: number; usd: number }
+export interface CacheDeEmpleado { empleado: string; modelo: string; entrada: number; leido: number; usd: number; /** 6.40 · día (para seguir al período elegido) */ d?: string }
 export interface Dinero {
   movimientos: Movimiento[]
   saldos: Saldo[]
@@ -165,9 +165,9 @@ export type Vista = "cliente" | "equipo" | "empleado" | "modelo" | "proveedor" |
 export const NOMBRE_DE_VISTA: Record<Vista, string> = { cliente: "Cliente", equipo: "Equipo y departamento", empleado: "Empleado", modelo: "Modelo", proveedor: "Proveedor", corrida: "Corrida" }
 export interface FilaDeDesglose { clave: string; nombre: string; usd: number; pct: number; anterior: number; variacion_pct: number | null; llamadas: number; client_id?: string | null; ids?: string[]; fichas?: Array<{ nombre: string; usd: number }>; dia?: string; detalle?: string; corrida?: string | null }
 /** el desglose de Ramp (cliente · equipo · empleado · modelo · proveedor · corrida) en un período, comparado con el período anterior del mismo largo */
-export function desglose(movs: Movimiento[], vista: Vista, o: { desde: string; hasta: string }): FilaDeDesglose[] {
+export function desglose(movs: Movimiento[], vista: Vista, o: { desde: string; hasta: string }, ant?: { desde: string; hasta: string }): FilaDeDesglose[] {
   const largo = diasEntre(o.desde, o.hasta).length
-  const antDesde = sumarDias(o.desde, -largo), antHasta = sumarDias(o.desde, -1)
+  const antDesde = ant?.desde ?? sumarDias(o.desde, -largo), antHasta = ant?.hasta ?? sumarDias(o.desde, -1)
   const clave = (x: Movimiento): string | null => vista === "corrida" ? (x.corrida ? x.corrida.split(":")[0] : null) : vista === "equipo" ? (x.equipo ?? "Sin dato") : vista === "cliente" ? x.cliente : x[vista]
   const ahora = new Map<string, Movimiento[]>(), antes = new Map<string, number>()
   for (const x of movs) {
@@ -199,7 +199,8 @@ export function aCsv(filas: Array<Record<string, string | number | null | undefi
 
 export interface Cambio { tipo: "mayor" | "pico" | "ahorro"; texto: string; corrida?: string | null }
 /** «Lo que cambió esta semana» (como el resumen semanal de Ramp): el mayor cambio, el pico inusual y dónde ahorrar, en lenguaje claro */
-export function loQueCambio(movs: Movimiento[], hoy: string, cache: Dinero["cache"]): Cambio[] {
+export function loQueCambio(movs: Movimiento[], hoy: string, cache: Dinero["cache"], per?: { r: { desde: string; hasta: string }; ant: { desde: string; hasta: string; nombre: string } }): Cambio[] {
+  if (per) return loQueCambioDelPeriodo(movs, hoy, cache, per.r, per.ant)
   const k = tarjetas(movs, hoy), out: Cambio[] = []
   const ini = sumarDias(hoy, -6), iniAnt = sumarDias(hoy, -13), finAnt = sumarDias(hoy, -7)
   if (k.variacion_pct != null || k.semana > 0) {
@@ -242,7 +243,7 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
     todas((a, b) => db.from("costs").select("service, amount_usd, amount_usd_exact, date, description").gte("date", desde.slice(0, 10)).order("date", { ascending: true }).range(a, b), "costs").catch(() => { faltan.push("Gasto de Apify (libreta de costos)"); return [] as Fila[] }),
     todas((a, b) => db.from("clients").select("id, name").range(a, b), "clients"),
     todas((a, b) => db.from("agents").select("name, display_name").range(a, b), "agents"),
-    todas((a, b) => db.from("agent_invocations_daily_rollup").select("day, agent_id, model, total_tokens_input, total_tokens_cache_read, total_cost_usd").gte("day", new Date(ahora.getTime() - 30 * 86400_000).toISOString().slice(0, 10)).range(a, b), "rollup").catch(() => null),
+    todas((a, b) => db.from("agent_invocations_daily_rollup").select("day, agent_id, model, total_tokens_input, total_tokens_cache_read, total_cost_usd").gte("day", new Date(ahora.getTime() - DIAS_LEIDOS * 86400_000).toISOString().slice(0, 10)).range(a, b), "rollup").catch(() => null),
     todas((a, b) => db.from("hitl_queue").select("status, created_at, metadata->costo_usd").eq("type", "content_piece_review").gte("created_at", desde).range(a, b), "hitl_queue").catch(() => null),
     todas((a, b) => db.from("client_brand_books").select("created_at").gte("created_at", desde).range(a, b), "client_brand_books").catch(() => null),
   ])
@@ -272,10 +273,11 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
     movimientos.push({ t: `${d}T17:00:00.000Z`, d, proveedor: "Apify", modelo: `Apify · ${funcion}`, empleado: "Apify (raspados)", equipo: "Proveedor externo · Apify", cliente: TRABAJO_INTERNO, client_id: null, corrida: null, usd, ok: true, cota: false })
   }
   movimientos.sort((a, b) => a.t.localeCompare(b.t))
-  const cache: Dinero["cache"] = rollup ? rollup.reduce<{ leido: number; entrada: number }>((s, r) => ({ leido: s.leido + Number(r.total_tokens_cache_read ?? 0), entrada: s.entrada + Number(r.total_tokens_input ?? 0) }), { leido: 0, entrada: 0 }) : null
+  const hace30 = new Date(ahora.getTime() - 30 * 86400_000).toISOString().slice(0, 10)
+  const cache: Dinero["cache"] = rollup ? rollup.filter((r) => String(r.day) >= hace30).reduce<{ leido: number; entrada: number }>((s, r) => ({ leido: s.leido + Number(r.total_tokens_cache_read ?? 0), entrada: s.entrada + Number(r.total_tokens_input ?? 0) }), { leido: 0, entrada: 0 }) : null
   if (!rollup) faltan.push("Uso del caché de los modelos")
   const porEmp = new Map<string, CacheDeEmpleado>()
-  for (const r of rollup ?? []) { const emp = String(r.agent_id ?? "sin empleado"), mod = String(r.model ?? "sin modelo"), k = `${emp}|${mod}`; const c = porEmp.get(k) ?? { empleado: nombreAgente.get(emp) ?? legible(emp), modelo: mod, entrada: 0, leido: 0, usd: 0 }; c.entrada += Number(r.total_tokens_input ?? 0); c.leido += Number(r.total_tokens_cache_read ?? 0); c.usd += Number(r.total_cost_usd ?? 0); porEmp.set(k, c) }
+  for (const r of rollup ?? []) { const emp = String(r.agent_id ?? "sin empleado"), mod = String(r.model ?? "sin modelo"), dia = String(r.day).slice(0, 10), k = `${emp}|${mod}|${dia}`; const c = porEmp.get(k) ?? { empleado: nombreAgente.get(emp) ?? legible(emp), modelo: mod, entrada: 0, leido: 0, usd: 0, d: dia }; c.entrada += Number(r.total_tokens_input ?? 0); c.leido += Number(r.total_tokens_cache_read ?? 0); c.usd += Number(r.total_cost_usd ?? 0); porEmp.set(k, c) }
   if (!revisadas) faltan.push("Piezas de la bandeja de revisión (costo por pieza aprobada)")
   if (!versiones) faltan.push("Versiones del manual")
   const piezas = revisadas ? revisadas.map((r) => ({ d: diaLocal(String(r.created_at)), estado: String(r.status ?? ""), usd: r.costo_usd == null ? null : Number(r.costo_usd) })) : null
@@ -355,11 +357,15 @@ export interface Oportunidad { texto: string; usd: number | null }
 export interface Ahorro { pct_cache: number | null; ahorrado_usd: number | null; oportunidades: Oportunidad[] }
 /** el caché que ya ahorra (30 días) y oportunidades que NO bajan la calidad (nunca se propone pasar a un modelo más barato) */
 export function ahorro(d: Dinero, r: { desde: string; hasta: string }): Ahorro {
-  const pct = d.cache && d.cache.leido + d.cache.entrada > 0 ? Math.round((d.cache.leido / (d.cache.leido + d.cache.entrada)) * 100) : null
-  const ahorrado = d.cache_por_empleado ? r2(d.cache_por_empleado.reduce((s, c) => { const p = precioDe(c.modelo); return p ? s + (c.leido / 1e6) * p * 0.9 : s }, 0)) : null
+  const c0 = cacheDelRango(d, r) ?? d.cache
+  const pct = c0 && c0.leido + c0.entrada > 0 ? Math.round((c0.leido / (c0.leido + c0.entrada)) * 100) : null
+  const filasCache = (d.cache_por_empleado ?? []).filter((c) => !c.d || (c.d >= r.desde && c.d <= r.hasta))
+  const ahorrado = d.cache_por_empleado ? r2(filasCache.reduce((s, c) => { const p = precioDe(c.modelo); return p ? s + (c.leido / 1e6) * p * 0.9 : s }, 0)) : null
   const op: Oportunidad[] = []
-  const sinCache = (d.cache_por_empleado ?? []).filter((c) => c.entrada >= 200_000 && c.leido / (c.entrada + c.leido) < 0.1 && precioDe(c.modelo) != null).sort((a, b) => b.entrada - a.entrada).slice(0, 3)
-  for (const c of sinCache) op.push({ texto: `${c.empleado} leyó ${Math.round(c.entrada / 1000).toLocaleString("es-EC")} mil tokens sin caché en 30 días: guardar en caché sus instrucciones fijas ahorra sin tocar la calidad`, usd: r2((c.entrada / 1e6) * precioDe(c.modelo)! * 0.5) })
+  const porEmpleado = new Map<string, CacheDeEmpleado>()
+  for (const c of filasCache) { const k = `${c.empleado}|${c.modelo}`, a = porEmpleado.get(k) ?? { ...c, entrada: 0, leido: 0, usd: 0 }; a.entrada += c.entrada; a.leido += c.leido; a.usd += c.usd; porEmpleado.set(k, a) }
+  const sinCache = [...porEmpleado.values()].filter((c) => c.entrada >= 200_000 && c.leido / (c.entrada + c.leido) < 0.1 && precioDe(c.modelo) != null).sort((a, b) => b.entrada - a.entrada).slice(0, 3)
+  for (const c of sinCache) op.push({ texto: `${c.empleado} leyó ${Math.round(c.entrada / 1000).toLocaleString("es-EC")} mil tokens sin caché en el período: guardar en caché sus instrucciones fijas ahorra sin tocar la calidad`, usd: r2((c.entrada / 1e6) * precioDe(c.modelo)! * 0.5) })
   const rh = costoDeRehacer(d, r), de = (k: Rehacer["clave"]) => rh.find((x) => x.clave === k)!.usd ?? 0
   if (de("fallidas") >= 0.5) op.push({ texto: `Las llamadas fallidas costaron ${usdCorto(de("fallidas"))}: arreglar su causa ahorra sin tocar la calidad`, usd: de("fallidas") })
   if (de("tope") >= 0.5) op.push({ texto: `Las corridas cortadas por tope costaron hasta ${usdCorto(de("tope"))} sin entregar: ajustar su tope o partir la tarea`, usd: de("tope") })
@@ -403,3 +409,57 @@ export function nombresUnificados(nombres: string[]): Map<string, string> {
   }
   return new Map(nombres.map((n) => [n, elegido.get(n.trim().toLocaleLowerCase("es"))!]))
 }
+
+/* ───────────── 6.40 · un solo período manda en todo (Ramp): el período elegido y su anterior igual ───────────── */
+export type Periodo = "hoy" | "7" | "mes" | "30"
+export const PERIODOS: Array<{ k: Periodo; t: string }> = [{ k: "hoy", t: "Hoy" }, { k: "7", t: "7 días" }, { k: "mes", t: "Este mes" }, { k: "30", t: "30 días" }]
+export interface Rango { desde: string; hasta: string; porHora: boolean }
+export function rangoDe(p: Periodo, hoy: string): Rango {
+  if (p === "hoy") return { desde: hoy, hasta: hoy, porHora: true }
+  if (p === "7") return { desde: sumarDias(hoy, -6), hasta: hoy, porHora: false }
+  if (p === "mes") return { desde: `${hoy.slice(0, 8)}01`, hasta: hoy, porHora: false }
+  return { desde: sumarDias(hoy, -29), hasta: hoy, porHora: false }
+}
+/** el período anterior IGUAL: ayer · los 7 días anteriores · el mismo tramo del mes anterior · los 30 días anteriores */
+export function anteriorDe(p: Periodo, r: Rango): { desde: string; hasta: string; nombre: string } {
+  if (p === "mes") {
+    const ini = sumarDias(r.desde, -1).slice(0, 8) + "01", finMes = sumarDias(r.desde, -1)
+    const hasta = sumarDias(ini, Number(r.hasta.slice(8, 10)) - 1)
+    return { desde: ini, hasta: hasta > finMes ? finMes : hasta, nombre: "el mismo tramo del mes anterior" }
+  }
+  const largo = diasEntre(r.desde, r.hasta).length
+  return { desde: sumarDias(r.desde, -largo), hasta: sumarDias(r.desde, -1), nombre: p === "hoy" ? "ayer" : `los ${largo} días anteriores` }
+}
+export interface ResumenDelPeriodo { total: number; anterior: number; variacion_pct: number | null; llamadas: number; por_dia: number; dias: number; proyeccion: number; ritmo_diario: number; poco_dato_del_mes: boolean; mes: number; mes_anterior: number }
+/** el número principal de Ramp: lo gastado en el período, su variación frente al anterior igual y la proyección del mes */
+export function resumenDelPeriodo(movs: Movimiento[], r: { desde: string; hasta: string }, ant: { desde: string; hasta: string }, hoy: string): ResumenDelPeriodo {
+  const del = (a: { desde: string; hasta: string }) => movs.filter((x) => x.d >= a.desde && x.d <= a.hasta)
+  const xs = del(r), total = suma(xs), anterior = suma(del(ant)), dias = diasEntre(r.desde, r.hasta).length, k = tarjetas(movs, hoy)
+  return { total: r2(total), anterior: r2(anterior), variacion_pct: anterior > 0 ? Math.round(((total - anterior) / anterior) * 100) : null, llamadas: xs.length, por_dia: r2(total / dias), dias, proyeccion: k.proyeccion, ritmo_diario: k.ritmo_diario, poco_dato_del_mes: k.poco_dato_del_mes, mes: k.mes, mes_anterior: k.mes_anterior }
+}
+/** el caché leído en un rango (desde la tabla resumen diaria); null si no hay dato por día */
+export function cacheDelRango(d: Dinero, r: { desde: string; hasta: string }): { leido: number; entrada: number } | null {
+  const filas = d.cache_por_empleado?.filter((c) => c.d)
+  if (!filas?.length) return null
+  return filas.filter((c) => c.d! >= r.desde && c.d! <= r.hasta).reduce((s, c) => ({ leido: s.leido + c.leido, entrada: s.entrada + c.entrada }), { leido: 0, entrada: 0 })
+}
+
+/** 6.40 · «lo que cambió» siguiendo al período elegido y a su anterior igual */
+function loQueCambioDelPeriodo(movs: Movimiento[], hoy: string, cache: Dinero["cache"], r: { desde: string; hasta: string }, ant: { desde: string; hasta: string; nombre: string }): Cambio[] {
+  const out: Cambio[] = [], k = resumenDelPeriodo(movs, r, ant, hoy)
+  if (k.total > 0 || k.anterior > 0) {
+    const delta = new Map<string, number>()
+    for (const x of movs) { if (x.d >= r.desde && x.d <= r.hasta) delta.set(x.cliente, (delta.get(x.cliente) ?? 0) + x.usd); else if (x.d >= ant.desde && x.d <= ant.hasta) delta.set(x.cliente, (delta.get(x.cliente) ?? 0) - x.usd) }
+    const [quien, cuanto] = [...delta.entries()].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0] ?? ["", 0]
+    const sube = (k.variacion_pct ?? 0) >= 0
+    out.push({ tipo: "mayor", texto: `${k.variacion_pct == null ? `En el período se gastaron ${usdCorto(k.total)}` : `El gasto ${sube ? "subió" : "bajó"} ${Math.abs(k.variacion_pct)} % ${frenteA(ant.nombre)} (${usdCorto(k.total)} contra ${usdCorto(k.anterior)})`}${quien && Math.abs(cuanto) >= 0.01 ? `; lo que más movió: ${quien} (${cuanto >= 0 ? "+" : "−"}${usdCorto(Math.abs(cuanto))})` : ""}.` })
+  } else out.push({ tipo: "mayor", texto: "Sin gasto registrado en este período ni en el anterior." })
+  const p = picos(movs, hoy).find((x) => x.d >= r.desde && x.d <= r.hasta)
+  out.push(p ? { tipo: "pico", texto: `${fechaCorta(p.d)}: ${usdCorto(p.usd)} en un día, ${veces(p.veces)} tu día normal · ${p.explicacion}.`, corrida: p.corrida } : { tipo: "pico", texto: "Ningún día del período se salió de lo normal." })
+  if (cache && cache.entrada + cache.leido > 0) { const pct = Math.round((cache.leido / (cache.entrada + cache.leido)) * 100); out.push({ tipo: "ahorro", texto: `En el período, el ${pct} % de lo que leyeron los modelos salió del caché (más barato y sin bajar calidad).` }) }
+  else out.push({ tipo: "ahorro", texto: "Uso del caché de los modelos: sin dato todavía." })
+  return out
+}
+
+/** «frente a el mismo tramo…» → «frente al mismo tramo…» */
+export const frenteA = (nombre: string): string => (nombre.startsWith("el ") ? `frente al ${nombre.slice(3)}` : `frente a ${nombre}`)
