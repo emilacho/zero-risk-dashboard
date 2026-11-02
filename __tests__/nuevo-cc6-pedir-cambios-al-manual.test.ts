@@ -32,6 +32,8 @@ describe("la lógica del pedido (pura)", () => {
     const ahora = [campo("mision", "Misión", "Servir encebollado"), campo("voz", "Voz de la marca", "Cercana"), campo("vision", "Visión", "Ser el refugio"), campo("valores", "Valores", null)]
     expect(queCambioEnElManual(antes, ahora)).toEqual(["Voz de la marca: «Formal» → «Cercana»", "Visión: se escribió «Ser el refugio»", "Valores: se quitó (decía «Frescura»)"])
     expect(queCambioEnElManual(antes, antes)).toEqual([])
+    // P06 (CC3): un campo que estaba y la versión nueva ni lo trae también se nombra
+    expect(queCambioEnElManual([campo("eslogan", "Eslogan", "Del mar a tu mesa"), campo("voz", "Voz de la marca", "Formal")], [campo("voz", "Voz de la marca", "Formal")])).toEqual(["Eslogan: se quitó (decía «Del mar a tu mesa»)"])
   })
   it("la línea de lo validado (regla que recomienda CC1): en la sección se pierde si cambia; en lo general no se toca salvo que se nombre", () => {
     expect(avisoDeLoValidado(["Misión", "Visión"], true)).toBe("Validaste Misión y Visión: si el equipo cambia esos campos, se pierde tu validación.")
@@ -72,6 +74,16 @@ describe("la puerta del tablero `manual-cambios`", () => {
     expect(llamadas[0].url).toBe("https://p.test/api/tablero/manual-cambios")
     expect(llamadas[0].cuerpo).toMatchObject({ client_id: CLIENTE, texto: "Sección «Cómo habla»: más cercano", seccion: "Cómo habla", campos: ["voz"], confirmo_gasto: true, tope_usd: 5 })
   })
+  it("P13 (CC3): sin la confirmación del gasto el servidor del tablero NO llama a la plataforma (esta capa lo para sola)", async () => {
+    let llamadas = 0
+    const fetchImpl = (async () => { llamadas++; return new Response("{}", { status: 200 }) }) as unknown as typeof fetch
+    for (const confirmo of [undefined, false, "true", 1, null]) {
+      const r = await ejecutarAccion("manual-cambios", { client_id: CLIENTE, texto: "Más cercano", tope_usd: 5, ...(confirmo === undefined ? {} : { confirmo_gasto: confirmo }) }, { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl })
+      expect(r.status, String(confirmo)).toBeGreaterThanOrEqual(400)
+      expect(JSON.stringify(r.cuerpo)).toContain("falta_confirmar_gasto")
+    }
+    expect(llamadas).toBe(0)
+  })
   it("rechaza sin llamar a la plataforma: sin confirmación, tope alto, campos raros, texto corto", async () => {
     const v = ACCIONES["manual-cambios"].validar
     expect(v({ client_id: CLIENTE, texto: "más cercano", tope_usd: 5 })).toMatchObject({ ok: false, error: "falta_confirmar_gasto" })
@@ -109,8 +121,19 @@ describe("la lectura del ciclo del manual (solo lectura)", () => {
     const m = await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, null, { message: 'column plan_cambios.documento does not exist', code: "42703" })), { cliente: CLIENTE, ahora: AHORA })
     expect(m.manual?.ciclo).toEqual({ disponible: false, abierto: null, avance: null, que_cambio: [] })
   })
-  it("un error real de la base lanza (nunca se lee como «sin pedido»)", async () => {
-    await expect(leerManualDelCliente(baseFalsa((t, f) => comun(t, f, null, { message: "connection refused" })), { cliente: CLIENTE, ahora: AHORA })).rejects.toThrow(/plan_cambios/)
+  it("P18 (CC3): un error real de la base lanza (nunca se lee como «aún no existe»); solo tabla o columna inexistente cierran el ciclo", async () => {
+    for (const error of [{ message: "connection refused" }, { message: "permission denied for table plan_cambios", code: "42501" }, { message: "canceling statement due to statement timeout", code: "57014" }, { message: "JWT expired", code: "PGRST301" }])
+      await expect(leerManualDelCliente(baseFalsa((t, f) => comun(t, f, null, error)), { cliente: CLIENTE, ahora: AHORA }), error.message).rejects.toThrow(/plan_cambios/)
+    for (const error of [{ message: 'column plan_cambios.documento does not exist', code: "42703" }, { message: 'relation "public.plan_cambios" does not exist', code: "42P01" }])
+      expect((await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, null, error)), { cliente: CLIENTE, ahora: AHORA })).manual?.ciclo?.disponible, error.code).toBe(false)
+    // el error al leer la versión base tampoco se traga
+    const pedido = { id: "pc1", estado: "aplicado", texto: "x", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, manual_id: "b1", manual_nuevo_id: "b2" }
+    await expect(leerManualDelCliente(baseFalsa((t, f) => (t === "client_brand_books" && f.some((x) => x.startsWith('eq("id","b1")')) ? { data: null, error: { message: "connection reset" } } : comun(t, f, pedido))), { cliente: CLIENTE, ahora: AHORA })).rejects.toThrow(/client_brand_books/)
+  })
+  it("P20 (CC3): un pedido aplicado que produjo OTRA versión (no la vigente) no muestra avance ni «Qué cambió»", async () => {
+    const pedido = { id: "pc0", estado: "aplicado", texto: "x", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, manual_id: "b0", manual_nuevo_id: "b1" }
+    const m = await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, pedido)), { cliente: CLIENTE, ahora: AHORA })
+    expect(m.manual?.ciclo).toEqual({ disponible: true, abierto: null, avance: null, que_cambio: [] })
   })
   it("pide por cliente y documento='manual'; un pedido aplicado que creó la vigente trae «Qué cambió» contra la versión base", async () => {
     const vistos: string[] = []
