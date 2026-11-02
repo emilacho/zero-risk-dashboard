@@ -197,7 +197,7 @@ export function aCsv(filas: Array<Record<string, string | number | null | undefi
   return [cols.join(","), ...filas.map((f) => cols.map((c) => celda(f[c])).join(","))].join("\n")
 }
 
-export interface Cambio { tipo: "mayor" | "pico" | "ahorro"; texto: string; corrida?: string | null }
+export interface Cambio { tipo: "mayor" | "pico" | "ahorro"; texto: string; corrida?: string | null; /** 6.41 · la tarjeta: un número grande y una línea corta (el texto queda para «ver más») */ numero?: string; linea?: string }
 /** «Lo que cambió esta semana» (como el resumen semanal de Ramp): el mayor cambio, el pico inusual y dónde ahorrar, en lenguaje claro */
 export function loQueCambio(movs: Movimiento[], hoy: string, cache: Dinero["cache"], per?: { r: { desde: string; hasta: string }; ant: { desde: string; hasta: string; nombre: string } }): Cambio[] {
   if (per) return loQueCambioDelPeriodo(movs, hoy, cache, per.r, per.ant)
@@ -365,11 +365,11 @@ export function ahorro(d: Dinero, r: { desde: string; hasta: string }): Ahorro {
   const porEmpleado = new Map<string, CacheDeEmpleado>()
   for (const c of filasCache) { const k = `${c.empleado}|${c.modelo}`, a = porEmpleado.get(k) ?? { ...c, entrada: 0, leido: 0, usd: 0 }; a.entrada += c.entrada; a.leido += c.leido; a.usd += c.usd; porEmpleado.set(k, a) }
   const sinCache = [...porEmpleado.values()].filter((c) => c.entrada >= 200_000 && c.leido / (c.entrada + c.leido) < 0.1 && precioDe(c.modelo) != null).sort((a, b) => b.entrada - a.entrada).slice(0, 3)
-  for (const c of sinCache) op.push({ texto: `${c.empleado} leyó ${Math.round(c.entrada / 1000).toLocaleString("es-EC")} mil tokens sin caché en el período: guardar en caché sus instrucciones fijas ahorra sin tocar la calidad`, usd: r2((c.entrada / 1e6) * precioDe(c.modelo)! * 0.5) })
+  for (const c of sinCache) op.push({ texto: `${c.empleado}: caché en sus instrucciones fijas (${Math.round(c.entrada / 1000).toLocaleString("es-EC")} mil tokens sin caché)`, usd: r2((c.entrada / 1e6) * precioDe(c.modelo)! * 0.5) })
   const rh = costoDeRehacer(d, r), de = (k: Rehacer["clave"]) => rh.find((x) => x.clave === k)!.usd ?? 0
-  if (de("fallidas") >= 0.5) op.push({ texto: `Las llamadas fallidas costaron ${usdCorto(de("fallidas"))}: arreglar su causa ahorra sin tocar la calidad`, usd: de("fallidas") })
-  if (de("tope") >= 0.5) op.push({ texto: `Las corridas cortadas por tope costaron hasta ${usdCorto(de("tope"))} sin entregar: ajustar su tope o partir la tarea`, usd: de("tope") })
-  if (de("pruebas") >= 1) op.push({ texto: `Pruebas y ensayos costaron ${usdCorto(de("pruebas"))}: reusar respuestas guardadas cuando no haga falta una llamada nueva`, usd: de("pruebas") })
+  if (de("fallidas") >= 0.5) op.push({ texto: "Arreglar las llamadas fallidas", usd: de("fallidas") })
+  if (de("tope") >= 0.5) op.push({ texto: "Ajustar los topes que cortan corridas sin entregar", usd: de("tope") })
+  if (de("pruebas") >= 1) op.push({ texto: "Reusar respuestas guardadas en pruebas y ensayos", usd: de("pruebas") })
   return { pct_cache: pct, ahorrado_usd: ahorrado, oportunidades: op }
 }
 
@@ -452,12 +452,12 @@ function loQueCambioDelPeriodo(movs: Movimiento[], hoy: string, cache: Dinero["c
     for (const x of movs) { if (x.d >= r.desde && x.d <= r.hasta) delta.set(x.cliente, (delta.get(x.cliente) ?? 0) + x.usd); else if (x.d >= ant.desde && x.d <= ant.hasta) delta.set(x.cliente, (delta.get(x.cliente) ?? 0) - x.usd) }
     const [quien, cuanto] = [...delta.entries()].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0] ?? ["", 0]
     const sube = (k.variacion_pct ?? 0) >= 0
-    out.push({ tipo: "mayor", texto: `${k.variacion_pct == null ? `En el período se gastaron ${usdCorto(k.total)}` : `El gasto ${sube ? "subió" : "bajó"} ${Math.abs(k.variacion_pct)} % ${frenteA(ant.nombre)} (${usdCorto(k.total)} contra ${usdCorto(k.anterior)})`}${quien && Math.abs(cuanto) >= 0.01 ? `; lo que más movió: ${quien} (${cuanto >= 0 ? "+" : "−"}${usdCorto(Math.abs(cuanto))})` : ""}.` })
-  } else out.push({ tipo: "mayor", texto: "Sin gasto registrado en este período ni en el anterior." })
+    out.push({ tipo: "mayor", numero: k.variacion_pct == null ? usdCorto(k.total) : `${sube ? "▲" : "▼"} ${Math.abs(k.variacion_pct)} %`, linea: k.variacion_pct == null ? "gastado en el período" : `${frenteA(ant.nombre)}${quien && Math.abs(cuanto) >= 0.01 ? ` · más movió ${quien}` : ""}`, texto: `${k.variacion_pct == null ? `En el período se gastaron ${usdCorto(k.total)}` : `El gasto ${sube ? "subió" : "bajó"} ${Math.abs(k.variacion_pct)} % ${frenteA(ant.nombre)} (${usdCorto(k.total)} contra ${usdCorto(k.anterior)})`}${quien && Math.abs(cuanto) >= 0.01 ? `; lo que más movió: ${quien} (${cuanto >= 0 ? "+" : "−"}${usdCorto(Math.abs(cuanto))})` : ""}.` })
+  } else out.push({ tipo: "mayor", numero: usdCorto(0), linea: "sin gasto en ninguno de los dos períodos", texto: "Sin gasto registrado en este período ni en el anterior." })
   const p = picos(movs, hoy).find((x) => x.d >= r.desde && x.d <= r.hasta)
-  out.push(p ? { tipo: "pico", texto: `${fechaCorta(p.d)}: ${usdCorto(p.usd)} en un día, ${veces(p.veces)} tu día normal · ${p.explicacion}.`, corrida: p.corrida } : { tipo: "pico", texto: "Ningún día del período se salió de lo normal." })
-  if (cache && cache.entrada + cache.leido > 0) { const pct = Math.round((cache.leido / (cache.entrada + cache.leido)) * 100); out.push({ tipo: "ahorro", texto: `En el período, el ${pct} % de lo que leyeron los modelos salió del caché (más barato y sin bajar calidad).` }) }
-  else out.push({ tipo: "ahorro", texto: "Uso del caché de los modelos: sin dato todavía." })
+  out.push(p ? { tipo: "pico", numero: usdCorto(p.usd), linea: `${fechaCorta(p.d)} · ${veces(p.veces)} lo normal`, texto: `${fechaCorta(p.d)}: ${usdCorto(p.usd)} en un día, ${veces(p.veces)} tu día normal · ${p.explicacion}.`, corrida: p.corrida } : { tipo: "pico", numero: "Sin picos", linea: "ningún día salió de lo normal", texto: "Ningún día del período se salió de lo normal." })
+  if (cache && cache.entrada + cache.leido > 0) { const pct = Math.round((cache.leido / (cache.entrada + cache.leido)) * 100); out.push({ tipo: "ahorro", numero: `${pct} %`, linea: "leído del caché, más barato", texto: `En el período, el ${pct} % de lo que leyeron los modelos salió del caché (más barato y sin bajar calidad).` }) }
+  else out.push({ tipo: "ahorro", numero: "—", linea: "caché sin dato todavía", texto: "Uso del caché de los modelos: sin dato todavía." })
   return out
 }
 
