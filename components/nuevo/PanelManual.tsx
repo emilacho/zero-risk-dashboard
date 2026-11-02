@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
+import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { CICLO_DEL_MANUAL_CERRADO } from "@/lib/manual-ciclo"
 import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, valorCorto } from "@/lib/manual-campo"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 import { CAMPOS_DEL_LECTOR, type CampoLeido } from "@/lib/manual-lector"
-import { EDITABLES_DESDE_EL_TABLERO, contrasteDelTexto, cuerpoDeEdicion, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, procedenciaLegible, rolDeLaLetraLegible, rolDelColorLegible, separarPropuesta, textoParaEditar } from "@/lib/manual"
+import { EDITABLES_DESDE_EL_TABLERO, cuerpoDeEdicion, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, separarPropuesta, textoParaEditar } from "@/lib/manual"
 
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & ManualDelCliente) | { ok: false; error: string }
@@ -328,37 +329,8 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                 </div>
 
                 {/* la identidad visual: colores y letras con su procedencia */}
-                <aside aria-label="Identidad visual" className="mn-seccion space-y-5 lg:sticky lg:top-0 lg:self-start" style={{ animationDelay: "120ms" }}>
-                  <section className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-                    <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>Colores</h3>
-                    {m.colores.length === 0 ? <p className="text-[12.5px] italic text-zinc-500">Sin colores observados todavía.</p> : (
-                      <ul className="grid grid-cols-3 gap-2" aria-label="La paleta">
-                        {m.colores.map((c, i) => (
-                          <li key={`${c.hex}-${i}`} className="min-w-0">
-                            <div className="mn-color flex aspect-square items-end rounded-lg p-1.5 ring-1 ring-white/10" style={{ background: c.hex }} data-color={c.hex} title={procedenciaLegible(c.procedencia) ?? undefined}>
-                              <span className="font-mono text-[10px]" style={{ color: contrasteDelTexto(c.hex) }}>{c.hex}</span>
-                            </div>
-                            <p className="mt-1 truncate text-[11px] text-zinc-400">{rolDelColorLegible(c.rol)}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {m.colores[0]?.procedencia && <p className="mt-2 text-[11px] text-zinc-500">Tomados {procedenciaLegible(m.colores[0].procedencia)}.</p>}
-                  </section>
-                  <section className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-                    <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>Letras</h3>
-                    {m.tipografias.length === 0 ? <p className="text-[12.5px] italic text-zinc-500">{m.lector.rotuloVisual ? "Sin letra observada en el sitio." : "Sin tipografías observadas todavía."}</p> : (
-                      <ul className="space-y-2">
-                        {m.tipografias.map((t, i) => (
-                          <li key={`${t.familia}-${i}`} className="flex items-baseline justify-between gap-3 border-t border-white/[0.06] pt-2 first:border-t-0 first:pt-0">
-                            <span className="text-[16px] text-zinc-100" style={{ fontFamily: `"${t.familia}", system-ui, sans-serif` }}>{t.familia}</span>
-                            <span className="shrink-0 text-[11px] text-zinc-500">{rolDeLaLetraLegible(t.rol)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                </aside>
+                {/* la barra lateral (boceto aprobado por Emilio, 02-nov): fija al bajar, lo esencial del manual con datos reales */}
+                <BarraDelManual m={m} nombre={datos.cliente?.nombre ?? null} campos={campos} delDueno={esDelDueno} faltan={faltan} irA={(k) => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} />
               </div>
             </>
           )}

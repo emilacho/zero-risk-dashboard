@@ -10,6 +10,7 @@ import { borradorDelManual, coloresDelManual, listaDeTextos, origenDelManualLegi
 import { revisionDeFidelidadLegible } from "@/lib/lenguaje"
 import { palabrasDelManual, type PalabraDelManual } from "@/lib/manual-palabras"
 import { avanceDelPedido } from "@/lib/plan"
+import { canalesDelCliente, fotosDeLaBarra, logoDelManual, sedesDeLaBarra, type CanalDeLaBarra, type FotoDeLaBarra, type SedeDeLaBarra } from "@/lib/manual-barra"
 import { CICLO_DEL_MANUAL_CERRADO, esPedidoAbierto, queCambioEnElManual, type CicloDelManual, type PedidoDelManual } from "@/lib/manual-ciclo"
 
 type Fila = Record<string, unknown>
@@ -28,6 +29,16 @@ const detalleCorto = (v: unknown): string | null => {
   if (typeof v === "string") return v.trim() || null
   if (v && typeof v === "object") { const o = v as Record<string, unknown>; return t(o.motivo) ?? t(o.error) ?? t(o.mensaje) }
   return null
+}
+/** LA BARRA LATERAL (CC6 · 02-nov): logo (del borrador), fotos propias (producto y ambiente, ya en nuestro almacén), sedes con su atención/horario/dirección y fuente, y canales propios. Solo lectura */
+async function leerLaBarra(supa: SupabaseClient, clienteId: string, libro: Fila): Promise<NonNullable<NonNullable<ManualDelCliente["manual"]>["barra"]>> {
+  const [ficha, sedes, datos, fotos] = await Promise.all([
+    una(supa.from("clients").select("config, website_url").eq("id", clienteId).maybeSingle(), "clients"),
+    filas(supa.from("client_sedes").select("id, clave, ciudad").eq("client_id", clienteId).limit(20), "client_sedes"),
+    filas(supa.from("client_sede_datos").select("sede_id, campo, valor_texto, fuente, fuente_ref").eq("client_id", clienteId).limit(200), "client_sede_datos"),
+    filas(supa.from("client_social_images").select("url, que_muestra, tipo_de_toma, created_at").eq("client_id", clienteId).eq("owner_role", "propio").eq("estado", "ok").in("tipo_de_toma", ["producto", "ambiente"]).order("created_at", { ascending: false }).limit(30), "client_social_images"),
+  ])
+  return { logo: logoDelManual(borradorDelManual(libro)), fotos: fotosDeLaBarra(fotos), sedes: sedesDeLaBarra(sedes, datos, typeof ficha?.website_url === "string" ? ficha.website_url : null), canales: canalesDelCliente(ficha?.config, typeof ficha?.website_url === "string" ? ficha.website_url : null) }
 }
 /** el aplicado se sigue mostrando un rato (para ver «Listo»); después solo queda «Qué cambió» */
 const HORAS_QUE_SE_VE_EL_APLICADO = 12
@@ -91,6 +102,8 @@ export interface ManualDelCliente {
     politica_competidores: string | null
     /** CC6 · pedir cambios al manual: el pedido, su avance y «Qué cambió» (cerrado mientras la plataforma no lo tenga) */
     ciclo?: CicloDelManual
+    /** CC6 · la barra lateral (boceto aprobado por Emilio, 02-nov): lo que no está en las columnas del manual, con datos reales */
+    barra?: { logo: { url: string; procedencia: string | null } | null; fotos: FotoDeLaBarra[]; sedes: SedeDeLaBarra[]; canales: CanalDeLaBarra[] }
     creado_en: string | null
     actualizado_en: string | null
   }
@@ -137,6 +150,7 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
       terminos_propios: listaDeTextos(b.required_terminology),
       politica_competidores: politicaDeCompetidoresLegible(b.competitor_mentions_policy),
       ciclo: await leerCicloDelManual(supa, cliente.id, b, ahora),
+      barra: await leerLaBarra(supa, cliente.id, b),
       creado_en: typeof b.created_at === "string" ? b.created_at : null,
       actualizado_en: typeof b.updated_at === "string" ? b.updated_at : null,
     },
