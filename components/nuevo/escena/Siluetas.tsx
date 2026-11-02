@@ -62,6 +62,7 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onS
   /** nombres canónicos de quienes están ahora en una reunión en curso */
   enLaSala: Set<string>
   onFoco?: (agente: string | null) => void
+  /** al tocar el cuerpo de cualquier empleado (sprint 4: su tarjeta de «ahora») */
   onTocar?: (agente: string) => void
   /** 03-nov · quiénes están SENTADOS en la sala ahora (nombres canónicos): la sala dibuja el globito de cada uno solo mientras su silueta sigue sentada */
   onSentados?: (agentes: Set<string>) => void
@@ -239,7 +240,8 @@ export function Siluetas({ mesas, reunion = null, enLaSala, onFoco, onTocar, onS
             opacity={c.op} transform={`translate(${c.pos.x.toFixed(1)} ${c.pos.y.toFixed(1)})`} role="img" tabIndex={0} aria-label={`${c.nombre}. ${c.mesa}. ${c.fallo ? "con fallo" : c.habla ? "hablando ahora" : "trabajando ahora"}. ${c.descripcion}${c.lugar === "sala" ? ". Ver su aporte completo" : ""}`}
             onMouseEnter={c.lugar === "sala" && onFoco ? () => onFoco(c.agente) : undefined} onMouseLeave={c.lugar === "sala" && onFoco ? () => onFoco(null) : undefined}
             onFocus={c.lugar === "sala" && onFoco ? () => onFoco(c.agente) : undefined} onBlur={c.lugar === "sala" && onFoco ? () => onFoco(null) : undefined}
-            onClick={c.lugar === "sala" && onTocar ? (e) => { e.stopPropagation(); onTocar(c.agente) } : undefined}>
+            onClick={onTocar ? (e) => { e.stopPropagation(); onTocar(c.agente) } : undefined}
+            onKeyDown={onTocar ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onTocar(c.agente) } } : undefined}>
             {c.habla && <ellipse className="nv-sil-halo" cx={0} cy={-40} rx={34} ry={46} fill="url(#nv-av-ambar)" />}
             {k < 0.99 && <g opacity={1 - k} transform={`translate(0 ${(12 * k).toFixed(1)})`}><HologramaFigura semilla={c.agente} color={c.color} postura="de_pie" estado={estado} /></g>}
             {k > 0.01 && <g opacity={k}><HologramaFigura semilla={c.agente} color={c.color} postura="sentado" estado={c.fallo ? "falla" : "trabajando"} /></g>}

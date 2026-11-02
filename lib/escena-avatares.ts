@@ -194,6 +194,8 @@ export interface Sentado {
   /** de dónde salió cada cosa */
   fuente: string
   origen_de_la_mesa: OrigenDeLaMesa
+  /** sprint 4 · la ejecución de su trabajo (la corrida que se abre en Observabilidad); no siempre se conoce */
+  ejecucion?: string | null
   /** sprint 3 · la jefatura devolvió su pieza y vuelve a su escritorio a corregir: lleva la marca «corrige» */
   corrige?: boolean
   /** sprint 3 · el escritorio del que viene caminando (quien entregó y lleva su pieza al escritorio de Dirección) */
@@ -309,7 +311,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
     const s: Sentado = {
       agente: d.agent_name, nombre: nombre(d.agent_name), mesa: m?.mesa ?? "direccion", estado: "trabajando", cliente: cliente(d.client_id),
       flujo: nombreDelFlujo(d.workflow_id), paso: pasoDe(d.workflow_execution_id, inv?.step_name), tarea: recorte(inv?.task_text),
-      desde: d.running_at ?? d.created_at, hace: haceCuanto(d.running_at ?? d.created_at, e.ahora), gasto_usd: null, fuente, origen_de_la_mesa: m?.origen ?? "mapa",
+      desde: d.running_at ?? d.created_at, hace: haceCuanto(d.running_at ?? d.created_at, e.ahora), gasto_usd: null, fuente, origen_de_la_mesa: m?.origen ?? "mapa", ejecucion: d.workflow_execution_id ?? null,
     }
     sentados.push(s)
     if (!m) sinMesa.push(s)
@@ -325,7 +327,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
     const s: Sentado = {
       agente: f.agente, nombre: nombre(f.agente), mesa: m?.mesa ?? "direccion", estado: "fallo", cliente: cliente(f.d?.client_id ?? f.i?.client_id ?? null),
       flujo: nombreDelFlujo(f.d?.workflow_id ?? f.i?.workflow_id), paso: pasoDe(f.d?.workflow_execution_id ?? f.i?.workflow_execution_id, f.i?.step_name), tarea: recorte(f.i?.task_text),
-      desde: f.cuando, hace: haceCuanto(f.cuando, e.ahora), gasto_usd: f.i?.cost_usd ?? null, fuente, origen_de_la_mesa: m?.origen ?? "mapa",
+      desde: f.cuando, hace: haceCuanto(f.cuando, e.ahora), gasto_usd: f.i?.cost_usd ?? null, fuente, origen_de_la_mesa: m?.origen ?? "mapa", ejecucion: f.d?.workflow_execution_id ?? f.i?.workflow_execution_id ?? null,
     }
     sentados.push(s)
     if (!m) sinMesa.push(s)

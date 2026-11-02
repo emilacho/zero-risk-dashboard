@@ -11,6 +11,7 @@ import { FichaDelEmpleado } from "@/components/nuevo/escena/FichaDelEmpleado"
 import { FlechasDeForma } from "@/components/nuevo/escena/FlechasDeForma"
 import { ESTILO_SALA, GloboEnLaFoto, globoVisible, PanelDeLaSala, SalaEnLaFoto, subidaDelRotulo } from "@/components/nuevo/escena/SalaDeReuniones"
 import { AporteCompleto } from "@/components/nuevo/escena/AporteCompleto"
+import { datosDelAgente, ElAgenteAhora } from "@/components/nuevo/escena/ElAgenteAhora"
 import { SALA } from "@/lib/escena-sala"
 import {
   colocarFiguras, ESCENA_AVATARES, estadoDeLaMesa, FOTO, MESAS, tableroDeLaMesa,
@@ -77,6 +78,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
   const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
   const [aporteDe, setAporteDe] = useState<string | null>(null) // S4 · el participante cuyo aporte completo está abierto
+  const [tocado, setTocado] = useState<string | null>(null) // sprint 4 · el empleado cuyo cuerpo se tocó: su tarjeta de «ahora»
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leer = useCallback(async () => {
@@ -163,7 +165,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
         {/* el pizarrón de métricas: «General» y un cuadro por red del cliente; hoy «métricas pronto» (los gastos se ven en Tu oficina › Dinero). Las entregas ya no quedan fijas aquí: su tarjeta aparece 8 s */}
         <CuadrosDeMetricas metricas={datos?.metricas} />
-        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setAporteDe(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
+        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
         <FlechasDeForma />
@@ -210,6 +212,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
       {datos?.contexto && <p data-contexto className="pointer-events-none absolute bottom-[3.2%] left-[2.6%] max-w-[44%] text-[12px] tracking-wide text-zinc-400/85">{datos.contexto.cliente}<span className="mx-1.5 text-zinc-600">·</span>{datos.contexto.momento}</p>}
       {error && <span className="sr-only" data-error-lectura>{error}</span>}
       {(() => { const p = aporteDe ? datos?.sala?.reunion?.participantes.find((x) => x.agente === aporteDe) : null; return p ? <AporteCompleto p={p} onCerrar={() => setAporteDe(null)} onFicha={() => { setAporteDe(null); setFichaDe(p.agente) }} /> : null })()}
+      {tocado && <ElAgenteAhora datos={datosDelAgente(tocado, datos)} onCerrar={() => setTocado(null)} onFicha={() => { setTocado(null); setFichaDe(tocado) }} onAporte={datos?.sala?.reunion?.participantes.some((x) => x.agente === tocado) ? () => { setTocado(null); setAporteDe(tocado) } : undefined} />}
       {fichaDe && <FichaDelEmpleado agente={fichaDe} onCerrar={() => setFichaDe(null)} />}
     </div>
   )
