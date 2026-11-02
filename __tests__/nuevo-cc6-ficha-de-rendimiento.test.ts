@@ -10,7 +10,7 @@ import { FlechasDeForma } from "@/components/nuevo/escena/FlechasDeForma"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 const dia = (n: number) => `2026-10-${String(n).padStart(2, "0")}T12:00:00Z`
-const rev = (n: number, resultado: string, bloqueos = 0): RevisionCruda => ({ creado_en: dia(n), resultado, bloqueos })
+const rev = (n: number, resultado: string, devueltas = 0): RevisionCruda => ({ creado_en: dia(n), resultado, devuelta: devueltas > 0 })
 const trabajo = (n: number, o: Partial<TrabajoCrudo> = {}): TrabajoCrudo => ({ creado_en: dia(n), status: "completed", stop_reason: "end_turn", num_turns: 1, brain_hit: true, cost_usd: 0.1, duration_ms: 15000, ...o })
 
 describe("la forma (flecha tipo FIFA)", () => {
@@ -30,7 +30,7 @@ describe("el rendimiento de un empleado", () => {
     const r = rendimientoDe("x", [1, 2, 3, 4, 5, 6].map((n) => rev(n, "limpia")), [trabajo(3)], [])
     expect(r.forma).toBeNull(); expect(r.motivo_sin_flecha).toBe("pocas tareas anteriores para comparar"); expect(r.puntaje).not.toBeNull()
   })
-  it("aprobado a la primera: limpia o con desacuerdo SIN observaciones que bloqueen; por tope o fallida no cuentan (Lenovo)", () => {
+  it("aprobado a la primera: limpia o con desacuerdo que nadie le devolvió; por tope o fallida no cuentan (Lenovo + regla de CC1)", () => {
     const r = rendimientoDe("x", [rev(10, "limpia"), rev(11, "con_desacuerdo"), rev(12, "limpia", 2), rev(13, "incompleta_por_tope"), rev(14, "fallida")], [trabajo(12)], [])
     expect(r.dimensiones[0]).toMatchObject({ valor: "2 de 3", puntaje: 67 })
     expect(r.dimensiones[0].detalle).toMatch(/2 no cuentan/)
@@ -60,7 +60,7 @@ describe("el rendimiento de un empleado", () => {
 function baseFalsa(t: Record<string, unknown[]>) {
   const consulta = (tabla: string): unknown => {
     const q: Record<string, unknown> = {}
-    for (const n of ["select", "eq", "in", "order", "limit"]) q[n] = () => q
+    for (const n of ["select", "eq", "in", "order", "limit", "like"]) q[n] = () => q
     q.then = (res: (v: unknown) => unknown) => Promise.resolve({ data: t[tabla] ?? [], error: null }).then(res)
     for (const n of ["insert", "update", "upsert", "delete", "rpc"]) q[n] = () => { throw new Error(`escritura prohibida: ${tabla}.${n}`) }
     return q
@@ -69,16 +69,35 @@ function baseFalsa(t: Record<string, unknown[]>) {
 }
 
 describe("la lectura (solo lectura, nombres canónicos)", () => {
-  it("toma al empleado de `productores`, cuenta los bloqueos de sus fichas y une los nombres con guion o guion bajo", async () => {
+  it("devuelta = un paso de corrección DE ESE empleado (regla de CC1); une los nombres con guion o guion bajo", async () => {
     const r = await leerRendimiento(baseFalsa({
       jefatura_revisiones: [{ id: "r1", resultado: "limpia", productores: [{ donde: "texto", agente: "content-creator" }, { donde: "imagen", agente: "marketing_instagram_curator" }], creado_en: dia(5) }],
-      jefatura_fichas: [{ revision_id: "r1", gravedad: "bloquea" }],
+      jefatura_pasos: [{ revision_id: "r1", paso: "correccion:texto", estado: "hecho", agente: "content-creator" }],
       agent_invocations: [{ agent_name: "marketing_instagram_curator", created_at: dia(6), status: "completed", num_turns: 1, cost_usd: 0.1, duration_ms: 1000, metadata: { brain_hit: true } }],
       hitl_queue: [],
     }), new Date("2026-11-02T12:00:00Z"))
     expect(Object.keys(r.empleados).sort()).toEqual(["content-creator", "marketing-instagram-curator"])
-    expect(r.empleados["content-creator"].dimensiones[0].valor).toBe("0 de 1") // tuvo una observación que bloquea: se la devolvieron
+    expect(r.empleados["content-creator"].dimensiones[0].valor).toBe("0 de 1") // la jefatura le pidió corregir: devuelta
+    expect(r.empleados["marketing-instagram-curator"].dimensiones[0].valor).toBe("1 de 1") // a la curadora no le corrigieron nada
     expect(r.empleados["marketing-instagram-curator"].dimensiones[1].valor).toBe("1 de 1")
+  })
+})
+
+describe("las devoluciones de Emilio (regla de CC1)", () => {
+  it("pidió cambios o la rechazó él; no cuentan limpiezas, superadas, vencidas, del sistema ni de prueba", async () => {
+    const { devolvioEmilio } = await import("@/lib/rendimiento-datos")
+    expect(devolvioEmilio({ status: "edited", decision: { pidio_cambios: true } })).toBe(true)
+    expect(devolvioEmilio({ status: "edited", decision: {} })).toBe(false)
+    expect(devolvioEmilio({ status: "rejected", reviewer: "zeroriskventas@gmail.com", decision: {} })).toBe(true)
+    for (const x of [{ reviewer: "limpieza-cc2" }, { reviewer: "oficina-superada" }, { reviewer: "sistema · limpieza" }, { reviewer: "emilio-prueba-cc2" }, { reviewer: null }, { reviewer: "emilio", decision: { vencida: true } }, { reviewer: "emilio", decision: { superada: true } }])
+      expect(devolvioEmilio({ status: "rejected", decision: {}, ...x }), JSON.stringify(x)).toBe(false)
+  })
+  it("una pieza que Emilio devolvió cuenta como devuelta para todos sus productores", async () => {
+    const r = await leerRendimiento(baseFalsa({
+      jefatura_revisiones: [{ id: "r2", resultado: "limpia", productores: [{ agente: "content-creator" }, { agente: "carousel-designer" }], creado_en: dia(5) }],
+      hitl_queue: [{ status: "edited", reviewer: "emilio", decision: { pidio_cambios: true }, metadata: { jefatura_revision_id: "r2" } }],
+    }), new Date("2026-11-02T12:00:00Z"))
+    expect(r.empleados["content-creator"].dimensiones[0].valor).toBe("0 de 1"); expect(r.empleados["carousel-designer"].dimensiones[0].valor).toBe("0 de 1")
   })
 })
 
