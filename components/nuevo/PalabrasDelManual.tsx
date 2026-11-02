@@ -19,7 +19,7 @@ const TONO: Record<PalabraDelManual["intencion"], string> = {
   estilo: "border-white/15 bg-white/[0.03] text-zinc-200",
 }
 const confirmacion = (texto: string, d: DecisionSobreLaPalabra) =>
-  d === "prohibir" ? `Prohibir «${texto}»: ninguna pieza la usará.` : d === "contexto" ? `«${texto}» queda como estilo: ya no frena piezas.` : `Quitar «${texto}» del manual.`
+  d === "prohibir" ? `Marcar «${texto}»: si una pieza la usa, el juez lo anota a la vista.` : d === "contexto" ? `«${texto}» queda como estilo de la marca.` : `Quitar «${texto}» del manual.`
 
 export function PalabrasDelManual({ palabras, cliente, accion, onGuardado, elegidaInicial = null, decisionInicial = null }: {
   palabras: PalabraDelManual[]; cliente: string | null; accion: Accion; onGuardado: (r: Resultado) => void
@@ -90,10 +90,10 @@ export function PalabrasDelManual({ palabras, cliente, accion, onGuardado, elegi
         )
       })}
       <form data-agregar-palabra className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3" onSubmit={(e) => { e.preventDefault(); if (nueva.trim()) void decidir(nueva.trim(), "prohibir", "") }}>
-        <label className="text-[11px] uppercase tracking-[0.08em] text-zinc-500" htmlFor="nv-palabra-nueva">Prohibir otra palabra</label>
+        <label className="text-[11px] uppercase tracking-[0.08em] text-zinc-500" htmlFor="nv-palabra-nueva">Marcar otra palabra</label>
         <input id="nv-palabra-nueva" value={nueva} onChange={(e) => setNueva(e.target.value)} maxLength={200} placeholder="la palabra o frase"
           className="min-w-[10rem] flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[12px] text-zinc-100 outline-none focus:border-amber-400/60" />
-        <button type="submit" disabled={!cliente || enviando || !nueva.trim()} className="rounded-md border border-amber-400/50 px-2.5 py-1 text-[12px] text-amber-200 hover:bg-amber-400/10 disabled:opacity-40">Prohibir</button>
+        <button type="submit" disabled={!cliente || enviando || !nueva.trim()} className="rounded-md border border-amber-400/50 px-2.5 py-1 text-[12px] text-amber-200 hover:bg-amber-400/10 disabled:opacity-40">Marcar palabra</button>
       </form>
       {error && <p role="alert" className="text-[12px] text-rose-300">{error}</p>}
     </div>
