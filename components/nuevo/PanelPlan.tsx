@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
-import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type AvanceDelPedido, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
 import { fechaCortaEC } from "@/lib/manual"
+import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { estadoDeCampanaLegible, pilarLegible, plural } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
@@ -52,34 +53,6 @@ function Barra({ nombre, pct, detalle }: { nombre: string; pct: number; detalle?
   )
 }
 
-const COLOR_PASO: Record<string, string> = { hecho: "border-amber-300 bg-amber-400 text-black", en_curso: "nv-pl-paso-vivo border-amber-300 bg-amber-400/25 text-amber-100", pendiente: "border-white/20 bg-transparent text-zinc-500", fallo: "border-rose-400 bg-rose-500/80 text-white" }
-/** LA BARRA DE PROGRESO del pedido de cambios (ADENDA 1 de Emilio, 01-nov): cinco pasos con su hora, el tiempo estimado y, si falla, el paso en rojo con qué hacer */
-function BarraDelPedido({ avance, onOcultar }: { avance: AvanceDelPedido; /** cerrarla a propósito (se reabre con «Ver el avance») */ onOcultar?: () => void }) {
-  return (
-    <div data-barra-del-pedido data-fallo={avance.fallo ? "si" : "no"} className="relative mt-4 rounded-lg border border-white/10 bg-black/30 p-4" role="group" aria-label="El avance de tu pedido de cambios">
-      {onOcultar && <button type="button" data-accion="ocultar-avance" onClick={onOcultar} className="absolute right-2 top-2 rounded px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">Ocultar</button>}
-      <ol className="grid grid-cols-1 gap-3 sm:grid-cols-5">
-        {avance.pasos.map((p, i) => (
-          <li key={p.clave} data-paso={p.clave} data-estado={p.estado} className="flex items-start gap-2 sm:flex-col sm:items-center sm:text-center">
-            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold ${COLOR_PASO[p.estado]}`}>{p.estado === "hecho" ? "✓" : p.estado === "fallo" ? "!" : i + 1}</span>
-            <span className="min-w-0">
-              <span className={`block text-[12.5px] ${p.estado === "pendiente" ? "text-zinc-500" : p.estado === "fallo" ? "text-rose-200" : "text-zinc-100"}`}>{p.nombre}</span>
-              <span className="block text-[11px] text-zinc-500">{p.hora ? horaCortaEC(p.hora) : p.estado === "en_curso" ? "en curso" : "—"}</span>
-              {p.detalle && <span className="block text-[11px] text-rose-300">{p.detalle}</span>}
-            </span>
-          </li>
-        ))}
-      </ol>
-      {avance.ahora && <p data-ahora={avance.ahora.quien} className="mt-3 flex items-center gap-2 text-[13px] text-zinc-100"><span aria-hidden className="nv-pl-paso-vivo inline-block h-2 w-2 rounded-full bg-violet-400" />Ahora: {avance.ahora.texto.charAt(0).toLowerCase()}{avance.ahora.texto.slice(1)}{avance.ahora.desde ? ` · desde las ${horaCortaEC(avance.ahora.desde)}` : ""}</p>}
-      <p className="mt-3 text-[12px] text-zinc-400" data-estimado>{avance.estimado}</p>
-      {avance.nota && <p className="mt-1 text-[12px] text-amber-200">{avance.nota}</p>}
-      {avance.fallo && <p role="alert" className="mt-2 rounded-md border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-100">{avance.fallo.texto} <span className="text-rose-200/80">{avance.fallo.que_hacer}</span></p>}
-    </div>
-  )
-}
-/** la hora (Ecuador) de un instante: «15:42» */
-const horaCortaEC = (iso: string): string => { try { return new Date(iso).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" }) } catch { return "—" } }
-
 type EnviarAlCiclo = typeof enviarAlCiclo
 const ESTADO_CICLO_COLOR: Record<EstadoDelCiclo, string> = {
   en_revision: "border-sky-400/50 bg-sky-400/10 text-sky-100",
@@ -99,22 +72,6 @@ const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibol
 export function lineasDeQueCambio(texto: string): string[] {
   return texto.split(/\n+/).map((l) => l.trim().replace(/^([-*•]|\d+[.)])\s+/, "")).filter((l) => l && !/^-{3,}$/.test(l))
 }
-function QueCambio({ texto }: { texto: string }) {
-  const lineas = lineasDeQueCambio(texto)
-  const [abierto, setAbierto] = useState(false)
-  const visibles = abierto ? lineas : lineas.slice(0, 2)
-  return (
-    <div data-que-cambio data-abierto={abierto} className="mt-3 rounded-lg border border-amber-400/40 bg-black/30 p-3">
-      <button type="button" aria-expanded={abierto} onClick={() => setAbierto((v) => !v)} className="flex w-full items-center gap-2 text-left">
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-amber-300">Qué cambió en el plan · {plural(lineas.length, "cambio", "cambios")}</span>
-        <span aria-hidden className={`ml-auto text-zinc-500 transition ${abierto ? "rotate-90" : ""}`}>›</span>
-      </button>
-      <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-zinc-100">{visibles.map((l, i) => <li key={i} className={abierto ? "" : "line-clamp-2"}>{l}</li>)}</ul>
-      {lineas.length > 2 && <button type="button" data-accion="ver-que-cambio" onClick={() => setAbierto((v) => !v)} className="mt-1 text-[11.5px] text-amber-300 underline decoration-dotted underline-offset-4 hover:text-amber-200">{abierto ? "Ver menos" : `Ver los ${lineas.length} cambios`}</button>}
-    </div>
-  )
-}
-
 function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultado, queCambio = null, palabraDelDueno = [], pedirEn = null, children }: { planId: string; statusDelDocumento: string | null; ciclo: CicloDelPlan; enviar: EnviarAlCiclo; onResultado: (r: RespuestaDelCiclo) => void; /** «QUÉ CAMBIÓ EN ESTA VERSIÓN» de la versión vigente */ queCambio?: string | null; /** «la palabra del dueño manda»: lo que un revisor contradijo y no entró, o lo pedido que no quedó cumplido */ palabraDelDueno?: NonNullable<PlanDelCliente["palabra_del_dueno"]>; /** pedir cambios sobre una sección del plan (lo dispara el plan en secciones; `n` cambia en cada clic) */ pedirEn?: { seccion: string; n: number } | null; /** lo que marcó el chequeo y la jefatura */ children?: React.ReactNode }) {
   const lectura = leerElCiclo(statusDelDocumento, ciclo)
   // Emilio (01-nov 16:27Z): sin avisos ni confirmaciones de gasto. Aprobar = un clic; Pedir cambios = escribir y enviar. El cuerpo sigue llevando lo que la
@@ -168,7 +125,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
         )}
       </div>
       {queCambio && ciclo.version > 1 && (
-        <QueCambio texto={queCambio} />
+        <QueCambio titulo="Qué cambió en el plan" lineas={lineasDeQueCambio(queCambio)} />
       )}
       <p className="mt-2 text-[14px] leading-relaxed text-zinc-100">{lectura.detalle}</p>
       {/* «la palabra del dueño manda» (Emilio, 01-nov): lo que un revisor sugirió contra tu orden no entra al plan; aquí queda a la vista, sin tocar el texto */}
