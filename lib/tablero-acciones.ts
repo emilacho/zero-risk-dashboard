@@ -188,15 +188,20 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   },
 }
 
-/** los campos del manual que Emilio puede escribir (respuesta de Lenovo antiguo, 30-oct); lo observado por el sistema es PROPUESTA y no se edita a mano */
+/** los campos del manual que Emilio puede escribir: desde CC1 `0934662` (02-nov, ADENDA 1 de Lenovo) son TODOS los que muestra el panel */
 export const CAMPOS_DEL_MANUAL: Array<{ clave: string; etiqueta: string; largo: boolean }> = [
   { clave: "proposito", etiqueta: "Propósito", largo: true },
+  { clave: "mision", etiqueta: "Misión", largo: true },
+  { clave: "vision", etiqueta: "Visión", largo: true },
   { clave: "eslogan", etiqueta: "Eslogan", largo: false },
   { clave: "voz", etiqueta: "Voz", largo: true },
   { clave: "posicionamiento", etiqueta: "Posicionamiento", largo: true },
   { clave: "publico", etiqueta: "Público", largo: true },
   { clave: "valores", etiqueta: "Valores", largo: true },
   { clave: "nunca", etiqueta: "Lo que la marca nunca dice o hace", largo: true },
+  { clave: "personalidad", etiqueta: "Personalidad", largo: true },
+  { clave: "mensajes_clave", etiqueta: "Mensajes clave", largo: true },
+  { clave: "propuestas_de_valor", etiqueta: "Propuestas de valor", largo: true },
 ]
 
 export interface RespuestaDeAccion { status: number; cuerpo: Record<string, unknown> }

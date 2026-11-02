@@ -344,7 +344,6 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
             </>
           )}
         </div>
-        <footer className="border-t border-white/10 px-4 py-2 text-[11.5px] text-zinc-500 sm:px-6">Cada «Guardar» crea una versión nueva del manual en el sistema y la manda al cerebro: el siguiente empleado la lee actualizada. Los campos sin «Editar» se habilitan cuando la plataforma los acepte.</footer>
       </section>
     </div>
   )
