@@ -9,7 +9,7 @@ import { esDePractica } from "@/lib/clientes"
 import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
-import { armarEntregas, conRevisiones, esDevolucion, MAXIMO_DE_CUADROS, MINUTOS_DE_CORRIGE, REVISION_VIVA_H, VIGENCIA_DE_LA_ENTREGA_H, type EntregasDeLaEscena } from "@/lib/escena-entregas"
+import { armarEntregas, conRevisiones, devolvioEmilio, MAXIMO_DE_CUADROS, MINUTOS_DE_CORRIGE, REVISION_VIVA_H, VIGENCIA_DE_LA_ENTREGA_H, type EntregasDeLaEscena } from "@/lib/escena-entregas"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -103,19 +103,30 @@ export async function leerAportesDeLaReunion(supa: SupabaseClient, r: ReunionDeL
 /** sprint 3 · lo que se entregó, quién revisa y cuántas firmas esperan (solo lectura; un error de la base lanza y la escena sigue sin esto) */
 export async function leerEntregas(supa: SupabaseClient, ahora: Date): Promise<EntregasDeLaEscena> {
   const desdeEntrega = new Date(ahora.getTime() - VIGENCIA_DE_LA_ENTREGA_H * 3_600_000).toISOString()
-  const desdeRevision = new Date(ahora.getTime() - Math.max(REVISION_VIVA_H * 60, MINUTOS_DE_CORRIGE) * 60_000).toISOString()
-  const [encargos, revisiones, bandeja] = await Promise.all([
+  const desdeRevision = new Date(ahora.getTime() - REVISION_VIVA_H * 3_600_000).toISOString()
+  const desdeCorrige = new Date(ahora.getTime() - MINUTOS_DE_CORRIGE * 60_000).toISOString()
+  const [encargos, revisiones, bandeja, pasosDeCorreccion, decisiones, cambios] = await Promise.all([
     filas(supa.from("oficina_encargos").select("id, estado, sala_ref, cerrado_en").eq("dry_run", false).like("estado", "cerrado%").gte("cerrado_en", desdeEntrega).order("cerrado_en", { ascending: false }).limit(MAXIMO_DE_CUADROS * 3), "oficina_encargos"),
-    filas(supa.from("jefatura_revisiones").select("id, artifact_id, estado, resultado, creado_en, cerrado_en").eq("artifact_type", "pieza").gte("creado_en", desdeRevision).order("creado_en", { ascending: false }).limit(60), "jefatura_revisiones"),
+    filas(supa.from("jefatura_revisiones").select("id, artifact_id, estado, creado_en, cerrado_en").eq("artifact_type", "pieza").is("cerrado_en", null).gte("creado_en", desdeRevision).order("creado_en", { ascending: false }).limit(60), "jefatura_revisiones"),
     filas(supa.from("hitl_queue").select("id, expires_at").eq("status", "pending").limit(500), "hitl_queue"),
+    // «corrige» (reglas de CC1): la jefatura devolvió = un paso `correccion:%` hecho · Emilio devolvió = pieza / plan / manual
+    filas(supa.from("jefatura_pasos").select("revision_id, paso, estado, agente, inicio, fin").like("paso", "correccion:%").eq("estado", "hecho").gte("fin", desdeCorrige).limit(100), "jefatura_pasos"),
+    filas(supa.from("hitl_queue").select("id, status, reviewer, decision, metadata, decided_at").eq("type", "content_piece_review").in("status", ["edited", "rejected"]).gte("decided_at", desdeCorrige).limit(100), "hitl_queue"),
+    filas(supa.from("plan_cambios").select("id, plan_id, documento, campos_liberados, creado_en").in("documento", ["plan", "manual"]).gte("creado_en", desdeCorrige).limit(50), "plan_cambios"),
   ])
-  const idsEncargo = [...new Set([...encargos.map((e) => String(e.id)), ...revisiones.map((r) => s(r.artifact_id)).filter((x): x is string => !!x)])]
+  const decisionesDeEmilio = decisiones.filter(devolvioEmilio)
+  const idsAtribucion = [...new Set([...pasosDeCorreccion.map((p) => s(p.revision_id)), ...decisionesDeEmilio.map((d) => s(((d.metadata as Fila | null) ?? {}).jefatura_revision_id))].filter((x): x is string => !!x))]
+  const idsDePlan = [...new Set(cambios.filter((c) => c.documento === "plan").map((c) => s(c.plan_id)).filter((x): x is string => !!x))]
+  const idsDeEncargoDeEmilio = decisionesDeEmilio.map((d) => s(((d.metadata as Fila | null) ?? {}).oficina_encargo_id)).filter((x): x is string => !!x)
+  const idsEncargo = [...new Set([...encargos.map((e) => String(e.id)), ...revisiones.map((r) => s(r.artifact_id)).filter((x): x is string => !!x), ...idsDeEncargoDeEmilio])]
   const idsFila = [...new Set(encargos.map((e) => s(((e.sala_ref as Fila | null) ?? {}).fila && (((e.sala_ref as Fila).fila as Fila).id))).filter((x): x is string => !!x))]
-  const idsRevision = revisiones.filter((r) => !s(r.cerrado_en) || esDevolucion(r.resultado)).map((r) => String(r.id))
-  const [turnos, filasCal, pasos] = await Promise.all([
+  const idsRevision = revisiones.map((r) => String(r.id))
+  const [turnos, filasCal, pasos, atribucionPorId, atribucionPorPlan] = await Promise.all([
     idsEncargo.length ? filas(supa.from("oficina_turnos").select("encargo_id, agente, tipo, inicio, fin").in("encargo_id", idsEncargo).eq("tipo", "agente").limit(1500), "oficina_turnos") : Promise.resolve([] as Fila[]),
     idsFila.length ? filas(supa.from("cadena_calendario_filas").select("id, tema, red").in("id", idsFila).limit(100), "cadena_calendario_filas") : Promise.resolve([] as Fila[]),
     idsRevision.length ? filas(supa.from("jefatura_pasos").select("revision_id, agente, tipo, estado").in("revision_id", idsRevision).limit(400), "jefatura_pasos") : Promise.resolve([] as Fila[]),
+    idsAtribucion.length ? filas(supa.from("jefatura_revisiones").select("id, artifact_id, productores, prueba, dry_run").in("id", idsAtribucion).limit(100), "jefatura_revisiones") : Promise.resolve([] as Fila[]),
+    idsDePlan.length ? filas(supa.from("jefatura_revisiones").select("id, artifact_id, productores, prueba, dry_run").in("artifact_id", idsDePlan).limit(100), "jefatura_revisiones") : Promise.resolve([] as Fila[]),
   ])
-  return armarEntregas({ encargos, turnos, filas: filasCal, revisiones, pasos, bandeja, ahora })
+  return armarEntregas({ encargos, turnos, filas: filasCal, revisiones, pasos, bandeja, pasosDeCorreccion, decisiones, cambios, atribucion: [...atribucionPorId, ...atribucionPorPlan], ahora })
 }

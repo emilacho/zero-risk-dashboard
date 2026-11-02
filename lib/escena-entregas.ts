@@ -4,7 +4,10 @@
  *  · Entrega = un encargo de `oficina_encargos` que quedó entregado (`estado` empieza con «cerrado» y no es «cerrado_por_tope»); la entrega la hace el último empleado con turno de
  *    agente en `oficina_turnos` de ese encargo; el título sale de la fila del calendario (`sala_ref.fila`). Los cuadros del pizarrón muestran solo lo vigente (máx. 12; el más viejo se apaga).
  *  · Revisión viva = `jefatura_revisiones` de una pieza sin `cerrado_en`; los jefes que revisan salen de `jefatura_pasos`. Mientras dura, quien entregó camina al escritorio de Dirección
- *    y los jefes se encienden en el escritorio que dice `oficina_directorio` (nada se supone). Si la revisión DEVUELVE, vuelve a su escritorio con la marca «corrige».
+ *    y los jefes se encienden en el escritorio que dice `oficina_directorio` (nada se supone; `activo=false` NO los saca de Dirección: solo significa que no entran a los turnos).
+ *  · «corrige» (reglas de CC1, `RESPUESTA-CC1-a-CC4-LENOVO-dos-datos-para-la-escena`): `jefatura_revisiones.resultado` NO dice si devolvió (dice cómo cerró). Sale cuando (a) la jefatura devuelve:
+ *    un paso `jefatura_pasos` `correccion:%` en `hecho`, atribuido a `jefatura_pasos.agente`; o (b) devuelve Emilio: una pieza de `hitl_queue` (pidió cambios, o la rechazó él de verdad), un
+ *    pedido de `plan_cambios` de plan, o uno de manual. Sin prueba ni ensayo.
  *  · Firma = `hitl_queue` pendiente y vigente (sin `expires_at` vencido). El endpoint de la bandeja devuelve vencidas como pendientes: aquí NO se usa.
  */
 import { mesaDeEscritorio, type EscenaDatos, type MesaViva, type NombreDeAgente, type Punto, type Sentado, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
@@ -19,6 +22,13 @@ export const MAXIMO_DE_CUADROS = 12
 export const VIGENCIA_DE_LA_ENTREGA_H = 24
 export const REVISION_VIVA_H = 3
 export const MINUTOS_DE_CORRIGE = 10
+/** de quién es cada campo del manual (copia de `CAMPOS_PROPONIBLES[campo].agente` de `src/lib/manual/propuesta.ts` de la plataforma, 02-nov: es el dueño asignado, no un registro de quién lo escribió) */
+export const DUENO_DEL_CAMPO_DEL_MANUAL: Record<string, string> = {
+  mision: "brand-strategist", proposito: "brand-strategist", positioning: "brand-strategist", propuestas_de_valor: "brand-strategist", vision: "brand-strategist", historia_y_origen: "brand-strategist",
+  voice_description: "content-creator", personalidad: "content-creator", tagline_opciones: "content-creator", mensajes_clave: "content-creator", valores: "content-creator", nunca_hace: "content-creator", tono_por_canal: "content-creator", reglas_de_escritura: "content-creator",
+  customer_angle: "jefe-client-success", retention_notes: "jefe-client-success", productos: "jefe-client-success", sedes: "jefe-client-success",
+  direccion_de_fotografia: "creative-director-mesa", uso_del_logo: "design-visual-storyteller", jerarquia_tipografica: "design-visual-storyteller",
+}
 /** cuánto se queda la tarjeta de la entrega frente al pizarrón antes de quedar como cuadro encendido */
 export const TARJETA_MS = 8000
 export const MAXIMO_JUNTOS_EN_EL_PIZARRON = 4
@@ -49,28 +59,37 @@ export interface RevisionViva {
   entregador: string | null
   /** los jefes que revisan (nombres tal como los trae `jefatura_pasos`) */
   revisores: string[]
-  /** viva = la jefatura la está revisando · devuelta = devolvió la pieza (el que entregó vuelve a corregir) */
-  estado: "viva" | "devuelta"
+  /** la jefatura la está revisando ahora (lo que devuelve va en `correcciones`, no aquí) */
+  estado: "viva"
   desde: string
   cerrado_en: string | null
 }
+/** alguien a quien le devolvieron un trabajo: vuelve a su escritorio con la marca «corrige» durante MINUTOS_DE_CORRIGE */
+export interface CorreccionViva { agente: string; origen: "jefatura" | "emilio_pieza" | "emilio_plan" | "emilio_manual"; desde: string }
 export interface EntregasDeLaEscena {
+  correcciones?: CorreccionViva[]
   /** las entregas vigentes, de la más nueva a la más vieja (máx. MAXIMO_DE_CUADROS) */
   entregas: EntregaViva[]
   revisiones: RevisionViva[]
   firma: { pendientes: number }
 }
 
-/** lo que dice `jefatura_revisiones.resultado` cuando la jefatura devuelve la pieza para corregir */
-export const esDevolucion = (resultado: unknown): boolean => /devuel|correg|cambio|rechaz|revis|ajust/i.test(String(resultado ?? ""))
 const ES_ENTREGA_FALLIDA = /fallid|tope|cancel|abort/i
 
 export interface LecturaDeEntregas {
   encargos: Fila[]   // oficina_encargos: id, estado, sala_ref, cerrado_en
   turnos: Fila[]     // oficina_turnos: encargo_id, agente, tipo, inicio, fin
   filas: Fila[]      // cadena_calendario_filas: id, tema, red
-  revisiones: Fila[] // jefatura_revisiones de piezas: id, artifact_id, estado, resultado, creado_en, cerrado_en
-  pasos: Fila[]      // jefatura_pasos: revision_id, agente, tipo, estado
+  revisiones: Fila[] // jefatura_revisiones VIVAS de piezas: id, artifact_id, estado, creado_en, cerrado_en
+  pasos: Fila[]      // jefatura_pasos de esas revisiones: revision_id, agente, tipo, estado
+  /** «corrige» · jefatura: jefatura_pasos `correccion:%` en hecho (revision_id, agente, inicio, fin) */
+  pasosDeCorreccion?: Fila[]
+  /** «corrige» · Emilio, pieza: hitl_queue content_piece_review edited/rejected (id, status, reviewer, decision, metadata, decided_at) */
+  decisiones?: Fila[]
+  /** «corrige» · Emilio, plan o manual: plan_cambios (id, plan_id, documento, campos_liberados, creado_en) */
+  cambios?: Fila[]
+  /** revisiones para atribuir (id, artifact_id, productores[{agente}], prueba, dry_run) */
+  atribucion?: Fila[]
   bandeja: Fila[]    // hitl_queue pendientes: id, expires_at
   ahora: Date
 }
@@ -101,13 +120,68 @@ export function armarEntregas(x: LecturaDeEntregas): EntregasDeLaEscena {
     if (!encargo || !creado) continue
     const cerrado = t(r.cerrado_en)
     const viva = !cerrado && ahora - Date.parse(creado) <= REVISION_VIVA_H * 3_600_000
-    const devuelta = !!cerrado && esDevolucion(r.resultado) && ahora - Date.parse(cerrado) <= MINUTOS_DE_CORRIGE * 60_000
-    if (!viva && !devuelta) continue
+    if (!viva) continue
     const revisores = [...new Set(x.pasos.filter((p) => String(p.revision_id) === String(r.id) && t(p.tipo) === "agente" && t(p.agente)).map((p) => String(p.agente)))]
-    revisiones.push({ id: String(r.id), encargo_id: encargo, entregador: entregadorDe(encargo), revisores, estado: viva ? "viva" : "devuelta", desde: creado, cerrado_en: cerrado })
+    revisiones.push({ id: String(r.id), encargo_id: encargo, entregador: entregadorDe(encargo), revisores, estado: "viva", desde: creado, cerrado_en: cerrado })
   }
   const pendientes = x.bandeja.filter((b) => !t(b.expires_at) || Date.parse(String(b.expires_at)) > ahora).length
-  return { entregas, revisiones, firma: { pendientes } }
+  return { entregas, revisiones, firma: { pendientes }, correcciones: armarCorrecciones(x) }
+}
+
+const obj = (v: unknown): Fila => (v && typeof v === "object" && !Array.isArray(v) ? (v as Fila) : {})
+/** una decisión de Emilio que devuelve la pieza (regla de CC1): pidió cambios; o la rechazó él de verdad (no una limpieza, una superación, un vencimiento ni una prueba) */
+export function devolvioEmilio(x: Fila): boolean {
+  const d = obj(x.decision), quien = String(x.reviewer ?? "")
+  if (x.status === "edited") return d.pidio_cambios === true || d.pidio_cambios === "true"
+  if (x.status !== "rejected") return false
+  if ("vencida" in d || "superada" in d || "no_es_decision_del_dueno" in d) return false
+  return !!quien && !/^(sistema|oficina-)/i.test(quien) && !/prueba/i.test(quien) && !/^limpieza/i.test(quien)
+}
+const productoresDe = (r: Fila | undefined): string[] => (r && Array.isArray(r.productores) ? [...new Set(r.productores.map((p) => t(obj(p).agente)).filter((a): a is string => !!a))] : [])
+const reciente = (cuando: string | null, ahora: number): cuando is string => !!cuando && ahora - Date.parse(cuando) <= MINUTOS_DE_CORRIGE * 60_000 && ahora >= Date.parse(cuando)
+
+/** a quién le devolvieron algo hace poco, con las reglas de CC1; lo que no se puede atribuir con datos reales no marca a nadie */
+export function armarCorrecciones(x: LecturaDeEntregas): CorreccionViva[] {
+  const ahora = x.ahora.getTime()
+  const atribucion = x.atribucion ?? []
+  const reales = new Map(atribucion.filter((r) => r.prueba !== true && r.dry_run !== true).map((r) => [String(r.id), r]))
+  const out: CorreccionViva[] = []
+  // (a) la jefatura devolvió: un paso de corrección hecho, atribuido a quien corrigió
+  for (const p of x.pasosDeCorreccion ?? []) {
+    const cuando = t(p.fin) ?? t(p.inicio), agente = t(p.agente)
+    if (!agente || !reciente(cuando, ahora) || !/^correccion:/.test(String(p.paso ?? "correccion:")) || (t(p.estado) && p.estado !== "hecho")) continue
+    if (atribucion.length && !reales.has(String(p.revision_id))) continue // revisión de prueba o ensayo
+    out.push({ agente, origen: "jefatura", desde: cuando })
+  }
+  // (b) Emilio devolvió una pieza: a todos los productores de su revisión; sin revisión, a quien hizo el encargo (último turno de agente)
+  for (const d of x.decisiones ?? []) {
+    const cuando = t(d.decided_at)
+    if (!reciente(cuando, ahora) || !devolvioEmilio(d)) continue
+    const m = obj(d.metadata)
+    const rev = t(m.jefatura_revision_id) ? reales.get(String(m.jefatura_revision_id)) : undefined
+    let quienes = productoresDe(rev)
+    if (!quienes.length && t(m.oficina_encargo_id)) {
+      const u = x.turnos.filter((q) => String(q.encargo_id) === String(m.oficina_encargo_id) && t(q.tipo) === "agente" && t(q.agente)).sort((a, b) => ((t(b.fin) ?? t(b.inicio) ?? "") < (t(a.fin) ?? t(a.inicio) ?? "") ? -1 : 1))[0]
+      if (u) quienes = [String(u.agente)]
+    }
+    for (const agente of quienes) out.push({ agente, origen: "emilio_pieza", desde: cuando })
+  }
+  // (c) Emilio pidió cambios al plan o al manual: cuenta el pedido al crearse
+  for (const c of x.cambios ?? []) {
+    const cuando = t(c.creado_en)
+    if (!reciente(cuando, ahora)) continue
+    if (c.documento === "plan") {
+      const rev = atribucion.find((r) => String(r.artifact_id) === String(c.plan_id) && r.prueba !== true && r.dry_run !== true)
+      for (const agente of productoresDe(rev)) out.push({ agente, origen: "emilio_plan", desde: cuando })
+    } else if (c.documento === "manual") {
+      const campos = Array.isArray(c.campos_liberados) ? c.campos_liberados.map(String) : typeof c.campos_liberados === "string" ? [c.campos_liberados] : []
+      for (const agente of new Set(campos.map((k) => DUENO_DEL_CAMPO_DEL_MANUAL[k]).filter((a): a is string => !!a))) out.push({ agente, origen: "emilio_manual", desde: cuando })
+    }
+  }
+  // un empleado, una marca (la más reciente)
+  const por = new Map<string, CorreccionViva>()
+  for (const c of out) { const k = nombreCanonico(c.agente), p = por.get(k); if (!p || c.desde > p.desde) por.set(k, c) }
+  return [...por.values()]
 }
 
 /**
@@ -120,7 +194,7 @@ export function conRevisiones(escena: EscenaDatos, ent: EntregasDeLaEscena, o: {
   const nombre = (a: string) => nombres.get(nombreCanonico(a)) ?? nombreLegible(a)
   const entregas = ent.entregas.map((e) => ({ ...e, mesa: e.agente ? mesaDeEscritorio(e.agente, o.directorio)?.mesa ?? null : null, nombre: e.agente ? nombre(e.agente) : null }))
   const conEntregas: EntregasDeLaEscena = { ...ent, entregas }
-  if (!ent.revisiones.length) return { escena: { ...escena, entregas: conEntregas }, sinEscritorio: [] }
+  if (!ent.revisiones.length && !(ent.correcciones ?? []).length) return { escena: { ...escena, entregas: conEntregas }, sinEscritorio: [] }
   const mesas: MesaViva[] = escena.mesas.map((m) => ({ ...m, sentados: [...m.sentados] }))
   const sinEscritorio: string[] = []
   const fuente = "la revisión de la jefatura"
@@ -141,11 +215,14 @@ export function conRevisiones(escena: EscenaDatos, ent: EntregasDeLaEscena, o: {
         sienta(j, m.mesa, "revisa una pieza", r.desde, {}, m.origen)
       }
       if (r.entregador && !enSala.has(nombreCanonico(r.entregador))) sienta(r.entregador, "direccion", "lleva su entrega a la revisión", r.desde, { viene_de: mesaDeEscritorio(r.entregador, o.directorio)?.mesa })
-    } else if (r.entregador && !enSala.has(nombreCanonico(r.entregador))) {
-      const m = mesaDeEscritorio(r.entregador, o.directorio)
-      if (m) sienta(r.entregador, m.mesa, "corrige lo que devolvió la jefatura", r.cerrado_en ?? r.desde, { corrige: true }, m.origen)
-      else sinEscritorio.push(r.entregador)
     }
+  }
+  // «corrige»: vuelve a su escritorio quien recibió una devolución (de la jefatura o de Emilio) hace poco, salvo quien está en la reunión de la sala
+  for (const c of ent.correcciones ?? []) {
+    if (enSala.has(nombreCanonico(c.agente))) continue
+    const m = mesaDeEscritorio(c.agente, o.directorio)
+    if (m) sienta(c.agente, m.mesa, "corrige lo que le devolvieron", c.desde, { corrige: true }, m.origen)
+    else sinEscritorio.push(c.agente)
   }
   for (const m of mesas) { m.trabajando = m.sentados.filter((s) => s.estado === "trabajando").length; m.fallando = m.sentados.filter((s) => s.estado === "fallo").length }
   return { escena: { ...escena, mesas, entregas: conEntregas }, sinEscritorio: [...new Set(sinEscritorio)] }
