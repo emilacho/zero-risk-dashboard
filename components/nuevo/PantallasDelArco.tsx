@@ -248,7 +248,7 @@ export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos
           const m = marcoDeLaForma(p.forma)
           return (
             <g key={id} data-titulo-de={id} transform={`matrix(${m.matriz.map((v) => v.toFixed(5)).join(" ")})`}>
-              <g transform={`scale(${(m.W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(m.H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TituloGrande lineas={p.titulo as readonly string[]} /></g>
+              <g transform={`scale(${(m.W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(m.H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TituloGrande lineas={p.titulo as readonly string[]} clave={id} tono={p.tono} /></g>
             </g>
           )
         })}
