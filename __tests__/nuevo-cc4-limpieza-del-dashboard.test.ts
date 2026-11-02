@@ -70,6 +70,6 @@ describe("punto 5 · la carga baja", () => {
 describe("punto 6 · avatares más grandes, sin amontonar", () => {
   it("siguen siendo 4 por mesa con «+N», con el paso suficiente para la figura más grande", () => {
     expect(MAXIMO_DE_PUESTOS).toBe(4); expect(PASO_ENTRE_PUESTOS).toBeGreaterThanOrEqual(50)
-    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("scale(1.15)")
+    expect(readFileSync("components/nuevo/escena/Holograma.tsx", "utf8")).toContain("scale(${r.altura.toFixed(3)})") // 02-nov: las siluetas de luz reemplazan a las figuras viejas
   })
 })
