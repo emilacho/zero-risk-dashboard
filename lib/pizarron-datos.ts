@@ -68,7 +68,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   ])
   const version = ultimaVersion ? Number(ultimaVersion.calendario_version) : null
   const crudas = version == null ? [] : await filas(
-    supa.from("cadena_calendario_filas").select("id, tanda, semana, fecha, hora, red, formato, pilar, tema, sede, pieza_fija, pendientes, estado, avisos, brief_ref")
+    supa.from("cadena_calendario_filas").select("id, tanda, semana, fecha, hora, red, formato, pilar, tema, sede, pieza_fija, pendientes, estado, avisos, brief_ref, fase, idea_ref, origen")
       .eq("campana_id", campId).eq("seco", false).eq("calendario_version", version).order("fecha", { ascending: true }).limit(600),
     "cadena_calendario_filas",
   )
@@ -105,6 +105,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
       id, fecha, hora: x.hora ? String(x.hora).slice(0, 5) : null, red: String(x.red ?? ""), formato: String(x.formato ?? ""), pilar: x.pilar ? String(x.pilar) : null, tema: String(x.tema ?? ""), sede: x.sede ? String(x.sede) : null,
       pieza_fija: x.pieza_fija === true, tanda: x.tanda == null ? null : Number(x.tanda), semana: x.semana == null ? null : Number(x.semana), estado_fila: String(x.estado ?? ""),
       avisos: textos(x.avisos), pendientes: textos(x.pendientes), encargo, jefatura, pieza, tablero, motivo,
+      fase: x.fase ? String(x.fase) : null, idea_ref: x.idea_ref ? String(x.idea_ref) : null, origen: x.origen ? String(x.origen) : null,
     }
   })
   const fases = fasesDelPlan(est?.contenido)
