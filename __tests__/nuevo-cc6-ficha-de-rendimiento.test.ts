@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs"
 import { formaDe, rendimientoDe, UMBRALES, type RevisionCruda, type TrabajoCrudo } from "@/lib/rendimiento"
 import { leerRendimiento } from "@/lib/rendimiento-datos"
 import { FichaDeRendimiento } from "@/components/nuevo/escena/FichaDeRendimiento"
-import { FlechasDeForma } from "@/components/nuevo/escena/FlechasDeForma"
+import { ALTO, corrimientoJuntoAlNombre, FlechasDeForma, TAM_FLECHA } from "@/components/nuevo/escena/FlechasDeForma"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 const dia = (n: number) => `2026-10-${String(n).padStart(2, "0")}T12:00:00Z`
@@ -107,6 +107,13 @@ describe("en pantalla", () => {
     const pocas = rendimientoDe("otro", [rev(1, "limpia")], [], [])
     const h = renderToStaticMarkup(createElement("svg", null, createElement(FlechasDeForma, { datosIniciales: { "content-creator": r, otro: pocas }, puestosIniciales: [{ agente: "content-creator", nombre: "Redactor", color: "#f5a524", x: 100, y: 200, sentado: false }, { agente: "otro", nombre: "Otro", color: "#f5a524", x: 300, y: 200, sentado: true }] })))
     expect(h).toContain('data-forma-de="content-creator" data-forma="cae"'); expect(h).toContain("↓"); expect(h).toContain('data-forma-de="otro" data-forma="sin"')
+    // corrección de Emilio (02-nov · «como en FIFA»): solo la flecha coloreada, sin recuadro ni brillo, del tamaño de la letra del nombre, pegada a la cabeza
+    expect(h).not.toMatch(/drop-shadow|stroke-width="2" rx|rx="8"/); expect(h).toContain(`font-size="${TAM_FLECHA}"`); expect(TAM_FLECHA).toBeLessThanOrEqual(17)
+    expect(h).toContain(`translate(100.0 ${(200 - ALTO.de_pie).toFixed(1)})`); expect(ALTO.de_pie).toBeLessThan(92) // por debajo del nombre (−92): pegada a la cabeza
+    expect(h).toMatch(/data-toque[^>]*width="32"/) // área de toque generosa aunque la flecha sea chica
+    expect(h).toMatch(/r="1.6"[^>]*opacity="0.22"/) // el punto de pocas entregas, casi imperceptible
+    expect(h).toContain('.nv-av:has(.nv-sil[data-agente="content-creator"]:hover) [data-forma-de="content-creator"] .nv-flecha,'); expect(h).toMatch(/:focus-visible\) \[data-forma-de="content-creator"\] \.nv-flecha\{transform:translate\(\d+px,-7px\)\}/) // con el nombre a la vista, junto al nombre
+    expect(corrimientoJuntoAlNombre("Redactor")).toBeGreaterThan(40)
     expect(h).toContain("Toca para ver su rendimiento")
   })
   it("la ficha: las 10 dimensiones en orden, la forma en palabras y que solo informa; es un panel que deja ver el chat", () => {
@@ -115,7 +122,7 @@ describe("en pantalla", () => {
     expect(h).toContain("cayó de golpe"); expect(h).toContain("no bloquea ni decide nada"); expect(h).toContain("sin dato todavía"); expect(h).toMatch(/class="nv-panel /)
   })
   it("la escena la monta sin tocar la animación de CC4 (solo una línea en Avatares)", () => {
-    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("<FlechasDeForma />")
+    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("<FlechasDeForma onAbrir={abrirPlantelDe} />") // CC4 · 02-nov: la flecha abre el plantel; sin él, la ficha de siempre
     expect(readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")).not.toContain("FlechasDeForma")
   })
 })

@@ -6,7 +6,7 @@
  */
 export type Forma = "arriba" | "sube" | "estable" | "baja" | "cae"
 export interface Dimension { n: number; nombre: string; puntaje: number | null; valor: string | null; detalle: string; cuenta: boolean }
-export interface Rendimiento { agente: string; revisadas: number; previas: number; forma: Forma | null; motivo_sin_flecha: string | null; puntaje: number | null; puntaje_previo: number | null; dimensiones: Dimension[] }
+export interface Rendimiento { agente: string; revisadas: number; previas: number; /** de sus entregas contables (limpia o con desacuerdo) de la ventana, cuántas le devolvieron y cuántas son (la moral del plantel) */ devueltas: number; contables: number; forma: Forma | null; motivo_sin_flecha: string | null; puntaje: number | null; puntaje_previo: number | null; dimensiones: Dimension[] }
 
 /** una revisión de la jefatura de una entrega del empleado: su resultado y si se la DEVOLVIERON (la jefatura le pidió corregir, o Emilio pidió cambios o la rechazó) */
 export interface RevisionCruda { creado_en: string; resultado: string; devuelta: boolean }
@@ -39,7 +39,7 @@ const usd = (v: number) => `US$ ${v.toFixed(2).replace(".", ",")}`
 const seg = (ms: number) => `${Math.round(ms / 1000)} s`
 
 /** el puntaje 0–100 de un tramo (las revisiones, y el trabajo y las escaladas de su mismo periodo) y el detalle de cada dimensión */
-function tramo(revs: RevisionCruda[], trabajos: TrabajoCrudo[], escaladas: EscaladaCruda[], todos: TrabajoCrudo[]): { puntaje: number | null; dimensiones: Dimension[] } {
+function tramo(revs: RevisionCruda[], trabajos: TrabajoCrudo[], escaladas: EscaladaCruda[], todos: TrabajoCrudo[]): { puntaje: number | null; dimensiones: Dimension[]; devueltas: number; contables: number } {
   // 1 · aprobado a la primera: «limpia» o «con desacuerdo» que NADIE le devolvió (ni la jefatura con un paso de corrección suyo, ni Emilio); por tope o fallida no cuentan
   const contables = revs.filter((r) => r.resultado === "limpia" || r.resultado === "con_desacuerdo")
   const aprobadas = contables.filter((r) => !r.devuelta).length
@@ -75,7 +75,7 @@ function tramo(revs: RevisionCruda[], trabajos: TrabajoCrudo[], escaladas: Escal
   const peso = (d: Dimension) => (d.n === 1 ? 2 : 1)
   const total = conNota.reduce((a, d) => a + peso(d), 0)
   const puntaje = total && d1 != null ? Math.round(conNota.reduce((a, d) => a + d.puntaje! * peso(d), 0) / total) : null
-  return { puntaje, dimensiones }
+  return { puntaje, dimensiones, devueltas: contables.length - aprobadas, contables: contables.length }
 }
 
 /** el rendimiento de un empleado: sus revisiones (de la más nueva a la más vieja), sus trabajos y lo que llegó a la bandeja */
@@ -90,5 +90,5 @@ export function rendimientoDe(agente: string, revisiones: RevisionCruda[], traba
   else if (!t0) motivo = "pocas tareas anteriores para comparar"
   else if (t1.puntaje == null || t0.puntaje == null) motivo = "sin entregas aprobables para comparar"
   const forma = !motivo && t1.puntaje != null && t0?.puntaje != null ? formaDe(t1.puntaje - t0.puntaje) : null
-  return { agente, revisadas: ahora.length, previas: antes.length, forma, motivo_sin_flecha: forma ? null : motivo, puntaje: ahora.length >= MINIMO_DE_TAREAS ? t1.puntaje : null, puntaje_previo: t0?.puntaje ?? null, dimensiones: t1.dimensiones }
+  return { agente, revisadas: ahora.length, previas: antes.length, devueltas: t1.devueltas, contables: t1.contables, forma, motivo_sin_flecha: forma ? null : motivo, puntaje: ahora.length >= MINIMO_DE_TAREAS ? t1.puntaje : null, puntaje_previo: t0?.puntaje ?? null, dimensiones: t1.dimensiones }
 }
