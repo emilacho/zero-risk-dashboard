@@ -2,7 +2,8 @@
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { borradorLeido, borradorVacio, borrarBorrador, guardarBorrador, haceCuanto, leerBorrador, pasarAlBorrador, pasoDelGuardado, queHacerAlAbrir, TOPE_DEL_BORRADOR } from "@/lib/borrador-del-dueno"
+import { borradorLeido, borradorVacio, borrarBorrador, guardarBorrador, haceCuanto, leerBorrador, pasarAlBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, textoDelAvisoDeSalir, TOPE_DEL_BORRADOR } from "@/lib/borrador-del-dueno"
+import { readFileSync } from "node:fs"
 import { motivoDeNoAprobar, PanelManual } from "@/components/nuevo/PanelManual"
 import { leerManual } from "@/lib/manual-lector"
 import { seccionesNuevasDelBorrador } from "@/lib/manual-secciones"
@@ -46,6 +47,29 @@ describe("las decisiones del panel (puras)", () => {
     expect(pasoDelGuardado({ ...base, vacio: true, hayViejoSinDecidir: true })).toBe("nada")
     expect(pasoDelGuardado({ ...base, vacio: true, hayGuardado: false })).toBe("nada") // al abrir sin borrador: no hay qué borrar
     expect(pasoDelGuardado({ ...base, hayViejoSinDecidir: true })).toBe("guardar") // empezó algo nuevo: eso manda
+  })
+})
+
+describe("reservas de CC3 a #240: el aviso de salir no promete lo que no cumplió", () => {
+  it("si el último guardado falló, lo dice; si no, «quedan guardados»", () => {
+    expect(textoDelAvisoDeSalir(2, false)).toBe("Tienes 2 cambios sin pedir. Quedan guardados como borrador.")
+    expect(textoDelAvisoDeSalir(1, true)).toBe("No pude guardar tu borrador: si sales ahora, se pierden tus 1 cambio sin pedir.")
+  })
+  it("«Salir» guarda primero; si no pudo, NO sale (y lo dice); si pudo, sale", async () => {
+    let salio = 0
+    expect(await salirTrasGuardar(async () => false, () => { salio++ })).toBe("no_se_pudo_guardar"); expect(salio).toBe(0)
+    expect(await salirTrasGuardar(async () => true, () => { salio++ })).toBe("salio"); expect(salio).toBe(1)
+  })
+  it("el panel, cuando no pudo guardar: el aviso en rojo y «Salir sin guardar»", () => {
+    const h = panel({ cambiosIniciales: { eslogan: "Del mar a tu puerta" }, salirInicial: true, noSePudoGuardarInicial: true })
+    expect(h).toContain("No pude guardar tu borrador: si sales ahora, se pierden tus 1 cambio sin pedir.")
+    expect(h).toMatch(/data-accion="salir-igual"[^>]*>Salir sin guardar</)
+    expect(panel({ cambiosIniciales: { eslogan: "x" }, salirInicial: true })).toMatch(/data-accion="salir-igual"[^>]*>Salir</)
+  })
+  it("reserva 2: vaciar «Tus cambios» se guarda VACÍO con la revisión (no borra a ciegas lo de otro equipo)", () => {
+    const f = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
+    expect(f).toMatch(/apiBorrador\.guardar\(cliente, "manual", manualId, paso === "borrar" \? \{ campos: \{\}, como: \{\}, notas: \{\}, libre: "" \} : tus, guardadoDelBorrador\?\.revision \?\? 0\)/)
+    expect(f.match(/apiBorrador\.borrar\(/g)?.length).toBe(1) // borrar a secas, solo al descartar el borrador de la versión anterior
   })
 })
 

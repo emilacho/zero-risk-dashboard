@@ -99,6 +99,16 @@ export async function borrarBorrador(cliente: string, documento: DocumentoDelBor
 }
 
 // ── las decisiones del panel, puras (se prueban sin navegador) ──
+/** el aviso al salir dice la VERDAD (reserva 1 de CC3 a #240): solo promete «quedan guardados» si el último guardado salió bien */
+export function textoDelAvisoDeSalir(n: number, noSePudoGuardar: boolean): string {
+  const cuantos = n === 1 ? "1 cambio" : `${n} cambios`
+  return noSePudoGuardar ? `No pude guardar tu borrador: si sales ahora, se pierden tus ${cuantos} sin pedir.` : `Tienes ${cuantos} sin pedir. Quedan guardados como borrador.`
+}
+/** «Salir»: primero guarda; si no se pudo, NO sale y lo dice (la segunda vez, «Salir sin guardar», sale de verdad) */
+export async function salirTrasGuardar(guardar: () => Promise<boolean>, seguir: () => void): Promise<"salio" | "no_se_pudo_guardar"> {
+  if (await guardar()) { seguir(); return "salio" }
+  return "no_se_pudo_guardar"
+}
 /** al abrir el manual: el borrador de ESTA versión vuelve a «Tus cambios»; el de otra versión se pregunta; vacío o sin borrador, nada */
 export function queHacerAlAbrir(b: BorradorDelDueno | null, manualId: string): { tipo: "recuperar"; acciones: TusCambios } | { tipo: "preguntar"; borrador: BorradorDelDueno } | { tipo: "nada" } {
   if (!b || borradorVacio(b.acciones)) return { tipo: "nada" }

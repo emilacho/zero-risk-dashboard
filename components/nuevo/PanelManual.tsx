@@ -6,7 +6,7 @@ import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
-import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
+import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, textoDelAvisoDeSalir, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
 import { cuantosCambios, enviarTusCambios, quitarDeTusCambios, renglonesDeTusCambios, type ComoCambio, type TusCambios } from "@/lib/pedido-del-manual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { JerarquiaTipografica } from "@/components/nuevo/manual/JerarquiaTipografica"
@@ -248,7 +248,7 @@ const BORRADOR_REAL: ApiDelBorrador = { leer: leerBorrador, guardar: guardarBorr
 /** cuánto espera para guardar después del último toque (un guardado por ráfaga, no uno por tecla) */
 export const PAUSA_DEL_BORRADOR_MS = 1200
 
-export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorInicial = null, borradorViejoInicial = null, salirInicial = false, onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, notasIniciales = {}, libreInicial = "", confirmarAprobarInicial = false, reintentarPlanInicial = false }: { borrador?: ApiDelBorrador; /** pruebas: el borrador ya guardado / el de una versión anterior / el aviso de salir a la vista */ borradorInicial?: { revision: number | null; actualizado_en: string | null } | null; borradorViejoInicial?: BorradorDelDueno | null; salirInicial?: boolean; /** pruebas: observaciones y texto libre pendientes */ notasIniciales?: Record<string, string>; libreInicial?: string; /** pruebas: aprobado pero sin plan pedido */ reintentarPlanInicial?: boolean; onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
+export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorInicial = null, borradorViejoInicial = null, salirInicial = false, noSePudoGuardarInicial = false, onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, notasIniciales = {}, libreInicial = "", confirmarAprobarInicial = false, reintentarPlanInicial = false }: { borrador?: ApiDelBorrador; /** pruebas: el borrador ya guardado / el de una versión anterior / el aviso de salir a la vista */ borradorInicial?: { revision: number | null; actualizado_en: string | null } | null; borradorViejoInicial?: BorradorDelDueno | null; salirInicial?: boolean; noSePudoGuardarInicial?: boolean; /** pruebas: observaciones y texto libre pendientes */ notasIniciales?: Record<string, string>; libreInicial?: string; /** pruebas: aprobado pero sin plan pedido */ reintentarPlanInicial?: boolean; onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
   const [datos, setDatos] = useState<ManualDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -274,6 +274,8 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
   const [guardadoDelBorrador, setGuardadoDelBorrador] = useState<{ revision: number | null; actualizado_en: string | null } | null>(borradorInicial)
   const [borradorViejo, setBorradorViejo] = useState<BorradorDelDueno | null>(borradorViejoInicial)
   const [salir, setSalir] = useState<null | (() => void)>(salirInicial ? () => () => {} : null)
+  /** el último guardado del borrador falló: el aviso al salir lo dice (no promete) */
+  const [noSePudoGuardar, setNoSePudoGuardar] = useState(noSePudoGuardarInicial)
   const [ahora, setAhora] = useState(() => new Date())
   /** a qué «cliente|versión» pertenece lo que hay en pantalla: solo se guarda cuando ya se leyó el borrador de ESE manual (nunca se pisa el de otro) */
   const borradorDe = useRef<string | null>(null)
@@ -330,20 +332,26 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [llaveDelBorrador])
   // 2 · cada cambio se guarda solo, a los pocos segundos (vacío = se borra). Un borrador viejo sin decidir no se toca mientras no haya nada nuevo
-  async function guardarElBorradorYa(): Promise<void> {
-    if (!cliente || !manualId) return
+  /** true = lo que hay en pantalla quedó guardado (o no había nada que guardar) */
+  async function guardarElBorradorYa(): Promise<boolean> {
+    if (!cliente || !manualId) return true
     const paso = pasoDelGuardado({ leido: borradorDe.current === llaveDelBorrador, igualAlUltimo: fotoDeTus === ultimoGuardado.current, vacio: borradorVacio(tus), hayViejoSinDecidir: !!borradorViejo, hayGuardado: !!guardadoDelBorrador })
-    if (paso === "nada") return
+    if (paso === "nada") return borradorDe.current === llaveDelBorrador || borradorVacio(tus)
     ultimoGuardado.current = fotoDeTus
-    if (paso === "borrar") { if (await apiBorrador.borrar(cliente, "manual")) setGuardadoDelBorrador(null); return }
-    const g = await apiBorrador.guardar(cliente, "manual", manualId, tus, guardadoDelBorrador?.revision ?? 0)
+    // vaciar se hace guardando VACÍO con la revisión (la plataforma lo borra): si otro equipo marcó algo entretanto, da 409 y se muestra (reserva 2 de CC3)
+    const g = await apiBorrador.guardar(cliente, "manual", manualId, paso === "borrar" ? { campos: {}, como: {}, notas: {}, libre: "" } : tus, guardadoDelBorrador?.revision ?? 0)
     if (g.otroEquipo && g.borrador) { // otro equipo lo cambió: se muestra lo último guardado (no se pisa)
       ponerTus(g.borrador.acciones); ultimoGuardado.current = JSON.stringify(g.borrador.acciones)
       setGuardadoDelBorrador({ revision: g.borrador.revision, actualizado_en: g.borrador.actualizado_en })
-      setAviso({ ok: false, texto: "Tu borrador cambió en otro equipo: te muestro lo último que se guardó." }); return
+      setAviso({ ok: false, texto: "Tu borrador cambió en otro equipo: te muestro lo último que se guardó." }); setNoSePudoGuardar(false); return true
     }
-    if (g.ok && g.borrador) { setGuardadoDelBorrador({ revision: g.borrador.revision, actualizado_en: g.borrador.actualizado_en }); setBorradorViejo(null) }
-    else ultimoGuardado.current = "" // no se guardó: se reintenta en el próximo cambio o al salir
+    if (g.ok) {
+      setGuardadoDelBorrador(g.borrador ? { revision: g.borrador.revision, actualizado_en: g.borrador.actualizado_en } : null)
+      if (g.borrador) setBorradorViejo(null)
+      setNoSePudoGuardar(false); return true
+    }
+    ultimoGuardado.current = "" // no se guardó: se reintenta en el próximo cambio o al salir, y el aviso de salir lo dice
+    setNoSePudoGuardar(true); return false
   }
   const guardarYa = useRef(guardarElBorradorYa); guardarYa.current = guardarElBorradorYa
   useEffect(() => {
@@ -439,9 +447,9 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
 
         {salir && (
           <div role="alertdialog" aria-labelledby="salir-titulo" data-aviso-salir className="flex flex-wrap items-center gap-3 border-b border-amber-400/40 bg-amber-500/10 px-4 py-3 sm:px-6">
-            <p id="salir-titulo" className="text-[14px] text-amber-50">{nCambios === 1 ? "Tienes 1 cambio sin pedir." : `Tienes ${nCambios} cambios sin pedir.`} Quedan guardados como borrador.</p>
+            <p id="salir-titulo" data-no-se-pudo-guardar={noSePudoGuardar} className={`text-[14px] ${noSePudoGuardar ? "text-rose-100" : "text-amber-50"}`}>{textoDelAvisoDeSalir(nCambios, noSePudoGuardar)}</p>
             <button type="button" data-accion="seguir-aqui" onClick={() => setSalir(null)} className="min-h-11 rounded-lg border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[14px] font-medium text-amber-50 hover:bg-amber-400/25">Seguir aquí</button>
-            <button type="button" data-accion="salir-igual" onClick={() => { const seguir = salir; setSalir(null); void guardarYa.current().finally(() => seguir()) }} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">Salir</button>
+            <button type="button" data-accion="salir-igual" onClick={() => { const seguir = salir; if (noSePudoGuardar) { setSalir(null); seguir(); return } void salirTrasGuardar(() => guardarYa.current(), () => { setSalir(null); seguir() }) }} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">{noSePudoGuardar ? "Salir sin guardar" : "Salir"}</button>
           </div>
         )}
         {borradorViejo && (
