@@ -4,12 +4,12 @@
  * campo y escribir un texto libre para todo el manual. Cada cosa queda PENDIENTE en «Tus cambios» (quitar una = un toque) y al final
  * UN botón «Pedir los cambios» lo manda junto. Elegir no dispara nada solo.
  *
- * Envío (opción A, sin tocar la plataforma, mientras CC1 decide si la ruta acepta todo en un pedido):
- *   1. lo directo (elegir · retirar · editar) por `manual-campos`, como siempre: sin modelo y sin gasto;
- *   2. solo si hay observaciones o texto libre, `manual-cambios` con un texto armado: «Campo «X»: …» por observación y luego el texto libre.
- * Si falla el 2, lo directo ya quedó guardado y las observaciones siguen pendientes para reintentar. Todo pasa por `enviarTusCambios`.
+ * Envío (opción B de Lenovo, contrato CC1 #869): UNA llamada a `manual-cambios` con lo directo (`campos` · `retirar[]`), las observaciones
+ * por campo (`observaciones_por_campo[]`) y el texto libre (`texto`). La plataforma aplica lo directo primero (sin gasto) y reescribe sobre esa
+ * versión solo si hay observaciones o texto. Si la reescritura falla después de aplicar lo directo, lo directo queda y se dice; las observaciones
+ * siguen pendientes y el reintento manda SOLO esas (reenviar lo directo crearía otra versión con lo mismo). Todo pasa por `enviarTusCambios`.
  */
-import { cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual } from "@/lib/manual-ciclo"
+import { palabrasDelPedidoDelManual, TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD } from "@/lib/manual-ciclo"
 
 export type ComoCambio = "elegir" | "retirar" | "editar"
 export interface TusCambios {
@@ -62,15 +62,7 @@ export function quitarDeTusCambios(c: TusCambios, id: string): TusCambios {
 export const cuantosCambios = (c: TusCambios): number => Object.keys(c.campos).length + Object.keys(c.notas).length + (c.libre.trim() ? 1 : 0)
 export const hayObservaciones = (c: TusCambios): boolean => Object.keys(c.notas).length > 0 || !!c.libre.trim()
 
-/** el texto que lee el equipo del manual: una línea por observación de campo y, después, el texto libre */
-export function textoDeLasObservaciones(c: TusCambios, etiqueta: (clave: string) => string, orden: string[] = []): string {
-  const pos = (k: string) => { const i = orden.indexOf(k); return i < 0 ? orden.length : i }
-  const lineas = Object.keys(c.notas).sort((a, b) => pos(a) - pos(b)).map((k) => `Campo «${etiqueta(k)}»: ${c.notas[k].trim()}`)
-  if (c.libre.trim()) lineas.push(c.libre.trim())
-  return lineas.join("\n\n")
-}
-
-type Resultado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string; codigo?: string; detalleCrudo?: string }
+type Resultado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string; codigo?: string; detalleCrudo?: string; directo?: boolean }
 export type Accion = (nombre: string, cuerpo: Record<string, unknown>) => Promise<Resultado>
 
 export interface ResultadoDelPedido {
@@ -82,33 +74,56 @@ export interface ResultadoDelPedido {
   reescribe: boolean
 }
 
+/** el tope de lo que el dueño escribe en un pedido (texto libre + observaciones): el de la plataforma (CC1 #869 · Lenovo 16:57Z) */
+export const TOPE_DE_LO_ESCRITO = 100_000
+
+/** el cuerpo del pedido único (contrato CC1 #869); el gasto se confirma solo si hay algo que reescribir */
+export function cuerpoDelPedidoUnico(cliente: string, c: TusCambios): Record<string, unknown> {
+  const directos = Object.keys(c.campos).length > 0
+  const retirar = Object.entries(c.campos).filter(([, v]) => !v.trim()).map(([k]) => k)
+  const observaciones = Object.entries(c.notas).filter(([, t]) => t.trim()).map(([campo, t]) => ({ campo, texto: t.trim() }))
+  const reescribe = hayObservaciones(c)
+  return {
+    client_id: cliente,
+    ...(directos ? { campos: c.campos } : {}),
+    ...(retirar.length ? { retirar } : {}),
+    ...(observaciones.length ? { observaciones_por_campo: observaciones } : {}),
+    ...(c.libre.trim() ? { texto: c.libre.trim() } : {}),
+    ...(reescribe ? { confirmo_gasto: true, tope_usd: TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD } : {}),
+  }
+}
+
+const SOLO_OBSERVACIONES = (c: TusCambios): TusCambios => ({ ...c, campos: {}, como: {} })
+const DIRECTO_QUEDO = "Lo que elegiste, retiraste o editaste quedó guardado; falta pedir las observaciones"
+
 /**
- * «Pedir los cambios»: lo directo primero (sin gasto) y, si hay observaciones, el pedido al equipo del manual.
+ * «Pedir los cambios»: UNA llamada con todo (opción B). Lee las tres salidas del contrato de CC1:
+ *   · 200 con `despertado: false` → lo directo quedó; las observaciones siguen pendientes (si no se mira, el panel diría «listo»);
+ *   · error con `directo` → igual: lo directo quedó, solo las observaciones siguen pendientes;
+ *   · error sin `directo` → nada se guardó: todo sigue pendiente.
  * `puedeReescribir` = la plataforma tiene el pedido de cambios y no hay otro en curso; si no, las observaciones no se mandan y se dice.
  */
-export async function enviarTusCambios(accion: Accion, cliente: string | null, c: TusCambios, o: { etiqueta: (clave: string) => string; orden?: string[]; puedeReescribir: boolean }): Promise<ResultadoDelPedido> {
+export async function enviarTusCambios(accion: Accion, cliente: string | null, c: TusCambios, o: { puedeReescribir: boolean }): Promise<ResultadoDelPedido> {
   if (!cliente) return { ok: false, texto: "Falta el cliente.", quedan: c, reescribe: false }
   if (!cuantosCambios(c)) return { ok: false, texto: "No hay cambios para pedir.", quedan: c, reescribe: false }
   const obs = hayObservaciones(c)
   if (obs && !o.puedeReescribir) return { ok: false, texto: "Ahora no se pueden mandar observaciones: el manual se está reescribiendo. Espera a que termine.", quedan: c, reescribe: false }
-  // las observaciones se validan ANTES de guardar lo directo: si el texto no sirve, no se manda nada
-  const texto = obs ? textoDeLasObservaciones(c, o.etiqueta, o.orden) : ""
-  const cuerpoObs = obs ? cuerpoDePedirCambiosAlManual(cliente, texto) : null
-  if (cuerpoObs && "error" in cuerpoObs) return { ok: false, texto: String(cuerpoObs.error), quedan: c, reescribe: false }
+  // lo que la plataforma rechazaría se dice aquí, sin llamar (no queda nada a medias)
+  const escrito = c.libre.trim().length + Object.values(c.notas).reduce((n, t) => n + t.trim().length, 0)
+  if (escrito > TOPE_DE_LO_ESCRITO) return { ok: false, texto: `Lo que escribiste pasa de ${TOPE_DE_LO_ESCRITO.toLocaleString("es-EC")} caracteres.`, quedan: c, reescribe: false }
+  if (obs && !Object.keys(c.notas).length && c.libre.trim().length < 5) return { ok: false, texto: "Cuenta qué debe cambiar (al menos 5 letras).", quedan: c, reescribe: false }
 
-  let quedan = c
-  const nDirectos = Object.keys(c.campos).length
-  if (nDirectos) {
-    const retirar = Object.entries(c.campos).filter(([, v]) => !v.trim()).map(([k]) => k)
-    const r = await accion("manual-campos", { client_id: cliente, campos: c.campos, ...(retirar.length ? { retirar } : {}) })
-    if (!r.ok) return { ok: false, texto: r.texto, quedan: c, reescribe: false }
-    quedan = { ...c, campos: {}, como: {} }
+  const directos = Object.keys(c.campos).length > 0
+  const r = await accion("manual-cambios", cuerpoDelPedidoUnico(cliente, c))
+  if (!r.ok) {
+    const p = palabrasDelPedidoDelManual(r)
+    if (r.directo && directos) return { ok: false, texto: `${DIRECTO_QUEDO}: ${p.texto}`, quedan: SOLO_OBSERVACIONES(c), reescribe: false }
+    return { ok: false, texto: p.texto, quedan: c, reescribe: false }
   }
-  if (!cuerpoObs) return { ok: true, texto: "✓ Cambios guardados", quedan: SIN_CAMBIOS, reescribe: false }
-
-  const p0 = palabrasDelPedidoDelManual(await accion("manual-cambios", cuerpoObs as Record<string, unknown>))
-  // aquí no hay botón «Reintentar»: las observaciones siguen pendientes y se vuelven a pedir con el mismo botón
-  const p = { ...p0, texto: p0.texto.replace("Usa «Reintentar».", "Toca «Pedir los cambios» otra vez.") }
-  if (!p.ok) return { ok: false, texto: nDirectos ? `Lo que elegiste, retiraste o editaste quedó guardado. Las observaciones no se pudieron mandar: ${p.texto}` : p.texto, quedan, reescribe: false }
-  return { ok: true, texto: p.texto, quedan: SIN_CAMBIOS, reescribe: true }
+  if (!obs) return { ok: true, texto: "✓ Cambios guardados", quedan: SIN_CAMBIOS, reescribe: false }
+  if (r.detalle.despertado === false) {
+    const motivo = "el equipo del manual no recibió el aviso. Toca «Pedir los cambios» otra vez."
+    return { ok: false, texto: directos ? `${DIRECTO_QUEDO}: ${motivo}` : `Tu pedido quedó guardado, pero ${motivo}`, quedan: SOLO_OBSERVACIONES(c), reescribe: false }
+  }
+  return { ok: true, texto: "Pedido enviado: el equipo del manual reescribe el manual con tus observaciones.", quedan: SIN_CAMBIOS, reescribe: true }
 }

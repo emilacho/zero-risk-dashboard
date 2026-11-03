@@ -75,7 +75,7 @@ function Editor({ clave, valor, onListo, onCancelar }: { clave: string; valor: s
   )
 }
 
-type ResultadoDeGuardado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string; /** el código de la plataforma (p. ej. `plan_en_curso`), para decirlo en palabras */ codigo?: string; detalleCrudo?: string }
+type ResultadoDeGuardado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string; /** el código de la plataforma (p. ej. `plan_en_curso`), para decirlo en palabras */ codigo?: string; detalleCrudo?: string; /** pedido de cambios: lo directo YA quedó guardado aunque lo demás fallara (CC1 #869) */ directo?: boolean }
 
 /** una llamada a `POST /api/acciones/<nombre>` dicha con franqueza: hecho (con lo que dijo la plataforma), no disponible, o por qué falló */
 export async function llamarAccion(nombre: string, cuerpo: Record<string, unknown>, fetchImpl: typeof fetch = fetch): Promise<ResultadoDeGuardado> {
@@ -86,7 +86,7 @@ export async function llamarAccion(nombre: string, cuerpo: Record<string, unknow
     const texto = r.status === 501 ? "Todavía no está disponible: la plataforma aún no tiene esta acción. No se cambió nada." : r.status === 401 ? "Tu sesión venció: entra de nuevo." : r.status === 409 ? `Otra decisión se adelantó: recarga. ${String(j.detalle ?? "")}` : `No se pudo: ${String(j.detalle ?? j.error ?? r.status)}`
     const pl = (j.plataforma && typeof j.plataforma === "object" ? j.plataforma : {}) as Record<string, unknown>
     const codigo = typeof pl.error === "string" ? pl.error : typeof j.plataforma_error === "string" ? j.plataforma_error : typeof j.error === "string" ? j.error : undefined
-    return { ok: false, texto, ...(codigo ? { codigo } : {}), ...(j.detalle != null ? { detalleCrudo: String(j.detalle) } : {}) }
+    return { ok: false, texto, ...(codigo ? { codigo } : {}), ...(j.detalle != null ? { detalleCrudo: String(j.detalle) } : {}), ...(j.directo ? { directo: true } : {}) }
   } catch (e) { return { ok: false, texto: `No se pudo: ${e instanceof Error ? e.message : String(e)}` } }
 }
 
@@ -122,7 +122,7 @@ function NotaDelCampo({ clave, etiqueta, nota, abierta, onListo, onCerrar }: { c
   const [texto, setTexto] = useState(nota ?? "")
   if (abierta) return (
     <form data-nota-editor={clave} className="mt-2 rounded-lg border border-amber-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); onListo(texto.trim()) }}>
-      <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={3} maxLength={2000} autoFocus aria-label={`Observación sobre ${etiqueta}`} placeholder={`¿Qué debe cambiar en «${etiqueta}»?`}
+      <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={3} maxLength={100_000} autoFocus aria-label={`Observación sobre ${etiqueta}`} placeholder={`¿Qué debe cambiar en «${etiqueta}»?`}
         className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[15px] leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
       <div className="mt-2 flex items-center gap-2">
         <button type="submit" data-accion="listo-observacion" className="min-h-11 rounded-lg border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[14px] text-amber-50 transition hover:bg-amber-400/25">Listo</button>
@@ -283,11 +283,19 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
     if (!cliente || !nCambios) return
     setGuardando(true); setAviso(null)
     const ciclo = datos?.manual?.ciclo ?? CICLO_DEL_MANUAL_CERRADO
-    const r = await enviarTusCambios(accion, cliente, tus, { etiqueta: (k) => etiquetaDeLaClave(k, datos), orden: ordenDelManual(datos), puedeReescribir: ciclo.disponible && !ciclo.abierto })
+    const r = await enviarTusCambios(accion, cliente, tus, { puedeReescribir: ciclo.disponible && !ciclo.abierto })
     setGuardando(false)
     ponerTus(r.quedan)
     if (r.ok) { setGuardadoOk(true); if (r.reescribe) setAviso({ ok: true, texto: r.texto }); void leer(cliente) }
     else { setAviso({ ok: false, texto: r.texto }); if (r.quedan.campos !== cambios) void leer(cliente) }
+  }
+  // «Reintentar» un pedido que no llegó o no terminó: solo lo escrito, sin lo directo (eso ya quedó) y sin tocar lo pendiente de ahora
+  async function reintentar(texto: string) {
+    if (!cliente) return
+    setGuardando(true); setAviso(null)
+    const r = await enviarTusCambios(accion, cliente, { campos: {}, como: {}, notas: {}, libre: texto }, { puedeReescribir: true })
+    setGuardando(false)
+    setAviso({ ok: r.ok, texto: r.texto }); void leer(cliente)
   }
   async function validar() {
     if (!cliente) return
@@ -384,7 +392,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                 )}
                 {/* pedir cambios al manual entero (como el plan); la puerta es `manual-cambios`: data-tablero-accion="manual-cambios" */}
                 <PedirCambiosAlManual clienteNombre={datos?.cliente?.nombre ?? null} ciclo={ciclo} validadosDelManual={validadosDe(APARTADOS_DEL_MANUAL.flatMap((a) => a.claves))} pedirEn={pedirEn}
-                  libre={libre} onLibre={(t) => { setLibre(t); setGuardadoOk(false) }} />
+                  libre={libre} onLibre={(t) => { setLibre(t); setGuardadoOk(false) }} onReintentar={(t) => void reintentar(t)} reintentando={guardando} />
                 <p className="mt-2 text-[11.5px] text-zinc-500">{m.actualizado_en ? `Última actualización ${fechaCortaEC(m.actualizado_en)}` : ""}{m.creado_en ? ` · creado ${fechaCortaEC(m.creado_en)}` : ""}</p>
               </section>
 

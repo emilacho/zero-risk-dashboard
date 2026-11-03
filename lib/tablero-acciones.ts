@@ -33,6 +33,8 @@ export const REDES = ["instagram", "facebook", "tiktok", "linkedin", "youtube"] 
 export const TOPE_PEDIR_CAMBIOS_USD = 8
 /** el tope de un pedido de cambios al manual (CC1 02-nov, provisional): el mismo valor que manda el panel (`lib/manual-ciclo.ts`) */
 export const TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD = 5
+/** lo que el dueño escribe en un pedido (texto libre + observaciones): el mismo techo que la plataforma (CC1 #869 · `plan_cambios_texto_check` · Lenovo 16:57Z: se queda en 100.000) */
+export const TOPE_DEL_TEXTO_DEL_DUENO = 100_000
 /** tope por pieza de la mesa creativa (firma de Emilio, 30-oct): se muestra antes de confirmar */
 export const TOPE_POR_PIEZA_USD = 5
 
@@ -185,18 +187,61 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   // el servidor exige la confirmación y el tope (US$ 5 provisional), no solo la pantalla. Sin aviso de gasto en /nuevo (Emilio, 01-nov): se manda por código
   "manual-cambios": {
     gasta: null,
+    // UN SOLO PEDIDO (CC6 · 03-nov · opción B de Lenovo, contrato CC1 #869): en la misma puerta van lo directo (`campos` como objeto · `retirar[]`),
+    // las observaciones por campo y el texto libre. Lo directo solo no gasta ni reescribe; el gasto se confirma solo si hay observaciones o texto.
+    // `campos` como LISTA sigue siendo lo de siempre: los campos de la sección que se liberan
     validar: (c) => {
-      const id = conId(c, "client_id"), t = texto(c.texto), tope = Number(c.tope_usd)
+      const id = conId(c, "client_id"), t = texto(c.texto)
       if (!id) return mal("falta el cliente")
-      if (t.length < 5 || t.length > 4000) return mal("cuenta qué debe cambiar (de 5 a 4.000 caracteres)")
-      if (c.confirmo_gasto !== true) return { ok: false, error: "falta_confirmar_gasto", detalle: `pedir cambios al manual gasta (tope hasta US$ ${TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD}): confírmalo antes` }
-      if (!Number.isFinite(tope) || tope <= 0) return mal("falta el tope del gasto")
-      if (tope > TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD) return mal(`el tope pasa de US$ ${TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD}`)
+      const clave = (x: unknown) => typeof x === "string" && /^[a-z_]{2,40}$/.test(x)
+      // lo directo
+      const directos: Cuerpo = {}
+      const retirar = Array.isArray(c.retirar) ? c.retirar : []
+      if (retirar.length > 60 || !retirar.every(clave)) return mal("los campos para retirar no son válidos")
+      if (esObjeto(c.campos)) {
+        for (const [k, v] of Object.entries(c.campos)) {
+          if (!CAMPOS_DEL_MANUAL.some((x) => x.clave === k)) return mal(`«${k}» no es un campo que se pueda editar`)
+          const v2 = texto(v)
+          if (!v2 && !retirar.includes(k)) return mal(`«${k}» llega vacío sin pedir retirarlo`)
+          if (v2.length > TOPE_DEL_TEXTO_DEL_MANUAL) return mal(`«${k}» pasa de ${TOPE_DEL_TEXTO_DEL_MANUAL.toLocaleString("es-EC")} caracteres`)
+          directos[k] = v2
+        }
+      }
+      for (const k of retirar as string[]) if (directos[k] === undefined) directos[k] = ""
+      // las observaciones
+      const obsCrudas = Array.isArray(c.observaciones_por_campo) ? c.observaciones_por_campo : []
+      if (obsCrudas.length > 60) return mal("demasiadas observaciones")
+      const observaciones: Array<{ campo: string; texto: string }> = []
+      for (const o of obsCrudas) {
+        if (!esObjeto(o) || !clave(o.campo) || !texto(o.texto)) return mal("una observación no es válida")
+        observaciones.push({ campo: String(o.campo), texto: texto(o.texto) })
+      }
+      const largo = t.length + observaciones.reduce((n, o) => n + o.texto.length, 0)
+      if (largo > TOPE_DEL_TEXTO_DEL_DUENO) return mal(`lo escrito pasa de ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres`)
+      const reescribe = largo > 0
+      if (!reescribe && !Object.keys(directos).length) return mal("no hay cambios para pedir")
+      if (reescribe && !observaciones.length && t.length < 5) return mal("cuenta qué debe cambiar (al menos 5 letras)")
       const seccion = texto(c.seccion)
       if (seccion.length > 80) return mal("la sección es demasiado larga")
-      const campos = Array.isArray(c.campos) ? c.campos : []
-      if (campos.length > 30 || campos.some((x) => typeof x !== "string" || !/^[a-z_]{2,40}$/.test(x))) return mal("los campos de la sección no son válidos")
-      return { ok: true, cuerpo: { client_id: id, texto: t, ...(seccion ? { seccion, campos } : {}), confirmo_gasto: true, tope_usd: tope } }
+      const liberar = Array.isArray(c.campos) ? c.campos : []
+      if (liberar.length > 30 || !liberar.every(clave)) return mal("los campos de la sección no son válidos")
+      let gasto: Cuerpo = {}
+      if (reescribe) {
+        const tope = Number(c.tope_usd)
+        if (c.confirmo_gasto !== true) return { ok: false, error: "falta_confirmar_gasto", detalle: `pedir cambios al manual gasta (tope hasta US$ ${TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD}): confírmalo antes` }
+        if (!Number.isFinite(tope) || tope <= 0) return mal("falta el tope del gasto")
+        if (tope > TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD) return mal(`el tope pasa de US$ ${TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD}`)
+        gasto = { confirmo_gasto: true, tope_usd: tope }
+      }
+      return { ok: true, cuerpo: {
+        client_id: id,
+        ...(Object.keys(directos).length ? { campos: directos } : seccion ? { campos: liberar } : {}),
+        ...(retirar.length ? { retirar } : {}),
+        ...(observaciones.length ? { observaciones_por_campo: observaciones } : {}),
+        ...(t ? { texto: t } : {}),
+        ...(seccion ? { seccion } : {}),
+        ...gasto,
+      } }
     },
   },
   "manual-validar-campo": {
@@ -271,16 +316,20 @@ export async function ejecutarAccion(nombre: string, raw: unknown, d: DepsDeAcci
       body: JSON.stringify({ ...cuerpoFinal, reviewer: d.revisor, origen: "dashboard", ...(def.gasta ? { confirmo_gasto: true, tope_usd: def.gasta.tope_usd } : {}) }),
     })
     vaciarCache() // después de una acción la próxima lectura es fresca (el reflejo inmediato manda sobre la caché corta)
-    const t = (await r.text().catch(() => "")).slice(0, 600)
+    // se LEE la respuesta entera (CC6 · 03-nov): cortarla antes de leerla perdía `despertado: false` en una respuesta larga y el panel decía «listo»;
+    // solo el texto plano que se muestra se acorta
+    const crudo = await r.text().catch(() => "")
+    const t = crudo.slice(0, 600)
     let datos: Record<string, unknown> = {}
-    try { const j = JSON.parse(t); if (esObjeto(j)) datos = j } catch { /* texto plano */ }
+    try { const j = JSON.parse(crudo); if (esObjeto(j)) datos = j } catch { /* texto plano */ }
     // un 404 CON motivo de la plataforma (p. ej. `plan_inexistente` del ciclo del plan) no es «la ruta no existe»: se pasa con su motivo (CC6 · 01-nov)
     if (r.status === 404 && typeof datos.error === "string" && /^[a-z_]+$/.test(datos.error) && datos.error !== "not_found") return { status: 404, cuerpo: { ok: false, error: "no_encontrado", detalle: String(datos.detalle ?? datos.error), plataforma: datos } }
     if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "todavia_no_disponible", detalle: "la plataforma todavía no tiene esta acción: no se hizo ningún cambio" } }
     if (r.status === 401 || r.status === 403) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_no_acepto_la_llave", plataforma_status: r.status, detalle: "el tablero no pudo identificarse ante la plataforma" } }
     if (r.status === 409) return { status: 409, cuerpo: { ok: false, error: "conflicto", detalle: String(datos.detalle ?? datos.error ?? "otra decisión se adelantó: recarga"), plataforma: datos } }
     // `plataforma_error` = el código de la plataforma tal cual (p. ej. `planes_error` del ciclo del plan antes de la «ventana»): la pantalla lo traduce sin mostrar el detalle técnico
-    if (!r.ok) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: r.status, ...(typeof datos.error === "string" ? { plataforma_error: datos.error } : {}), detalle: String(datos.detalle ?? datos.error ?? t) } }
+    // `directo` (contrato CC1 #869): lo directo de un pedido de cambios YA quedó guardado aunque la reescritura fallara; el panel lo dice y reintenta solo lo que falta
+    if (!r.ok) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: r.status, ...(typeof datos.error === "string" ? { plataforma_error: datos.error } : {}), ...(datos.directo ? { directo: true } : {}), detalle: String(datos.detalle ?? datos.error ?? t) } }
     return { status: 200, cuerpo: { ok: true, accion: nombre, plataforma_status: r.status, resultado: datos } }
   } catch (e) {
     return { status: 502, cuerpo: { ok: false, error: "plataforma_sin_respuesta", detalle: e instanceof Error ? e.message : String(e) } }

@@ -134,6 +134,17 @@ describe("la lectura del ciclo del manual (solo lectura)", () => {
     const pedido = { id: "pc1", estado: "aplicado", texto: "x", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, manual_id: "b1", manual_nuevo_id: "b2" }
     await expect(leerManualDelCliente(baseFalsa((t, f) => (t === "client_brand_books" && f.some((x) => x.startsWith('eq("id","b1")')) ? { data: null, error: { message: "connection reset" } } : comun(t, f, pedido))), { cliente: CLIENTE, ahora: AHORA })).rejects.toThrow(/client_brand_books/)
   })
+  it("«Reintentar» (CC6 · 03-nov, caso 3 de CC1): la reescritura no terminó o el aviso no llegó → trae el texto; «quedó igual», aplicado o en curso → no", async () => {
+    const ped = (x: Record<string, unknown>) => ({ id: "pc9", estado: "fallido", texto: "Campo «Voz»: más cercana", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:30:00Z", despertado: true, despertar_detalle: "tope de gasto", manual_id: "b2", manual_nuevo_id: null, ...x })
+    const leer = async (x: Record<string, unknown>) => (await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, ped(x))), { cliente: CLIENTE, ahora: AHORA })).manual?.ciclo
+    expect((await leer({}))?.reintentar).toBe("Campo «Voz»: más cercana")
+    expect((await leer({ estado: "pendiente", despertado: false }))?.reintentar).toBe("Campo «Voz»: más cercana")
+    expect((await leer({ estado: "pendiente", despertado: false }))?.abierto).not.toBeNull() // sigue bloqueando un pedido NUEVO: solo se reintenta ese
+    expect((await leer({ despertar_detalle: "sin cambios reales" }))?.reintentar).toBeUndefined()
+    expect((await leer({ estado: "en_reescritura", despertado: true }))?.reintentar).toBeUndefined()
+    expect((await leer({ estado: "aplicado", manual_nuevo_id: "b2" }))?.reintentar).toBeUndefined()
+    expect((await leer({ texto: "" }))?.reintentar).toBeUndefined()
+  })
   it("P20 (CC3): un pedido aplicado que produjo OTRA versión (no la vigente) no muestra avance ni «Qué cambió»", async () => {
     const pedido = { id: "pc0", estado: "aplicado", texto: "x", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, manual_id: "b0", manual_nuevo_id: "b1" }
     const m = await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, pedido)), { cliente: CLIENTE, ahora: AHORA })

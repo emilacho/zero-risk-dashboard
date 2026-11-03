@@ -7,8 +7,8 @@ import { avisoDeLoValidado, rotuloMientrasSeReescribe, type CicloDelManual } fro
 /** una sección pedida desde su apartado: título, las claves de sus campos y cuáles son del dueño (`n` cambia en cada clic) */
 export interface PedidoEnSeccion { titulo: string; campos: string[]; validados: string[]; n: number }
 
-/** el tope del texto libre (la puerta `manual-cambios` acepta hasta 4.000 caracteres en total, con las observaciones por campo) */
-export const TOPE_DEL_TEXTO_LIBRE = 4000
+/** el tope del texto libre: el de la plataforma (100.000 con las observaciones por campo · CC1 #869 · Lenovo 16:57Z) */
+export const TOPE_DEL_TEXTO_LIBRE = 100_000
 
 /**
  * PEDIR CAMBIOS AL MANUAL (CC6 · 02-nov · mismo patrón del plan) · 03-nov (corrección de Lenovo 16:40Z): el cuadro del texto libre está
@@ -17,7 +17,10 @@ export const TOPE_DEL_TEXTO_LIBRE = 4000
  * Aquí siguen el avance del pedido, «Lo que pediste», «Qué cambió» y el aviso del campo validado.
  * Mientras la plataforma no tenga el pedido de manuales (`ciclo.disponible` falso) no se ofrece nada: la puerta daría 404.
  */
-export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDelManual, pedirEn = null, libre, onLibre }: {
+export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDelManual, pedirEn = null, libre, onLibre, onReintentar = null, reintentando = false }: {
+  /** «Reintentar»: manda otra vez SOLO lo escrito del pedido que no llegó o no terminó */
+  onReintentar?: ((texto: string) => void) | null
+  reintentando?: boolean
   ciclo: CicloDelManual
   /** las etiquetas de los campos que el dueño validó o escribió, en todo el manual (para la línea de la observación general) */
   validadosDelManual: string[]
@@ -66,6 +69,10 @@ export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDel
         </div>
       )}
 
+      {ciclo.reintentar && onReintentar && (
+        <button type="button" data-accion="manual-reintentar" disabled={reintentando} onClick={() => onReintentar(ciclo.reintentar!)}
+          className="mt-2 min-h-11 rounded-md border border-amber-300/70 bg-black/40 px-4 py-2 text-[13.5px] text-amber-100 hover:bg-amber-400/15 disabled:opacity-50">{reintentando ? "Enviando…" : "Reintentar"}</button>
+      )}
       {puedeEscribir && (
         <label data-texto-libre className="mt-3 block">
           <span className="mb-1 block text-[13px] text-zinc-300">Tus observaciones para todo el manual{clienteNombre ? <> de <b data-pedido-para className="text-amber-200">{clienteNombre}</b></> : null} <span className="text-zinc-500">(el equipo del manual las lee y lo reescribe)</span></span>
@@ -73,7 +80,7 @@ export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDel
             placeholder="Escribe aquí lo que quieras cambiar. Se manda junto con tus otros cambios al tocar «Pedir los cambios»."
             className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[15px] leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
           {aviso && <p data-aviso-validados className="mt-1 text-[12px] text-amber-200">{aviso}</p>}
-          <p className="mt-1 text-[11px] text-zinc-500">{libre.trim().length}/{TOPE_DEL_TEXTO_LIBRE}</p>
+          {libre.trim().length > TOPE_DEL_TEXTO_LIBRE * 0.9 && <p className="mt-1 text-[11px] text-zinc-500">{libre.trim().length.toLocaleString("es-EC")}/{TOPE_DEL_TEXTO_LIBRE.toLocaleString("es-EC")}</p>}
         </label>
       )}
     </div>
