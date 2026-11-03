@@ -117,8 +117,18 @@ export function estadoDeCampanaLegible(e: unknown): string {
     case "borrador": return "en borrador"
     case "pausada": return "en pausa"
     case "terminada": case "cerrada": case "cerrado": return "terminada"
+    // CC6 · 03-nov (encargo «textos de los paneles»): una campaña reemplazada es la anterior, archivada; nunca «en preparación»
+    case "reemplazada": case "reemplazado": case "archivada": return "archivada"
+    case "necesita_humano": return "esperando tu decisión"
     default: return "en preparación"
   }
+}
+
+/** lo que dice el selector de cliente junto al nombre: lo MISMO que dice el panel (03-nov · Emilio: «que digan lo mismo, la verdad del estado»).
+ *  Sin campaña: «sin campaña». Con campaña en marcha: nada. Si la última no está en marcha: su estado («campaña archivada», «campaña en preparación»…). */
+export function estadoDelClienteEnElSelector(c: { con_campana: boolean; estado_campana?: string | null }): string {
+  if (c.con_campana) return ""
+  return c.estado_campana ? ` · campaña ${estadoDeCampanaLegible(c.estado_campana)}` : " · sin campaña"
 }
 
 /** roles de la mesa de especialistas: el nombre técnico del agente nunca sale en pantalla */

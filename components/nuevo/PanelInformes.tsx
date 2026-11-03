@@ -1,5 +1,6 @@
 "use client"
 
+import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { InformesDelCliente } from "@/lib/informes-datos"
 import { bloquesDelResumen, diaDePeriodo, estadoLegible, periodoLegible, porTipo, tipoLegible, tituloDelInforme, type Informe, type InformeDeAnalisis, type TonoDeEstado } from "@/lib/informes"
@@ -52,9 +53,9 @@ function InformeDeLaMesa({ a }: { a: InformeDeAnalisis }) {
     <li data-analisis={a.id} data-tipo={a.tipo}>
       <details className="rounded-xl border border-white/10 bg-[#1c1c1c] p-3.5">
         <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-[13px] font-medium text-zinc-100"><IconoInforme /><span>{a.titulo}</span>{a.corte && <span className="text-[11.5px] font-normal text-zinc-500">al {diaDePeriodo(a.corte.slice(0, 10))}</span>}</summary>
-        <div className="mt-2.5 flex flex-wrap gap-1.5"><Chip tono="ambar">Propuesta de la mesa de análisis</Chip>{a.citas > 0 && <Chip>{plural(a.citas, "ficha citada", "fichas citadas")}</Chip>}</div>
-        <p className="mt-1.5 text-[11.5px] text-zinc-500">No es un dato confirmado del cliente: es lo que la mesa de análisis propone a partir de lo que el cerebro tiene.</p>
-        <div className="mt-2.5 whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">{a.texto || "Este informe no trae texto."}</div>
+        {/* 03-nov · se lee como documento (títulos, viñetas, negritas reales), sin códigos de ficha ni la palabra «ficha» · mismo criterio que el manual limpio */}
+        <div className="mt-2.5 flex flex-wrap gap-1.5"><Chip tono="ambar">Propuesta de la mesa de análisis</Chip></div>
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">{a.texto ? <DocumentoLegible texto={a.texto} /> : <p className="text-[13px] text-zinc-400">Este informe no trae texto.</p>}</div>
       </details>
     </li>
   )
@@ -198,9 +199,9 @@ export function PanelInformes({ onCerrar, datosIniciales = null, clienteInicial 
                 {bloquesDelResumen(informe.resumen).map((b) => (
                   <div key={b.clave} data-bloque={b.clave}>
                     <Titulito>{b.titulo}</Titulito>
-                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">
-                      {b.parrafo && <p className="whitespace-pre-wrap">{b.parrafo}</p>}
-                      {b.vinetas && <ul className="list-disc space-y-0.5 pl-4">{b.vinetas.map((v, i) => <li key={i}>{v}</li>)}</ul>}
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-[14px] leading-relaxed text-zinc-200">
+                      {b.parrafo && <DocumentoLegible texto={b.parrafo} />}
+                      {b.vinetas && <DocumentoLegible texto={b.vinetas.map((v) => `- ${v.replace(/\n+/g, " ")}`).join("\n")} />}
                       {b.pares && <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">{b.pares.map((p) => <div key={p.clave} className="flex justify-between gap-3 border-b border-white/5 py-0.5"><dt className="text-zinc-400">{p.clave}</dt><dd className="text-right text-zinc-100">{p.valor}</dd></div>)}</dl>}
                     </div>
                   </div>
