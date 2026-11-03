@@ -1,52 +1,41 @@
 /**
- * DASHBOARD NUEVO · SPRINT 1: el marco de la referencia (Airrived, solo la ESTRUCTURA, con nuestro nombre): barra superior, menú lateral de iconos y barra de chat.
- * Por ahora son SOLO la forma, salvo los lugares que ya tienen una pantalla equivalente (llevan a ella). Lo demás no hace nada hasta que Emilio lo pida en otro sprint.
- * Todo es de servidor (sin JavaScript en el navegador). Va sobre el menú del dashboard actual, que no se toca.
+ * DASHBOARD NUEVO · el marco de la referencia (Airrived, solo la ESTRUCTURA, con nuestro nombre): barra superior, menú lateral de iconos y barra de chat.
+ * CC6 · 03-nov (sprint dashboard, Emilio: «cada control hace algo útil o se quita»): nada es decorativo y nada manda al dashboard viejo.
+ *  - Buscar y «/» buscan de verdad · la campana abre Riesgos y alarmas · «$» abre Dinero · «Salir» cierra la sesión. Fuera: «+», claro/oscuro y el icono de menú (no hacían nada).
+ *  - Lateral: Inicio (la escena) · Aplicaciones · Piezas · Empleados (Organización) · Flujos (Observabilidad) · Actividad (En vivo). Fuera: Guías (sin pantalla) y Oficinas (era lo mismo que Inicio).
+ * El marco es de servidor; los botones que abren paneles, Salir y el buscador son piezas chicas de navegador (`BotonesDelMarco`, `Buscador`).
  */
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { ChatDeOficinas } from "@/components/nuevo/ChatDeOficinas"
 import { SelectorDeCliente } from "@/components/nuevo/SelectorDeCliente"
+import { BotonDePanel, BotonSalir } from "@/components/nuevo/BotonesDelMarco"
+import { Buscador } from "@/components/nuevo/Buscador"
+import type { PanelDelMarco } from "@/lib/buscador"
 import {
-  Bell, BookOpen, Books, CurrencyDollar, Flower, House, List, MagnifyingGlass, Plus, Robot, SignOut, SquaresFour, Sun, Waveform,
+  Bell, Books, CurrencyDollar, Flower, House, Robot, SignOut, Waveform,
 } from "@phosphor-icons/react/dist/ssr"
 
 const AMBAR = "#e8731a"
-const BORDE = "border-white/10"
 
-/** un icono de la barra superior; con `href` lleva a la pantalla que ya existe, sin él es solo la forma */
-function IconoSuperior({ etiqueta, href, children }: { etiqueta: string; href?: string; children: ReactNode }) {
-  const clase = "flex h-8 w-8 items-center justify-center rounded-md text-zinc-300"
-  return href ? (
-    <Link href={href} aria-label={etiqueta} title={etiqueta} className={`${clase} transition-colors hover:bg-white/[0.07] hover:text-white`}>{children}</Link>
-  ) : (
-    <span role="img" aria-label={etiqueta} className={`${clase} opacity-80`}>{children}</span>
-  )
-}
+// regla 9 (iPhone): todo lo que se toca mide al menos 44 px (CC3, 03-nov)
+const ICONO_SUPERIOR = "flex h-11 w-11 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a]"
 
 export function BarraSuperior() {
   return (
     <header className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-3 px-4 sm:px-6">
       <div className="flex shrink-0 items-center gap-3">
-      <span role="img" aria-label="Menú" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300"><List size={18} /></span>
       {/* la marca como palabra en CONTORNO ámbar (relleno transparente), como la de la referencia */}
       <svg role="img" aria-label="Zero Risk" width="132" height="22" viewBox="0 0 132 22" className="shrink-0"><text x="1" y="16.5" fill="none" stroke={AMBAR} strokeWidth="0.9" fontSize="16" fontWeight="500" letterSpacing="3.4" fontFamily="system-ui, Arial, sans-serif">ZERO RISK</text></svg>
       {/* 6.42 · el selector abre la vista financiera del cliente (a un clic desde cualquier pantalla) */}
       <SelectorDeCliente />
       </div>
-      {/* sprint 5: el buscador va en el grupo del medio, en fila (ya no flota en absoluto): nunca se encima con «Seleccionar cliente» */}
-      <div className="pointer-events-none mx-auto hidden w-[min(34vw,420px)] md:block">
-        <div aria-disabled="true" className={`flex h-9 items-center gap-2 rounded-lg border ${BORDE} bg-white/[0.04] px-3 text-[13px] text-zinc-400`}>
-          <MagnifyingGlass size={15} /> <span className="flex-1">Buscar</span>
-          <kbd className="rounded border border-white/15 bg-white/[0.06] px-1.5 text-[11px] text-zinc-300">/</kbd>
-        </div>
-      </div>
+      {/* 03-nov · el buscador busca de verdad (clientes, empleados, paneles y piezas); «/» lo abre */}
+      <Buscador />
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <IconoSuperior etiqueta="Nuevo"><Plus size={17} /></IconoSuperior>
-        <IconoSuperior etiqueta="Alertas" href="/alertas"><Bell size={17} /></IconoSuperior>
-        <IconoSuperior etiqueta="Gasto" href="/gasto"><CurrencyDollar size={17} /></IconoSuperior>
-        <IconoSuperior etiqueta="Salir"><SignOut size={17} /></IconoSuperior>
-        <IconoSuperior etiqueta="Claro u oscuro"><Sun size={17} /></IconoSuperior>
+        <BotonDePanel panel="riesgos" etiqueta="Riesgos y alarmas" className={ICONO_SUPERIOR}><Bell size={17} /></BotonDePanel>
+        <BotonDePanel panel="dinero" etiqueta="Dinero" className={ICONO_SUPERIOR}><CurrencyDollar size={17} /></BotonDePanel>
+        <BotonSalir className={`${ICONO_SUPERIOR} disabled:opacity-50`}><SignOut size={17} /></BotonSalir>
       </div>
     </header>
   )
@@ -61,16 +50,14 @@ function IconoFlujo() {
   )
 }
 
-/** los 8 lugares del menú de la referencia, en su orden; con enlace solo donde ya hay una pantalla equivalente */
-export const MENU: Array<{ etiqueta: string; href?: string; icono: ReactNode }> = [
+/** los lugares del menú lateral: cada uno lleva a algo (03-nov): Inicio es la escena; los demás abren su panel encima de ella */
+export const MENU: Array<{ etiqueta: string; href?: string; panel?: PanelDelMarco; icono: ReactNode }> = [
   { etiqueta: "Inicio", href: "/nuevo", icono: <House size={18} weight="fill" /> },
-  { etiqueta: "Oficinas", href: "/oficinas", icono: <SquaresFour size={18} /> },
-  { etiqueta: "Guías", icono: <BookOpen size={18} /> },
-  { etiqueta: "Aplicaciones", icono: <Flower size={18} /> },
-  { etiqueta: "Piezas", href: "/piezas", icono: <Books size={18} /> },
-  { etiqueta: "Empleados", href: "/mapa", icono: <Robot size={18} /> },
-  { etiqueta: "Flujos", icono: <IconoFlujo /> },
-  { etiqueta: "Actividad", icono: <Waveform size={18} /> },
+  { etiqueta: "Aplicaciones", panel: "aplicaciones", icono: <Flower size={18} /> },
+  { etiqueta: "Piezas", panel: "piezas", icono: <Books size={18} /> },
+  { etiqueta: "Empleados", panel: "organizacion", icono: <Robot size={18} /> },
+  { etiqueta: "Flujos", panel: "observabilidad", icono: <IconoFlujo /> },
+  { etiqueta: "Actividad", panel: "envivo", icono: <Waveform size={18} /> },
 ]
 
 export function MenuLateral({ actual = "/nuevo" }: { actual?: string }) {
@@ -78,12 +65,12 @@ export function MenuLateral({ actual = "/nuevo" }: { actual?: string }) {
     <nav aria-label="Menú" className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-1 rounded-2xl bg-[#232325] p-1.5 sm:left-3">
       {MENU.map((m) => {
         const activo = m.href === actual
-        const clase = "flex h-9 w-9 items-center justify-center rounded-lg"
+        const clase = "flex h-11 w-11 items-center justify-center rounded-lg"
         return m.href ? (
           <Link key={m.etiqueta} href={m.href} aria-label={m.etiqueta} title={m.etiqueta} aria-current={activo ? "page" : undefined}
             className={`${clase} transition-colors hover:bg-white/[0.07] ${activo ? "bg-white/[0.08]" : "text-zinc-300 hover:text-white"}`} style={activo ? { color: AMBAR } : undefined}>{m.icono}</Link>
         ) : (
-          <span key={m.etiqueta} role="img" aria-label={m.etiqueta} className={`${clase} text-zinc-300`}>{m.icono}</span>
+          <BotonDePanel key={m.etiqueta} panel={m.panel!} etiqueta={m.etiqueta} className={`${clase} text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a]`}>{m.icono}</BotonDePanel>
         )
       })}
     </nav>

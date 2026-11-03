@@ -78,7 +78,7 @@ describe("CC4 · manual · jerarquía tipográfica por niveles", () => {
 
 describe("CC4 · manual · recuadros «Revisión del editor»", () => {
   const rev = leer("components/nuevo/manual/RevisionDelEditor.tsx")
-  it("el encabezado se entiende solo", () => { expect(rev).toContain("Lo revisó"); expect(rev).toContain("Editor en Jefe: esto cambió y por qué") })
-  it("una sola paleta: nada dorado dentro del recuadro violeta", () => { expect(rev).not.toMatch(/amber/); expect(rev).toContain("bg-violet-500/70") })
+  it("el encabezado se entiende solo", () => { expect(rev).toContain("Estas secciones las revisó"); expect(rev).toContain("Editor en Jefe"); expect(rev).toContain("Qué cambió y por qué:") })
+  it("una sola paleta (la ámbar del dashboard) en el recuadro, «Pedir cambios» y «Guardar cambios»: nada violeta", () => { expect(rev).not.toMatch(/violet/); expect(rev).toContain("bg-amber-500/70"); for (const f of ["components/nuevo/manual/PedirCambiosAlManual.tsx", "components/nuevo/manual/SeccionesNuevas.tsx", "components/nuevo/PanelManual.tsx"]) expect(leer(f), f).not.toMatch(/violet/); expect(leer("components/nuevo/manual/PedirCambiosAlManual.tsx")).toContain("border-amber-400/70 bg-amber-400/15") })
   it("acciones con emoji claro: ✓ aceptar · ✗ rechazar", () => { expect(rev).toContain("✓ ${b.aprobar}"); expect(rev).toContain("✗ ${b.rechazar}") })
 })

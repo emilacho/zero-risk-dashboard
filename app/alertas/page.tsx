@@ -7,12 +7,13 @@ import type { Alerta, FuenteDeAlerta } from "@/lib/alertas"
 import { BotonYaLoVi } from "./BotonYaLoVi"
 import { AccionBoton } from "@/components/AccionBoton"
 import { TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
+import { HORA_24 } from "@/lib/formato"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Alertas" }
 
 const FUENTE: Record<FuenteDeAlerta, string> = { cerebro: "Cerebro", costo: "Costos", oficina: "Oficina" }
-const cuando = (iso: string) => new Date(iso).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+const cuando = (iso: string) => new Date(iso).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", ...HORA_24 })
 
 function Fila({ a, conBoton }: { a: Alerta; conBoton: boolean }) {
   return (

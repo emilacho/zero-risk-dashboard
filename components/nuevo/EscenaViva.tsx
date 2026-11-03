@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
+import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
+import { PanelEnVivo } from "@/components/nuevo/PanelEnVivo"
+import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
 import { PanelRiesgos } from "@/components/nuevo/PanelRiesgos"
@@ -271,6 +274,28 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const abrirCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
   const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
 
+  // CC6 · 03-nov · el marco (campana, «$», menú lateral, buscador) pide paneles con `nv:abrir-panel`: si el panel vive en un departamento, se abre ese departamento
+  const [piezasDelMarco, setPiezasDelMarco] = useState<{ pieza: string | null } | null>(null)
+  const [enVivoDelMarco, setEnVivoDelMarco] = useState(false)
+  const actual = useRef({ depto, fase }); actual.current = { depto, fase }
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      const { panel, pieza = null } = ((e as CustomEvent<PedidoDePanel>).detail ?? {}) as PedidoDePanel
+      const asegurar = (clave: ClaveDeDepartamento) => { const a = actual.current; if (a.depto !== clave || a.fase === "cerrado" || a.fase === "sale") abrir(clave) }
+      if (panel === "piezas") { setPiezasDelMarco({ pieza }); return }
+      if (panel === "envivo") { setEnVivoDelMarco(true); return }
+      if (panel === "aplicaciones") { asegurar("marketing"); setPizarron(true); return }
+      asegurar("oficina")
+      if (panel === "riesgos") setRadar(true)
+      else if (panel === "dinero") setCaja(true)
+      else if (panel === "organizacion") setOrganigrama(true)
+      else if (panel === "observabilidad") setTrazas(true)
+      else if (panel === "decisiones") setMesa(true)
+    }
+    window.addEventListener(EVENTO_ABRIR_PANEL, alPedir)
+    return () => window.removeEventListener(EVENTO_ABRIR_PANEL, alPedir)
+  }, [abrir])
+
   const oficinaAbierta = depto === "oficina" && fase !== "cerrado"
   useEffect(() => {
     if (!oficinaAbierta) return
@@ -413,6 +438,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={() => { setCorridaDeDinero(null); cerrarTrazas() }} corridaInicial={corridaDeDinero} alVolver={corridaDeDinero ? () => { setTrazas(false); setCorridaDeDinero(null); setCaja(true) } : undefined} />, document.body)}
       {organigrama && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelOrganizacion onCerrar={() => setOrganigrama(false)} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
+      {piezasDelMarco && montado && createPortal(<PanelPiezas onCerrar={() => setPiezasDelMarco(null)} piezaInicial={piezasDelMarco.pieza} />, document.body)}
+      {enVivoDelMarco && montado && createPortal(<PanelEnVivo onCerrar={() => setEnVivoDelMarco(false)} />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"
           className="fixed left-4 top-16 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] tracking-wide text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a] sm:left-5">

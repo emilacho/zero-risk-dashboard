@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { HORA_24 } from "@/lib/formato"
 import { haceCuanto } from "@/lib/direccion-decisiones"
 import {
   GRADOS_POR_SECTOR, NOMBRE_DE_LA_GRAVEDAD, NOMBRE_DEL_SECTOR, ORIGEN_DEL_RIESGO, SECTORES, SECTORES_SIN_FUENTE, alPlano, lugarEnElRadar,
@@ -41,7 +42,7 @@ const ESTILO = `
 @media (prefers-reduced-motion:reduce){.ri-punto[data-anima="detecta"],.ri-eco,.ri-ficha,.ri-haz{animation:none}}
 `
 
-const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }
+const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "numeric", month: "short", ...HORA_24 }) }
 const peor = (lista: Riesgo[]): Gravedad | null => (lista.length ? (Math.max(...lista.map((r) => r.gravedad)) as Gravedad) : null)
 const punto = (C: number, r: number, a: number) => alPlano(C, C, r, a, 1).map((v) => v.toFixed(2)).join(" ")
 const arco = (C: number, r: number, a0: number, a1: number) => `M${punto(C, r, a0)} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${punto(C, r, a1)}`

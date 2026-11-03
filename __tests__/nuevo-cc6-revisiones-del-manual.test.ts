@@ -55,7 +55,7 @@ describe("la lectura (base de prueba): revisiones pendientes del cliente con lo 
     }), ZR, etiquetaDelCampo)
     expect(r.map((x) => x.id)).toEqual(["a", "b"]) // solo las pendientes
     expect(r[0].costo_usd).toBeCloseTo(0.283156); expect(r[1].costo_usd).toBeNull()
-    expect(r[0].claves).toEqual(["tono_por_canal", "reglas_de_escritura", "valores", "nunca"]); expect(r[0].pista).toMatch(/revisores no respondieron/)
+    expect(r[0].claves).toEqual(["tono_por_canal", "reglas_de_escritura", "valores", "nunca"]); expect(r[0].pista).toMatch(/nadie marcó un problema/)
     expect(r[0].texto).not.toContain("Voy a cargar")
   })
 })

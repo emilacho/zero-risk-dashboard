@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
+import { HORA_24 } from "@/lib/formato"
 import { INTERVALO_DE_ACTUALIZACION_MS, PAUSA_TRAS_NAVEGAR_MS, debeRefrescar, gruposDeLaPantalla, rutaSeRefresca } from "@/lib/tiempo-real"
 
 /** ¿el cursor está en un campo, o hay un panel de botón abierto (marcado con data-editando)? */
@@ -26,7 +27,7 @@ export function ActualizarSolo() {
     if (!rutaSeRefresca(ruta)) return
     const marcar = () => {
       ultima.current = Date.now()
-      setHora(new Date().toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", second: "2-digit" }))
+      setHora(new Date().toLocaleTimeString("es-EC", { ...HORA_24, second: "2-digit" }))
     }
     // 30-oct · se pregunta al pulso (barato) y SOLO si algo cambió se recarga la pantalla; nunca justo después de un clic
     let huella: string | null = null

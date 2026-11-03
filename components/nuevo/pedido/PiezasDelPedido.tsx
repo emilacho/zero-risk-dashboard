@@ -8,6 +8,7 @@
 import { useState } from "react"
 import type { AvanceDelPedido } from "@/lib/plan"
 import { plural } from "@/lib/lenguaje"
+import { HORA_24 } from "@/lib/formato"
 
 export const ESTILO_DEL_PEDIDO = `
 .nv-pl-paso-vivo{animation:nvPlPaso 1.6s ease-in-out infinite}
@@ -42,7 +43,7 @@ export function BarraDelPedido({ avance, onOcultar }: { avance: AvanceDelPedido;
   )
 }
 /** la hora (Ecuador) de un instante: «15:42» */
-export const horaCortaEC = (iso: string): string => { try { return new Date(iso).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" }) } catch { return "—" } }
+export const horaCortaEC = (iso: string): string => { try { return new Date(iso).toLocaleTimeString("es-EC", { ...HORA_24, timeZone: "America/Guayaquil" }) } catch { return "—" } }
 
 export function QueCambio({ titulo, lineas }: { titulo: string; lineas: string[] }) {
   const [abierto, setAbierto] = useState(false)

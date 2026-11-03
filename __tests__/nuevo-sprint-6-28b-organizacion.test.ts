@@ -110,3 +110,14 @@ describe("6.34 · Organización sin texto técnico abajo (encargo 02-nov: «solo
     expect(panel).not.toContain("data-nota")
   })
 })
+
+describe("52 vs 53 · una tarjeta del directorio de otro equipo no cuenta como Marketing", () => {
+  const con = armarOrganizacion({ ...datos, directorio: [...datos.directorio, { agente: "revisor-externo-gpt", equipo: "direccion", especialidad: null, sabe_hacer: [], activo: true }] }, { ahora })
+  it("sin agente instalado y con equipo «direccion» va a transversal, no a marketing", () => {
+    expect(con.personas["revisor-externo-gpt"].departamento).not.toBe("marketing")
+  })
+  it("una tarjeta sin agente con equipo de marketing sí sigue en marketing", () => {
+    const m = armarOrganizacion({ ...datos, directorio: [...datos.directorio, { agente: "fantasma-creativo", equipo: "creativo", especialidad: null, sabe_hacer: [], activo: true }] }, { ahora })
+    expect(m.personas["fantasma-creativo"].departamento).toBe("marketing")
+  })
+})
