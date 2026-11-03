@@ -91,7 +91,7 @@ describe("el panel y la barra del Plan, con el manual SIN aprobar", () => {
   })
   it("la barra dice lo mismo: estado «Espera que apruebes el manual» y en «Lo que te toca» el texto único, no «Aprobar el plan»", () => {
     const b = barraDelPlan(plan(false))
-    expect(b.decision).toEqual({ titulo: "Espera que apruebes el manual", estado: "espera_el_manual" })
+    expect(b.decision).toEqual({ titulo: PLAN_ESPERA_EL_MANUAL, estado: "espera_el_manual" })
     expect(b.te_toca).toContain(PLAN_ESPERA_EL_MANUAL); expect(b.te_toca).not.toContain("Aprobar el plan o pedir cambios")
     expect(barraDelPlan(plan(true)).te_toca).toContain("Aprobar el plan o pedir cambios")
   })
@@ -99,5 +99,26 @@ describe("el panel y la barra del Plan, con el manual SIN aprobar", () => {
     const piz = (con_campana: boolean) => ({ clientes: [{ id: A, nombre: "x", con_campana }], cliente: { id: A, nombre: "x" }, manual_aprobado: false, campana: null, fases: [], fase_activa: { situacion: "sin_fecha" }, gran_idea: { texto: null, nota: "" }, esperas: [], filas: [], semanas: [], totales: {}, hoy: "2026-11-03", leido_en: "x" }) as never
     expect(detalleDelCuadro("plan", piz(false))).toEqual({ texto: PLAN_ESPERA_EL_MANUAL, aviso: true })
     expect(detalleDelCuadro("plan", piz(true))).toEqual({ texto: PLAN_ESPERA_EL_MANUAL, aviso: true })
+  })
+})
+
+describe("UNA sola función dice en qué está el plan (Lenovo 21:15Z: la línea de la escena pedía decisión con el manual sin aprobar)", () => {
+  it("con el manual sin aprobar manda «plan: espera que apruebes el manual»; si no, el estado del ciclo como antes", async () => {
+    const { estadoDelPlan } = await import("@/lib/manual-primero")
+    expect(estadoDelPlan(plan(false))).toEqual({ clave: "espera_el_manual", texto: "plan: espera que apruebes el manual" })
+    expect(estadoDelPlan(plan(true))).toEqual({ clave: "esperando_decision", texto: "plan esperando tu decisión" })
+    expect(estadoDelPlan(plan(null)).clave).toBe("esperando_decision") // sin saber, no se esconde
+    expect(estadoDelPlan({ ...plan(false), documento: null, campana: null } as never)).toEqual({ clave: "sin_plan", texto: "todavía sin plan" })
+  })
+  it("la línea de contexto de la escena (y la cabecera del Calendario) sale de esa función: «Náufrago · plan: espera que apruebes el manual»", async () => {
+    const { momentoDeLaCampana } = await import("@/lib/escena-avatares")
+    expect(momentoDeLaCampana({ ...plan(false), cliente: { id: A, nombre: "Náufrago" } } as never)).toEqual({ cliente: "Náufrago", momento: "plan: espera que apruebes el manual" })
+  })
+  it("ningún otro archivo escribe el estado del plan por su cuenta", () => {
+    const { readdirSync, statSync } = require("node:fs") as typeof import("node:fs")
+    const { join } = require("node:path") as typeof import("node:path")
+    const archivos = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? archivos(p) : /\.tsx?$/.test(n) ? [p] : [] })
+    const con = ["lib", "components"].flatMap(archivos).filter((p) => readFileSync(p, "utf8").split(String.fromCharCode(10)).some((l) => !/^\s*(\/\/|\/?\*)/.test(l) && /plan esperando tu decisi|espera que apruebes el manual/i.test(l.replace(/\/\*.*?\*\//g, "").replace(/\/\/.*$/, ""))))
+    expect(con.map((p) => p.split("\\").join("/")).sort()).toEqual(["lib/manual-primero.ts", "lib/plan.ts"]) // plan.ts: solo el mensaje del rechazo 409 de la plataforma, no calcula el estado
   })
 })

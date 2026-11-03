@@ -5,6 +5,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { quienValido } from "@/lib/manual-lector"
+import { leerElCiclo } from "@/lib/plan"
+import { estadoDeCampanaLegible } from "@/lib/lenguaje"
+import type { PlanDelCliente } from "@/lib/plan-datos"
 
 type Fila = Record<string, unknown>
 
@@ -50,4 +53,24 @@ export function coberturaDelPlan(dias: number, prometidos: number): string | nul
   const semanas = Math.round(dias / 7)
   const cuanto = dias % 7 === 0 ? `${semanas} ${semanas === 1 ? "semana" : "semanas"} (${dias} de los ${prometidos} días)` : `${dias} de los ${prometidos} días`
   return `Este plan solo cubre ${cuanto}.`
+}
+
+/**
+ * EL ESTADO DEL PLAN EN UNA LÍNEA · UNA sola función para todo texto que diga en qué está el plan (corrección de Lenovo 21:15Z: la línea de la escena
+ * decía «plan esperando tu decisión» con el manual sin aprobar). La usan la línea de contexto de la escena y la cabecera del Calendario; el pizarrón,
+ * el panel y la barra del Plan dicen el mismo `PLAN_ESPERA_EL_MANUAL`. Manual primero: si el manual del cliente no está aprobado, eso manda.
+ */
+export function estadoDelPlan(p: Pick<PlanDelCliente, "documento" | "ciclo" | "campana" | "manual_aprobado">): { clave: string; texto: string } {
+  if (p.manual_aprobado === false && (p.documento || p.campana)) return { clave: "espera_el_manual", texto: PLAN_ESPERA_EL_MANUAL.charAt(0).toLowerCase() + PLAN_ESPERA_EL_MANUAL.slice(1) }
+  if (p.documento && p.ciclo) {
+    switch (leerElCiclo(p.documento.status, p.ciclo).estado) {
+      case "esperando_decision": return { clave: "esperando_decision", texto: "plan esperando tu decisión" }
+      case "reescribiendo": return { clave: "reescribiendo", texto: "plan en reescritura" }
+      case "en_revision": return { clave: "en_revision", texto: "plan en revisión de la jefatura" }
+      case "aprobado": return { clave: "aprobado", texto: "plan aprobado · sigue el brief" }
+      default: return { clave: "en_marcha", texto: "plan en marcha" }
+    }
+  }
+  if (p.campana) return { clave: "campana", texto: `campaña ${estadoDeCampanaLegible(p.campana.estado)}` }
+  return { clave: "sin_plan", texto: "todavía sin plan" }
 }

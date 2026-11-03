@@ -12,10 +12,9 @@
  * - la mesa de cada uno = `oficina_directorio.equipo` (el dato); si no tiene tarjeta, el mapa firmado de `lib/organigrama.ts` (rotulado «según el mapa»); si tampoco, «sin mesa».
  * Todo aquí es puro (sin red, sin reloj propio: `ahora` se pasa) y está probado con vitest. Coordenadas en píxeles de `marketing-2560.jpg` (2560×1440), como el Centro de campaña.
  */
+import { estadoDelPlan } from "@/lib/manual-primero"
 import { EQUIPOS, EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico, puestosDelAgente } from "@/lib/organigrama"
 import { haceCuanto } from "@/lib/oficinas"
-import { estadoDeCampanaLegible } from "@/lib/lenguaje"
-import { leerElCiclo } from "@/lib/plan"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { nombreLegible } from "@/lib/trabajo-en-vivo"
 import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
@@ -113,20 +112,10 @@ export function estadoDePantalla(m: Pick<MesaViva, "trabajando" | "fallando">): 
 }
 
 /** en qué se trabaja, para la línea discreta de la escena: el cliente y el momento de su campaña en lenguaje de oficina («Náufrago · plan esperando tu decisión»); sin cliente no hay línea */
-export function momentoDeLaCampana(p: Pick<PlanDelCliente, "cliente" | "documento" | "ciclo" | "campana">): { cliente: string; momento: string } | null {
+export function momentoDeLaCampana(p: Pick<PlanDelCliente, "cliente" | "documento" | "ciclo" | "campana" | "manual_aprobado">): { cliente: string; momento: string } | null {
   if (!p.cliente) return null
-  let momento: string
-  if (p.documento && p.ciclo) {
-    switch (leerElCiclo(p.documento.status, p.ciclo).estado) {
-      case "esperando_decision": momento = "plan esperando tu decisión"; break
-      case "reescribiendo": momento = "plan en reescritura"; break
-      case "en_revision": momento = "plan en revisión de la jefatura"; break
-      case "aprobado": momento = "plan aprobado · sigue el brief"; break
-      default: momento = "plan en marcha"
-    }
-  } else if (p.campana) momento = `campaña ${estadoDeCampanaLegible(p.campana.estado)}`
-  else momento = "todavía sin plan"
-  return { cliente: p.cliente.nombre, momento }
+  // UNA sola función decide el estado del plan (manual primero incluido · Lenovo 21:15Z)
+  return { cliente: p.cliente.nombre, momento: estadoDelPlan(p).texto }
 }
 
 /** UN solo estado verdadero de la mesa: el mismo texto en el rótulo, en el aviso de accesibilidad y en el encabezado de la lista (Emilio 01-nov: no más «nadie trabaja» junto a «activo») */
