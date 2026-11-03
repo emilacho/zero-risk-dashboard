@@ -21,5 +21,5 @@ export function cantidadEnPalabras(n: number): string {
   return Math.round(n).toLocaleString("es-EC")
 }
 
-/** «3 millones de tokens» */
-export const tokensEnPalabras = (n: number): string => `${cantidadEnPalabras(n)} de tokens`
+/** «3 millones de tokens» · «953 mil tokens» (el «de» solo va con millón/millones) */
+export const tokensEnPalabras = (n: number): string => { const c = cantidadEnPalabras(n); return /mill/.test(c) ? `${c} de tokens` : `${c} tokens` }

@@ -16,6 +16,8 @@ describe("formato único del dashboard", () => {
   })
   it("cantidades grandes en palabras", () => {
     expect(tokensEnPalabras(3_007_000)).toBe("3 millones de tokens")
+    expect(tokensEnPalabras(953_000)).toBe("953 mil tokens")
+    expect(tokensEnPalabras(950)).toBe("950 tokens")
     expect(cantidadEnPalabras(3_500_000)).toBe("3,5 millones")
     expect(cantidadEnPalabras(1_000_000)).toBe("1 millón")
     expect(cantidadEnPalabras(820_000)).toBe("820 mil")
