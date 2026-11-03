@@ -207,7 +207,9 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
           directos[k] = v2
         }
       }
-      for (const k of retirar as string[]) if (directos[k] === undefined) directos[k] = ""
+      // un campo va en UN solo lugar (#869 rechaza «viene dos veces»): lo retirado se pasa solo en `retirar`
+      for (const k of Object.keys(directos)) if (!directos[k]) delete directos[k]
+      for (const k of retirar as string[]) if (directos[k] !== undefined) return mal(`«${k}» no puede llevar valor y retirarse a la vez`)
       // las observaciones
       const obsCrudas = Array.isArray(c.observaciones_por_campo) ? c.observaciones_por_campo : []
       if (obsCrudas.length > 60) return mal("demasiadas observaciones")
@@ -219,7 +221,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       const largo = t.length + observaciones.reduce((n, o) => n + o.texto.length, 0)
       if (largo > TOPE_DEL_TEXTO_DEL_DUENO) return mal(`lo escrito pasa de ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres`)
       const reescribe = largo > 0
-      if (!reescribe && !Object.keys(directos).length) return mal("no hay cambios para pedir")
+      if (!reescribe && !Object.keys(directos).length && !retirar.length) return mal("no hay cambios para pedir")
       if (reescribe && !observaciones.length && t.length < 5) return mal("cuenta qué debe cambiar (al menos 5 letras)")
       const seccion = texto(c.seccion)
       if (seccion.length > 80) return mal("la sección es demasiado larga")

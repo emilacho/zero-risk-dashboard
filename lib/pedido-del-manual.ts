@@ -79,13 +79,15 @@ export const TOPE_DE_LO_ESCRITO = 100_000
 
 /** el cuerpo del pedido único (contrato CC1 #869); el gasto se confirma solo si hay algo que reescribir */
 export function cuerpoDelPedidoUnico(cliente: string, c: TusCambios): Record<string, unknown> {
-  const directos = Object.keys(c.campos).length > 0
+  // un campo va en UN solo lugar (CC3 🔴 17:15Z: #869 rechaza «viene dos veces»): con valor, en `campos`; retirado, solo en `retirar`
+  const conValor = Object.fromEntries(Object.entries(c.campos).filter(([, v]) => v.trim()))
+  const directos = Object.keys(conValor).length > 0
   const retirar = Object.entries(c.campos).filter(([, v]) => !v.trim()).map(([k]) => k)
   const observaciones = Object.entries(c.notas).filter(([, t]) => t.trim()).map(([campo, t]) => ({ campo, texto: t.trim() }))
   const reescribe = hayObservaciones(c)
   return {
     client_id: cliente,
-    ...(directos ? { campos: c.campos } : {}),
+    ...(directos ? { campos: conValor } : {}),
     ...(retirar.length ? { retirar } : {}),
     ...(observaciones.length ? { observaciones_por_campo: observaciones } : {}),
     ...(c.libre.trim() ? { texto: c.libre.trim() } : {}),
@@ -103,7 +105,7 @@ const DIRECTO_QUEDO = "Lo que elegiste, retiraste o editaste quedó guardado; fa
  *   · error sin `directo` → nada se guardó: todo sigue pendiente.
  * `puedeReescribir` = la plataforma tiene el pedido de cambios y no hay otro en curso; si no, las observaciones no se mandan y se dice.
  */
-export async function enviarTusCambios(accion: Accion, cliente: string | null, c: TusCambios, o: { puedeReescribir: boolean }): Promise<ResultadoDelPedido> {
+export async function enviarTusCambios(accion: Accion, cliente: string | null, c: TusCambios, o: { puedeReescribir: boolean; etiqueta?: (clave: string) => string }): Promise<ResultadoDelPedido> {
   if (!cliente) return { ok: false, texto: "Falta el cliente.", quedan: c, reescribe: false }
   if (!cuantosCambios(c)) return { ok: false, texto: "No hay cambios para pedir.", quedan: c, reescribe: false }
   const obs = hayObservaciones(c)
@@ -113,6 +115,9 @@ export async function enviarTusCambios(accion: Accion, cliente: string | null, c
   if (escrito > TOPE_DE_LO_ESCRITO) return { ok: false, texto: `Lo que escribiste pasa de ${TOPE_DE_LO_ESCRITO.toLocaleString("es-EC")} caracteres.`, quedan: c, reescribe: false }
   if (obs && !Object.keys(c.notas).length && c.libre.trim().length < 5) return { ok: false, texto: "Cuenta qué debe cambiar (al menos 5 letras).", quedan: c, reescribe: false }
 
+  // #869 rechaza retirar un campo y dejarle una observación en el mismo pedido («deja una de las dos»): se dice antes, sin llamar
+  const choca = Object.keys(c.notas).find((k) => c.campos[k] !== undefined && !c.campos[k].trim())
+  if (choca) return { ok: false, texto: `«${o.etiqueta ? o.etiqueta(choca) : choca}» está para retirar y tiene una observación: quita una de las dos en «Tus cambios».`, quedan: c, reescribe: false }
   const directos = Object.keys(c.campos).length > 0
   const r = await accion("manual-cambios", cuerpoDelPedidoUnico(cliente, c))
   if (!r.ok) {

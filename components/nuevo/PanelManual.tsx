@@ -283,7 +283,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
     if (!cliente || !nCambios) return
     setGuardando(true); setAviso(null)
     const ciclo = datos?.manual?.ciclo ?? CICLO_DEL_MANUAL_CERRADO
-    const r = await enviarTusCambios(accion, cliente, tus, { puedeReescribir: ciclo.disponible && !ciclo.abierto })
+    const r = await enviarTusCambios(accion, cliente, tus, { puedeReescribir: ciclo.disponible && !ciclo.abierto, etiqueta: (k) => etiquetaDeLaClave(k, datos) })
     setGuardando(false)
     ponerTus(r.quedan)
     if (r.ok) { setGuardadoOk(true); if (r.reescribe) setAviso({ ok: true, texto: r.texto }); void leer(cliente) }

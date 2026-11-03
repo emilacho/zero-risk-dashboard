@@ -20,6 +20,9 @@ const TODO: TusCambios = {
   libre: "En Guayaquil el público es otro: habla de delivery rápido.",
 }
 const SOLO_OBS: TusCambios = { campos: {}, como: {}, notas: TODO.notas, libre: TODO.libre }
+const CON_VALOR = { eslogan: "Del mar a tu puerta", valores: "Frescura\nHonestidad" }
+/** la regla de #869 (`leerDirectos`, CC3 🔴 17:15Z): un campo en `campos` Y en `retirar` → 400 «viene dos veces» */
+const sinRepetidos = (c: Record<string, unknown>) => { const k = new Set(Object.keys((c.campos ?? {}) as object)); return ((c.retirar ?? []) as string[]).every((x) => !k.has(x)) }
 
 describe("«Tus cambios»: la lista corta, en el orden del manual", () => {
   it("cada acción se dice en palabras: elegir, retirar el campo, retirar un elemento, observación y el texto libre al final", () => {
@@ -46,12 +49,25 @@ describe("el cuerpo del pedido único (contrato CC1 #869)", () => {
   it("lo directo, lo que se retira, las observaciones por campo y el texto libre, con el gasto confirmado por código", () => {
     expect(cuerpoDelPedidoUnico(C, TODO)).toEqual({
       client_id: C,
-      campos: TODO.campos,
+      campos: CON_VALOR, // lo retirado NO va aquí: solo en `retirar`
       retirar: ["vision"],
       observaciones_por_campo: [{ campo: "voz", texto: "Más cercana, menos formal" }],
       texto: TODO.libre,
       confirmo_gasto: true, tope_usd: 5,
     })
+  })
+  it("CC3 🔴: un campo retirado va SOLO en `retirar`, nunca también en `campos` (en ningún pedido)", () => {
+    expect(sinRepetidos(cuerpoDelPedidoUnico(C, TODO))).toBe(true)
+    expect(cuerpoDelPedidoUnico(C, { ...SIN_CAMBIOS, campos: { vision: "" }, como: { vision: "retirar" } })).toEqual({ client_id: C, retirar: ["vision"] })
+  })
+  it("CC3 🔴: la puerta del tablero tampoco reenvía un campo en los dos lugares, y rechaza un campo con valor que además se pide retirar", async () => {
+    const llamadas: Array<Record<string, unknown>> = []
+    const dep = { revisor: "e", plataformaUrl: "https://p.test", llave: "k", fetchImpl: (async (_u: unknown, i?: RequestInit) => { llamadas.push(JSON.parse(String(i?.body))); return new Response("{}") }) as typeof fetch }
+    expect((await ejecutarAccion("manual-cambios", { client_id: C, campos: { vision: "", eslogan: "Del mar" }, retirar: ["vision"] }, dep)).status).toBe(200)
+    expect(llamadas[0]).toMatchObject({ campos: { eslogan: "Del mar" }, retirar: ["vision"] }); expect(sinRepetidos(llamadas[0])).toBe(true)
+    expect((await ejecutarAccion("manual-cambios", { client_id: C, retirar: ["vision"] }, dep)).status).toBe(200) // solo retirar: vale
+    expect(llamadas[1]).not.toHaveProperty("campos")
+    expect((await ejecutarAccion("manual-cambios", { client_id: C, campos: { vision: "Algo" }, retirar: ["vision"] }, dep)).status).toBe(400)
   })
   it("solo lo directo: sin gasto (no se reescribe)", () => {
     expect(cuerpoDelPedidoUnico(C, { ...SIN_CAMBIOS, campos: { eslogan: "Del mar" }, como: { eslogan: "elegir" } })).toEqual({ client_id: C, campos: { eslogan: "Del mar" } })
@@ -62,7 +78,8 @@ describe("el cuerpo del pedido único (contrato CC1 #869)", () => {
     const dep = { revisor: "emilio", plataformaUrl: "https://p.test", llave: "k", fetchImpl: f }
     expect((await ejecutarAccion("manual-cambios", cuerpoDelPedidoUnico(C, TODO), dep)).status).toBe(200)
     expect(llamadas[0].url).toBe("https://p.test/api/tablero/manual-cambios")
-    expect(llamadas[0].cuerpo).toMatchObject({ client_id: C, campos: TODO.campos, retirar: ["vision"], observaciones_por_campo: [{ campo: "voz", texto: "Más cercana, menos formal" }], texto: TODO.libre, confirmo_gasto: true, tope_usd: 5 })
+    expect(sinRepetidos(llamadas[0].cuerpo)).toBe(true)
+    expect(llamadas[0].cuerpo).toMatchObject({ client_id: C, campos: CON_VALOR, retirar: ["vision"], observaciones_por_campo: [{ campo: "voz", texto: "Más cercana, menos formal" }], texto: TODO.libre, confirmo_gasto: true, tope_usd: 5 })
     expect((await ejecutarAccion("manual-cambios", { client_id: C, campos: { eslogan: "Del mar" } }, dep)).status).toBe(200)
     expect(llamadas[1].cuerpo).not.toHaveProperty("confirmo_gasto")
   })
@@ -117,7 +134,7 @@ describe("«Pedir los cambios» manda todo en UNA llamada (opción B)", () => {
   it("solo lo directo: la misma llamada, sin gasto, y dice «guardados»", async () => {
     const p = puerta()
     const r = await enviarTusCambios(p.accion, C, { ...SIN_CAMBIOS, campos: { vision: "" }, como: { vision: "retirar" } }, O)
-    expect(p.llamadas[0].cuerpo).toEqual({ client_id: C, campos: { vision: "" }, retirar: ["vision"] })
+    expect(p.llamadas[0].cuerpo).toEqual({ client_id: C, retirar: ["vision"] }) // solo en `retirar` (#869 rechaza «viene dos veces»)
     expect(r).toMatchObject({ ok: true, texto: "✓ Cambios guardados", reescribe: false })
   })
   it("caso 2 de CC1: 200 pero `despertado: false` → NO dice «listo»: lo directo quedó y solo las observaciones siguen pendientes", async () => {
@@ -151,6 +168,12 @@ describe("«Pedir los cambios» manda todo en UNA llamada (opción B)", () => {
     expect(await enviarTusCambios(p.accion, C, { ...TODO, notas: {}, libre: "hey" }, O)).toMatchObject({ ok: false, texto: "Cuenta qué debe cambiar (al menos 5 letras)." })
     expect((await enviarTusCambios(p.accion, C, { ...TODO, libre: "x".repeat(100_000) }, O)).ok).toBe(false)
     expect(p.llamadas).toEqual([])
+  })
+  it("#869 rechaza retirar un campo y observarlo a la vez: el panel lo dice antes, sin llamar", async () => {
+    const p = puerta()
+    const r = await enviarTusCambios(p.accion, C, { ...SIN_CAMBIOS, campos: { vision: "" }, como: { vision: "retirar" }, notas: { vision: "más corta" } }, { ...O, etiqueta })
+    expect(p.llamadas).toEqual([]); expect(r.texto).toBe("«Visión» está para retirar y tiene una observación: quita una de las dos en «Tus cambios».")
+    expect((await enviarTusCambios(p.accion, C, { ...SIN_CAMBIOS, campos: { valores: "Frescura" }, como: { valores: "retirar" }, notas: { valores: "más cortos" } }, O)).ok).toBe(true) // retirar UN elemento (el campo queda con valor) sí convive
   })
   it("sin cliente o sin cambios no se llama a nadie", async () => {
     const p = puerta()
