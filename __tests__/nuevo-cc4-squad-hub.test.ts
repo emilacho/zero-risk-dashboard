@@ -151,15 +151,24 @@ describe("03-nov · auditoría punto 15 · la celda sin número dice por qué (t
   const tiene = (revisadas: number, previas: number, contables: number, puntaje: number | null, forma: unknown = null) => faltasDeLaFicha({ revisadas, previas, contables, puntaje, forma })
   it("sin ninguna entrega revisada: 0 de 5, 0 de 10 y 0 de 3, con frase", () => {
     const f = faltasDeLaFicha(null)
-    expect(f.val).toEqual({ tiene: 0, hace_falta: 5 }); expect(f.forma).toEqual({ tiene: 0, hace_falta: 10 }); expect(f.moral).toEqual({ tiene: 0, hace_falta: 3 })
+    expect(f.val).toEqual({ tiene: 0, hace_falta: 5, no_cuentan: false }); expect(f.forma).toEqual({ tiene: 0, hace_falta: 10, no_cuentan: false }); expect(f.moral).toEqual({ tiene: 0, hace_falta: 3 })
     expect(f.frase).toBe("Todavía no tiene entregas revisadas por la jefatura: la valoración llega con 5.")
   })
   it("con pocas: cuenta lo que tiene (la forma pide 5 recientes y 5 anteriores)", () => {
     const f = tiene(2, 0, 1, null)
-    expect(f.val).toEqual({ tiene: 2, hace_falta: 5 }); expect(f.forma).toEqual({ tiene: 2, hace_falta: 10 }); expect(f.moral).toEqual({ tiene: 1, hace_falta: 3 })
+    expect(f.val).toEqual({ tiene: 2, hace_falta: 5, no_cuentan: false }); expect(f.forma).toEqual({ tiene: 2, hace_falta: 10, no_cuentan: false }); expect(f.moral).toEqual({ tiene: 1, hace_falta: 3 })
     expect(f.frase).toBe("Tiene 2 entregas revisadas por la jefatura; hacen falta 5 para la valoración.")
     expect(tiene(1, 0, 1, null).frase).toBe("Tiene 1 entrega revisada por la jefatura; hacen falta 5 para la valoración.")
-    expect(tiene(10, 7, 4, null).forma).toEqual({ tiene: 10, hace_falta: 10 })
+    expect(tiene(10, 7, 4, null).forma).toEqual({ tiene: 10, hace_falta: 10, no_cuentan: true })
+  })
+  it("con 5 o más revisadas que NO cuentan (por tope o fallidas) no dice «5/5» ni «hacen falta 5»: dice que ninguna cuenta", () => {
+    const f = tiene(7, 0, 0, null)
+    expect(f.val).toEqual({ tiene: 5, hace_falta: 5, no_cuentan: true })
+    expect(f.frase).toBe("Tiene 7 entregas revisadas, pero ninguna cuenta para la nota (cortadas por tope o fallidas).")
+    expect(f.frase).not.toMatch(/hacen falta/)
+    expect(tiene(10, 10, 0, null).forma).toEqual({ tiene: 10, hace_falta: 10, no_cuentan: true })
+    expect(tiene(4, 0, 0, null).val?.no_cuentan).toBe(false); expect(tiene(5, 0, 0, null).val?.no_cuentan).toBe(true) // el borde: con 5 ya no es «faltan»
+    expect(tiene(10, 3, 4, null).forma?.no_cuentan).toBe(false)
   })
   it("lo que ya tiene valor no dice «falta»: valoración, forma y moral completas devuelven null", () => {
     const f = tiene(10, 10, 8, 82, "estable")
