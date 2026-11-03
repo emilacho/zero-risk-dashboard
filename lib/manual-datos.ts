@@ -33,13 +33,16 @@ const detalleCorto = (v: unknown): string | null => {
   return null
 }
 /** LA PAUSA DEL MANUAL (reserva de CC3 a #227): la espera de ESTE manual quedó soltada pero el plan no se pidió (`despertado = false`).
- *  Así «Reintentar pedir el plan» sigue a la vista aunque se recargue. Solo lectura. Sin espera (cliente que aprueba por versión) no hay rastro: false. */
+ *  Así «Reintentar pedir el plan» sigue a la vista aunque se recargue. Solo lectura. Con #868 `5b897c4` el pedido por versión también deja su fila. */
 export function planSinPedir(espera: Fila | null, manualId: unknown): boolean {
   return !!espera && espera.estado === "soltada" && espera.despertado === false && typeof manualId === "string" && espera.manual_id === manualId
 }
 async function leerPlanSinPedir(supa: SupabaseClient, clienteId: string, libro: Fila): Promise<boolean> {
   try {
-    const r = await opcional(supa.from("esperas_del_dueno").select("estado, manual_id, despertado").eq("client_id", clienteId).eq("tipo", "manual").in("estado", ["esperando", "soltada"]).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "esperas_del_dueno")
+    if (typeof libro.id !== "string") return false
+    // CUALQUIER fila de este manual con el plan sin pedir, no solo la última: si Emilio aprobó antes de que el alta guardara, la última es la del alta
+    // y el pedido fallido queda en la anterior (CC1 · 03-nov 15:28Z). Sirve con espera y sin ella (#868 `5b897c4` deja fila también por versión)
+    const r = await opcional(supa.from("esperas_del_dueno").select("estado, manual_id, despertado").eq("client_id", clienteId).eq("tipo", "manual").eq("estado", "soltada").eq("despertado", false).eq("manual_id", libro.id).limit(1).maybeSingle(), "esperas_del_dueno")
     return planSinPedir(r.fila, libro.id)
   } catch { return false } // si no se puede leer, el panel sigue como antes: el botón no aparece por un error
 }

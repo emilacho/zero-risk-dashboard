@@ -226,7 +226,7 @@ describe("la pausa del manual: el tablero lee la espera (solo lectura · reserva
   const con = (espera: { data: unknown; error: { message: string; code?: string } | null }) => baseFalsa((tabla, filtros) => {
     if (tabla === "clients") return ok([{ id: CLIENTE, name: "Náufrago", status: "active" }])
     if (tabla === "client_brand_books") return ok([libro("b2", 2)])
-    if (tabla === "esperas_del_dueno") return filtros.includes('eq("client_id","' + CLIENTE + '")') && filtros.includes('eq("tipo","manual")') ? espera : ok([])
+    if (tabla === "esperas_del_dueno") return ["eq(\"client_id\",\"" + CLIENTE + "\")", 'eq("tipo","manual")', 'eq("estado","soltada")', 'eq("despertado",false)', 'eq("manual_id","b2")'].every((f) => filtros.includes(f)) && !filtros.some((f) => f.startsWith("order(")) ? espera : ok([])
     return ok([])
   })
   it("espera de este manual soltada sin plan pedido → plan_sin_pedir; con plan pedido o de otro manual → no", async () => {
