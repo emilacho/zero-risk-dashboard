@@ -203,8 +203,11 @@ const PARTICULAS = new Set(["de", "del", "la", "las", "el", "los", "y", "e"])
 export const inicialesDe = (n: string) => n.split(/[\s_-]+/).filter((w) => w && !PARTICULAS.has(w.toLowerCase())).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")
 
 /** 3-nov · auditoría n.º 18: los totales se leen como una suma que cuadra. Quien trabaja ahora va aparte de «activos», y lo que está en cero no se nombra */
+export function partesQueSuman(r: Organizacion["resumen"]): string[] {
+  return [r.trabajando ? `${r.trabajando} trabajando ahora` : "", `${r.activos - r.trabajando} activos`, `${r.por_activar} por activar`, r.apagados ? `${r.apagados} apagados` : ""].filter(Boolean)
+}
 export function resumenQueSuma(r: Organizacion["resumen"]): string {
-  const partes = [r.trabajando ? `${r.trabajando} trabajando ahora` : "", `${r.activos - r.trabajando} activos`, `${r.por_activar} por activar`, r.apagados ? `${r.apagados} apagados` : ""].filter(Boolean)
+  const partes = partesQueSuman(r) // la tarjeta de Tu oficina usa las mismas partes (CC6 · 03-nov)
   return `${r.empleados} empleados: ${partes.join(" + ")} · ${r.departamentos} departamentos · ${r.por_cubrir} puestos por cubrir`
 }
 

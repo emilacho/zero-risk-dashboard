@@ -98,7 +98,7 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
     expect([...html.matchAll(/<g class="nv-titulo"[^>]*>(.*?)<\/g>/g)].map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())).toEqual(["GOBIERNO", "IDEAS Y PROYECTOS", "PORTAFOLIO", "DINERO", "DECISIONES", "RIESGOS", "ORGANIZACIÓN", "AGENDA", "OBSERVABILIDAD"])
     const de = (t: string) => { const i = html.indexOf(`data-tablero="${t}"`), j = html.indexOf('data-tablero="', i + 20); return html.slice(i, j > 0 ? j : html.indexOf('data-animacion="mapa"')) }
     expect((de("gobierno").match(/<rect [^>]*rx="6"/g) ?? []).length).toBe(5) // 5 interruptores
-    expect((de("proyectos").match(/<text /g) ?? []).length).toBe(2 + 6) // título en 2 líneas + 6 etapas
+    expect((de("proyectos").match(/<text /g) ?? []).length).toBe(2 + 6 + 1) // título en 2 líneas + 6 etapas + «pronto» (CC6 03-nov)
     for (const e of ["idea", "evaluación", "plan", "aprobado", "construcción", "operando"]) expect(de("proyectos")).toContain(`>${e}</text>`)
     expect((de("portafolio").match(/data-anima="late"/g) ?? []).length).toBe(7) // 7 astros que laten
     expect((de("dinero").match(/data-anima="fluye"/g) ?? []).length).toBe(8) // 5 + 3 cauces con corriente
@@ -126,7 +126,7 @@ describe("6.14/6.15/6.16 · las pantallas dentro de tu oficina", () => {
     expect(oficina).toContain('data-animacion="decisiones"'); expect(oficina).toContain('data-grupo="escritorio" data-pantalla="2" data-animacion="pista"')
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: "marketing" }))).not.toContain("data-animacion=")
     expect(renderToStaticMarkup(createElement(EscenaViva, { inicial: false }))).not.toContain("data-animacion=")
-    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} alAbrirOrganizacion={() => setOrganigrama(true)} />}')
+    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain('{depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} alAbrirOrganizacion={() => setOrganigrama(true)} organizacion={organizacion} portafolio={portafolio} />}')
     const rotulo = oficina.match(/<text class="nv-rotulo"[^>]*>MÚSICA<\/text>/)![0]
     expect(Number(rotulo.match(/font-size="([\d.]+)"/)![1])).toBe(10) // 32 × 0,3 ≈ 10
     expect(PANTALLA_MUSICA.rotulo.y).toBeGreaterThan(428); expect(PANTALLA_MUSICA.rotulo.y).toBeLessThan(440) // justo encima del borde superior (440)
