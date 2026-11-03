@@ -12,7 +12,7 @@ import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
 import { fechaCortaEC } from "@/lib/manual"
 import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
-import { estadoDeCampanaLegible, pilarLegible, plural } from "@/lib/lenguaje"
+import { estadoDeCampanaLegible, pilarLegible, plural, estadoDelClienteEnElSelector } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & PlanDelCliente) | { ok: false; error: string }
@@ -254,7 +254,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
             <span>Cliente</span>
             <select value={cliente ?? ""} onChange={(ev) => { const id = ev.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              {(datos?.clientes ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}{x.con_campana ? "" : " · sin campaña"}</option>)}
+              {(datos?.clientes ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}{estadoDelClienteEnElSelector(x)}</option>)}
               {!datos && <option value="">Leyendo…</option>}
             </select>
           </label>

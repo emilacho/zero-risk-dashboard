@@ -26,7 +26,7 @@ const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object"
 const ESTADOS_VIVOS = ["abierta", "estrategia", "calendario", "activa", "pausada", "necesita_humano"]
 
 export interface PlanDelCliente {
-  clientes: Array<{ id: string; nombre: string; con_campana: boolean }>
+  clientes: Array<{ id: string; nombre: string; con_campana: boolean; /** el estado de su ÚLTIMA campaña (la misma que lee el panel), aunque no esté en marcha */ estado_campana?: string | null }>
   cliente: { id: string; nombre: string } | null
   hoy: string
   campana: null | {
@@ -142,7 +142,9 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     filas(supa.from("cadena_campanas").select("id, client_id, estado, seco, creada_en").eq("seco", false).order("creada_en", { ascending: false }).limit(200), "cadena_campanas"),
   ])
   const conCampana = new Set(campanas.filter((c) => ESTADOS_VIVOS.includes(String(c.estado))).map((c) => String(c.client_id)))
-  const clientes = elegibles.map((c) => ({ ...c, con_campana: conCampana.has(c.id) }))
+  // la última campaña de cada cliente (vienen de la más nueva a la más vieja): el selector dice su estado, igual que el panel
+  const ultima = new Map<string, string>(); for (const c of campanas) if (!ultima.has(String(c.client_id))) ultima.set(String(c.client_id), String(c.estado ?? ""))
+  const clientes = elegibles.map((c) => ({ ...c, con_campana: conCampana.has(c.id), estado_campana: ultima.get(c.id) ?? null }))
   let elegido: { id: string; nombre: string } | null = (o.cliente && clientes.find((c) => c.id === o.cliente)) || null
   if (!elegido && o.cliente) {
     // pedido a propósito y fuera de la lista (ficha de práctica o dada de baja): se lee igual, sin agregarla a la lista

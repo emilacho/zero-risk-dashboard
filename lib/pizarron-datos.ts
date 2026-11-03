@@ -22,7 +22,7 @@ async function una(q: R, que: string): Promise<Fila | null> { const r = await q;
 const textos = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).filter(Boolean) : typeof v === "string" && v ? [v] : [])
 
 export interface Pizarron {
-  clientes: Array<{ id: string; nombre: string; con_campana: boolean }>
+  clientes: Array<{ id: string; nombre: string; con_campana: boolean; /** el estado de su ÚLTIMA campaña (la misma que lee el panel), aunque no esté en marcha */ estado_campana?: string | null }>
   cliente: { id: string; nombre: string } | null
   campana: null | { id: string; estado: string; desde: string | null; hasta: string | null; version_calendario: number | null; version_estrategia: number | null; /** el calendario se armó con un plan que ya no es el vigente */ del_plan_anterior?: boolean; /** en qué momento está el plan vigente («plan esperando tu decisión»); null si no se pudo leer */ momento_del_plan?: string | null }
   fases: FasesDelPlan[]
@@ -49,7 +49,9 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
     filas(supa.from("cadena_campanas").select("id, client_id, estado, seco, creada_en").eq("seco", false).order("creada_en", { ascending: false }).limit(200), "cadena_campanas"),
   ])
   const conCampana = new Set(campanas.filter((c) => ESTADOS_VIVOS.includes(String(c.estado))).map((c) => String(c.client_id)))
-  const clientes = elegibles.map((c) => ({ ...c, con_campana: conCampana.has(c.id) }))
+  // la última campaña de cada cliente (vienen de la más nueva a la más vieja): el selector dice su estado, igual que el panel
+  const ultima = new Map<string, string>(); for (const c of campanas) if (!ultima.has(String(c.client_id))) ultima.set(String(c.client_id), String(c.estado ?? ""))
+  const clientes = elegibles.map((c) => ({ ...c, con_campana: conCampana.has(c.id), estado_campana: ultima.get(c.id) ?? null }))
   // CC6 · 02-nov (corrección urgente): sin cliente pedido, la regla única del cliente por omisión (nunca un cliente fijo)
   const elegido = (o.cliente && clientes.find((c) => c.id === o.cliente)) || (await clientePorOmision(supa, clientes, campanas))
   const vacio = (cliente: Pizarron["cliente"]): Pizarron => ({ clientes, cliente, campana: null, fases: [], fase_activa: faseActiva([], null, hoy), gran_idea: GRAN_IDEA_SIN_TABLA, esperas: [], filas: [], semanas: [], totales: {}, hoy, leido_en: ahora.toISOString() })
@@ -132,4 +134,5 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   }
 }
 
-export const GRAN_IDEA_SIN_TABLA = { texto: null, nota: "Todavía no hay gran idea: la mesa de concepto que la escribe está diseñada (31-oct) pero no construida." } as const
+// 03-nov · sin frases internas («diseñada, no construida») a la vista
+export const GRAN_IDEA_SIN_TABLA = { texto: null, nota: "Todavía no hay gran idea para esta campaña." } as const
