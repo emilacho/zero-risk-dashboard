@@ -177,7 +177,8 @@ function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio }: { 
 /** el aviso después de aprobar el manual (03-nov · firma de Emilio 14:46Z: aprobar es el disparador del plan · contrato CC1 #868: `plan` y `aviso`) */
 export function avisoDeAprobado(d: Record<string, unknown>): { ok: boolean; texto: string; reintentar: boolean } {
   const plan = (d.plan && typeof d.plan === "object" ? d.plan : {}) as Record<string, unknown>
-  if (typeof d.aviso === "string" && d.aviso.trim()) return { ok: false, texto: `El manual quedó aprobado, pero el plan no se pudo pedir: ${d.aviso.trim()} Toca «Reintentar pedir el plan».`, reintentar: true }
+  if ((typeof d.aviso === "string" && d.aviso.trim()) || plan.pedido === false) // texto propio: el `aviso` de la plataforma ya trae la frase entera («…Vuelve a aprobar para reintentar.») y no se repite
+    return { ok: false, texto: "El manual quedó aprobado, pero el plan no se pudo pedir. Toca «Reintentar pedir el plan».", reintentar: true }
   if (plan.repetido) return { ok: true, texto: "✓ Manual aprobado · el plan de esta versión ya estaba pedido", reintentar: false }
   if (d.sin_cambios && !plan.pedido) return { ok: true, texto: "Ya estaba aprobado por ti.", reintentar: false }
   return { ok: true, texto: "✓ Manual aprobado · el plan arranca con este manual", reintentar: false }

@@ -49,9 +49,10 @@ describe("el botón del manual dice que es el disparador del plan", () => {
   })
   it("contrato CC1 #868 · plan ya pedido para esta versión; plan que NO se pudo pedir (queda para reintentar)", () => {
     expect(avisoDeAprobado({ plan: { pedido: true, repetido: true } }).texto).toBe("✓ Manual aprobado · el plan de esta versión ya estaba pedido")
-    const fallo = avisoDeAprobado({ plan: { pedido: false, error: "x" }, aviso: "la sala no respondió." })
+    const fallo = avisoDeAprobado({ plan: { pedido: false, error: "x" }, aviso: "El manual quedó aprobado, pero el plan no se pudo pedir. Vuelve a aprobar para reintentar." })
     expect(fallo.ok).toBe(false); expect(fallo.reintentar).toBe(true)
-    expect(fallo.texto).toBe("El manual quedó aprobado, pero el plan no se pudo pedir: la sala no respondió. Toca «Reintentar pedir el plan».")
+    expect(avisoDeAprobado({ plan: { pedido: false } }).reintentar).toBe(true) // sin aviso, igual se puede reintentar
+    expect(fallo.texto).toBe("El manual quedó aprobado, pero el plan no se pudo pedir. Toca «Reintentar pedir el plan».") // el texto de #868 no se duplica
   })
   it("contrato CC1 #868 · los rechazos se dicen en palabras, con su detalle: reescritura en curso · plan en curso · no se pudo leer", () => {
     expect(motivoDeNoAprobar({ texto: "x", codigo: "regeneracion_en_curso", detalleCrudo: "pedido 3a…" })).toBe("Todavía no se puede aprobar: el manual se está reescribiendo. Espera a que termine (pedido 3a…).")
