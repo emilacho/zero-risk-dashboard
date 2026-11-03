@@ -119,6 +119,7 @@ export function elementosDelCampo(clave: string, valor: string | null): Array<{ 
 /** UN CAMPO DEL MANUAL, LIMPIO (03-nov): su título (nivel 2), el contenido sin evidencia ni «por qué», y nada más que Editar y Retirar.
  *  Vacío: el título y «Editar», sin texto (las 6 secciones y los campos editables siguen a la vista para poder escribirlos · auditoría 02-nov). */
 function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; /** el cambio en espera de este campo, si hay */ pendiente?: string; editando: boolean; onEditar: (clave: string | null) => void; onCambio: (clave: string, valor: string) => void }) {
+  const [confirmar, setConfirmar] = useState(false)
   const base = pendiente ?? separarPropuesta(c.valor).valor
   const elementos = elementosDelCampo(c.clave, base)
   const texto = base && !elementos ? campoLimpio(c.clave, base) : null
@@ -127,13 +128,22 @@ function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio }: { 
   // vacío: solo su título y «Editar» (sin «sin dato»: el documento no muestra rótulos); si no se puede escribir desde aquí, no se pinta
   if (!base && !editando && !opcionesLeidas.length && !editable) return null
   const paraEditar = elementos ? elementos.map((e) => e.limpio).join("\n") : texto ?? ""
+  // RETIRAR EL CAMPO ENTERO (03-nov · contrato CC1 #864): un texto, o una lista de un solo elemento; siempre con confirmación (se va todo el campo)
+  const retirarEntero = editable && !!base && !editando && (!elementos || elementos.length === 1)
   return (
     <div id={`campo-${c.clave}`} data-campo={c.clave} data-editable={editable} className="scroll-mt-2 border-t border-white/[0.07] pt-4 first:border-t-0 first:pt-0">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <h4 className={TITULO_2}>{c.etiqueta}</h4>
         {pendiente !== undefined && <SinGuardar />}
-        {editable && !editando && <span className="ml-auto"><BotonEditar clave={c.clave} etiqueta={c.etiqueta} onClick={() => onEditar(c.clave)} /></span>}
+        {editable && !editando && <span className="ml-auto flex gap-1.5">{retirarEntero && <BotonRetirar que={c.etiqueta} onClick={() => setConfirmar(true)} />}<BotonEditar clave={c.clave} etiqueta={c.etiqueta} onClick={() => onEditar(c.clave)} /></span>}
       </div>
+      {confirmar && (
+        <div data-confirmar-retirar={c.clave} className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/[0.06] px-3 py-2">
+          <span className="text-[13.5px] text-zinc-100">¿Retirar «{c.etiqueta}» del manual? Queda vacío hasta que lo vuelvas a escribir.</span>
+          <button type="button" data-accion="confirmar-retirar" onClick={() => { setConfirmar(false); onCambio(c.clave, "") }} className="rounded-md border border-rose-400/60 bg-rose-500/15 px-3 py-1 text-[13px] text-rose-100 hover:bg-rose-500/25">Sí, retirar</button>
+          <button type="button" onClick={() => setConfirmar(false)} className="rounded-md border border-white/10 px-3 py-1 text-[13px] text-zinc-300 hover:bg-white/[0.05]">Cancelar</button>
+        </div>
+      )}
       {editando && <Editor clave={c.clave} valor={paraEditar} onCancelar={() => onEditar(null)} onListo={(t) => onCambio(c.clave, t)} />}
       {!editando && elementos && (
         <ul className="space-y-2">
@@ -204,7 +214,8 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   async function guardarCambios() {
     if (!cliente || !nCambios) return
     setGuardando(true); setAviso(null)
-    const r = await accion("manual-campos", { client_id: cliente, campos: cambios })
+    const retirar = Object.entries(cambios).filter(([, v]) => !v.trim()).map(([k]) => k)
+    const r = await accion("manual-campos", { client_id: cliente, campos: cambios, ...(retirar.length ? { retirar } : {}) })
     setGuardando(false)
     if (r.ok) { setCambios({}); setGuardadoOk(true); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
   }
