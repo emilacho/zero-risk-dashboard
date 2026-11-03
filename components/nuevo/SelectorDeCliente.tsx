@@ -33,7 +33,7 @@ export function SelectorDeCliente({ inicial = null, fetchImpl }: { inicial?: Cli
   return (
     <div ref={caja} data-selector-de-cliente className="relative ml-1 hidden sm:block">
       <button type="button" aria-haspopup="menu" aria-expanded={abierto} onClick={() => setAbierto((a) => !a)}
-        className="flex items-center gap-2 whitespace-nowrap rounded-md px-2 py-1 text-[13px] text-zinc-200 hover:bg-white/[0.07] hover:text-white">
+        className="flex min-h-11 items-center gap-2 whitespace-nowrap rounded-md px-2 py-1 text-[13px] text-zinc-200 hover:bg-white/[0.07] hover:text-white">
         Seleccionar cliente <CaretDown size={12} className="text-zinc-400" />
       </button>
       {abierto && (
