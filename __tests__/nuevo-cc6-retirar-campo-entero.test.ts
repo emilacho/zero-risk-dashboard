@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { ejecutarAccion } from "@/lib/tablero-acciones"
+import { TOPE_DEL_TEXTO_DEL_MANUAL } from "@/lib/manual"
 import { PanelManual } from "@/components/nuevo/PanelManual"
 import { SeccionesNuevas } from "@/components/nuevo/manual/SeccionesNuevas"
 import { leerManual } from "@/lib/manual-lector"
@@ -26,6 +27,12 @@ describe("la puerta del tablero: vacío = retirar, SOLO si el pedido lo nombra",
     expect((await ejecutarAccion("manual-campos", { client_id: C, campos: { vision: "" }, retirar: ["mision"] }, deps(ll))).status).toBe(400)
     expect((await ejecutarAccion("manual-campos", { client_id: C, campos: { vision: "Ser la referencia" }, retirar: ["vision"] }, deps(ll))).status).toBe(400)
     expect(ll).toHaveLength(0)
+  })
+  it("CC3 · la puerta del tablero también corta lo que pasa del tope (100.000): no lo deja todo a la plataforma", async () => {
+    const ll: Array<Record<string, unknown>> = []
+    expect((await ejecutarAccion("manual-campos", { client_id: C, campos: { vision: "x".repeat(TOPE_DEL_TEXTO_DEL_MANUAL + 1) } }, deps(ll))).status).toBe(400)
+    expect((await ejecutarAccion("manual-campos", { client_id: C, campos: { vision: "x".repeat(TOPE_DEL_TEXTO_DEL_MANUAL) } }, deps(ll))).status).toBe(200)
+    expect(ll).toHaveLength(1)
   })
 })
 
