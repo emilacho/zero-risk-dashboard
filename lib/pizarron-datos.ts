@@ -4,6 +4,7 @@
  * · `oficina_encargos` (qué publicación está en la oficina: `sala_ref.fila`) · `jefatura_revisiones` (la revisión del encargo) · `hitl_queue` (la bandeja de Emilio) · `cadena_esperas` (por qué espera la campaña).
  * La «gran idea» todavía NO existe en ninguna tabla (la mesa de concepto está diseñada, no construida · DISENO-CC1 31-oct): se dice tal cual.
  */
+import { quienValido } from "@/lib/manual-lector"
 import { clientePorOmision } from "@/lib/cliente-por-omision"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { fasesDelPlan, type FasesDelPlan } from "@/lib/clientes"
@@ -35,6 +36,8 @@ export interface Pizarron {
   totales: Partial<Record<EstadoDelTablero, number>>
   /** CC6 · 03-nov: lo archivado de una campaña anterior (CC1 #852): fuera de las semanas y de las cuentas; la carpeta plegada del final */
   archivo?: FilaDelTablero[]
+  /** CC6 · 03-nov (firma de Emilio 14:46Z): la cadena espera a que el DUEÑO apruebe el manual vigente. null = el cliente no tiene manual (o no se pudo leer) */
+  manual_aprobado?: boolean | null
   hoy: string
   leido_en: string
 }
@@ -54,12 +57,15 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   const clientes = elegibles.map((c) => ({ ...c, con_campana: conCampana.has(c.id), estado_campana: ultima.get(c.id) ?? null }))
   // CC6 · 02-nov (corrección urgente): sin cliente pedido, la regla única del cliente por omisión (nunca un cliente fijo)
   const elegido = (o.cliente && clientes.find((c) => c.id === o.cliente)) || (await clientePorOmision(supa, clientes, campanas))
-  const vacio = (cliente: Pizarron["cliente"]): Pizarron => ({ clientes, cliente, campana: null, fases: [], fase_activa: faseActiva([], null, hoy), gran_idea: GRAN_IDEA_SIN_TABLA, esperas: [], filas: [], semanas: [], totales: {}, hoy, leido_en: ahora.toISOString() })
+  const vacio = (cliente: Pizarron["cliente"], manual_aprobado: boolean | null = null): Pizarron => ({ clientes, cliente, manual_aprobado, campana: null, fases: [], fase_activa: faseActiva([], null, hoy), gran_idea: GRAN_IDEA_SIN_TABLA, esperas: [], filas: [], semanas: [], totales: {}, hoy, leido_en: ahora.toISOString() })
   if (!elegido) return vacio(null)
   const cliente = { id: elegido.id, nombre: elegido.nombre }
+  // el manual vigente (la mayor versión): aprobado = lo validó el dueño (no la jefatura). Si la lectura falla, no se inventa: null
+  const manual = await una(supa.from("client_brand_books").select("human_validated, provenance_tag").eq("client_id", cliente.id).order("version", { ascending: false }).limit(1).maybeSingle(), "client_brand_books").catch(() => undefined)
+  const manual_aprobado = manual === undefined || manual === null ? null : quienValido(manual) === "dueno"
 
   const camp = await una(supa.from("cadena_campanas").select("id, plan_id, estado, fecha_inicio, fecha_fin").eq("client_id", cliente.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
-  if (!camp) return vacio(cliente)
+  if (!camp) return vacio(cliente, manual_aprobado)
   const campId = String(camp.id)
 
   // el plan vigente del cliente (el último que no está rechazado ni reemplazado): si la campaña apunta a otro, su calendario es del plan anterior
@@ -107,7 +113,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
     const p = e?.hitl_queue_id ? piezaDe.get(String(e.hitl_queue_id)) ?? null : null
     const pieza: PiezaDelTablero | null = p ? { id: String(p.id), status: String(p.status ?? ""), estado: estadoDeLaPieza(String(p.status ?? ""), p.decision), expires_at: p.expires_at ? String(p.expires_at) : null, created_at: String(p.created_at ?? "") } : null
     const { tablero, motivo } = estadoDelTablero({ estado_fila: String(x.estado ?? ""), encargo, jefatura, pieza: p ? { status: String(p.status ?? ""), decision: p.decision } : null })
-    return {
+    return { manual_aprobado,
       id, fecha, hora: x.hora ? String(x.hora).slice(0, 5) : null, red: String(x.red ?? ""), formato: String(x.formato ?? ""), pilar: x.pilar ? String(x.pilar) : null, tema: String(x.tema ?? ""), sede: x.sede ? String(x.sede) : null,
       pieza_fija: x.pieza_fija === true, tanda: x.tanda == null ? null : Number(x.tanda), semana: x.semana == null ? null : Number(x.semana), estado_fila: String(x.estado ?? ""),
       avisos: textos(x.avisos), pendientes: textos(x.pendientes), encargo, jefatura, pieza, tablero, motivo,
@@ -124,7 +130,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
     const plan = await leerPlanDelCliente(supa, { cliente: cliente.id, ahora })
     if (plan.documento && plan.ciclo) momentoDelPlan = momentoDeLaCampana(plan)?.momento ?? null
   } catch { /* sin dato: la tarjeta dice solo el estado de la campaña */ }
-  return {
+  return { manual_aprobado,
     clientes, cliente,
     campana: { id: campId, estado: String(camp.estado ?? ""), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, version_calendario: version, version_estrategia: est ? Number(est.version) : null, del_plan_anterior: delPlanAnterior, momento_del_plan: momentoDelPlan },
     fases, fase_activa: faseActiva(fases, camp.fecha_inicio ? String(camp.fecha_inicio) : null, hoy),
