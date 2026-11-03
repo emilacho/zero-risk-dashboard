@@ -4,7 +4,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { bloquesDelTexto, clavesDeLaRevision, leerRevisionesDelEditor, nombresEnEspanol, sinMonologo } from "@/lib/revisiones-del-manual"
 import { etiquetaDelCampo } from "@/lib/manual-datos"
-import { listarPiezas, TIPOS_CON_SU_PROPIO_PANEL } from "@/lib/piezas-datos"
+import { listarPiezas, DOCUMENTOS_CON_SU_PROPIO_PANEL } from "@/lib/piezas-datos"
 import { PanelManual } from "@/components/nuevo/PanelManual"
 import { leerManual } from "@/lib/manual-lector"
 import { seccionesNuevasDelBorrador } from "@/lib/manual-secciones"
@@ -47,9 +47,10 @@ describe("la lectura (base de prueba): revisiones pendientes del cliente con lo 
     const meta = (full: string) => ({ editor: { full_content: full, original_task: ENCARGO, editor_verdict: { issues: ["editor-en-jefe unavailable"] } } })
     const r = await leerRevisionesDelEditor(base({
       hitl_queue: [
-        { id: "a", client_id: ZR, type: "editor_escalation", status: "pending", created_at: "2026-11-02T19:30:36Z", agent_name: "content-creator", metadata: meta(REAL) },
-        { id: "b", client_id: ZR, type: "editor_escalation", status: "pending", created_at: "2026-11-02T18:00:00Z", agent_name: "content-creator", metadata: meta(REAL) },
-        { id: "c", client_id: ZR, type: "editor_escalation", status: "approved", created_at: "2026-11-02T19:00:00Z", agent_name: "content-creator", metadata: meta(REAL) },
+        { id: "a", client_id: ZR, type: "editor_escalation", documento: "manual", status: "pending", created_at: "2026-11-02T19:30:36Z", agent_name: "content-creator", metadata: meta(REAL) },
+        { id: "b", client_id: ZR, type: "editor_escalation", documento: "manual", status: "pending", created_at: "2026-11-02T18:00:00Z", agent_name: "content-creator", metadata: meta(REAL) },
+        { id: "p", client_id: ZR, type: "editor_escalation", documento: "pieza", status: "pending", created_at: "2026-11-02T19:10:00Z", agent_name: "content-creator", metadata: meta(REAL) }, // CC1 #871: del editor, pero sobre una PIEZA → no es del manual
+        { id: "c", client_id: ZR, type: "editor_escalation", documento: "manual", status: "approved", created_at: "2026-11-02T19:00:00Z", agent_name: "content-creator", metadata: meta(REAL) },
       ],
       agent_invocations: [{ client_id: ZR, agent_name: "content-creator", ended_at: "2026-11-02T19:30:36.5Z", cost_usd: 0.283156 }, { client_id: ZR, agent_name: "brand-strategist", ended_at: "2026-11-02T19:30:30Z", cost_usd: 9 }],
     }), ZR, etiquetaDelCampo)
@@ -75,7 +76,7 @@ describe("en el panel del Manual, dentro de su sección; ya no en Piezas", () =>
     expect(seccion).not.toMatch(/data-campo="tono_por_canal"[\s\S]{0,600}data-accion="validar-campo"/) // vacía: sin «Validar»
     expect(h).toContain("data-revisiones-sueltas"); expect(h).toContain('data-revision-del-editor="x"') // la que no encaja en ninguna sección, arriba
   })
-  it("Piezas › Otras revisiones ya no trae la revisión del editor ni el plan con pendientes", async () => {
+  it("Piezas › Otras revisiones no trae lo del manual ni lo del plan: por DOCUMENTO (CC1 #871), no por tipo", async () => {
     const filtros: string[] = []
     const q: Record<string, unknown> = {}
     for (const m of ["select", "order", "limit", "eq", "is", "in"]) q[m] = () => q
@@ -83,7 +84,9 @@ describe("en el panel del Manual, dentro de su sección; ya no en Piezas", () =>
     q.not = (...a: unknown[]) => { filtros.push(`not ${JSON.stringify(a)}`); return q }
     q.then = (ok: (r: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(ok)
     await listarPiezas({ from: () => q } as never, { tipo: "otras", estado: "todas" })
-    expect(filtros).toContain(`not ${JSON.stringify(["type", "in", `(${TIPOS_CON_SU_PROPIO_PANEL.join(",")})`])}`)
-    expect([...TIPOS_CON_SU_PROPIO_PANEL]).toEqual(["editor_escalation", "plan_con_pendientes"])
+    expect(filtros).toContain(`not ${JSON.stringify(["documento", "in", "(manual,plan)"])}`)
+    expect(filtros).toContain(`neq ${JSON.stringify(["type", "content_piece_review"])}`)
+    expect([...DOCUMENTOS_CON_SU_PROPIO_PANEL]).toEqual(["manual", "plan"])
+    expect(filtros.some((f) => f.includes("editor_escalation"))).toBe(false) // el tipo ya no decide el panel
   })
 })

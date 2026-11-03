@@ -73,7 +73,7 @@ export function bloquesDelTexto(t: string): Bloque[] {
 
 /** las revisiones del editor PENDIENTES del cliente, legibles y con su costo; si una lectura falla, la del costo queda en «sin dato» (no se inventa) */
 export async function leerRevisionesDelEditor(supa: SupabaseClient, clienteId: string, etiquetaDe: (clave: string) => { clave: string; etiqueta: string }): Promise<RevisionDelEditor[]> {
-  const r = await supa.from("hitl_queue").select("id, created_at, agent_name, output_preview, metadata").eq("client_id", clienteId).eq("type", "editor_escalation").eq("status", "pending").order("created_at", { ascending: false }).limit(20)
+  const r = await supa.from("hitl_queue").select("id, created_at, agent_name, output_preview, metadata").eq("client_id", clienteId).eq("documento", "manual").eq("status", "pending") /* CC1 #871: por DOCUMENTO, no por tipo (una revisión del editor sobre una pieza no es del manual) */.order("created_at", { ascending: false }).limit(20)
   if (r.error) throw new Error(`hitl_queue: ${r.error.message}`)
   const filas = (r.data ?? []) as Fila[]
   if (!filas.length) return []

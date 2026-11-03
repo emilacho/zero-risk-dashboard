@@ -16,6 +16,7 @@ import { estadoTrasDecidir } from "@/lib/reflejo"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 import { llamarAccion } from "@/components/nuevo/PanelManual"
+import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
 import { diaYHora, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
@@ -497,7 +498,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                         <CampoDeTexto etiqueta="Texto que acompaña la publicación" valor={pieza.pie} campo="pie" lamina={null} editable={pendiente} edicion={edicionDe(null, "pie")} onEditar={editar} />
                       </Bloque>
                     )}
-                    {!pieza.es_pieza && pieza.resumen_de_la_bandeja && <Bloque titulo="Lo que dice la bandeja" etiqueta="bandeja"><p className="whitespace-pre-wrap">{pieza.resumen_de_la_bandeja.slice(0, 1200)}</p></Bloque>}
+                    {!pieza.es_pieza && pieza.resumen_de_la_bandeja && <Bloque titulo={pieza.tipo === "editor_escalation" ? "Lo que revisó el editor" : "Lo que dice la bandeja"} etiqueta="bandeja">{pieza.tipo === "editor_escalation" ? <DocumentoLegible texto={pieza.resumen_de_la_bandeja} className="text-[13.5px]" /> : <p className="whitespace-pre-wrap">{pieza.resumen_de_la_bandeja.slice(0, 1200)}</p>}</Bloque>}
                     {pieza.es_pieza && <Bloque titulo={`La mesa de la oficina (${pieza.aportes.length})`} etiqueta="mesa">
                       {pieza.aportes.length === 0 ? <p className="italic text-zinc-500">La mesa no dejó aportes guardados para esta pieza.</p> : (
                         <ul className="space-y-2">{pieza.aportes.map((a) => <li key={a.n}><p className="text-[11px] text-zinc-400">{rolDeLaMesaLegible(a.de)} {tipoDeAporteLegible(a.tipo)}{a.para ? ` a ${rolDeLaMesaLegible(a.para)}` : ""}</p><p className="whitespace-pre-wrap">{a.texto.slice(0, 600)}</p></li>)}</ul>
