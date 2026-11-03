@@ -32,8 +32,9 @@ export function limpiarParaLeer(t: string): string {
   const lineas = t.replace(/\r/g, "").split("\n").map((l) => (/^\s*([-*•]|#{1,6})\s/.test(l) ? l : frases(l).join(" "))).map((l) => l
     .replace(/\s*\(\s*(?:S[1-9]\s*(?:[–\-,y/]\s*)?)+\)/gi, "")
     .replace(/\bS[1-9]\s*[–-]\s*S[1-9]\b/gi, "los segmentos")
-    .replace(/\bsegmentos? S[1-9]\b/gi, "ese segmento")
+    .replace(/\b(segmentos?) S[1-9]\b/gi, "$1")
     .replace(/\bS[1-9]\b/g, "ese segmento")
+    .replace(/\bcliente ideal\s*\(\s*ICPs?\s*\)/gi, "cliente ideal")
     .replace(/\bICPs?\b/g, "cliente ideal")
     .replace(/[«"]?\b(?:content-creator|brand-strategist|editor-en-jefe|jefe-[a-z-]+|[a-z]+-[a-z]+-mesa)\b[»"]?/gi, "el equipo")
     .replace(/\bconsolidador\b/gi, "equipo")

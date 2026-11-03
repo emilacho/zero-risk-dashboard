@@ -17,6 +17,7 @@ describe("CC4 · revisión del editor · solo qué cambió y por qué", () => {
   it("sí queda lo que cambió y por qué, con frases simples", () => {
     expect(t).toContain("Cambié la promesa principal")
     expect(t).toContain("cliente ideal")
+    expect(t).not.toContain("cliente ideal (cliente ideal)"); expect(t).not.toContain("el ese segmento"); expect(t).toContain("para el segmento porque")
     expect(t).toContain("**Por qué:** el texto anterior hablaba de precio y no de tiempo.")
   })
   it("el aviso dice «Te llega para que lo veas; nadie marcó un problema.»", () => {
