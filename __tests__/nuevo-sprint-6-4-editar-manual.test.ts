@@ -44,7 +44,7 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     const ok = await llamarAccion("manual-campos", { a: 1 }, async () => new Response(JSON.stringify({ ok: true, resultado: { version_nueva: 2 } }), { status: 200 }))
     expect(ok).toEqual({ ok: true, texto: "Guardado", detalle: { version_nueva: 2 } })
     expect(await llamarAccion("manual-campos", {}, async () => new Response("{}", { status: 401 }))).toEqual({ ok: false, texto: "Tu sesión venció: entra de nuevo." })
-    expect(await llamarAccion("manual-campos", {}, async () => new Response(JSON.stringify({ ok: false, detalle: "la plataforma no aceptó" }), { status: 502 }))).toEqual({ ok: false, texto: "No se pudo: la plataforma no aceptó" })
+    expect(await llamarAccion("manual-campos", {}, async () => new Response(JSON.stringify({ ok: false, detalle: "la plataforma no aceptó" }), { status: 502 }))).toEqual({ ok: false, texto: "No se pudo: la plataforma no aceptó", detalleCrudo: "la plataforma no aceptó" }) // 03-nov: el detalle viaja aparte para decirlo en palabras
     expect(await llamarAccion("manual-campos", {}, async () => new Response("{}", { status: 501 }))).toMatchObject({ ok: false, texto: expect.stringContaining("Todavía no está disponible") })
   })
   it("el panel pone «Editar» solo en los campos que la plataforma acepta, dice cuáles no, y ofrece validar cuando no lo validó el dueño", () => {

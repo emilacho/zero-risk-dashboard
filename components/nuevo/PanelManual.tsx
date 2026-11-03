@@ -74,7 +74,7 @@ function Editor({ clave, valor, onListo, onCancelar }: { clave: string; valor: s
   )
 }
 
-type ResultadoDeGuardado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string }
+type ResultadoDeGuardado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string; /** el código de la plataforma (p. ej. `plan_en_curso`), para decirlo en palabras */ codigo?: string; detalleCrudo?: string }
 
 /** una llamada a `POST /api/acciones/<nombre>` dicha con franqueza: hecho (con lo que dijo la plataforma), no disponible, o por qué falló */
 export async function llamarAccion(nombre: string, cuerpo: Record<string, unknown>, fetchImpl: typeof fetch = fetch): Promise<ResultadoDeGuardado> {
@@ -83,7 +83,9 @@ export async function llamarAccion(nombre: string, cuerpo: Record<string, unknow
     const j = (await r.json().catch(() => ({}))) as Record<string, unknown>
     if (r.ok && j.ok) return { ok: true, texto: "Guardado", detalle: (j.resultado ?? {}) as Record<string, unknown> }
     const texto = r.status === 501 ? "Todavía no está disponible: la plataforma aún no tiene esta acción. No se cambió nada." : r.status === 401 ? "Tu sesión venció: entra de nuevo." : r.status === 409 ? `Otra decisión se adelantó: recarga. ${String(j.detalle ?? "")}` : `No se pudo: ${String(j.detalle ?? j.error ?? r.status)}`
-    return { ok: false, texto }
+    const pl = (j.plataforma && typeof j.plataforma === "object" ? j.plataforma : {}) as Record<string, unknown>
+    const codigo = typeof pl.error === "string" ? pl.error : typeof j.plataforma_error === "string" ? j.plataforma_error : typeof j.error === "string" ? j.error : undefined
+    return { ok: false, texto, ...(codigo ? { codigo } : {}), ...(j.detalle != null ? { detalleCrudo: String(j.detalle) } : {}) }
   } catch (e) { return { ok: false, texto: `No se pudo: ${e instanceof Error ? e.message : String(e)}` } }
 }
 
@@ -172,10 +174,24 @@ function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio }: { 
   )
 }
 
-/** el aviso después de aprobar el manual (03-nov · firma de Emilio 14:46Z: aprobar es el disparador del plan) */
-export const avisoDeAprobado = (d: Record<string, unknown>): string => (d.sin_cambios ? "Ya estaba aprobado por ti." : "✓ Manual aprobado · el plan arranca con este manual")
+/** el aviso después de aprobar el manual (03-nov · firma de Emilio 14:46Z: aprobar es el disparador del plan · contrato CC1 #868: `plan` y `aviso`) */
+export function avisoDeAprobado(d: Record<string, unknown>): { ok: boolean; texto: string; reintentar: boolean } {
+  const plan = (d.plan && typeof d.plan === "object" ? d.plan : {}) as Record<string, unknown>
+  if (typeof d.aviso === "string" && d.aviso.trim()) return { ok: false, texto: `El manual quedó aprobado, pero el plan no se pudo pedir: ${d.aviso.trim()} Toca «Reintentar pedir el plan».`, reintentar: true }
+  if (plan.repetido) return { ok: true, texto: "✓ Manual aprobado · el plan de esta versión ya estaba pedido", reintentar: false }
+  if (d.sin_cambios && !plan.pedido) return { ok: true, texto: "Ya estaba aprobado por ti.", reintentar: false }
+  return { ok: true, texto: "✓ Manual aprobado · el plan arranca con este manual", reintentar: false }
+}
+/** por qué no se pudo aprobar, en palabras (contrato CC1 #868: 409 `regeneracion_en_curso` · 409 `plan_en_curso` · 502 `no_se_pudo_leer`, todos con su detalle) */
+export function motivoDeNoAprobar(r: { texto: string; codigo?: string; detalleCrudo?: string }): string {
+  const det = r.detalleCrudo?.trim() ? ` (${r.detalleCrudo.trim()})` : ""
+  if (r.codigo === "regeneracion_en_curso") return `Todavía no se puede aprobar: el manual se está reescribiendo. Espera a que termine${det}.`
+  if (r.codigo === "plan_en_curso") return `Ya hay un plan en marcha para este cliente; no se pide otro${det}.`
+  if (r.codigo === "no_se_pudo_leer") return `No se pudo leer el manual para aprobarlo. Prueba de nuevo en un momento${det}.`
+  return r.texto
+}
 
-export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, confirmarAprobarInicial = false }: { onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
+export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, confirmarAprobarInicial = false, reintentarPlanInicial = false }: { /** pruebas: aprobado pero sin plan pedido */ reintentarPlanInicial?: boolean; onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
   const [datos, setDatos] = useState<ManualDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -187,6 +203,8 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const [pedirEn, setPedirEn] = useState<PedidoEnSeccion | null>(null)
   // 03-nov · los cambios (Editar, Retirar) quedan en espera y se guardan juntos con «Guardar cambios», abajo del manual
   const [cambios, setCambios] = useState<Record<string, string>>(cambiosIniciales)
+  // aprobado pero el plan no se pudo pedir: el botón sigue a la vista para reintentar (aprobar otra vez reintenta, sin otra versión · CC1 #868)
+  const [reintentarPlan, setReintentarPlan] = useState(reintentarPlanInicial)
   const [guardando, setGuardando] = useState(false)
   const [guardadoOk, setGuardadoOk] = useState(false)
   const cerrar = useRef<HTMLButtonElement>(null)
@@ -227,7 +245,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
     setValidando("enviando"); setAviso(null)
     const r = await accion("manual-validar", { client_id: cliente })
     setValidando("quieto")
-    if (r.ok) { setAviso({ ok: true, texto: avisoDeAprobado(r.detalle) }); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
+    if (r.ok) { const a = avisoDeAprobado(r.detalle); setAviso({ ok: a.ok, texto: a.texto }); setReintentarPlan(a.reintentar); void leer(cliente) } else setAviso({ ok: false, texto: motivoDeNoAprobar(r) })
   }
 
   const m = datos?.manual ?? null
@@ -293,13 +311,13 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                   {(m.secciones_nuevas ?? []).map((sn) => <button key={sn.id} type="button" data-ir-apartado={sn.titulo} onClick={() => document.getElementById(`apartado-${sn.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{sn.titulo}</button>)}
                   <button type="button" data-ir-apartado="Palabras" onClick={() => document.getElementById("apartado-Palabras")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">Palabras</button>
                 </nav>
-                {m.lector.validadoPor !== "dueno" && (
+                {(m.lector.validadoPor !== "dueno" || reintentarPlan) && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {validando !== "confirmar" ? (
                       // 03-nov (firma de Emilio 14:46Z): este botón es el DISPARADOR de la cadena; con cambios sin guardar o una reescritura en curso no se puede aprobar
                       <>
                         <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando" || nCambios > 0 || ciclo.abierto != null}
-                          className="min-h-11 rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-4 py-2 text-[14px] font-medium text-emerald-100 transition hover:bg-emerald-400/20 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">{validando === "enviando" ? "Aprobando…" : "✓ Aprobar el manual y seguir con el plan"}</button>
+                          className="min-h-11 rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-4 py-2 text-[14px] font-medium text-emerald-100 transition hover:bg-emerald-400/20 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">{validando === "enviando" ? "Aprobando…" : reintentarPlan && m.lector.validadoPor === "dueno" ? "Reintentar pedir el plan" : "✓ Aprobar el manual y seguir con el plan"}</button>
                         {nCambios > 0 && <span data-aprobar-espera className="text-[13px] text-amber-200">Guarda tus cambios antes de aprobar.</span>}
                         {nCambios === 0 && ciclo.abierto != null && <span data-aprobar-espera className="text-[13px] text-amber-200">Espera a que termine la reescritura del manual.</span>}
                       </>

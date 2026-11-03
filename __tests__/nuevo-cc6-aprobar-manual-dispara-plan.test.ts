@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { PanelManual, avisoDeAprobado } from "@/components/nuevo/PanelManual"
+import { PanelManual, avisoDeAprobado, llamarAccion, motivoDeNoAprobar } from "@/components/nuevo/PanelManual"
 import { detalleDelCuadro } from "@/components/nuevo/PanelAplicaciones"
 import { leerPizarron } from "@/lib/pizarron-datos"
 import { leerManual } from "@/lib/manual-lector"
@@ -43,8 +43,33 @@ describe("el botón del manual dice que es el disparador del plan", () => {
     expect(h).toMatch(/data-accion="confirmar-validar"[^>]*class="min-h-11[^"]*"[^>]*>Sí, aprobar y seguir con el plan de Náufrago</)
   })
   it("CC3 reserva 2 · el aviso después de aprobar dice que arranca el plan", () => {
-    expect(avisoDeAprobado({})).toBe("✓ Manual aprobado · el plan arranca con este manual")
-    expect(avisoDeAprobado({ sin_cambios: true })).toBe("Ya estaba aprobado por ti.")
+    expect(avisoDeAprobado({ plan: { pedido: true } })).toEqual({ ok: true, texto: "✓ Manual aprobado · el plan arranca con este manual", reintentar: false })
+    expect(avisoDeAprobado({})).toEqual({ ok: true, texto: "✓ Manual aprobado · el plan arranca con este manual", reintentar: false })
+    expect(avisoDeAprobado({ sin_cambios: true })).toEqual({ ok: true, texto: "Ya estaba aprobado por ti.", reintentar: false })
+  })
+  it("contrato CC1 #868 · plan ya pedido para esta versión; plan que NO se pudo pedir (queda para reintentar)", () => {
+    expect(avisoDeAprobado({ plan: { pedido: true, repetido: true } }).texto).toBe("✓ Manual aprobado · el plan de esta versión ya estaba pedido")
+    const fallo = avisoDeAprobado({ plan: { pedido: false, error: "x" }, aviso: "la sala no respondió." })
+    expect(fallo.ok).toBe(false); expect(fallo.reintentar).toBe(true)
+    expect(fallo.texto).toBe("El manual quedó aprobado, pero el plan no se pudo pedir: la sala no respondió. Toca «Reintentar pedir el plan».")
+  })
+  it("contrato CC1 #868 · los rechazos se dicen en palabras, con su detalle: reescritura en curso · plan en curso · no se pudo leer", () => {
+    expect(motivoDeNoAprobar({ texto: "x", codigo: "regeneracion_en_curso", detalleCrudo: "pedido 3a…" })).toBe("Todavía no se puede aprobar: el manual se está reescribiendo. Espera a que termine (pedido 3a…).")
+    expect(motivoDeNoAprobar({ texto: "x", codigo: "plan_en_curso", detalleCrudo: "corrida de hoy" })).toBe("Ya hay un plan en marcha para este cliente; no se pide otro (corrida de hoy).")
+    expect(motivoDeNoAprobar({ texto: "x", codigo: "no_se_pudo_leer" })).toBe("No se pudo leer el manual para aprobarlo. Prueba de nuevo en un momento.")
+    expect(motivoDeNoAprobar({ texto: "Tu sesión venció: entra de nuevo." })).toBe("Tu sesión venció: entra de nuevo.")
+  })
+  it("el código llega desde la puerta del tablero: 409 trae el de la plataforma en `plataforma.error`; 502 en `plataforma_error`", async () => {
+    const r409 = await llamarAccion("manual-validar", {}, async () => new Response(JSON.stringify({ ok: false, error: "conflicto", detalle: "pedido p1", plataforma: { error: "regeneracion_en_curso" } }), { status: 409 }))
+    expect(r409).toMatchObject({ ok: false, codigo: "regeneracion_en_curso", detalleCrudo: "pedido p1" })
+    const r502 = await llamarAccion("manual-validar", {}, async () => new Response(JSON.stringify({ ok: false, error: "la_plataforma_rechazo", plataforma_error: "no_se_pudo_leer", detalle: "base caída" }), { status: 502 }))
+    expect(r502).toMatchObject({ ok: false, codigo: "no_se_pudo_leer" })
+  })
+  it("aprobado pero sin plan pedido: el botón sigue a la vista como «Reintentar pedir el plan»; aprobado y con plan: no hay botón", () => {
+    const aprobado = manual({ human_validated: true, provenance_tag: { validado_por: "dueno" } })
+    const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: aprobado, reintentarPlanInicial: true }))
+    expect(h).toMatch(/data-accion="validar-manual"[^>]*>Reintentar pedir el plan</)
+    expect(renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: aprobado }))).not.toContain('data-accion="validar-manual"')
   })
 })
 
