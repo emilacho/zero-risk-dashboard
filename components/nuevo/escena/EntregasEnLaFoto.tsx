@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, type CSSProperties } from "react"
 import { ANCLA_DE_LA_TARJETA, CUADROS_DEL_PIZARRON, ENLACE_A_TU_OFICINA, LAMPARA_DE_FIRMA, rotuloDeLaFirma, type EntregaViva } from "@/lib/escena-entregas"
-import type { MetricasDelPizarron } from "@/lib/escena-metricas"
+import { TEXTO_SIN_METRICAS, type MetricasDelPizarron } from "@/lib/escena-metricas"
 import { PANTALLA_VERTICAL, ROTACION_DE_LA_VITRINA_MS, type VitrinaDeLaEscena } from "@/lib/escena-vitrina"
 
 const FUENTE = "system-ui, Arial, sans-serif"
@@ -37,12 +37,10 @@ export function CuadrosDeMetricas({ metricas, onAbrir }: { metricas: MetricasDel
         width={Math.max(...CUADROS_DEL_PIZARRON.flat().map((q) => q.x)) - Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.x)) + 20} height={Math.max(...CUADROS_DEL_PIZARRON.flat().map((q) => q.y)) - Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.y)) + 20}
         fill="rgba(0,0,0,0)" style={{ filter: "none" }} role="button" tabIndex={0} aria-label="Abrir el pizarrón de métricas" onClick={() => onAbrir?.("")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.("") } }} />
       {cuadros.map((c, i) => {
-        const { x, y } = centro(i)
         return (
           <g key={c.clave} className="nv-metrica" data-metrica={c.clave} data-tiene={c.tiene} opacity={c.tiene ? 1 : 0.4} role="button" tabIndex={0} onClick={() => onAbrir?.(c.clave)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.(c.clave) } }} aria-label={`${c.nombre}: ${c.principal ? `${c.principal}${c.variacion ? `, ${c.variacion}` : ""}` : c.texto}`}
             onMouseEnter={() => setActivo(c.clave)} onMouseLeave={() => setActivo(null)} onFocus={() => setActivo(c.clave)} onBlur={() => setActivo(null)}>
             <polygon className="nv-metrica-cuadro" points={puntos(CUADROS_DEL_PIZARRON[i])} fill="#ffb347" fillOpacity={0.2} stroke="#ffd9a0" strokeOpacity={0.6} strokeWidth={0.8} />
-            <text x={x} y={y + 3} textAnchor="middle" fill="#ffe2a8" fontSize={c.sigla.length > 2 ? 7.5 : 9.5} fontWeight={600} fontFamily={FUENTE} pointerEvents="none">{c.sigla}</text>
           </g>
         )
       })}
@@ -122,7 +120,7 @@ export function VitrinaVertical({ vitrina, onAbrir }: { vitrina: VitrinaDeLaEsce
   if (!vitrina) return null
   const pieza = vitrina.piezas.length > 0 ? vitrina.piezas[n % vitrina.piezas.length] : null
   const lineas = pieza ? partir(pieza.titulo, 11, 5) : ["aún sin", "piezas"]
-  const texto = pieza?.texto ?? "métricas pronto"
+  const texto = pieza?.texto ?? TEXTO_SIN_METRICAS
   const leyenda = vitrina.modo === "mejores" ? `Pieza ${(n % total) + 1} de ${total}` : vitrina.modo === "ultima" ? "Última pieza aprobada" : "Aún sin piezas"
   const cx = PANTALLA_VERTICAL.reduce((s, p) => s + p.x, 0) / 4, top = Math.min(...PANTALLA_VERTICAL.map((p) => p.y))
   const w = 230
@@ -130,12 +128,10 @@ export function VitrinaVertical({ vitrina, onAbrir }: { vitrina: VitrinaDeLaEsce
     <g data-vitrina data-modo={vitrina.modo} data-piezas={total} data-lectura={vitrina.lectura}>
       <g transform={MATRIZ_VITRINA} pointerEvents="none">
         <rect x={0} y={0} width={41} height={107} fill="#160d05" fillOpacity={0.9} />
-        <text x={3} y={9} fontFamily={FUENTE} fontSize={5} fontWeight={700} letterSpacing={0.8} fill="#ffb347">VITRINA</text>
         {pieza?.imagen
           ? <image href={pieza.imagen} x={3} y={13} width={35} height={35} preserveAspectRatio="xMidYMid slice" />
           : <rect x={3} y={13} width={35} height={35} rx={2} fill="#ffb347" fillOpacity={0.12} stroke="#ffd9a0" strokeOpacity={0.35} strokeWidth={0.5} />}
         {lineas.map((l, i) => <text key={i} x={3} y={58 + i * 7} fontFamily={FUENTE} fontSize={5.4} fill="#ffe2a8">{l}</text>)}
-        <text x={3} y={102} fontFamily={FUENTE} fontSize={4.8} fill="#a8a097">{texto}</text>
       </g>
       <polygon className="nv-vitrina-hit" points={puntos(PANTALLA_VERTICAL)} fill="rgba(0,0,0,0)" tabIndex={0} role="button" onClick={() => onAbrir?.()} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.() } }} aria-label={`Vitrina de mejores piezas. ${leyenda}${pieza ? `: ${pieza.titulo}` : ""}. ${texto}`}
         onMouseEnter={() => setEncima(true)} onMouseLeave={() => setEncima(false)} onFocus={() => setEncima(true)} onBlur={() => setEncima(false)} />

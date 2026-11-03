@@ -10,20 +10,24 @@ function buscar(n: ReactNode, ok: (e: ReactElement<Record<string, unknown>>) => 
   else if (n && typeof n === "object" && "props" in n) { const e = n as ReactElement<Record<string, unknown>>; if (ok(e)) sal.push(e); buscar(e.props.children as ReactNode, ok, sal) }
   return sal
 }
-const metricas = { cliente: "nau", lectura: "sin_datos" as const, cuadros: cuadrosDelPizarron(["instagram"], { estado: "sin_datos", motivo: "métricas pronto" }) }
+const metricas = { cliente: "nau", lectura: "sin_datos" as const, cuadros: cuadrosDelPizarron(["instagram"], { estado: "sin_datos", motivo: "pronto" }) }
 
 describe("CC4 · redes del pizarrón · botones de verdad (auditoría 16)", () => {
   it("son 9 botones: General, las 7 redes (todas, tengan cuenta o no) y la vitrina, en ese orden, cada uno con su nombre y su estado", () => {
-    const b = botonesDeLaFranja(metricas, null)
+    const b = botonesDeLaFranja(metricas)
     expect(b.map((x) => x.clave)).toEqual(["general", ...REDES_DEL_PIZARRON.map((r) => r.clave), "vitrina"])
     expect(b).toHaveLength(9)
-    expect(b.find((x) => x.clave === "instagram")?.estado).toBe("métricas pronto"); expect(b.find((x) => x.clave === "tiktok")?.estado).toBe("sin cuenta todavía")
-    expect(b.find((x) => x.clave === "vitrina")?.estado).toBe("mejores piezas"); expect(botonesDeLaFranja(metricas, "Post uno").at(-1)?.estado).toBe("Post uno")
-    expect(botonesDeLaFranja(undefined, null).map((x) => x.clave)).toEqual(["vitrina"])
+    expect(b.find((x) => x.clave === "instagram")?.estado).toBe("pronto"); expect(b.find((x) => x.clave === "tiktok")?.estado).toBe("sin cuenta")
+    expect(b.find((x) => x.clave === "vitrina")?.estado).toBe("mejores piezas"); expect(botonesDeLaFranja(metricas).at(-1)?.estado).toBe("mejores piezas") // el título de la pieza ya lo dice la pantalla de la vitrina: no se repite
+    expect(botonesDeLaFranja(undefined).map((x) => x.clave)).toEqual(["vitrina"])
+  })
+  it("la franja dice el estado tal cual lo dicen los cuadros y el panel («pronto», «sin cuenta»): un solo texto por estado", () => {
+    const h = renderToStaticMarkup(createElement(FranjaDeLasRedes, { botones: botonesDeLaFranja(metricas), onAbrir: () => {} }))
+    expect(h).toContain(">pronto<"); expect(h).toContain(">sin cuenta<"); expect(h).not.toContain("métricas pronto"); expect(h).not.toContain("sin cuenta todavía")
   })
   it("tocar cada botón llama a onAbrir con su clave (se ejecuta el clic, no se lee)", () => {
     const abiertas: string[] = []
-    const arbol = FranjaDeLasRedes({ botones: botonesDeLaFranja(metricas, null), onAbrir: (k) => abiertas.push(k) }) as ReactElement
+    const arbol = FranjaDeLasRedes({ botones: botonesDeLaFranja(metricas), onAbrir: (k) => abiertas.push(k) }) as ReactElement
     const botones = buscar(arbol, (e) => e.type === "button")
     expect(botones).toHaveLength(9)
     for (const x of botones) (x.props.onClick as () => void)()
@@ -31,9 +35,9 @@ describe("CC4 · redes del pizarrón · botones de verdad (auditoría 16)", () =
   })
   it("cada botón mide al menos 44×44 (estilo mínimo), tiene nombre accesible con su estado y la franja se parte en filas si no cabe", () => {
     expect(LADO_MINIMO_DEL_BOTON).toBeGreaterThanOrEqual(44)
-    const h = renderToStaticMarkup(createElement(FranjaDeLasRedes, { botones: botonesDeLaFranja(metricas, null), onAbrir: () => {} }))
+    const h = renderToStaticMarkup(createElement(FranjaDeLasRedes, { botones: botonesDeLaFranja(metricas), onAbrir: () => {} }))
     expect(h.match(/min-width:44px;min-height:44px/g)).toHaveLength(9)
-    expect(h).toContain('aria-label="TikTok: sin cuenta todavía"'); expect(h).toContain('aria-label="Instagram: métricas pronto"'); expect(h).toContain('aria-label="Vitrina: mejores piezas"')
+    expect(h).toContain('aria-label="TikTok: sin cuenta"'); expect(h).toContain('aria-label="Instagram: pronto"'); expect(h).toContain('aria-label="Vitrina: mejores piezas"')
     expect(h).toContain("flex-wrap"); expect(h).toContain("data-franja-de-redes")
   })
   it("la escena la monta sobre la zona vacía de arriba del pizarrón y la vitrina abre su panel, las redes el del pizarrón con su clave", () => {

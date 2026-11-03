@@ -7,7 +7,7 @@ import { armarVitrina, leerMejoresPiezas, MAXIMO_DE_PIEZAS_EN_LA_VITRINA, PANTAL
 import { armarEntregas } from "@/lib/escena-entregas"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
 
-const SIN = { estado: "sin_datos" as const, motivo: "métricas pronto" }
+const SIN = { estado: "sin_datos" as const, motivo: "pronto" }
 const escena = (extra: Record<string, unknown> = {}) => ({ ...armarEscena({ despachos: [], invocaciones: [], directorio: [], agentes: [], clientes: [], equipos: null, ahora: new Date("2026-11-02T17:00:00Z") }), ...extra })
 const pieza = (n: number) => ({ id: `p${n}`, titulo: `Pieza número ${n}`, imagen: null, principal: `${n}00 me gusta`, texto: "texto" })
 
@@ -18,22 +18,21 @@ describe("vitrina de la pantalla vertical y lámpara de firma (tarea 2 del encar
     expect((fuente.match(/export async function leerMejoresPiezas/g) ?? []).length).toBe(1)
     expect(fuente).not.toMatch(/\.(insert|update|delete|upsert|rpc)\(/)
   })
-  it("hoy: «métricas pronto» + la última pieza aprobada; sin pieza, la pantalla lo dice; con resultados, hasta 8 rotando", () => {
+  it("hoy: «pronto» + la última pieza aprobada; sin pieza, la pantalla lo dice; con resultados, hasta 8 rotando", () => {
     const u = armarVitrina([], { id: "u1", titulo: "Carrusel Facebook · Náufrago · 29 oct" }, SIN)
     expect(u).toMatchObject({ modo: "ultima", lectura: "sin_datos" })
-    expect(u.piezas).toEqual([{ id: "u1", titulo: "Carrusel Facebook · Náufrago · 29 oct", imagen: null, principal: null, texto: "métricas pronto" }])
+    expect(u.piezas).toEqual([{ id: "u1", titulo: "Carrusel Facebook · Náufrago · 29 oct", imagen: null, principal: null, texto: "pronto" }])
     expect(armarVitrina([], null, SIN)).toMatchObject({ modo: "vacia", piezas: [] })
     const m = armarVitrina(Array.from({ length: 11 }, (_, i) => pieza(i + 1)), { id: "u1", titulo: "x" }, SIN)
     expect(m.modo).toBe("mejores")
     expect(m.piezas).toHaveLength(MAXIMO_DE_PIEZAS_EN_LA_VITRINA)
     expect(m.piezas[0].id).toBe("p1") // el orden lo trae la lectura (de mayor a menor)
   })
-  it("se dibuja sobre la pantalla vertical de la foto: la última pieza aprobada con «métricas pronto»", () => {
+  it("se dibuja sobre la pantalla vertical de la foto: la última pieza aprobada (sin rótulos repetidos: ni «VITRINA» ni «pronto» pintados en la foto)", () => {
     const vitrina = armarVitrina([], { id: "u1", titulo: "Carrusel Facebook Náufrago" }, SIN)
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena({ vitrina }) as never }))
     expect(html).toContain('data-vitrina="true" data-modo="ultima" data-piezas="1"')
-    expect(html).toContain("VITRINA")
-    expect(html).toContain("métricas pronto")
+    expect(html).not.toContain(">VITRINA</text>"); expect(html).not.toMatch(/>pronto<\/text>/)
     expect(html).toContain("Carrusel")
     expect(PANTALLA_VERTICAL).toHaveLength(4)
     expect(renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena() as never }))).not.toContain("data-vitrina")

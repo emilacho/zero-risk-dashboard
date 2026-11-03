@@ -3,7 +3,7 @@
  * luego la tarjeta grande de la red tocada (sus números, o «sin cuenta todavía · se conecta cuando exista»). La vitrina abre su propia tarjeta.
  */
 import { useState } from "react"
-import type { CuadroDeMetrica, MetricasDelPizarron } from "@/lib/escena-metricas"
+import { TEXTO_SIN_CUENTA, type CuadroDeMetrica, type MetricasDelPizarron } from "@/lib/escena-metricas"
 import type { VitrinaDeLaEscena } from "@/lib/escena-vitrina"
 
 export const SIN_CUENTA_LARGO = "sin cuenta todavía · se conecta cuando exista"
@@ -37,7 +37,7 @@ export function PanelDelPizarron({ metricas, inicial, onCerrar }: { metricas: Me
             <button key={x.clave} type="button" data-red={x.clave} data-tiene={x.tiene} onClick={() => setClave(x.clave)}
               className={`min-h-[72px] rounded-2xl border px-3 py-2 text-left ${x.tiene ? "border-amber-300/40 bg-amber-300/[0.08] text-amber-100" : "border-white/10 bg-white/[0.02] text-zinc-400"}`}>
               <div className="text-[16px] font-semibold">{x.nombre}</div>
-              <div className="text-[12px] opacity-80">{x.tiene ? x.texto : "sin cuenta todavía"}</div>
+              <div className="text-[12px] opacity-80">{x.tiene ? x.texto : TEXTO_SIN_CUENTA}</div>
             </button>
           ))}
         </div>
