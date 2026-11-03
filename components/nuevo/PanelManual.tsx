@@ -172,18 +172,21 @@ function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio }: { 
   )
 }
 
-export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion }: { onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
+/** el aviso después de aprobar el manual (03-nov · firma de Emilio 14:46Z: aprobar es el disparador del plan) */
+export const avisoDeAprobado = (d: Record<string, unknown>): string => (d.sin_cambios ? "Ya estaba aprobado por ti." : "✓ Manual aprobado · el plan arranca con este manual")
+
+export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, confirmarAprobarInicial = false }: { onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
   const [datos, setDatos] = useState<ManualDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? clienteInicial)
   const [editando, setEditando] = useState<string | null>(null)
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null)
-  const [validando, setValidando] = useState<"quieto" | "confirmar" | "enviando">("quieto")
+  const [validando, setValidando] = useState<"quieto" | "confirmar" | "enviando">(confirmarAprobarInicial ? "confirmar" : "quieto")
   // «Pedir cambios en esta sección» (como en el plan): el apartado lo dispara y el cuadro del pedido, en la portada, lo abre
   const [pedirEn, setPedirEn] = useState<PedidoEnSeccion | null>(null)
   // 03-nov · los cambios (Editar, Retirar) quedan en espera y se guardan juntos con «Guardar cambios», abajo del manual
-  const [cambios, setCambios] = useState<Record<string, string>>({})
+  const [cambios, setCambios] = useState<Record<string, string>>(cambiosIniciales)
   const [guardando, setGuardando] = useState(false)
   const [guardadoOk, setGuardadoOk] = useState(false)
   const cerrar = useRef<HTMLButtonElement>(null)
@@ -224,7 +227,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
     setValidando("enviando"); setAviso(null)
     const r = await accion("manual-validar", { client_id: cliente })
     setValidando("quieto")
-    if (r.ok) { const d = r.detalle; setAviso({ ok: true, texto: d.sin_cambios ? "Ya estaba aprobado por ti." : "✓ Manual aprobado · el plan arranca con este manual" }); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
+    if (r.ok) { setAviso({ ok: true, texto: avisoDeAprobado(r.detalle) }); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
   }
 
   const m = datos?.manual ?? null

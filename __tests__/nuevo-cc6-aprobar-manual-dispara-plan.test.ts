@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { PanelManual } from "@/components/nuevo/PanelManual"
+import { PanelManual, avisoDeAprobado } from "@/components/nuevo/PanelManual"
 import { detalleDelCuadro } from "@/components/nuevo/PanelAplicaciones"
 import { leerPizarron } from "@/lib/pizarron-datos"
 import { leerManual } from "@/lib/manual-lector"
@@ -28,15 +28,23 @@ describe("el botón del manual dice que es el disparador del plan", () => {
     expect(h).toMatch(/data-accion="validar-manual"[^>]*disabled=""/)
     expect(h).toContain("Espera a que termine la reescritura del manual.")
   })
-  it("la confirmación explica que con eso arranca el plan, y lo que retiraste ya cuenta", () => {
+  it("CC3 reserva 1 · con cambios SIN GUARDAR (un Retirar o un Editar en espera) el botón queda deshabilitado y lo dice: lo retirado tiene que contar", () => {
+    const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manual({}), cambiosIniciales: { vision: "" } }))
+    expect(h).toMatch(/data-accion="validar-manual"[^>]*disabled=""/)
+    expect(h).toContain("Guarda tus cambios antes de aprobar.")
+    const sin = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manual({}) }))
+    expect(sin).not.toMatch(/data-accion="validar-manual"[^>]*disabled=""/)
+  })
+  it("la confirmación (al tocar) explica que arranca el plan y que lo retirado cuenta; su botón es grande (44 px)", () => {
     const c = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manual({}) }))
-    expect(c).not.toContain('data-accion="confirmar-validar"') // la confirmación aparece al tocar
-    // el texto de la confirmación (está en el componente, se ve al tocar el botón)
-    const src = PanelManual.toString()
-    expect(src).toContain("arranca el plan de campaña")
-    expect(src).toContain("Lo que retiraste o editaste ya cuenta")
-    expect(src).toContain("Sí, aprobar y seguir con el plan de ")
-    expect(src).toContain("Guarda tus cambios antes de aprobar.")
+    expect(c).not.toContain('data-accion="confirmar-validar"') // de entrada, no
+    const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manual({}), confirmarAprobarInicial: true }))
+    expect(h).toContain("arranca el plan de campaña"); expect(h).toContain("Lo que retiraste o editaste ya cuenta")
+    expect(h).toMatch(/data-accion="confirmar-validar"[^>]*class="min-h-11[^"]*"[^>]*>Sí, aprobar y seguir con el plan de Náufrago</)
+  })
+  it("CC3 reserva 2 · el aviso después de aprobar dice que arranca el plan", () => {
+    expect(avisoDeAprobado({})).toBe("✓ Manual aprobado · el plan arranca con este manual")
+    expect(avisoDeAprobado({ sin_cambios: true })).toBe("Ya estaba aprobado por ti.")
   })
 })
 
@@ -46,6 +54,10 @@ describe("el pizarrón: «Plan: espera que apruebes el manual» mientras no est�
     expect(detalleDelCuadro("plan", { ...(base as object), manual_aprobado: false } as never)).toEqual({ texto: "Plan: espera que apruebes el manual", aviso: true })
     expect(detalleDelCuadro("plan", { ...(base as object), manual_aprobado: true } as never)).toEqual({ texto: "Sin campaña todavía", aviso: false })
     expect(detalleDelCuadro("plan", { ...(base as object), manual_aprobado: null } as never)).toEqual({ texto: "Sin campaña todavía", aviso: false })
+  })
+  it("CC3 reserva 3 · con una campaña en marcha el plan NO espera: lo que espera es el manual nuevo", () => {
+    const conCampana = { ...(base as object), clientes: [{ id: C, nombre: "Náufrago", con_campana: true }], manual_aprobado: false } as never
+    expect(detalleDelCuadro("plan", conCampana)).toEqual({ texto: "El manual nuevo espera tu aprobación", aviso: true })
   })
   it("la lectura del pizarrón sabe si el DUEÑO aprobó el manual vigente (la jefatura no cuenta); si la lectura del manual falla, null", async () => {
     const base2 = (bb: Record<string, unknown> | null, falla = false) => ({ from: (t: string) => {

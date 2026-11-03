@@ -57,7 +57,11 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
   }
   if (!datos) return { texto: fijo, aviso: false }
   // 03-nov (firma de Emilio 14:46Z): la cadena no sigue hasta que apruebes el manual
-  if (clave === "plan" && datos.manual_aprobado === false) return { texto: "Plan: espera que apruebes el manual", aviso: true }
+  // con una campaña en marcha, el plan NO espera: lo que espera es el manual nuevo (reserva 3 de CC3)
+  if (clave === "plan" && datos.manual_aprobado === false) {
+    const enMarcha = !!datos.cliente && !!datos.clientes.find((c) => c.id === datos.cliente!.id)?.con_campana
+    return { texto: enMarcha ? "El manual nuevo espera tu aprobación" : "Plan: espera que apruebes el manual", aviso: true }
+  }
   if (clave === "plan") return { texto: datos.campana ? textoDeLaFase(datos) : "Sin campaña todavía", aviso: false }
   if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${datos.filas.length} publicaciones${datos.campana.del_plan_anterior ? " · del plan anterior" : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }
   if (clave === "piezas") {
