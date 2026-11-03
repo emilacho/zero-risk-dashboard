@@ -22,6 +22,26 @@ export function sinMonologo(t: string): string {
   return r.trim()
 }
 
+/** frases de monólogo que el agente deja en medio o al principio de la revisión: «Analizando…», «Sección emitida», «el consolidador la tiene», «aquí el resumen de lo que construí…» */
+const MONOLOGO = /^(analizando|preparando|sección emitida|secci[oó]n entregada|el consolidador|aquí (está|va|el|te)|a continuación|resumen de lo que|esto es lo que)\b/i
+/**
+ * 03-nov (Lenovo) · el cuerpo de una revisión solo dice QUÉ cambió y POR QUÉ: sin monólogo, sin códigos de segmento (S1–S5), sin «ICP» ni nombres técnicos de empleados o piezas.
+ */
+export function limpiarParaLeer(t: string): string {
+  const frases = (linea: string) => linea.split(/(?<=[.!?:])\s+/).filter((f) => !MONOLOGO.test(f.trim()))
+  const lineas = t.replace(/\r/g, "").split("\n").map((l) => (/^\s*([-*•]|#{1,6})\s/.test(l) ? l : frases(l).join(" "))).map((l) => l
+    .replace(/\s*\(\s*(?:S[1-9]\s*(?:[–\-,y/]\s*)?)+\)/gi, "")
+    .replace(/\bS[1-9]\s*[–-]\s*S[1-9]\b/gi, "los segmentos")
+    .replace(/\bsegmentos? S[1-9]\b/gi, "ese segmento")
+    .replace(/\bS[1-9]\b/g, "ese segmento")
+    .replace(/\bICPs?\b/g, "cliente ideal")
+    .replace(/[«"]?\b(?:content-creator|brand-strategist|editor-en-jefe|jefe-[a-z-]+|[a-z]+-[a-z]+-mesa)\b[»"]?/gi, "el equipo")
+    .replace(/\bconsolidador\b/gi, "equipo")
+    .replace(/\bbrand book\b/gi, "manual de la marca")
+    .replace(/[ \t]{2,}/g, " ").trimEnd())
+  return lineas.filter((l, i) => l.trim() || (i > 0 && lineas[i - 1].trim())).join("\n").trim()
+}
+
 /** nombres de campos del manual que el lector no lista (palabras, términos, mensajes…): en español, como los ve Emilio */
 export const NOMBRES_DEL_MANUAL: Record<string, string> = {
   forbidden_words: "Palabras a evitar", required_terminology: "Términos propios", personalidad: "Personalidad", mensajes_clave: "Mensajes clave",
@@ -70,9 +90,9 @@ export async function leerRevisionesDelEditor(supa: SupabaseClient, clienteId: s
     return {
       id: String(f.id), creada, agente,
       claves: clavesDeLaRevision(texto(ed.original_task), crudo).map((k) => etiquetaDe(k).clave),
-      texto: nombresEnEspanol(sinMonologo(crudo), etiquetaDe),
+      texto: limpiarParaLeer(nombresEnEspanol(sinMonologo(crudo), etiquetaDe)),
       costo_usd: llamada && llamada.cost_usd != null ? Number(llamada.cost_usd) : null,
-      pista: sinRevisores ? "Llegó a ti porque los revisores no respondieron; no porque encontraran un problema." : null,
+      pista: sinRevisores ? "Te llega para que lo veas; nadie marcó un problema." : null,
     }
   })
 }
