@@ -62,7 +62,7 @@ export interface FilaDeLaLista {
   archivada?: boolean
 }
 
-export type FiltroDeEstado = "pendiente" | "todas"
+export type FiltroDeEstado = "pendiente" | "todas" | "aprobada"
 
 /** LA cuenta de piezas por aprobar: la usan Inicio y Piezas (una sola fuente) */
 export async function contarPiezasPorAprobar(supa: SupabaseClient): Promise<number> {
@@ -82,6 +82,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
   // (documento «pieza», tipo distinto de la pieza) queda aquí: es de piezas, y en ningún otro panel se vería (punto 3 del LISTO de CC1)
   else if (tipo === "otras") q = q.neq("type", TIPO_PIEZA).not("documento", "in", `(${DOCUMENTOS_CON_SU_PROPIO_PANEL.join(",")})`)
   if ((filtro.estado ?? "pendiente") === "pendiente") q = q.eq("status", "pending")
+  else if (filtro.estado === "aprobada") q = q.eq("status", "approved")
   const r = await q
   if (r.error) throw new Error(`no pude leer la bandeja: ${r.error.message}`)
   const filas = (r.data ?? []) as Array<Record<string, unknown>>

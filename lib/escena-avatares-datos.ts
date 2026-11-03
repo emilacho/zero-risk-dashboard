@@ -173,6 +173,6 @@ export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date
 export async function leerLaVitrinaDeMarketing(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null): Promise<VitrinaDeLaEscena> {
   return conCache(`escena-viva-vitrina:${clientePedido ?? "omision"}`, 60_000, async () => {
     const plan = await planDeLaEscena(supa, ahora, clientePedido)
-    return leerLaVitrina(supa, { cliente: plan.cliente?.id ?? null })
+    return leerLaVitrina(supa, { cliente: plan.cliente?.id ?? null, nombre: plan.cliente?.nombre ?? null })
   })
 }

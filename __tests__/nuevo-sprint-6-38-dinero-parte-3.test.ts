@@ -28,7 +28,7 @@ describe("6.38 · costo por resultado y de rehacer", () => {
     const [plan, manual, pieza] = costoPorResultado(datos, r)
     expect(plan).toMatchObject({ cuantos: 2, total: 5, por_unidad: 2.5 })
     expect(manual).toMatchObject({ cuantos: 1, por_unidad: 4 }); expect(manual.nota).toContain("2 versiones guardadas")
-    expect(pieza).toMatchObject({ cuantos: 2, por_unidad: 1.5 }); expect(pieza.nota).toBe("2 aprobadas de 5 revisadas")
+    expect(pieza).toMatchObject({ cuantos: 1, por_unidad: 2 }); expect(pieza.nota).toBe("1 aprobada de 5 revisadas") // CC6 03-nov: «con cambios pedidos» (edited) ya no cuenta como aprobada (una sola definición: esPiezaAprobada)
   })
   it("sin bandeja legible la pieza dice «sin dato todavía», nunca un cero", () => {
     expect(costoPorResultado({ ...datos, piezas: null }, r)[2]).toMatchObject({ por_unidad: null, nota: "sin dato todavía" })

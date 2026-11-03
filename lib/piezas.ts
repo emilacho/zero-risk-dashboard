@@ -27,6 +27,14 @@ export function estadoDeLaPieza(status: string, decision?: unknown): EstadoPieza
   return base
 }
 
+/**
+ * ¿LA PIEZA ESTÁ APROBADA? · UNA sola definición para la bandeja, la Vitrina y Dinero (encargo de Lenovo 22:06Z: la Vitrina decía «sin piezas» y Dinero «2 aprobadas»).
+ * Aprobada = lo que la bandeja muestra como «aprobada». «Con cambios pedidos» (status edited con pidio_cambios) NO es aprobada.
+ */
+export function esPiezaAprobada(status: string, decision?: unknown): boolean {
+  return estadoDeLaPieza(status, decision) === "aprobada"
+}
+
 /** de dónde sale la imagen de fondo de una lámina: no hay (solo tipografía), la generó la IA, es foto propia del cliente, o hay imagen pero no se sabe cuál */
 export type OrigenDeLaImagen = "tipografia" | "generada" | "propia" | "con_imagen"
 /** dirección de la imagen de fondo → su origen real (lo que eligió la oficina: `imagenes_elegidas.por_ref`) */
