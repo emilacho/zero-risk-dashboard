@@ -12,7 +12,7 @@ const armarMetricas = (redes: ReturnType<typeof redesDelCliente>) => ({ cliente:
 
 describe("pizarrón de métricas (tarea 1 del encargo de Lenovo · 02-nov)", () => {
   it("la lectura es UNA sola función y hoy devuelve «sin datos» (la forma del dato no se inventa)", async () => {
-    expect(await leerMetricas(null, { cliente: "x" })).toEqual({ estado: "sin_datos", motivo: "métricas pronto" })
+    expect(await leerMetricas(null, { cliente: "x" })).toEqual({ estado: "sin_datos", motivo: "pronto" })
     const fuente = readFileSync("lib/escena-metricas.ts", "utf8")
     expect((fuente.match(/export async function leer/g) ?? []).length).toBe(1)
     expect(fuente).not.toMatch(/\.from\(/) // no lee ninguna tabla: no hay tabla de métricas todavía
@@ -34,12 +34,12 @@ describe("pizarrón de métricas (tarea 1 del encargo de Lenovo · 02-nov)", () 
     expect(redesDelCliente(config({ instagram: "x" }), null, ["horario", "whatsapp", "direccion"])).toEqual(["instagram", "whatsapp"])
     expect(redesDelCliente(config({}), null, [])).toEqual([])
   })
-  it("ESTÁNDAR (Emilio, 02-nov): General y TODAS las redes siempre; la que el cliente tiene dice «métricas pronto», la que no, se ve tenue y dice «sin cuenta todavía»; Google Maps cuenta siempre", () => {
+  it("ESTÁNDAR (Emilio, 02-nov): General y TODAS las redes siempre; la que el cliente tiene dice «pronto», la que no, se ve tenue y dice «sin cuenta»; Google Maps cuenta siempre", () => {
     const c = cuadrosDelPizarron(["instagram", "web"], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS })
     expect(c.map((x) => x.clave)).toEqual(["general", "instagram", "facebook", "tiktok", "youtube", "whatsapp", "web", "google_maps"])
     const tiene = (k: string) => c.find((x) => x.clave === k)!
-    for (const k of ["general", "instagram", "web", "google_maps"]) expect(tiene(k)).toMatchObject({ tiene: true, texto: "métricas pronto" })
-    for (const k of ["facebook", "tiktok", "youtube", "whatsapp"]) expect(tiene(k)).toMatchObject({ tiene: false, texto: "sin cuenta todavía" })
+    for (const k of ["general", "instagram", "web", "google_maps"]) expect(tiene(k)).toMatchObject({ tiene: true, texto: "pronto" })
+    for (const k of ["facebook", "tiktok", "youtube", "whatsapp"]) expect(tiene(k)).toMatchObject({ tiene: false, texto: "sin cuenta" })
     const todas = cuadrosDelPizarron([], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS })
     expect(todas).toHaveLength(8)
     expect(todas.filter((x) => !x.tiene).map((x) => x.clave)).toEqual(["instagram", "facebook", "tiktok", "youtube", "whatsapp", "web"])
@@ -47,14 +47,16 @@ describe("pizarrón de métricas (tarea 1 del encargo de Lenovo · 02-nov)", () 
     for (const x of c) expect(x).toMatchObject({ principal: null, variacion: null })
     expect(cuadrosDelPizarron(["google_maps"], { estado: "sin_datos", motivo: TEXTO_SIN_METRICAS }).filter((x) => x.clave === "google_maps")).toHaveLength(1)
   })
-  it("se dibuja: cuadros por red y General con «métricas pronto»; sin gastos; sin pizarrón si no hay lectura", () => {
+  it("se dibuja: cuadros por red y General con «pronto» (en el nombre accesible, no pintado en la foto); sin gastos; sin pizarrón si no hay lectura", () => {
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escenaCon(armarMetricas(["instagram", "facebook", "web"])) as never }))
     expect(html).toContain('data-pizarron-de-metricas')
     expect(html).toContain('data-cuadros="8"') // el estándar: todas las redes, siempre
     for (const k of ["general", "instagram", "facebook", "tiktok", "youtube", "whatsapp", "web", "google_maps"]) expect(html).toContain(`data-metrica="${k}"`)
     expect(html).toMatch(/data-metrica="tiktok" data-tiene="false" opacity="0.4"/) // sin cuenta: tenue, no oculta
     expect(html).toMatch(/data-metrica="facebook" data-tiene="true"/)
-    expect(html).toContain("métricas pronto")
+    expect(html).toContain("General: pronto"); expect(html).toContain("TikTok: sin cuenta")
+    // 03-nov · lo que se ve se dice UNA vez, en la franja de botones: la foto ya no pinta las siglas ni «pronto» sobre los cuadros
+    for (const sigla of ["GEN", "IG", "FB", "TT", "YT", "WA", "WEB", "MAP"]) expect(html).not.toContain(`>${sigla}</text>`)
     const dentro = html.split("data-pizarron-de-metricas")[1].split("</svg>")[0]
     expect(dentro).not.toMatch(/US\$|gasto|costo/i)
     expect(renderToStaticMarkup(createElement(Avatares, { datosIniciales: escenaCon(undefined) as never }))).not.toContain("data-pizarron-de-metricas")

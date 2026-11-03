@@ -12,10 +12,10 @@ export const LADO_MINIMO_DEL_BOTON = 44
 
 export interface BotonDeLaFranja { clave: string; nombre: string; sigla: string; estado: string; tiene: boolean }
 
-/** los botones de la franja: los cuadros del pizarrón (General + las 7 redes, todos siempre) y al final la vitrina; el estado es lo que dice cada cuadro («métricas pronto», el dato o «sin cuenta todavía») */
-export function botonesDeLaFranja(metricas: MetricasDelPizarron | undefined, vitrinaTexto: string | null): BotonDeLaFranja[] {
+/** los botones de la franja: los cuadros del pizarrón (General + las 7 redes, todos siempre) y al final la vitrina (su estado es fijo: el título de la pieza ya lo muestra su pantalla); el estado es lo que dice cada cuadro («métricas pronto», el dato o «sin cuenta todavía») */
+export function botonesDeLaFranja(metricas: MetricasDelPizarron | undefined): BotonDeLaFranja[] {
   const cuadros = (metricas?.cuadros ?? []).map((c) => ({ clave: c.clave as string, nombre: c.nombre, sigla: c.sigla, estado: c.principal ? `${c.principal}${c.variacion ? ` · ${c.variacion}` : ""}` : c.texto, tiene: c.tiene }))
-  return [...cuadros, { clave: "vitrina", nombre: "Vitrina", sigla: "VIT", estado: vitrinaTexto ?? "mejores piezas", tiene: true }]
+  return [...cuadros, { clave: "vitrina", nombre: "Vitrina", sigla: "VIT", estado: "mejores piezas", tiene: true }]
 }
 
 export function FranjaDeLasRedes({ botones, onAbrir, className = "", style }: { botones: BotonDeLaFranja[]; onAbrir: (clave: string) => void; className?: string; style?: CSSProperties }) {
@@ -27,7 +27,7 @@ export function FranjaDeLasRedes({ botones, onAbrir, className = "", style }: { 
           style={{ minWidth: LADO_MINIMO_DEL_BOTON, minHeight: LADO_MINIMO_DEL_BOTON }}
           className={`flex flex-col items-center justify-center rounded-lg border px-1 text-center leading-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${b.tiene ? "border-amber-400/50 bg-black/70 text-amber-200 hover:bg-amber-400/20" : "border-white/15 bg-black/55 text-zinc-500 hover:bg-white/10"}`}>
           <span className="text-[12px] font-semibold tracking-wide">{b.sigla}</span>
-          <span className="max-w-[4.5rem] truncate text-[9px] leading-none opacity-80">{b.tiene ? (b.estado.length > 12 ? "pronto" : b.estado) : "sin cuenta"}</span>
+          <span className="max-w-[4.5rem] truncate text-[9px] leading-none opacity-80">{b.estado}</span>
         </button>
       ))}
     </div>
