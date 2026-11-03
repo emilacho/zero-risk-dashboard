@@ -5,6 +5,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { coberturaDelPlan, diasPrometidos, esperaLaFirma, manualAprobadoPorCliente, PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
 import { barraDelPlan } from "@/lib/plan-barra"
+import { palabrasDeLaRespuesta } from "@/lib/plan"
 import { detalleDelCuadro } from "@/components/nuevo/PanelAplicaciones"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import type { PlanDelCliente } from "@/lib/plan-datos"
@@ -64,6 +65,16 @@ const plan = (manual_aprobado: boolean | null): PlanDelCliente => ({
   revision: null, palabra_del_dueno: [], esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [],
   ciclo: { disponible: true, version: 1, con_compuerta: true, historial: [], compuerta: { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null }, pedido: null, avance: null, avance_de: null, comparacion_fallo: false } as never,
 } as never)
+
+describe("la puerta de CC1 (#874) rechaza firmar con el manual sin aprobar: se dice en palabras y se vuelve a leer", () => {
+  it("409 `plan_espera_al_manual` → el texto único, sin código crudo, y relee", () => {
+    for (const accion of ["plan-aprobar", "plan-cambios"] as const) {
+      const r = palabrasDeLaRespuesta(accion, 409, { ok: false, error: "conflicto", detalle: "Plan: espera que apruebes el manual. Al aprobarlo, el plan se rehace con ese manual.", plataforma: { error: "plan_espera_al_manual" } })
+      expect(r).toMatchObject({ ok: false, texto: "Plan: espera que apruebes el manual. Al aprobarlo, el plan se rehace con ese manual. No se cambió nada.", releer: true })
+      expect(r.texto).not.toContain("plan_espera_al_manual")
+    }
+  })
+})
 
 describe("el panel y la barra del Plan, con el manual SIN aprobar", () => {
   it("el panel dice «Plan: espera que apruebes el manual» y NO ofrece «Aprobar el plan así» ni «Pedir cambios al plan»", () => {
