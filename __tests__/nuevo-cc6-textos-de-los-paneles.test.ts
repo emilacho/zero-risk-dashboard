@@ -22,6 +22,15 @@ describe("1 · Informes: se leen como un documento", () => {
     expect(t).toContain("(593123)") // solo números: no es un código
     expect(sinCodigosDeFicha("Una década (decade) de sabor")).toBe("Una década (decade) de sabor") // solo letras: tampoco
   })
+  it("reservas de CC3: entre paréntesis solo se quita con «ficha» o «…»; un código mide 8 o más; «Ver [ficha …].» se va entero", () => {
+    expect(sinCodigosDeFicha("El combo (ab1234) se vende bien")).toBe("El combo (ab1234) se vende bien") // código de producto: se queda
+    expect(sinCodigosDeFicha("El lote (ab12cd34) llegó")).toBe("El lote (ab12cd34) llegó") // 8, pero sin «ficha» ni «…» entre paréntesis
+    expect(sinCodigosDeFicha("Sube la venta (ab12cd34…).")).toBe("Sube la venta.")
+    expect(sinCodigosDeFicha("Dato [6a0f94b]")).toBe("Dato [6a0f94b]") // 7: no es el principio de una ficha
+    expect(sinCodigosDeFicha("Dato [6a0f94b0]")).toBe("Dato")
+    expect(sinCodigosDeFicha("Las reseñas suben. Ver [ficha 6a0f94b0…]. Sigue el plan.")).toBe("Las reseñas suben. Sigue el plan.")
+    expect(sinCodigosDeFicha("Las reseñas suben (véase [6a0f94b0…]).")).toBe("Las reseñas suben.")
+  })
   it("en pantalla: títulos de verdad, viñetas, negritas reales; sin ** a la vista", () => {
     const h = renderToStaticMarkup(createElement(DocumentoLegible, { texto: INFORME }))
     expect(h).toMatch(/<h4[^>]*>Lo que pasó esta semana<\/h4>/)
