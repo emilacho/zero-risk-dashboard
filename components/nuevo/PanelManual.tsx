@@ -7,6 +7,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
+import { JerarquiaTipografica } from "@/components/nuevo/manual/JerarquiaTipografica"
+import { puedeMoverNiveles } from "@/lib/jerarquia-tipografica"
 import { SeccionesNuevas } from "@/components/nuevo/manual/SeccionesNuevas"
 import { ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { CICLO_DEL_MANUAL_CERRADO } from "@/lib/manual-ciclo"
@@ -324,6 +326,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                     pendiente={(p) => cambios[p.clave]} editando={editando}
                     acciones={(p) => (<>{cambios[p.clave] !== undefined && <SinGuardar />}{esEditableDesdeElTablero(p.clave) && editando !== p.clave && <span className="ml-auto"><BotonEditar clave={p.clave} etiqueta={p.etiqueta} onClick={() => setEditando(p.clave)} /></span>}</>)}
                     onRetirar={(p, lineas) => cambiar(p.clave, juntarLista(lineas))}
+                    especial={(p) => p.clave === "jerarquia_tipografica" && puedeMoverNiveles(cambios[p.clave] ?? p.para_editar) ? <JerarquiaTipografica texto={cambios[p.clave] ?? p.para_editar} onCambiar={(t) => cambiar(p.clave, t)} /> : null}
                     editor={(p) => editando === p.clave ? <Editor clave={p.clave} valor={cambios[p.clave] ?? p.para_editar} onCancelar={() => setEditando(null)} onListo={(t) => cambiar(p.clave, t)} /> : null} />
 
                   {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
