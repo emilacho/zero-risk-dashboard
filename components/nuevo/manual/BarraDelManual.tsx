@@ -26,7 +26,7 @@ const Chip = ({ children, tono = "neutro" }: { children: React.ReactNode; tono?:
  * LA BARRA LATERAL DEL MANUAL (CC6 · 02-nov · boceto aprobado por Emilio tal cual): fija al bajar, con lo esencial del manual a la vista mientras se lee.
  * Datos reales: si algo no existe, se dice que falta. Los textos largos siguen en sus tarjetas de la izquierda; aquí va lo corto.
  */
-export function BarraDelManual({ m, nombre, campos }: {
+export function BarraDelManual({ m, nombre, campos, faltan, huecos, irA }: {
   m: Manual
   /** el nombre del cliente: la primera tipografía lo escribe con su letra */
   nombre: string | null
@@ -49,6 +49,14 @@ export function BarraDelManual({ m, nombre, campos }: {
   return (
     <aside aria-label="Lo esencial del manual" data-barra-del-manual className="mn-seccion space-y-3 lg:sticky lg:top-0 lg:max-h-[calc(100vh-10rem)] lg:self-start lg:overflow-y-auto lg:pr-1" style={{ animationDelay: "120ms" }}>
       {fuentes && <link rel="stylesheet" href={fuentes} />}
+
+      {/* 03-nov 08:20Z · Emilio: lo que falta, para él, en UNA línea discreta (no en el documento) */}
+      {faltan.length > 0 && (
+        <p data-barra="estado" className="px-1 text-[12px] leading-relaxed text-zinc-500">
+          <span className="text-zinc-400">Por completar: </span>
+          {(huecos ?? m.lector.huecos).map((k, i) => <span key={k}>{i > 0 && " · "}<button type="button" data-ir-campo={k} onClick={() => irA(k)} className="underline decoration-dotted underline-offset-2 hover:text-amber-200">{faltan[i]}</button></span>)}
+        </p>
+      )}
 
       {m.colores.length > 0 && <Bloque id="colores" titulo="Colores">
         {(

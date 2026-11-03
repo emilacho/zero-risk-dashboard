@@ -63,7 +63,9 @@ describe("la barra en pantalla", () => {
   it("todos los bloques del boceto, fija al bajar, «Tipografías» (no «Letras»), cada una en su letra y el nombre del cliente en la primera", () => {
     const h = dibujar({ logo: { url: `${BUCKET}/logo.jpg`, procedencia: null }, fotos: [{ url: `${BUCKET}/a.jpg`, que_muestra: "ceviche" }], sedes: [{ ciudad: "Guayaquil", estado: "por abrir", atencion: "solo domicilio", horario: "jueves a lunes", direccion: null, fuentes: ["dicho por ti"] }], canales: [{ red: "Instagram", cuenta: "@naufrago.ec", url: "https://instagram.com/naufrago.ec" }] })
     // 03-nov · manual limpio: sin «Estado del manual» (es del sistema); un bloque sin datos no se pinta (aquí no hay frases)
-    expect([...h.matchAll(/data-barra="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["colores", "tipografias", "logo-y-fotos", "personalidad", "palabras", "sedes-y-canales"])
+    // 03-nov 08:20Z: lo que falta vuelve como UNA línea discreta («Por completar»), no como el bloque de estado de antes
+    expect([...h.matchAll(/data-barra="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["estado", "colores", "tipografias", "logo-y-fotos", "personalidad", "palabras", "sedes-y-canales"])
+    expect(h).toMatch(/data-barra="estado"[^>]*>[\s\S]*Por completar[\s\S]*>Visión</)
     expect(h).not.toMatch(/dicho por ti|Tomados|hoja de estilo|Fotos reales|validados? por ti/) // ni de dónde salió cada dato
     expect(h).toMatch(/lg:sticky/); expect(h).toContain("Tipografías"); expect(h).not.toContain(">Letras<")
     expect(h).toContain('font-family:&quot;Alfa Slab One&quot;'); expect(h).toContain(">Náufrago<")

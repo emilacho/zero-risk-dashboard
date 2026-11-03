@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { campoLimpio, elementoLimpio, juntarLista, limpiarTexto, partirLista, soloLaFrase } from "@/lib/manual-limpio"
+import { campoLimpio, elementoLimpio, juntarLista, limpiarTexto, partirLista, sinCodigosDeSegmento, soloLaFrase } from "@/lib/manual-limpio"
 import { PanelManual, elementosDelCampo } from "@/components/nuevo/PanelManual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { leerManual } from "@/lib/manual-lector"
@@ -54,14 +54,32 @@ describe("la limpieza: solo el contenido del manual", () => {
   })
 })
 
-// lo que Emilio pidió quitar del todo (corrección 03-nov, punto 1)
-const PROHIBIDO = /dicho por el cliente|dicho por el dueño|propuesta del agente|propuesta del sistema|sin validar|Sin dato|sin dato|de origen|de la web|de Google Maps|tomados de la hoja de estilo|Tomados|data-notas-del-campo|lo marc[oó]|Por qué se propone|Evidencia|responde directamente|El cliente dice|Incompleto|fidelidad/
+describe("08:20Z · fuera los códigos de segmento (S1…S5) y la sigla ICP, sin romper la frase (textos reales de Náufrago)", () => {
+  it("cada forma real", () => {
+    expect(sinCodigosDeSegmento("el canal de retención del segmento local habitual (S1); un mensaje sin respuesta")).toBe("el canal de retención del segmento local habitual; un mensaje sin respuesta")
+    expect(sinCodigosDeSegmento("la preocupación explícita del segmento S4 (trabajadores locales) es")).toBe("la preocupación explícita de los trabajadores locales es")
+    expect(sinCodigosDeSegmento("del cliente para S4 (trabajadores) y S1 (locales habituales)")).toBe("del cliente para trabajadores y locales habituales")
+    expect(sinCodigosDeSegmento("para neutralizar la objeción de S1 «prefiero cocinar en casa»")).toBe("para neutralizar la objeción «prefiero cocinar en casa»")
+    expect(sinCodigosDeSegmento("el turista extranjero (S2) que usa TripAdvisor como canal de decisión según señales ICP.")).toBe("el turista extranjero que usa TripAdvisor como canal de decisión.")
+    expect(sinCodigosDeSegmento("Cada ancla cierra una objeción del ICP (frescura para S3/S5, autenticidad para S2): usarlas")).toBe("Cada ancla cierra una objeción (frescura, autenticidad): usarlas")
+    expect(sinCodigosDeSegmento("grupo de amigos (S3/S5 del ICP); perfiles locales")).toBe("grupo de amigos; perfiles locales")
+    expect(sinCodigosDeSegmento("el motivador social de S3/S5 en grupo o familia")).toBe("el motivador social en grupo o familia")
+  })
+  it("lo que no es un código se queda (S23, SSL, 5S)", () => {
+    expect(sinCodigosDeSegmento("el modelo S23, el SSL y las 5S")).toBe("el modelo S23, el SSL y las 5S")
+    expect(sinCodigosDeSegmento("Lo que el ICP pide primero")).toBe("Lo que el público pide primero") // la sigla suelta se dice en palabras
+  })
+})
+
+// lo que Emilio pidió quitar del todo (corrección 03-nov, punto 1, y lo que faltaba a las 08:20Z)
+const PROHIBIDO = /dicho por el cliente|dicho por el dueño|propuesta del agente|propuesta del sistema|sin validar|Sin dato|sin dato|de origen|de la web|de Google Maps|tomados de la hoja de estilo|Tomados|data-notas-del-campo|lo marc[oó]|Por qué se propone|Evidencia|responde directamente|El cliente dice|Incompleto|fidelidad|sin decidir|>falta<|\bS[1-5]\b|\bICP\b|Lo que falta/
 
 describe("el panel del manual, limpio", () => {
   const borrador = {
     tagline_opciones: [ESLOGAN_OPCION],
     historia_y_origen: "Abrió en 1998 frente al mar",
     uso_del_logo: [LOGO, "FONDOS PERMITIDOS — Solo fondos oscuros de la paleta"],
+    tono_por_canal: ["TripAdvisor: mismo tono — refuerza confianza para el turista extranjero (S2) que usa TripAdvisor según señales ICP.", "WhatsApp: conversacional y ágil"],
     _field_meta: { valores: { fuente: "Instagram post del cliente", notas_del_juez: [{ dato: "1998", motivo: "año sin fuente" }] }, historia_y_origen: { notas_del_juez: [{ dato: "1998", motivo: "año sin fuente" }] } },
   }
   const fila = { client_id: C, version: 2, auto_generated: true, human_validated: false, brand_purpose: "PROPUESTA (no es dato del cliente): Demostrar que el mar es para todos", brand_mission: MISION, brand_values: VALORES, voice_description: "Voz cálida, informal y de invitación directa. (Evidencia: bio y publicación de Instagram observada)", content_text: JSON.stringify({ brand_book_draft: borrador }) }
@@ -81,6 +99,16 @@ describe("el panel del manual, limpio", () => {
     const h = renderToStaticMarkup(createElement(BarraDelManual, { m, nombre: "Náufrago", campos: new Map(m.lector.campos.map((c) => [c.clave, c])), delDueno: () => false, faltan: [], irA: () => {} }))
     expect(h).not.toMatch(PROHIBIDO); expect(h).not.toContain('data-barra="estado"')
     expect(h).toContain("«Frescos desde la costa»")
+  })
+  it("08:20Z · opciones de eslogan con ✓ para elegir una (sin «sin decidir»); lo que falta, en una línea del lateral y no arriba", () => {
+    const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos() }))
+    const eslogan = h.slice(h.indexOf('data-campo="eslogan"'), h.indexOf('data-campo="posicionamiento"') > 0 ? h.indexOf('data-campo="posicionamiento"') : h.indexOf('data-campo="eslogan"') + 3000)
+    expect(eslogan).toContain("Opciones de eslogan"); expect(eslogan).not.toContain("sin decidir")
+    expect((eslogan.match(/data-accion="elegir-opcion"/g) ?? []).length).toBe(1); expect(eslogan).toContain("✓ Elegir")
+    expect(eslogan).not.toContain(">falta<") // vacío: su título y «Editar», sin etiqueta
+    const portada = h.slice(h.indexOf('aria-label="La portada del manual"'), h.indexOf('aria-label="Lo esencial del manual"'))
+    expect(portada).not.toMatch(/Lo que falta|data-lo-que-falta|data-ir-campo/)
+    expect(h).toMatch(/data-barra="estado"[^>]*><span[^>]*>Por completar: <\/span>/)
   })
   it("tres niveles de título: sección (grande) · campo (claramente más grande que el cuerpo) · subtítulo", () => {
     const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos() }))

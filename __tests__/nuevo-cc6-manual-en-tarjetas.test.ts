@@ -46,7 +46,7 @@ describe("el panel del manual en tarjetas", () => {
     expect(html).toContain('data-campo="proposito"'); expect(html).toContain('data-campo="voz"')
     expect(html).not.toMatch(/data-origen=|data-validado=|data-campo-validar|encontrado en sitio y redes|dicho por el dueño|sin validar/)
     expect(html).toContain(largo.trim()) // un documento se lee entero
-    expect(html).toContain("data-lo-que-falta")
+    expect(html).not.toContain("data-lo-que-falta"); expect(html).toContain('data-barra="estado"') // 03-nov 08:20Z: lo que falta, en el lateral
     expect(html).toContain('data-ir-apartado="Palabras"')
   })
   it("«Validar» manda el valor tal cual por la misma puerta que «Editar», con su porqué", () => {

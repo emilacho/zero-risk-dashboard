@@ -18,9 +18,28 @@ export const CAMPOS_CON_ROTULO_Y_PORQUE: ReadonlySet<string> = new Set(["valores
 const RAYA = /\s+[—–]\s+/
 const QUIEN_DICE = /(?:el cliente|la clienta|el dueño|la dueña)\s+(?:dice|dijo|escribe|escribió|usa|comunica|menciona|repite|publica)\b/i
 
-/** quita del texto lo que no es contenido: paréntesis de evidencia, corchetes de propuesta, el prefijo de propuesta y «El cliente dice:» al empezar */
-export function limpiarTexto(t: string): string {
+/**
+ * Los códigos internos de segmento (S1…S5) y la sigla «ICP» no son del cliente (Emilio, 08:20Z: 27 en el manual de Náufrago): fuera, sin romper la frase.
+ *  «S4 (trabajadores)» → «trabajadores» · «(S3/S5 del ICP)» → nada · «la objeción de S1 «…»» → «la objeción «…»» · «según señales ICP» → nada · «del ICP» → nada.
+ */
+export function sinCodigosDeSegmento(t: string): string {
+  const COD = String.raw`S\d(?:\s*[/,]\s*S\d)*(?:\s+y\s+S\d)?`
   return t
+    .replace(/\bdel\s+segmento\s+S\d\s*\(([^)]+)\)/g, "de los $1")
+    .replace(new RegExp(String.raw`\b(?:segmentos?\s+)?S\d\s*\(([^)]+)\)`, "g"), "$1")
+    .replace(new RegExp(String.raw`\s+(?:para|de|del|en|a)\s+(?:los\s+segmentos?\s+|el\s+segmento\s+)?${COD}\b`, "g"), "")
+    .replace(/\s+(?:seg[uú]n\s+(?:las\s+)?se[ñn]ales|del|de\s+la|seg[uú]n\s+el)\s+ICP\b/g, "")
+    .replace(/\bICP\b/g, "público")
+    .replace(new RegExp(String.raw`\b(?:segmentos?\s+)?${COD}\b`, "g"), "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([,.;:)])/g, "$1")
+    .replace(/\(\s+/g, "(")
+}
+
+/** quita del texto lo que no es contenido: paréntesis de evidencia, corchetes de propuesta, el prefijo de propuesta, «El cliente dice:» al empezar y los códigos de segmento */
+export function limpiarTexto(t: string): string {
+  return sinCodigosDeSegmento(t)
     .replace(/^\s*PROPUESTA\s*\([^)]*\)\s*:\s*/i, "")
     .replace(/\s*\((?:evidencia|observaci[oó]n|fuente|fuentes|dato del cliente|seg[uú]n|deducido|inferido|tomado)[^)]*\)/gi, "")
     .replace(/\s*\[[^\]]*(?:propuesta|evidencia|fuente|nota|verbatim|cliente|dueñ[oa]|agente)[^\]]*\]/gi, "")

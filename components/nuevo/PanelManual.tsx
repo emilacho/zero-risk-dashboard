@@ -147,7 +147,13 @@ function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio }: { 
       {opcionesLeidas.length > 0 && (
         <div className="mt-1" data-opciones={c.clave}>
           <h5 className={TITULO_3}>Opciones de eslogan</h5>
-          <ul className="mt-1 space-y-1">{opcionesLeidas.map((o, i) => <li key={i} className={CUERPO}>«{o}»</li>)}</ul>
+          <ul className="mt-2 space-y-2">{opcionesLeidas.map((o, i) => (
+            <li key={i} data-opcion={i} className="flex items-start gap-3">
+              <span className={`min-w-0 flex-1 ${CUERPO}`}>«{o}»</span>
+              {editable && <button type="button" data-accion="elegir-opcion" aria-label={`Elegir «${o.slice(0, 60)}» como eslogan`} onClick={() => onCambio(c.clave, o)}
+                className="shrink-0 rounded-md border border-emerald-400/40 px-2.5 py-1 text-[12.5px] text-emerald-200 transition hover:bg-emerald-400/10">✓ Elegir</button>}
+            </li>
+          ))}</ul>
         </div>
       )}
     </div>
@@ -214,7 +220,6 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const faltanSecciones = m ? faltantesDeLasSecciones(m.secciones_nuevas ?? []) : []
   const huecos = m ? [...m.lector.huecos, ...faltanSecciones.map((f) => f.clave)] : []
   const faltan = m ? [...m.lector.huecos.map(etiquetaDelHueco), ...faltanSecciones.map((f) => f.etiqueta)] : []
-  const completo = !!m && m.lector.completo && faltanSecciones.length === 0
   const ciclo = m?.ciclo ?? CICLO_DEL_MANUAL_CERRADO
   const esDelDueno = (c: CampoLeido) => !!c.valor && (origenDelCampo(c) === "dueno" || origenDelCampo(c) === "aceptado")
   // auditoría 02-nov (punto 3): cada revisión del editor va en la PRIMERA sección que contiene una de sus claves (apartados de siempre y secciones nuevas)
@@ -266,16 +271,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
               {/* la portada: quién es, qué versión, quién lo validó, qué falta */}
               <section aria-label="La portada del manual" className="mn-seccion mb-5 rounded-lg border border-white/10 bg-black/30 p-4 sm:p-5">
                 <h3 className="font-display text-[24px] font-semibold leading-tight tracking-tight text-zinc-50">{datos.cliente?.nombre}</h3>
-                {!completo && faltan.length > 0 && (
-                  <div data-lo-que-falta className="mt-3 rounded-md border border-amber-400/30 bg-amber-400/[0.06] p-3">
-                    <p className={TITULO_3}>Lo que falta · {faltan.length}</p>
-                    <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                      {huecos.map((k, i) => (
-                        <li key={k}><button type="button" data-ir-campo={k} onClick={() => irAEscribir(k)} className="rounded-md border border-amber-400/30 px-2.5 py-1 text-[13px] text-amber-100 hover:bg-amber-400/10">{faltan[i]}</button></li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {/* 03-nov 08:20Z · Emilio: la caja «Lo que falta» y los rótulos de estado no van arriba del documento; lo que falta, en una línea del panel lateral */}
                 <nav aria-label="Apartados del manual" className="mt-3 flex flex-wrap gap-1.5">
                   {APARTADOS_DEL_MANUAL.map((ap) => <button key={ap.titulo} type="button" data-ir-apartado={ap.titulo} onClick={() => document.getElementById(`apartado-${ap.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{ap.titulo}</button>)}
                   {(m.secciones_nuevas ?? []).map((sn) => <button key={sn.id} type="button" data-ir-apartado={sn.titulo} onClick={() => document.getElementById(`apartado-${sn.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{sn.titulo}</button>)}
@@ -347,7 +343,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
 
                 {/* la identidad visual: colores y letras con su procedencia */}
                 {/* la barra lateral (boceto aprobado por Emilio, 02-nov): fija al bajar, lo esencial del manual con datos reales */}
-                <BarraDelManual m={m} nombre={datos.cliente?.nombre ?? null} campos={campos} delDueno={esDelDueno} faltan={faltan} huecos={huecos} irA={(k) => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} />
+                <BarraDelManual m={m} nombre={datos.cliente?.nombre ?? null} campos={campos} delDueno={esDelDueno} faltan={faltan} huecos={huecos} irA={irAEscribir} />
               </div>
             </>
           )}

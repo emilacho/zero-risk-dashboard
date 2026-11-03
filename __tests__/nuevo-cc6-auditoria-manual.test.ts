@@ -53,14 +53,16 @@ describe("2 · las 6 secciones nuevas se ven siempre y cuentan en «Lo que falta
     expect(faltantesDeLasSecciones(seccionesNuevasDelBorrador({ historia_y_origen: "Nació en Olón" })).map((f) => f.clave)).not.toContain("historia_y_origen")
     expect(faltantesDeLasSecciones(seccionesNuevasDelBorrador({}))).toHaveLength(6)
   })
-  it("en el panel: «Lo que falta» suma las secciones vacías (con su nombre) a los campos de siempre", () => {
+  it("en el panel: lo que falta (campos de siempre + secciones vacías, con su nombre) va en UNA línea del lateral, no arriba del documento (03-nov 08:20Z)", () => {
     const C = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312"
     const fila = { client_id: C, version: 3, auto_generated: true, human_validated: false, brand_purpose: "P", voice_description: "V", content_text: JSON.stringify({ brand_book_draft: {} }) }
     const lector = leerManual(fila)!
     const datos: ManualDelCliente = { clientes: [{ id: C, nombre: "Náufrago", con_manual: true }], cliente: { id: C, nombre: "Náufrago" }, manual: { version: 3, versiones: 3, lector, fidelidad: "—", origen: null, colores: [], tipografias: [], opciones_eslogan: [], palabras_prohibidas: [], palabras: [], terminos_propios: [], politica_competidores: null, creado_en: null, actualizado_en: null, secciones_nuevas: seccionesNuevasDelBorrador({}) }, leido_en: "x" }
     const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
     const n = lector.huecos.length + 6
-    expect(h).toContain(`Lo que falta · ${n}`); expect(h).not.toContain("Incompleto") /* CC6 · 03-nov · manual limpio para el cliente (regla 5): sin rótulos de origen ni de validación */
+    expect(h).not.toContain("Lo que falta"); expect(h).not.toContain("data-lo-que-falta"); expect(h).not.toContain("Incompleto")
+    const estado = h.slice(h.indexOf('data-barra="estado"'), h.indexOf('data-barra="estado"') + 4000)
+    expect(estado).toContain("Por completar"); expect((estado.match(/data-ir-campo=/g) ?? []).length).toBe(n) /* CC6 · 03-nov · manual limpio para el cliente (regla 5): sin rótulos de origen ni de validación */
     expect(h).toMatch(/data-ir-campo="historia_y_origen"[^>]*>Historia y origen</); expect(h).toMatch(/data-ir-campo="tono_por_canal"[^>]*>Tono según el canal</)
   })
 })
