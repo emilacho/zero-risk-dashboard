@@ -5,6 +5,7 @@ import { limpiarTexto } from "@/lib/manual-limpio"
 import type { SeccionLeida, ValorDeSeccion } from "@/lib/manual-secciones"
 import { CUERPO, TITULO_1, TITULO_2, TITULO_3 } from "@/components/nuevo/manual/niveles"
 import { RenglonEditable } from "@/components/nuevo/manual/RenglonEditable"
+import { conRenglonCambiado, renglonEditado } from "@/lib/renglones-del-manual"
 
 type Parte = SeccionLeida["partes"][number]
 
@@ -83,10 +84,10 @@ export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, ext
                 const lineas = (pendiente?.(p) ?? p.para_editar).split(/\r?\n/).map((x) => x.trim()).filter(Boolean)
                 // retirar por elemento: solo si cada elemento de la lista es una línea de lo que se guarda (si no, se usa Editar)
                 const retirar = v?.tipo === "lista" && v.items.length === lineas.length && onRetirar ? (k: number) => onRetirar(p, lineas.filter((_, j) => j !== k)) : undefined
-                const editarRenglon = retirar && onEditarRenglon ? (k: number, nuevo: string) => onEditarRenglon(p, lineas.map((l, j) => (j === k ? nuevo : l)), k + 1) : undefined
+                const editarRenglon = retirar && onEditarRenglon ? (k: number, nuevo: string) => onEditarRenglon(p, conRenglonCambiado(lineas, k, nuevo), k + 1) : undefined
                 // un renglón está «editado» si ya no es uno de los guardados
                 const guardadas = p.para_editar.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)
-                const editados = lineas.map((l) => !guardadas.includes(l))
+                const editados = lineas.map((l) => renglonEditado(l, guardadas))
                 return (
                   <div key={p.clave} id={`campo-${p.clave}`} data-campo={p.clave} className="scroll-mt-2 border-t border-white/[0.07] pt-4 first:border-t-0 first:pt-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { CUERPO } from "@/components/nuevo/manual/niveles"
+import { confirmaConEnter, textoDelRenglon } from "@/lib/renglones-del-manual"
 
 /**
  * UN RENGLÓN DE UN CAMPO CON VIÑETAS, CON «Editar» Y «Retirar» SIEMPRE, UNO AL LADO DEL OTRO (CC2 · 03-nov · corrección de Lenovo 18:12Z, Emilio con captura:
@@ -28,7 +29,7 @@ export function RenglonEditable({ texto, editado, onEditar, onRetirar }: {
 
   const abrir = () => { setValor(texto); setError(null); setAvisar(false); setEditando(true) }
   const listo = () => {
-    const t = valor.replace(/\s+/g, " ").trim()
+    const t = textoDelRenglon(valor)
     if (!t) { setError("Escribe algo, o usa «Retirar»."); return }
     setEditando(false)
     if (t !== texto) onEditar(t)
@@ -39,7 +40,7 @@ export function RenglonEditable({ texto, editado, onEditar, onRetirar }: {
     return (
       <form data-editor-renglon className="min-w-0 flex-1 rounded-lg border border-amber-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); listo() }}>
         <textarea ref={caja} value={valor} onChange={(e) => setValor(e.target.value)} rows={2} aria-label={`Editar el renglón «${texto.slice(0, 60)}»`}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); listo() } }}
+          onKeyDown={(e) => { if (confirmaConEnter(e.key, e.shiftKey)) { e.preventDefault(); listo() } }}
           className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[15px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
         {error && <p role="alert" className="mt-2 text-[13px] text-rose-300">{error}</p>}
         <div className="mt-2 flex items-center gap-2">

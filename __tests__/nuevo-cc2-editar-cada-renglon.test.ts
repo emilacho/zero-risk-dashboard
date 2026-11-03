@@ -98,3 +98,54 @@ describe("«Tus cambios» dice qué renglón se editó y editar no gasta ni mand
     expect(SIN_CAMBIOS.detalle).toBeUndefined()
   })
 })
+
+// ── las reglas, en funciones puras (certificación de CC3 sobre #239: 7 de 12 alteraciones vivían) ──
+import { conRenglonCambiado, confirmaConEnter, detalleDelRenglon, renglonEditado, retirarRenglon, textoDelRenglon } from "@/lib/renglones-del-manual"
+
+describe("las reglas de editar y retirar un renglón", () => {
+  const L = ["Frescura", "Honestidad", "Calidez"]
+  it("editar cambia SOLO el renglón pedido y deja los demás en su sitio (primero, medio y último)", () => {
+    expect(conRenglonCambiado(L, 0, "X")).toEqual(["X", "Honestidad", "Calidez"])
+    expect(conRenglonCambiado(L, 1, "X")).toEqual(["Frescura", "X", "Calidez"])
+    expect(conRenglonCambiado(L, 2, "X")).toEqual(["Frescura", "Honestidad", "X"])
+    expect(L).toEqual(["Frescura", "Honestidad", "Calidez"]) // no toca la lista original
+  })
+  it("el número que dice «Tus cambios» empieza en 1 y coincide con el renglón editado", () => {
+    expect([0, 1, 2].map(detalleDelRenglon)).toEqual(["editaste el renglón 1", "editaste el renglón 2", "editaste el renglón 3"])
+  })
+  it("retirar: con varios se quita solo ese; con uno solo se pide confirmar el retiro del campo entero", () => {
+    expect(retirarRenglon(L, 1)).toEqual({ tipo: "quitar", quedan: ["Frescura", "Calidez"] })
+    expect(retirarRenglon(["Solo uno"], 0)).toEqual({ tipo: "confirmar_campo" })
+    expect(retirarRenglon(L, 0)).toEqual({ tipo: "quitar", quedan: ["Honestidad", "Calidez"] })
+  })
+  it("un renglón está «editado» solo si ya no es uno de los guardados", () => {
+    expect(renglonEditado("Honestidad", L)).toBe(false)
+    expect(renglonEditado("Honestidad total", L)).toBe(true)
+  })
+  it("el texto corregido va en una línea, sin espacios de más; vacío o en blanco no vale", () => {
+    expect(textoDelRenglon("  Honestidad \n  total  ")).toBe("Honestidad total")
+    expect(textoDelRenglon("   \n ")).toBe("")
+  })
+  it("Enter confirma; Mayús + Enter y otras teclas no", () => {
+    expect(confirmaConEnter("Enter", false)).toBe(true)
+    expect(confirmaConEnter("Enter", true)).toBe(false)
+    expect(confirmaConEnter("a", false)).toBe(false)
+  })
+  it("los tres sitios usan esas reglas (no una copia): el campo, las secciones nuevas y el renglón", () => {
+    const campo = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
+    const secc = readFileSync("components/nuevo/manual/SeccionesNuevas.tsx", "utf8")
+    const reng = readFileSync("components/nuevo/manual/RenglonEditable.tsx", "utf8")
+    for (const f of ["conRenglonCambiado(elementos.map", "renglonEditado(e.crudo", "retirarRenglon(elementos.map", "detalleDelRenglon(i)", "detalleDelRenglon(renglon - 1)"]) expect(campo).toContain(f)
+    for (const f of ["conRenglonCambiado(lineas, k, nuevo)", "renglonEditado(l, guardadas)"]) expect(secc).toContain(f)
+    for (const f of ["confirmaConEnter(e.key, e.shiftKey)", "textoDelRenglon(valor)"]) expect(reng).toContain(f)
+  })
+  it("🔴 alteraciones: renglón equivocado, número corrido, retiro de uno solo sin confirmar, marca de editado siempre falsa, Enter con Mayús", () => {
+    const mal = (f: () => unknown, esperado: unknown) => expect(f()).not.toEqual(esperado)
+    // si conRenglonCambiado cambiara j === i + 1, el medio quedaría igual → la prueba de arriba lo atrapa
+    mal(() => L.map((r, j) => (j === 2 ? "X" : r)), conRenglonCambiado(L, 1, "X"))
+    mal(() => `editaste el renglón ${0}`, detalleDelRenglon(0))
+    mal(() => ({ tipo: "quitar", quedan: [] }), retirarRenglon(["Solo uno"], 0))
+    mal(() => false, renglonEditado("Honestidad total", L))
+    mal(() => true, confirmaConEnter("Enter", true))
+  })
+})
