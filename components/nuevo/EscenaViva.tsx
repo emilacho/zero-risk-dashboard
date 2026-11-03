@@ -6,6 +6,7 @@ import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelEnVivo } from "@/components/nuevo/PanelEnVivo"
 import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
+import { panelDeLaDireccion } from "@/lib/rutas-viejas"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
 import { PanelRiesgos } from "@/components/nuevo/PanelRiesgos"
@@ -293,6 +294,13 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       else if (panel === "decisiones") setMesa(true)
     }
     window.addEventListener(EVENTO_ABRIR_PANEL, alPedir)
+    // CC6 · 03-nov: lo que llega de una ruta vieja (p. ej. la del gasto → `?panel=dinero`, ver lib/rutas-viejas.ts) abre su panel una vez, y la dirección queda limpia
+    const pedido = panelDeLaDireccion(window.location.search)
+    if (pedido) {
+      const limpia = new URL(window.location.href); limpia.searchParams.delete("panel"); limpia.searchParams.delete("pieza")
+      window.history.replaceState(window.history.state, "", limpia.pathname + limpia.search + limpia.hash)
+      alPedir(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: pedido }))
+    }
     return () => window.removeEventListener(EVENTO_ABRIR_PANEL, alPedir)
   }, [abrir])
 

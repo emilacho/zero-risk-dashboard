@@ -6,8 +6,7 @@ import {
   Permanent_Marker,
 } from "next/font/google"
 import "./globals.css"
-import { RouteTransition } from "@/components/RouteTransition"
-import { Sidebar } from "@/components/Sidebar"
+import { MarcoDeLaApp } from "@/components/MarcoDeLaApp"
 import { ActualizarSolo } from "@/components/ActualizarSolo"
 // STEP 11 M4 · the floating Phase 3 CoworkChat drawer is DEPRECATED
 // in favor of the inline CoworkPromptBar (embedded per-surface · home
@@ -62,12 +61,8 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${mono.variable} ${display.variable} ${marker.variable} font-sans antialiased`}
       >
-        {/* Lumen v3 · single subtle violet halo · no grid, no noise */}
-        <div className="ambient-halo" aria-hidden />
-        <Sidebar />
-        <RouteTransition>
-          <div className="pl-[64px]">{children}</div>
-        </RouteTransition>
+        {/* CC6 · 03-nov: el marco viejo (barra lateral, halo violeta) solo en el dashboard viejo; las pantallas nuevas salen limpias desde la primera pintura */}
+        <MarcoDeLaApp>{children}</MarcoDeLaApp>
         <Toaster />
         <ActualizarSolo />
       </body>
