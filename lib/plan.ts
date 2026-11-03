@@ -533,6 +533,8 @@ export function cuerpoDeAprobar(planId: string | null, comentario: string): { pl
 export interface RespuestaDelCiclo { ok: boolean; texto: string; reintentar: boolean; releer: boolean; /** «info»: no es un error (el ciclo todavía no está abierto); se dice sin rojo */ tono?: "info" }
 const MOTIVOS_DEL_CICLO: Record<string, string> = {
   plan_en_revision: "La jefatura todavía revisa este plan: decides cuando termine. No se cambió nada.",
+  // MANUAL PRIMERO (CC1 #874, 409): un plan no se firma antes del manual; el mismo texto del pizarrón (CC6 · 03-nov)
+  plan_espera_al_manual: "Plan: espera que apruebes el manual. Al aprobarlo, el plan se rehace con ese manual. No se cambió nada.",
   no_es_el_vigente: "Este ya no es el plan vigente: hay una versión más nueva. Vuelvo a leer.",
   plan_ya_aprobado: "Este plan ya estaba aprobado: la siguiente fase ya arrancó.",
   plan_rechazado: "Este plan está rechazado: no se decide sobre él.",
@@ -545,7 +547,7 @@ const MOTIVOS_DEL_CICLO: Record<string, string> = {
   falta_el_tope: "La plataforma rechazó el pedido (falta un dato interno). No se cambió nada.",
   tope_demasiado_alto: "La plataforma rechazó el pedido (tope). No se cambió nada.",
 }
-const RELEER_TRAS = ["no_es_el_vigente", "plan_ya_aprobado", "plan_inexistente", "reescritura_en_curso", "plan_en_revision"]
+const RELEER_TRAS = ["no_es_el_vigente", "plan_ya_aprobado", "plan_inexistente", "reescritura_en_curso", "plan_en_revision", "plan_espera_al_manual"]
 const NO_DISPONIBLE = "Aún no disponible: el ciclo del plan se abre pronto. No se cambió nada."
 const PUEDE_NO_ESTAR = "No se pudo completar. El ciclo del plan puede no estar disponible todavía. No se cambió nada."
 export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", status: number, cuerpo: unknown): RespuestaDelCiclo {

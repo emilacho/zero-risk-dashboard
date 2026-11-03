@@ -6,7 +6,8 @@ import type { PlanDelCliente } from "@/lib/plan-datos"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 import { BarraDelPlan } from "@/components/nuevo/plan/BarraDelPlan"
 import { barraDelPlan } from "@/lib/plan-barra"
-import { periodoDelPlan, textoDelPeriodo, tituloDelPlan } from "@/lib/plan-periodo"
+import { periodoDelPlan, textoDelPeriodo } from "@/lib/plan-periodo"
+import { coberturaDelPlan, diasPrometidos, PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
 import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
@@ -240,8 +241,10 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
   const c = datos?.campana ?? null, e = datos?.estrategia ?? null, d = datos?.documento ?? null, rev = datos?.revision ?? null
   const faseEnCurso = datos?.fase_activa.situacion === "en_curso" ? datos.fase_activa.fase?.clave : null
   const ritmo = e ? publicacionesPorSemana(e.redes) : null
-  // fechas y días: una sola fuente, el propio plan (auditoría 6)
+  // fechas y días: una sola fuente, el propio plan (auditoría 6); el NOMBRE dice lo que el plan promete y, si cubre menos, se dice (Lenovo 20:37Z)
   const periodo = datos ? periodoDelPlan(datos) : null
+  const prometidos = diasPrometidos(datos?.documento?.titulo)
+  const cobertura = periodo ? coberturaDelPlan(periodo.dias, prometidos) : null
   // una revisión pendiente también es «algo»: se decide aunque la campaña o el documento no existan (ficha de práctica · plan sin cadena)
   const hayAlgo = !!(c || e || d || rev)
 
@@ -250,7 +253,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="plan-titulo" data-seccion="plan" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
-          <h2 id="plan-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>{tituloDelPlan(periodo)}</h2>
+          <h2 id="plan-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>{`Plan de ${prometidos} días`}</h2>
           {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">La meta, las fases, las redes y lo que la campaña espera · se decide aquí</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
@@ -286,6 +289,8 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                   {d && <Chip tono={d.estado_del_plan === "con_pendientes" ? "ambar" : "neutro"}>{estadoDelPlanLegible(d.estado_del_plan)}{d.marcas.length ? ` · ${d.marcas.length}` : ""}</Chip>}
                   {rev && rev.status !== "pending" && rev.decision && <Chip tono={rev.status === "approved" ? "verde" : "rojo"}>{rev.decision} · {fechaCortaEC(rev.creada_en)}</Chip>}
                 </div>
+                {/* Lenovo 20:37Z: el nombre del plan no cambia; si cubre menos de lo que promete, se dice en palabras */}
+                {cobertura && <p data-cobertura className="mt-2 text-[13px] text-amber-200">{cobertura}</p>}
                 {c?.estado_motivo && <p className="mt-2 text-[12.5px] text-zinc-400">{c.estado_motivo}</p>}
                 {c && (
                   <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-3">
@@ -296,8 +301,15 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 )}
               </section>
 
+              {/* MANUAL PRIMERO (Emilio 14:46Z · Lenovo 20:37Z): con el manual sin aprobar el plan no se firma: sin «Aprobar» ni «Pedir cambios» */}
+              {d && datos.manual_aprobado === false && (
+                <section data-plan-espera-el-manual aria-label="El plan espera el manual" className="mb-5 rounded-lg border border-amber-400/45 bg-amber-400/[0.06] p-4 sm:p-5">
+                  <h3 className="text-[16px] font-semibold text-amber-100">{PLAN_ESPERA_EL_MANUAL}</h3>
+                  <p className="mt-1.5 text-[13.5px] text-zinc-300">Un plan no se firma antes que el manual. Cuando apruebes el manual de {datos.cliente?.nombre ?? "este cliente"}, el plan se rehace con él y te llega para firmar.</p>
+                </section>
+              )}
               {/* la decisión sobre el plan: para TODO plan, con el estado del ciclo a la vista y los dos botones grandes */}
-              {d && datos.ciclo && (
+              {d && datos.ciclo && datos.manual_aprobado !== false && (
                 <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio} palabraDelDueno={datos.palabra_del_dueno ?? []} pedirEn={pedirEn}>
                   {d.marcas.length > 0 && (
                     <div className="mt-3">

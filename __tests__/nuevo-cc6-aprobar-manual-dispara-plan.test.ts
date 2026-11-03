@@ -82,9 +82,9 @@ describe("el pizarrón: «Plan: espera que apruebes el manual» mientras no est�
     expect(detalleDelCuadro("plan", { ...(base as object), manual_aprobado: true } as never)).toEqual({ texto: "Sin campaña todavía", aviso: false })
     expect(detalleDelCuadro("plan", { ...(base as object), manual_aprobado: null } as never)).toEqual({ texto: "Sin campaña todavía", aviso: false })
   })
-  it("CC3 reserva 3 · con una campaña en marcha el plan NO espera: lo que espera es el manual nuevo", () => {
+  it("MANUAL PRIMERO (Lenovo 20:37Z, reemplaza la reserva 3 de CC3): con o sin campaña, el mismo texto que el panel del Plan", () => {
     const conCampana = { ...(base as object), clientes: [{ id: C, nombre: "Náufrago", con_campana: true }], manual_aprobado: false } as never
-    expect(detalleDelCuadro("plan", conCampana)).toEqual({ texto: "El manual nuevo espera tu aprobación", aviso: true })
+    expect(detalleDelCuadro("plan", conCampana)).toEqual({ texto: "Plan: espera que apruebes el manual", aviso: true })
   })
   it("la lectura del pizarrón sabe si el DUEÑO aprobó el manual vigente (la jefatura no cuenta); si la lectura del manual falla, null", async () => {
     const base2 = (bb: Record<string, unknown> | null, falla = false) => ({ from: (t: string) => {
