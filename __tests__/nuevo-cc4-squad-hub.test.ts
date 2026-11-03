@@ -8,7 +8,7 @@ import { armarEscena } from "@/lib/escena-avatares"
 import { costoFrenteASuPromedio, faltasDeLaFicha, textoPendiente, mediaDelEquipo, moralDe, rolDe } from "@/lib/plantel"
 import { leerPlantel } from "@/lib/plantel-datos"
 import { rendimientoDe, type RevisionCruda, type TrabajoCrudo } from "@/lib/rendimiento"
-import { PlantelDelEquipo, puestoEnElEquipo } from "@/components/nuevo/escena/PlantelDelEquipo"
+import { PlantelDelEquipo, Pendiente, puestoEnElEquipo } from "@/components/nuevo/escena/PlantelDelEquipo"
 
 const ahora = new Date("2026-11-02T18:00:00Z")
 const hace = (dias: number) => new Date(ahora.getTime() - dias * 86_400_000).toISOString()
@@ -191,5 +191,15 @@ describe("CC4 · 03-nov · «0/5» no es una nota: textoPendiente", () => {
     expect(textoPendiente({ tiene: 5, hace_falta: 5, no_cuentan: true }).corto).toBe("no cuentan")
     for (const [t, h] of [[0, 5], [3, 5], [4, 10], [2, 3]]) expect(textoPendiente({ tiene: t, hace_falta: h }).corto).not.toMatch(/\d\/\d/)
     expect(textoPendiente({ tiene: 2, hace_falta: 5 }).avance).toBe(0.4)
+  })
+})
+
+describe("CC4 · celda pendiente · gris y sin barra llena cuando «no cuentan» (menores de CC3 sobre #230)", () => {
+  it("la celda es gris (text-zinc-500), no coloreada como nota; con avance lleva barra y con «no cuentan» no", () => {
+    const con = renderToStaticMarkup(createElement(Pendiente, { f: { tiene: 2, hace_falta: 5 }, clave: "val" }))
+    expect(con).toContain("text-zinc-500"); expect(con).not.toMatch(/style="[^"]*color:/); expect(con).toContain("width:40%")
+    const no = renderToStaticMarkup(createElement(Pendiente, { f: { tiene: 5, hace_falta: 5, no_cuentan: true }, clave: "val" }))
+    expect(no).toContain("no cuentan"); expect(no).toContain("text-zinc-500"); expect(no).not.toContain("width:")
+    expect(renderToStaticMarkup(createElement(Pendiente, { f: { tiene: 9, hace_falta: 5 }, clave: "val" }))).toContain("width:100%") // tope de la barra
   })
 })

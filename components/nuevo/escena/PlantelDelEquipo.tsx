@@ -33,7 +33,7 @@ export function Pendiente({ f, clave, titulo }: { f: { tiene: number; hace_falta
   return (
     <span data-faltan={clave} data-pendiente className="flex flex-col items-center gap-0.5 text-[10px] font-normal leading-none text-zinc-500" title={titulo ?? t.largo}>
       <span className="whitespace-nowrap">{t.corto}</span>
-      <span className="h-[3px] w-9 overflow-hidden rounded-full bg-white/10" aria-hidden><span className="block h-full rounded-full bg-zinc-500" style={{ width: `${Math.round(t.avance * 100)}%` }} /></span>
+      {!f.no_cuentan && <span className="h-[3px] w-9 overflow-hidden rounded-full bg-white/10" aria-hidden><span className="block h-full rounded-full bg-zinc-500" style={{ width: `${Math.round(t.avance * 100)}%` }} /></span>}
     </span>
   )
 }
