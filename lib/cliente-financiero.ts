@@ -10,6 +10,7 @@ import {
   rangoDe, raizDeCorrida, resumenDelPeriodo, TRABAJO_INTERNO, tarjetas, usdCorto, type Dinero, type FilaDeDesglose, type Movimiento, type Periodo,
 } from "@/lib/dinero-completo"
 import type { Tope } from "@/lib/direccion-riesgos"
+import { esPiezaAprobada } from "@/lib/piezas"
 
 /** «Náufrago» → «naufrago» · «Zero Risk Seguridad Industrial» → «zero-risk-seguridad-industrial» */
 export function slugDeCliente(nombre: string): string {
@@ -121,7 +122,7 @@ export function vistaDelCliente(todo: Dinero, slug: string, periodo: Periodo, ho
   const planes = corridasDe(movs, (x) => x.proceso === PROCESO_DEL_PLAN), planesAntes = corridasDe(delAnt, (x) => x.proceso === PROCESO_DEL_PLAN)
   const altas = corridasDe(movs, ES_DEL_MANUAL), altasAntes = corridasDe(delAnt, ES_DEL_MANUAL)
   const pieza = costoPorResultado(d, r).find((x) => x.clave === "pieza")!, piezaAntes = costoPorResultado(d, ant).find((x) => x.clave === "pieza")!
-  const todasLasPiezas = (d.piezas ?? []).filter((p) => p.usd != null && (p.estado === "approved" || p.estado === "edited")).sort((a, b) => a.d.localeCompare(b.d))
+  const todasLasPiezas = (d.piezas ?? []).filter((p) => p.usd != null && esPiezaAprobada(p.estado)).sort((a, b) => a.d.localeCompare(b.d))
   const notaDe = (ahora: number | null, antes: number | null, vacio: string) => ahora == null ? vacio : antes == null ? `antes: sin entregas ${ant.nombre === "ayer" ? "ayer" : `en ${ant.nombre}`}` : ahora > antes ? `▲ antes ${usdCorto(antes)}` : ahora < antes ? `▼ antes ${usdCorto(antes)}` : `igual que antes (${usdCorto(antes)})`
   const entregas: Entrega[] = [
     { clave: "plan", nombre: "Una vuelta del plan", ahora: promedio(planes), antes: promedio(planesAntes), cuantos: planes.length, tendencia: corridasDe(d.movimientos, (x) => x.proceso === PROCESO_DEL_PLAN).map((p) => p.usd), nota: "" },
