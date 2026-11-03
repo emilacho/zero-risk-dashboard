@@ -47,9 +47,19 @@ export function limpiarTexto(t: string): string {
     // un corchete de propuesta que quedó sin cerrar (el texto llegó cortado) se va hasta el final
     .replace(/\s*\[(?:propuesta|evidencia|fuente|nota)[^\]]*$/i, "")
     .replace(new RegExp(`^\\s*${QUIEN_DICE.source}\\s*:?\\s*`, "i"), "")
+    // «el cliente dice: «…»» en medio del texto es evidencia: se va el inciso o la oración entera, sin partir dentro de las comillas (CC3 · 03-nov)
+    .replace(new RegExp(`\\s*[—–]\\s*${QUIEN}(?:«[^»]*»|[^—–.«])*[—–]`, "gi"), "")
+    .replace(new RegExp(`\\s*[;:,]\\s*${QUIEN}(?:«[^»]*»|[^.;«])*`, "gi"), "")
+    .replace(new RegExp(`(^|[.!?»]\\s+)${QUIEN}(?:«[^»]*»|[^.«])*\\.\\s*`, "gi"), "$1")
     .replace(/[ \t]{2,}/g, " ")
     .trim()
 }
+/** «el cliente dice», como pedazo de patrón: la persona y el verbo */
+const QUIEN = String.raw`(?:el|la)\s+(?:cliente|clienta|dueño|dueña)\s+(?:dice|dijo|escribe|escribió|usa|comunica|menciona|repite|publica)\b:?`
+
+/** lo que sigue a la raya ES contenido cuando son ejemplos («— ni «estimado cliente», ni …»), no un porqué: se queda su primera oración */
+const SON_EJEMPLOS = /^(?:ni\s|p\.\s*ej|por ejemplo|ej\.|como\s+«|tipo\s+«)/i
+const primeraOracion = (t: string): string => { const m = /^(?:«[^»]*»|[^.«])*\.?/.exec(t); return (m ? m[0] : t).trim() }
 
 /** una frase entre comillas seguida de su justificación queda en la frase sola (sin comillas: el panel pone las suyas) */
 export function soloLaFrase(t: string): string {
@@ -70,7 +80,10 @@ export function elementoLimpio(clave: string, item: string): string {
   const sinQuien = s.replace(quien, "").trim()
   if (sinQuien.length >= 3) s = sinQuien
   const partes = s.split(RAYA)
-  if (partes.length > 1 && partes[0].trim().length >= 3 && !esRotuloEnMayusculas(partes[0])) s = partes[0].trim()
+  if (partes.length > 1 && partes[0].trim().length >= 3 && !esRotuloEnMayusculas(partes[0])) {
+    const cola = partes.slice(1).join(" — ").trim()
+    s = SON_EJEMPLOS.test(cola) ? `${partes[0].trim()} — ${primeraOracion(cola)}` : partes[0].trim()
+  }
   return s.replace(/[\s:;,—–]+$/, "")
 }
 

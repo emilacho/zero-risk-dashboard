@@ -52,6 +52,18 @@ describe("la limpieza: solo el contenido del manual", () => {
     expect(limpiarTexto("Cobertura nacional con envíos a todo Ecuador —evidencia: «🚚a todo ECUADOR»—, frente a competidores")).toBe("Cobertura nacional con envíos a todo Ecuador, frente a competidores")
     expect(limpiarTexto("PROPUESTA (no es dato del cliente): Demostrar que el mar es para todos")).toBe("Demostrar que el mar es para todos")
   })
+  it("CC3 · «el cliente dice» en medio del texto corrido: fuera la oración o el inciso, sin partir dentro de las comillas (Voz y Posicionamiento reales)", () => {
+    expect(limpiarTexto("Voz cálida, informal y de invitación directa. El cliente dice: «ven a compartir esta experiencia gastronómica» y «los esperamos» — verbos de convocatoria. Lenguaje llano sin tecnicismos culinarios; el cliente dice: «nos especializamos en deliciosos encebollados frescos ceviches», descripción directa sin adorno. Identidad costera."))
+      .toBe("Voz cálida, informal y de invitación directa. Lenguaje llano sin tecnicismos culinarios. Identidad costera.")
+    expect(limpiarTexto("ceviche fresco de Olón. El cliente dice: «nos especializamos. en ceviches» y opera «a pocos metros de la playa». Las variantes dominan")).toBe("ceviche fresco de Olón. Las variantes dominan")
+    expect(limpiarTexto("El mensaje clave del cliente —el cliente dice: «autentico sabor»— responde a la búsqueda")).toBe("El mensaje clave del cliente responde a la búsqueda")
+  })
+  it("CC3 · tras la raya: los EJEMPLOS se quedan (su primera oración); el porqué se va", () => {
+    expect(elementoLimpio("nunca", "Nunca usa lenguaje formal, distante o corporativo — ni «estimado cliente», ni «nos complace comunicarle». La marca habla como el dueño."))
+      .toBe("Nunca usa lenguaje formal, distante o corporativo — ni «estimado cliente», ni «nos complace comunicarle».")
+    expect(elementoLimpio("nunca", "Nunca publica contenido de martes ni miércoles anunciando atención en el local — el restaurante está cerrado esos días"))
+      .toBe("Nunca publica contenido de martes ni miércoles anunciando atención en el local")
+  })
 })
 
 describe("08:20Z · fuera los códigos de segmento (S1…S5) y la sigla ICP, sin romper la frase (textos reales de Náufrago)", () => {
