@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createElement, type ReactElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { accionDeTecla, miniaturaDe, siguienteFoto } from "@/lib/visor-de-fotos"
+import { accionDeTecla, miniaturaDe, siguienteEnLaTrampa, siguienteFoto } from "@/lib/visor-de-fotos"
 import { fotosDeLaBarra } from "@/lib/manual-barra"
 
 const BUCKET = "https://abc.supabase.co/storage/v1/object/public/client-social/nau"
@@ -19,6 +19,11 @@ describe("CC4 · barra del manual · el doble de fotos (corrección de Emilio 18
 })
 
 describe("CC4 · visor de fotos · lógica pura", () => {
+  it("la trampa de foco: Tab da la vuelta dentro del visor, Mayús+Tab al revés, y desde fuera entra por un extremo", () => {
+    expect(siguienteEnLaTrampa(0, 4, false)).toBe(1); expect(siguienteEnLaTrampa(3, 4, false)).toBe(0)
+    expect(siguienteEnLaTrampa(0, 4, true)).toBe(3); expect(siguienteEnLaTrampa(2, 4, true)).toBe(1)
+    expect(siguienteEnLaTrampa(-1, 4, false)).toBe(0); expect(siguienteEnLaTrampa(-1, 4, true)).toBe(3); expect(siguienteEnLaTrampa(0, 0, false)).toBe(0)
+  })
   it("la miniatura pide la foto chica al almacén; una dirección ajena queda tal cual", () => {
     expect(miniaturaDe(`${BUCKET}/f1.jpg`)).toBe("https://abc.supabase.co/storage/v1/render/image/public/client-social/nau/f1.jpg?width=240&quality=70")
     expect(miniaturaDe(`${BUCKET}/f1.jpg`, 120)).toContain("width=120")
@@ -74,7 +79,7 @@ describe("CC4 · visor de fotos · lo que se ve y lo que hace", () => {
   })
   it("Esc y deslizar están cableados (captura de teclado y toque), y el cierre llama a onCerrar", () => {
     const f = readFileSync("components/nuevo/VisorDeFotos.tsx", "utf8")
-    expect(f).toContain('addEventListener("keydown", tecla, true)'); expect(f).toContain("onTouchStart"); expect(f).toContain("onTouchEnd"); expect(f).toContain("Math.abs(x1 - x0) > 50")
+    expect(f).toContain('addEventListener("keydown", tecla, true)'); expect(f).toContain("antes?.focus?.()"); expect(f).toContain('e.key === "Tab"'); expect(f).toContain("key={`${f.url}#${k}`}"); expect(f).toContain("onTouchStart"); expect(f).toContain("onTouchEnd"); expect(f).toContain("Math.abs(x1 - x0) > 50")
     let n = 0
     const arbol = VisorDeFotos({ fotos, inicial: 0, onCerrar: () => { n++ } }) as ReactElement
     const x = buscar(arbol, (e) => e.props["data-visor-cerrar"] !== undefined)[0]
