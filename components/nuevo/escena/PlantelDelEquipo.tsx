@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { DefsDelHolograma, HologramaBusto, HologramaFigura } from "@/components/nuevo/escena/Holograma"
 import { FORMA_LEGIBLE, MINIMO_DE_TAREAS, type Rendimiento } from "@/lib/rendimiento"
-import { BLOQUES_DE_DIMENSIONES, CARA, faltasDeLaFicha, colorDeNota, COLOR_DEL_ROL, mediaDelEquipo, moralDe, MINIMO_PARA_LA_MORAL, FALTAN_PARA_FORMA, FALTAN_PARA_VAL, rolDe, siglaDelEquipo, VENTANA_DE_TRABAJO_DIAS, type DatosDelPlantel, type Moral } from "@/lib/plantel"
+import { BLOQUES_DE_DIMENSIONES, CARA, faltasDeLaFicha, textoPendiente, colorDeNota, COLOR_DEL_ROL, mediaDelEquipo, moralDe, rolDe, siglaDelEquipo, VENTANA_DE_TRABAJO_DIAS, type DatosDelPlantel, type Moral } from "@/lib/plantel"
 import { EQUIPOS, nombreCanonico, type ClaveDeEquipo } from "@/lib/organigrama"
 import type { MesaViva } from "@/lib/escena-avatares"
 
@@ -25,6 +25,17 @@ export function puestoEnElEquipo(agente: string, equipo: string): { puesto: stri
   const areas = e ? e.areas.map((a, i) => ({ a, i })).filter(({ a }) => a.agentes.some((n) => nombreCanonico(n) === k)) : []
   if (!areas.length) return { puesto: "—", orden: 99, todos: [] }
   return { puesto: areas.length > 1 ? `${areas[0].a.nombre} +${areas.length - 1}` : areas[0].a.nombre, orden: areas[0].i, todos: areas.map(({ a }) => a.nombre) }
+}
+
+/** celda sin dato: gris, con barrita de avance y «faltan N»; nunca parece una nota (el reloj va en el detalle) */
+export function Pendiente({ f, clave, titulo }: { f: { tiene: number; hace_falta: number; no_cuentan?: boolean }; clave: string; titulo?: string }) {
+  const t = textoPendiente(f)
+  return (
+    <span data-faltan={clave} data-pendiente className="flex flex-col items-center gap-0.5 text-[10px] font-normal leading-none text-zinc-500" title={titulo ?? t.largo}>
+      <span className="whitespace-nowrap">{t.corto}</span>
+      <span className="h-[3px] w-9 overflow-hidden rounded-full bg-white/10" aria-hidden><span className="block h-full rounded-full bg-zinc-500" style={{ width: `${Math.round(t.avance * 100)}%` }} /></span>
+    </span>
+  )
 }
 
 export function Cara({ m, tam = 22 }: { m: Moral | null; tam?: number }) {
@@ -115,7 +126,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
           <div className="ml-auto flex flex-wrap items-center gap-3 rounded-md border border-white/10 px-3 py-1.5 text-[13px]" data-resumen-de-equipos>
             {RESUMEN_DE_EQUIPOS.map((k) => { const m = mesas.find((q) => q.clave === k); return m ? <span key={k} data-equipo-resumen={k}><b className={k === mesa.clave ? "text-amber-200" : "text-zinc-400"}>{siglaDelEquipo(k)}</b> <span className="text-zinc-300">{m.equipo.length}</span></span> : null })}
             <span className="text-zinc-400">valoración media del equipo</span>
-            <span data-media className="rounded-full border-2 px-2 py-0.5 text-[16px] font-bold" style={{ borderColor: colorDeNota(media), color: colorDeNota(media) }}>{media ?? "–"}</span>
+            <span data-media className="rounded-full border-2 px-2 py-0.5 text-[16px] font-bold" style={{ borderColor: colorDeNota(media), color: colorDeNota(media) }}>{media ?? <span data-media-pendiente className="text-[12px] font-normal text-zinc-400">sin revisiones todavía</span>}</span>
           </div>
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 hover:bg-white/[0.07]"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg></button>
         </header>
@@ -135,10 +146,10 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                     <span className="break-words text-[12px] leading-tight text-zinc-300" title={m.todos.join(" · ")}>{m.puesto}</span>
                     <HologramaBusto semilla={a} color={AMBAR} tam={34} />
                     <span className="min-w-0 break-words leading-tight text-zinc-100" data-nombre>{m.p.nombre}</span>
-                    <span data-val className="text-center text-[16px] font-bold tabular-nums" style={{ color: colorDeNota(x1?.puntaje ?? null) }}>{x1?.puntaje ?? <span data-faltan="val" className="text-[11px] font-normal text-zinc-500" title={faltasDeLaFicha(x1).frase ?? undefined}>{faltasDeLaFicha(x1).val!.no_cuentan ? "no cuentan" : `${faltasDeLaFicha(x1).val!.tiene}/${FALTAN_PARA_VAL}`}</span>}</span>
+                    <span data-val className="text-center text-[16px] font-bold tabular-nums" style={{ color: colorDeNota(x1?.puntaje ?? null) }}>{x1?.puntaje ?? <Pendiente clave="val" f={faltasDeLaFicha(x1).val!} titulo={faltasDeLaFicha(x1).frase ?? undefined} />}</span>
                     <span data-rol className="text-[12.5px]" style={{ color: ro ? COLOR_DEL_ROL[ro] : "#71717a" }}>{ro ?? "–"}</span>
-                    <span data-forma-fila className="text-center">{x1?.forma ? <span className="text-[16px] font-bold leading-none" style={{ color: FORMA_LEGIBLE[x1.forma].color }} title={FORMA_LEGIBLE[x1.forma].texto}>{`${FORMA_LEGIBLE[x1.forma].flecha}︎`}</span> : <span data-faltan="forma" className="text-[11px] text-zinc-500" title={x1?.motivo_sin_flecha ?? "sin entregas revisadas todavía"}>{faltasDeLaFicha(x1).forma!.no_cuentan ? "no cuentan" : `${faltasDeLaFicha(x1).forma!.tiene}/${FALTAN_PARA_FORMA}`}</span>}</span>
-                    <span className="flex justify-center">{mm ? <Cara m={mm} /> : <span data-faltan="moral" className="text-[11px] text-zinc-500" title="entregas revisadas que cuentan, frente a las que hacen falta">{faltasDeLaFicha(x1).moral!.tiene}/{MINIMO_PARA_LA_MORAL}</span>}</span>
+                    <span data-forma-fila className="text-center">{x1?.forma ? <span className="text-[16px] font-bold leading-none" style={{ color: FORMA_LEGIBLE[x1.forma].color }} title={FORMA_LEGIBLE[x1.forma].texto}>{`${FORMA_LEGIBLE[x1.forma].flecha}︎`}</span> : <Pendiente clave="forma" f={faltasDeLaFicha(x1).forma!} titulo={x1?.motivo_sin_flecha ?? undefined} />}</span>
+                    <span className="flex justify-center">{mm ? <Cara m={mm} /> : <Pendiente clave="moral" f={faltasDeLaFicha(x1).moral!} />}</span>
                   </button>
                   {es && menu && (
                     <div data-acciones className="grid grid-cols-1 gap-3 px-4 py-3 text-[13px] sm:grid-cols-3">
@@ -202,7 +213,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
             {elegido && <svg viewBox="-34 -128 68 136" className="h-full max-h-[640px] w-full" role="img" aria-label={`Holograma de ${elegido.p.nombre}`}><defs><DefsDelHolograma /></defs><HologramaFigura semilla={elegido.p.agente} color={AMBAR} postura="de_pie" /></svg>}
           </section>
         </div>
-        <p className="border-t border-white/10 px-4 py-2 text-[11px] text-zinc-500">Informa; no bloquea ni decide nada sobre el empleado. Cuando una celda dice «2/5» es lo que tiene frente a lo que hace falta: entregas revisadas por la jefatura (valoración 5 · forma 10 · moral 3). Rol: por trabajos en {VENTANA_DE_TRABAJO_DIAS} días · Moral: por entregas que le devolvieron · Forma: sus últimas 10 entregas revisadas frente a las 10 anteriores.</p>
+        <p className="border-t border-white/10 px-4 py-2 text-[11px] text-zinc-500">Informa; no bloquea ni decide nada sobre el empleado. Una celda gris con barrita («faltan 5», «2 de 5») NO es una nota: dice cuántas entregas revisadas por la jefatura le faltan para tener dato (valoración 5 · forma 10 · moral 3). Rol: por trabajos en {VENTANA_DE_TRABAJO_DIAS} días · Moral: por entregas que le devolvieron · Forma: sus últimas 10 entregas revisadas frente a las 10 anteriores.</p>
       </section>
     </div>
   )
