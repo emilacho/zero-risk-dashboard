@@ -42,6 +42,15 @@ describe("CC4 · informes legibles · la lectura (lógica pura)", () => {
     expect(primerasOraciones("Una. Dos. " + "palabra ".repeat(60), 30)).toBe("Una. Dos.")
     expect(primerasOraciones("palabra ".repeat(60), 30)).toMatch(/palabra…$/)
   })
+  it("«qué conviene» no pasa de 3 aunque haya 5 recomendaciones, y respeta su orden", () => {
+    const v = lecturaDelInforme({ recommendations: ["Uno.", "Dos.", "Tres.", "Cuatro.", "Cinco."] })
+    expect(v.que_conviene).toEqual(["Uno.", "Dos.", "Tres."])
+  })
+  it("** sueltos: un ** sin cerrar, tres asteriscos y __doble__ también se van (no solo los pares)", () => {
+    expect(sinMarcas("**sin cerrar y sigue")).toBe("sin cerrar y sigue")
+    expect(sinMarcas("***fuerte*** y __doble__ y a ** b")).toBe("fuerte y doble y a b")
+    expect(sinMarcas("dos **pares** en **una** línea")).toBe("dos pares en una línea")
+  })
   it("un informe sin nada de lo esperado no inventa: queda vacío", () => {
     const v = lecturaDelInforme({})
     expect(v.que_paso).toBeNull(); expect(v.que_conviene).toEqual([]); expect(v.secciones).toEqual([]); expect(v.fuentes).toEqual([]); expect(v.tecnico).toEqual([])
