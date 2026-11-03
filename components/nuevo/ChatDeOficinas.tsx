@@ -8,8 +8,9 @@
  * La herramienta del asistente nunca actúa sola: propone un PEDIDO y solo queda anotado si Emilio toca el botón.
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
+import { createPortal } from "react-dom"
 import { usePathname } from "next/navigation"
-import { Globe, Microphone, MicrophoneSlash, PaperPlaneTilt, Paperclip, X } from "@phosphor-icons/react"
+import { CaretDown, ChatCircleDots, Globe, Microphone, MicrophoneSlash, PaperPlaneTilt, Paperclip, X } from "@phosphor-icons/react"
 import { getOrCreateSessionId } from "@/lib/cowork-session"
 import { TextoMarkdown } from "@/components/nuevo/TextoMarkdown"
 import { causaDelFallo, leerEventos, leerPedido, textoParaVoz, type PedidoPropuesto } from "@/lib/chat-oficinas"
@@ -55,6 +56,9 @@ export function ChatDeOficinas() {
   const [escuchando, setEscuchando] = useState(false)
   const [hablando, setHablando] = useState(false)
   const [vozNoDisponible, setVozNoDisponible] = useState(false)
+  /* 3-nov (Emilio): el chat no tapa los paneles. Con un panel abierto se pliega solo a un botón chico (abajo a la derecha); se abre al tocarlo y se vuelve a plegar. */
+  const [panelAbierto, setPanelAbierto] = useState(false)
+  const [desplegado, setDesplegado] = useState(false)
   const sesion = useRef<string>("")
   const abortar = useRef<AbortController | null>(null)
   const reconocedor = useRef<Reconocimiento | null>(null)
@@ -83,6 +87,21 @@ export function ChatDeOficinas() {
   }, [])
 
   useEffect(() => { fondo.current?.scrollIntoView({ block: "nearest" }) }, [mensajes])
+
+  /* ¿hay un panel abierto? Los paneles (clase nv-panel) se montan en el cuerpo de la página; se mira cuando cambia y se pliega solo al abrirse uno */
+  useEffect(() => {
+    let cuadro = 0
+    const mirar = () => {
+      cuadro = 0
+      const hay = document.querySelector(".nv-panel") !== null
+      setPanelAbierto((antes) => { if (antes !== hay) setDesplegado(false); return hay })
+    }
+    mirar()
+    const o = new MutationObserver(() => { if (!cuadro) cuadro = window.requestAnimationFrame(mirar) })
+    o.observe(document.body, { childList: true, subtree: true })
+    return () => { o.disconnect(); if (cuadro) window.cancelAnimationFrame(cuadro) }
+  }, [])
+  const plegado = panelAbierto && !desplegado
 
   const hablar = useCallback((frase: string, alTerminar?: () => void) => {
     const s = typeof window !== "undefined" ? window.speechSynthesis : undefined
@@ -222,8 +241,20 @@ export function ChatDeOficinas() {
   }
 
   return (
-    <div data-chat-de-oficinas aria-label="Chat con tus oficinas"
-      className="absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2">
+    <>
+    {plegado && typeof document !== "undefined" && createPortal(
+      <button type="button" data-chat-boton onClick={() => setDesplegado(true)} aria-label="Abrir el chat con tus oficinas" title="Chat con tus oficinas"
+        className="fixed bottom-4 right-4 z-[80] flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg" style={{ backgroundColor: AMBAR }}>
+        <ChatCircleDots size={26} weight="fill" />
+      </button>, document.body)}
+    <div {...(plegado ? {} : { "data-chat-de-oficinas": "" })} aria-label="Chat con tus oficinas" aria-hidden={plegado || undefined}
+      className={`absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2${plegado ? " hidden" : ""}`}>
+      {panelAbierto && (
+        <button type="button" data-chat-plegar onClick={() => setDesplegado(false)} aria-label="Plegar el chat" title="Plegar el chat"
+          className="absolute -top-3 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-[#1b1b1d] text-zinc-300 hover:text-white">
+          <CaretDown size={14} />
+        </button>
+      )}
       {/* LAS RESPUESTAS VAN AL LADO del cuadro, en el espacio libre del fondo negro (encargo de Emilio 01-nov): solo texto blanco, sin ventana, sin borde, sin panel ni globo; no tapa la escena.
           Mide lo que queda libre a la derecha del cuadro y no más; las respuestas largas se ven completas desplazándose DENTRO de esa zona. En ventanas angostas, donde no hay lado, ocupa el mismo ancho justo encima del cuadro. */}
       {mensajes.length > 0 && !respuestasCerradas && (
@@ -278,5 +309,6 @@ export function ChatDeOficinas() {
         </div>
       </form>
     </div>
+    </>
   )
 }
