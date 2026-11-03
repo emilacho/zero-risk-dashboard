@@ -25,3 +25,9 @@ export function siguienteEnLaTrampa(actual: number, n: number, atras: boolean): 
   if (actual < 0) return atras ? n - 1 : 0
   return (((actual + (atras ? -1 : 1)) % n) + n) % n
 }
+
+/** una original que mide menos que esto (en su lado mayor) es de verdad chica: estirarla la pondría borrosa, así que se muestra a su tamaño y se avisa */
+export const LADO_MINIMO_GRANDE = 480
+export function esFotoChica(ancho: number, alto: number): boolean {
+  return ancho > 0 && alto > 0 && Math.max(ancho, alto) < LADO_MINIMO_GRANDE
+}

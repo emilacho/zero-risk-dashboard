@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createElement, type ReactElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { accionDeTecla, miniaturaDe, siguienteEnLaTrampa, siguienteFoto } from "@/lib/visor-de-fotos"
+import { accionDeTecla, esFotoChica, miniaturaDe, siguienteEnLaTrampa, siguienteFoto } from "@/lib/visor-de-fotos"
 import { fotosDeLaBarra } from "@/lib/manual-barra"
 
 const BUCKET = "https://abc.supabase.co/storage/v1/object/public/client-social/nau"
@@ -19,6 +19,10 @@ describe("CC4 · barra del manual · el doble de fotos (corrección de Emilio 18
 })
 
 describe("CC4 · visor de fotos · lógica pura", () => {
+  it("una original es «chica de verdad» solo si su lado mayor mide menos de 480 px; sin medidas no se avisa", () => {
+    expect(esFotoChica(300, 200)).toBe(true); expect(esFotoChica(479, 100)).toBe(true)
+    expect(esFotoChica(480, 100)).toBe(false); expect(esFotoChica(1000, 700)).toBe(false); expect(esFotoChica(0, 0)).toBe(false)
+  })
   it("la trampa de foco: Tab da la vuelta dentro del visor, Mayús+Tab al revés, y desde fuera entra por un extremo", () => {
     expect(siguienteEnLaTrampa(0, 4, false)).toBe(1); expect(siguienteEnLaTrampa(3, 4, false)).toBe(0)
     expect(siguienteEnLaTrampa(0, 4, true)).toBe(3); expect(siguienteEnLaTrampa(2, 4, true)).toBe(1)
@@ -73,7 +77,7 @@ describe("CC4 · visor de fotos · lo que se ve y lo que hace", () => {
   it("el visor: ✕ de 44 px, anterior y siguiente de 44 px, fondo oscuro, sobre todo (z-95); con una sola foto no hay flechas", () => {
     const h = renderToStaticMarkup(createElement(VisorDeFotos, { fotos, inicial: 0, onCerrar: () => {} }))
     expect(h).toMatch(/data-visor-cerrar[^>]*class="[^"]*h-11 w-11/); expect(h).toMatch(/data-visor-anterior[^>]*class="[^"]*h-11 w-11/); expect(h).toMatch(/data-visor-siguiente[^>]*class="[^"]*h-11 w-11/)
-    expect(h).toContain("bg-black/95"); expect(h).toContain("z-[95]"); expect(h).toContain("max-h-full max-w-full")
+    expect(h).toContain("bg-black/95"); expect(h).toContain("z-[95]"); expect(h).toContain("max-h-full max-w-full"); expect(h).toContain("object-contain"); expect(h).not.toContain("data-visor-solo-chica")
     const sola = renderToStaticMarkup(createElement(VisorDeFotos, { fotos: [fotos[0]], inicial: 0, onCerrar: () => {} }))
     expect(sola).not.toContain("data-visor-anterior"); expect(sola).not.toContain("data-visor-siguiente"); expect(sola).toContain("data-visor-cerrar")
   })
