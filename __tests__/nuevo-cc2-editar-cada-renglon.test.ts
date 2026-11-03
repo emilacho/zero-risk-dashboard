@@ -149,3 +149,28 @@ describe("las reglas de editar y retirar un renglón", () => {
     mal(() => true, confirmaConEnter("Enter", true))
   })
 })
+
+describe("la lista principal (Valores…) pasa el índice REAL del renglón (CC3 anexo 1 · H1)", () => {
+  const campo = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
+  // las tres llamadas de `Campo` que usan el renglón `i` de su vuelta: editar, el número que se dice y retirar
+  const LLAMADAS = [
+    "conRenglonCambiado(elementos.map((x) => x.crudo), i, nuevo)",
+    "detalleDelRenglon(i)",
+    "retirarRenglon(elementos.map((x) => x.crudo), i)",
+  ]
+  it("cada llamada recibe `i` (no 0 ni otro número)", () => {
+    for (const l of LLAMADAS) expect(campo, l).toContain(l)
+    expect(campo).toContain("elementos.map((e, i) =>")
+  })
+  it("🔴 alteración: pasar siempre el renglón 0 dejaría de cumplir lo que se exige arriba", () => {
+    for (const l of LLAMADAS.filter((x) => /\bi\b/.test(x))) {
+      const mutante = campo.replace(l, l.replace(/\bi\b/, "0"))
+      expect(mutante).not.toBe(campo)
+      expect(mutante.includes(l)).toBe(false)
+    }
+  })
+  it("y el efecto: en una lista de 3 el renglón 3 cambia el 3 (no el primero)", () => {
+    expect(conRenglonCambiado(["a", "b", "c"], 2, "X")).toEqual(["a", "b", "X"])
+    expect(detalleDelRenglon(2)).toBe("editaste el renglón 3")
+  })
+})
