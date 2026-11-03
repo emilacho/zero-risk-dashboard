@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs"
 import { describe, it, expect } from "vitest"
 
 const chat = readFileSync("components/nuevo/ChatDeOficinas.tsx", "utf8")
+const css = readFileSync("app/globals.css", "utf8")
 const ruta = readFileSync("app/api/cowork/prompt/route.ts", "utf8")
 
 describe("3-nov · el chat saluda como el asistente de Zero Risk y no tapa los paneles", () => {
@@ -28,5 +29,9 @@ describe("3-nov · el chat saluda como el asistente de Zero Risk y no tapa los p
   })
   it("al cambiar el estado del panel, el chat vuelve a plegarse (no queda desplegado de la vez anterior)", () => {
     expect(chat).toMatch(/if \(antes !== hay\) setDesplegado\(false\)/)
+  })
+  it("el botón de plegar mide 44 px y, con el chat plegado, el panel deja una franja libre para que el botón no tape nada", () => {
+    expect(chat).toMatch(/data-chat-plegar[^]*?h-11 w-11/)
+    expect(css).toContain("body:has([data-chat-boton]) .nv-panel { padding-bottom: 76px; }")
   })
 })

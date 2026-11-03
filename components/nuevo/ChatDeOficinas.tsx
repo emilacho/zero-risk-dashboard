@@ -251,8 +251,8 @@ export function ChatDeOficinas() {
       className={`absolute bottom-6 left-1/2 z-10 w-[min(610px,calc(100vw-7rem))] -translate-x-1/2${plegado ? " hidden" : ""}`}>
       {panelAbierto && (
         <button type="button" data-chat-plegar onClick={() => setDesplegado(false)} aria-label="Plegar el chat" title="Plegar el chat"
-          className="absolute -top-3 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-[#1b1b1d] text-zinc-300 hover:text-white">
-          <CaretDown size={14} />
+          className="absolute -top-7 right-1 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-[#1b1b1d] text-zinc-300 hover:text-white">
+          <CaretDown size={18} />
         </button>
       )}
       {/* LAS RESPUESTAS VAN AL LADO del cuadro, en el espacio libre del fondo negro (encargo de Emilio 01-nov): solo texto blanco, sin ventana, sin borde, sin panel ni globo; no tapa la escena.
