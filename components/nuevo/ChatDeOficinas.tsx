@@ -75,7 +75,7 @@ export function ChatDeOficinas() {
     let vivo = true
     void (async () => {
       try {
-        const r = await fetch(`/api/cowork/prompt-history?session_id=${encodeURIComponent(sesion.current)}&limit=20`)
+        const r = await fetch(`/api/cowork/prompt-history?session_id=${encodeURIComponent(sesion.current)}&limit=20&max_edad_horas=12`)
         if (!r.ok) return
         const j = (await r.json()) as { turns?: Array<{ role: "user" | "assistant"; content: string }> }
         if (vivo && j.turns?.length) setMensajes(j.turns.map((t) => ({ rol: t.role, texto: t.content })))
