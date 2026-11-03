@@ -2,6 +2,7 @@
 
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import type { Application } from "@splinetool/runtime"
+import { vigilarSelloDeSpline, ESTILO_DEL_SELLO } from "@/lib/sello-spline"
 import { CAMARA_Z, ESCENA_SPLINE, NOMBRES, aMundo, conviene, poseDePulso } from "@/lib/vida-spline"
 
 // la biblioteca de Spline solo se baja cuando hace falta (nunca en móvil ni en el servidor)
@@ -49,16 +50,8 @@ export function VidaSpline() {
   }, [])
 
   useEffect(() => () => { detener.current?.() }, [])
-  // el sello «Built with Spline» lo pone el propio visor (un enlace con id «logo» dentro del contenedor): se quita al aparecer (Emilio 01-nov, encargo de Lenovo 21:14Z)
-  useEffect(() => {
-    if (!montar) return
-    const quitar = () => document.querySelectorAll('[data-vida="spline"] a#logo, [data-vida="spline"] a[href*="spline.design"]').forEach((a) => a.remove())
-    quitar()
-    const obs = new MutationObserver(quitar)
-    const raiz = document.querySelector('[data-vida="spline"]')
-    if (raiz) obs.observe(raiz, { childList: true, subtree: true })
-    return () => obs.disconnect()
-  }, [montar])
+  // el sello «Built with Spline» lo pone el propio visor: se busca en toda la página (y en shadow roots) y se quita mientras la escena esté montada (lib/sello-spline)
+  useEffect(() => (montar ? vigilarSelloDeSpline() : undefined), [montar])
 
   const alCargar = (app: Application) => {
     detener.current?.()
@@ -109,7 +102,7 @@ export function VidaSpline() {
   if (!montar) return null
   return (
     <div data-vida="spline" aria-hidden="true" className="pointer-events-none absolute inset-0">
-      <style>{`[data-vida="spline"] a#logo,[data-vida="spline"] a[href*="spline.design"],[data-vida="spline"] #logo,[data-vida="spline"] [id*="logo"],[data-vida="spline"] a:not([data-hit]){display:none!important}`}</style>
+      <style>{ESTILO_DEL_SELLO + ';[data-vida="spline"] [id*="logo"],[data-vida="spline"] a:not([data-hit]){display:none!important}'}</style>
       <Suspense fallback={null}>
         <Spline scene={ESCENA_SPLINE} onLoad={alCargar} renderOnDemand={false} style={{ width: "100%", height: "100%" }} />
       </Suspense>

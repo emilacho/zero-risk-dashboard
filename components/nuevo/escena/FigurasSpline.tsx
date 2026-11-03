@@ -2,6 +2,7 @@
 
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import type { Application } from "@splinetool/runtime"
+import { vigilarSelloDeSpline, ESTILO_DEL_SELLO } from "@/lib/sello-spline"
 import { ESCENA_AVATARES, MESAS, NOMBRES_SPLINE, alSuelo, respiracion, type Colocacion } from "@/lib/escena-avatares"
 
 // la biblioteca de Spline solo se baja cuando hace falta (nunca en móvil ni en el servidor) · mismo criterio que `VidaSpline`
@@ -76,9 +77,13 @@ export function FigurasSpline({ colocaciones }: { colocaciones: Colocacion[] }) 
   // cada vez que cambia quién trabaja, se recolocan las figuras
   useEffect(() => { if (app.current) aplicar(app.current, colocaciones) }, [colocaciones])
 
+  // el sello «Built with Spline» tampoco va en las figuras (lib/sello-spline)
+  useEffect(() => (montar ? vigilarSelloDeSpline() : undefined), [montar])
+
   if (!montar) return null
   return (
     <div data-figuras="spline" aria-hidden="true" className="pointer-events-none absolute inset-0">
+      <style>{ESTILO_DEL_SELLO}</style>
       <Suspense fallback={null}>
         <Spline scene={ESCENA_AVATARES} onLoad={alCargar} renderOnDemand={false} style={{ width: "100%", height: "100%" }} />
       </Suspense>

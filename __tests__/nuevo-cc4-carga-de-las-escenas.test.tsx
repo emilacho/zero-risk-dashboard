@@ -21,6 +21,7 @@ describe("CC4 · carga de las escenas · nunca negro", () => {
   })
   it("el sello de Spline se oculta por varios caminos (enlace, id con «logo», cualquier ancla del visor)", () => {
     const v = readFileSync("components/nuevo/VidaSpline.tsx", "utf8")
-    expect(v).toContain('[id*="logo"]'); expect(v).toContain('a[href*="spline.design"]'); expect(v).toContain("MutationObserver")
+    const l = readFileSync("lib/sello-spline.ts", "utf8")
+    expect(v).toContain('[id*="logo"]'); expect(l).toContain('a[href*="spline.design"]'); expect(l).toContain("MutationObserver"); expect(v).toContain("vigilarSelloDeSpline()")
   })
 })
