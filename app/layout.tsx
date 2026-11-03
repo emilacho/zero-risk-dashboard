@@ -1,10 +1,7 @@
 import type { Metadata } from "next"
-import {
-  Inter,
-  JetBrains_Mono,
-  Space_Grotesk,
-  Permanent_Marker,
-} from "next/font/google"
+// CC6 · 03-nov (encargo de Lenovo): las letras viven DENTRO del proyecto (`app/letras/`, los mismos archivos que servía Google, parte latina).
+// `next/font/google` las bajaba en cada compilación y hoy falló 3 veces en GitHub y en Vercel, frenando publicaciones de todos.
+import localFont from "next/font/local"
 import "./globals.css"
 import { MarcoDeLaApp } from "@/components/MarcoDeLaApp"
 import { ActualizarSolo } from "@/components/ActualizarSolo"
@@ -16,30 +13,28 @@ import { ActualizarSolo } from "@/components/ActualizarSolo"
 // external (n8n) posters.
 import { Toaster } from "@/components/ui/Toaster"
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: [{ path: "./letras/inter-latin-var.woff2", weight: "100 900", style: "normal" }],
   variable: "--font-inter",
   display: "swap",
 })
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
+const mono = localFont({
+  src: [{ path: "./letras/jetbrains-mono-latin-var.woff2", weight: "100 800", style: "normal" }],
   variable: "--font-mono",
   display: "swap",
 })
 // Display font · Space Grotesk bold for section titles · tight letter-
 // spacing, confident weight without leaving the sans family.
-const display = Space_Grotesk({
-  subsets: ["latin"],
+const display = localFont({
+  src: [{ path: "./letras/space-grotesk-latin-var.woff2", weight: "400 700", style: "normal" }],
   variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
   display: "swap",
 })
 // Marker · single-weight Google handwriting · used sparingly for the
 // brand mark + hero accent only · keeps body copy in Inter.
-const marker = Permanent_Marker({
-  subsets: ["latin"],
+const marker = localFont({
+  src: [{ path: "./letras/permanent-marker-latin-400.woff2", weight: "400", style: "normal" }],
   variable: "--font-marker",
-  weight: "400",
   display: "swap",
 })
 
