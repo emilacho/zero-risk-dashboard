@@ -99,16 +99,22 @@ describe("el plantel en pantalla", () => {
   })
   it("datos reales: valoración, rol por trabajos, moral por devoluciones y la fila elegida con sus acciones", () => {
     expect(html).toMatch(/data-fila="content-creator"[^>]*data-elegida/)
-    expect(html).toContain("Crucial"); expect(html).toContain("30 trabajos en 30 días")
+    expect(html).toContain("Crucial"); expect(html).toContain("Trabajos en 30 días")
     expect(html).toContain("En prueba") // carousel-designer entró hace 5 días: manda sobre Importante
     expect(html).toContain("Sin estrenar") // video-editor: 0 trabajos
     expect(html).toContain('data-moral-detalle="amarilla"'); expect(html).toContain("3 devueltas de 7")
     expect(html).toContain("+13 %"); expect(html).not.toMatch(/US\$|\$ ?\d/) // el costo va en %, el gasto se ve solo en Dinero
     expect(html).toContain("Ver su ficha"); expect(html).toContain("Ver su última entrega"); expect(html).toContain("Ver su corrida en Observabilidad"); expect(html).toContain("Preguntarle · pronto")
   })
-  it("sin dato no inventa: valoración «–», sin carita y «sin dato todavía»; las 10 dimensiones en 4 bloques", () => {
+  it("la ficha no repite datos: cada etiqueta sale una sola vez en el detalle (antes: «Aprobado a la 1.ª» ×2, «Trabajos en 30 días» y «Moral» dos veces)", () => {
+    const detalle = html.slice(html.indexOf("Estado del empleado"))
+    const veces = (t: string) => detalle.split(`>${t}<`).length - 1  // solo el texto que se ve, no los atributos
+    expect(veces("Aprobado a la 1.ª")).toBe(1); expect(veces("Trabajos en 30 días")).toBe(1)
+    expect(veces("Nota del equipo")).toBe(0); expect(veces("Moral")).toBe(1)
+  })
+  it("sin dato no inventa: valoración «–», sin carita y «sin dato todavía»; las dimensiones que no estaban arriba, en 4 bloques", () => {
     for (const b of ["Calidad", "Trabajo", "Equipo", "Datos"]) expect(html).toContain(b)
-    expect(html.match(/data-dimension="\d+"/g)).toHaveLength(10)
+    expect(html.match(/data-dimension="\d+"/g)).toHaveLength(8) // la 1 y la 2 ya salen arriba, en «Impacto»
     expect(html).toContain("sin dato todavía") // veracidad, pregunta… sin datos
     expect(html).toMatch(/data-fila="video-editor"[\s\S]*?<span[^>]*data-val[^>]*><span data-faltan="val"[^>]*data-pendiente[^>]*>[\s\S]*?faltan 5/) // 03-nov: no una raya: lo que tiene frente a lo que hace falta
     const solo = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa, mesas: e.mesas, agenteInicial: "video-editor", onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: rend, plantelInicial: plantel, ahora }))

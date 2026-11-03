@@ -178,7 +178,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                 <div className="mt-3 grid grid-cols-3 gap-3 border-b border-white/10 pb-3"><Dato k="Equipo" v={mesa.nombre} /><Dato k="Modelo" v={d?.modelo ?? "–"} /><Dato k="Trabaja desde" v={corto(d?.desde ?? null)} /></div>
                 <p className="mt-3 text-[14px] font-semibold text-zinc-100">Estado del empleado</p>
                 <Linea k="Ahora">{elegido.p.estado === "trabajando" ? <span className="text-amber-200">Trabajando ahora</span> : elegido.p.estado === "fallo" ? <span className="text-red-300">Falló {elegido.p.hace}</span> : elegido.p.ultima ? `Quieto · último trabajo ${elegido.p.hace}` : "Quieto · sin trabajo en la ventana leída"}</Linea>
-                <Linea k="Rol">{rolDelElegido ? <span data-rol-detalle style={{ color: COLOR_DEL_ROL[rolDelElegido] }}>{rolDelElegido}{d ? <span className="text-zinc-400"> · {d.trabajos_30d} {d.trabajos_30d === 1 ? "trabajo" : "trabajos"} en {VENTANA_DE_TRABAJO_DIAS} días</span> : null}</span> : "–"}</Linea>
+                <Linea k="Rol">{rolDelElegido ? <span data-rol-detalle style={{ color: COLOR_DEL_ROL[rolDelElegido] }}>{rolDelElegido}</span> : "–"}</Linea>
                 <Linea k="Forma">{f ? <span><span className="font-bold" style={{ color: f.color }}>{`${f.flecha}︎`}</span> {f.texto[0].toUpperCase() + f.texto.slice(1)}{x?.puntaje != null && x.puntaje_previo != null ? <span className="text-zinc-400"> ({x.puntaje} frente a {x.puntaje_previo})</span> : null}</span> : <span className="text-zinc-400">{x?.motivo_sin_flecha ?? "sin dato todavía"}{x && x.revisadas < MINIMO_DE_TAREAS ? ` (tiene ${x.revisadas}; hacen falta ${MINIMO_DE_TAREAS})` : ""}</span>}</Linea>
                 <Linea k="Disponibilidad">{d?.activo == null ? "–" : d.activo ? "Activo" : "En espera"}</Linea>
                 <p className="mt-3 text-[14px] font-semibold text-zinc-100">Impacto</p>
@@ -186,9 +186,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                 <Linea k="Cumplió la tarea">{dim(2)?.puntaje != null ? <span><b style={{ color: colorDeNota(dim(2)!.puntaje) }}>{dim(2)!.puntaje}</b> <span className="text-zinc-400">· {dim(2)!.valor}</span></span> : <span className="italic text-zinc-500">sin dato todavía</span>}</Linea>
                 <Linea k="Moral"><span className="flex items-center gap-2" data-moral-detalle={mo ?? "sin"}><Cara m={mo} />{mo ? <>{CARA[mo].texto} <span className="text-zinc-400">· {x!.devueltas} {x!.devueltas === 1 ? "devuelta" : "devueltas"} de {x!.contables}</span></> : <span className="text-zinc-400">pocas entregas revisadas: tiene {x?.contables ?? 0}, hacen falta 3</span>}</span></Linea>
                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/10 pt-3">
-                  <Circulo k="Aprobado a la 1.ª" v={dim(1)?.puntaje != null ? String(dim(1)!.puntaje) : "–"} n={dim(1)?.puntaje ?? null} color={colorDeNota(dim(1)?.puntaje ?? null)} />
                   <Circulo k={`Trabajos en ${VENTANA_DE_TRABAJO_DIAS} días`} v={d ? String(d.trabajos_30d) : "–"} n={d ? Math.round((d.trabajos_30d / 20) * 100) : null} color={AMBAR} />
-                  <Circulo k="Nota del equipo" v={media != null ? String(media) : "–"} n={media} color={colorDeNota(media)} />
                   <Circulo k="Costo vs su promedio" v={d?.costo_vs_promedio_pct == null ? "–" : `${d.costo_vs_promedio_pct > 0 ? "+" : ""}${d.costo_vs_promedio_pct} %`} n={d?.costo_vs_promedio_pct == null ? null : Math.max(0, Math.min(100, 50 + d.costo_vs_promedio_pct / 2))} color="#a1a1aa" />
                 </div>
                 <button type="button" data-diez onClick={() => setDiez((v) => !v)} aria-expanded={diez} className="mt-3 block w-full text-center text-[12.5px] text-amber-300 hover:text-amber-100">Ver las 10 dimensiones {diez ? "▴" : "▾"}</button>
@@ -196,7 +194,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                   <div data-diez-dimensiones className="mt-2 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 pt-3">
                     {BLOQUES_DE_DIMENSIONES.map(([t, ns]) => (
                       <div key={t}><p className="mb-1 text-[11px] uppercase tracking-[0.16em] text-amber-300">{t}</p>
-                        {ns.map((n) => { const q = x?.dimensiones.find((z) => z.n === n); const solo = q ? !q.cuenta : false
+                        {ns.filter((n) => n !== 1 && n !== 2 /* ya salen arriba, en «Impacto» */).map((n) => { const q = x?.dimensiones.find((z) => z.n === n); const solo = q ? !q.cuenta : false
                           return <div key={n} data-dimension={n} className="flex items-baseline justify-between gap-2 py-0.5 text-[13px]"><span className="break-words text-zinc-300" title={solo ? "solo informa, no baja la nota" : q?.detalle}>{q?.nombre ?? `Dimensión ${n}`}</span>
                             <span className="font-bold tabular-nums" style={{ color: solo ? "#a1a1aa" : colorDeNota(q?.puntaje ?? null), opacity: q?.puntaje == null && !solo ? 0.45 : 1 }} title={q?.puntaje == null && !q?.valor ? "sin dato todavía" : undefined}>{solo ? (q?.valor ? "dato" : "–") : q?.puntaje ?? "–"}</span></div> })}
                       </div>

@@ -116,7 +116,6 @@ export function FichaDelEmpleado({ agente, onCerrar, datosIniciales = null }: { 
                 </section>
                 <section aria-label="Equipo y origen"><Titulo>Equipo y origen</Titulo>
                   <dl className="space-y-1.5 text-[12.5px]">
-                    <div><dt className="text-[11px] text-zinc-500">Mesa</dt><dd className="text-zinc-200">{ficha.equipo.nombre}</dd></div>
                     <div><dt className="text-[11px] text-zinc-500">Quién lo revisa</dt><dd className="text-zinc-200">{ficha.revisa}</dd></div>
                     <div><dt className="text-[11px] text-zinc-500">Origen</dt><dd className="text-zinc-200">{ficha.origen.texto}{ficha.origen.archivo ? <span className="block text-[11px] text-zinc-500">{ficha.origen.archivo}</span> : null}<span className="block text-[11px] text-zinc-500">licencia: sin dato en la base</span></dd></div>
                     {ficha.aportes.length > 0 && <div><dt className="text-[11px] text-zinc-500">Aportes en mesas</dt><dd className="text-zinc-200">{ficha.aportes.map((a) => `${a.n} ${a.tipo}`).join(" · ")}</dd></div>}
