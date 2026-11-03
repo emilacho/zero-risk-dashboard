@@ -60,7 +60,7 @@ describe("CC4 · informes legibles · lo que se ve", () => {
     const a = renderToStaticMarkup(createElement(PanelInformes, { onCerrar: () => {}, datosIniciales: datos as never, informeInicial: "i1" }))
     expect(a).toContain("data-resumen-grande"); expect(a).toContain("Qué pasó"); expect(a).toContain("Qué conviene")
     expect(a).toMatch(/data-que-paso[\s\S]*Semana buena\./); expect(a).toContain("Repetir el reel con la carta del almuerzo")
-    expect(a).toMatch(/<h3 class="[^"]*text-amber-400[^"]*" data-titulo-informe/); expect(a).toMatch(/<h4 class="mb-2 [^"]*text-amber-200[^"]*">Puntos altos<\/h4>/)
+    expect(a).toMatch(/<h3 data-titulo-informe="true" class="[^"]*text-amber-400/); expect(a).toMatch(/<h4 class="mb-2 [^"]*text-amber-200[^"]*">Puntos altos<\/h4>/)
     expect(a).not.toMatch(/\*\*|6a0f94b0|\{"a"/)
     expect(a).toMatch(/data-fuentes[^>]*>Fuentes: Instagram Insights · semana 44 · Informe de ventas de Loyverse/)
     expect(a).toMatch(/<details data-tecnico[\s\S]*Datos técnicos[\s\S]*workflow_execution_id/); expect(a).not.toMatch(/<details data-tecnico[^>]* open/)
