@@ -5,6 +5,7 @@ import type { CampoLeido } from "@/lib/manual-lector"
 import { contrasteDelTexto, rolDeLaLetraLegible, rolDelColorLegible } from "@/lib/manual"
 import { frasesDelCliente, personalidadCorta, urlDeLasTipografias } from "@/lib/manual-barra"
 import { soloLaFrase } from "@/lib/manual-limpio"
+import { FotosConVisor } from "@/components/nuevo/VisorDeFotos"
 
 const AMBAR = "#f5a524"
 type Manual = NonNullable<ManualDelCliente["manual"]>
@@ -87,15 +88,13 @@ export function BarraDelManual({ m, nombre, campos, faltan, huecos, irA }: {
 
       {(barra.logo || barra.fotos.length > 0) && <Bloque id="logo-y-fotos" titulo="Logo y estilo de fotos">
         {(
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="space-y-1.5">
             {barra.logo
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={barra.logo.url} alt="Logo" className="aspect-square w-full rounded-md bg-white object-contain p-1" loading="lazy" />
+              ? <img src={barra.logo.url} alt="Logo" className="h-16 w-full rounded-md bg-white object-contain p-1.5" loading="lazy" />
               : null}
-            {barra.fotos.slice(0, barra.logo ? 7 : 8).map((f) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={f.url} src={f.url} alt={f.que_muestra ?? "Foto del cliente"} title={f.que_muestra ?? undefined} className="aspect-square w-full rounded-md object-cover" loading="lazy" />
-            ))}
+            {/* 03-nov · Emilio: el doble de fotos y al tocarlas se ven en grande */}
+            <FotosConVisor fotos={barra.fotos.map((f) => ({ url: f.url, texto: f.que_muestra }))} />
           </div>
         )}
       </Bloque>}
