@@ -224,7 +224,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
     setValidando("enviando"); setAviso(null)
     const r = await accion("manual-validar", { client_id: cliente })
     setValidando("quieto")
-    if (r.ok) { const d = r.detalle; setAviso({ ok: true, texto: d.sin_cambios ? "Ya estaba validado por ti." : "Validado por ti · el siguiente empleado lo lee como tuyo" }); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
+    if (r.ok) { const d = r.detalle; setAviso({ ok: true, texto: d.sin_cambios ? "Ya estaba aprobado por ti." : "✓ Manual aprobado · el plan arranca con este manual" }); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
   }
 
   const m = datos?.manual ?? null
@@ -293,12 +293,18 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                 {m.lector.validadoPor !== "dueno" && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {validando !== "confirmar" ? (
-                      <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando"} className="rounded-md border border-white/15 px-3 py-1.5 text-[12px] text-zinc-200 transition hover:border-amber-400/60 hover:text-amber-100 disabled:opacity-50">{validando === "enviando" ? "Validando…" : "Validar el manual"}</button>
+                      // 03-nov (firma de Emilio 14:46Z): este botón es el DISPARADOR de la cadena; con cambios sin guardar o una reescritura en curso no se puede aprobar
+                      <>
+                        <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando" || nCambios > 0 || ciclo.abierto != null}
+                          className="min-h-11 rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-4 py-2 text-[14px] font-medium text-emerald-100 transition hover:bg-emerald-400/20 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">{validando === "enviando" ? "Aprobando…" : "✓ Aprobar el manual y seguir con el plan"}</button>
+                        {nCambios > 0 && <span data-aprobar-espera className="text-[13px] text-amber-200">Guarda tus cambios antes de aprobar.</span>}
+                        {nCambios === 0 && ciclo.abierto != null && <span data-aprobar-espera className="text-[13px] text-amber-200">Espera a que termine la reescritura del manual.</span>}
+                      </>
                     ) : (
                       <>
-                        <span className="text-[12px] text-zinc-300">Validar significa que tú das este manual{datos?.cliente?.nombre ? <> de <b data-validar-para className="text-amber-200">{datos.cliente.nombre}</b></> : null} por bueno: la oficina creativa y la planeación lo leerán como tuyo.</span>
-                        <button type="button" data-accion="confirmar-validar" onClick={() => void validar()} className="rounded-md border border-amber-400/70 bg-amber-400/15 px-3 py-1.5 text-[12px] text-amber-100 hover:bg-amber-400/25">{datos?.cliente?.nombre ? `Sí, validar el manual de ${datos.cliente.nombre}` : "Sí, validar"}</button>
-                        <button type="button" onClick={() => setValidando("quieto")} className="rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
+                        <span className="text-[13.5px] text-zinc-200">Al aprobar, el manual{datos?.cliente?.nombre ? <> de <b data-validar-para className="text-amber-200">{datos.cliente.nombre}</b></> : null} queda como tuyo y <b>arranca el plan de campaña</b> con él. Lo que retiraste o editaste ya cuenta. Después, los cambios al manual van por «Pedir cambios».</span>
+                        <button type="button" data-accion="confirmar-validar" onClick={() => void validar()} className="min-h-11 rounded-lg border border-emerald-400/70 bg-emerald-400/15 px-4 py-2 text-[14px] font-medium text-emerald-50 hover:bg-emerald-400/25">{datos?.cliente?.nombre ? `Sí, aprobar y seguir con el plan de ${datos.cliente.nombre}` : "Sí, aprobar y seguir con el plan"}</button>
+                        <button type="button" onClick={() => setValidando("quieto")} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">Cancelar</button>
                       </>
                     )}
                   </div>
