@@ -82,9 +82,10 @@ describe("el cliente a la vista", () => {
     const h = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: { clientes: [{ id: NAUFRAGO, nombre: "Náufrago", con_campana: true }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, campana: null, fases: [], fase_activa: faseActiva([], null, "2026-11-02"), gran_idea: { texto: null, nota: "x" }, esperas: [], filas: [], semanas: [], totales: {}, hoy: "2026-11-02", leido_en: "x" } }))
     expect(h).toMatch(/id="pizarron-titulo"[^>]*>Calendario<\/h2><span data-cliente-cabecera[^>]*>Náufrago<\/span>/)
   })
-  it("«Pedir cambios al manual» dice para qué cliente, antes de enviar", () => {
-    const h = renderToStaticMarkup(createElement(PedirCambiosAlManual, { cliente: NAUFRAGO, clienteNombre: "Náufrago", ciclo: { disponible: true, abierto: null, avance: null, que_cambio: [] }, accion: async () => ({ ok: true, texto: "", detalle: {} }) as never, validadosDelManual: [], onResultado: () => {} }))
-    expect(h).toContain(">Pedir cambios al manual de Náufrago</button>")
+  it("las observaciones para todo el manual dicen para qué cliente (03-nov: el cuadro está siempre a la vista, sin botón propio)", () => {
+    const h = renderToStaticMarkup(createElement(PedirCambiosAlManual, { clienteNombre: "Náufrago", ciclo: { disponible: true, abierto: null, avance: null, que_cambio: [] }, validadosDelManual: [], libre: "", onLibre: () => {} }))
+    expect(h).toMatch(/Tus observaciones para todo el manual de <b data-pedido-para[^>]*>Náufrago<\/b>/)
+    expect(h).toContain('data-accion="manual-texto-libre"')
   })
 })
 

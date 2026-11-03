@@ -1,65 +1,50 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
-import { avisoDeLoValidado, cuerpoDePedirCambiosAlManual, palabrasDelPedidoDelManual, rotuloMientrasSeReescribe, type CicloDelManual } from "@/lib/manual-ciclo"
+import { avisoDeLoValidado, rotuloMientrasSeReescribe, type CicloDelManual } from "@/lib/manual-ciclo"
 
-type Resultado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string }
-type Accion = (nombre: string, cuerpo: Record<string, unknown>) => Promise<Resultado>
 /** una sección pedida desde su apartado: título, las claves de sus campos y cuáles son del dueño (`n` cambia en cada clic) */
 export interface PedidoEnSeccion { titulo: string; campos: string[]; validados: string[]; n: number }
 
+/** el tope del texto libre (la puerta `manual-cambios` acepta hasta 4.000 caracteres en total, con las observaciones por campo) */
+export const TOPE_DEL_TEXTO_LIBRE = 4000
+
 /**
- * PEDIR CAMBIOS AL MANUAL (CC6 · 02-nov · encargo pedido por Emilio: «que sean formatos parecidos, así el usuario no tiene que aprender dos veces»).
- * El MISMO patrón del plan: el botón, el cuadro para escribir lo que debe cambiar, «Pedir cambios en esta sección» (antepone «Sección «X»: »), la barra de
- * avance con su animación y «Qué cambió» (campo por campo). Sin aviso de gasto (Emilio, 01-nov): el cuerpo lleva la confirmación y el tope por código.
+ * PEDIR CAMBIOS AL MANUAL (CC6 · 02-nov · mismo patrón del plan) · 03-nov (corrección de Lenovo 16:40Z): el cuadro del texto libre está
+ * SIEMPRE a la vista y lo que se escribe es un cambio pendiente más; no tiene botón propio. Todo sale junto con «Pedir los cambios»
+ * (abajo, en «Tus cambios»). «Pedir cambios en esta sección» antepone «Sección «X»: » en este cuadro y lo trae a la vista.
+ * Aquí siguen el avance del pedido, «Lo que pediste», «Qué cambió» y el aviso del campo validado.
  * Mientras la plataforma no tenga el pedido de manuales (`ciclo.disponible` falso) no se ofrece nada: la puerta daría 404.
  */
-export function PedirCambiosAlManual({ cliente, clienteNombre = null, ciclo, accion, validadosDelManual, pedirEn = null, onResultado }: {
-  cliente: string | null
+export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDelManual, pedirEn = null, libre, onLibre }: {
   ciclo: CicloDelManual
-  accion: Accion
   /** las etiquetas de los campos que el dueño validó o escribió, en todo el manual (para la línea de la observación general) */
   validadosDelManual: string[]
   /** CC6 · 02-nov (corrección urgente): el nombre del cliente, para que el pedido nunca salga sin verlo */
   clienteNombre?: string | null
   pedirEn?: PedidoEnSeccion | null
-  onResultado: (r: { ok: boolean; texto: string }) => void
+  /** el texto libre para todo el manual (pendiente hasta «Pedir los cambios») */
+  libre: string
+  onLibre: (t: string) => void
 }) {
-  const [modo, setModo] = useState<"quieto" | "escribir">("quieto")
-  const [observaciones, setObservaciones] = useState("")
   const [seccion, setSeccion] = useState<PedidoEnSeccion | null>(null)
-  const [enviando, setEnviando] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [barraOculta, setBarraOculta] = useState(false)
-  const [reintento, setReintento] = useState<{ texto: string; seccion: PedidoEnSeccion | null } | null>(null)
-  const puedePedir = ciclo.disponible && !ciclo.abierto && !!cliente
+  const caja = useRef<HTMLTextAreaElement>(null)
+  const puedeEscribir = ciclo.disponible && !ciclo.abierto
 
-  // «Pedir cambios en esta sección»: abre el cuadro con el nombre de la sección al comienzo y lo trae a la vista (igual que el plan)
+  // «Pedir cambios en esta sección»: antepone el nombre de la sección en el cuadro y lo trae a la vista (igual que el plan)
   useEffect(() => {
-    if (!pedirEn || !puedePedir) return
-    setError(null); setModo("escribir"); setSeccion(pedirEn)
-    setObservaciones((o) => (o.trim() ? `${o.trimEnd()}\n\nSección «${pedirEn.titulo}»: ` : `Sección «${pedirEn.titulo}»: `))
-    if (typeof document !== "undefined") requestAnimationFrame(() => document.querySelector("[data-pedir-cambios-manual]")?.scrollIntoView({ behavior: "smooth", block: "start" }))
+    if (!pedirEn || !puedeEscribir) return
+    setSeccion(pedirEn)
+    onLibre(libre.trim() ? `${libre.trimEnd()}\n\nSección «${pedirEn.titulo}»: ` : `Sección «${pedirEn.titulo}»: `)
+    if (typeof document !== "undefined") requestAnimationFrame(() => { document.querySelector("[data-pedir-cambios-manual]")?.scrollIntoView({ behavior: "smooth", block: "start" }); caja.current?.focus() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedirEn?.n])
 
-  async function mandar(texto: string, sec: PedidoEnSeccion | null) {
-    setError(null)
-    const cuerpo = cuerpoDePedirCambiosAlManual(cliente, texto, sec ? { titulo: sec.titulo, campos: sec.campos } : null)
-    if ("error" in cuerpo) { setError(String(cuerpo.error)); return }
-    setEnviando(true)
-    const r = palabrasDelPedidoDelManual(await accion("manual-cambios", cuerpo))
-    setEnviando(false)
-    if (r.ok) { setObservaciones(""); setSeccion(null); setModo("quieto"); setReintento(null) }
-    else if (/Reintentar/.test(r.texto)) { setModo("quieto"); setReintento({ texto, seccion: sec }) }
-    else setError(r.texto)
-    onResultado(r)
-  }
-
   if (!ciclo.disponible) return null
   const rotulo = rotuloMientrasSeReescribe(ciclo)
-  const aviso = avisoDeLoValidado(seccion ? seccion.validados : validadosDelManual, !!seccion)
+  const aviso = libre.trim() ? avisoDeLoValidado(seccion ? seccion.validados : validadosDelManual, !!seccion) : null
   return (
     <div data-pedir-cambios-manual data-tablero-accion="manual-cambios" className="mt-3 scroll-mt-2">
       {rotulo && <p data-rotulo-reescribiendo className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">{rotulo}</p>}
@@ -81,30 +66,16 @@ export function PedirCambiosAlManual({ cliente, clienteNombre = null, ciclo, acc
         </div>
       )}
 
-      {modo === "quieto" && puedePedir && !reintento && (
-        <button type="button" data-accion="manual-pedir-cambios" disabled={enviando} onClick={() => { setError(null); setSeccion(null); setModo("escribir") }}
-          className="mt-3 rounded-md border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[13px] font-medium text-amber-50 transition hover:bg-amber-400/25 disabled:opacity-50">{clienteNombre ? `Pedir cambios al manual de ${clienteNombre}` : "Pedir cambios al manual"}</button>
-      )}
-      {modo === "quieto" && reintento && (
-        <button type="button" data-accion="manual-reintentar" disabled={enviando} onClick={() => void mandar(reintento.texto, reintento.seccion)}
-          className="mt-3 rounded-md border border-amber-300/70 bg-black/40 px-4 py-2 text-[13px] text-amber-100 hover:bg-amber-400/15 disabled:opacity-50">{enviando ? "Enviando…" : "Reintentar el pedido"}</button>
-      )}
-      {modo === "escribir" && (
-        <form data-editor="manual-cambios" className="mt-3 rounded-lg border border-amber-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); void mandar(observaciones, seccion) }}>
-          <label className="block">
-            <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar en el manual{clienteNombre ? <> de <b data-pedido-para className="text-[12.5px] normal-case tracking-normal text-amber-200">{clienteNombre}</b></> : null}? (el equipo del manual lo lee y lo reescribe)</span>
-            <textarea value={observaciones} onChange={(ev) => setObservaciones(ev.target.value)} rows={4} maxLength={4000} aria-label="Qué debe cambiar en el manual" autoFocus
-              className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[14px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
-          </label>
+      {puedeEscribir && (
+        <label data-texto-libre className="mt-3 block">
+          <span className="mb-1 block text-[13px] text-zinc-300">Tus observaciones para todo el manual{clienteNombre ? <> de <b data-pedido-para className="text-amber-200">{clienteNombre}</b></> : null} <span className="text-zinc-500">(el equipo del manual las lee y lo reescribe)</span></span>
+          <textarea ref={caja} data-accion="manual-texto-libre" value={libre} onChange={(ev) => { onLibre(ev.target.value); if (!ev.target.value.trim()) setSeccion(null) }} rows={4} maxLength={TOPE_DEL_TEXTO_LIBRE} aria-label="Tus observaciones para todo el manual"
+            placeholder="Escribe aquí lo que quieras cambiar. Se manda junto con tus otros cambios al tocar «Pedir los cambios»."
+            className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[15px] leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
           {aviso && <p data-aviso-validados className="mt-1 text-[12px] text-amber-200">{aviso}</p>}
-          <p className="mt-1 text-[11px] text-zinc-500">{observaciones.trim().length}/4000</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="submit" data-accion="manual-enviar-pedido" disabled={enviando} className="rounded-md border border-amber-300/60 bg-amber-500/70 px-5 py-2 text-[13.5px] font-medium text-white hover:bg-amber-500 disabled:opacity-50">{enviando ? "Enviando…" : clienteNombre ? `Enviar el pedido para ${clienteNombre}` : "Enviar el pedido"}</button>
-            <button type="button" disabled={enviando} onClick={() => { setModo("quieto"); setSeccion(null) }} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
-          </div>
-        </form>
+          <p className="mt-1 text-[11px] text-zinc-500">{libre.trim().length}/{TOPE_DEL_TEXTO_LIBRE}</p>
+        </label>
       )}
-      {error && <p role="alert" className="mt-2 text-[13px] text-rose-300">{error}</p>}
     </div>
   )
 }

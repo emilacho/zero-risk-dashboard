@@ -164,9 +164,9 @@ describe("el panel del manual", () => {
     const h = html({ disponible: false, abierto: null, avance: null, que_cambio: [] })
     expect(h).not.toContain("Pedir cambios"); expect(h).not.toContain("data-pedir-cambios-manual")
   })
-  it("con la plataforma lista: «Pedir cambios al manual» en la portada y «Pedir cambios en esta sección» en cada apartado, sin aviso de gasto", () => {
+  it("con la plataforma lista: el cuadro de observaciones SIEMPRE a la vista en la portada (sin botón propio) y «Pedir cambios en esta sección» en cada apartado, sin aviso de gasto", () => {
     const h = html({ disponible: true, abierto: null, avance: null, que_cambio: ["Voz de la marca: «Formal» → «Cercana»"] })
-    expect(h).toContain('data-accion="manual-pedir-cambios"')
+    expect(h).toContain('data-accion="manual-texto-libre"'); expect(h).not.toContain('data-accion="manual-pedir-cambios"'); expect(h).not.toContain('data-accion="manual-enviar-pedido"')
     expect([...h.matchAll(/data-seccion-pedir="([^"]+)"/g)].map((x) => x[1])).toEqual(["Lo que la marca es", "Cómo habla", "A quién le habla", "Palabras"])
     expect(h).toContain("Qué cambió en el manual · 1 cambio")
     expect(h).not.toMatch(/US\$|gasta|costo/i)
@@ -175,7 +175,7 @@ describe("el panel del manual", () => {
     const avance = avanceDelPedido({ pedido: { id: "p", estado: "en_reescritura", creado_en: "2026-11-02T09:50:00Z", actualizado_en: null, despertado: true, despertar_detalle: null }, despachos: [], invocaciones: [], version_nueva: null, jefatura: null, compuerta_nueva: null }, AHORA, "manual")
     const h = html({ disponible: true, abierto: { id: "p", estado: "en_reescritura", texto: "Más cercano", seccion: null, creado_en: null, actualizado_en: null, despertado: true, despertar_detalle: null, manual_id: null, manual_nuevo_id: null }, avance, que_cambio: [] })
     expect(h).toContain("data-rotulo-reescribiendo"); expect(h).toContain("data-barra-del-pedido"); expect(h).toContain("nv-pl-paso-vivo"); expect(h).toContain("Lo que pediste: Más cercano")
-    expect(h).not.toContain('data-accion="manual-pedir-cambios"'); expect(h).not.toContain("data-seccion-pedir")
+    expect(h).not.toContain('data-accion="manual-texto-libre"'); expect(h).not.toContain("data-seccion-pedir"); expect(h).not.toContain('data-accion="observacion-campo"')
   })
   it("el panel deja la puerta a la vista del barrido de acciones y usa las piezas comunes del plan", () => {
     const fuente = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
