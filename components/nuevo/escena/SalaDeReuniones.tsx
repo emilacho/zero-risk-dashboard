@@ -66,14 +66,14 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
     return (
     <g className="nv-sala" data-sala={r ? r.estado : "vacia"} data-abierta={abierta} data-corridas={r?.corridas.join(",") ?? ""}>
       {/* la zona del ratón: la sala de vidrio; al pasar por encima aparece el rótulo, como en las mesas */}
-      <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); onAbrir() }} />
+      <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); if (r) onAbrir() }} style={{ cursor: r ? "pointer" : "default" }} />
       {r?.estado === "en_curso" && <ellipse className="nv-sala-luz" cx={SALA.mesa.x} cy={SALA.mesa.y} rx={150} ry={95} fill="url(#nv-av-ambar)" opacity={0.7} />}
-      <g className="nv-sala-rotulo" style={{ transform: `translateY(${-subir}px)`, transition: "transform .25s ease" } as CSSProperties} role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={abierta} aria-label={`${lineas.join(". ")}. Ver la reunión`}
-        onClick={(e) => { e.stopPropagation(); onAbrir() }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir() } }}>
+      <g className="nv-sala-rotulo" style={{ transform: `translateY(${-subir}px)`, transition: "transform .25s ease" } as CSSProperties} role={r ? "button" : undefined} tabIndex={r ? 0 : undefined} aria-haspopup={r ? "dialog" : undefined} aria-expanded={r ? abierta : undefined} aria-label={r ? `${lineas.join(". ")}. Ver la reunión` : lineas.join(". ")}
+        onClick={(e) => { e.stopPropagation(); if (r) onAbrir() }} onKeyDown={(e) => { if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onAbrir() } }}>
         <rect x={SALA.rotulo.x - 330} y={SALA.rotulo.y - 34} width={660} height={lineas.length > 2 ? 92 : 64} fill="rgba(0,0,0,0)" />
         <text className="nv-sala-t1" x={SALA.rotulo.x} y={SALA.rotulo.y} textAnchor="middle" fill="none" stroke={r ? "#e8731a" : "#9a9a9a"} strokeWidth={1.4} fontSize={24} fontWeight="500" letterSpacing={5} fontFamily={FUENTE}>{lineas[0]}</text>
         {lineas.slice(1).map((l, i) => (
-          <text key={i} x={SALA.rotulo.x} y={SALA.rotulo.y + 26 + i * 22} textAnchor="middle" fill={i === 0 && r ? "#ffd9a0" : "#a8a097"} fontSize={i === 0 && r ? 19 : 16} fontWeight={i === 0 && r ? 600 : 400} fontFamily={FUENTE} stroke="#0b0a09" strokeWidth={4} strokeOpacity={0.85} paintOrder="stroke" data-sala-linea={i + 1}>{l}</text>
+          <text key={i} x={SALA.rotulo.x} y={SALA.rotulo.y + 26 + i * 22} textAnchor="middle" fill={(r?.fallo && i === 1) || (!r && sala?.ultima?.fallo && i === 0) ? "#f87171" : i === 0 && r ? "#ffd9a0" : "#a8a097"} fontSize={i === 0 && r ? 19 : 16} fontWeight={i === 0 && r ? 600 : 400} fontFamily={FUENTE} stroke="#0b0a09" strokeWidth={4} strokeOpacity={0.85} paintOrder="stroke" data-sala-linea={i + 1}>{l}</text>
         ))}
       </g>
       {/* 02-nov · los participantes ya no son círculos con iniciales: son las siluetas holográficas de `Siluetas.tsx` (que camina, entra, se sienta, habla y sale) */}
@@ -166,10 +166,10 @@ export function PanelDeLaSala({ sala, onCerrar, onTocar }: { sala: SalaDeReunion
         <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded px-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">×</button>
       </div>
       {!r ? (
-        <p className="text-zinc-400">{sala?.ultima ? `No hay ninguna reunión ahora. La última fue ${sala.ultima.titulo} y terminó ${sala.ultima.hace}.` : "No hubo ninguna reunión en las últimas 24 horas."}</p>
+        <p className="text-zinc-400">{sala?.ultima ? `No hay ninguna reunión ahora. La última fue ${sala.ultima.titulo} y ${sala.ultima.fallo ? "falló" : "terminó"} ${sala.ultima.hace}.` : "No hubo ninguna reunión en las últimas 24 horas."}</p>
       ) : (
         <>
-          <p className="text-zinc-300">Dirige <b className="text-amber-100">{r.dirige}</b> ({r.equipo}) · {r.estado === "en_curso" ? "en curso" : `terminó ${r.hace}`}{r.cliente ? ` · cliente ${r.cliente}` : ""}</p>
+          <p className="text-zinc-300">Dirige <b className="text-amber-100">{r.dirige}</b> ({r.equipo}) · {r.estado === "en_curso" ? "en curso" : <span className={r.fallo ? "text-red-300" : undefined}>{r.fallo ? "falló" : "terminó"} {r.hace}</span>}{r.cliente ? ` · cliente ${r.cliente}` : ""}</p>
           <ol className="space-y-1" aria-label="Fases de la reunión">
             {r.fases.map((f, i) => (
               <li key={f.nombre} data-fase={f.nombre} data-estado={f.estado} className="rounded-lg border border-white/10 px-2 py-1">
@@ -181,18 +181,21 @@ export function PanelDeLaSala({ sala, onCerrar, onTocar }: { sala: SalaDeReunion
               </li>
             ))}
           </ol>
-          <ul className="space-y-0.5" aria-label="En la mesa">
+          <ul className="space-y-2" aria-label="Quién habló y qué dijo">
             {r.participantes.map((p) => (
-              <li key={p.agente} className="flex items-baseline justify-between gap-2" data-participante={p.agente}>
-                <button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); onTocar(p.agente) }} className="truncate text-left underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100">{p.nombre}{p.cabecera ? " · dirige" : ""}</button>
-                <span className={`shrink-0 text-[11px] ${p.estado === "hablando" ? "text-amber-200" : p.estado === "fallo" ? "text-red-300" : "text-zinc-500"}`}>{p.equipo} · {estadoLegible(p)}</span>
+              <li key={p.agente} data-participante={p.agente} className="rounded-lg border border-white/10 px-2 py-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); onTocar(p.agente) }} className="truncate text-left text-[13px] font-medium text-zinc-100 underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100">{p.nombre}{p.cabecera ? " · dirige" : ""}</button>
+                  <span className={`shrink-0 text-[11px] ${p.estado === "hablando" ? "text-amber-200" : p.estado === "fallo" ? "text-red-300" : "text-zinc-500"}`}>{p.equipo} · {estadoLegible(p)}</span>
+                </div>
+                <p data-dijo className="mt-0.5 text-[12px] leading-snug text-zinc-300">{globoDe(p)}</p>
               </li>
             ))}
           </ul>
           {sala && sala.otras_en_curso > 0 && <p className="text-[11px] text-zinc-400">Hay {sala.otras_en_curso} reunión(es) más en curso a la vez; se muestra la más reciente.</p>}
         </>
       )}
-      <p className="text-[10px] text-zinc-600">{sala?.fuente ?? "sin dato todavía"}{r ? ` · corridas ${r.corridas.join(" + ")}` : ""}</p>
+      <details data-detalle-tecnico className="text-[10px] text-zinc-600"><summary className="cursor-pointer">ver detalle</summary><span className="block break-words">{sala?.fuente ?? "sin dato todavía"}{r ? ` · corridas ${r.corridas.join(" + ")}` : ""}</span></details>
     </div>
   )
 }

@@ -227,6 +227,16 @@ export interface EscenaDatos {
 export const FLUJOS: Record<string, string> = {
   X9F0zp6LQ2xGEYVS: "Plan de 90 días",
 }
+/** el trabajo en palabras de oficina para la sala: los conocidos; si no, el nombre del proceso en n8n («Cambios al manual»); si no hay, «un trabajo sin nombre registrado» (nunca «flujo 2128…») */
+export function nombreDelFlujoEnPalabras(workflowId: string | null | undefined, nombres?: Record<string, string>): string {
+  if (!workflowId) return "un trabajo sin nombre registrado"
+  const conocido = FLUJOS[workflowId]; if (conocido) return conocido
+  const crudo = nombres?.[workflowId]; if (!crudo) return "un trabajo sin nombre registrado"
+  const n = crudo.replace(/^Zero Risk\s*[—–-]\s*/i, "").replace(/\s*·\s*CC-[A-Z0-9-]+\s*$/i, "").replace(/\s*\([^)]*\)\s*$/, "").trim()
+  if (/^Cambios? al manual/i.test(n)) return "Cambios al manual"
+  if (/^Cambios? al plan/i.test(n)) return "Cambios al plan"
+  return n || "un trabajo sin nombre registrado"
+}
 export const nombreDelFlujo = (workflowId: string | null | undefined): string => (workflowId ? FLUJOS[workflowId] ?? `flujo ${workflowId.slice(0, 4)}…` : "sin flujo registrado")
 /** «209744:analisis-mercado» → «análisis mercado» (el paso viene en el id de ejecución; si no, de `metadata.step_name`) */
 export function pasoDe(execId: string | null | undefined, stepName?: string | null): string | null {
@@ -257,6 +267,8 @@ export interface EntradaDeLaEscena {
   ahora: Date
   /** el cliente y el momento de su campaña (lo lee quien arma la entrada) */
   contexto?: EscenaDatos["contexto"]
+  /** 03-nov · los nombres de los procesos de n8n (`workflow_id` → nombre) leídos en el servidor; sin dato, el trabajo se dice sin código */
+  nombresDeFlujos?: Record<string, string>
 }
 
 /** la mesa de un agente: el dato del directorio primero; si no tiene tarjeta, el mapa firmado; si no, ninguna */
@@ -288,7 +300,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   const fuente = `al día a las ${horaDeEcuador(e.ahora)}`
   const etapas = new Map((e.equipos ?? []).map((q) => [nombreCanonico(q.clave).replace(/-/g, "_"), q]))
   // S3 · la sala de reuniones primero: quien está en una reunión en curso se sienta en la sala, no en su mesa
-  const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo, mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora })
+  const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo: (id) => nombreDelFlujoEnPalabras(id, e.nombresDeFlujos), mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora })
   const enLaSala = agentesEnLaSala(sala)
 
   const sentados: Sentado[] = []

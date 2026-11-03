@@ -3,6 +3,7 @@
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
+import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
 import { CuadrosDeMetricas, ESTILO_ENTREGAS, LamparaDeFirma, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
@@ -79,6 +80,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
   const [agenteDelPlantel, setAgenteDelPlantel] = useState<string | null>(null) // el empleado que el plantel muestra en su detalle al abrirse (si vino de tocar su flecha)
   const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
+  const [panelTablero, setPanelTablero] = useState<{ tipo: "pizarron"; clave: string | null } | { tipo: "vitrina" } | null>(null) // 03-nov · pizarrón y vitrina tocables
   const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
   const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
   const [aporteDe, setAporteDe] = useState<string | null>(null) // S4 · el participante cuyo aporte completo está abierto
@@ -168,17 +170,22 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} sentados={sentadosEnSala} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
         {/* el pizarrón de métricas: «General» y un cuadro por red del cliente; hoy «métricas pronto» (los gastos se ven en Tu oficina › Dinero). Las entregas ya no quedan fijas aquí: su tarjeta aparece 8 s */}
-        <CuadrosDeMetricas metricas={datos?.metricas} />
+        <CuadrosDeMetricas metricas={datos?.metricas} onAbrir={(k) => setPanelTablero({ tipo: "pizarron", clave: k || null })} />
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
         <FlechasDeForma onAbrir={abrirPlantelDe} />
         {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
-        <VitrinaVertical vitrina={datos?.vitrina} />
+        <VitrinaVertical vitrina={datos?.vitrina} onAbrir={() => setPanelTablero({ tipo: "vitrina" })} />
         {/* la lámpara de firma: sobre el escritorio de Dirección, hacia Tu oficina */}
         <LamparaDeFirma pendientes={datos?.entregas?.firma.pendientes ?? 0} />
         <GloboEnLaFoto g={globoActual} />
       </svg>
+      {panelTablero && (
+        <div role="dialog" aria-label={panelTablero.tipo === "vitrina" ? "La vitrina" : "El pizarrón de métricas"} className="nv-av-lista absolute left-1/2 top-1/2 z-[5] max-h-[80%] w-[min(26rem,92%)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-white/15 bg-[#121110]/95 p-4 text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]" onClick={(e) => e.stopPropagation()}>
+          {panelTablero.tipo === "vitrina" ? <PanelDeLaVitrina vitrina={datos?.vitrina} onCerrar={() => setPanelTablero(null)} /> : <PanelDelPizarron metricas={datos?.metricas} inicial={panelTablero.clave} onCerrar={() => setPanelTablero(null)} />}
+        </div>
+      )}
       {salaAbierta && (
         <div role="dialog" aria-label="La reunión de la sala" className="nv-av-lista nv-sala-panel absolute z-[4] w-[24rem] max-h-[60%] overflow-auto rounded-xl border border-white/15 bg-[#121110]/95 p-3 text-[12px] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
           style={{ left: pct(SALA.mesa.x + 190, FOTO.w), top: pct(SALA.rotulo.y - 40, FOTO.h) }} onClick={(e) => e.stopPropagation()}>

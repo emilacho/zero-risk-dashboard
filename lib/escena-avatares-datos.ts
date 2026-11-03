@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
 import { esDePractica } from "@/lib/clientes"
+import { nombresDeProcesos } from "@/lib/direccion-riesgos"
 import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
@@ -72,7 +73,10 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
     const m = { step_name: i.step_name ?? meta.step_name, task_text: i.task_text ?? meta.task_text } as Fila // 02-nov · solo se pide lo que se usa de `metadata` (antes viajaba el objeto entero de 400 filas)
     return { agent_name: String(i.agent_name ?? ""), client_id: s(i.client_id), workflow_id: s(i.workflow_id), workflow_execution_id: s(i.workflow_execution_id), status: s(i.status), started_at: s(i.started_at), ended_at: s(i.ended_at), cost_usd: i.cost_usd == null ? null : Number(i.cost_usd), step_name: s(m.step_name), task_text: s(m.task_text) }
   })
-  let escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx })
+  // 03-nov · el nombre del trabajo de las corridas recientes (n8n, solo lectura): sin él, la sala diría «flujo 2128…»
+  const idsDeFlujos = [...new Set([...invocaciones.map((i) => i.workflow_id), ...despachos.map((d) => d.workflow_id)].filter((x): x is string => !!x))].slice(0, 12)
+  const nombresDeFlujos = Object.fromEntries(await nombresDeProcesos(idsDeFlujos, fetch).catch(() => new Map<string, string>()))
+  let escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx, nombresDeFlujos })
   // sprint 3 · entregas al pizarrón, revisiones de la jefatura y firmas pendientes: si la lectura falla, la escena sigue sin eso (no se inventa)
   try {
     const ent = await conCache("escena-viva-entregas", 15_000, () => leerEntregas(supa, ahora))
