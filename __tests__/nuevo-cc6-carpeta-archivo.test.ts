@@ -75,6 +75,6 @@ describe("el archivo de una campaña anterior", () => {
     expect(d?.archivada).toBe(false); expect(d?.recuperada_del_archivo).toBe(true)
   })
   it("la escena de la oficina no cuenta como pendiente una pieza archivada (reserva de CC3 a #199)", () => {
-    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toMatch(/from\("hitl_queue"\)\.select\("id, expires_at"\)\.eq\("status", "pending"\)\.is\("archivada_en", null\)/)
+    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toMatch(/from\("hitl_queue"\)\.select\("id, expires_at, client_id, documento"\)\.eq\("status", "pending"\)\.is\("archivada_en", null\)/) // CC6 · 03-nov: + cliente y documento (manual primero)
   })
 })

@@ -1,5 +1,6 @@
 "use client"
 
+import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
 import { estadoDelClienteEnElSelector } from "@/lib/lenguaje"
 import { clienteRecordadoEn, guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
@@ -59,8 +60,8 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
   // 03-nov (firma de Emilio 14:46Z): la cadena no sigue hasta que apruebes el manual
   // con una campaña en marcha, el plan NO espera: lo que espera es el manual nuevo (reserva 3 de CC3)
   if (clave === "plan" && datos.manual_aprobado === false) {
-    const enMarcha = !!datos.cliente && !!datos.clientes.find((c) => c.id === datos.cliente!.id)?.con_campana
-    return { texto: enMarcha ? "El manual nuevo espera tu aprobación" : "Plan: espera que apruebes el manual", aviso: true }
+    // MANUAL PRIMERO (Lenovo 20:37Z): con o sin campaña, el mismo texto que el panel del Plan; el plan no se firma antes del manual
+    return { texto: PLAN_ESPERA_EL_MANUAL, aviso: true }
   }
   if (clave === "plan") return { texto: datos.campana ? textoDeLaFase(datos) : "Sin campaña todavía", aviso: false }
   if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${datos.filas.length} publicaciones${datos.campana.del_plan_anterior ? " · del plan anterior" : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }

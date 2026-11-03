@@ -8,6 +8,7 @@
  * (`plan_cambios`). Si esas dos tablas todavía no existen en la plataforma (antes de la «ventana» de CC1) el ciclo se marca «no disponible»: no se esconde ni se
  * inventa; cualquier OTRO error de la base sigue lanzando.
  */
+import { manualAprobadoPorCliente } from "@/lib/manual-primero"
 import { clientePorOmision } from "@/lib/cliente-por-omision"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
@@ -58,6 +59,8 @@ export interface PlanDelCliente {
   esperas: { vivas: number; grupos: GrupoDeEsperas[]; /** las vencidas, aparte (no se mezclan con las pendientes) */ vencidas: { n: number; grupos: GrupoDeEsperas[] } }
   /** los topes vigentes de cada tramo de la planeación (catálogo `plan_catalogo_topes`) */
   topes: TopeDelTramo[]
+  /** CC6 · 03-nov · MANUAL PRIMERO: el dueño aprobó el manual vigente del cliente (false = el plan espera el manual, no se firma); null = no se supo */
+  manual_aprobado?: boolean | null
   /** el ciclo del plan sobre la versión vigente (null sin documento) */
   ciclo: CicloDelPlan | null
   leido_en: string
@@ -154,7 +157,8 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
   }
   // CC6 · 02-nov (corrección de Lenovo): la misma regla del cliente por omisión que el Centro de campaña y los paneles (nunca un cliente fijo)
   if (!elegido) elegido = await clientePorOmision(supa, clientes, campanas)
-  const base = { clientes, hoy, leido_en: ahora.toISOString() }
+  const manual_aprobado = elegido ? (await manualAprobadoPorCliente(supa, [elegido.id])).get(elegido.id) ?? null : null
+  const base = { clientes, hoy, leido_en: ahora.toISOString(), manual_aprobado }
   const vacio = (cliente: PlanDelCliente["cliente"]): PlanDelCliente => ({ ...base, cliente, campana: null, estrategia: null, fase_activa: faseActiva([], null, hoy), documento: null, revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, ciclo: null, topes: [] })
   if (!elegido) return vacio(null)
   const cliente = { id: elegido.id, nombre: elegido.nombre }

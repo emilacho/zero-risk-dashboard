@@ -94,10 +94,11 @@ describe("3 · publicaciones: las mismas que el calendario", () => {
   it("el panel: título y cabecera dicen el mismo periodo (una sola fuente)", async () => {
     const p = await leerPlanDelCliente(base(comun(() => [])), { cliente: C, ahora: new Date("2026-11-05T15:00:00Z") })
     const h = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...p, estrategia: est(), documento: doc(PROSA) } as PlanDelCliente }))
-    expect(h).toContain(">Plan de 84 días</h2>")
+    expect(h).toContain(">Plan de 90 días</h2>") // Lenovo 20:37Z: el nombre no cambia…
+    expect(h).toContain("Este plan solo cubre 12 semanas (84 de los 90 días).") // …y lo que cubre se dice en palabras
     expect(h).toContain("2 nov → 24 ene · 84 días")
     expect(h.split("2 nov → 24 ene · 84 días").length - 1).toBeGreaterThanOrEqual(2) // la cabecera Y la barra lateral
-    expect(h).not.toContain("30 ene"); expect(h).not.toContain("2027-01-30"); expect(h).not.toContain("90 días")
+    expect(h).not.toContain("30 ene"); expect(h).not.toContain("2027-01-30")
   })
 })
 

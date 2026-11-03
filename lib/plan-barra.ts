@@ -8,6 +8,7 @@ import { datosClave, resumenDeLaSeccion, seccionesDelPlan } from "@/lib/plan-doc
 import { leerElCiclo, sedeLegible, textoDeLaMeta } from "@/lib/plan"
 import { redDelTablero } from "@/lib/pizarron"
 import { periodoDelPlan, textoDelPeriodo } from "@/lib/plan-periodo"
+import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
 
 
 export interface FaseDeLaBarra { clave: string; objetivo: string; desde: number; hasta: number; estado: "hecha" | "en_curso" | "por_venir" }
@@ -54,13 +55,15 @@ export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
   const canales = [...new Set((e?.redes ?? []).filter((r) => r.rol !== "no").map((r) => redDelTablero(r.red).nombre))]
   // lo que le toca al dueño: decidir el plan, las aprobaciones de su bandeja, lo que contradijo un revisor y la campaña detenida
   const teToca: string[] = []
-  if (lectura?.puede_aprobar) teToca.push("Aprobar el plan o pedir cambios")
+  const esperaElManual = p.manual_aprobado === false
+  if (esperaElManual) teToca.push(PLAN_ESPERA_EL_MANUAL)
+  else if (lectura?.puede_aprobar) teToca.push("Aprobar el plan o pedir cambios")
   const bandeja = p.esperas.grupos.find((g) => g.tipo === "aprobacion_bandeja")?.n ?? 0
   if (bandeja) teToca.push(bandeja === 1 ? "1 aprobación en tu bandeja" : `${bandeja} aprobaciones en tu bandeja`)
   for (const x of p.palabra_del_dueno ?? []) teToca.push(x.requiere_humano ? `Revisar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}` : `Mirar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}`)
   if (c?.estado === "pausada" || c?.estado === "necesita_humano") teToca.push(c.estado === "pausada" ? `La campaña está pausada${c.estado_motivo ? ` (${c.estado_motivo})` : ""}: reanudarla es decisión tuya` : "La campaña necesita una decisión tuya")
   return {
-    decision: lectura ? { titulo: lectura.titulo, estado: lectura.estado } : null,
+    decision: esperaElManual ? { titulo: "Espera que apruebes el manual", estado: "espera_el_manual" } : lectura ? { titulo: lectura.titulo, estado: lectura.estado } : null,
     meta, fechas, presupuesto: dato("presupuesto"),
     sedes: (c?.sedes ?? d?.plan?.zonas ?? []).map(sedeLegible),
     canales, fases, dia, total_dias: total ?? (fases.length ? Math.max(...fases.map((f) => f.hasta)) : null), te_toca: teToca,
