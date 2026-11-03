@@ -18,3 +18,10 @@ export function accionDeTecla(tecla: string): "cerrar" | "siguiente" | "anterior
   if (tecla === "ArrowLeft") return "anterior"
   return null
 }
+
+/** Tab dentro del visor: el botón que sigue (o el anterior con Mayús) dando la vuelta; si el foco está fuera, entra por el primero (o el último) */
+export function siguienteEnLaTrampa(actual: number, n: number, atras: boolean): number {
+  if (n <= 0) return 0
+  if (actual < 0) return atras ? n - 1 : 0
+  return (((actual + (atras ? -1 : 1)) % n) + n) % n
+}
