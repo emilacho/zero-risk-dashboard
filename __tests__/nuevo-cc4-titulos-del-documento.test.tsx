@@ -3,6 +3,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { TITULO_1, TITULO_2, TITULO_3, CUERPO } from "@/components/nuevo/manual/niveles"
+import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
 
 const FONDO = [15, 13, 11] // #0f0d0b, el fondo de los paneles
@@ -32,5 +33,14 @@ describe("CC4 · títulos 1, 2 y 3 del documento · una sola regla (corrección 
     const f = readFileSync("components/nuevo/DocumentoLegible.tsx", "utf8")
     expect(f).toContain("manual/niveles"); expect(f).not.toMatch(/h[1-4]: .*text-zinc-(50|100|200)/)
     for (const p of ["components/nuevo/PanelManual.tsx", "components/nuevo/manual/SeccionesNuevas.tsx"]) expect(readFileSync(p, "utf8")).toContain("manual/niveles")
+  })
+  it("el plan usa la misma regla: el título de cada sección es nivel 1, ### nivel 2 y #### nivel 3 (reserva de CC3)", () => {
+    const plan = ["# Plan", "", "## Estrategia", "", "Texto.", "", "### Canales", "", "Otro texto.", "", "#### Detalle", "", "Más texto."].join(String.fromCharCode(10))
+    const h = renderToStaticMarkup(createElement(PlanEnSecciones, { prosa: plan, abiertasIniciales: ["estrategia"], sinDatosClave: true }))
+    expect(h).toMatch(/data-titulo="1"[^>]*class="[^"]*text-amber-400[^"]*"[^>]*>Estrategia/)
+    expect(h).toMatch(/data-titulo="2"[^>]*class="[^"]*text-amber-200[^"]*"[^>]*>(<span[^>]*>)?Canales/)
+    expect(h).toMatch(/data-titulo="3"[^>]*class="[^"]*text-amber-100\/85[^"]*"[^>]*>(<span[^>]*>)?Detalle/)
+    const f = readFileSync("components/nuevo/PlanEnSecciones.tsx", "utf8")
+    expect(f).toContain("manual/niveles"); expect(f).not.toMatch(/block text-\[14px\] font-medium text-zinc-100/)
   })
 })
