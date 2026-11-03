@@ -82,13 +82,8 @@ export function BarraDelManual({ m, nombre, campos, faltan, huecos, irA }: {
             ))}
           </ul>
         )}
+        {(m.jerarquia_tipografica ?? []).length > 0 && <button type="button" data-ir-campo="jerarquia_tipografica" onClick={() => irA("jerarquia_tipografica")} className="mt-2 text-[12px] text-amber-200 underline decoration-dotted underline-offset-4 hover:text-amber-100">Ver qué letra va en cada nivel</button>}
       </Bloque>}
-
-      {(m.jerarquia_tipografica ?? []).length > 0 && (
-        <Bloque id="jerarquia" titulo="Jerarquía tipográfica">
-          <ul className="space-y-1">{m.jerarquia_tipografica!.map((j) => <li key={j.uso} className="flex items-baseline justify-between gap-3"><span className="text-[11.5px] text-zinc-400">{j.uso}</span><span className="truncate text-[15px] text-zinc-100" style={{ fontFamily: `"${j.familia}", system-ui, sans-serif` }}>{j.familia}</span></li>)}</ul>
-        </Bloque>
-      )}
 
       {(barra.logo || barra.fotos.length > 0) && <Bloque id="logo-y-fotos" titulo="Logo y estilo de fotos">
         {(

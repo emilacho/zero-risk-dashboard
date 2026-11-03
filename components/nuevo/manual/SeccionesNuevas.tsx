@@ -37,7 +37,9 @@ function Valor({ v, onRetirar }: { v: ValorDeSeccion; /** retirar el elemento i 
  * y sin «sin dato»: una parte vacía muestra solo su título y «Editar» (las 6 secciones siguen siempre a la vista · auditoría 02-nov).
  * Cada parte tiene Editar y, si es una lista, Retirar por elemento; los cambios quedan en espera hasta «Guardar cambios» (lo pone el panel).
  */
-export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, extra, pendiente, editando = null, onRetirar }: {
+export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, extra, pendiente, editando = null, onRetirar, especial }: {
+  /** una parte con su propia pantalla (la jerarquía tipográfica con niveles): si devuelve algo, va en lugar de su valor de siempre */
+  especial?: (p: Parte) => React.ReactNode
   secciones: SeccionLeida[]
   /** lo que va al pie de una sección (las revisiones del editor que le pertenecen · auditoría 02-nov) */
   extra?: (s: SeccionLeida) => React.ReactNode
@@ -79,7 +81,7 @@ export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, ext
                       <h4 className={TITULO_2}>{s.partes.length === 1 ? s.titulo : p.etiqueta}</h4>
                       {acciones?.(p)}
                     </div>
-                    {editando !== p.clave && v && <Valor v={v} onRetirar={retirar} />}
+                    {editando !== p.clave && v && (especial?.(p) ?? <Valor v={v} onRetirar={retirar} />)}
                     {editor?.(p)}
                   </div>
                 )
