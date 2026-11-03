@@ -34,7 +34,7 @@ export interface Organizacion {
   gerente: string | null
   departamentos: Departamento[]
   personas: Record<string, Persona>
-  resumen: { empleados: number; departamentos: number; trabajando: number; activos: number; por_activar: number; por_cubrir: number }
+  resumen: { empleados: number; departamentos: number; trabajando: number; activos: number; por_activar: number; apagados: number; por_cubrir: number }
   notas: string[]
   leido_en: string
 }
@@ -177,7 +177,7 @@ export function armarOrganizacion(d: { deptos: FilaDepto[]; agentes: FilaAgente[
     resumen: {
       empleados: lista.length, departamentos: departamentos.length,
       trabajando: lista.filter((p) => p.estado === "trabajando").length, activos: lista.filter((p) => p.estado === "activo" || p.estado === "trabajando").length,
-      por_activar: lista.filter((p) => p.estado === "por_activar").length, por_cubrir: departamentos.reduce((n, x) => n + x.equipos.reduce((m, e) => m + e.por_cubrir.length, 0), 0),
+      por_activar: lista.filter((p) => p.estado === "por_activar").length, apagados: lista.filter((p) => p.estado === "apagado").length, por_cubrir: departamentos.reduce((n, x) => n + x.equipos.reduce((m, e) => m + e.por_cubrir.length, 0), 0),
     },
     notas,
     leido_en: o.ahora.toISOString(),
