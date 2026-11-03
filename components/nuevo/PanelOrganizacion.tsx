@@ -6,6 +6,7 @@
  * SOLO LECTURA. Nada de dinero aquí: eso vive en la pantalla Dinero.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PE, type WheelEvent as WE } from "react"
+import { HORA_24 } from "@/lib/formato"
 import { aSuCargo, coincide, NOMBRE_DEL_ESTADO, type Departamento, type EquipoDeOrg, type EstadoDePersona, type Organizacion, type Persona } from "@/lib/direccion-organizacion"
 
 const AMBAR = "#e8731a"
@@ -16,8 +17,9 @@ type Filtro = "todos" | EstadoDePersona
 const TW = 236, TH = 62, DH = 92, GW = 252, GAP_G = 18, GAP_D = 44, FILA = 50, CAB = 52, PIE = 10, Y0 = 24
 const Y1 = Y0 + TH + 46, Y2 = Y1 + TH + 54, Y3 = Y2 + DH + 50
 
-const iniciales = (n: string) => n.split(/[\s_-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")
-const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—")
+const PARTICULAS = new Set(["de", "del", "la", "las", "el", "los", "y", "e"])
+const iniciales = (n: string) => n.split(/[\s_-]+/).filter((w) => w && !PARTICULAS.has(w.toLowerCase())).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")
+const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", ...HORA_24 }) : "—")
 
 interface Caja { x: number; y: number; w: number; h: number }
 interface Plano { ancho: number; alto: number; dueno: Caja; gerente: Caja; deptos: Array<{ d: Departamento; caja: Caja; abierto: boolean; grupos: Array<{ e: EquipoDeOrg; caja: Caja }> }> }
@@ -170,7 +172,7 @@ export function PanelOrganizacion({ onCerrar, datosIniciales = null, fetchImpl =
       <section role="dialog" aria-modal="true" aria-labelledby="organizacion-titulo" data-seccion="organizacion" className="relative flex h-full max-h-full w-full max-w-[1500px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-6">
           <h2 id="organizacion-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Organización</h2>
-          {org && <p data-resumen className="text-[12px] text-zinc-400">{org.resumen.empleados} empleados · {org.resumen.departamentos} departamentos · {org.resumen.trabajando} trabajando ahora · {org.resumen.por_activar} por activar · {org.resumen.por_cubrir} puestos por cubrir</p>}
+          {org && <p data-resumen className="text-[12px] text-zinc-400">{org.resumen.empleados} empleados · {org.resumen.departamentos} departamentos · {org.resumen.trabajando} trabajando ahora · {org.resumen.activos} activos (incluye a quienes trabajan) · {org.resumen.por_activar} por activar{org.resumen.apagados > 0 ? ` · ${org.resumen.apagados} apagados` : ""} · {org.resumen.por_cubrir} puestos por cubrir</p>}
           <button type="button" onClick={() => void leer()} disabled={cargando} className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-50">{cargando ? "Leyendo…" : "Actualizar"}</button>
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar la organización" className="rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
         </header>

@@ -5,6 +5,7 @@
  * Regla de Emilio para todo /nuevo: nada de avisos de gasto en botones ni pantallas; el gasto SE VE AQUÍ (y en el panel de gastos de cada oficina).
  */
 import type { Riesgos, Saldo, Tope } from "@/lib/direccion-riesgos"
+import { usdES } from "@/lib/lenguaje"
 
 export interface Medida { que: string; tipo: "saldo" | "freno"; pct: number }
 export interface ResumenDeDinero { saldos: Saldo[]; topes: Tope[]; /** lo más cerca de su límite, para la pantalla del arco */ mayor: Medida | null; leido: true }
@@ -20,7 +21,7 @@ export function resumenDeDinero(d: Pick<Riesgos, "saldos" | "topes">): ResumenDe
 
 /** el color de un medidor: ámbar normal · naranja desde 60 % · rojo desde 85 % */
 export const colorDelMedidor = (pct: number | null): string => (pct == null ? "rgba(255,255,255,.2)" : pct >= 85 ? "#ff5a36" : pct >= 60 ? "#f5a524" : "#e8731a")
-export const usd = (n: number | null): string => (n == null ? "sin dato" : `US$ ${n.toFixed(2)}`)
+export const usd = (n: number | null): string => (n == null ? "sin dato" : usdES(n))
 export const diaDelCiclo = (iso: string | null): string | null => {
   if (!iso) return null
   const t = new Date(iso)

@@ -91,7 +91,7 @@ describe("6.26 · el árbol y la cascada (estructura de LangSmith)", () => {
   })
   it("formatos de dato: duración, costo", () => {
     expect(duracion(937203)).toBe("15 min 37 s"); expect(duracion(15495)).toBe("15,5 s"); expect(duracion(4958)).toBe("4,96 s"); expect(duracion(null)).toBe("—")
-    expect(costoComoDato(1.630376)).toBe("US$ 1.63"); expect(costoComoDato(0.006)).toBe("US$ 0.0060"); expect(costoComoDato(0)).toBe("US$ 0")
+    expect(costoComoDato(1.630376)).toBe("US$ 1,63"); expect(costoComoDato(0.006)).toBe("US$ 0,0060"); expect(costoComoDato(0)).toBe("US$ 0")
   })
 })
 

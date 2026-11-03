@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { HORA_24 } from "@/lib/formato"
 import { bloquesDelTexto, type RevisionDelEditor } from "@/lib/revisiones-del-manual"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 
 type Accion = (nombre: string, cuerpo: Record<string, unknown>) => Promise<{ ok: boolean; texto: string }>
 const usd = (v: number) => `US$ ${v.toFixed(2).replace(".", ",")}`
-const fecha = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" }) }
+const fecha = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("es-EC", { day: "numeric", month: "short", ...HORA_24, timeZone: "America/Guayaquil" }) }
 
 /**
  * UNA REVISIÓN DEL EDITOR DENTRO DE SU SECCIÓN DEL MANUAL (CC6 · 02-nov · auditoría, punto 3): el texto con formato y en español, lo que costó producirlo

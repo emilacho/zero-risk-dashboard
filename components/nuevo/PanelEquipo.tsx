@@ -169,7 +169,7 @@ export function PanelEquipo({ onCerrar, datosIniciales = null, clienteInicial = 
               <div data-vista="organigrama" className="eq-entra space-y-5">
                 <div className="flex flex-wrap items-baseline gap-3">
                   <h3 className="text-[15px] font-medium text-zinc-100">Los {marketing.length} equipos del departamento</h3>
-                  <span className="text-[12px] text-zinc-500">Lo que hace cada uno sale de corridas reales de los últimos 7 días{datos.ventana.corridas ? ` (${datos.ventana.corridas} corridas miradas)` : ""}</span>
+                  <span className="text-[12px] text-zinc-500">Lo que hace cada uno sale de las tareas reales de los empleados en los últimos 7 días{datos.ventana.corridas ? ` (${datos.ventana.corridas} tareas contadas: cada llamada a un empleado, no cada corrida de un proceso)` : ""}</span>
                 </div>
                 <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {marketing.map((e) => (
