@@ -19,7 +19,14 @@ export function PantallaNuevo({ marketing = false, cerebro = false, oficina = fa
   return (
     <>
     {/* el marcador va en el HTML del servidor (la pantalla de verdad se pinta en el navegador): se ve mientras bajan el JavaScript y las fotos, y la pantalla lo tapa al aparecer */}
-    <div data-cargando aria-hidden className="pointer-events-none fixed inset-0 z-[59] flex items-center justify-center bg-black"><p className="animate-pulse text-[12px] uppercase tracking-[0.3em] text-zinc-600">Preparando la oficina…</p></div>
+    {/* 03-nov · nunca negro: la foto de la escena (la misma que ya se está bajando, 28–111 kB) y el esqueleto del marco aparecen con el primer HTML; la pantalla de verdad los tapa al llegar */}
+    <div data-cargando aria-hidden className="pointer-events-none fixed inset-0 z-[59] bg-black">
+      <div data-esqueleto-barra className="absolute inset-x-0 top-0 flex h-14 items-center gap-3 border-b border-white/5 px-4"><span className="h-3 w-24 animate-pulse rounded bg-white/10" /><span className="h-3 w-16 animate-pulse rounded bg-white/5" /><span className="h-3 w-16 animate-pulse rounded bg-white/5" /></div>
+      <div className="absolute inset-x-0 bottom-40 top-14 flex items-center justify-center px-4 sm:px-16">
+        <img data-foto-de-carga alt="" src={`/nuevo/${depto ?? "escena"}-1280.webp`} srcSet={`/nuevo/${depto ?? "escena"}-1280.webp 1280w, /nuevo/${depto ?? "escena"}-2560.webp 2560w`} sizes="(max-width: 900px) 100vw, 1800px" fetchPriority="high" className="max-h-full max-w-full object-contain opacity-80" />
+      </div>
+      <div data-esqueleto-chat className="absolute inset-x-0 bottom-0 flex h-40 items-end justify-center px-4 pb-6"><p className="animate-pulse text-[12px] uppercase tracking-[0.3em] text-zinc-500">Preparando la oficina…</p></div>
+    </div>
     <CapaNueva>
       <main data-seccion="nuevo" className="fixed inset-0 z-[60] overflow-hidden bg-black">
         <h1 className="sr-only">Zero Risk · las oficinas</h1>

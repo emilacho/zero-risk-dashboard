@@ -109,7 +109,7 @@ export function VidaSpline() {
   if (!montar) return null
   return (
     <div data-vida="spline" aria-hidden="true" className="pointer-events-none absolute inset-0">
-      <style>{`[data-vida="spline"] a#logo,[data-vida="spline"] a[href*="spline.design"]{display:none!important}`}</style>
+      <style>{`[data-vida="spline"] a#logo,[data-vida="spline"] a[href*="spline.design"],[data-vida="spline"] #logo,[data-vida="spline"] [id*="logo"],[data-vida="spline"] a:not([data-hit]){display:none!important}`}</style>
       <Suspense fallback={null}>
         <Spline scene={ESCENA_SPLINE} onLoad={alCargar} renderOnDemand={false} style={{ width: "100%", height: "100%" }} />
       </Suspense>
