@@ -115,11 +115,8 @@ const BotonEditar = ({ etiqueta, onClick, clave }: { etiqueta: string; onClick: 
   </button>
 )
 const SinGuardar = () => <span data-sin-guardar className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11.5px] text-amber-200">pendiente</span>
-/** «Observación» (03-nov · corrección de Lenovo 16:40Z): una nota de texto en cualquier campo; queda pendiente hasta «Pedir los cambios» */
-const BotonObservacion = ({ etiqueta, clave, onClick }: { etiqueta: string; clave: string; onClick: () => void }) => (
-  <button type="button" data-accion="observacion-campo" data-campo-observar={clave} onClick={onClick} aria-label={`Dejar una observación en ${etiqueta}`}
-    className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-1 text-[12.5px] text-zinc-300 transition hover:border-amber-400/60 hover:text-amber-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Observación</button>
-)
+/* 03-nov 19:53Z (Emilio, con captura): el botón «Observación» se quitó: «Editar» basta. Para pedir una reescritura está la caja de texto libre de arriba.
+   Las observaciones ya guardadas en un borrador siguen visibles (NotaDelCampo) con su ✕ en «Tus cambios»; solo deja de haber botón para crear nuevas. */
 /** la observación de un campo: el cuadro para escribirla, o la nota pendiente con su texto */
 function NotaDelCampo({ clave, etiqueta, nota, abierta, onListo, onCerrar }: { clave: string; etiqueta: string; nota?: string; abierta: boolean; onListo: (t: string) => void; onCerrar: () => void }) {
   const [texto, setTexto] = useState(nota ?? "")
@@ -166,7 +163,7 @@ function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio, nota
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <h4 className={TITULO_2}>{c.etiqueta}</h4>
         {pendiente !== undefined && <SinGuardar />}
-        {!editando && (editable || onObservar) && <span className="ml-auto flex gap-1.5">{retirarEntero && <BotonRetirar que={c.etiqueta} onClick={() => setConfirmar(true)} />}{onObservar && !observando && <BotonObservacion clave={c.clave} etiqueta={c.etiqueta} onClick={() => onObservar(c.clave)} />}{editable && <BotonEditar clave={c.clave} etiqueta={c.etiqueta} onClick={() => onEditar(c.clave)} />}</span>}
+        {!editando && editable && <span className="ml-auto flex gap-1.5">{retirarEntero && <BotonRetirar que={c.etiqueta} onClick={() => setConfirmar(true)} />}{editable && <BotonEditar clave={c.clave} etiqueta={c.etiqueta} onClick={() => onEditar(c.clave)} />}</span>}
       </div>
       {confirmar && (
         <div data-confirmar-retirar={c.clave} className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/[0.06] px-3 py-2">
@@ -529,7 +526,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
                   {/* las secciones nuevas del manual (ADENDA 1): aparecen solas cuando el manual las trae */}
                   <SeccionesNuevas secciones={m.secciones_nuevas ?? []} extra={(sn) => revisionesDe(sn.partes.map((p) => p.clave)).map((r) => <TarjetaDeRevisionDelEditor key={r.id} r={r} accion={accion} onHecho={revisionHecha} />)} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null}
                     pendiente={(p) => cambios[p.clave]} editando={editando}
-                    acciones={(p) => (<>{cambios[p.clave] !== undefined && <SinGuardar />}{editando !== p.clave && <span className="ml-auto flex gap-1.5">{puedeObservar && observando !== p.clave && <BotonObservacion clave={p.clave} etiqueta={p.etiqueta} onClick={() => setObservando(p.clave)} />}{esEditableDesdeElTablero(p.clave) && <BotonEditar clave={p.clave} etiqueta={p.etiqueta} onClick={() => setEditando(p.clave)} />}</span>}</>)}
+                    acciones={(p) => (<>{cambios[p.clave] !== undefined && <SinGuardar />}{editando !== p.clave && <span className="ml-auto flex gap-1.5">{esEditableDesdeElTablero(p.clave) && <BotonEditar clave={p.clave} etiqueta={p.etiqueta} onClick={() => setEditando(p.clave)} />}</span>}</>)}
                     onRetirar={(p, lineas) => cambiar(p.clave, juntarLista(lineas), "retirar")}
                     onEditarRenglon={(p, lineas, renglon) => cambiar(p.clave, juntarLista(lineas), "editar", detalleDelRenglon(renglon - 1))}
                     especial={(p) => p.clave === "jerarquia_tipografica" && puedeMoverNiveles(cambios[p.clave] ?? p.para_editar) ? <JerarquiaTipografica texto={cambios[p.clave] ?? p.para_editar} onCambiar={(t) => cambiar(p.clave, t)} /> : null}
