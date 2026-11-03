@@ -21,6 +21,8 @@ export interface TusCambios {
   notas: Record<string, string>
   /** el texto libre para todo el manual */
   libre: string
+  /** CC2 · 03-nov: qué renglón se editó («editaste el renglón 2»); solo cuando fue UNA edición de renglón en ese campo */
+  detalle?: Record<string, string>
 }
 export const SIN_CAMBIOS: TusCambios = { campos: {}, como: {}, notas: {}, libre: "" }
 
@@ -42,6 +44,7 @@ export function renglonesDeTusCambios(c: TusCambios, etiqueta: (clave: string) =
     const texto = !v.trim() ? `Retirar «${e}»`
       : como === "elegir" ? `${e}: elegiste «${corto(v)}»`
       : como === "retirar" ? `${e}: retiraste un elemento`
+      : c.detalle?.[k] ? `${e}: ${c.detalle[k]}`
       : `${e}: lo cambiaste`
     out.push({ id: `campo:${k}`, texto })
   }
@@ -54,7 +57,7 @@ export function renglonesDeTusCambios(c: TusCambios, etiqueta: (clave: string) =
 export function quitarDeTusCambios(c: TusCambios, id: string): TusCambios {
   if (id === "libre") return { ...c, libre: "" }
   const [tipo, clave] = [id.slice(0, id.indexOf(":")), id.slice(id.indexOf(":") + 1)]
-  if (tipo === "campo") { const campos = { ...c.campos }, como = { ...c.como }; delete campos[clave]; delete como[clave]; return { ...c, campos, como } }
+  if (tipo === "campo") { const campos = { ...c.campos }, como = { ...c.como }, detalle = { ...(c.detalle ?? {}) }; delete campos[clave]; delete como[clave]; delete detalle[clave]; return { ...c, campos, como, detalle } }
   if (tipo === "nota") { const notas = { ...c.notas }; delete notas[clave]; return { ...c, notas } }
   return c
 }

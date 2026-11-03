@@ -4,17 +4,19 @@ import { useState } from "react"
 import { limpiarTexto } from "@/lib/manual-limpio"
 import type { SeccionLeida, ValorDeSeccion } from "@/lib/manual-secciones"
 import { CUERPO, TITULO_1, TITULO_2, TITULO_3 } from "@/components/nuevo/manual/niveles"
+import { RenglonEditable } from "@/components/nuevo/manual/RenglonEditable"
+import { conRenglonCambiado, renglonEditado } from "@/lib/renglones-del-manual"
 
 type Parte = SeccionLeida["partes"][number]
 
-function Valor({ v, onRetirar }: { v: ValorDeSeccion; /** retirar el elemento i de una lista (solo listas simples) */ onRetirar?: (i: number) => void }) {
+function Valor({ v, onRetirar, onEditar, editados }: { v: ValorDeSeccion; /** retirar el elemento i de una lista (solo listas simples) */ onRetirar?: (i: number) => void; /** editar el elemento i (CC2 · 03-nov): cada renglón lleva Editar y Retirar */ onEditar?: (i: number, nuevo: string) => void; /** qué renglones ya tienen una edición en espera */ editados?: boolean[] }) {
   if (v.tipo === "texto") return <p className={`whitespace-pre-line ${CUERPO}`}>{limpiarTexto(v.texto)}</p>
   if (v.tipo === "lista") return (
     <ul className="space-y-2">
       {v.items.map((x, i) => (
-        <li key={i} data-elemento={i} className="flex items-start gap-3">
-          <span className={`min-w-0 flex-1 ${CUERPO}`}><span aria-hidden className="mr-2 text-zinc-500">•</span>{limpiarTexto(x)}</span>
-          {onRetirar && <button type="button" data-accion="retirar" aria-label={`Retirar «${limpiarTexto(x).slice(0, 60)}»`} onClick={() => onRetirar(i)} className="shrink-0 rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-400 transition hover:border-rose-400/60 hover:text-rose-200">Retirar</button>}
+        <li key={i} data-elemento={i} className="flex flex-wrap items-start gap-3">
+          {onRetirar && onEditar ? <RenglonEditable texto={limpiarTexto(x)} editado={!!editados?.[i]} onEditar={(nuevo) => onEditar(i, nuevo)} onRetirar={() => onRetirar(i)} /> : <span className={`min-w-0 flex-1 ${CUERPO}`}><span aria-hidden className="mr-2 text-zinc-500">•</span>{limpiarTexto(x)}</span>}
+          {onRetirar && !onEditar && <button type="button" data-accion="retirar" aria-label={`Retirar «${limpiarTexto(x).slice(0, 60)}»`} onClick={() => onRetirar(i)} className="shrink-0 rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-400 transition hover:border-rose-400/60 hover:text-rose-200">Retirar</button>}
         </li>
       ))}
     </ul>
@@ -38,7 +40,7 @@ function Valor({ v, onRetirar }: { v: ValorDeSeccion; /** retirar el elemento i 
  * y sin «sin dato»: una parte vacía muestra solo su título y «Editar» (las 6 secciones siguen siempre a la vista · auditoría 02-nov).
  * Cada parte tiene Editar y, si es una lista, Retirar por elemento; los cambios quedan en espera hasta «Guardar cambios» (lo pone el panel).
  */
-export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, extra, pendiente, editando = null, onRetirar, especial, confirmarInicial = null }: {
+export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, extra, pendiente, editando = null, onRetirar, onEditarRenglon, especial, confirmarInicial = null }: {
   /** una parte con su propia pantalla (la jerarquía tipográfica con niveles): si devuelve algo, va en lugar de su valor de siempre */
   especial?: (p: Parte) => React.ReactNode
   secciones: SeccionLeida[]
@@ -55,6 +57,8 @@ export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, ext
   editando?: string | null
   /** retirar un elemento: la lista que queda, una por línea (vacía = se retira la parte entera · contrato CC1 #864) */
   onRetirar?: (p: Parte, lineas: string[]) => void
+  /** editar UN renglón (CC2 · 03-nov): llega la lista completa con ese renglón cambiado y cuál fue (1, 2, 3…) */
+  onEditarRenglon?: (p: Parte, lineas: string[], renglon: number) => void
   /** pruebas: abrir con la confirmación de retirar de esta parte a la vista */
   confirmarInicial?: string | null
 }) {
@@ -80,6 +84,10 @@ export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, ext
                 const lineas = (pendiente?.(p) ?? p.para_editar).split(/\r?\n/).map((x) => x.trim()).filter(Boolean)
                 // retirar por elemento: solo si cada elemento de la lista es una línea de lo que se guarda (si no, se usa Editar)
                 const retirar = v?.tipo === "lista" && v.items.length === lineas.length && onRetirar ? (k: number) => onRetirar(p, lineas.filter((_, j) => j !== k)) : undefined
+                const editarRenglon = retirar && onEditarRenglon ? (k: number, nuevo: string) => onEditarRenglon(p, conRenglonCambiado(lineas, k, nuevo), k + 1) : undefined
+                // un renglón está «editado» si ya no es uno de los guardados
+                const guardadas = p.para_editar.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)
+                const editados = lineas.map((l) => renglonEditado(l, guardadas))
                 return (
                   <div key={p.clave} id={`campo-${p.clave}`} data-campo={p.clave} className="scroll-mt-2 border-t border-white/[0.07] pt-4 first:border-t-0 first:pt-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -95,7 +103,7 @@ export function SeccionesNuevas({ secciones, pedirCambios, acciones, editor, ext
                         <button type="button" onClick={() => setConfirmando(null)} className="rounded-md border border-white/10 px-3 py-1 text-[13px] text-zinc-300 hover:bg-white/[0.05]">Cancelar</button>
                       </div>
                     )}
-                    {editando !== p.clave && v && (especial?.(p) ?? <Valor v={v} onRetirar={retirar} />)}
+                    {editando !== p.clave && v && (especial?.(p) ?? <Valor v={v} onRetirar={retirar} onEditar={editarRenglon} editados={editados} />)}
                     {editor?.(p)}
                   </div>
                 )
