@@ -4,19 +4,17 @@
  * todavía (brief y conceptos de la cadena nueva · T9) se dice tal cual, no se inventa.
  */
 import { describe, expect, it } from "vitest"
-import { readFileSync } from "node:fs"
+import { readFileSync, existsSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { APLICACIONES } from "@/lib/aplicaciones-marketing"
 import { PanelAplicaciones, detalleDelCuadro } from "@/components/nuevo/PanelAplicaciones"
-import { PanelEquipo } from "@/components/nuevo/PanelEquipo"
 import { PanelBrief } from "@/components/nuevo/PanelBrief"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { EQUIPOS, EQUIPOS_DE_MARKETING, MINUTOS_TRABAJANDO, actividadDelAgente, armarEquipos, equipoDelAgente, equiposDelAgente, estadoDeAhoraLegible, nombreCanonico, puestosDelAgente, resumenDelEquipo, type FilaDeAgente, type FilaDeDirectorio, type Invocacion } from "@/lib/organigrama"
 import { briefDesdeFila, briefVigente, detalleDelBrief, estadoDelBriefLegible, seccionesDelBrief } from "@/lib/brief"
 import { esTablaInexistente } from "@/lib/brief-datos"
 import { detalleDeGranIdea, tarjetaDesdeFila } from "@/lib/gran-idea-datos"
-import type { EquipoDelCliente } from "@/lib/equipo-datos"
 import type { Centro } from "@/lib/centro-datos"
 
 const leer = (p: string) => readFileSync(p, "utf8")
@@ -41,7 +39,7 @@ describe("6.10 · el Centro de campaña tiene 9 botones en el orden de la cadena
     expect(detalleDelCuadro("equipo", null, centro).texto).toBe("2 empleados trabajan ahora mismo")
     expect(detalleDelCuadro("brief", null).texto).toBe(APLICACIONES.find((a) => a.clave === "brief")!.descripcion)
     const p = leer("components/nuevo/PanelAplicaciones.tsx")
-    expect(p).toContain("/api/centro"); expect(p).toContain('if (vista === "brief") return <PanelBrief'); expect(p).toContain('if (vista === "gran_idea") return <PanelGranIdea'); expect(p).toContain('if (vista === "equipo") return <PanelEquipo')
+    expect(p).toContain("/api/centro"); expect(p).toContain('if (vista === "brief") return <PanelBrief'); expect(p).toContain('if (vista === "gran_idea") return <PanelGranIdea'); expect(p).not.toContain('<PanelEquipo'); expect(p).toContain('a.clave === "equipo" ? abrirElSquadHub()') // 03-nov · una sola vista del equipo: el Squad Hub
   })
   it("las cuatro lecturas nuevas piden administrador y no se guardan en caché", () => {
     for (const r of ["equipo", "brief", "gran-idea", "centro"]) {
@@ -137,16 +135,8 @@ describe("6.10 · el organigrama: 6 equipos del MAPA firmado (01-nov)", () => {
     expect(conDato.find((e) => e.clave === "medios")!.miembros.map((m) => m.nombre)).toEqual(["cfo_agent"]); expect(conDato[0].origen).toBe("directorio")
     expect(conDato.find((e) => e.clave === "otros")!.miembros).toEqual([])
   })
-  it("el panel Equipo pinta el organigrama con los 6 equipos (los de segunda etapa atenuados) y sin selector de cliente", () => {
-    const eq = armarEquipos([{ name: "jefe-marketing", display_name: "Jefe de marketing", role: null, model: null, is_active: true, status: null }], [], [], { cliente: NAUFRAGO, ahora: AHORA })
-    const datos: EquipoDelCliente = { clientes: [CLIENTE], cliente: CLIENTE, equipos: eq, origen: "mapa", resumen: resumenDelEquipo(eq), ventana: { desde: "x", corridas: 0 }, leido_en: "x" }
-    const html = renderToStaticMarkup(createElement(PanelEquipo, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('data-seccion="equipo"'); expect(html).toContain('data-vista="organigrama"')
-    for (const k of EQUIPOS_DE_MARKETING) expect(html).toContain(`data-equipo="${k}"`)
-    expect(html.match(/data-etapa="segunda_etapa"/g)!.length).toBeGreaterThanOrEqual(3)
-    expect(html).toContain("Los 6 equipos del departamento"); expect(html).toContain("sale del mapa firmado")
-    expect(html).not.toContain("<select"); expect(html).not.toContain('data-equipo="otros"') // vacío: no se pinta
-    expect(html).toContain("nadie trabaja ahora")
+  it("03-nov · una sola vista del equipo (Emilio): el panel Equipo propio ya no existe; los equipos se ven en el Squad Hub de la escena", () => {
+    expect(existsSync("components/nuevo/PanelEquipo.tsx")).toBe(false)
   })
 })
 

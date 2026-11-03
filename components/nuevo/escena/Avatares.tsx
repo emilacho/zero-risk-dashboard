@@ -1,5 +1,6 @@
 "use client"
 
+import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
@@ -72,6 +73,13 @@ const ESTILO = `
 
 /** la mesa vacía que se dibuja antes de que llegue el dato (y si la lectura falla): sin sentados, sin equipo, sin inventar */
 const vacia = (m: Mesa): MesaViva => ({ ...m, sentados: [], equipo: [], trabajando: 0, fallando: 0 })
+/** las mesas que la escena tiene ANTES de leer nada (las 6, vacías): por eso siempre hay una mesa que abrir (CC3 · reserva 3 de #225) */
+export const mesasSinLeer = (): MesaViva[] => MESAS.map(vacia)
+/** CC6 · 03-nov · qué mesa abre el Squad Hub cuando lo pide el Centro de campaña: la pedida, si no la primera con gente, si no la primera.
+ *  Con las mesas sin leer abre la primera (vacía) y se llena sola cuando llegan los datos. */
+export function mesaParaAbrir(mesas: MesaViva[], pedida: string | null = null): MesaViva | null {
+  return (pedida && mesas.find((m) => m.clave === pedida)) || mesas.find((m) => m.equipo.length > 0) || mesas[0] || null
+}
 
 export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arnés: arrancar con estos datos */ datosIniciales?: EscenaDatos | null }) {
   const [datos, setDatos] = useState<EscenaDatos | null>(datosIniciales)
@@ -114,11 +122,22 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
     return () => { window.removeEventListener("keydown", alTeclear, true); window.removeEventListener("click", alClic, true) }
   }, [salaAbierta])
 
-  const mesas: MesaViva[] = useMemo(() => (datos ? datos.mesas : MESAS.map(vacia)), [datos])
+  const mesas: MesaViva[] = useMemo(() => (datos ? datos.mesas : mesasSinLeer()), [datos])
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
   const cerrarPlantel = useCallback(() => { setMesaAbierta(null); setAgenteDelPlantel(null) }, [])
+  // CC6 · 03-nov · una sola vista del equipo: el Centro de campaña › Equipo abre ESTE plantel (Squad Hub), en la mesa pedida o la primera con gente
+  const mesasActuales = useRef(mesas); mesasActuales.current = mesas
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      const { mesa = null } = ((e as CustomEvent<PedidoDePlantel>).detail ?? {}) as PedidoDePlantel
+      const elegida = mesaParaAbrir(mesasActuales.current, mesa)
+      if (elegida) { setAgenteDelPlantel(null); setMesaAbierta(elegida.clave) }
+    }
+    window.addEventListener(EVENTO_ABRIR_PLANTEL, alPedir)
+    return () => window.removeEventListener(EVENTO_ABRIR_PLANTEL, alPedir)
+  }, [])
   // tocar la flecha de un empleado: su detalle dentro del plantel de su equipo (false = no está en ningún plantel: se abre la ficha de rendimiento de siempre)
   const abrirPlantelDe = useCallback((agente: string) => {
     const m = mesas.find((q) => q.equipo.some((p) => nombreCanonico(p.agente) === nombreCanonico(agente)))

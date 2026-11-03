@@ -4,7 +4,7 @@
  * «Publicada» no existe: la columna se ve atenuada con su leyenda; no se inventa.
  */
 import { describe, expect, it } from "vitest"
-import { readFileSync } from "node:fs"
+import { readFileSync, existsSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { COLUMNAS, COLUMNA_DEL_TABLERO, COLUMNA_DE_LA_PIEZA, LEYENDA_PUBLICADA, armarKanban, resumenDelKanban, tarjetaDeFila, tarjetaDePieza } from "@/lib/kanban"
@@ -16,10 +16,8 @@ import type { Bandeja } from "@/lib/bandeja-datos"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { PanelPizarron } from "@/components/nuevo/PanelPizarron"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
-import { PanelEquipo } from "@/components/nuevo/PanelEquipo"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { EQUIPOS_DE_MARKETING, FUENTE_DEL_DATO, armarEquipos, equiposDesdeElDato, nombreLegibleDelAgente, resumenDelEquipo, type FilaDeAgente, type FilaDeDirectorio, type FilaDeEquipoDelDato, type Invocacion } from "@/lib/organigrama"
-import type { EquipoDelCliente } from "@/lib/equipo-datos"
 import type { DetalleDelConcepto } from "@/lib/concepto-datos"
 import { NOTA_MINIMA } from "@/lib/concepto-decision"
 import { avisoTrasDecidirGranIdea, cuerpoDeDecisionDeGranIdea, errorTrasDecidirGranIdea, rutaDeDecisionDeGranIdea } from "@/lib/gran-idea"
@@ -153,14 +151,8 @@ describe("6.11 · el equipo de cada empleado viene del DATO (ADENDA 7.1 · ofici
     expect(armarEquipos(agentes, [], inv, { cliente: NAUFRAGO, ahora: AHORA })[0].origen).toBe("mapa")
     expect(equiposDesdeElDato([{ clave: "Web", nombre: null, sistema: null, descripcion: null, etapa: "raro", bloqueo: "", orden: null }])[0]).toMatchObject({ clave: "web", nombre: "Web", etapa: "segunda_etapa", bloqueo: null })
   })
-  it("el panel dice que el equipo viene del directorio y, en un equipo sin tarjetas, que el directorio todavía no las tiene", () => {
-    const eq = armarEquipos(agentes, directorio, inv, { cliente: NAUFRAGO, ahora: AHORA, equiposDelDato: TABLA })
-    const datos: EquipoDelCliente = { clientes: [CLIENTE], cliente: CLIENTE, equipos: eq, origen: "directorio", resumen: resumenDelEquipo(eq), ventana: { desde: "x", corridas: 2 }, leido_en: "x" }
-    const html = renderToStaticMarkup(createElement(PanelEquipo, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('data-origen="directorio"'); expect(html).toContain("viene del directorio de la oficina (dato de la plataforma)")
-    expect(html).toContain("Los 6 equipos del departamento"); expect(html).not.toContain("por instalar")
-    for (const k of EQUIPOS_DE_MARKETING) expect(html).toContain(`data-equipo="${k}"`)
-    expect(html).toContain('data-equipo="proveedores"'); expect(html).toContain('data-equipo="otros"'); expect(html).toContain("Sin tarjeta en el directorio")
+  it("03-nov · una sola vista del equipo (Emilio): la vista propia del equipo ya no existe; el Centro abre el Squad Hub. La lectura del equipo sigue saliendo de la tabla", () => {
+    expect(existsSync("components/nuevo/PanelEquipo.tsx")).toBe(false)
     expect(leer("lib/equipo-datos.ts")).toContain('from("oficina_equipos")')
   })
 })
