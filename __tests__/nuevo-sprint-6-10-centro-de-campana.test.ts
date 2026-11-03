@@ -41,7 +41,7 @@ describe("6.10 · el Centro de campaña tiene 9 botones en el orden de la cadena
     expect(detalleDelCuadro("equipo", null, centro).texto).toBe("2 empleados trabajan ahora mismo")
     expect(detalleDelCuadro("brief", null).texto).toBe(APLICACIONES.find((a) => a.clave === "brief")!.descripcion)
     const p = leer("components/nuevo/PanelAplicaciones.tsx")
-    expect(p).toContain("/api/centro"); expect(p).toContain('if (vista === "brief") return <PanelBrief'); expect(p).toContain('if (vista === "gran_idea") return <PanelGranIdea'); expect(p).toContain('if (vista === "equipo") return <PanelEquipo')
+    expect(p).toContain("/api/centro"); expect(p).toContain('if (vista === "brief") return <PanelBrief'); expect(p).toContain('if (vista === "gran_idea") return <PanelGranIdea'); expect(p).not.toContain('<PanelEquipo'); expect(p).toContain('a.clave === "equipo" ? abrirElSquadHub()') // 03-nov · una sola vista del equipo: el Squad Hub
   })
   it("las cuatro lecturas nuevas piden administrador y no se guardan en caché", () => {
     for (const r of ["equipo", "brief", "gran-idea", "centro"]) {

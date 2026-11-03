@@ -8,6 +8,10 @@ export type PanelDelMarco = "riesgos" | "dinero" | "organizacion" | "observabili
 export const EVENTO_ABRIR_PANEL = "nv:abrir-panel"
 export interface PedidoDePanel { panel: PanelDelMarco; pieza?: string | null }
 
+/** CC6 · 03-nov (auditoría punto 15 · una sola vista del equipo): el Centro de campaña pide a la escena de Marketing que abra el Squad Hub de CC4 */
+export const EVENTO_ABRIR_PLANTEL = "nv:abrir-plantel"
+export interface PedidoDePlantel { cliente?: string | null; mesa?: string | null }
+
 /** los paneles por su nombre de pantalla (y otras palabras con las que alguien los buscaría) */
 export const PANELES_DEL_BUSCADOR: ReadonlyArray<{ panel: PanelDelMarco; nombre: string; palabras: string }> = [
   { panel: "riesgos", nombre: "Riesgos y alarmas", palabras: "alertas alarmas riesgos campana" },

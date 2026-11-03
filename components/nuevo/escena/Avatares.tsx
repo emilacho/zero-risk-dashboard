@@ -1,5 +1,6 @@
 "use client"
 
+import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
@@ -119,6 +120,18 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
   const cerrarPlantel = useCallback(() => { setMesaAbierta(null); setAgenteDelPlantel(null) }, [])
+  // CC6 · 03-nov · una sola vista del equipo: el Centro de campaña › Equipo abre ESTE plantel (Squad Hub), en la mesa pedida o la primera con gente
+  const mesasActuales = useRef(mesas); mesasActuales.current = mesas
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      const { mesa = null } = ((e as CustomEvent<PedidoDePlantel>).detail ?? {}) as PedidoDePlantel
+      const ms = mesasActuales.current
+      const elegida = (mesa && ms.find((m) => m.clave === mesa)) || ms.find((m) => m.equipo.length > 0) || ms[0]
+      if (elegida) { setAgenteDelPlantel(null); setMesaAbierta(elegida.clave) }
+    }
+    window.addEventListener(EVENTO_ABRIR_PLANTEL, alPedir)
+    return () => window.removeEventListener(EVENTO_ABRIR_PLANTEL, alPedir)
+  }, [])
   // tocar la flecha de un empleado: su detalle dentro del plantel de su equipo (false = no está en ningún plantel: se abre la ficha de rendimiento de siempre)
   const abrirPlantelDe = useCallback((agente: string) => {
     const m = mesas.find((q) => q.equipo.some((p) => nombreCanonico(p.agente) === nombreCanonico(agente)))

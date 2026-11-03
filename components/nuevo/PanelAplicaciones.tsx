@@ -12,7 +12,7 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelInformes } from "@/components/nuevo/PanelInformes"
 import { PanelBrief } from "@/components/nuevo/PanelBrief"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
-import { PanelEquipo } from "@/components/nuevo/PanelEquipo"
+import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 
 const AMBAR = "#e8731a"
@@ -122,6 +122,11 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   }, [datos, idDelCentro])
 
   const volverAlInicio = useCallback(() => setVista("inicio"), [])
+  // 03-nov · una sola vista del equipo (auditoría 15): «Equipo» ya no abre una vista propia; cierra el Centro y abre el Squad Hub de la escena (de CC4)
+  const abrirElSquadHub = useCallback(() => {
+    onCerrar()
+    window.dispatchEvent(new CustomEvent<PedidoDePlantel>(EVENTO_ABRIR_PLANTEL, { detail: { cliente: datos?.cliente?.id ?? cliente ?? null } }))
+  }, [onCerrar, datos, cliente])
   const abrirPieza = useCallback((id: string) => { setPiezaAbierta({ id, desde: "calendario" }); setVista("piezas") }, [])
   const cerrarPiezas = useCallback(() => { setVista(piezaAbierta?.desde === "calendario" ? "calendario" : "inicio"); setPiezaAbierta(null) }, [piezaAbierta])
   if (vista === "calendario") return <PanelPizarron onCerrar={volverAlInicio} datosIniciales={datos} onAbrirPieza={abrirPieza} />
@@ -131,7 +136,6 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   if (vista === "informes") return <PanelInformes onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "brief") return <PanelBrief onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "gran_idea") return <PanelGranIdea onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "equipo") return <PanelEquipo onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
@@ -174,7 +178,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
               <li key={a.clave} className="contents">
                 {href
                   ? <a ref={i === 0 ? (primero as RefObject<HTMLAnchorElement>) : undefined} href={href} data-aplicacion={a.clave} data-aviso={d.aviso} className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</a>
-                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => setVista(a.clave)} aria-haspopup="dialog" className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</button>}
+                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => (a.clave === "equipo" ? abrirElSquadHub() : setVista(a.clave))} aria-haspopup="dialog" className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</button>}
               </li>
             )
           })}
