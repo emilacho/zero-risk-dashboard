@@ -68,6 +68,8 @@ export interface ReunionDeLaSala {
   equipo: string
   dirige: string
   estado: "en_curso" | "terminada"
+  /** 03-nov · terminó con fallo: alguna de sus fases falló y ya no hay nadie hablando */
+  fallo?: boolean
   desde: string | null
   hasta: string | null
   hace: string
@@ -82,7 +84,7 @@ export interface ReunionDeLaSala {
 export interface SalaDeReuniones {
   reunion: ReunionDeLaSala | null
   /** la última reunión de la ventana leída, cuando la sala está vacía */
-  ultima: { titulo: string; cliente: string | null; hasta: string | null; hace: string } | null
+  ultima: { titulo: string; cliente: string | null; hasta: string | null; hace: string; fallo?: boolean } | null
   /** otras reuniones en curso a la vez (se dicen, no se sientan) */
   otras_en_curso: number
   fuente: string
@@ -174,7 +176,7 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   const ultimaR = reunion ? null : armadas.sort((a, b) => ms(b.hasta) - ms(a.hasta))[0] ?? null
   return {
     reunion,
-    ultima: ultimaR ? { titulo: ultimaR.titulo, cliente: ultimaR.cliente, hasta: ultimaR.hasta, hace: ultimaR.hace } : null,
+    ultima: ultimaR ? { titulo: ultimaR.titulo, cliente: ultimaR.cliente, hasta: ultimaR.hasta, hace: ultimaR.hace, fallo: ultimaR.fallo === true } : null,
     otras_en_curso: Math.max(enCurso.length - 1, 0),
     fuente,
   }
@@ -236,7 +238,7 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
   return {
     corridas: [...raices], titulo: `${flujo}${cliente ? ` · ${cliente}` : ""}`, flujo, cliente,
     equipo: md ? e.nombreDeLaMesa(md.mesa) : participantes[0]?.equipo ?? "sin equipo", dirige: nombre(dirige),
-    estado: enCurso ? "en_curso" : "terminada",
+    estado: enCurso ? "en_curso" : "terminada", fallo: !enCurso && fases.some((f) => f.estado === "fallo"),
     desde: Number.isFinite(g.desde) ? new Date(g.desde).toISOString() : null, hasta: hastaIso, hace: hastaIso ? haceCuanto(hastaIso, e.ahora) : "sin dato",
     participantes, fases, de_mas: Math.max(participantes.length - SILLAS_DE_LA_SALA.length, 0), cliente_id: g.cliente,
   }
@@ -251,9 +253,9 @@ export function agentesEnLaSala(s: SalaDeReuniones | null | undefined): Set<stri
 export function lineasDeLaSala(s: SalaDeReuniones | null | undefined): string[] {
   if (!s) return ["SALA DE REUNIONES", "leyendo…"]
   const r = s.reunion
-  if (!r) return ["SALA DE REUNIONES", s.ultima ? `sala vacía · la última, ${s.ultima.titulo}, terminó ${s.ultima.hace}` : "sala vacía · ninguna reunión en las últimas 24 h"]
+  if (!r) return ["SALA DE REUNIONES", s.ultima ? `sala vacía · la última, ${s.ultima.titulo}, ${s.ultima.fallo ? "falló" : "terminó"} ${s.ultima.hace}` : "sala vacía · ninguna reunión en las últimas 24 h"]
   const enFase = r.fases.find((f) => f.estado === "en_curso")?.nombre
-  const estado = r.estado === "en_curso" ? `en curso${enFase ? ` · ${enFase}` : ""}` : `terminó ${r.hace}`
+  const estado = r.estado === "en_curso" ? `en curso${enFase ? ` · ${enFase}` : ""}` : `${r.fallo ? "falló" : "terminó"} ${r.hace}`
   return ["SALA DE REUNIONES", r.titulo, `dirige ${r.dirige} (${r.equipo}) · ${r.participantes.length} en la mesa · ${estado}${s.otras_en_curso ? ` · +${s.otras_en_curso} reunión(es) más en curso` : ""}`]
 }
 

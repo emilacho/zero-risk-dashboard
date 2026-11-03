@@ -10,9 +10,9 @@ import { PANTALLA_VERTICAL, ROTACION_DE_LA_VITRINA_MS, type VitrinaDeLaEscena } 
 const FUENTE = "system-ui, Arial, sans-serif"
 export const ESTILO_ENTREGAS = `
 .nv-av .nv-metrica{outline:none}
-.nv-av .nv-metrica .nv-metrica-cuadro{pointer-events:auto;cursor:default;filter:drop-shadow(0 0 4px rgba(255,170,60,.55));transition:fill-opacity .25s ease}
+.nv-av .nv-metrica .nv-metrica-cuadro{pointer-events:auto;cursor:pointer;filter:drop-shadow(0 0 4px rgba(255,170,60,.55));transition:fill-opacity .25s ease}
 .nv-av .nv-metrica:hover .nv-metrica-cuadro,.nv-av .nv-metrica:focus-visible .nv-metrica-cuadro{fill-opacity:.45}
-.nv-av .nv-vitrina-hit{pointer-events:auto;cursor:default;outline:none}
+.nv-av .nv-vitrina-hit{pointer-events:auto;cursor:pointer;outline:none}
 .nv-av .nv-firma{pointer-events:auto;cursor:pointer;outline:none}
 .nv-av .nv-firma .nv-firma-luz{animation:nvFirmaPulso 3.6s ease-in-out infinite}
 .nv-av .nv-firma .nv-firma-rotulo{opacity:0;transition:opacity .25s ease;pointer-events:none}
@@ -24,7 +24,7 @@ export const ESTILO_ENTREGAS = `
 const puntos = (p: Array<{ x: number; y: number }>) => p.map((q) => `${q.x},${q.y}`).join(" ")
 
 /** los cuadros del pizarrón son de MÉTRICAS: «General» y uno por red del cliente. Hoy dicen «métricas pronto»; al pasar el cursor, el nombre y el estado (la métrica principal y su variación llegan con el contrato de CC1) */
-export function CuadrosDeMetricas({ metricas }: { metricas: MetricasDelPizarron | undefined }) {
+export function CuadrosDeMetricas({ metricas, onAbrir }: { metricas: MetricasDelPizarron | undefined; onAbrir?: (clave: string) => void }) {
   const [activo, setActivo] = useState<string | null>(null)
   if (!metricas) return null
   const cuadros = metricas.cuadros.slice(0, CUADROS_DEL_PIZARRON.length)
@@ -33,10 +33,13 @@ export function CuadrosDeMetricas({ metricas }: { metricas: MetricasDelPizarron 
   const w = 196
   return (
     <g data-pizarron-de-metricas data-cuadros={cuadros.length} data-lectura={metricas.lectura}>
+      <rect data-pizarron-toque className="nv-metrica-cuadro" x={Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.x)) - 10} y={Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.y)) - 10}
+        width={Math.max(...CUADROS_DEL_PIZARRON.flat().map((q) => q.x)) - Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.x)) + 20} height={Math.max(...CUADROS_DEL_PIZARRON.flat().map((q) => q.y)) - Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.y)) + 20}
+        fill="rgba(0,0,0,0)" style={{ filter: "none" }} role="button" tabIndex={0} aria-label="Abrir el pizarrón de métricas" onClick={() => onAbrir?.("")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.("") } }} />
       {cuadros.map((c, i) => {
         const { x, y } = centro(i)
         return (
-          <g key={c.clave} className="nv-metrica" data-metrica={c.clave} data-tiene={c.tiene} opacity={c.tiene ? 1 : 0.4} role="img" tabIndex={0} aria-label={`${c.nombre}: ${c.principal ? `${c.principal}${c.variacion ? `, ${c.variacion}` : ""}` : c.texto}`}
+          <g key={c.clave} className="nv-metrica" data-metrica={c.clave} data-tiene={c.tiene} opacity={c.tiene ? 1 : 0.4} role="button" tabIndex={0} onClick={() => onAbrir?.(c.clave)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.(c.clave) } }} aria-label={`${c.nombre}: ${c.principal ? `${c.principal}${c.variacion ? `, ${c.variacion}` : ""}` : c.texto}`}
             onMouseEnter={() => setActivo(c.clave)} onMouseLeave={() => setActivo(null)} onFocus={() => setActivo(c.clave)} onBlur={() => setActivo(null)}>
             <polygon className="nv-metrica-cuadro" points={puntos(CUADROS_DEL_PIZARRON[i])} fill="#ffb347" fillOpacity={0.2} stroke="#ffd9a0" strokeOpacity={0.6} strokeWidth={0.8} />
             <text x={x} y={y + 3} textAnchor="middle" fill="#ffe2a8" fontSize={c.sigla.length > 2 ? 7.5 : 9.5} fontWeight={600} fontFamily={FUENTE} pointerEvents="none">{c.sigla}</text>
@@ -106,7 +109,7 @@ const partir = (s: string, ancho: number, maxLineas: number): string[] => {
 const MATRIZ_VITRINA = `matrix(1 ${((PANTALLA_VERTICAL[1].y - PANTALLA_VERTICAL[0].y) / (PANTALLA_VERTICAL[1].x - PANTALLA_VERTICAL[0].x)).toFixed(4)} 0 1 ${PANTALLA_VERTICAL[0].x} ${PANTALLA_VERTICAL[0].y})`
 
 /** la pantalla vertical: la vitrina de las mejores piezas, rotando. Hoy sin resultados: «métricas pronto» + la última pieza aprobada. Con el cursor encima, el detalle de la pieza que se ve */
-export function VitrinaVertical({ vitrina }: { vitrina: VitrinaDeLaEscena | undefined }) {
+export function VitrinaVertical({ vitrina, onAbrir }: { vitrina: VitrinaDeLaEscena | undefined; onAbrir?: () => void }) {
   const [n, setN] = useState(0)
   const [encima, setEncima] = useState(false)
   const total = vitrina?.piezas.length ?? 0
@@ -134,7 +137,7 @@ export function VitrinaVertical({ vitrina }: { vitrina: VitrinaDeLaEscena | unde
         {lineas.map((l, i) => <text key={i} x={3} y={58 + i * 7} fontFamily={FUENTE} fontSize={5.4} fill="#ffe2a8">{l}</text>)}
         <text x={3} y={102} fontFamily={FUENTE} fontSize={4.8} fill="#a8a097">{texto}</text>
       </g>
-      <polygon className="nv-vitrina-hit" points={puntos(PANTALLA_VERTICAL)} fill="rgba(0,0,0,0)" tabIndex={0} role="img" aria-label={`Vitrina de mejores piezas. ${leyenda}${pieza ? `: ${pieza.titulo}` : ""}. ${texto}`}
+      <polygon className="nv-vitrina-hit" points={puntos(PANTALLA_VERTICAL)} fill="rgba(0,0,0,0)" tabIndex={0} role="button" onClick={() => onAbrir?.()} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.() } }} aria-label={`Vitrina de mejores piezas. ${leyenda}${pieza ? `: ${pieza.titulo}` : ""}. ${texto}`}
         onMouseEnter={() => setEncima(true)} onMouseLeave={() => setEncima(false)} onFocus={() => setEncima(true)} onBlur={() => setEncima(false)} />
       {encima && (
         <g className="nv-vitrina-rotulo" transform={`translate(${cx} ${top - 14})`} pointerEvents="none">
