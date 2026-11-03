@@ -62,15 +62,18 @@ describe("la barra en pantalla", () => {
   const dibujar = (barra: NonNullable<ManualDelCliente["manual"]>["barra"]) => renderToStaticMarkup(createElement(BarraDelManual, { m: manual(barra), nombre: "Náufrago", campos: new Map([["personalidad", campo("personalidad", "Personalidad", "Cálido · Costeño")]]), delDueno: () => false, faltan: ["Visión"], irA: () => {} }))
   it("todos los bloques del boceto, fija al bajar, «Tipografías» (no «Letras»), cada una en su letra y el nombre del cliente en la primera", () => {
     const h = dibujar({ logo: { url: `${BUCKET}/logo.jpg`, procedencia: null }, fotos: [{ url: `${BUCKET}/a.jpg`, que_muestra: "ceviche" }], sedes: [{ ciudad: "Guayaquil", estado: "por abrir", atencion: "solo domicilio", horario: "jueves a lunes", direccion: null, fuentes: ["dicho por ti"] }], canales: [{ red: "Instagram", cuenta: "@naufrago.ec", url: "https://instagram.com/naufrago.ec" }] })
-    expect([...h.matchAll(/data-barra="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["estado", "colores", "tipografias", "logo-y-fotos", "personalidad", "frases", "palabras", "sedes-y-canales"])
+    // 03-nov · manual limpio: sin «Estado del manual» (es del sistema); un bloque sin datos no se pinta (aquí no hay frases)
+    expect([...h.matchAll(/data-barra="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["colores", "tipografias", "logo-y-fotos", "personalidad", "palabras", "sedes-y-canales"])
+    expect(h).not.toMatch(/dicho por ti|Tomados|hoja de estilo|Fotos reales|validados? por ti/) // ni de dónde salió cada dato
     expect(h).toMatch(/lg:sticky/); expect(h).toContain("Tipografías"); expect(h).not.toContain(">Letras<")
     expect(h).toContain('font-family:&quot;Alfa Slab One&quot;'); expect(h).toContain(">Náufrago<")
     expect(h).toContain("fonts.googleapis.com/css2?family=Alfa+Slab+One")
     expect(h).toContain("por abrir"); expect(h).toContain("@naufrago.ec"); expect(h).toContain(">cálido<")
     expect(h).not.toMatch(/muestra\)|\(muestra/) // nada de muestra
   })
-  it("si un dato no existe, se dice que falta (no se inventa)", () => {
+  it("si un dato no existe, su bloque no se pinta (no se inventa, y tampoco se escribe «sin dato» en el documento · 03-nov)", () => {
     const h = dibujar({ logo: null, fotos: [], sedes: [], canales: [] })
-    expect(h).toContain("Todavía no hay logo ni fotos propias guardadas."); expect(h).toContain("Sin sedes registradas."); expect(h).toContain("Todavía no hay frases suyas.")
+    expect(h).not.toContain('data-barra="logo-y-fotos"'); expect(h).not.toContain('data-barra="sedes-y-canales"'); expect(h).not.toContain('data-barra="frases"')
+    expect(h).not.toMatch(/Todavía no hay|Sin sedes|sin logo/)
   })
 })

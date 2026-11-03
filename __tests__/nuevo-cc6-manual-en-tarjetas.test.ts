@@ -41,14 +41,11 @@ describe("el panel del manual en tarjetas", () => {
   const largo = "Frase larga del público. ".repeat(40)
   const fila = { client_id: CLIENTE, version: 3, auto_generated: true, human_validated: false, brand_purpose: "Propósito corto", voice_description: "Voz cálida", content_text: JSON.stringify({ brand_book_draft: { icp_summary: largo, _field_meta: { proposito: { fuente: "Instagram post del cliente" }, voice_description: { fuente: "dueno" } } } }) }
   const datos = (): ManualDelCliente => ({ clientes: [{ id: CLIENTE, nombre: "Náufrago", con_manual: true }], cliente: { id: CLIENTE, nombre: "Náufrago" }, manual: { version: 3, versiones: 3, lector: leerManual(fila)!, fidelidad: "Sin revisión de fidelidad", origen: null, colores: [], tipografias: [], opciones_eslogan: [], palabras_prohibidas: [], palabras: [], terminos_propios: [], politica_competidores: null, creado_en: null, actualizado_en: null }, leido_en: "2026-11-02T05:00:00Z" })
-  it("cada campo: origen y estado; el texto largo recortado con «Leer todo»; «Validar» solo si es editable, tiene texto y no está validado", () => {
+  it("cada campo (03-nov · manual limpio): el texto entero, sin su origen ni si está validado; sin «Validar» por campo", () => {
     const html = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos() }))
-    expect(html).toMatch(/data-campo="proposito"[^>]*data-origen="sitio_redes" data-validado="false"/)
-    expect(html).toMatch(/data-campo="voz"[^>]*data-origen="dueno" data-validado="true"/)
-    expect(html).toContain('data-campo-validar="proposito"')
-    expect(html).not.toContain('data-campo-validar="voz"') // ya es del dueño
-    expect(html).toContain('data-accion="leer-todo"')
-    expect(html).not.toContain(largo.trim()) // el texto entero no se pinta de entrada
+    expect(html).toContain('data-campo="proposito"'); expect(html).toContain('data-campo="voz"')
+    expect(html).not.toMatch(/data-origen=|data-validado=|data-campo-validar|encontrado en sitio y redes|dicho por el dueño|sin validar/)
+    expect(html).toContain(largo.trim()) // un documento se lee entero
     expect(html).toContain("data-lo-que-falta")
     expect(html).toContain('data-ir-apartado="Palabras"')
   })

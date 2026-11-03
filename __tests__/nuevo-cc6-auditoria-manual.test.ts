@@ -42,11 +42,11 @@ describe("1 · la línea de pasos dice lo que de verdad pasó", () => {
 })
 
 describe("2 · las 6 secciones nuevas se ven siempre y cuentan en «Lo que falta»", () => {
-  it("vacías: se pintan con «falta · la propone el equipo nuevo»", () => {
+  it("vacías: se pintan con su título y nada más (03-nov · manual limpio: sin «falta» ni «sin dato»)", () => {
     const s = seccionesNuevasDelBorrador({})
     const h = renderToStaticMarkup(createElement(SeccionesNuevas, { secciones: s }))
     for (const t of ["Historia y origen", "Tono según el canal", "Dirección de fotografía", "Uso del logo y jerarquía tipográfica"]) expect(h).toContain(t)
-    expect(h).toContain("falta · la propone el equipo nuevo"); expect((h.match(/data-falta/g) ?? []).length).toBe(6)
+    expect(h).not.toMatch(/falta|sin dato|Sin dato|propone el equipo/); expect((h.match(/id="campo-/g) ?? []).length).toBe(6)
     expect(h).toContain('id="campo-historia_y_origen"') // «Lo que falta» lleva hasta ahí
   })
   it("con dato, no cuentan; sin dato, sí", () => {
@@ -60,7 +60,7 @@ describe("2 · las 6 secciones nuevas se ven siempre y cuentan en «Lo que falta
     const datos: ManualDelCliente = { clientes: [{ id: C, nombre: "Náufrago", con_manual: true }], cliente: { id: C, nombre: "Náufrago" }, manual: { version: 3, versiones: 3, lector, fidelidad: "—", origen: null, colores: [], tipografias: [], opciones_eslogan: [], palabras_prohibidas: [], palabras: [], terminos_propios: [], politica_competidores: null, creado_en: null, actualizado_en: null, secciones_nuevas: seccionesNuevasDelBorrador({}) }, leido_en: "x" }
     const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
     const n = lector.huecos.length + 6
-    expect(h).toContain(`Lo que falta · ${n}`); expect(h).toContain(`Incompleto · faltan ${n}`)
+    expect(h).toContain(`Lo que falta · ${n}`); expect(h).not.toContain("Incompleto") /* CC6 · 03-nov · manual limpio para el cliente (regla 5): sin rótulos de origen ni de validación */
     expect(h).toMatch(/data-ir-campo="historia_y_origen"[^>]*>Historia y origen</); expect(h).toMatch(/data-ir-campo="tono_por_canal"[^>]*>Tono según el canal</)
   })
 })

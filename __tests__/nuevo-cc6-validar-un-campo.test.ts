@@ -19,13 +19,11 @@ describe("validar un campo", () => {
     expect(llamadas[1].cuerpo.validado).toBe(false)
     for (const malo of [{ campo: "mision" }, { client_id: CLIENTE }, { client_id: CLIENTE, campo: "mision", validado: "si" }]) expect((await ejecutarAccion("manual-validar-campo", malo, { revisor: "e", plataformaUrl: "https://p.test", llave: "k", fetchImpl: f })).status).toBe(400)
   })
-  it("«Validar» aparece en todos los campos con texto (también los que no se editan desde aquí); «Quitar validación» en los aceptados", () => {
+  it("03-nov · manual limpio (Emilio: «dos botones claros, nada más»): sin «Validar» ni «Quitar validación» por campo; queda «Validar el manual»", () => {
     const fila = { client_id: CLIENTE, version: 2, human_validated: false, brand_purpose: "Propósito", brand_mission: "Misión", content_text: JSON.stringify({ brand_book_draft: { _field_meta: { mision: { aceptado_por_el_dueno: { por: "emilio", en: "2026-11-02T06:00:00Z", campo: true } } } } }) }
     const datos: ManualDelCliente = { clientes: [{ id: CLIENTE, nombre: "Náufrago", con_manual: true }], cliente: { id: CLIENTE, nombre: "Náufrago" }, manual: { version: 2, versiones: 2, lector: leerManual(fila)!, fidelidad: "Sin revisión", origen: null, colores: [], tipografias: [], opciones_eslogan: [], palabras_prohibidas: [], palabras: [], terminos_propios: [], politica_competidores: null, creado_en: null, actualizado_en: null }, leido_en: "2026-11-02T06:10:00Z" }
     const html = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('data-campo-validar="proposito"')
-    expect(html).not.toContain('data-campo-validar="mision"') // ya aceptado
-    expect(html).toContain('data-campo-desvalidar="mision"')
-    expect(html).toMatch(/data-campo="mision"[^>]*data-origen="aceptado" data-validado="true"/)
+    expect(html).not.toMatch(/data-campo-validar|data-campo-desvalidar|Quitar validación|aceptado por el dueño/)
+    expect(html).toContain('data-accion="validar-manual"')
   })
 })

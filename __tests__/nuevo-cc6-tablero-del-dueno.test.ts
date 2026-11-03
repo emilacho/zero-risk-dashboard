@@ -80,23 +80,22 @@ describe("el tablero en el manual de marca", () => {
     expect(html).toMatch(/data-palabra="gratis" data-intencion="legal"/)
     expect(html).toMatch(/data-palabra="barato" data-intencion="del_dueno"/)
     expect(html).toMatch(/data-palabra="el mejor de" data-intencion="estilo"/)
-    // auditoría punto 4 (Emilio 02-nov): ninguna palabra bloquea; todas avisan
-    expect(html).toContain("Por una norma · avisan"); expect(html).toContain("Las que marcaste tú · avisan"); expect(html).toContain("Estilo de la marca")
-    expect(html).toContain("Si una pieza las usa, el juez lo anota a la vista."); expect(html).toContain("Marcar otra palabra"); expect(html).toContain(">Marcar palabra</button>")
-    expect(html).not.toMatch(/bloquean|no sale|Prohibir|frena/i)
-    expect(html).toContain('title="norma: Ley de defensa del consumidor"')
+    // auditoría punto 4 (Emilio 02-nov): ninguna palabra bloquea · 03-nov, manual limpio: los títulos dicen qué son, sin reglas del sistema ni de dónde salió cada una
+    expect(html).toContain("Palabras a evitar"); expect(html).toContain(">Por norma<"); expect(html).toContain(">Por decisión de la marca<"); expect(html).toContain(">Por estilo<")
+    expect(html).toContain("Marcar otra palabra"); expect(html).toContain(">Marcar palabra</button>")
+    expect(html).not.toMatch(/bloquean|no sale|Prohibir|frena|avisan|el juez|Ley de defensa del consumidor/i)
     expect(html).toContain("data-agregar-palabra")
     expect(html).not.toContain("data-decidir") // de entrada solo fichas: las decisiones aparecen al tocar una
     expect(html).not.toContain("data-confirmar")
   })
-  it("al tocar una ficha aparecen sus decisiones (solo las que cambian algo) y su fuente", () => {
+  it("al tocar una ficha aparecen sus decisiones (solo las que cambian algo), sin su fuente (03-nov · manual limpio)", () => {
     const de = (t: string) => renderToStaticMarkup(createElement(PalabrasDelManual, { palabras: PALABRAS, cliente: CLIENTE, accion: async () => ({ ok: true, texto: "Guardado", detalle: {} }), onGuardado: () => {}, elegidaInicial: t }))
     const estilo = de("el mejor de")
     expect(estilo).toContain('data-decisiones="el mejor de"')
     expect([...estilo.matchAll(/data-decidir="([a-z]+)"/g)].map((m) => m[1])).toEqual(["prohibir", "quitar"])
     const dueno = de("barato")
     expect([...dueno.matchAll(/data-decidir="([a-z]+)"/g)].map((m) => m[1])).toEqual(["contexto", "quitar"])
-    expect(dueno).toContain("No quiero esa palabra · el 2026-11-01")
+    expect(dueno).not.toContain("No quiero esa palabra")
     expect(dueno).not.toContain("data-confirmar") // elegir la decisión todavía no la manda: se confirma aparte
   })
   it("quitar o dejar como estilo una palabra prohibida por una norma avisa en una línea antes de confirmar, sin bloquear (Lenovo 02-nov)", () => {

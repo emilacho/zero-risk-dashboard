@@ -6,6 +6,7 @@
  * Una acción que GASTA dinero exige `confirmo_gasto: true` (el botón lo manda solo después de mostrar el tope) y se rechaza sin él.
  */
 import { vaciarCache } from "@/lib/cache-corta"
+import { TOPE_DEL_TEXTO_DEL_MANUAL } from "@/lib/manual"
 
 export type NombreDeAccion =
   | "rehacer-pieza"
@@ -162,7 +163,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       for (const [k, v] of Object.entries(c.campos)) {
         if (k === "comentario_porque") { porque = texto(v) || porque; continue }
         if (!CAMPOS_DEL_MANUAL.some((x) => x.clave === k)) return mal(`«${k}» no es un campo que se pueda editar`)
-        const t = texto(v); if (t.length === 0 || t.length > 2000) return mal(`«${k}» debe tener entre 1 y 2.000 caracteres`); campos[k] = t
+        const t = texto(v); if (t.length === 0 || t.length > TOPE_DEL_TEXTO_DEL_MANUAL) return mal(`«${k}» no puede quedar vacío ni pasar de ${TOPE_DEL_TEXTO_DEL_MANUAL.toLocaleString("es-EC")} caracteres`); campos[k] = t
       }
       if (!Object.keys(campos).length) return mal("no cambió nada")
       return { ok: true, cuerpo: { client_id: id, campos, ...(porque ? { comentario: porque.slice(0, 1000) } : {}) } }

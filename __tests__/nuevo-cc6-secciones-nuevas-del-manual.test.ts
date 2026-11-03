@@ -77,12 +77,11 @@ describe("el contrato de CC1 (listas de textos, PENDIENTE y la marca de propuest
 })
 
 describe("en pantalla", () => {
-  it("mismo patrón que el manual: tarjeta por parte, su origen, «Pedir cambios en esta sección»; lo propuesto, distinto de «falta»", () => {
+  it("mismo patrón que el manual: una parte bajo su título, «Pedir cambios en esta sección»; sin rótulo de origen (03-nov · manual limpio)", () => {
     const pedidas: string[] = []
     const h = renderToStaticMarkup(createElement(SeccionesNuevas, { secciones: seccionesNuevasDelBorrador(BORRADOR), pedirCambios: (t: string) => pedidas.push(t) }))
     expect([...h.matchAll(/data-seccion-nueva="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["tono-por-canal", "fotografia", "logo-y-letras", "historia"])
-    expect(h).toContain("propuesta del sistema · por validar"); expect(h).toContain("escrito por ti"); expect(h).toContain("validado por ti")
-    expect(h).not.toContain(">falta<")
+    expect(h).not.toMatch(/propuesta del sistema|escrito por ti|validado por ti|por validar|>falta</)
     expect(h).toContain("«¡Te esperamos en Olón!»"); expect(h).toContain("Qué no mostrar")
     expect([...h.matchAll(/data-seccion-pedir="([^"]+)"/g)]).toHaveLength(4)
   })

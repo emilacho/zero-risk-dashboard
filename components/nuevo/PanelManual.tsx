@@ -10,11 +10,12 @@ import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { SeccionesNuevas } from "@/components/nuevo/manual/SeccionesNuevas"
 import { ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { CICLO_DEL_MANUAL_CERRADO } from "@/lib/manual-ciclo"
-import { campoValidado, origenDelCampo, ORIGEN_LEGIBLE, valorCorto } from "@/lib/manual-campo"
-import { NotasDelCampo } from "@/components/nuevo/manual/NotasDelCampo"
+import { origenDelCampo } from "@/lib/manual-campo"
+import { CUERPO, TITULO_1, TITULO_2, TITULO_3 } from "@/components/nuevo/manual/niveles"
+import { campoLimpio, elementoLimpio, juntarLista, partirLista, soloLaFrase } from "@/lib/manual-limpio"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 import { CAMPOS_DEL_LECTOR, type CampoLeido } from "@/lib/manual-lector"
-import { EDITABLES_DESDE_EL_TABLERO, cuerpoDeEdicion, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, separarPropuesta, textoParaEditar } from "@/lib/manual"
+import { EDITABLES_DESDE_EL_TABLERO, TOPE_DEL_TEXTO_DEL_MANUAL, esEditableDesdeElTablero, etiquetaDelHueco, fechaCortaEC, separarPropuesta } from "@/lib/manual"
 
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & ManualDelCliente) | { ok: false; error: string }
@@ -38,57 +39,40 @@ const esLista = (clave: string) => CAMPOS_DEL_LECTOR.find((c) => c.clave === cla
 /** un valor de lista guardado como «a · b · c» vuelve a ser lista para leerse como viñetas */
 export function viñetasDelCampo(c: Pick<CampoLeido, "clave" | "valor">): string[] | null {
   if (!c.valor || !esLista(c.clave)) return null
-  const partes = c.valor.split(" · ").map((s) => s.trim()).filter(Boolean)
+  const partes = partirLista(c.valor).map((x) => elementoLimpio(c.clave, x)).filter(Boolean)
   return partes.length > 1 ? partes : null
 }
 
-function Chip({ children, tono = "neutro" }: { children: React.ReactNode; tono?: "neutro" | "ambar" | "verde" }) {
-  const clase = tono === "ambar" ? "border-amber-400/50 text-amber-200" : tono === "verde" ? "border-emerald-400/40 text-emerald-200" : "border-white/15 text-zinc-300"
-  return <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] ${clase}`}>{children}</span>
-}
 
-/** el cuadro de edición de un campo: lo que hay, por qué cambia, guardar. La escritura la valida el servidor del tablero y la hace la plataforma (versión nueva + cerebro). */
-function Editor({ clave, valor, onGuardado, onCancelar, enviar }: { clave: string; valor: string | null; onGuardado: (r: ResultadoDeGuardado) => void; onCancelar: () => void; enviar: Enviar }) {
-  const def = EDITABLES_DESDE_EL_TABLERO.find((e) => e.clave === clave)!
-  const [texto, setTexto] = useState(() => textoParaEditar(clave, valor))
-  const [porque, setPorque] = useState("")
-  const [estado, setEstado] = useState<"quieto" | "enviando">("quieto")
+/** el cuadro de edición de un campo (03-nov · manual limpio): lo que se ve, una caja para escribir y «Listo». No guarda solo: el cambio queda en espera
+ *  y se guarda con «Guardar cambios», abajo del manual, junto con los demás. */
+function Editor({ clave, valor, onListo, onCancelar }: { clave: string; valor: string; onListo: (texto: string) => void; onCancelar: () => void }) {
+  const def = EDITABLES_DESDE_EL_TABLERO.find((e) => e.clave === clave)
+  const [texto, setTexto] = useState(valor)
   const [error, setError] = useState<string | null>(null)
   const caja = useRef<HTMLTextAreaElement>(null)
   useEffect(() => { caja.current?.focus() }, [])
-  async function guardar() {
-    setError(null)
-    const cuerpo = enviar.cliente ? cuerpoDeEdicion(enviar.cliente, clave, texto, porque) : { error: "No hay cliente elegido" }
-    if ("error" in cuerpo) { setError(cuerpo.error); return }
-    setEstado("enviando")
-    const r = await enviar.accion("manual-campos", cuerpo)
-    setEstado("quieto")
-    if (r.ok) onGuardado(r); else setError(r.texto)
+  function listo() {
+    const t = def?.lista ? texto.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).join("\n") : texto.trim()
+    if (!t) { setError("Escribe algo, o usa «Retirar»."); return }
+    if (t.length > TOPE_DEL_TEXTO_DEL_MANUAL) { setError("Es demasiado largo."); return }
+    onListo(t)
   }
   return (
-    <form data-editor={clave} className="mt-1 rounded-md border border-amber-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void guardar() }}>
-      <label className="block">
-        <span className="sr-only">{def.etiqueta}</span>
-        <textarea ref={caja} value={texto} onChange={(e) => setTexto(e.target.value)} rows={def.lista ? 5 : 4} maxLength={2000} aria-label={`Editar ${def.etiqueta}`}
-          className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-2.5 py-2 text-[13px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
-      </label>
-      <p className="mt-1 text-[11px] text-zinc-500">{def.ayuda} · {texto.trim().length}/2000</p>
-      <label className="mt-2 block">
-        <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Por qué cambia? (opcional · el sistema aprende de esto)</span>
-        <input value={porque} onChange={(e) => setPorque(e.target.value)} maxLength={1000} className="w-full rounded-md border border-white/15 bg-black/40 px-2.5 py-1.5 text-[12.5px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
-      </label>
-      {error && <p role="alert" className="mt-2 text-[12px] text-rose-300">{error}</p>}
+    <form data-editor={clave} className="mt-2 rounded-lg border border-amber-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); listo() }}>
+      <textarea ref={caja} value={texto} onChange={(e) => setTexto(e.target.value)} rows={def?.lista ? 6 : 4} maxLength={TOPE_DEL_TEXTO_DEL_MANUAL} aria-label={`Editar ${def?.etiqueta ?? clave}`}
+        className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[15px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
+      {def?.lista && <p className="mt-1 text-[12px] text-zinc-500">Uno por línea.</p>}
+      {error && <p role="alert" className="mt-2 text-[13px] text-rose-300">{error}</p>}
       <div className="mt-2 flex items-center gap-2">
-        <button type="submit" disabled={estado === "enviando"} data-accion="guardar-campo" className="rounded-md border border-amber-400/70 bg-amber-400/15 px-3 py-1.5 text-[12px] text-amber-100 transition hover:bg-amber-400/25 disabled:opacity-50">{estado === "enviando" ? "Guardando…" : "Guardar en el sistema"}</button>
-        <button type="button" onClick={onCancelar} disabled={estado === "enviando"} className="rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
-        <span className="ml-auto text-[11px] text-zinc-500">Crea una versión nueva · el siguiente empleado la lee</span>
+        <button type="submit" data-accion="listo-campo" className="rounded-lg border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[14px] text-amber-50 transition hover:bg-amber-400/25">Listo</button>
+        <button type="button" onClick={onCancelar} className="rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">Cancelar</button>
       </div>
     </form>
   )
 }
 
 type ResultadoDeGuardado = { ok: true; texto: string; detalle: Record<string, unknown> } | { ok: false; texto: string }
-interface Enviar { cliente: string | null; accion: (nombre: string, cuerpo: Record<string, unknown>) => Promise<ResultadoDeGuardado> }
 
 /** una llamada a `POST /api/acciones/<nombre>` dicha con franqueza: hecho (con lo que dijo la plataforma), no disponible, o por qué falló */
 export async function llamarAccion(nombre: string, cuerpo: Record<string, unknown>, fetchImpl: typeof fetch = fetch): Promise<ResultadoDeGuardado> {
@@ -111,90 +95,59 @@ export function resumenDelGuardado(d: Record<string, unknown>): string {
   return `Guardado · ${cerebro}`
 }
 
-/** Validar · Quitar validación · Editar de una parte de las secciones nuevas: las mismas puertas y los mismos rótulos que un campo */
-function AccionesDeParte({ clave, etiqueta, validado, escrito, enviar, editando, onEditar, onGuardado, sinValor = false }: { clave: string; etiqueta: string; validado: boolean; /** vacía: no hay qué validar, solo escribir (auditoría 02-nov) */ sinValor?: boolean; escrito: boolean; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void }) {
-  const [validando, setValidando] = useState(false)
-  async function validar(v: boolean) {
-    if (!enviar.cliente) return
-    setValidando(true)
-    const r = await enviar.accion("manual-validar-campo", { client_id: enviar.cliente, campo: clave, validado: v })
-    setValidando(false)
-    onGuardado(r.ok ? { ...r, texto: v ? "Campo validado" : "Validación quitada" } : r)
-  }
-  if (editando) return null
-  return (
-    <>
-      {!validado && !sinValor && <button type="button" data-accion="validar-campo" data-tablero-accion="manual-validar-campo" data-campo-validar={clave} disabled={validando} onClick={() => void validar(true)} title="Lo das por bueno tal cual; el texto no cambia"
-        className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-50">{validando ? "Validando…" : "Validar"}</button>}
-      {validado && !escrito && <button type="button" data-accion="desvalidar-campo" data-campo-desvalidar={clave} disabled={validando} onClick={() => void validar(false)} title="Quita tu validación; el texto no cambia"
-        className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-white/30 hover:text-zinc-200 disabled:opacity-50">{validando ? "…" : "Quitar validación"}</button>}
-      <button type="button" data-accion="editar-campo" data-campo-editar={clave} onClick={() => onEditar(clave)} aria-label={`Editar ${etiqueta}`} title="Editar"
-        className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-amber-400/60 hover:text-amber-200">Editar</button>
-    </>
-  )
+/** «Retirar» de un elemento: botón chico y claro, al lado de lo que retira */
+function BotonRetirar({ que, onClick }: { que: string; onClick: () => void }) {
+  return <button type="button" data-accion="retirar" aria-label={`Retirar «${que.slice(0, 60)}»`} onClick={onClick}
+    className="shrink-0 rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-400 transition hover:border-rose-400/60 hover:text-rose-200">Retirar</button>
+}
+const BotonEditar = ({ etiqueta, onClick, clave }: { etiqueta: string; onClick: () => void; clave: string }) => (
+  <button type="button" data-accion="editar-campo" data-campo-editar={clave} onClick={onClick} aria-label={`Editar ${etiqueta}`}
+    className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-1 text-[12.5px] text-zinc-300 transition hover:border-amber-400/60 hover:text-amber-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
+    <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden><path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>Editar
+  </button>
+)
+const SinGuardar = () => <span data-sin-guardar className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11.5px] text-amber-200">sin guardar</span>
+
+/** los elementos de un campo-lista: como están guardados (para retirar) y como se ven (limpios) */
+export function elementosDelCampo(clave: string, valor: string | null): Array<{ crudo: string; limpio: string }> | null {
+  if (!valor || !esLista(clave)) return null
+  return partirLista(valor).map((crudo) => ({ crudo, limpio: elementoLimpio(clave, crudo) })).filter((e) => e.limpio)
 }
 
-function Campo({ c: crudo, opciones = [], enviar, editando, onEditar, onGuardado, manualValidadoPor = "propuesta" }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; enviar: Enviar; editando: boolean; onEditar: (clave: string | null) => void; onGuardado: (r: ResultadoDeGuardado) => void; /** quién validó el manual entero */ manualValidadoPor?: "jefatura" | "dueno" | "propuesta" }) {
-  const sep = separarPropuesta(crudo.valor)
-  const c: CampoLeido = sep.propuesta ? { ...crudo, valor: sep.valor, estado: "propuesta" } : crudo
-  const viñetas = viñetasDelCampo(c)
-  const [entero, setEntero] = useState(false)
-  const [validando, setValidando] = useState(false)
-  const opcionesLeidas = c.valor ? [] : opciones.map((o) => separarPropuesta(o)).filter((o): o is { valor: string; propuesta: boolean } => !!o.valor)
+/** UN CAMPO DEL MANUAL, LIMPIO (03-nov): su título (nivel 2), el contenido sin evidencia ni «por qué», y nada más que Editar y Retirar.
+ *  Vacío: el título y «Editar», sin texto (las 6 secciones y los campos editables siguen a la vista para poder escribirlos · auditoría 02-nov). */
+function Campo({ c, opciones = [], pendiente, editando, onEditar, onCambio }: { c: CampoLeido; /** opciones de eslogan cuando el eslogan aún no está decidido */ opciones?: string[]; /** el cambio en espera de este campo, si hay */ pendiente?: string; editando: boolean; onEditar: (clave: string | null) => void; onCambio: (clave: string, valor: string) => void }) {
+  const base = pendiente ?? separarPropuesta(c.valor).valor
+  const elementos = elementosDelCampo(c.clave, base)
+  const texto = base && !elementos ? campoLimpio(c.clave, base) : null
   const editable = esEditableDesdeElTablero(c.clave)
-  // CC6 · 02-nov · tarjeta corta: de dónde salió, si está validado, y el texto recortado (Emilio revisa, corrige y certifica campo por campo)
-  const origen = origenDelCampo(c)
-  const validado = campoValidado(c, manualValidadoPor)
-  const corto = valorCorto(c.valor)
-  const viñetasVisibles = viñetas && !entero ? viñetas.slice(0, 4) : viñetas
-  // validar o quitar la validación de UN campo, sin versión nueva (puerta propia de la plataforma · CC1 254b94f): vale para todos los campos con texto
-  async function validar(validado: boolean) {
-    if (!enviar.cliente || !c.valor) return
-    setValidando(true)
-    const r = await enviar.accion("manual-validar-campo", { client_id: enviar.cliente, campo: c.clave, validado })
-    setValidando(false)
-    onGuardado(r.ok ? { ...r, texto: validado ? "Campo validado" : "Validación quitada" } : r)
-  }
+  const opcionesLeidas = base ? [] : opciones.map((o) => soloLaFrase(separarPropuesta(o).valor ?? "")).filter(Boolean)
+  // vacío: solo su título y «Editar» (sin «sin dato»: el documento no muestra rótulos); si no se puede escribir desde aquí, no se pinta
+  if (!base && !editando && !opcionesLeidas.length && !editable) return null
+  const paraEditar = elementos ? elementos.map((e) => e.limpio).join("\n") : texto ?? ""
   return (
-    <div id={`campo-${c.clave}`} data-campo={c.clave} data-estado={c.estado} data-editable={editable} data-origen={origen} data-validado={validado} className="scroll-mt-2 rounded-lg border border-white/10 bg-black/20 p-3">
-      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-        <h4 className="mr-1 text-[12px] font-medium uppercase tracking-[0.08em] text-zinc-300">{c.etiqueta}</h4>
-        {c.valor && <Chip tono={origen === "propuesta" ? "ambar" : origen === "dueno" || origen === "aceptado" ? "verde" : "neutro"}>{ORIGEN_LEGIBLE[origen]}</Chip>}
-        {c.valor && <Chip tono={validado ? "verde" : "ambar"}>{validado ? "validado" : "sin validar"}</Chip>}
-        {!c.valor && <Chip tono="ambar">falta</Chip>}
-        <span className="ml-auto flex gap-1">
-          {!editando && c.valor && !validado && (
-            <button type="button" data-accion="validar-campo" data-tablero-accion="manual-validar-campo" data-campo-validar={c.clave} disabled={validando} onClick={() => void validar(true)} title="Lo das por bueno tal cual; el texto no cambia"
-              className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-[11px] text-emerald-200 transition hover:bg-emerald-400/10 disabled:opacity-50">{validando ? "Validando…" : "Validar"}</button>
-          )}
-          {!editando && c.valor && c.origen === "aceptado" && (
-            <button type="button" data-accion="desvalidar-campo" data-campo-desvalidar={c.clave} disabled={validando} onClick={() => void validar(false)} title="Quita tu validación de este campo; el texto no cambia"
-              className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-white/30 hover:text-zinc-200 disabled:opacity-50">{validando ? "…" : "Quitar validación"}</button>
-          )}
-          {editable && !editando && (
-            <button type="button" data-accion="editar-campo" data-campo-editar={c.clave} onClick={() => onEditar(c.clave)} aria-label={`Editar ${c.etiqueta}`} title="Editar"
-              className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[11px] text-zinc-400 transition hover:border-amber-400/60 hover:text-amber-200 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden><path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>Editar
-            </button>
-          )}
-        </span>
+    <div id={`campo-${c.clave}`} data-campo={c.clave} data-editable={editable} className="scroll-mt-2 border-t border-white/[0.07] pt-4 first:border-t-0 first:pt-0">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h4 className={TITULO_2}>{c.etiqueta}</h4>
+        {pendiente !== undefined && <SinGuardar />}
+        {editable && !editando && <span className="ml-auto"><BotonEditar clave={c.clave} etiqueta={c.etiqueta} onClick={() => onEditar(c.clave)} /></span>}
       </div>
-      {!editable && <p className="mb-1 text-[10.5px] text-zinc-600" >Este campo todavía no se cambia desde aquí; sí se puede validar.</p>}
-      {editando && <Editor clave={c.clave} valor={c.valor} enviar={enviar} onCancelar={() => onEditar(null)} onGuardado={onGuardado} />}
-      {!editando && !c.valor && <p className="text-[13px] italic text-amber-200/80">{c.nota ?? "Sin dato"}</p>}
-      {!editando && c.valor && viñetasVisibles && (
-        <ul className="list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-zinc-200">{viñetasVisibles.map((v, i) => <li key={i}>{v}</li>)}</ul>
+      {editando && <Editor clave={c.clave} valor={paraEditar} onCancelar={() => onEditar(null)} onListo={(t) => onCambio(c.clave, t)} />}
+      {!editando && elementos && (
+        <ul className="space-y-2">
+          {elementos.map((e, i) => (
+            <li key={`${i}-${e.limpio.slice(0, 20)}`} data-elemento={i} className="flex items-start gap-3">
+              <span className={`min-w-0 flex-1 ${CUERPO}`}><span aria-hidden className="mr-2 text-zinc-500">•</span>{e.limpio}</span>
+              {editable && elementos.length > 1 && <BotonRetirar que={e.limpio} onClick={() => onCambio(c.clave, juntarLista(elementos.filter((_, j) => j !== i).map((x) => x.crudo)))} />}
+            </li>
+          ))}
+        </ul>
       )}
-      {!editando && c.valor && !viñetas && <p className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{entero ? c.valor : corto.texto}</p>}
-      {!editando && c.valor && ((viñetas && viñetas.length > 4) || (!viñetas && corto.recortado)) && (
-        <button type="button" data-accion="leer-todo" onClick={() => setEntero((v) => !v)} className="mt-1 text-[11.5px] text-amber-300 underline decoration-dotted underline-offset-4 hover:text-amber-200">{entero ? "Ver menos" : viñetas ? `Ver ${viñetas.length - 4} más` : "Leer todo"}</button>
-      )}
-      {c.explicacion && <details className="mt-1 text-[11.5px] text-zinc-500"><summary className="cursor-pointer">Por qué se propone</summary><p className="mt-1">{c.explicacion}</p></details>}
-      {!editando && <NotasDelCampo notas={c.notas} />}
+      {!editando && texto && <p className={`whitespace-pre-line ${CUERPO}`}>{texto}</p>}
       {opcionesLeidas.length > 0 && (
-        <div className="mt-2" data-opciones={c.clave}>
-          <h5 className="mb-1 text-[11px] text-zinc-500">Opciones de eslogan · sin decidir</h5>
-          <ul className="space-y-1">{opcionesLeidas.map((o, i) => <li key={i} className="flex flex-wrap items-center gap-2 text-[13px] text-zinc-200"><span>«{o.valor}»</span>{o.propuesta ? <Chip tono="ambar">propuesta del agente</Chip> : <Chip tono="verde">dicho por el cliente</Chip>}</li>)}</ul>
+        <div className="mt-1" data-opciones={c.clave}>
+          <h5 className={TITULO_3}>Opciones de eslogan</h5>
+          <ul className="mt-1 space-y-1">{opcionesLeidas.map((o, i) => <li key={i} className={CUERPO}>«{o}»</li>)}</ul>
         </div>
       )}
     </div>
@@ -211,6 +164,10 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const [validando, setValidando] = useState<"quieto" | "confirmar" | "enviando">("quieto")
   // «Pedir cambios en esta sección» (como en el plan): el apartado lo dispara y el cuadro del pedido, en la portada, lo abre
   const [pedirEn, setPedirEn] = useState<PedidoEnSeccion | null>(null)
+  // 03-nov · los cambios (Editar, Retirar) quedan en espera y se guardan juntos con «Guardar cambios», abajo del manual
+  const [cambios, setCambios] = useState<Record<string, string>>({})
+  const [guardando, setGuardando] = useState(false)
+  const [guardadoOk, setGuardadoOk] = useState(false)
   const cerrar = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cerrar.current?.focus() }, [])
@@ -232,9 +189,17 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   }, [])
   useEffect(() => { if (!datosIniciales) void leer(clienteInicial) }, [leer, datosIniciales, clienteInicial])
 
-  const enviar: Enviar = { cliente, accion }
   // después de guardar: se dice qué pasó y se vuelve a leer (la versión nueva es la que verá el siguiente empleado)
   const guardado = (r: ResultadoDeGuardado) => { setEditando(null); setAviso(r.ok ? { ok: true, texto: resumenDelGuardado(r.detalle) } : { ok: false, texto: r.texto }); if (r.ok) void leer(cliente) }
+  const cambiar = (clave: string, valor: string) => { setCambios((c) => ({ ...c, [clave]: valor })); setEditando(null); setGuardadoOk(false); setAviso(null) }
+  const nCambios = Object.keys(cambios).length
+  async function guardarCambios() {
+    if (!cliente || !nCambios) return
+    setGuardando(true); setAviso(null)
+    const r = await accion("manual-campos", { client_id: cliente, campos: cambios })
+    setGuardando(false)
+    if (r.ok) { setCambios({}); setGuardadoOk(true); void leer(cliente) } else setAviso({ ok: false, texto: r.texto })
+  }
   async function validar() {
     if (!cliente) return
     setValidando("enviando"); setAviso(null)
@@ -259,6 +224,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const dondeVa = (claves: string[]) => { for (const k of claves) { const i = seccionesConClaves.findIndex((sc) => sc.includes(k)); if (i >= 0) return i } return -1 }
   const revisionesDe = (claves: string[]) => revisiones.filter((r) => { const k = dondeVa(r.claves); return k >= 0 && seccionesConClaves[k].join() === claves.join() })
   const revisionesSueltas = revisiones.filter((r) => dondeVa(r.claves) < 0)
+  const irAEscribir = (k: string) => { if (esEditableDesdeElTablero(k)) setEditando(k); setTimeout(() => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 30) }
   const revisionHecha = (texto: string) => { setAviso({ ok: true, texto }); void leer(cliente) }
   const validadosDe = (claves: string[]) => claves.map((k) => campos.get(k)).filter((c): c is CampoLeido => !!c && esDelDueno(c)).map((c) => c.etiqueta)
   const puedePedirEnSeccion = ciclo.disponible && !ciclo.abierto && !!cliente
@@ -278,7 +244,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
           <p className="hidden text-[12px] text-zinc-500 md:block">Lo que la marca es, cómo habla y cómo se ve · se edita aquí</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
+            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (nCambios && !window.confirm("Tienes cambios sin guardar en este manual. ¿Descartarlos?")) return; setCambios({}); setGuardadoOk(false); if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
               {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_manual ? "" : " · sin manual"}</option>)}
               {!datos && <option value="">Leyendo…</option>}
@@ -300,18 +266,12 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
               {/* la portada: quién es, qué versión, quién lo validó, qué falta */}
               <section aria-label="La portada del manual" className="mn-seccion mb-5 rounded-lg border border-white/10 bg-black/30 p-4 sm:p-5">
                 <h3 className="font-display text-[24px] font-semibold leading-tight tracking-tight text-zinc-50">{datos.cliente?.nombre}</h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Chip tono={m.lector.validadoPor === "propuesta" ? "ambar" : "verde"}>{m.lector.rotulo}</Chip>
-                  <Chip tono={completo ? "neutro" : "ambar"}>{completo ? (m.lector.rotuloVisual ?? "Completo") : `Incompleto · faltan ${faltan.length}`}</Chip>
-                  <Chip>{m.fidelidad}</Chip>
-                  {m.origen && <Chip>{m.origen}</Chip>}
-                </div>
                 {!completo && faltan.length > 0 && (
                   <div data-lo-que-falta className="mt-3 rounded-md border border-amber-400/30 bg-amber-400/[0.06] p-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-amber-300">Lo que falta · {faltan.length}</p>
+                    <p className={TITULO_3}>Lo que falta · {faltan.length}</p>
                     <ul className="mt-1.5 flex flex-wrap gap-1.5">
                       {huecos.map((k, i) => (
-                        <li key={k}><button type="button" data-ir-campo={k} onClick={() => document.getElementById(`campo-${k}`)?.scrollIntoView({ behavior: "smooth", block: "center" })} className="rounded-md border border-amber-400/30 px-2 py-0.5 text-[12px] text-amber-100 hover:bg-amber-400/10">{faltan[i]}</button></li>
+                        <li key={k}><button type="button" data-ir-campo={k} onClick={() => irAEscribir(k)} className="rounded-md border border-amber-400/30 px-2.5 py-1 text-[13px] text-amber-100 hover:bg-amber-400/10">{faltan[i]}</button></li>
                       ))}
                     </ul>
                   </div>
@@ -350,13 +310,13 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                   )}
                   {APARTADOS_DEL_MANUAL.map((ap, i) => {
                     // un campo opcional vacío el lector no lo muestra; si se puede editar desde aquí, se muestra vacío con su botón (si no, no habría cómo escribirlo)
-                    const vacio = (k: string): CampoLeido | null => { const d = CAMPOS_DEL_LECTOR.find((x) => x.clave === k); return d && esEditableDesdeElTablero(k) ? { clave: k, etiqueta: d.etiqueta, valor: null, estado: "hueco", nota: "Sin dato todavía: escríbelo aquí", explicacion: null, origen: null } : null }
+                    const vacio = (k: string): CampoLeido | null => { const d = CAMPOS_DEL_LECTOR.find((x) => x.clave === k); return d && esEditableDesdeElTablero(k) ? { clave: k, etiqueta: d.etiqueta, valor: null, estado: "hueco", nota: null, explicacion: null, origen: null } : null }
                     const lista = ap.claves.map((k) => campos.get(k) ?? vacio(k)).filter((c): c is CampoLeido => !!c)
                     if (!lista.length) return null
                     return (
-                      <section key={ap.titulo} id={`apartado-${ap.titulo}`} aria-label={ap.titulo} className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: `${60 + i * 60}ms` }}>
-                        <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>{ap.titulo}</h3>
-                        <div className="space-y-2">{lista.map((c) => <Campo key={c.clave} c={c} opciones={c.clave === "eslogan" ? m.opciones_eslogan : []} enviar={enviar} editando={editando === c.clave} onEditar={setEditando} onGuardado={guardado} manualValidadoPor={m.lector.validadoPor} />)}</div>
+                      <section key={ap.titulo} id={`apartado-${ap.titulo}`} aria-label={ap.titulo} className="mn-seccion scroll-mt-2 rounded-xl border border-white/10 bg-white/[0.02] p-5 sm:p-6" style={{ animationDelay: `${60 + i * 60}ms` }}>
+                        <h3 className={`mb-4 ${TITULO_1}`}>{ap.titulo}</h3>
+                        <div className="space-y-4">{lista.map((c) => <Campo key={c.clave} c={c} opciones={c.clave === "eslogan" ? m.opciones_eslogan : []} pendiente={cambios[c.clave]} editando={editando === c.clave} onEditar={setEditando} onCambio={cambiar} />)}</div>
                         <BotonDeSeccion titulo={ap.titulo} claves={ap.claves} />
                         {revisionesDe(ap.claves).map((r) => <TarjetaDeRevisionDelEditor key={r.id} r={r} accion={accion} onHecho={revisionHecha} />)}
                       </section>
@@ -365,14 +325,16 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
 
                   {/* las secciones nuevas del manual (ADENDA 1): aparecen solas cuando el manual las trae */}
                   <SeccionesNuevas secciones={m.secciones_nuevas ?? []} extra={(sn) => revisionesDe(sn.partes.map((p) => p.clave)).map((r) => <TarjetaDeRevisionDelEditor key={r.id} r={r} accion={accion} onHecho={revisionHecha} />)} pedirCambios={puedePedirEnSeccion ? pedirEnSeccion : null}
-                    acciones={(p) => <AccionesDeParte clave={p.clave} etiqueta={p.etiqueta} sinValor={!p.valor} validado={p.origen === "aceptado" || p.origen === "dueno"} escrito={p.origen === "dueno"} enviar={enviar} editando={editando === p.clave} onEditar={setEditando} onGuardado={guardado} />}
-                    editor={(p) => editando === p.clave ? <Editor clave={p.clave} valor={p.para_editar} enviar={enviar} onCancelar={() => setEditando(null)} onGuardado={guardado} /> : null} />
+                    pendiente={(p) => cambios[p.clave]} editando={editando}
+                    acciones={(p) => (<>{cambios[p.clave] !== undefined && <SinGuardar />}{esEditableDesdeElTablero(p.clave) && editando !== p.clave && <span className="ml-auto"><BotonEditar clave={p.clave} etiqueta={p.etiqueta} onClick={() => setEditando(p.clave)} /></span>}</>)}
+                    onRetirar={(p, lineas) => cambiar(p.clave, juntarLista(lineas))}
+                    editor={(p) => editando === p.clave ? <Editor clave={p.clave} valor={cambios[p.clave] ?? p.para_editar} onCancelar={() => setEditando(null)} onListo={(t) => cambiar(p.clave, t)} /> : null} />
 
                   {(m.palabras_prohibidas.length > 0 || (m.palabras ?? []).length > 0 || m.terminos_propios.length > 0 || m.politica_competidores || !!cliente) && (
-                    <section id="apartado-Palabras" aria-label="Palabras" className="mn-seccion scroll-mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4" style={{ animationDelay: "240ms" }}>
-                      <h3 className="mb-3 text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: AMBAR }}>Palabras</h3>
+                    <section id="apartado-Palabras" aria-label="Palabras" className="mn-seccion scroll-mt-2 rounded-xl border border-white/10 bg-white/[0.02] p-5 sm:p-6" style={{ animationDelay: "240ms" }}>
+                      <h3 className={`mb-4 ${TITULO_1}`}>Palabras</h3>
                       {m.terminos_propios.length > 0 && (
-                        <div className="mb-3"><h4 className="mb-1.5 text-[11px] uppercase tracking-[0.08em] text-zinc-500">Términos propios · se usan</h4>
+                        <div className="mb-3"><h4 className={`mb-2 ${TITULO_2}`}>Términos propios</h4>
                           <ul className="flex flex-wrap gap-1.5">{m.terminos_propios.map((t) => <li key={t} className="rounded-md border border-emerald-400/25 bg-emerald-400/[0.06] px-2 py-0.5 text-[12px] text-emerald-100">{t}</li>)}</ul></div>
                       )}
                       {/* CC6 · tablero del dueño: cada palabra con su intención y lo que el dueño decide sobre ella (antes: la lista plana de «prohibidas») */}
@@ -390,6 +352,17 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
             </>
           )}
         </div>
+        {datos && m && (
+          <footer data-guardar-cambios className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-[#141414] px-4 py-3 sm:px-6">
+            <button type="button" data-accion="guardar-cambios" data-tablero-accion="manual-campos" disabled={!nCambios || guardando || !cliente} onClick={() => void guardarCambios()}
+              className="rounded-lg border border-amber-400/70 bg-amber-400/15 px-5 py-2.5 text-[15px] font-medium text-amber-50 transition hover:bg-amber-400/25 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">
+              {guardando ? "Guardando…" : "Guardar cambios"}
+            </button>
+            {nCambios > 0 && !guardando && <span data-cambios-en-espera className="text-[13.5px] text-amber-200">{nCambios === 1 ? "1 cambio sin guardar" : `${nCambios} cambios sin guardar`}</span>}
+            {nCambios > 0 && !guardando && <button type="button" data-accion="descartar-cambios" onClick={() => { setCambios({}); setEditando(null) }} className="text-[13px] text-zinc-400 underline decoration-dotted underline-offset-4 hover:text-zinc-200">Descartar</button>}
+            {guardadoOk && !nCambios && <span role="status" data-cambios-guardados className="text-[15px] font-medium text-emerald-300">✓ Cambios guardados</span>}
+          </footer>
+        )}
       </section>
     </div>
   )

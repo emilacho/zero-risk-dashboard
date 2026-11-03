@@ -105,15 +105,15 @@ describe("sprint 6.3 · el manual de marca en el estilo nuevo", () => {
     }
     const html = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="manual"'); expect(html).toContain("Manual de marca")
-    expect(html).not.toMatch(/versión \d/); /* CC6 · 02-nov: sin versiones a la vista */ expect(html).toContain("Propuesta del sistema · sin validar"); expect(html).toContain("Incompleto · faltan 2"); expect(html).toContain("Lo que falta · 2"); expect(html).toMatch(/data-ir-campo="vision"[^>]*>Visión</); expect(html).toMatch(/data-ir-campo="valores"[^>]*>Valores</); /* CC6 · 02-nov: la lista de lo que falta, arriba y con enlace a cada campo */ expect(html).toContain("Pasó la revisión de fidelidad")
+    expect(html).not.toMatch(/versión \d/); /* CC6 · 02-nov: sin versiones a la vista */ expect(html).not.toMatch(/Propuesta del sistema|sin validar|Incompleto/); /* CC6 · 03-nov · manual limpio */ expect(html).toContain("Lo que falta · 2"); expect(html).toMatch(/data-ir-campo="vision"[^>]*>Visión</); expect(html).toMatch(/data-ir-campo="valores"[^>]*>Valores</); /* CC6 · 02-nov: la lista de lo que falta, arriba y con enlace a cada campo */ expect(html).not.toContain("Pasó la revisión de fidelidad")
     expect(html).toContain("Lo que la marca es"); expect(html).toContain("Cómo habla"); expect(html).toContain("A quién le habla"); expect(html).toContain("Que la costa se pruebe en un plato.")
-    expect(html).toMatch(/data-campo="proposito" data-estado="propuesta"/); expect(html).not.toContain("no es dato del cliente") // el prefijo del agente no se muestra crudo: se vuelve marca
-    expect(html).toMatch(/data-opciones="eslogan"/); expect(html).toContain("«Cuando tengas esa hambre… Náufrago te espera»"); expect(html).toContain("dicho por el cliente"); expect(html).toContain("«Fresco del mar»")
-    expect(html).toMatch(/data-campo="vision" data-estado="hueco"/); expect(html).toContain("Sin dato: se buscó en lo raspado del sitio, las redes y los mapas")
-    expect(html).toMatch(/data-campo="publico" data-estado="propuesta"/); expect(html).toMatch(/data-campo="publico" data-estado="propuesta"[^>]*data-origen="propuesta" data-validado="false"/); expect(html).toContain(">propuesta del agente<"); expect(html).toContain(">sin validar<") /* CC6 · 02-nov: origen y estado en dos marcas */
-    expect(html).toContain("<li>Frescura sin duda</li><li>Sabor costeño</li>") // las listas se leen como viñetas
+    expect(html).toContain('data-campo="proposito"'); expect(html).not.toContain("no es dato del cliente") // el prefijo del agente no se muestra
+    expect(html).toMatch(/data-opciones="eslogan"/); expect(html).toContain("«Cuando tengas esa hambre… Náufrago te espera»"); expect(html).not.toMatch(/dicho por el cliente|propuesta del agente/); expect(html).toContain("«Fresco del mar»")
+    expect(html).toContain('data-campo="vision"'); expect(html).not.toMatch(/Sin dato|se buscó en lo raspado/) // vacío: su título y «Editar», sin rótulo
+    expect(html).toContain('data-campo="publico"'); expect(html).not.toMatch(/>propuesta del agente<|>sin validar<|data-origen=/)
+    expect(html).toMatch(/Frescura sin duda<\/span>[\s\S]*Sabor costeño<\/span>/) // las listas se leen como viñetas, una por elemento
     expect(html).toContain("encebollado"); expect(html).toContain("gourmet"); expect(html).toContain("Nunca se nombra a la competencia")
-    expect(html).toMatch(/data-color="#1a0828"[^>]*title="de la hoja de estilo del sitio"/); expect(html).toContain("#51d4b4"); expect(html).toContain("acento"); expect(html).toContain("Inter"); expect(html).toContain("cuerpo de texto")
+    expect(html).toContain('data-color="#1a0828"'); expect(html).not.toContain("hoja de estilo del sitio"); expect(html).toContain("#51d4b4"); expect(html).toContain("acento"); expect(html).toContain("Inter"); expect(html).toContain("cuerpo de texto")
     expect(html).toContain("Aurora · sin manual"); expect(html).toMatch(/aria-label="Elegir el cliente"/)
     expect(html).not.toMatch(/\/clientes\//) // nada manda al dashboard viejo
     const c = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
