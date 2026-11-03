@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { miniaturaDe, siguienteFoto, accionDeTecla, siguienteEnLaTrampa, esFotoChica } from "@/lib/visor-de-fotos"
 
 /**
@@ -49,7 +50,7 @@ export function VisorDeFotos({ fotos, inicial = 0, onCerrar }: { fotos: FotoDelV
   const f = fotos[i]
   if (!f) return null
   const varias = fotos.length > 1
-  return (
+  const visor = (
     <div ref={raiz} data-visor-de-fotos role="dialog" aria-modal="true" aria-label="Foto en grande" className="nv-panel fixed inset-0 z-[95] flex flex-col bg-black/95" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}
       onTouchStart={(e) => { toque.current = e.touches[0]?.clientX ?? null }}
       onTouchEnd={(e) => { const x0 = toque.current; toque.current = null; const x1 = e.changedTouches[0]?.clientX; if (varias && x0 != null && x1 != null && Math.abs(x1 - x0) > 50) ir(x1 < x0 ? 1 : -1) }}>
@@ -57,12 +58,12 @@ export function VisorDeFotos({ fotos, inicial = 0, onCerrar }: { fotos: FotoDelV
         <span data-visor-contador className="text-[13px] text-zinc-300">{varias ? `${i + 1} de ${fotos.length}` : ""}</span>
         <button ref={cerrar} type="button" data-visor-cerrar aria-label="Cerrar la foto" onClick={onCerrar} className={BOTON}>✕</button>
       </div>
-      <div className="relative min-h-0 flex-1" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
-        {/* la foto ORIGINAL (nunca la miniatura) llena el espacio disponible: object-contain la agranda hasta donde quepa sin deformarla; solo una original realmente chica se deja en su tamaño */}
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-3 pb-3 sm:px-20" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+        {/* la foto ORIGINAL (nunca la miniatura) ocupa lo que quepa de la pantalla sin pasar de su tamaño natural; una original realmente chica se deja así y el visor lo dice */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img key={f.url} data-visor-foto data-visor-chica={chica === f.url ? "true" : undefined} src={f.url} alt={f.texto ?? "Foto del cliente"}
           onLoad={(e) => { const im = e.currentTarget; setChica(esFotoChica(im.naturalWidth, im.naturalHeight) ? f.url : null) }}
-          className={chica === f.url ? "absolute inset-0 m-auto max-h-full max-w-full rounded-md object-contain" : "absolute inset-0 h-full w-full rounded-md object-contain px-3 pb-3 sm:px-16"} />
+          className="max-h-full max-w-full rounded-md object-contain" />
         {varias && <button type="button" data-visor-anterior aria-label="Foto anterior" onClick={() => ir(-1)} className={`${BOTON} absolute left-2 top-1/2 -translate-y-1/2`}>‹</button>}
         {varias && <button type="button" data-visor-siguiente aria-label="Foto siguiente" onClick={() => ir(1)} className={`${BOTON} absolute right-2 top-1/2 -translate-y-1/2`}>›</button>}
       </div>
@@ -70,6 +71,8 @@ export function VisorDeFotos({ fotos, inicial = 0, onCerrar }: { fotos: FotoDelV
       {f.texto && <p className="px-4 pb-4 text-center text-[13px] text-zinc-300">{f.texto}</p>}
     </div>
   )
+  // al <body>: un ancestro con transform/backdrop-filter (la barra del manual) vuelve su propio marco al `fixed` y el visor medía solo la barra
+  return typeof document === "undefined" ? visor : createPortal(visor, document.body)
 }
 
 /** una cuadrícula de miniaturas livianas; tocar una abre el visor en esa foto. */

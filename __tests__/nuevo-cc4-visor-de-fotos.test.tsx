@@ -77,7 +77,7 @@ describe("CC4 · visor de fotos · lo que se ve y lo que hace", () => {
   it("el visor: ✕ de 44 px, anterior y siguiente de 44 px, fondo oscuro, sobre todo (z-95); con una sola foto no hay flechas", () => {
     const h = renderToStaticMarkup(createElement(VisorDeFotos, { fotos, inicial: 0, onCerrar: () => {} }))
     expect(h).toMatch(/data-visor-cerrar[^>]*class="[^"]*h-11 w-11/); expect(h).toMatch(/data-visor-anterior[^>]*class="[^"]*h-11 w-11/); expect(h).toMatch(/data-visor-siguiente[^>]*class="[^"]*h-11 w-11/)
-    expect(h).toContain("bg-black/95"); expect(h).toContain("z-[95]"); expect(h).toContain("h-full w-full"); expect(h).toContain("object-contain"); expect(h).not.toContain("data-visor-solo-chica")
+    expect(h).toContain("bg-black/95"); expect(h).toContain("z-[95]"); expect(h).toContain("max-h-full max-w-full"); expect(h).toContain("object-contain"); expect(h).not.toContain("data-visor-solo-chica")
     const sola = renderToStaticMarkup(createElement(VisorDeFotos, { fotos: [fotos[0]], inicial: 0, onCerrar: () => {} }))
     expect(sola).not.toContain("data-visor-anterior"); expect(sola).not.toContain("data-visor-siguiente"); expect(sola).toContain("data-visor-cerrar")
   })
