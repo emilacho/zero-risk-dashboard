@@ -221,3 +221,23 @@ describe("el aviso del pedido que no cambió (CC6 · 02-nov · SEÑAL «desbloqu
     expect(sin).not.toContain("data-aviso-campo-validado")
   })
 })
+
+describe("la pausa del manual: el tablero lee la espera (solo lectura · reserva de CC3 a #227)", () => {
+  const con = (espera: { data: unknown; error: { message: string; code?: string } | null }) => baseFalsa((tabla, filtros) => {
+    if (tabla === "clients") return ok([{ id: CLIENTE, name: "Náufrago", status: "active" }])
+    if (tabla === "client_brand_books") return ok([libro("b2", 2)])
+    if (tabla === "esperas_del_dueno") return filtros.includes('eq("client_id","' + CLIENTE + '")') && filtros.includes('eq("tipo","manual")') ? espera : ok([])
+    return ok([])
+  })
+  it("espera de este manual soltada sin plan pedido → plan_sin_pedir; con plan pedido o de otro manual → no", async () => {
+    expect((await leerManualDelCliente(con(ok([{ estado: "soltada", despertado: false, manual_id: "b2" }])), { cliente: CLIENTE })).manual?.plan_sin_pedir).toBe(true)
+    expect((await leerManualDelCliente(con(ok([{ estado: "soltada", despertado: true, manual_id: "b2" }])), { cliente: CLIENTE })).manual?.plan_sin_pedir).toBe(false)
+    expect((await leerManualDelCliente(con(ok([{ estado: "soltada", despertado: false, manual_id: "b1" }])), { cliente: CLIENTE })).manual?.plan_sin_pedir).toBe(false)
+  })
+  it("tabla aún no publicada o error de lectura: el manual se lee igual y no aparece el reintento", async () => {
+    const falta = await leerManualDelCliente(con({ data: null, error: { message: 'relation "public.esperas_del_dueno" does not exist', code: "42P01" } }), { cliente: CLIENTE })
+    expect(falta.manual?.version).toBe(2); expect(falta.manual?.plan_sin_pedir).toBe(false)
+    const caida = await leerManualDelCliente(con({ data: null, error: { message: "timeout" } }), { cliente: CLIENTE })
+    expect(caida.manual?.version).toBe(2); expect(caida.manual?.plan_sin_pedir).toBe(false)
+  })
+})
