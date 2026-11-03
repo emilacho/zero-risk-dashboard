@@ -160,11 +160,17 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       if (!esObjeto(c.campos)) return mal("faltan los campos que cambian")
       const campos: Cuerpo = {}
       let porque = texto(c.comentario)
+      // RETIRAR UN CAMPO ENTERO (CC6 · 03-nov · contrato CC1 #864): vacío = el dueño lo retira. Solo si el pedido lo nombra en `retirar`:
+      // un cuadro que llega en blanco por accidente (o desde el tablero viejo) sigue rechazado (condición A de CC3)
+      const retirar = new Set(Array.isArray(c.retirar) ? c.retirar.filter((x): x is string => typeof x === "string") : [])
       for (const [k, v] of Object.entries(c.campos)) {
         if (k === "comentario_porque") { porque = texto(v) || porque; continue }
         if (!CAMPOS_DEL_MANUAL.some((x) => x.clave === k)) return mal(`«${k}» no es un campo que se pueda editar`)
-        const t = texto(v); if (t.length === 0 || t.length > TOPE_DEL_TEXTO_DEL_MANUAL) return mal(`«${k}» no puede quedar vacío ni pasar de ${TOPE_DEL_TEXTO_DEL_MANUAL.toLocaleString("es-EC")} caracteres`); campos[k] = t
+        const t = texto(v)
+        if (t.length === 0 && retirar.has(k)) { campos[k] = ""; continue }
+        if (t.length === 0 || t.length > TOPE_DEL_TEXTO_DEL_MANUAL) return mal(`«${k}» no puede quedar vacío ni pasar de ${TOPE_DEL_TEXTO_DEL_MANUAL.toLocaleString("es-EC")} caracteres`); campos[k] = t
       }
+      for (const k of retirar) if (campos[k] !== "") return mal(`«${k}» se pidió retirar pero no viene vacío`)
       if (!Object.keys(campos).length) return mal("no cambió nada")
       return { ok: true, cuerpo: { client_id: id, campos, ...(porque ? { comentario: porque.slice(0, 1000) } : {}) } }
     },
