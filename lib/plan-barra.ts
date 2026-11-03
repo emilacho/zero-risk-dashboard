@@ -63,7 +63,7 @@ export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
   for (const x of p.palabra_del_dueno ?? []) teToca.push(x.requiere_humano ? `Revisar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}` : `Mirar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}`)
   if (c?.estado === "pausada" || c?.estado === "necesita_humano") teToca.push(c.estado === "pausada" ? `La campaña está pausada${c.estado_motivo ? ` (${c.estado_motivo})` : ""}: reanudarla es decisión tuya` : "La campaña necesita una decisión tuya")
   return {
-    decision: esperaElManual ? { titulo: "Espera que apruebes el manual", estado: "espera_el_manual" } : lectura ? { titulo: lectura.titulo, estado: lectura.estado } : null,
+    decision: esperaElManual ? { titulo: PLAN_ESPERA_EL_MANUAL, estado: "espera_el_manual" } : lectura ? { titulo: lectura.titulo, estado: lectura.estado } : null,
     meta, fechas, presupuesto: dato("presupuesto"),
     sedes: (c?.sedes ?? d?.plan?.zonas ?? []).map(sedeLegible),
     canales, fases, dia, total_dias: total ?? (fases.length ? Math.max(...fases.map((f) => f.hasta)) : null), te_toca: teToca,
