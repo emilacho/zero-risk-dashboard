@@ -35,3 +35,15 @@ describe("3-nov · el chat saluda como el asistente de Zero Risk y no tapa los p
     expect(css).toContain("body:has([data-chat-boton]) .nv-panel { padding-bottom: 76px; }")
   })
 })
+
+describe("3-nov · el saludo viejo guardado no se presenta como la conversación de hoy", () => {
+  const hist = readFileSync("app/api/cowork/prompt-history/route.ts", "utf8")
+  it("el chat pide solo las últimas 12 horas", () => {
+    expect(chat).toContain("&limit=20&max_edad_horas=12")
+  })
+  it("la ruta filtra por created_at cuando llega max_edad_horas y no borra nada", () => {
+    expect(hist).toContain('url.searchParams.get("max_edad_horas")')
+    expect(hist).toContain('consulta.gte("created_at", desde)')
+    expect(hist).not.toMatch(/\.delete\(/)
+  })
+})
