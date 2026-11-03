@@ -1,5 +1,6 @@
 "use client"
 
+import { abrirPanel } from "@/components/nuevo/BotonesDelMarco"
 import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
@@ -314,7 +315,7 @@ function DetalleDeLaFila({ f, onAbrirPieza }: { f: FilaDelTablero; onAbrirPieza?
           )}
           {onAbrirPieza
             ? <button type="button" onClick={() => onAbrirPieza(f.pieza!.id)} data-accion="abrir-pieza" aria-haspopup="dialog" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</button>
-            : <a href={enlaceDeLaPieza(f.pieza.id)} data-accion="abrir-pieza" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</a>}
+            : <a href={enlaceDeLaPieza(f.pieza.id)} onClick={(e) => { e.preventDefault(); abrirPanel("piezas", { pieza: f.pieza!.id }) }} data-accion="abrir-pieza" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</a>}
           <p className="mt-2 text-[11.5px] text-zinc-500">{onAbrirPieza ? "Se abre encima, en esta misma oficina; aquí el calendario solo mira." : "Se abre en su ventana; aquí el calendario solo mira."}</p>
         </div>
       ) : (

@@ -104,7 +104,7 @@ describe("la fase activa y la cuadrícula", () => {
     expect(semanasDelTablero([])).toEqual([])
     expect(totalesDelTablero([f("a", "2026-11-04", null, "idea"), f("b", "2026-11-04", null, "idea"), f("c", "2026-11-04", null, "emilio")])).toEqual({ idea: 2, emilio: 1 })
     expect(redDelTablero("whatsapp")).toEqual({ nombre: "WhatsApp", sigla: "WA" }); expect(redDelTablero("instagram").sigla).toBe("IG"); expect(redDelTablero("rara")).toEqual({ nombre: "rara", sigla: "RA" })
-    expect(enlaceDeLaPieza("70b922a5-e9f8-4f48-9134-24f3418d9a0b")).toBe("/piezas?id=70b922a5-e9f8-4f48-9134-24f3418d9a0b&estado=todas")
+    expect(enlaceDeLaPieza("70b922a5-e9f8-4f48-9134-24f3418d9a0b")).toBe("/nuevo?panel=piezas&pieza=70b922a5-e9f8-4f48-9134-24f3418d9a0b" /* CC6 · 03-nov: el panel de Piezas del dashboard NUEVO */)
   })
 })
 

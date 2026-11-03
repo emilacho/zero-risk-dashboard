@@ -174,4 +174,5 @@ const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "o
 export const diaDelCalendario = (f: string): string => { const d = fechaUTC(f); return Number.isNaN(d.getTime()) ? f : `${d.getUTCDate()} ${MESES[d.getUTCMonth()]}` }
 
 /** la ventana de una pieza (solo lectura aquí; ahí se aprueba o se piden cambios) */
-export const enlaceDeLaPieza = (id: string): string => `/piezas?id=${encodeURIComponent(id)}&estado=todas`
+/** CC6 · 03-nov: la pieza se abre en el panel de Piezas del dashboard NUEVO (antes `/piezas?id=…`, el viejo); el clic abre el panel sin cambiar de página */
+export const enlaceDeLaPieza = (id: string): string => `/nuevo?panel=piezas&pieza=${encodeURIComponent(id)}`
