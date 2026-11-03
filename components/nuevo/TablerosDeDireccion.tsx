@@ -4,6 +4,7 @@ import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import { alPlano, type ResumenDeRiesgos } from "@/lib/direccion-riesgos"
 import type { ResumenDeDinero } from "@/lib/direccion-dinero"
 import type { ResumenDeCorridas } from "@/lib/direccion-corridas"
+import { TEXTO_PRONTO, textoDelPortafolio, type ResumenDeOrganizacion, type ResumenDePortafolio } from "@/lib/tableros-con-dato"
 
 /**
  * 6.19 · LOS 9 TABLEROS DE DIRECCIÓN del arco de Tu oficina (capa 1 del encargo «oficina del humano», aprobada por Emilio el 1-nov «tal como se ve en tu
@@ -79,12 +80,18 @@ export function TituloGrande({ lineas, clave, tono }: { lineas: readonly string[
     </g>
   )
 }
+/** el dato grande de abajo de cada vidrio (mismo lugar y tamaño que Riesgos y Observabilidad); `pronto` = todavía no hay de dónde leerlo */
+const anchoDelDato = (t: string, tam: number) => t.length * tam * 0.6
+const DatoGrande = ({ texto, clave, y = 152 }: { texto: string; clave: string; y?: number }) => (
+  <text data-dato={clave} x={50} y={y} textAnchor="middle" fontSize={11} fontWeight={700} fill="currentColor" stroke="none" {...(anchoDelDato(texto, 11) > 92 ? { textLength: 92, lengthAdjust: "spacingAndGlyphs" } : {})}>{texto}</text>
+)
 const Nota = ({ x, y, children }: { x: number; y: number; children: ReactNode }) => <text x={x} y={y} textAnchor="middle" fontSize={6} fontWeight={500} opacity={0.8} fill="currentColor" stroke="none">{children}</text>
 
 /** 1 · GOBIERNO · consola de interruptores (solo lectura): cada tanto un interruptor cambia de posición */
 function Gobierno() {
   return (
     <g>
+      <DatoGrande clave="gobierno" texto={TEXTO_PRONTO} />
       {[0, 1, 2, 3, 4].map((i) => {
         const y = 40 + i * 22, encendido = i % 2 === 0, mueve = i === 1 || i === 3
         return (
@@ -105,6 +112,7 @@ const ETAPAS = ["idea", "evaluación", "plan", "aprobado", "construcción", "ope
 function Proyectos({ quieto }: { quieto: boolean }) {
   return (
     <g>
+      <DatoGrande clave="proyectos" texto={TEXTO_PRONTO} y={160} /* la última etapa llega a 149 */ />
       {ETAPAS.map((n, i) => {
         const y = 36 + i * 20, w = 70 - i * 7
         return (
@@ -129,9 +137,10 @@ function Proyectos({ quieto }: { quieto: boolean }) {
 /** 3 · PORTAFOLIO · constelación de negocios (tamaño = peso; el color del semáforo llega con los datos): los astros laten */
 const ASTROS = [[50, 78, 16], [24, 52, 8], [78, 58, 10], [30, 112, 11], [72, 118, 7], [54, 138, 5], [20, 86, 4]] as const
 const LAZOS = [[0, 1], [0, 2], [0, 3], [0, 4], [4, 5], [3, 6]] as const
-function Portafolio() {
+function Portafolio({ resumen }: { resumen: ResumenDePortafolio | null }) {
   return (
-    <g>
+    <g data-portafolio={resumen ? resumen.clientes : "sin-lectura"}>
+      <DatoGrande clave="portafolio" texto={resumen ? textoDelPortafolio(resumen) : TEXTO_PRONTO} />
       {LAZOS.map(([i, j], k) => <line key={k} {...linea} opacity={0.45} x1={ASTROS[i][0]} y1={ASTROS[i][1]} x2={ASTROS[j][0]} y2={ASTROS[j][1]} />)}
       {ASTROS.map(([x, y, rr], k) => (
         <g key={k} data-anima="late" style={r(k * 0.6)}>
@@ -240,10 +249,13 @@ function Riesgos({ quieto, resumen }: { quieto: boolean; resumen: ResumenDeRiesg
 }
 
 /** 7 · ORGANIZACIÓN · el organigrama vivo: los departamentos son edificios y sus plantas se encienden */
-function Organizacion() {
+function Organizacion({ resumen }: { resumen: ResumenDeOrganizacion | null }) {
   const torres = [[16, 54], [38, 70], [62, 46], [84, 62]] as const
   return (
-    <g>
+    <g data-organizacion={resumen ? resumen.grande : "sin-lectura"}>
+      {/* 03-nov · Lenovo: era la única tarjeta sin estado; ahora dice lo mismo que su panel (sin lectura: «pronto», nunca vacía) */}
+      <DatoGrande clave="organizacion" texto={resumen ? resumen.grande : TEXTO_PRONTO} />
+      {resumen?.detalle && <text data-dato-detalle x={50} y={161} textAnchor="middle" fontSize={7} fontWeight={500} opacity={0.85} fill="currentColor" stroke="none" {...(anchoDelDato(resumen.detalle, 7) > 92 ? { textLength: 92, lengthAdjust: "spacingAndGlyphs" } : {})}>{resumen.detalle}</text>}
       <rect {...linea} x={40} y={34} width={20} height={12} rx={2} />
       <line {...linea} x1={50} y1={46} x2={50} y2={56} />
       <line {...linea} x1={16} y1={56} x2={84} y2={56} />
@@ -304,18 +316,18 @@ function Observabilidad({ resumen }: { resumen: ResumenDeCorridas | null }) {
   )
 }
 
-const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null; riesgos: ResumenDeRiesgos | null; dinero: ResumenDeDinero | null; corridas: ResumenDeCorridas | null }) => ReactNode> = {
-  gobierno: () => <Gobierno />, proyectos: ({ quieto }) => <Proyectos quieto={quieto} />, portafolio: () => <Portafolio />, dinero: ({ dinero }) => <Dinero resumen={dinero} />,
-  decisiones: ({ decisiones }) => <Decisiones resumen={decisiones} />, riesgos: ({ quieto, riesgos }) => <Riesgos quieto={quieto} resumen={riesgos} />, organizacion: () => <Organizacion />,
+const DIBUJO: Record<TableroDeDireccion, (p: { quieto: boolean; decisiones: ResumenDeDecisiones | null; riesgos: ResumenDeRiesgos | null; dinero: ResumenDeDinero | null; corridas: ResumenDeCorridas | null; organizacion: ResumenDeOrganizacion | null; portafolio: ResumenDePortafolio | null }) => ReactNode> = {
+  gobierno: () => <Gobierno />, proyectos: ({ quieto }) => <Proyectos quieto={quieto} />, portafolio: ({ portafolio }) => <Portafolio resumen={portafolio} />, dinero: ({ dinero }) => <Dinero resumen={dinero} />,
+  decisiones: ({ decisiones }) => <Decisiones resumen={decisiones} />, riesgos: ({ quieto, riesgos }) => <Riesgos quieto={quieto} resumen={riesgos} />, organizacion: ({ organizacion }) => <Organizacion resumen={organizacion} />,
   "agenda-ejecutiva": () => <Agenda />, observabilidad: ({ corridas }) => <Observabilidad resumen={corridas} />,
 }
 
 /** un tablero de dirección en el plano 100×160 del vidrio (con el mismo respiro del boceto: 5 % y 90 %) */
-export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null, riesgos = null, dinero = null, corridas = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; decisiones?: ResumenDeDecisiones | null; riesgos?: ResumenDeRiesgos | null; dinero?: ResumenDeDinero | null; corridas?: ResumenDeCorridas | null }) {
+export function TableroDeDireccionVivo({ tablero, titulo, quieto, decisiones = null, riesgos = null, dinero = null, corridas = null, organizacion = null, portafolio = null }: { tablero: TableroDeDireccion; titulo: readonly string[]; quieto: boolean; organizacion?: ResumenDeOrganizacion | null; portafolio?: ResumenDePortafolio | null; decisiones?: ResumenDeDecisiones | null; riesgos?: ResumenDeRiesgos | null; dinero?: ResumenDeDinero | null; corridas?: ResumenDeCorridas | null }) {
   return (
     <g transform="translate(5 4) scale(0.9)" data-tablero={tablero}>
       <Titulo lineas={titulo} />
-      {DIBUJO[tablero]({ quieto, decisiones, riesgos, dinero, corridas })}
+      {DIBUJO[tablero]({ quieto, decisiones, riesgos, dinero, corridas, organizacion, portafolio })}
     </g>
   )
 }

@@ -14,6 +14,7 @@ import { PanelDinero } from "@/components/nuevo/PanelDinero"
 import { PanelObservabilidad } from "@/components/nuevo/PanelObservabilidad"
 import { PanelOrganizacion } from "@/components/nuevo/PanelOrganizacion"
 import { normalizarLista, resumenDeCorridas, type ResumenDeCorridas } from "@/lib/direccion-corridas"
+import { resumenDeOrganizacion, resumenDePortafolio, type ResumenDeOrganizacion, type ResumenDePortafolio } from "@/lib/tableros-con-dato"
 import { resumenDeDinero, type ResumenDeDinero } from "@/lib/direccion-dinero"
 import { resumenDeRiesgos, type ResumenDeRiesgos, type Riesgos } from "@/lib/direccion-riesgos"
 import { resumenDeDecisiones, type Decisiones, type ResumenDeDecisiones } from "@/lib/direccion-decisiones"
@@ -246,6 +247,21 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const [trazas, setTrazas] = useState(false)
   const [corridaDeDinero, setCorridaDeDinero] = useState<string | null>(null) // 6.36 · un pico de Dinero abre su corrida en Observabilidad
   const [organigrama, setOrganigrama] = useState(false) // 6.28-B · la pantalla 7 abre la organización
+  // 03-nov (CC6 · Lenovo 22:20Z) · Organización y Portafolio llevan su dato: las mismas lecturas que su panel y el selector de clientes (sin lectura: «pronto»)
+  const [organizacion, setOrganizacion] = useState<ResumenDeOrganizacion | null>(null)
+  const [portafolio, setPortafolio] = useState<ResumenDePortafolio | null>(null)
+  const leerOrganizacionYPortafolio = useCallback(async () => {
+    try {
+      const r = await fetch("/api/direccion/organizacion", { cache: "no-store" })
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; resumen?: Parameters<typeof resumenDeOrganizacion>[0] } | null
+      setOrganizacion(r.ok && j?.ok && j.resumen ? resumenDeOrganizacion(j.resumen) : null)
+    } catch { setOrganizacion(null) }
+    try {
+      const r = await fetch("/api/direccion/clientes", { cache: "no-store" })
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; clientes?: unknown[] } | null
+      setPortafolio(r.ok && j?.ok && Array.isArray(j.clientes) ? resumenDePortafolio(j.clientes) : null)
+    } catch { setPortafolio(null) }
+  }, [])
   const leerCorridas = useCallback(async () => {
     try {
       const r = await fetch("/api/direccion/corridas?dias=1&resumen=1", { cache: "no-store" })
@@ -307,10 +323,10 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const oficinaAbierta = depto === "oficina" && fase !== "cerrado"
   useEffect(() => {
     if (!oficinaAbierta) return
-    void leerDecisiones(); void leerRiesgos(); void leerCorridas()
-    const t = setInterval(() => { if (!document.hidden) { void leerDecisiones(); void leerRiesgos(); void leerCorridas() } }, 60_000)
+    void leerDecisiones(); void leerRiesgos(); void leerCorridas(); void leerOrganizacionYPortafolio()
+    const t = setInterval(() => { if (!document.hidden) { void leerDecisiones(); void leerRiesgos(); void leerCorridas(); void leerOrganizacionYPortafolio() } }, 60_000)
     return () => clearInterval(t)
-  }, [oficinaAbierta, leerDecisiones, leerRiesgos, leerCorridas])
+  }, [oficinaAbierta, leerDecisiones, leerRiesgos, leerCorridas, leerOrganizacionYPortafolio])
   const cerrarTrazas = useCallback(() => { setTrazas(false); void leerCorridas() }, [leerCorridas])
   const cerrarRadar = useCallback(() => { setRadar(false); void leerRiesgos() }, [leerRiesgos])
   const cerrarCaja = useCallback(() => { setCaja(false); void leerRiesgos() }, [leerRiesgos])
@@ -415,7 +431,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
             {/* 6.14 · el arco de pantallas de tu oficina: solo animación (6.14b: sin centros asignados; qué abre cada una lo decide Emilio) */}
-            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} alAbrirOrganizacion={() => setOrganigrama(true)} />}
+            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} alAbrirOrganizacion={() => setOrganigrama(true)} organizacion={organizacion} portafolio={portafolio} />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
