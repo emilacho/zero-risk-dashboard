@@ -196,7 +196,7 @@ describe("el panel: después de «Elegir» todo sigue a la mano (lo que vio Emil
     expect(e).not.toContain('data-accion="retirar"') // lo recién elegido no se «retira»: se quita con su ✕ en «Tus cambios»
     expect((e.match(/data-accion="elegir-opcion"/g) ?? []).length).toBe(1) // la otra opción sigue
     expect(h).toContain('data-accion="manual-texto-libre"') // el cuadro de texto libre sigue a la vista
-    expect(h).toContain('data-campo-observar="valores"'); expect(h).toContain('data-campo-observar="eslogan"') // y las observaciones en cada campo
+    expect(h).not.toContain("data-campo-observar"); expect(h).not.toContain(">Observación<") // 03-nov 19:53Z (Emilio): el botón «Observación» se quitó; «Editar» basta
     expect(h).toContain('data-campo-editar="valores"'); expect(h).toContain('data-accion="retirar"') // y editar / retirar en otros campos
     expect(h).toContain("Pide tus cambios antes de aprobar.")
   })

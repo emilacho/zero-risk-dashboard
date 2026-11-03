@@ -79,6 +79,7 @@ export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDel
           <textarea ref={caja} data-accion="manual-texto-libre" value={libre} onChange={(ev) => { onLibre(ev.target.value); if (!ev.target.value.trim()) setSeccion(null) }} rows={4} maxLength={TOPE_DEL_TEXTO_LIBRE} aria-label="Tus observaciones para todo el manual"
             placeholder="Escribe aquí lo que quieras cambiar. Se manda junto con tus otros cambios al tocar «Pedir los cambios»."
             className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[15px] leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
+          <p data-ayuda-reescribir className="mt-1 text-[12px] text-zinc-400">Si quieres que el equipo reescriba un campo, nómbralo aquí.</p>
           {aviso && <p data-aviso-validados className="mt-1 text-[12px] text-amber-200">{aviso}</p>}
           {libre.trim().length > TOPE_DEL_TEXTO_LIBRE * 0.9 && <p className="mt-1 text-[11px] text-zinc-500">{libre.trim().length.toLocaleString("es-EC")}/{TOPE_DEL_TEXTO_LIBRE.toLocaleString("es-EC")}</p>}
         </label>

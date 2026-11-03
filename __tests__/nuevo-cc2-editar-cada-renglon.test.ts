@@ -174,3 +174,24 @@ describe("la lista principal (Valores…) pasa el índice REAL del renglón (CC3
     expect(detalleDelRenglon(2)).toBe("editaste el renglón 3")
   })
 })
+
+describe("sin botón «Observación»: «Editar» y «Retirar» bastan (Emilio 19:53Z)", () => {
+  it("ningún campo ni parte del manual tiene el botón «Observación»; siguen «Editar» y «Retirar»", () => {
+    const h = panel()
+    expect(h).not.toContain('data-accion="observacion-campo"'); expect(h).not.toContain("data-campo-observar"); expect(h).not.toContain(">Observación<")
+    expect(h).toContain('data-campo-editar="valores"'); expect(h).toContain('data-accion="editar-renglon"'); expect(h).toContain('data-accion="retirar"')
+  })
+  it("bajo la caja de texto libre va la línea chica que dice dónde pedir una reescritura", () => {
+    const h = panel()
+    expect(h).toContain('data-accion="manual-texto-libre"')
+    expect(h).toContain("Si quieres que el equipo reescriba un campo, nómbralo aquí.")
+  })
+  it("las observaciones ya guardadas en un borrador NO se pierden: su texto sigue visible y su ✕ en «Tus cambios»", () => {
+    const h = panel({ notasIniciales: { voz: "Más cercana, menos formal" } })
+    expect(h).toContain("Tu observación: </span>Más cercana, menos formal")
+    expect(h).toContain("Tus cambios · 1"); expect(h).toContain('data-accion="quitar-cambio"')
+  })
+  it("el pedido sigue aceptando `observaciones_por_campo` (#869 no se toca)", () => {
+    expect(cuerpoDelPedidoUnico(C, { campos: {}, como: {}, notas: { voz: "Más cercana" }, libre: "" })).toMatchObject({ observaciones_por_campo: [{ campo: "voz", texto: "Más cercana" }] })
+  })
+})
