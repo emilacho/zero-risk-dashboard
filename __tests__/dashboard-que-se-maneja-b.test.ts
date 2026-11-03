@@ -159,7 +159,10 @@ describe("cada botón que pintan las pantallas nombra una acción que existe, y 
   it("cada acción del catálogo tiene su botón en alguna pantalla (ninguna queda sin usar)", () => {
     // CC6 · 02-nov: «validar un campo» vive en el manual de /nuevo (su botón lleva data-tablero-accion)
     const todo = [...PANTALLAS, "components/nuevo/PanelManual.tsx", "components/nuevo/PanelPiezas.tsx"].map(leer).join("\n") // CC6 · 03-nov: «Recuperar» del archivo vive en Piezas de /nuevo
-    for (const a of Object.keys(ACCIONES)) expect(todo.includes(`accion="${a}"`) || todo.includes(`/api/acciones/${a}"`), a).toBe(true)
+    // CC6 · 03-nov · manual limpio (Emilio: «dos botones claros, nada más»): «validar un campo» quedó sin botón; la acción sigue en el catálogo (contrato de la plataforma)
+    const SIN_BOTON_POR_DECISION = ["manual-validar-campo"]
+    for (const a of Object.keys(ACCIONES)) if (!SIN_BOTON_POR_DECISION.includes(a)) expect(todo.includes(`accion="${a}"`) || todo.includes(`/api/acciones/${a}"`), a).toBe(true)
+    expect(todo).not.toContain('accion="manual-validar-campo"')
   })
 // ADENDA 4 (30-oct): las piezas salen SOLO de la campaña (planeación → brief → oficina). Desde el tablero no se puede crear una fuera de ella.
   it("no existe ningún camino del tablero para pedir una pieza nueva fuera de la campaña", async () => {

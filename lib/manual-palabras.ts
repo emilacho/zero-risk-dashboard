@@ -56,9 +56,10 @@ export function palabrasDelManual(b: { forbidden_words?: unknown; palabras_con_i
 /** las tres filas del tablero, en este orden: lo que pide una norma, lo que marcó el dueño, el estilo de la marca.
  *  Decisión de Emilio (02-nov 20:29Z, auditoría punto 4): NINGUNA palabra bloquea; todas avisan (el juez lo anota a la vista) y siguen llegando a los empleados. */
 export const GRUPOS_DE_PALABRAS: Array<{ intencion: IntencionDeLaPalabra; titulo: string; nota: string }> = [
-  { intencion: "legal", titulo: "Por una norma · avisan", nota: "Si una pieza las usa, el juez lo anota a la vista." },
-  { intencion: "del_dueno", titulo: "Las que marcaste tú · avisan", nota: "Si una pieza las usa, el juez lo anota a la vista. Ninguna corrida te las cambia." },
-  { intencion: "estilo", titulo: "Estilo de la marca", nota: "Los empleados las evitan; es estilo, no una regla." },
+  // 03-nov · manual limpio (regla 5, aclaración de Emilio): el título dice qué son, sin reglas del sistema; la nota queda para el trabajo interno, no se pinta
+  { intencion: "legal", titulo: "Por norma", nota: "Si una pieza las usa, el juez lo anota a la vista." },
+  { intencion: "del_dueno", titulo: "Por decisión de la marca", nota: "Si una pieza las usa, el juez lo anota a la vista. Ninguna corrida te las cambia." },
+  { intencion: "estilo", titulo: "Por estilo", nota: "Los empleados las evitan; es estilo, no una regla." },
 ]
 export const agruparPalabras = (p: PalabraDelManual[]) => GRUPOS_DE_PALABRAS.map((g) => ({ ...g, palabras: p.filter((x) => x.intencion === g.intencion).sort((a, b) => a.texto.localeCompare(b.texto, "es")) }))
 

@@ -35,17 +35,17 @@ describe("las notas de un dato del manual", () => {
     const s = seccionesNuevasDelBorrador({ historia_y_origen: "Abrió en 1998", _field_meta: { historia_y_origen: { notas_del_juez: [{ dato: "1998", motivo: "año sin fuente" }] } } })
     expect(s.flatMap((x) => x.partes).find((p) => p.clave === "historia_y_origen")?.notas).toEqual([{ dato: "1998", motivo: "año sin fuente", quien: "juez" }])
   })
-  it("en el panel: la nota va bajo el campo, discreta, sin tocar el texto del campo", () => {
+  it("en el panel NO (03-nov · manual limpio, regla 5): el documento del cliente no muestra las notas; el texto queda tal cual", () => {
     const fila = { client_id: CLIENTE, version: 3, auto_generated: true, human_validated: false, brand_purpose: "Servimos encebollado desde 1998", content_text: JSON.stringify({ brand_book_draft: { _field_meta: META } }) }
     const datos: ManualDelCliente = { clientes: [{ id: CLIENTE, nombre: "Náufrago", con_manual: true }], cliente: { id: CLIENTE, nombre: "Náufrago" }, manual: { version: 3, versiones: 3, lector: leerManual(fila)!, fidelidad: "Sin revisión de fidelidad", origen: null, colores: [], tipografias: [], opciones_eslogan: [], palabras_prohibidas: [], palabras: [], terminos_propios: [], politica_competidores: null, creado_en: null, actualizado_en: null }, leido_en: "2026-11-02T05:00:00Z" }
     const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(h).toContain("data-notas-del-campo"); expect(h).toContain("«desde 1998»"); expect(h).toContain("lo marcaron la puerta y el juez"); expect(h).toContain("«el mejor de Olón»")
+    expect(h).not.toContain("data-notas-del-campo"); expect(h).not.toMatch(/lo marcaron|lo marcó|juez|puerta/)
     expect(h).toContain("Servimos encebollado desde 1998") // el texto queda tal cual
     expect(h).not.toMatch(/role="alert"[^>]*>[^<]*1998/) // no es una alarma
   })
-  it("en las secciones nuevas también, bajo su parte", () => {
+  it("en las secciones nuevas tampoco", () => {
     const secciones = seccionesNuevasDelBorrador({ historia_y_origen: "Abrió en 1998", _field_meta: { historia_y_origen: { notas_del_juez: [{ dato: "1998", motivo: "año sin fuente" }] } } })
     const h = renderToStaticMarkup(createElement(SeccionesNuevas, { secciones, pedirCambios: null }))
-    expect(h).toContain("data-notas-del-campo"); expect(h).toContain("«1998»"); expect(h).toContain("lo marcó el juez")
+    expect(h).not.toContain("data-notas-del-campo"); expect(h).not.toContain("lo marcó el juez"); expect(h).toContain("Abrió en 1998")
   })
 })

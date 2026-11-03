@@ -154,6 +154,8 @@ export const EDITABLES_DESDE_EL_TABLERO: ReadonlyArray<{ clave: string; etiqueta
   { clave: "jerarquia_tipografica", etiqueta: "Jerarquía tipográfica", lista: true, ayuda: "Una por línea: «Títulos: Alfa Slab One»." },
   { clave: "historia_y_origen", etiqueta: "Historia y origen", lista: false, ayuda: "La historia de la marca, en uno o dos párrafos." },
 ]
+/** el largo máximo de un campo escrito por el dueño: el MISMO tope de la plataforma (`TOPE_DEL_TEXTO_DEL_DUENO` · regla 10, límites al máximo) */
+export const TOPE_DEL_TEXTO_DEL_MANUAL = 100_000
 export const esEditableDesdeElTablero = (clave: string) => EDITABLES_DESDE_EL_TABLERO.some((e) => e.clave === clave)
 
 /** el cuerpo que recibe `POST /api/acciones/manual-campos` (lo valida `lib/tablero-acciones.ts` y lo hace la plataforma) */
@@ -162,7 +164,7 @@ export function cuerpoDeEdicion(clienteId: string, clave: string, texto: string,
   if (!e) return { error: `«${clave}» todavía no se edita desde aquí` }
   const t = e.lista ? texto.split(/\r?\n/).map((s) => s.trim()).filter(Boolean).join("\n") : texto.trim()
   if (!t) return { error: "Escribe algo antes de guardar" }
-  if (t.length > 2000) return { error: "Máximo 2.000 caracteres" }
+  if (t.length > TOPE_DEL_TEXTO_DEL_MANUAL) return { error: "Es demasiado largo" }
   const p = porque.trim()
   return { client_id: clienteId, campos: { [clave]: t }, ...(p ? { comentario: p.slice(0, 1000) } : {}) }
 }
