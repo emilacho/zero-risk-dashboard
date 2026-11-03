@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
 import { esDePractica } from "@/lib/clientes"
-import { nombresDeProcesos } from "@/lib/direccion-riesgos"
+import { nombresDeFlujosEnCache } from "@/lib/nombres-de-flujos"
 import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
@@ -75,7 +75,7 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
   })
   // 03-nov · el nombre del trabajo de las corridas recientes (n8n, solo lectura): sin él, la sala diría «flujo 2128…»
   const idsDeFlujos = [...new Set([...invocaciones.map((i) => i.workflow_id), ...despachos.map((d) => d.workflow_id)].filter((x): x is string => !!x))].slice(0, 12)
-  const nombresDeFlujos = Object.fromEntries(await nombresDeProcesos(idsDeFlujos, fetch).catch(() => new Map<string, string>()))
+  const nombresDeFlujos = await nombresDeFlujosEnCache(idsDeFlujos, fetch) // en caché (5 min): el sondeo no va a n8n cada vez
   let escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx, nombresDeFlujos })
   // sprint 3 · entregas al pizarrón, revisiones de la jefatura y firmas pendientes: si la lectura falla, la escena sigue sin eso (no se inventa)
   try {
