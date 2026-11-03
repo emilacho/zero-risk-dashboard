@@ -70,7 +70,7 @@ describe("CC4 · la limpieza se usa en el armado real de la revisión", () => {
   } }) as never
   it("leerRevisionesDelEditor entrega el texto ya limpio y el aviso simple", async () => {
     const r = await leerRevisionesDelEditor(base({
-      hitl_queue: [{ id: "a", client_id: "c1", type: "editor_escalation", status: "pending", created_at: "2026-11-03T13:00:00Z", agent_name: "content-creator",
+      hitl_queue: [{ id: "a", client_id: "c1", type: "editor_escalation", documento: "manual", status: "pending", created_at: "2026-11-03T13:00:00Z", agent_name: "content-creator",
         metadata: { editor: { full_content: CRUDO, original_task: "", editor_verdict: { issues: ["editor-en-jefe unavailable"] } } } }],
       agent_invocations: [],
     }), "c1", (k: string) => ({ clave: k, etiqueta: k }))

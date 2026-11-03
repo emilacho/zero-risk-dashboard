@@ -24,11 +24,16 @@ import {
 } from "@/lib/piezas"
 import { familiaLegible, redLegible, tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
 import { esDePractica } from "@/lib/clientes"
+import { limpiarParaLeer, sinMonologo } from "@/lib/revisiones-del-manual"
 
 /** la carpeta de lo que no es pieza */
 export const CARPETA_OTRAS = "Otras revisiones"
-/** las revisiones que no se ven en Piezas porque tienen su propio panel (auditoría 02-nov): el editor del manual → Manual · el plan con pendientes → Plan */
-export const TIPOS_CON_SU_PROPIO_PANEL = ["editor_escalation", "plan_con_pendientes"] as const
+/**
+ * los DOCUMENTOS que tienen su propio panel (auditoría n.º 5 · CC1 #871): la plataforma clasifica cada revisión en `hitl_queue.documento`
+ * (pieza · manual · plan · gran_idea · competidores · otro), para cualquier cliente. Lo del manual va al Manual y lo del plan al Plan.
+ * Antes era un filtro por TIPO en esta pantalla (02-nov) y mandaba al Manual también las revisiones del editor sobre PIEZAS (8 de 14).
+ */
+export const DOCUMENTOS_CON_SU_PROPIO_PANEL = ["manual", "plan"] as const
 /** la carpeta de lo archivado de una campaña anterior (CC1 #852 · corrección 3 de Lenovo): va plegada al final, se mira y solo se «recupera» */
 export const CARPETA_ARCHIVO = "Archivo · campaña anterior"
 
@@ -73,8 +78,9 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
   q = filtro.archivo === "solo" ? q.not("archivada_en", "is", null) : q.is("archivada_en", null)
   const tipo = filtro.tipo ?? "piezas"
   if (tipo === "piezas") q = q.eq("type", TIPO_PIEZA)
-  // auditoría 02-nov (punto 3): la revisión del editor de una sección del manual vive en el panel del Manual, y el plan con puntos por resolver, solo en el del Plan
-  else if (tipo === "otras") q = q.neq("type", TIPO_PIEZA).not("type", "in", `(${TIPOS_CON_SU_PROPIO_PANEL.join(",")})`)
+  // «Otras revisiones»: todo lo que no es una pieza para aprobar y no es de un documento con panel propio. La revisión del editor SOBRE UNA PIEZA
+  // (documento «pieza», tipo distinto de la pieza) queda aquí: es de piezas, y en ningún otro panel se vería (punto 3 del LISTO de CC1)
+  else if (tipo === "otras") q = q.neq("type", TIPO_PIEZA).not("documento", "in", `(${DOCUMENTOS_CON_SU_PROPIO_PANEL.join(",")})`)
   if ((filtro.estado ?? "pendiente") === "pendiente") q = q.eq("status", "pending")
   const r = await q
   if (r.error) throw new Error(`no pude leer la bandeja: ${r.error.message}`)
@@ -239,7 +245,8 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     },
     aportes,
     version,
-    resumen_de_la_bandeja: (f.output_preview as string | null) ?? null,
+    // la revisión del editor sobre una pieza ahora se ve en «Otras revisiones» (CC1 #871): sin el monólogo del agente ni markdown crudo (auditoría 5), con la limpieza de CC4
+    resumen_de_la_bandeja: typeof f.output_preview === "string" && f.type === "editor_escalation" ? limpiarParaLeer(sinMonologo(f.output_preview)) || null : (f.output_preview as string | null) ?? null,
     acompana: f.type === TIPO_PIEZA ? await leerLoQueAcompana(supa, { hitl_id: String(f.id), encargo_id: encargoId, revision_id: (meta.jefatura_revision_id as string | undefined) ?? null, decision: f.decision }) : undefined,
   }
 }
