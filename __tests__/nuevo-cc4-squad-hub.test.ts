@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { armarEscena } from "@/lib/escena-avatares"
-import { costoFrenteASuPromedio, faltasDeLaFicha, mediaDelEquipo, moralDe, rolDe } from "@/lib/plantel"
+import { costoFrenteASuPromedio, faltasDeLaFicha, textoPendiente, mediaDelEquipo, moralDe, rolDe } from "@/lib/plantel"
 import { leerPlantel } from "@/lib/plantel-datos"
 import { rendimientoDe, type RevisionCruda, type TrabajoCrudo } from "@/lib/rendimiento"
 import { PlantelDelEquipo, puestoEnElEquipo } from "@/components/nuevo/escena/PlantelDelEquipo"
@@ -110,15 +110,21 @@ describe("el plantel en pantalla", () => {
     for (const b of ["Calidad", "Trabajo", "Equipo", "Datos"]) expect(html).toContain(b)
     expect(html.match(/data-dimension="\d+"/g)).toHaveLength(10)
     expect(html).toContain("sin dato todavía") // veracidad, pregunta… sin datos
-    expect(html).toMatch(/data-fila="video-editor"[\s\S]*?<span[^>]*data-val[^>]*><span data-faltan="val"[^>]*>0\/5<\/span><\/span>/) // 03-nov: no una raya: lo que tiene frente a lo que hace falta
+    expect(html).toMatch(/data-fila="video-editor"[\s\S]*?<span[^>]*data-val[^>]*><span data-faltan="val"[^>]*data-pendiente[^>]*>[\s\S]*?faltan 5/) // 03-nov: no una raya: lo que tiene frente a lo que hace falta
     const solo = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa, mesas: e.mesas, agenteInicial: "video-editor", onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: rend, plantelInicial: plantel, ahora }))
     expect(solo).toContain('data-moral-detalle="sin"'); expect(solo).toContain("En espera") // inactivo
   })
-  it("en pantalla: la fila dice «0/5», «0/10» y «0/3» en vez de rayas, y el detalle trae la frase", () => {
+  it("en pantalla: la fila dice «faltan 5», «faltan 10» y «faltan 3» (gris, con reloj), nunca un número que parezca nota, y el detalle trae la frase", () => {
     const sinRend = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa, mesas: e.mesas, agenteInicial: "video-editor", onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: rend, plantelInicial: plantel, ahora }))
     expect(sinRend).toContain('data-faltan="val"'); expect(sinRend).toContain('data-faltan="forma"'); expect(sinRend).toContain('data-faltan="moral"')
     expect(sinRend).toContain("data-por-que-sin-nota"); expect(sinRend).toContain("Todavía no tiene entregas revisadas por la jefatura")
     expect(sinRend).toContain("hacen falta 3")
+    expect(sinRend).toContain("faltan 10"); expect(sinRend).toContain("faltan 3"); expect(sinRend).toContain("text-zinc-500")
+    expect(sinRend).not.toMatch(/data-faltan="(val|forma|moral)"[^>]*>(?:(?!<\/span>)[\s\S])*?>\d+\/\d+</) // ningún «0/5» a la vista
+    expect(sinRend).not.toMatch(/>0\/(5|10|3)</)
+    const sinNotas = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa, mesas: e.mesas, agenteInicial: "video-editor", onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: {}, plantelInicial: plantel, ahora }))
+    expect(sinNotas).toContain("data-media-pendiente"); expect(sinNotas).toContain("sin revisiones todavía") // la media del equipo sin notas: no una raya
+    expect(html).not.toContain("data-media-pendiente") // con notas, la media va como siempre
   })
   it("corrección 02-nov: ocupa toda la pantalla hasta el chat (nv-panel, sin ancho ni alto máximos) y ningún nombre ni puesto se corta", () => {
     expect(html).toContain("nv-panel"); expect(html).toMatch(/relative flex h-full w-full flex-col/)
@@ -173,5 +179,17 @@ describe("03-nov · auditoría punto 15 · la celda sin número dice por qué (t
   it("lo que ya tiene valor no dice «falta»: valoración, forma y moral completas devuelven null", () => {
     const f = tiene(10, 10, 8, 82, "estable")
     expect(f.val).toBeNull(); expect(f.forma).toBeNull(); expect(f.moral).toBeNull(); expect(f.frase).toBeNull()
+  })
+})
+
+describe("CC4 · 03-nov · «0/5» no es una nota: textoPendiente", () => {
+  it("sin revisiones dice «faltan N»; con algunas «k de N»; si no cuentan «no cuentan»; nunca «a/b»", () => {
+    expect(textoPendiente({ tiene: 0, hace_falta: 5 }).corto).toBe("faltan 5")
+    expect(textoPendiente({ tiene: 0, hace_falta: 10 }).corto).toBe("faltan 10")
+    expect(textoPendiente({ tiene: 2, hace_falta: 5 }).corto).toBe("2 de 5")
+    expect(textoPendiente({ tiene: 1, hace_falta: 3 }).largo).toBe("1 revisión: faltan 2 para que haya dato")
+    expect(textoPendiente({ tiene: 5, hace_falta: 5, no_cuentan: true }).corto).toBe("no cuentan")
+    for (const [t, h] of [[0, 5], [3, 5], [4, 10], [2, 3]]) expect(textoPendiente({ tiene: t, hace_falta: h }).corto).not.toMatch(/\d\/\d/)
+    expect(textoPendiente({ tiene: 2, hace_falta: 5 }).avance).toBe(0.4)
   })
 })

@@ -79,3 +79,10 @@ export function faltasDeLaFicha(x: { revisadas: number; previas: number; contabl
     : `Tiene ${revisadas} ${revisadas === 1 ? "entrega revisada" : "entregas revisadas"} por la jefatura; hacen falta 5 para la valoración.`
   return { revisadas, val, forma, moral, frase }
 }
+
+/** lo que dice una celda sin dato: nunca un número que parezca nota («0/5»); «faltan 5», «2 de 5» o «no cuentan» */
+export function textoPendiente(f: { tiene: number; hace_falta: number; no_cuentan?: boolean }): { corto: string; largo: string; avance: number } {
+  if (f.no_cuentan) return { corto: "no cuentan", largo: "Tiene entregas revisadas, pero ninguna cuenta (cortadas por tope o fallidas)", avance: 1 }
+  const faltan = Math.max(0, f.hace_falta - f.tiene)
+  return { corto: f.tiene === 0 ? `faltan ${f.hace_falta}` : `${f.tiene} de ${f.hace_falta}`, largo: `${f.tiene === 0 ? "Ninguna revisión todavía" : `${f.tiene} ${f.tiene === 1 ? "revisión" : "revisiones"}`}: faltan ${faltan} para que haya dato`, avance: Math.min(1, f.tiene / f.hace_falta) }
+}
