@@ -115,6 +115,8 @@ export interface ManualDelCliente {
   clientes: Array<{ id: string; nombre: string; con_manual: boolean }>
   cliente: { id: string; nombre: string } | null
   manual: null | {
+    /** CC6 · 03-nov: la fila de esta versión (el borrador de «Tus cambios» se guarda contra ella) */
+    id?: string
     version: number | null
     /** cuántas versiones lleva el manual de este cliente */
     versiones: number
@@ -175,6 +177,7 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
   return {
     ...base, cliente,
     manual: {
+      ...(typeof b.id === "string" ? { id: b.id } : {}),
       version: b.version == null ? null : Number(b.version),
       versiones: versionesPorCliente.get(cliente.id) ?? 1,
       lector,

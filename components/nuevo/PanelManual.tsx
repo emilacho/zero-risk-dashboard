@@ -6,6 +6,7 @@ import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
+import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, textoDelAvisoDeSalir, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
 import { cuantosCambios, enviarTusCambios, quitarDeTusCambios, renglonesDeTusCambios, type ComoCambio, type TusCambios } from "@/lib/pedido-del-manual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { JerarquiaTipografica } from "@/components/nuevo/manual/JerarquiaTipografica"
@@ -232,11 +233,22 @@ export function motivoDeNoAprobar(r: { texto: string; codigo?: string; detalleCr
   const det = r.detalleCrudo?.trim() ? ` (${r.detalleCrudo.trim()})` : ""
   if (r.codigo === "regeneracion_en_curso") return `Todavía no se puede aprobar: el manual se está reescribiendo. Espera a que termine${det}.`
   if (r.codigo === "plan_en_curso") return `Ya hay un plan en marcha para este cliente; no se pide otro${det}.`
+  if (r.codigo === "borrador_pendiente") return `Todavía no se puede aprobar: hay cambios sin pedir guardados como borrador. Pídelos o descártalos primero${det}.`
   if (r.codigo === "no_se_pudo_leer") return `No se pudo leer el manual para aprobarlo. Prueba de nuevo en un momento${det}.`
   return r.texto
 }
 
-export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, notasIniciales = {}, libreInicial = "", confirmarAprobarInicial = false, reintentarPlanInicial = false }: { /** pruebas: observaciones y texto libre pendientes */ notasIniciales?: Record<string, string>; libreInicial?: string; /** pruebas: aprobado pero sin plan pedido */ reintentarPlanInicial?: boolean; onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
+/** el borrador de «Tus cambios» en la plataforma (inyectable en pruebas) */
+export interface ApiDelBorrador {
+  leer: typeof leerBorrador
+  guardar: typeof guardarBorrador
+  borrar: typeof borrarBorrador
+}
+const BORRADOR_REAL: ApiDelBorrador = { leer: leerBorrador, guardar: guardarBorrador, borrar: borrarBorrador }
+/** cuánto espera para guardar después del último toque (un guardado por ráfaga, no uno por tecla) */
+export const PAUSA_DEL_BORRADOR_MS = 1200
+
+export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorInicial = null, borradorViejoInicial = null, salirInicial = false, noSePudoGuardarInicial = false, onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, notasIniciales = {}, libreInicial = "", confirmarAprobarInicial = false, reintentarPlanInicial = false }: { borrador?: ApiDelBorrador; /** pruebas: el borrador ya guardado / el de una versión anterior / el aviso de salir a la vista */ borradorInicial?: { revision: number | null; actualizado_en: string | null } | null; borradorViejoInicial?: BorradorDelDueno | null; salirInicial?: boolean; noSePudoGuardarInicial?: boolean; /** pruebas: observaciones y texto libre pendientes */ notasIniciales?: Record<string, string>; libreInicial?: string; /** pruebas: aprobado pero sin plan pedido */ reintentarPlanInicial?: boolean; onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
   const [datos, setDatos] = useState<ManualDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -258,12 +270,22 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const [reintentarPlan, setReintentarPlan] = useState(reintentarPlanInicial)
   const [guardando, setGuardando] = useState(false)
   const [guardadoOk, setGuardadoOk] = useState(false)
+  // EL BORRADOR (corrección de Lenovo 18:13Z): «Tus cambios» se guarda solo en la plataforma y vuelve al abrir el manual en cualquier equipo
+  const [guardadoDelBorrador, setGuardadoDelBorrador] = useState<{ revision: number | null; actualizado_en: string | null } | null>(borradorInicial)
+  const [borradorViejo, setBorradorViejo] = useState<BorradorDelDueno | null>(borradorViejoInicial)
+  const [salir, setSalir] = useState<null | (() => void)>(salirInicial ? () => () => {} : null)
+  /** el último guardado del borrador falló: el aviso al salir lo dice (no promete) */
+  const [noSePudoGuardar, setNoSePudoGuardar] = useState(noSePudoGuardarInicial)
+  const [ahora, setAhora] = useState(() => new Date())
+  /** a qué «cliente|versión» pertenece lo que hay en pantalla: solo se guarda cuando ya se leyó el borrador de ESE manual (nunca se pisa el de otro) */
+  const borradorDe = useRef<string | null>(null)
+  const ultimoGuardado = useRef<string>("")
   const cerrar = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { cerrar.current?.focus() }, [])
   // Esc cierra el manual y NO la oficina: se atiende en captura y se detiene ahí
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); salirConAviso.current(onCerrar) } }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
   }, [onCerrar])
@@ -288,6 +310,66 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const nCambios = cuantosCambios(tus)
   const ponerTus = (t: TusCambios) => { setCambios(t.campos); setComo(t.como); setDetalles(t.detalle ?? {}); setNotas(t.notas); setLibre(t.libre) }
   const descartarTodo = () => { ponerTus({ campos: {}, como: {}, notas: {}, libre: "" }); setEditando(null); setObservando(null) }
+
+  // ── EL BORRADOR EN LA PLATAFORMA (contrato CC1 #872) ──
+  const manualId = datos?.manual?.id ?? null
+  const llaveDelBorrador = cliente && manualId ? `${cliente}|${manualId}` : null
+  const fotoDeTus = JSON.stringify(tus)
+  // 1 · al abrir (o al cambiar de cliente o de versión): se lee el borrador; si es de ESTA versión vuelve a «Tus cambios»; si es de otra, se pregunta
+  useEffect(() => {
+    if (!llaveDelBorrador || borradorDe.current === llaveDelBorrador || !cliente || !manualId) return
+    let vivo = true
+    void apiBorrador.leer(cliente, "manual").then((r) => {
+      if (!vivo) return
+      const b = r.borrador, q = queHacerAlAbrir(b, manualId)
+      if (b && q.tipo !== "nada") setGuardadoDelBorrador({ revision: b.revision, actualizado_en: b.actualizado_en })
+      if (q.tipo === "recuperar") { ponerTus(q.acciones); ultimoGuardado.current = JSON.stringify(q.acciones) }
+      else if (q.tipo === "preguntar") setBorradorViejo(q.borrador)
+      // si la lectura falló, NO se marca como leído: no se guarda encima de un borrador que no se pudo ver
+      if (r.ok) borradorDe.current = llaveDelBorrador
+    })
+    return () => { vivo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [llaveDelBorrador])
+  // 2 · cada cambio se guarda solo, a los pocos segundos (vacío = se borra). Un borrador viejo sin decidir no se toca mientras no haya nada nuevo
+  /** true = lo que hay en pantalla quedó guardado (o no había nada que guardar) */
+  async function guardarElBorradorYa(): Promise<boolean> {
+    if (!cliente || !manualId) return true
+    const paso = pasoDelGuardado({ leido: borradorDe.current === llaveDelBorrador, igualAlUltimo: fotoDeTus === ultimoGuardado.current, vacio: borradorVacio(tus), hayViejoSinDecidir: !!borradorViejo, hayGuardado: !!guardadoDelBorrador })
+    if (paso === "nada") return borradorDe.current === llaveDelBorrador || borradorVacio(tus)
+    ultimoGuardado.current = fotoDeTus
+    // vaciar se hace guardando VACÍO con la revisión (la plataforma lo borra): si otro equipo marcó algo entretanto, da 409 y se muestra (reserva 2 de CC3)
+    const g = await apiBorrador.guardar(cliente, "manual", manualId, paso === "borrar" ? { campos: {}, como: {}, notas: {}, libre: "" } : tus, guardadoDelBorrador?.revision ?? 0)
+    if (g.otroEquipo && g.borrador) { // otro equipo lo cambió: se muestra lo último guardado (no se pisa)
+      ponerTus(g.borrador.acciones); ultimoGuardado.current = JSON.stringify(g.borrador.acciones)
+      setGuardadoDelBorrador({ revision: g.borrador.revision, actualizado_en: g.borrador.actualizado_en })
+      setAviso({ ok: false, texto: "Tu borrador cambió en otro equipo: te muestro lo último que se guardó." }); setNoSePudoGuardar(false); return true
+    }
+    if (g.ok) {
+      setGuardadoDelBorrador(g.borrador ? { revision: g.borrador.revision, actualizado_en: g.borrador.actualizado_en } : null)
+      if (g.borrador) setBorradorViejo(null)
+      setNoSePudoGuardar(false); return true
+    }
+    ultimoGuardado.current = "" // no se guardó: se reintenta en el próximo cambio o al salir, y el aviso de salir lo dice
+    setNoSePudoGuardar(true); return false
+  }
+  const guardarYa = useRef(guardarElBorradorYa); guardarYa.current = guardarElBorradorYa
+  useEffect(() => {
+    if (!llaveDelBorrador) return
+    const t = setTimeout(() => { void guardarYa.current() }, PAUSA_DEL_BORRADOR_MS)
+    return () => clearTimeout(t)
+  }, [fotoDeTus, llaveDelBorrador])
+  // «hace N min» se actualiza solo
+  useEffect(() => { const t = setInterval(() => setAhora(new Date()), 30_000); return () => clearInterval(t) }, [])
+  // 3 · salir con cambios: aviso propio (cerrar, Esc, fuera del panel, cambiar de cliente) y el nativo del navegador al recargar
+  const salirConAviso = useRef<(seguir: () => void) => void>(() => {})
+  salirConAviso.current = (seguir) => { if (nCambios > 0) setSalir(() => seguir); else seguir() }
+  useEffect(() => {
+    if (nCambios === 0) return
+    const antes = (e: BeforeUnloadEvent) => { void guardarYa.current(); e.preventDefault(); e.returnValue = "" }
+    window.addEventListener("beforeunload", antes)
+    return () => window.removeEventListener("beforeunload", antes)
+  }, [nCambios])
   async function guardarCambios() {
     if (!cliente || !nCambios) return
     setGuardando(true); setAviso(null)
@@ -343,7 +425,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   ) : null
 
   return (
-    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) salirConAviso.current(onCerrar) }}>
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="manual-titulo" data-seccion="manual" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
@@ -352,17 +434,31 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
           <p className="hidden text-[12px] text-zinc-500 md:block">Lo que la marca es, cómo habla y cómo se ve · se edita aquí</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
             <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (nCambios && !window.confirm("Tienes cambios sin pedir en este manual. ¿Descartarlos?")) return; descartarTodo(); setGuardadoOk(false); if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
+            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; salirConAviso.current(() => { borradorDe.current = null; ultimoGuardado.current = ""; descartarTodo(); setBorradorViejo(null); setGuardadoDelBorrador(null); setGuardadoOk(false); if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) })}} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
               {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_manual ? "" : " · sin manual"}</option>)}
               {!datos && <option value="">Leyendo…</option>}
             </select>
           </label>
-          <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
+          <button ref={cerrar} type="button" onClick={() => salirConAviso.current(onCerrar)} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
           </button>
         </header>
 
+        {salir && (
+          <div role="alertdialog" aria-labelledby="salir-titulo" data-aviso-salir className="flex flex-wrap items-center gap-3 border-b border-amber-400/40 bg-amber-500/10 px-4 py-3 sm:px-6">
+            <p id="salir-titulo" data-no-se-pudo-guardar={noSePudoGuardar} className={`text-[14px] ${noSePudoGuardar ? "text-rose-100" : "text-amber-50"}`}>{textoDelAvisoDeSalir(nCambios, noSePudoGuardar)}</p>
+            <button type="button" data-accion="seguir-aqui" onClick={() => setSalir(null)} className="min-h-11 rounded-lg border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[14px] font-medium text-amber-50 hover:bg-amber-400/25">Seguir aquí</button>
+            <button type="button" data-accion="salir-igual" onClick={() => { const seguir = salir; if (noSePudoGuardar) { setSalir(null); seguir(); return } void salirTrasGuardar(() => guardarYa.current(), () => { setSalir(null); seguir() }) }} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">{noSePudoGuardar ? "Salir sin guardar" : "Salir"}</button>
+          </div>
+        )}
+        {borradorViejo && (
+          <div data-borrador-viejo className="flex flex-wrap items-center gap-3 border-b border-amber-400/40 bg-amber-500/[0.07] px-4 py-3 sm:px-6">
+            <p className="text-[14px] text-amber-50">Tienes un borrador de cambios que era de la versión anterior del manual{guardadoDelBorrador?.actualizado_en ? ` (${haceCuanto(guardadoDelBorrador.actualizado_en, ahora).replace("borrador guardado · ", "")})` : ""}.</p>
+            <button type="button" data-accion="seguir-con-el-borrador" onClick={() => { const b = borradorViejo; setBorradorViejo(null); ponerTus(b.acciones) }} className="min-h-11 rounded-lg border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[14px] font-medium text-amber-50 hover:bg-amber-400/25">Seguir con él</button>
+            <button type="button" data-accion="descartar-borrador-viejo" onClick={() => { setBorradorViejo(null); setGuardadoDelBorrador(null); if (cliente) void apiBorrador.borrar(cliente, "manual") }} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">Descartar</button>
+          </div>
+        )}
         {error && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-6">{error}</p>}
         {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
 
@@ -385,9 +481,10 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
                     {validando !== "confirmar" ? (
                       // 03-nov (firma de Emilio 14:46Z): este botón es el DISPARADOR de la cadena; con cambios sin guardar o una reescritura en curso no se puede aprobar
                       <>
-                        <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando" || nCambios > 0 || ciclo.abierto != null}
+                        <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando" || nCambios > 0 || !!borradorViejo || ciclo.abierto != null}
                           className="min-h-11 rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-4 py-2 text-[14px] font-medium text-emerald-100 transition hover:bg-emerald-400/20 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">{validando === "enviando" ? "Aprobando…" : (reintentarPlan || !!m.plan_sin_pedir) && m.lector.validadoPor === "dueno" ? "Reintentar pedir el plan" : "✓ Aprobar el manual y seguir con el plan"}</button>
                         {nCambios > 0 && <span data-aprobar-espera className="text-[13px] text-amber-200">Pide tus cambios antes de aprobar.</span>}
+                        {nCambios === 0 && !!borradorViejo && <span data-aprobar-espera className="text-[13px] text-amber-200">Decide qué hacer con el borrador de la versión anterior.</span>}
                         {nCambios === 0 && ciclo.abierto != null && <span data-aprobar-espera className="text-[13px] text-amber-200">Espera a que termine la reescritura del manual.</span>}
                       </>
                     ) : (
@@ -481,6 +578,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
               </button>
               {nCambios > 0 && !guardando && <button type="button" data-accion="descartar-cambios" onClick={descartarTodo} className="min-h-11 text-[13px] text-zinc-400 underline decoration-dotted underline-offset-4 hover:text-zinc-200">Descartar todo</button>}
               {guardadoOk && !nCambios && <span role="status" data-cambios-guardados className="text-[15px] font-medium text-emerald-300">✓ Cambios pedidos</span>}
+              {nCambios > 0 && guardadoDelBorrador && <span data-borrador-guardado className="ml-auto text-[12px] text-zinc-500">{haceCuanto(guardadoDelBorrador.actualizado_en, ahora)}</span>}
             </div>
           </footer>
         )}
