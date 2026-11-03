@@ -43,9 +43,10 @@ describe("punto 3 · «Piezas» no cuenta las del plan anterior", () => {
 
 describe("punto 4 · el sello «Built with Spline» no se ve", () => {
   const fuente = readFileSync("components/nuevo/VidaSpline.tsx", "utf8")
-  it("se esconde por estilo y se quita del DOM cuando el visor lo pone", () => {
-    expect(fuente).toContain('a#logo,[data-vida="spline"] a[href*="spline.design"],')
-    expect(fuente).toMatch(/MutationObserver/); expect(fuente).toMatch(/\.remove\(\)/)
+  it("se esconde por estilo y se quita del DOM cuando el visor lo pone (la lógica vive en lib/sello-spline y la usan las dos escenas)", () => {
+    const lib = readFileSync("lib/sello-spline.ts", "utf8")
+    expect(fuente).toContain("ESTILO_DEL_SELLO"); expect(fuente).toContain("vigilarSelloDeSpline()")
+    expect(lib).toContain('a#logo,a[href*="spline.design"]'); expect(lib).toMatch(/MutationObserver/); expect(lib).toMatch(/\.remove\(\)/)
   })
 })
 
