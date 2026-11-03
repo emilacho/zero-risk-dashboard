@@ -134,6 +134,17 @@ describe("la lectura del ciclo del manual (solo lectura)", () => {
     const pedido = { id: "pc1", estado: "aplicado", texto: "x", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, manual_id: "b1", manual_nuevo_id: "b2" }
     await expect(leerManualDelCliente(baseFalsa((t, f) => (t === "client_brand_books" && f.some((x) => x.startsWith('eq("id","b1")')) ? { data: null, error: { message: "connection reset" } } : comun(t, f, pedido))), { cliente: CLIENTE, ahora: AHORA })).rejects.toThrow(/client_brand_books/)
   })
+  it("«Reintentar» (CC6 · 03-nov, caso 3 de CC1): la reescritura no terminó o el aviso no llegó → trae el texto; «quedó igual», aplicado o en curso → no", async () => {
+    const ped = (x: Record<string, unknown>) => ({ id: "pc9", estado: "fallido", texto: "Campo «Voz»: más cercana", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:30:00Z", despertado: true, despertar_detalle: "tope de gasto", manual_id: "b2", manual_nuevo_id: null, ...x })
+    const leer = async (x: Record<string, unknown>) => (await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, ped(x))), { cliente: CLIENTE, ahora: AHORA })).manual?.ciclo
+    expect((await leer({}))?.reintentar).toBe("Campo «Voz»: más cercana")
+    expect((await leer({ estado: "pendiente", despertado: false }))?.reintentar).toBe("Campo «Voz»: más cercana")
+    expect((await leer({ estado: "pendiente", despertado: false }))?.abierto).not.toBeNull() // sigue bloqueando un pedido NUEVO: solo se reintenta ese
+    expect((await leer({ despertar_detalle: "sin cambios reales" }))?.reintentar).toBeUndefined()
+    expect((await leer({ estado: "en_reescritura", despertado: true }))?.reintentar).toBeUndefined()
+    expect((await leer({ estado: "aplicado", manual_nuevo_id: "b2" }))?.reintentar).toBeUndefined()
+    expect((await leer({ texto: "" }))?.reintentar).toBeUndefined()
+  })
   it("P20 (CC3): un pedido aplicado que produjo OTRA versión (no la vigente) no muestra avance ni «Qué cambió»", async () => {
     const pedido = { id: "pc0", estado: "aplicado", texto: "x", creado_en: "2026-11-02T09:00:00Z", actualizado_en: "2026-11-02T09:20:00Z", despertado: true, manual_id: "b0", manual_nuevo_id: "b1" }
     const m = await leerManualDelCliente(baseFalsa((t, f) => comun(t, f, pedido)), { cliente: CLIENTE, ahora: AHORA })
@@ -164,9 +175,9 @@ describe("el panel del manual", () => {
     const h = html({ disponible: false, abierto: null, avance: null, que_cambio: [] })
     expect(h).not.toContain("Pedir cambios"); expect(h).not.toContain("data-pedir-cambios-manual")
   })
-  it("con la plataforma lista: «Pedir cambios al manual» en la portada y «Pedir cambios en esta sección» en cada apartado, sin aviso de gasto", () => {
+  it("con la plataforma lista: el cuadro de observaciones SIEMPRE a la vista en la portada (sin botón propio) y «Pedir cambios en esta sección» en cada apartado, sin aviso de gasto", () => {
     const h = html({ disponible: true, abierto: null, avance: null, que_cambio: ["Voz de la marca: «Formal» → «Cercana»"] })
-    expect(h).toContain('data-accion="manual-pedir-cambios"')
+    expect(h).toContain('data-accion="manual-texto-libre"'); expect(h).not.toContain('data-accion="manual-pedir-cambios"'); expect(h).not.toContain('data-accion="manual-enviar-pedido"')
     expect([...h.matchAll(/data-seccion-pedir="([^"]+)"/g)].map((x) => x[1])).toEqual(["Lo que la marca es", "Cómo habla", "A quién le habla", "Palabras"])
     expect(h).toContain("Qué cambió en el manual · 1 cambio")
     expect(h).not.toMatch(/US\$|gasta|costo/i)
@@ -175,7 +186,7 @@ describe("el panel del manual", () => {
     const avance = avanceDelPedido({ pedido: { id: "p", estado: "en_reescritura", creado_en: "2026-11-02T09:50:00Z", actualizado_en: null, despertado: true, despertar_detalle: null }, despachos: [], invocaciones: [], version_nueva: null, jefatura: null, compuerta_nueva: null }, AHORA, "manual")
     const h = html({ disponible: true, abierto: { id: "p", estado: "en_reescritura", texto: "Más cercano", seccion: null, creado_en: null, actualizado_en: null, despertado: true, despertar_detalle: null, manual_id: null, manual_nuevo_id: null }, avance, que_cambio: [] })
     expect(h).toContain("data-rotulo-reescribiendo"); expect(h).toContain("data-barra-del-pedido"); expect(h).toContain("nv-pl-paso-vivo"); expect(h).toContain("Lo que pediste: Más cercano")
-    expect(h).not.toContain('data-accion="manual-pedir-cambios"'); expect(h).not.toContain("data-seccion-pedir")
+    expect(h).not.toContain('data-accion="manual-texto-libre"'); expect(h).not.toContain("data-seccion-pedir"); expect(h).not.toContain('data-accion="observacion-campo"')
   })
   it("el panel deja la puerta a la vista del barrido de acciones y usa las piezas comunes del plan", () => {
     const fuente = readFileSync("components/nuevo/PanelManual.tsx", "utf8")

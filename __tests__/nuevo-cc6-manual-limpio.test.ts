@@ -126,7 +126,7 @@ describe("el panel del manual, limpio", () => {
     const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos() }))
     expect(h).toMatch(/<h3 class="mb-4 font-display text-\[22px\] font-semibold[^"]*">Lo que la marca es<\/h3>/)
     expect(h).toMatch(/<h4 class="text-\[17px\] font-semibold[^"]*">Valores<\/h4>/)
-    expect(h).toMatch(/<h5 class="text-\[14px\] font-bold[^"]*">Opciones de eslogan<\/h5>/)
+    expect(h).toMatch(/<h5 class="text-\[14px\] font-medium[^"]*">Opciones de eslogan<\/h5>/)
     expect(h).toMatch(/class="[^"]*text-\[15px\] leading-relaxed/) // el cuerpo, más chico que el título del campo
     expect(h).not.toMatch(/uppercase tracking-\[0\.08em\] text-zinc-300">Valores/) // ya no el «VALORES» chico de antes
   })

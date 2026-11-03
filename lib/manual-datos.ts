@@ -104,7 +104,11 @@ async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigen
   const antes = base ? leerManual(base) : null, ahoraL = leerManual(vigente)
   // el aviso del campo validado: solo si el último pedido ya terminó (no abierto); nulo = pedido viejo: nada
   const aviso_del_pedido = esPedidoAbierto(pedido.estado) ? null : avisoDelPedidoSinCambio(f.resultado, etiquetaDelCampo)
-  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [], ...(aviso_del_pedido ? { aviso_del_pedido } : {}) }
+  // se puede reintentar: el aviso no llegó al equipo, o la reescritura no terminó (no «quedó igual»: ahí reintentar no cambia nada)
+  const sinDespertar = esPedidoAbierto(pedido.estado) && pedido.despertado === false
+  const noTermino = pedido.estado === "fallido" && !/sin cambios reales/i.test(pedido.despertar_detalle ?? "")
+  const reintentar = (sinDespertar || noTermino) && pedido.texto.trim() ? pedido.texto : null
+  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [], ...(aviso_del_pedido ? { aviso_del_pedido } : {}), ...(reintentar ? { reintentar } : {}) }
 }
 
 export interface ManualDelCliente {
