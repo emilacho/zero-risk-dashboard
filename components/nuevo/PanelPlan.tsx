@@ -6,8 +6,9 @@ import type { PlanDelCliente } from "@/lib/plan-datos"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 import { BarraDelPlan } from "@/components/nuevo/plan/BarraDelPlan"
 import { barraDelPlan } from "@/lib/plan-barra"
+import { periodoDelPlan, textoDelPeriodo, tituloDelPlan } from "@/lib/plan-periodo"
 import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
-import { diaDelCalendario, formatoLegible, redDelTablero } from "@/lib/pizarron"
+import { formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
 import { fechaCortaEC } from "@/lib/manual"
@@ -239,6 +240,8 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
   const c = datos?.campana ?? null, e = datos?.estrategia ?? null, d = datos?.documento ?? null, rev = datos?.revision ?? null
   const faseEnCurso = datos?.fase_activa.situacion === "en_curso" ? datos.fase_activa.fase?.clave : null
   const ritmo = e ? publicacionesPorSemana(e.redes) : null
+  // fechas y días: una sola fuente, el propio plan (auditoría 6)
+  const periodo = datos ? periodoDelPlan(datos) : null
   // una revisión pendiente también es «algo»: se decide aunque la campaña o el documento no existan (ficha de práctica · plan sin cadena)
   const hayAlgo = !!(c || e || d || rev)
 
@@ -247,7 +250,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="plan-titulo" data-seccion="plan" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
-          <h2 id="plan-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Plan de 90 días</h2>
+          <h2 id="plan-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>{tituloDelPlan(periodo)}</h2>
           {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">La meta, las fases, las redes y lo que la campaña espera · se decide aquí</p>
           <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
@@ -268,7 +271,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {!datos && !error && <p className="text-[13px] text-zinc-500">Leyendo el plan…</p>}
-          {datos && !hayAlgo && <p className="text-[13px] text-zinc-400">{datos.cliente ? `${datos.cliente.nombre} todavía no tiene plan de 90 días ni campaña en la cadena.` : "No hay clientes para mostrar."}</p>}
+          {datos && !hayAlgo && <p className="text-[13px] text-zinc-400">{datos.cliente ? `${datos.cliente.nombre} todavía no tiene plan ni campaña en la cadena.` : "No hay clientes para mostrar."}</p>}
           {datos && hayAlgo && (
             <>
               {/* la portada: en qué está la campaña, qué versión del plan y de la estrategia, qué falta decidir */}
@@ -276,7 +279,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 <h3 className="font-display text-[24px] font-semibold leading-tight tracking-tight text-zinc-50">{datos.cliente?.nombre}</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {c && <Chip tono={c.estado === "activa" ? "verde" : c.estado === "pausada" || c.estado === "necesita_humano" ? "ambar" : "neutro"}>campaña {estadoDeCampanaLegible(c.estado)}</Chip>}
-                  {c && (c.desde || c.hasta) && <Chip>{c.desde ? diaDelCalendario(c.desde) : "—"} → {c.hasta ? diaDelCalendario(c.hasta) : "—"}</Chip>}
+                  {periodo?.desde && <Chip>{textoDelPeriodo(periodo)}</Chip>}
                   {c && (() => { const sujeto = inicioSujetoAReanudar(c.estado, datos.fase_activa, c.desde); return sujeto ? <Chip tono="ambar">{sujeto}</Chip> : c.estado === "activa" && datos.fase_activa.situacion !== "sin_fecha" ? <Chip>{textoDeLaFase({ fase_activa: datos.fase_activa, campana: { estado: c.estado, desde: c.desde } as never })}</Chip> : null })()}
                   {e && <Chip>estrategia {estadoDeLaEstrategia(e.estado)}{c?.del_plan_anterior ? " · del plan anterior" : ""}</Chip>}
                   {d && <Chip>plan escrito {d.creado_en ? fechaCortaEC(d.creado_en) : ""}</Chip>}
@@ -287,7 +290,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 {c && (
                   <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-3">
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Sedes</dt><dd className="text-zinc-200">{c.sedes.length ? c.sedes.map(sedeLegible).join(" · ") : "—"}</dd></div>
-                    <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Publicaciones</dt><dd className="text-zinc-200">{c.publicaciones}{c.del_plan_anterior ? " · del plan anterior" : ""}</dd></div>
+                    <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Publicaciones</dt><dd data-publicaciones className="text-zinc-200">{c.version_calendario == null ? "calendario: aún no armado" : `${c.publicaciones}${c.del_plan_anterior ? " · del plan anterior" : ""}`}</dd></div>
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Producción</dt><dd className="text-zinc-200">{c.autoproducir ? "la oficina produce sola" : "cada pieza se pide"}</dd></div>
                   </dl>
                 )}

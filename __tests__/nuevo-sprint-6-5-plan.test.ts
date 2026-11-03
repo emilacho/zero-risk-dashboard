@@ -126,7 +126,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
       cadena_campanas: [fila],
       client_historical_outputs: [{ id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", title: "Plan de 90 dias · 2026-10-30", status: "draft", content_text: TEXTO_DEL_PLAN, content: null, provenance_tag: PROVENANCE, created_at: "2026-10-30T23:13:22Z", updated_at: null }],
       cadena_estrategias: [{ version: 1, estado: "validada", contenido: CONTENIDO, texto_md: null, costo_usd: "0.2499", creada_en: "2026-10-30T23:40:37Z" }],
-      cadena_calendario_filas: (f: string[]) => (f.some((x) => x.includes("calendario_version")) ? [{ calendario_version: 1 }] : [{ id: "a" }, { id: "b" }]),
+      cadena_calendario_filas: (f: string[]) => (f.some((x) => x.includes('"head":true')) ? [{ id: "a" }, { id: "b" }] : f.some((x) => x.includes("calendario_version")) ? [{ calendario_version: 1 }] : [{ id: "a" }, { id: "b" }]),
       cadena_esperas: (f: string[]) => (f.some((x) => x.includes('"vencida"')) ? [] : [{ objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-31T13:30:00Z", estado: "viva" }]),
       hitl_queue: [{ id: REVISION, title: "Plan con pendientes", status: "pending", decision: null, created_at: "2026-10-30T23:40:00Z", expires_at: null }],
     })
@@ -157,7 +157,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
   })
   it("el panel dibuja la portada, la decisión pendiente con sus marcas y botones, las fases, la meta, las redes, la semana tipo y lo que espera; sin revisión pendiente no hay botones", () => {
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="plan"'); expect(html).toContain("Plan de 90 días"); expect(html).toContain("Náufrago")
+    expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="plan"'); expect(html).toContain("Plan de 60 días") /* auditoría 6: el número sale del plan (sus fases llegan al día 60), no un «90» fijo */; expect(html).toContain("Náufrago")
     expect(html).toContain("campaña en pausa"); expect(html).toContain("pausa de pruebas por decisión del dueño"); expect(html).not.toContain("Día 4 · fase"); // con la campaña en pausa no se dice en qué día va; expect(html).toContain("estrategia validada"); expect(html).not.toContain("estrategia v1"); expect(html).toContain("Con puntos por resolver · 3")
     expect(html).not.toContain("Topes de la planeación"); expect(html).not.toContain("US$ 1,50"); expect(html).not.toContain("Tope de planeación"); // 01-nov (punto 8 de Emilio): el panel del plan no muestra dinero; el dinero va en Dinero
      expect(html).toContain("136"); expect(html).toContain("Guayaquil · Olón")
@@ -178,7 +178,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     expect(decidido).not.toContain('data-accion="plan-aprobar-asi"'); expect(decidido).toContain("Aprobado → pasa al brief"); expect(decidido).toContain("Aprobado así")
     // sin nada: se dice
     const nada = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, campana: null, estrategia: null, documento: null, revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [] } }))
-    expect(nada).toContain("todavía no tiene plan de 90 días ni campaña")
+    expect(nada).toContain("todavía no tiene plan ni campaña")
     const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
     expect(c).toContain("await enviar(accion, cuerpo)") // CC6 · decide SOLO por las puertas del ciclo vía el tablero (servidor valida · plataforma hace)
     expect(c).not.toContain("el plan en sí no cambia por esto")

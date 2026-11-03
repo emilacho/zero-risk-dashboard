@@ -7,11 +7,8 @@ import type { PlanDelCliente } from "@/lib/plan-datos"
 import { datosClave, resumenDeLaSeccion, seccionesDelPlan } from "@/lib/plan-documento"
 import { leerElCiclo, sedeLegible, textoDeLaMeta } from "@/lib/plan"
 import { redDelTablero } from "@/lib/pizarron"
+import { periodoDelPlan, textoDelPeriodo } from "@/lib/plan-periodo"
 
-const DIA_MS = 86_400_000
-const fecha = (f: string) => new Date(`${f}T00:00:00Z`)
-const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-const corta = (f: string) => { const d = fecha(f); return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]}` }
 
 export interface FaseDeLaBarra { clave: string; objetivo: string; desde: number; hasta: number; estado: "hecha" | "en_curso" | "por_venir" }
 export interface BarraDelPlan {
@@ -43,12 +40,11 @@ export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
     const sec = doc.secciones.find((x) => x.id === m.seccion)
     return (sec && resumenDeLaSeccion(sec.cuerpo, 200, 100_000).find((l) => l.startsWith(inicio))) || m.valor
   }
-  // fechas: las de la campaña (lo que corre de verdad); sin campaña, las que escribe el documento
-  let fechas: BarraDelPlan["fechas"] = null, total: number | null = null
-  if (c?.desde && c?.hasta) {
-    total = Math.round((fecha(c.hasta).getTime() - fecha(c.desde).getTime()) / DIA_MS) + 1
-    fechas = { texto: `${corta(c.desde)} → ${corta(c.hasta)} · ${Math.round(total / 7)} semanas`, detalle: null }
-  } else if (dato("fechas")) fechas = { texto: dato("fechas")!, detalle: "según el documento (todavía sin campaña)" }
+  // fechas y días: UNA sola fuente, el propio plan (auditoría 6 · `lib/plan-periodo.ts`); el documento sin fechas legibles se cita tal cual
+  const periodo = periodoDelPlan(p)
+  const total: number | null = periodo?.dias ?? null
+  let fechas: BarraDelPlan["fechas"] = periodo?.desde ? { texto: textoDelPeriodo(periodo), detalle: c ? null : "según el plan (todavía sin campaña)" } : null
+  if (!fechas && dato("fechas")) fechas = { texto: dato("fechas")!, detalle: "según el documento (todavía sin campaña)" }
   const meta = (d?.plan ? textoDeLaMeta(d.plan) : null) ?? metaDelDocumento()
   const dia = p.fase_activa.situacion === "en_curso" ? p.fase_activa.dia : null
   const fases: FaseDeLaBarra[] = (e?.fases ?? []).slice().sort((a, b) => a.dia_desde - b.dia_desde).map((f) => ({

@@ -30,6 +30,8 @@ export interface PlanLeido {
   zonas: string[]
   horario: string | null
   dias_activos_por_semana: number | null
+  /** cuántos días cubre el plan, si lo declara (CC6 · 03-nov: la fuente del periodo cuando el documento no escribe fechas) */
+  horizonte_dias?: number | null
   canales: CanalDelPlan[]
   /** fracción del esfuerzo que va a producción y a marca (0–1) */
   produccion_fraccion: number | null
@@ -40,7 +42,7 @@ export interface PlanLeido {
   /** claves del bloque que esta lectura no interpreta (se dicen, no se esconden) */
   otras_claves: string[]
 }
-const CLAVES_LEIDAS = new Set(["meta_por_semana", "evento", "zonas", "dias_y_horarios", "canales", "produccion", "marca", "no_se", "equilibrio_respuesta"])
+const CLAVES_LEIDAS = new Set(["meta_por_semana", "evento", "zonas", "dias_y_horarios", "canales", "produccion", "marca", "no_se", "equilibrio_respuesta", "horizonte_dias"])
 
 /** quita la cerca ```json … ``` si la hay y devuelve el JSON o null */
 function jsonDeLaCerca(t: string): unknown | null {
@@ -67,6 +69,7 @@ export function planDelTexto(contenido: unknown): { plan: PlanLeido | null; pros
       zonas: textos(o.zonas),
       horario: texto(dh.horario) || null,
       dias_activos_por_semana: numero(dh.dias_activos_por_semana),
+      horizonte_dias: numero(o.horizonte_dias),
       canales: lista(o.canales).map((c) => ({ canal: texto(c.canal), peso: numero(c.peso), activo: c.activo !== false, condicion: texto(c.condicion) || null })).filter((c) => c.canal),
       produccion_fraccion: numero(objeto(o.produccion).fraccion),
       marca_fraccion: numero(o.marca),
@@ -467,8 +470,8 @@ export function avanceDelPedido(a: AvanceCrudo, ahora: Date, documento: Document
   const pasos: PasoDelPedido[] = [
     { clave: "recibido", nombre: "Recibido", estado: "hecho", hora: p.creado_en, detalle: null },
     { clave: "reescribiendo", nombre: manual ? "El equipo del manual está reescribiendo" : "El jefe de marketing está reescribiendo", estado: redactorListo ? "hecho" : empezo ? "en_curso" : "pendiente", hora: empezo, detalle: null },
-    { clave: "controles", nombre: "Controles automáticos", estado: a.version_nueva ? "hecho" : redactorListo ? "en_curso" : "pendiente", hora: a.version_nueva?.creado_en ?? null, detalle: null },
-    { clave: "jefatura", nombre: "La jefatura revisa", estado: jefaturaCerrada ? "hecho" : a.version_nueva ? "en_curso" : "pendiente", hora: a.jefatura?.cerrado_en ?? a.jefatura?.creado_en ?? null, detalle: null },
+    { clave: "controles", nombre: a.version_nueva ? "Pasó los controles automáticos" : "Controles automáticos", estado: a.version_nueva ? "hecho" : redactorListo ? "en_curso" : "pendiente", hora: a.version_nueva?.creado_en ?? null, detalle: null },
+    { clave: "jefatura", nombre: jefaturaCerrada ? "La jefatura revisó" : "La jefatura revisa", estado: jefaturaCerrada ? "hecho" : a.version_nueva ? "en_curso" : "pendiente", hora: a.jefatura?.cerrado_en ?? a.jefatura?.creado_en ?? null, detalle: null },
     { clave: "listo", nombre: manual ? "Listo: ya es el manual vigente" : "Listo para ti", estado: listo ? "hecho" : "pendiente", hora: a.compuerta_nueva?.creado_en ?? (terminado ? p.actualizado_en : null), detalle: null },
   ]
   // el manual NO pasa por la jefatura (CC1 y CC2, 02-nov): ese paso no se muestra (no hay fila que lo encienda)
