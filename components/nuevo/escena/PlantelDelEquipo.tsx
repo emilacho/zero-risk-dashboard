@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { DefsDelHolograma, HologramaBusto, HologramaFigura } from "@/components/nuevo/escena/Holograma"
 import { FORMA_LEGIBLE, MINIMO_DE_TAREAS, type Rendimiento } from "@/lib/rendimiento"
-import { BLOQUES_DE_DIMENSIONES, CARA, colorDeNota, COLOR_DEL_ROL, mediaDelEquipo, moralDe, rolDe, siglaDelEquipo, VENTANA_DE_TRABAJO_DIAS, type DatosDelPlantel, type Moral } from "@/lib/plantel"
+import { BLOQUES_DE_DIMENSIONES, CARA, faltasDeLaFicha, colorDeNota, COLOR_DEL_ROL, mediaDelEquipo, moralDe, MINIMO_PARA_LA_MORAL, FALTAN_PARA_FORMA, FALTAN_PARA_VAL, rolDe, siglaDelEquipo, VENTANA_DE_TRABAJO_DIAS, type DatosDelPlantel, type Moral } from "@/lib/plantel"
 import { EQUIPOS, nombreCanonico, type ClaveDeEquipo } from "@/lib/organigrama"
 import type { MesaViva } from "@/lib/escena-avatares"
 
@@ -135,10 +135,10 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                     <span className="break-words text-[12px] leading-tight text-zinc-300" title={m.todos.join(" · ")}>{m.puesto}</span>
                     <HologramaBusto semilla={a} color={AMBAR} tam={34} />
                     <span className="min-w-0 break-words leading-tight text-zinc-100" data-nombre>{m.p.nombre}</span>
-                    <span data-val className="text-center text-[16px] font-bold tabular-nums" style={{ color: colorDeNota(x1?.puntaje ?? null) }}>{x1?.puntaje ?? "–"}</span>
+                    <span data-val className="text-center text-[16px] font-bold tabular-nums" style={{ color: colorDeNota(x1?.puntaje ?? null) }}>{x1?.puntaje ?? <span data-faltan="val" className="text-[11px] font-normal text-zinc-500" title={faltasDeLaFicha(x1).frase ?? undefined}>{faltasDeLaFicha(x1).val!.no_cuentan ? "no cuentan" : `${faltasDeLaFicha(x1).val!.tiene}/${FALTAN_PARA_VAL}`}</span>}</span>
                     <span data-rol className="text-[12.5px]" style={{ color: ro ? COLOR_DEL_ROL[ro] : "#71717a" }}>{ro ?? "–"}</span>
-                    <span data-forma-fila className="text-center">{x1?.forma ? <span className="text-[16px] font-bold leading-none" style={{ color: FORMA_LEGIBLE[x1.forma].color }} title={FORMA_LEGIBLE[x1.forma].texto}>{`${FORMA_LEGIBLE[x1.forma].flecha}︎`}</span> : <span className="text-zinc-500" title={x1?.motivo_sin_flecha ?? "sin dato todavía"}>–</span>}</span>
-                    <span className="flex justify-center"><Cara m={mm} /></span>
+                    <span data-forma-fila className="text-center">{x1?.forma ? <span className="text-[16px] font-bold leading-none" style={{ color: FORMA_LEGIBLE[x1.forma].color }} title={FORMA_LEGIBLE[x1.forma].texto}>{`${FORMA_LEGIBLE[x1.forma].flecha}︎`}</span> : <span data-faltan="forma" className="text-[11px] text-zinc-500" title={x1?.motivo_sin_flecha ?? "sin entregas revisadas todavía"}>{faltasDeLaFicha(x1).forma!.no_cuentan ? "no cuentan" : `${faltasDeLaFicha(x1).forma!.tiene}/${FALTAN_PARA_FORMA}`}</span>}</span>
+                    <span className="flex justify-center">{mm ? <Cara m={mm} /> : <span data-faltan="moral" className="text-[11px] text-zinc-500" title="entregas revisadas que cuentan, frente a las que hacen falta">{faltasDeLaFicha(x1).moral!.tiene}/{MINIMO_PARA_LA_MORAL}</span>}</span>
                   </button>
                   {es && menu && (
                     <div data-acciones className="grid grid-cols-1 gap-3 px-4 py-3 text-[13px] sm:grid-cols-3">
@@ -161,6 +161,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
             {!elegido ? <p className="text-[13px] text-zinc-500">Sin empleados que mostrar.</p> : (
               <>
                 <p className="flex items-baseline gap-2"><span data-ovr className="text-[34px] font-bold leading-none" style={{ color: colorDeNota(x?.puntaje ?? null) }}>{x?.puntaje ?? "–"}</span><span className="text-[13px] uppercase text-zinc-300">{mesa.nombre} · {elegido.puesto}</span></p>
+                {faltasDeLaFicha(x).frase && <p data-por-que-sin-nota className="mt-1 text-[12.5px] text-zinc-400">{faltasDeLaFicha(x).frase}</p>}
                 <p className="mt-1 break-all text-[11.5px] uppercase tracking-[0.18em] text-zinc-400">{elegido.p.agente}</p>
                 <h3 className="text-[26px] font-extrabold uppercase leading-tight tracking-wide text-zinc-50">{elegido.p.nombre}</h3>
                 <div className="mt-3 grid grid-cols-3 gap-3 border-b border-white/10 pb-3"><Dato k="Equipo" v={mesa.nombre} /><Dato k="Modelo" v={d?.modelo ?? "–"} /><Dato k="Trabaja desde" v={corto(d?.desde ?? null)} /></div>
@@ -172,7 +173,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
                 <p className="mt-3 text-[14px] font-semibold text-zinc-100">Impacto</p>
                 <Linea k="Aprobado a la 1.ª">{dim(1)?.puntaje != null ? <span><b style={{ color: colorDeNota(dim(1)!.puntaje) }}>{dim(1)!.puntaje}</b> <span className="text-zinc-400">· {dim(1)!.valor}</span></span> : <span className="italic text-zinc-500">sin dato todavía</span>}</Linea>
                 <Linea k="Cumplió la tarea">{dim(2)?.puntaje != null ? <span><b style={{ color: colorDeNota(dim(2)!.puntaje) }}>{dim(2)!.puntaje}</b> <span className="text-zinc-400">· {dim(2)!.valor}</span></span> : <span className="italic text-zinc-500">sin dato todavía</span>}</Linea>
-                <Linea k="Moral"><span className="flex items-center gap-2" data-moral-detalle={mo ?? "sin"}><Cara m={mo} />{mo ? <>{CARA[mo].texto} <span className="text-zinc-400">· {x!.devueltas} {x!.devueltas === 1 ? "devuelta" : "devueltas"} de {x!.contables}</span></> : <span className="text-zinc-400">pocas entregas revisadas (hacen falta 3)</span>}</span></Linea>
+                <Linea k="Moral"><span className="flex items-center gap-2" data-moral-detalle={mo ?? "sin"}><Cara m={mo} />{mo ? <>{CARA[mo].texto} <span className="text-zinc-400">· {x!.devueltas} {x!.devueltas === 1 ? "devuelta" : "devueltas"} de {x!.contables}</span></> : <span className="text-zinc-400">pocas entregas revisadas: tiene {x?.contables ?? 0}, hacen falta 3</span>}</span></Linea>
                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/10 pt-3">
                   <Circulo k="Aprobado a la 1.ª" v={dim(1)?.puntaje != null ? String(dim(1)!.puntaje) : "–"} n={dim(1)?.puntaje ?? null} color={colorDeNota(dim(1)?.puntaje ?? null)} />
                   <Circulo k={`Trabajos en ${VENTANA_DE_TRABAJO_DIAS} días`} v={d ? String(d.trabajos_30d) : "–"} n={d ? Math.round((d.trabajos_30d / 20) * 100) : null} color={AMBAR} />
@@ -201,7 +202,7 @@ export function PlantelDelEquipo({ mesa, mesas, agenteInicial = null, onCerrar, 
             {elegido && <svg viewBox="-34 -128 68 136" className="h-full max-h-[640px] w-full" role="img" aria-label={`Holograma de ${elegido.p.nombre}`}><defs><DefsDelHolograma /></defs><HologramaFigura semilla={elegido.p.agente} color={AMBAR} postura="de_pie" /></svg>}
           </section>
         </div>
-        <p className="border-t border-white/10 px-4 py-2 text-[11px] text-zinc-500">Informa; no bloquea ni decide nada sobre el empleado. Rol: por trabajos en {VENTANA_DE_TRABAJO_DIAS} días · Moral: por entregas que le devolvieron · Forma: sus últimas 10 entregas revisadas frente a las 10 anteriores.</p>
+        <p className="border-t border-white/10 px-4 py-2 text-[11px] text-zinc-500">Informa; no bloquea ni decide nada sobre el empleado. Cuando una celda dice «2/5» es lo que tiene frente a lo que hace falta: entregas revisadas por la jefatura (valoración 5 · forma 10 · moral 3). Rol: por trabajos en {VENTANA_DE_TRABAJO_DIAS} días · Moral: por entregas que le devolvieron · Forma: sus últimas 10 entregas revisadas frente a las 10 anteriores.</p>
       </section>
     </div>
   )

@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { armarEscena } from "@/lib/escena-avatares"
-import { costoFrenteASuPromedio, mediaDelEquipo, moralDe, rolDe } from "@/lib/plantel"
+import { costoFrenteASuPromedio, faltasDeLaFicha, mediaDelEquipo, moralDe, rolDe } from "@/lib/plantel"
 import { leerPlantel } from "@/lib/plantel-datos"
 import { rendimientoDe, type RevisionCruda, type TrabajoCrudo } from "@/lib/rendimiento"
 import { PlantelDelEquipo, puestoEnElEquipo } from "@/components/nuevo/escena/PlantelDelEquipo"
@@ -110,9 +110,15 @@ describe("el plantel en pantalla", () => {
     for (const b of ["Calidad", "Trabajo", "Equipo", "Datos"]) expect(html).toContain(b)
     expect(html.match(/data-dimension="\d+"/g)).toHaveLength(10)
     expect(html).toContain("sin dato todavía") // veracidad, pregunta… sin datos
-    expect(html).toMatch(/data-fila="video-editor"[\s\S]*?<span[^>]*data-val[^>]*>–<\/span>/)
+    expect(html).toMatch(/data-fila="video-editor"[\s\S]*?<span[^>]*data-val[^>]*><span data-faltan="val"[^>]*>0\/5<\/span><\/span>/) // 03-nov: no una raya: lo que tiene frente a lo que hace falta
     const solo = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa, mesas: e.mesas, agenteInicial: "video-editor", onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: rend, plantelInicial: plantel, ahora }))
     expect(solo).toContain('data-moral-detalle="sin"'); expect(solo).toContain("En espera") // inactivo
+  })
+  it("en pantalla: la fila dice «0/5», «0/10» y «0/3» en vez de rayas, y el detalle trae la frase", () => {
+    const sinRend = renderToStaticMarkup(createElement(PlantelDelEquipo, { mesa, mesas: e.mesas, agenteInicial: "video-editor", onCerrar: () => {}, onFicha: () => {}, onTrabajo: () => {}, rendimientoInicial: rend, plantelInicial: plantel, ahora }))
+    expect(sinRend).toContain('data-faltan="val"'); expect(sinRend).toContain('data-faltan="forma"'); expect(sinRend).toContain('data-faltan="moral"')
+    expect(sinRend).toContain("data-por-que-sin-nota"); expect(sinRend).toContain("Todavía no tiene entregas revisadas por la jefatura")
+    expect(sinRend).toContain("hacen falta 3")
   })
   it("corrección 02-nov: ocupa toda la pantalla hasta el chat (nv-panel, sin ancho ni alto máximos) y ningún nombre ni puesto se corta", () => {
     expect(html).toContain("nv-panel"); expect(html).toMatch(/relative flex h-full w-full flex-col/)
@@ -138,5 +144,34 @@ describe("el plantel en pantalla", () => {
     const fl = readFileSync("components/nuevo/escena/FlechasDeForma.tsx", "utf8")
     expect(fl).toContain("TAM_FLECHA = 17"); expect(fl).toContain("ALTO = { de_pie: 85, sentado: 57 }")
     expect(fl).not.toMatch(/<rect[^>]*stroke=/) // sin recuadro: solo el área de toque transparente
+  })
+})
+
+describe("03-nov · auditoría punto 15 · la celda sin número dice por qué (tiene / hace falta)", () => {
+  const tiene = (revisadas: number, previas: number, contables: number, puntaje: number | null, forma: unknown = null) => faltasDeLaFicha({ revisadas, previas, contables, puntaje, forma })
+  it("sin ninguna entrega revisada: 0 de 5, 0 de 10 y 0 de 3, con frase", () => {
+    const f = faltasDeLaFicha(null)
+    expect(f.val).toEqual({ tiene: 0, hace_falta: 5, no_cuentan: false }); expect(f.forma).toEqual({ tiene: 0, hace_falta: 10, no_cuentan: false }); expect(f.moral).toEqual({ tiene: 0, hace_falta: 3 })
+    expect(f.frase).toBe("Todavía no tiene entregas revisadas por la jefatura: la valoración llega con 5.")
+  })
+  it("con pocas: cuenta lo que tiene (la forma pide 5 recientes y 5 anteriores)", () => {
+    const f = tiene(2, 0, 1, null)
+    expect(f.val).toEqual({ tiene: 2, hace_falta: 5, no_cuentan: false }); expect(f.forma).toEqual({ tiene: 2, hace_falta: 10, no_cuentan: false }); expect(f.moral).toEqual({ tiene: 1, hace_falta: 3 })
+    expect(f.frase).toBe("Tiene 2 entregas revisadas por la jefatura; hacen falta 5 para la valoración.")
+    expect(tiene(1, 0, 1, null).frase).toBe("Tiene 1 entrega revisada por la jefatura; hacen falta 5 para la valoración.")
+    expect(tiene(10, 7, 4, null).forma).toEqual({ tiene: 10, hace_falta: 10, no_cuentan: true })
+  })
+  it("con 5 o más revisadas que NO cuentan (por tope o fallidas) no dice «5/5» ni «hacen falta 5»: dice que ninguna cuenta", () => {
+    const f = tiene(7, 0, 0, null)
+    expect(f.val).toEqual({ tiene: 5, hace_falta: 5, no_cuentan: true })
+    expect(f.frase).toBe("Tiene 7 entregas revisadas, pero ninguna cuenta para la nota (cortadas por tope o fallidas).")
+    expect(f.frase).not.toMatch(/hacen falta/)
+    expect(tiene(10, 10, 0, null).forma).toEqual({ tiene: 10, hace_falta: 10, no_cuentan: true })
+    expect(tiene(4, 0, 0, null).val?.no_cuentan).toBe(false); expect(tiene(5, 0, 0, null).val?.no_cuentan).toBe(true) // el borde: con 5 ya no es «faltan»
+    expect(tiene(10, 3, 4, null).forma?.no_cuentan).toBe(false)
+  })
+  it("lo que ya tiene valor no dice «falta»: valoración, forma y moral completas devuelven null", () => {
+    const f = tiene(10, 10, 8, 82, "estable")
+    expect(f.val).toBeNull(); expect(f.forma).toBeNull(); expect(f.moral).toBeNull(); expect(f.frase).toBeNull()
   })
 })
