@@ -62,10 +62,10 @@ export function PedirCambiosAlManual({ cliente, clienteNombre = null, ciclo, acc
   const aviso = avisoDeLoValidado(seccion ? seccion.validados : validadosDelManual, !!seccion)
   return (
     <div data-pedir-cambios-manual data-tablero-accion="manual-cambios" className="mt-3 scroll-mt-2">
-      {rotulo && <p data-rotulo-reescribiendo className="rounded-md border border-violet-400/40 bg-violet-500/10 px-3 py-2 text-[13px] text-violet-100">{rotulo}</p>}
-      {ciclo.avance && barraOculta && <button type="button" data-accion="ver-avance" onClick={() => setBarraOculta(false)} className="mt-2 rounded-full border border-violet-300/50 px-3 py-1 text-[12.5px] text-violet-100 hover:bg-violet-500/15">Ver el avance</button>}
+      {rotulo && <p data-rotulo-reescribiendo className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">{rotulo}</p>}
+      {ciclo.avance && barraOculta && <button type="button" data-accion="ver-avance" onClick={() => setBarraOculta(false)} className="mt-2 rounded-full border border-amber-300/50 px-3 py-1 text-[12.5px] text-amber-100 hover:bg-amber-500/15">Ver el avance</button>}
       {ciclo.avance && !barraOculta && <BarraDelPedido avance={ciclo.avance} onOcultar={() => setBarraOculta(true)} />}
-      {ciclo.abierto?.texto && <blockquote className="mt-2 border-l-2 border-violet-400/50 pl-3 text-[12.5px] italic text-zinc-300">Lo que pediste: {ciclo.abierto.texto}</blockquote>}
+      {ciclo.abierto?.texto && <blockquote className="mt-2 border-l-2 border-amber-400/50 pl-3 text-[12.5px] italic text-zinc-300">Lo que pediste: {ciclo.abierto.texto}</blockquote>}
       {ciclo.que_cambio.length > 0 && <QueCambio titulo="Qué cambió en el manual" lineas={ciclo.que_cambio} />}
       {ciclo.aviso_del_pedido && (
         <div data-aviso-campo-validado data-con-campos={ciclo.aviso_del_pedido.campos.length > 0} className="mt-3 rounded-md border border-amber-400/40 bg-amber-400/[0.06] px-3 py-2.5 text-[13px] leading-snug text-amber-50">
@@ -83,14 +83,14 @@ export function PedirCambiosAlManual({ cliente, clienteNombre = null, ciclo, acc
 
       {modo === "quieto" && puedePedir && !reintento && (
         <button type="button" data-accion="manual-pedir-cambios" disabled={enviando} onClick={() => { setError(null); setSeccion(null); setModo("escribir") }}
-          className="mt-3 rounded-md border border-white/25 bg-white/[0.06] px-4 py-2 text-[13px] font-medium text-zinc-50 transition hover:border-violet-300/70 hover:bg-violet-400/10 disabled:opacity-50">{clienteNombre ? `Pedir cambios al manual de ${clienteNombre}` : "Pedir cambios al manual"}</button>
+          className="mt-3 rounded-md border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[13px] font-medium text-amber-50 transition hover:bg-amber-400/25 disabled:opacity-50">{clienteNombre ? `Pedir cambios al manual de ${clienteNombre}` : "Pedir cambios al manual"}</button>
       )}
       {modo === "quieto" && reintento && (
         <button type="button" data-accion="manual-reintentar" disabled={enviando} onClick={() => void mandar(reintento.texto, reintento.seccion)}
           className="mt-3 rounded-md border border-amber-300/70 bg-black/40 px-4 py-2 text-[13px] text-amber-100 hover:bg-amber-400/15 disabled:opacity-50">{enviando ? "Enviando…" : "Reintentar el pedido"}</button>
       )}
       {modo === "escribir" && (
-        <form data-editor="manual-cambios" className="mt-3 rounded-lg border border-violet-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); void mandar(observaciones, seccion) }}>
+        <form data-editor="manual-cambios" className="mt-3 rounded-lg border border-amber-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); void mandar(observaciones, seccion) }}>
           <label className="block">
             <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar en el manual{clienteNombre ? <> de <b data-pedido-para className="text-[12.5px] normal-case tracking-normal text-amber-200">{clienteNombre}</b></> : null}? (el equipo del manual lo lee y lo reescribe)</span>
             <textarea value={observaciones} onChange={(ev) => setObservaciones(ev.target.value)} rows={4} maxLength={4000} aria-label="Qué debe cambiar en el manual" autoFocus
@@ -99,7 +99,7 @@ export function PedirCambiosAlManual({ cliente, clienteNombre = null, ciclo, acc
           {aviso && <p data-aviso-validados className="mt-1 text-[12px] text-amber-200">{aviso}</p>}
           <p className="mt-1 text-[11px] text-zinc-500">{observaciones.trim().length}/4000</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="submit" data-accion="manual-enviar-pedido" disabled={enviando} className="rounded-md border border-violet-300/60 bg-violet-500/70 px-5 py-2 text-[13.5px] font-medium text-white hover:bg-violet-500 disabled:opacity-50">{enviando ? "Enviando…" : clienteNombre ? `Enviar el pedido para ${clienteNombre}` : "Enviar el pedido"}</button>
+            <button type="submit" data-accion="manual-enviar-pedido" disabled={enviando} className="rounded-md border border-amber-300/60 bg-amber-500/70 px-5 py-2 text-[13.5px] font-medium text-white hover:bg-amber-500 disabled:opacity-50">{enviando ? "Enviando…" : clienteNombre ? `Enviar el pedido para ${clienteNombre}` : "Enviar el pedido"}</button>
             <button type="button" disabled={enviando} onClick={() => { setModo("quieto"); setSeccion(null) }} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
           </div>
         </form>

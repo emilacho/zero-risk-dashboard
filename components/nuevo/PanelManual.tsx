@@ -249,7 +249,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
   const pedirEnSeccion = (titulo: string, claves: string[]) => setPedirEn((p) => ({ titulo, campos: claves, validados: validadosDe(claves), n: (p?.n ?? 0) + 1 }))
   const BotonDeSeccion = ({ titulo, claves }: { titulo: string; claves: string[] }) => puedePedirEnSeccion ? (
     <button type="button" data-accion="manual-pedir-cambios-seccion" data-seccion-pedir={titulo} onClick={() => pedirEnSeccion(titulo, claves)}
-      className="mt-3 text-[12px] text-violet-200 underline decoration-dotted underline-offset-4 hover:text-violet-100">Pedir cambios en esta sección</button>
+      className="mt-3 text-[12px] text-amber-200 underline decoration-dotted underline-offset-4 hover:text-amber-100">Pedir cambios en esta sección</button>
   ) : null
 
   return (
@@ -312,8 +312,8 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
                 <div className="min-w-0 space-y-5">
                   {revisionesSueltas.length > 0 && (
-                    <section data-revisiones-sueltas aria-label="Revisiones del editor" className="rounded-lg border border-violet-400/30 bg-white/[0.02] p-4">
-                      <h3 className="text-[12px] font-medium uppercase tracking-[0.18em] text-violet-200">Revisiones del editor</h3>
+                    <section data-revisiones-sueltas aria-label="Revisiones del editor" className="rounded-lg border border-amber-400/30 bg-white/[0.02] p-4">
+                      <h3 className="text-[12px] font-medium uppercase tracking-[0.18em] text-amber-200">Revisiones del editor</h3>
                       {revisionesSueltas.map((r) => <TarjetaDeRevisionDelEditor key={r.id} r={r} accion={accion} onHecho={revisionHecha} />)}
                     </section>
                   )}
@@ -365,7 +365,7 @@ export function PanelManual({ onCerrar, datosIniciales = null, clienteInicial = 
         {datos && m && (
           <footer data-guardar-cambios className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-[#141414] px-4 py-3 sm:px-6">
             <button type="button" data-accion="guardar-cambios" data-tablero-accion="manual-campos" disabled={!nCambios || guardando || !cliente} onClick={() => void guardarCambios()}
-              className="rounded-lg border border-amber-400/70 bg-amber-400/15 px-5 py-2.5 text-[15px] font-medium text-amber-50 transition hover:bg-amber-400/25 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">
+              className="rounded-lg border border-amber-400/70 bg-amber-400/15 px-5 py-2.5 text-[15px] font-medium text-amber-50 transition hover:bg-amber-400/25 disabled:border-amber-400/25 disabled:bg-amber-400/[0.04] disabled:text-amber-200/40">
               {guardando ? "Guardando…" : "Guardar cambios"}
             </button>
             {nCambios > 0 && !guardando && <span data-cambios-en-espera className="text-[13.5px] text-amber-200">{nCambios === 1 ? "1 cambio sin guardar" : `${nCambios} cambios sin guardar`}</span>}
