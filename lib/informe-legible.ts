@@ -16,7 +16,9 @@ const VERBO = String.raw`(?:ver|v[ée]ase|seg[uú]n|fuente:?|fuentes:?)`
 
 export function sinCodigosDeFicha(t: string): string {
   return t
-    .replace(new RegExp(String.raw`\s*\b${VERBO}\s*\[${LISTA}\]\s*\.?`, "gi"), (m) => (m.trim().endsWith(".") ? "." : ""))
+    // la cita que es TODA la oración («Ver [ficha …].», «Fuente: [6a0f…].») se va con su punto; en medio de una oración, solo el verbo y la cita
+    .replace(new RegExp(String.raw`(^|[.!?]\s+)${VERBO}\s*(?:\[${LISTA}\]|\(${EN_PARENTESIS}\))\s*\.\s*`, "gi"), "$1")
+    .replace(new RegExp(String.raw`\s*\b${VERBO}\s*(?:\[${LISTA}\]|\(${EN_PARENTESIS}\))`, "gi"), "")
     .replace(new RegExp(String.raw`\s*\[${LISTA}\]`, "gi"), "")
     .replace(new RegExp(String.raw`\s*\(${EN_PARENTESIS}\)`, "gi"), "")
     .replace(new RegExp(String.raw`\s*\b(?:según|ver|en)\s+(?:la\s+)?fichas?\s+${VARIOS}`, "gi"), "")
@@ -25,6 +27,7 @@ export function sinCodigosDeFicha(t: string): string {
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\s+([,.;:)])/g, "$1")
     .replace(/([.!?])\.+/g, "$1")
+    .replace(/([,;])\s*[,;]/g, "$1")
     .trim()
 }
 

@@ -30,6 +30,11 @@ describe("1 · Informes: se leen como un documento", () => {
     expect(sinCodigosDeFicha("Dato [6a0f94b0]")).toBe("Dato")
     expect(sinCodigosDeFicha("Las reseñas suben. Ver [ficha 6a0f94b0…]. Sigue el plan.")).toBe("Las reseñas suben. Sigue el plan.")
     expect(sinCodigosDeFicha("Las reseñas suben (véase [6a0f94b0…]).")).toBe("Las reseñas suben.")
+    // anexo 1 de CC3: si la cita era toda la oración, se va con su punto; el verbo no queda colgado
+    expect(sinCodigosDeFicha("Ver [ficha 6a0f94b0…].")).toBe("")
+    expect(sinCodigosDeFicha("Fuente: [6a0f94b0]. Luego sigue.")).toBe("Luego sigue.")
+    expect(sinCodigosDeFicha("Sube la venta. Según [6a0f94b0, 9b1c22de]. Luego sigue.")).toBe("Sube la venta. Luego sigue.")
+    expect(sinCodigosDeFicha("Sube mucho, véase (ficha 6a0f94b0…), en Olón.")).toBe("Sube mucho, en Olón.")
   })
   it("en pantalla: títulos de verdad, viñetas, negritas reales; sin ** a la vista", () => {
     const h = renderToStaticMarkup(createElement(DocumentoLegible, { texto: INFORME }))
