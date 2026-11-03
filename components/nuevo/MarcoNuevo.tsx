@@ -18,7 +18,8 @@ import {
 
 const AMBAR = "#e8731a"
 
-const ICONO_SUPERIOR = "flex h-9 w-9 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a]"
+// regla 9 (iPhone): todo lo que se toca mide al menos 44 px (CC3, 03-nov)
+const ICONO_SUPERIOR = "flex h-11 w-11 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a]"
 
 export function BarraSuperior() {
   return (
@@ -64,7 +65,7 @@ export function MenuLateral({ actual = "/nuevo" }: { actual?: string }) {
     <nav aria-label="Menú" className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-1 rounded-2xl bg-[#232325] p-1.5 sm:left-3">
       {MENU.map((m) => {
         const activo = m.href === actual
-        const clase = "flex h-9 w-9 items-center justify-center rounded-lg"
+        const clase = "flex h-11 w-11 items-center justify-center rounded-lg"
         return m.href ? (
           <Link key={m.etiqueta} href={m.href} aria-label={m.etiqueta} title={m.etiqueta} aria-current={activo ? "page" : undefined}
             className={`${clase} transition-colors hover:bg-white/[0.07] ${activo ? "bg-white/[0.08]" : "text-zinc-300 hover:text-white"}`} style={activo ? { color: AMBAR } : undefined}>{m.icono}</Link>

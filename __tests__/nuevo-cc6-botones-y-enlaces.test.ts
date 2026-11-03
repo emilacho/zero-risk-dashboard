@@ -62,6 +62,19 @@ describe("el buscador en pantalla", () => {
   })
 })
 
+describe("regla 9 · iPhone (reservas de CC3)", () => {
+  it("todo lo que se toca en el marco mide al menos 44 px (h-11/w-11 o min-h-11), y el buscador también existe en el celular", () => {
+    const marco = readFileSync("components/nuevo/MarcoNuevo.tsx", "utf8"), buscador = readFileSync("components/nuevo/Buscador.tsx", "utf8"), selector = readFileSync("components/nuevo/SelectorDeCliente.tsx", "utf8")
+    expect(marco).toContain('const ICONO_SUPERIOR = "flex h-11 w-11'); expect(marco).toContain('const clase = "flex h-11 w-11'); expect(marco).not.toMatch(/h-9 w-9/)
+    expect(selector).toContain('aria-haspopup="menu"'); expect(selector).toContain('className="flex min-h-11 items-center gap-2 whitespace-nowrap')
+    const cerrado = renderToStaticMarkup(createElement(Buscador, {}))
+    expect(cerrado).toMatch(/data-accion="abrir-buscador-celular"[^>]*aria-label="Buscar"[^>]*class="[^"]*h-11 w-11[^"]*md:hidden/) // la lupa en el celular
+    expect(cerrado).toMatch(/data-accion="abrir-buscador"[^>]*class="hidden h-11[^"]*md:flex/) // la barra desde 768 px
+    expect(cerrado).not.toMatch(/data-buscador[^>]*class="[^"]*hidden md:block/) // ya no se esconde entero
+    expect(buscador).not.toContain("h-9 ")
+  })
+})
+
 describe("el marco ya no manda al dashboard viejo", () => {
   it("ningún archivo de la pantalla nueva enlaza a /mapa, /piezas, /oficinas, /alertas ni /gasto", () => {
     for (const f of ["components/nuevo/MarcoNuevo.tsx", "components/nuevo/Buscador.tsx", "components/nuevo/BotonesDelMarco.tsx", "components/nuevo/EscenaViva.tsx"]) {

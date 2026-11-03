@@ -236,7 +236,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     const html = renderToStaticMarkup(createElement(BarraSuperior))
     expect(html).toContain("Seleccionar cliente"); expect(html).toContain("Buscar")
     expect(html).not.toMatch(/absolute left-1\/2 top-1\/2[^"]*md:block/)
-    expect(html).toMatch(/mx-auto hidden w-\[min\(34vw,420px\)\] md:block/)
+    expect(html).toContain("mx-auto md:relative md:w-[min(34vw,420px)]") // 03-nov: en el celular, una lupa de 44 px (ya no se esconde entero)
     expect(html).toContain("whitespace-nowrap")
   })
 })
