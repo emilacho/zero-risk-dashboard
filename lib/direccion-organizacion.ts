@@ -107,7 +107,7 @@ export function armarOrganizacion(d: { deptos: FilaDepto[]; agentes: FilaAgente[
   // tarjetas del directorio sin empleado instalado (p. ej. el portero del cerebro): se listan, sin inventarles más
   for (const x of d.directorio) {
     if (personas[x.agente] || [...Object.keys(personas)].some((k) => nombreCanonico(k) === nombreCanonico(x.agente))) continue
-    alta(x.agente, nombreLegibleDelAgente(x.agente), "Especialista", x.equipo ? "marketing" : "transversal", { activo: x.activo !== false, instalado: false })
+    alta(x.agente, nombreLegibleDelAgente(x.agente), "Especialista", x.equipo && equiposMk.some((e) => e.clave === x.equipo!.toLowerCase().replace(/-/g, "_")) ? "marketing" : "transversal", { activo: x.activo !== false, instalado: false })
   }
 
   // jefe de cada departamento: el jefe de departamento que no le reporta a otro del mismo departamento
