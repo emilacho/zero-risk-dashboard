@@ -6,6 +6,7 @@ import { PanelManual, avisoDeAprobado, llamarAccion, motivoDeNoAprobar } from "@
 import { detalleDelCuadro } from "@/components/nuevo/PanelAplicaciones"
 import { leerPizarron } from "@/lib/pizarron-datos"
 import { leerManual } from "@/lib/manual-lector"
+import { planSinPedir } from "@/lib/manual-datos"
 import { seccionesNuevasDelBorrador } from "@/lib/manual-secciones"
 import type { ManualDelCliente } from "@/lib/manual-datos"
 
@@ -99,5 +100,25 @@ describe("el pizarrón: «Plan: espera que apruebes el manual» mientras no est�
     expect((await leerPizarron(base2({ human_validated: true, provenance_tag: { validado_por: "jefatura" } }), { cliente: C })).manual_aprobado).toBe(false)
     expect((await leerPizarron(base2(null), { cliente: C })).manual_aprobado).toBeNull()
     expect((await leerPizarron(base2(null, true), { cliente: C })).manual_aprobado).toBeNull()
+  })
+})
+
+describe("reserva de CC3 a #227: «Reintentar pedir el plan» sobrevive a recargar", () => {
+  it("la espera de ESTE manual quedó soltada y el plan no se pidió: hay que reintentar; cualquier otro caso, no", () => {
+    expect(planSinPedir({ estado: "soltada", despertado: false, manual_id: "v2" }, "v2")).toBe(true)
+    expect(planSinPedir({ estado: "soltada", despertado: true, manual_id: "v2" }, "v2")).toBe(false) // el plan sí salió
+    expect(planSinPedir({ estado: "soltada", despertado: null, manual_id: "v2" }, "v2")).toBe(false) // aún no se sabe: no se ofrece un segundo envío
+    expect(planSinPedir({ estado: "soltada", despertado: false, manual_id: "v1" }, "v2")).toBe(false) // era de otro manual
+    expect(planSinPedir({ estado: "esperando", despertado: false, manual_id: "v2" }, "v2")).toBe(false) // aún espera: lo dice el botón de aprobar
+    expect(planSinPedir(null, "v2")).toBe(false) // sin espera (aprueba por versión) o tabla aún no publicada
+  })
+  it("con el manual aprobado y `plan_sin_pedir`, el botón aparece como «Reintentar pedir el plan» sin estado en pantalla", () => {
+    const d = manual({ human_validated: true, provenance_tag: { validado_por: "dueno" } })
+    ;(d.manual as unknown as Record<string, unknown>).plan_sin_pedir = true
+    const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: d }))
+    expect(h).toMatch(/data-accion="validar-manual"[^>]*>Reintentar pedir el plan</)
+  })
+  it("mutante de CC3: `sin_cambios` con el plan pedido dice que el plan arranca, no «ya estaba aprobado»", () => {
+    expect(avisoDeAprobado({ sin_cambios: true, plan: { pedido: true } }).texto).toBe("✓ Manual aprobado · el plan arranca con este manual")
   })
 })

@@ -32,6 +32,20 @@ const detalleCorto = (v: unknown): string | null => {
   if (v && typeof v === "object") { const o = v as Record<string, unknown>; return t(o.motivo) ?? t(o.error) ?? t(o.mensaje) }
   return null
 }
+/** LA PAUSA DEL MANUAL (reserva de CC3 a #227): la espera de ESTE manual quedó soltada pero el plan no se pidió (`despertado = false`).
+ *  Así «Reintentar pedir el plan» sigue a la vista aunque se recargue. Solo lectura. Con #868 `5b897c4` el pedido por versión también deja su fila. */
+export function planSinPedir(espera: Fila | null, manualId: unknown): boolean {
+  return !!espera && espera.estado === "soltada" && espera.despertado === false && typeof manualId === "string" && espera.manual_id === manualId
+}
+async function leerPlanSinPedir(supa: SupabaseClient, clienteId: string, libro: Fila): Promise<boolean> {
+  try {
+    if (typeof libro.id !== "string") return false
+    // CUALQUIER fila de este manual con el plan sin pedir, no solo la última: si Emilio aprobó antes de que el alta guardara, la última es la del alta
+    // y el pedido fallido queda en la anterior (CC1 · 03-nov 15:28Z). Sirve con espera y sin ella (#868 `5b897c4` deja fila también por versión)
+    const r = await opcional(supa.from("esperas_del_dueno").select("estado, manual_id, despertado").eq("client_id", clienteId).eq("tipo", "manual").eq("estado", "soltada").eq("despertado", false).eq("manual_id", libro.id).limit(1).maybeSingle(), "esperas_del_dueno")
+    return planSinPedir(r.fila, libro.id)
+  } catch { return false } // si no se puede leer, el panel sigue como antes: el botón no aparece por un error
+}
 /** LA BARRA LATERAL (CC6 · 02-nov): logo (del borrador), fotos propias (producto y ambiente, ya en nuestro almacén), sedes con su atención/horario/dirección y fuente, y canales propios. Solo lectura */
 async function leerLaBarra(supa: SupabaseClient, clienteId: string, libro: Fila): Promise<NonNullable<NonNullable<ManualDelCliente["manual"]>["barra"]>> {
   const [ficha, sedes, datos, fotos] = await Promise.all([
@@ -122,6 +136,8 @@ export interface ManualDelCliente {
     /** CC6 · 02-nov (auditoría, punto 3): las revisiones del editor pendientes de este manual, legibles y con su costo (antes, en Piezas) */
     revisiones_del_editor?: RevisionDelEditor[]
     jerarquia_tipografica?: Array<{ uso: string; familia: string }>
+    /** CC6 · la pausa del manual: aprobado pero el plan no se pudo pedir (sobrevive a recargar) */
+    plan_sin_pedir?: boolean
     creado_en: string | null
     actualizado_en: string | null
   }
@@ -172,6 +188,7 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
       secciones_nuevas: seccionesNuevasDelBorrador(borradorDelManual(b)),
       revisiones_del_editor: await leerRevisionesDelEditor(supa, cliente.id, etiquetaDelCampo).catch(() => []),
       jerarquia_tipografica: jerarquiaTipografica(borradorDelManual(b)),
+      plan_sin_pedir: await leerPlanSinPedir(supa, cliente.id, b),
       creado_en: typeof b.created_at === "string" ? b.created_at : null,
       actualizado_en: typeof b.updated_at === "string" ? b.updated_at : null,
     },
