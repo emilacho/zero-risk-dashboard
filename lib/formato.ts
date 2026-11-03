@@ -12,7 +12,7 @@ export function cantidadEnPalabras(n: number): string {
   if (!Number.isFinite(n)) return "—"
   const a = Math.abs(n)
   const fino = (v: number) => (Math.round(v * 10) / 10).toLocaleString("es-EC", { maximumFractionDigits: 1 })
-  if (a >= 1_000_000) {
+  if (a >= 999_500) {
     const m = a / 1_000_000
     const t = fino(m)
     return `${n < 0 ? "-" : ""}${t} ${t === "1" ? "millón" : "millones"}`

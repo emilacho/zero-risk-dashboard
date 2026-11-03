@@ -20,5 +20,8 @@ describe("formato único del dashboard", () => {
     expect(cantidadEnPalabras(1_000_000)).toBe("1 millón")
     expect(cantidadEnPalabras(820_000)).toBe("820 mil")
     expect(cantidadEnPalabras(950)).toBe("950")
+    expect(cantidadEnPalabras(12_000)).toBe("12 mil")
+    expect(cantidadEnPalabras(9_999)).toBe("9.999")
+    expect(cantidadEnPalabras(999_600)).toBe("1 millón")
   })
 })
