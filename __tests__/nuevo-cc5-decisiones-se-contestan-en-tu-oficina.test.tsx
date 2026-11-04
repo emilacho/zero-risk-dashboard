@@ -126,6 +126,14 @@ describe("responder · primero la pausa de finanzas, después la puerta del due�
 })
 
 describe("descartar y firmar", () => {
+  it("responder manda exactamente la forma del cerebro, y la pregunta nunca pasa de su tope de 600 (LISTO de Cerebro · 4-nov)", async () => {
+    const larga = { ...D, decisiones: D.decisiones.map((x) => (x.id === P1 ? { ...x, titulo_interno: "¿".repeat(700) } : x)) }
+    const p = plataforma(); const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28 dólares" }, deps(p, lecturas(larga, sin(P1))))
+    expect(r.status).toBe(200)
+    const post = p.llamadas.find((x) => x.metodo === "POST" && x.url.endsWith("/api/brain/alimentar/dueno"))!
+    expect(Object.keys(post.cuerpo!).sort()).toEqual(["canal", "client_id", "dry_run", "evento", "mensaje_ref", "pregunta", "pregunta_id", "preguntado_por", "respondido_en", "respuesta", "tema", "workflow_execution_id", "workflow_id"])
+    expect(String(post.cuerpo!.pregunta)).toHaveLength(600)
+  })
   it("descartar → evento «descartar» con motivo (queda obsoleta; nada se borra)", async () => {
     const p = plataforma({ dueno: [200, { ok: true, descartadas: 1 }] })
     const r = await contestarDecision({ id: P1, accion: "descartar", motivo: "ya no aplica" }, deps(p))
