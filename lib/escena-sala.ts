@@ -110,9 +110,9 @@ const raizDe = (exec: string | null | undefined): string | null => { const s = (
 const pasoCrudo = (exec: string | null | undefined): string | null => { const s = exec ?? ""; return s.includes(":") ? s.slice(s.indexOf(":") + 1) : null }
 const esFallo = (status: unknown) => /error|fail|timeout|cancel/i.test(String(status ?? ""))
 const cuando = (i: InvocacionViva) => i.ended_at ?? i.started_at
-/** REGLA C (Emilio 04-nov 10:54Z; mapa de pasos de CC2 + nombres reales de `step_name`): SOLO los pasos que CONSOLIDAN abren la sala: la re-síntesis del estratega (`bba-resintesis-cN`), la integración del creador (`bb-equipo-integracion`) y el ajuste y el cierre del plan.
+/** REGLA C (Emilio 04-nov 10:54Z; mapa de pasos de CC2 + nombres reales de `step_name`): SOLO los pasos que CONSOLIDAN abren la sala: la re-síntesis del estratega (`bba-resintesis-cN`), la integración del creador (`bb-equipo-integracion`), el ajuste y el cierre del plan, y la consolidación de la mesa de estrategia (`mesa-estrategia-consolida`, diseño de CC2 04-nov). El paso puede venir solo en la columna `paso` (#878).
  *  Todo lo demás (lentes, investigación, redacción de una sección, jueces) es trabajo en el escritorio. Sin paso de consolidación con agente, no hay reunión */
-export const esPasoDeConsolidacion = (exec: string | null | undefined, step: string | null | undefined): boolean => /(^|[-_:])(resintesis|integracion|ajuste|cierre)(?![a-z])/i.test(`${pasoCrudo(exec) ?? ""} ${step ?? ""}`)
+export const esPasoDeConsolidacion = (exec: string | null | undefined, step: string | null | undefined): boolean => /(^|[-_:\s])(resintesis|integracion|ajuste|cierre|consolida|consolidacion)(?![a-z])/i.test(`${pasoCrudo(exec) ?? ""} ${step ?? ""}`)
 /** los revisores de la jefatura (ADR-020: los 3 jefes) según el mapa firmado */
 export const esRevisorDeLaJefatura = (agente: string): boolean => puestosDelAgente(agente).some((p) => p.area === "revisores")
 /** se sienta en la sala si es de la oficina: tiene mesa, es de la jefatura o de la dirección; los de la biblioteca del cerebro y los proveedores no */
@@ -169,7 +169,7 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   // 2 · las reuniones (≥ 2 que se sientan) y la jefatura que las sigue
   const todas = [...grupos.values()].sort((a, b) => a.desde - b.desde)
   // regla C: una corrida solo abre sala si tiene un paso que consolida con alguien que se sienta (quien dirige basta; sin dato de quién aportó, se sienta solo él)
-  const consolida = (g: Grupo) => g.filas.some((i) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name) && seSienta(i.agent_name, e)) || abiertos.some((d) => raizDe(d.workflow_execution_id) === g.raiz && esPasoDeConsolidacion(d.workflow_execution_id, null) && seSienta(d.agent_name, e))
+  const consolida = (g: Grupo) => g.filas.some((i) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name) && seSienta(i.agent_name, e)) || abiertos.some((d) => raizDe(d.workflow_execution_id) === g.raiz && esPasoDeConsolidacion(d.workflow_execution_id, d.paso ?? null) && seSienta(d.agent_name, e))
   // «los que aportaron» (regla C): un trabajo puede cruzar varias corridas de n8n (la reescritura del manual: el flujo principal + el sub-flujo de la re-síntesis). Mientras la plataforma no marque de qué trabajo es cada llamada
   // en todas las corridas, las hermanas son las corridas del MISMO cliente que se traslapan o están pegadas (≤ MINUTOS_ENLACE) con la que consolida
   const hermanasDe = (g: Grupo) => todas.filter((h) => h !== g && g.cliente && h.cliente === g.cliente && h.hasta >= g.desde - MINUTOS_ENLACE * 60_000 && h.desde <= g.hasta + MINUTOS_ENLACE * 60_000)
@@ -201,7 +201,7 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
   const abiertosTodos = abiertos.filter((d) => raices.has(raizDe(d.workflow_execution_id) ?? "") && seSienta(d.agent_name, e))
   // regla C: la reunión es la ÚLTIMA consolidación de la corrida. Se sientan quien la dirige y los que aportaron (llamadas ya terminadas ANTES de que ella empezara); las demás llamadas siguen en su escritorio
   const esC = (i: InvocacionViva) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name)
-  const consolAbiertas = abiertosTodos.filter((d) => esPasoDeConsolidacion(d.workflow_execution_id, null))
+  const consolAbiertas = abiertosTodos.filter((d) => esPasoDeConsolidacion(d.workflow_execution_id, d.paso ?? null))
   const inicioDe = (i: InvocacionViva) => ms(i.started_at ?? cuando(i))
   const ultimaC = filasTodas.filter(esC).sort((a, b) => inicioDe(b) - inicioDe(a))[0]
   const inicioAbierta = Math.max(-Infinity, ...consolAbiertas.map((d) => ms(d.running_at ?? d.created_at)).filter(Number.isFinite))
