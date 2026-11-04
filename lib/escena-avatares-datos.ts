@@ -15,7 +15,7 @@ import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type Es
 import { leerPlanDelCliente } from "@/lib/plan-datos"
 import { leerLaVitrina, type VitrinaDeLaEscena } from "@/lib/escena-vitrina"
 import { cuadrosDelPizarron, leerMetricas, redesDelCliente, type MetricasDelPizarron } from "@/lib/escena-metricas"
-import { armarEntregas, conRevisiones, devolvioEmilio, MAXIMO_DE_CUADROS, MINUTOS_DE_CORRIGE, REVISION_VIVA_H, VIGENCIA_DE_LA_ENTREGA_H, type EntregasDeLaEscena } from "@/lib/escena-entregas"
+import { armarEntregas, conRevisiones, devolvioEmilio, FIN_DEL_TRABAJO, MAXIMO_DE_CUADROS, MINUTOS_DE_CORRIGE, REVISION_VIVA_H, trabajosTerminados, VIGENCIA_DE_LA_ENTREGA_H, type EntregasDeLaEscena } from "@/lib/escena-entregas"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -153,7 +153,28 @@ export async function leerEntregas(supa: SupabaseClient, ahora: Date): Promise<E
     idsAtribucion.length ? filas(supa.from("jefatura_revisiones").select("id, artifact_id, productores, prueba, dry_run").in("id", idsAtribucion).limit(100), "jefatura_revisiones") : Promise.resolve([] as Fila[]),
     idsDePlan.length ? filas(supa.from("jefatura_revisiones").select("id, artifact_id, productores, prueba, dry_run").in("artifact_id", idsDePlan).limit(100), "jefatura_revisiones") : Promise.resolve([] as Fila[]),
   ])
-  return armarEntregas({ encargos, turnos, filas: filasCal, revisiones, pasos, bandeja: bandejaQueCuenta, pasosDeCorreccion, decisiones, cambios, atribucion: [...atribucionPorId, ...atribucionPorPlan], ahora })
+  const { trabajos, llamadasDeTrabajos, directores } = await leerTrabajosTerminados(supa, desdeEntrega)
+  return armarEntregas({ encargos, turnos, filas: filasCal, revisiones, pasos, bandeja: bandejaQueCuenta, pasosDeCorreccion, decisiones, cambios, atribucion: [...atribucionPorId, ...atribucionPorPlan], ahora, trabajos, llamadasDeTrabajos, directores })
+}
+
+/** 04-nov (CC6) · los trabajos raíz que terminaron en la ventana (plan, pedido, alta) + sus llamadas + quién dirige. Solo lectura; un error lanza (la escena sigue sin entregas) */
+export async function leerTrabajosTerminados(supa: SupabaseClient, desde: string) {
+  const F = FIN_DEL_TRABAJO
+  const [planes, pedidos, altas, dir] = await Promise.all([
+    filas(supa.from(F.plan.tabla).select("id, client_id, estado, dry_run, actualizado_en").eq("estado", F.plan.estado).eq("dry_run", false).gte(F.plan.cuando, desde).limit(MAXIMO_DE_CUADROS), F.plan.tabla),
+    filas(supa.from(F.pedido.tabla).select("id, client_id, estado, documento, actualizado_en").eq("estado", F.pedido.estado).gte(F.pedido.cuando, desde).limit(MAXIMO_DE_CUADROS), F.pedido.tabla),
+    filas(supa.from(F.alta.tabla).select("id, client_id, status, updated_at").eq("status", F.alta.estado).gte(F.alta.cuando, desde).limit(MAXIMO_DE_CUADROS), F.alta.tabla),
+    filas(supa.from("oficina_directorio").select("agente").eq("rol", "direccion").limit(50), "oficina_directorio"),
+  ])
+  // reserva de CC3 a #275: lo de un cliente de práctica no camina (ni plan, ni pedido, ni alta)
+  const idsCli = [...new Set([...planes, ...pedidos, ...altas].map((f) => s(f.client_id)).filter((x): x is string => !!x))]
+  const cli = idsCli.length ? await filas(supa.from("clients").select("id, name, industry").in("id", idsCli).limit(100), "clients") : []
+  const practica = new Set(cli.filter((c) => esDePractica({ nombre: String(c.name ?? ""), rubro: c.industry ? String(c.industry) : null })).map((c) => String(c.id)))
+  const real = (f: Fila) => !practica.has(String(f.client_id ?? ""))
+  const trabajos = trabajosTerminados({ planes: planes.filter(real), pedidos: pedidos.filter(real), altas: altas.filter(real) })
+  const ids = [...new Set(trabajos.map((w) => w.id))]
+  const llamadasDeTrabajos = ids.length ? await filas(supa.from("agent_invocations").select("agent_name, trabajo_tipo, trabajo_id, status, ended_at").in("trabajo_id", ids).limit(2000), "agent_invocations") : []
+  return { trabajos, llamadasDeTrabajos, directores: dir.map((d) => String(d.agente ?? "")).filter(Boolean) }
 }
 
 /** el pizarrón de métricas de marketing: el cliente de la escena, las redes que tiene (de `clients.config` y su sitio) y la lectura de métricas. Solo lectura */
