@@ -32,9 +32,9 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
   })
   it("la lectura: libro sin aprobar + último pedido terminado → aviso; con el pedido en reescritura o con la base caída → nada", async () => {
     const supa = (pedido: string | null, falla = false) => ({ from: (t: string) => {
-      const filas = t === "client_brand_books" ? [{ client_id: C, version: 3, human_validated: false, provenance_tag: {} }] : pedido ? [{ estado: pedido }] : []
+      const filas = t === "client_brand_books" ? [{ client_id: C, version: 3, human_validated: false, provenance_tag: {} }] : t === "hitl_queue" ? [] : pedido ? [{ estado: pedido }] : []
       const q: Record<string, unknown> = {}
-      for (const m of ["select", "eq", "in", "order", "limit"]) q[m] = () => q
+      for (const m of ["select", "eq", "in", "order", "limit", "is"]) q[m] = () => q
       q.maybeSingle = () => Promise.resolve(falla ? { data: null, error: { message: "caída" } } : { data: filas[0] ?? null, error: null })
       q.then = (ok: (r: unknown) => unknown) => Promise.resolve({ data: filas, error: null }).then(ok)
       return q
@@ -61,11 +61,11 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
   })
   it("al tocarlo abre el Centro de campaña directo en el manual", () => {
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
-    expect(av).toContain('detail: { panel: "aplicaciones", vista: a.abre }')
+    expect(av).toContain('detail: a.abre === "piezas" ? { panel: "piezas" } : { panel: "aplicaciones", vista: a.abre }')
     // reserva de CC3 (mutante vivo «tocar no abre»): el recuadro del aviso llama a onAviso con el clic y con Enter/Espacio
     const fo = readFileSync("components/nuevo/escena/EntregasEnLaFoto.tsx", "utf8")
     expect(fo).toContain("onClick={() => onAviso?.(aviso)} onKeyDown={(e) => { if (e.key === \"Enter\" || e.key === \" \") { e.preventDefault(); onAviso?.(aviso) } }}")
-    expect(av).toContain("aviso={datos?.avisos?.[0] ?? null} onAviso={(a) => window.dispatchEvent(")
+    expect(av).toContain("avisos={datos?.avisos ?? []} onAviso={(a) => window.dispatchEvent(")
     expect(readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")).toContain('useState<"inicio" | ClaveDeAplicacion>(vistaInicial ?? "inicio")')
     expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain("vistaInicial={vistaDelPizarron ?? undefined}")
   })
