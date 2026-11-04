@@ -45,18 +45,17 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
     expect(await leerAvisosDeFirma(supa("aplicado", true), C)).toEqual([])
     expect(await leerAvisosDeFirma(supa("aplicado"), null)).toEqual([])
   })
-  it("con el aviso, el primer recuadro titila y DICE «Manual listo · revísalo» (rótulo de 44 px de alto); sin aviso, el recuadro de siempre", () => {
+  it("con el aviso, el primer recuadro SOLO titila: sin texto fijo encima (Emilio 12:10Z); el nombre va en aria-label y en el globo al pasar el cursor", () => {
     const con = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena({ avisos: [MANUAL] }) as never }))
-    expect(con).toContain('data-aviso-firma="manual"'); expect(con).toContain("Manual listo · revísalo"); expect(con).toContain("nv-aviso-firma")
-    expect(con).toMatch(/nv-aviso-rotulo[^>]*>\s*<rect[^>]*height="96"/) // 96 px de la foto = 48 px en una pantalla de 1280 (reserva 1 de CC3)
-    expect(con).toMatch(/nv-aviso-rotulo[\s\S]*?font-size="30"/)
-    // reserva de CC3 (mutante vivo «aviso en otro recuadro»): el recuadro del aviso es EL PRIMERO, arriba a la izquierda
+    expect(con).toContain('data-aviso-firma="manual"'); expect(con).toContain("nv-aviso-firma"); expect(con).toContain("@keyframes nvAvisoFirma")
+    expect(con).toContain('aria-label="Manual listo · revísalo"')
+    expect(con).not.toContain(">Manual listo · revísalo<") // ningún texto a la vista
+    expect(con).not.toContain("nv-aviso-rotulo"); expect(con).not.toContain("data-globo-del-aviso") // el globo solo aparece con el cursor encima
+    expect(con).toMatch(/data-zona-del-aviso[^>]*width="96"[^>]*height="96"/) // zona de toque ≥44 px en un portátil de 1280
     const q0 = CUADROS_DEL_PIZARRON[0].map((p) => `${p.x},${p.y}`).join(" ")
-    expect(con).toMatch(new RegExp(`data-aviso-firma="manual"[^>]*>\\s*<polygon[^>]*points="${q0}"`))
-    expect(con).toContain("@keyframes nvAvisoFirma"); expect(con).toMatch(/prefers-reduced-motion:reduce\)\{[^}]*\}[^@]*nv-aviso-firma \.nv-metrica-cuadro\{animation:none/)
-    // anexo 1 de CC3 (mutante «i === 3» vivo): el aviso OCUPA el primer recuadro: el recuadro «General» (el primero) no se dibuja y el aviso va antes que cualquier otro
-    expect(con).not.toContain('data-metrica="general"')
-    expect(con.indexOf('data-aviso-firma="manual"')).toBeLessThan(con.indexOf("data-metrica="))
+    expect(con).toContain(`points="${q0}"`)
+    expect(con).not.toContain('data-metrica="general"'); expect(con.indexOf('data-aviso-firma="manual"')).toBeLessThan(con.indexOf("data-metrica="))
+    expect(readFileSync("components/nuevo/escena/EntregasEnLaFoto.tsx", "utf8")).toContain("{activo === `aviso:${aviso.clave}` && (")
     const sin = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena() as never }))
     expect(sin).not.toContain("data-aviso-firma"); expect(sin).toContain('data-metrica="general"')
   })
