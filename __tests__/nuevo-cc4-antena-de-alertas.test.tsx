@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { armarAlertas, MAXIMO_DE_ALERTAS, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
-import { AntenaDeAlertas, partirEnLineas } from "@/components/nuevo/escena/AntenaDeAlertas"
+import { ANTENA, armarAlertas, BORDE_DE_LA_ANTENA, MAXIMO_DE_ALERTAS, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
+import { AntenaDeAlertas, CSS_DE_LA_ANTENA, PanelDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
 
 // ENCARGO de Lenovo 04-nov 14:06Z + decisiones A/B/C de 14:20Z: la antena avisa las alertas del departamento
 const AHORA = new Date("2026-11-04T15:00:00Z")
@@ -79,17 +79,40 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
     const muchas = Array.from({ length: 9 }, (_, i) => ({ id: String(i), client_id: "c1", pregunta: `p${i}`, estado: "pendiente", creado_en: hace(i + 1) }))
     expect(armarAlertas({ ...vacia(), preguntas: muchas })).toHaveLength(MAXIMO_DE_ALERTAS) // el tope (reserva (b))
   })
-  it("sin alertas no se dibuja nada; con alertas, roja fija (sin latido ni aura) y la lista queda cerrada hasta que se toque", () => {
+  it("sin alertas no se dibuja nada; con alertas: aura roja en la punta mayor y luz que corre por el borde, sin formas planas; la lista queda en un panel", () => {
     expect(renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas: [], onAbrir: () => undefined })))).not.toContain("nv-antena")
     expect(renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas: undefined, onAbrir: () => undefined })))).not.toContain("nv-antena")
     const html = renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas: armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)] }), onAbrir: () => undefined })))
-    expect(html).toContain('data-alertas="1"'); expect(html).toContain("#ef4444"); expect(html).toContain('aria-label="1 alerta del departamento. Ver la lista"')
-    expect(html).not.toMatch(/animation|nv-av-ambar|drop-shadow|filter/)
+    expect(html).toContain('data-alertas="1"'); expect(html).toContain('aria-label="1 alerta del departamento. Ver la lista"')
+    expect(html).toContain("nv-antena-pulso"); expect(html).toContain("nv-antena-corre")
+    expect(html).not.toMatch(/#ffd2c8|#fff1ee"[^>]*stroke/) // el tramo blanco desapareció (Emilio 15:34Z)
+    const trazos = [...html.matchAll(/<path[^>]*stroke-width="([\d.]+)"/g)].map((m) => m[1])
+    expect(trazos).toHaveLength(1) // un solo trazo: el tramo que viaja; el borde NO se enciende (Emilio 15:49Z)
+    expect(html).not.toContain("nv-antena-borde")
+    expect(html).toContain('stroke-dasharray="5 95"') // tramo corto
+    expect(html).toContain(`<circle cx="${ANTENA.punta2.x}" cy="${ANTENA.punta2.y}" r="28"`) // el aura va centrada en la luz de la punta
+    expect(html).toContain(`<circle cx="${ANTENA.punta2.x}" cy="${ANTENA.punta2.y}" r="4"`)
+    expect([ANTENA.punta2.x, ANTENA.punta2.y]).toEqual([505, 257]) // medido en la foto de 2560 px (pico de luz 505,257)
+    expect(html).not.toMatch(/style="[^"]*animation/) // la animación NO va inline: ganaría a «reducir movimiento»
+    expect(CSS_DE_LA_ANTENA).toMatch(/\.nv-antena-pulso\{animation:nvAntPulso 2\.2s/)
+    expect(html).toContain(`d="${BORDE_DE_LA_ANTENA}"`) // la luz y la línea comparten el mismo trazo: no se sale del canal
+    expect(html).not.toMatch(/<ellipse[^>]*fill-opacity|stroke-width="3"[^>]*fill-opacity/) // ningún plato plano translúcido (#273)
     expect(html).not.toContain("nv-antena-lista")
   })
-  it("el texto largo se parte en renglones cortos; el dibujo NO está en la escena y la lectura sigue (solo lectura)", () => {
-    expect(partirEnLineas("Te preguntaron algo y sigue sin respuesta: ¿Qué sede abre el domingo en la mañana?").every((l) => l.length <= 36)).toBe(true)
-    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).not.toContain("<AntenaDeAlertas") // el dibujo salió de la escena (Emilio 14:51Z): solo queda el dato
+  it("el borde se recorre en sentido del reloj (derecha → abajo → izquierda); respeta «reducir movimiento»", () => {
+    const n = BORDE_DE_LA_ANTENA.match(/\d+/g)!.map(Number)
+    expect(n[0]).toBeGreaterThan(n[4]) // empieza a la derecha y termina a la izquierda
+    expect(n[3]).toBeGreaterThan(n[1]) // pasa por abajo (y mayor)
+    const [normal, reducido] = CSS_DE_LA_ANTENA.split("@media (prefers-reduced-motion:reduce)")
+    expect(normal).toContain("animation:nvAntCorre"); expect(reducido).toMatch(/nv-antena-pulso[^}]*nv-antena-corre\{animation:none\}/) // en la hoja, tras el movimiento normal: la regla de reducir gana por orden
+  })
+  it("el panel de la lista: una fila por alerta con su texto; solo es botón activo si hay dónde resolverla; la lectura de datos sigue siendo solo lectura", () => {
+    const alertas = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)] })
+    const html = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas, onAbrir: () => undefined, onCerrar: () => undefined }))
+    expect(html).toContain("data-panel-alertas"); expect(html).toContain("1 alerta"); expect(html).toContain("El plan falló")
+    expect(renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [], onAbrir: () => undefined, onCerrar: () => undefined }))).toContain("Todo en orden")
+    const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
+    expect(av).toContain("<AntenaDeAlertas alertas={datos?.alertas}"); expect(av).toContain("<PanelDeLasAlertas")
     expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toContain("alertas: await leerAlertasDeLaAntena")
     const lector = readFileSync("lib/escena-avatares-datos.ts", "utf8").split("export async function leerAlertasDeLaAntena")[1].split("/** la vitrina")[0]
     expect(lector).not.toMatch(/\.(insert|update|upsert|delete)\(/)

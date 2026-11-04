@@ -5,6 +5,7 @@ import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
+import { AntenaDeAlertas, PanelDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
 import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
 import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
 import { CuadrosDeMetricas, ESTILO_ENTREGAS, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
@@ -87,7 +88,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
   const [agenteDelPlantel, setAgenteDelPlantel] = useState<string | null>(null) // el empleado que el plantel muestra en su detalle al abrirse (si vino de tocar su flecha)
   const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
-  const [panelTablero, setPanelTablero] = useState<{ tipo: "pizarron"; clave: string | null } | { tipo: "vitrina" } | null>(null) // 03-nov · pizarrón y vitrina tocables
+  const [panelTablero, setPanelTablero] = useState<{ tipo: "pizarron"; clave: string | null } | { tipo: "vitrina" } | { tipo: "antena" } | null>(null) // 03-nov · pizarrón y vitrina tocables
   const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
   const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
   const [aporteDe, setAporteDe] = useState<string | null>(null) // S4 · el participante cuyo aporte completo está abierto
@@ -195,15 +196,16 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
         <VitrinaVertical vitrina={datos?.vitrina} onAbrir={() => setPanelTablero({ tipo: "vitrina" })} />
         {/* 04-nov (Emilio 14:08Z): sin lámpara en Dirección; el aviso de firma vive solo en el pizarrón (`firma.pendientes` sigue en el dato) */}
-        {/* 04-nov (Emilio 14:51Z): el dibujo de la antena (#273) SALIÓ de la escena; el dato `alertas` y la lista siguen listos, sin mostrarse, hasta que Emilio apruebe cómo se ve (`AntenaDeAlertas.tsx`) */}
+        {/* 04-nov (Emilio 15:19Z): la antena en su opción 3, con luz sutil; la lista abre un panel como los demás */}
+        <AntenaDeAlertas alertas={datos?.alertas} onAbrir={() => setPanelTablero({ tipo: "antena" })} />
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {/* 03-nov · las redes del pizarrón como botones de ≥44 px, en la zona vacía de arriba del pizarrón: la franja ocupa el 76 % izquierdo del ancho y se centra ahí, o sea sobre el pizarrón (los cuadros de la foto son de 8×12 px a este ancho) */}
       {MOSTRAR_LA_FRANJA_DE_REDES && <FranjaDeLasRedes botones={botonesDeLaFranja(datos?.metricas)} className="absolute left-0 z-[3]" style={{ width: "76%", top: pct(70, FOTO.h) }}
         onAbrir={(k) => setPanelTablero(k === "vitrina" ? { tipo: "vitrina" } : { tipo: "pizarron", clave: k })} />}
       {panelTablero && (
-        <div role="dialog" aria-label={panelTablero.tipo === "vitrina" ? "La vitrina" : "El pizarrón de métricas"} className="nv-av-lista absolute left-1/2 top-1/2 z-[5] max-h-[80%] w-[min(26rem,92%)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-white/15 bg-[#121110]/95 p-4 text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]" onClick={(e) => e.stopPropagation()}>
-          {panelTablero.tipo === "vitrina" ? <PanelDeLaVitrina vitrina={datos?.vitrina} onCerrar={() => setPanelTablero(null)} /> : <PanelDelPizarron metricas={datos?.metricas} inicial={panelTablero.clave} onCerrar={() => setPanelTablero(null)} />}
+        <div role="dialog" aria-label={panelTablero.tipo === "vitrina" ? "La vitrina" : panelTablero.tipo === "antena" ? "Las alertas" : "El pizarrón de métricas"} className="nv-av-lista absolute left-1/2 top-1/2 z-[5] max-h-[80%] w-[min(26rem,92%)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-white/15 bg-[#121110]/95 p-4 text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]" onClick={(e) => e.stopPropagation()}>
+          {panelTablero.tipo === "vitrina" ? <PanelDeLaVitrina vitrina={datos?.vitrina} onCerrar={() => setPanelTablero(null)} /> : panelTablero.tipo === "antena" ? <PanelDeLasAlertas alertas={datos?.alertas} onCerrar={() => setPanelTablero(null)} onAbrir={(a) => { setPanelTablero(null); if (a.abre) window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel: a.abre } })) }} /> : <PanelDelPizarron metricas={datos?.metricas} inicial={panelTablero.clave} onCerrar={() => setPanelTablero(null)} />}
         </div>
       )}
       {salaAbierta && (

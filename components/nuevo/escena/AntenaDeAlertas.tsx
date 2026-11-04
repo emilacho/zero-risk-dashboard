@@ -1,53 +1,69 @@
 "use client"
 /**
- * LA ANTENA (CC4 · 04-nov · encargo de Lenovo, Emilio 14:05Z): la parabólica de la plataforma de arriba a la izquierda avisa las alertas del departamento.
- * Sin alertas: no se dibuja nada (la antena de la foto queda apagada y quieta). Con alguna: se pone ROJA FIJA (sin latido, sin aura) y, al tocarla,
- * abre una lista corta en palabras simples, la más reciente arriba; cada línea lleva al lugar donde se resuelve. Se apaga sola cuando la causa se resuelve.
+ * LA ANTENA (CC4 · 04-nov · Emilio eligió la opción 3 con animación sutil, 15:19Z): la parabólica de la plataforma de arriba a la izquierda avisa las alertas del departamento.
+ * Sin alertas: no se dibuja nada (la antena de la foto queda quieta como está). Con alguna: la luz de la punta mayor respira en rojo con un aura suave, CENTRADA en la lucecita de la foto (505,257 medido en la foto de 2560 px),
+ * y el borde de la plataforma queda COMO EN LA FOTO (su línea naranja de siempre): solo un tramo corto de luz roja viaja por dentro de esa línea, en sentido del reloj. Al tocarla se abre un panel con la lista (mismo marco que los demás).
+ * Luces pequeñas y realistas sobre la foto: nada de formas planas.
  */
-import { useState } from "react"
-import { ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
-import type { PanelDelMarco } from "@/lib/buscador"
+import { ANTENA, BORDE_DE_LA_ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
 
-const FUENTE = "Inter, system-ui, sans-serif"
-const ROJO = "#ef4444"
-const ANCHO_DE_LINEA = 30
+export const CSS_DE_LA_ANTENA = `
+@keyframes nvAntPulso{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes nvAntCorre{from{stroke-dashoffset:0}to{stroke-dashoffset:-100}}
+.nv-antena .nv-antena-pulso{animation:nvAntPulso 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.nv-antena .nv-antena-corre{animation:nvAntCorre 4.2s linear infinite}
+@media (prefers-reduced-motion:reduce){.nv-antena .nv-antena-pulso,.nv-antena .nv-antena-corre{animation:none}}`
+// la animación vive en la hoja (NO inline): un estilo inline le ganaría a «reducir movimiento» (CC3 04-nov)
 
-export function partirEnLineas(t: string, max = ANCHO_DE_LINEA, tope = 3): string[] {
-  const out: string[] = []; let cur = ""
-  for (const w of t.split(/\s+/).filter(Boolean)) { if ((cur + " " + w).trim().length > max && cur) { out.push(cur); cur = w } else cur = (cur + " " + w).trim() }
-  if (cur) out.push(cur)
-  return out.length > tope ? [...out.slice(0, tope - 1), `${out[tope - 1].replace(/\s*\S*$/, "")}…`] : out
-}
-
-export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (p: PanelDelMarco) => void }) {
-  const [abierta, setAbierta] = useState(false)
+export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: () => void }) {
   if (!alertas?.length) return null
-  const { plato, punta1, punta2, rotulo } = ANTENA
-  let y = rotulo.y + 64
-  const filas = alertas.map((a) => { const lineas = partirEnLineas(a.texto); const f = { a, lineas, y }; y += lineas.length * 30 + 18; return f })
-  const alto = y - rotulo.y - 6
-  const abrir = (e: { stopPropagation: () => void }) => { e.stopPropagation(); setAbierta((v) => !v) }
+  const { punta2 } = ANTENA
+  const abrir = (e: { stopPropagation: () => void }) => { e.stopPropagation(); onAbrir() }
   return (
-    <g className="nv-antena" data-alertas={alertas.length} data-abierta={abierta}>
-      <g transform={`rotate(${plato.giro} ${plato.x} ${plato.y})`}>
-        <ellipse className="nv-antena-plato" cx={plato.x} cy={plato.y} rx={plato.rx} ry={plato.ry} fill={ROJO} fillOpacity={0.22} stroke={ROJO} strokeWidth={3} />
+    <g className="nv-antena" data-alertas={alertas.length}>
+      <style>{CSS_DE_LA_ANTENA}</style>
+      <defs>
+        <radialGradient id="nvAntRojo" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#fff1ee" /><stop offset=".18" stopColor="#ff5a4a" /><stop offset=".55" stopColor="#d81a10" stopOpacity=".55" /><stop offset="1" stopColor="#d81a10" stopOpacity="0" />
+        </radialGradient>
+        <filter id="nvAntDifumina"><feGaussianBlur stdDeviation="1.6" /></filter>
+      </defs>
+      {/* el borde NO se enciende: la línea naranja de la foto queda como está y solo un tramo corto de luz roja viaja por dentro de ella (mismo trazo que la línea) */}
+      <g filter="url(#nvAntDifumina)" fill="none" strokeLinejoin="round" strokeLinecap="round">
+        <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff3b2a" strokeWidth={2.6} strokeDasharray="5 95" />
       </g>
-      <circle className="nv-antena-punta" cx={punta1.x} cy={punta1.y} r={6} fill={ROJO} />
-      <circle className="nv-antena-punta" cx={punta2.x} cy={punta2.y} r={6} fill={ROJO} />
-      <ellipse cx={plato.x} cy={plato.y} rx={plato.rx + 14} ry={plato.ry + 14} fill="rgba(0,0,0,0)" role="button" tabIndex={0} aria-expanded={abierta}
+      {/* la luz de la punta mayor: aura suave que respira, sin círculo plano */}
+      <g className="nv-antena-pulso">
+        <circle cx={punta2.x} cy={punta2.y} r={28} fill="url(#nvAntRojo)" />
+        <circle cx={punta2.x} cy={punta2.y} r={4} fill="#fff4f0" />
+      </g>
+      <ellipse cx={ANTENA.plato.x} cy={ANTENA.plato.y} rx={ANTENA.plato.rx + 14} ry={ANTENA.plato.ry + 14} fill="rgba(0,0,0,0)" role="button" tabIndex={0}
         aria-label={`${alertas.length === 1 ? "1 alerta" : `${alertas.length} alertas`} del departamento. Ver la lista`} style={{ cursor: "pointer", pointerEvents: "auto", outline: "none" }}
         onClick={abrir} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(e) } }} />
-      {abierta && (
-        <g className="nv-antena-lista" style={{ pointerEvents: "auto" }}>
-          <rect x={rotulo.x - 16} y={rotulo.y - 6} width={560} height={alto + 22} rx={14} fill="#0e0c0a" fillOpacity={0.96} stroke={ROJO} strokeOpacity={0.85} />
-          <text x={rotulo.x} y={rotulo.y + 28} fontFamily={FUENTE} fontSize={26} fontWeight={700} fill="#fecaca">{alertas.length === 1 ? "1 alerta" : `${alertas.length} alertas`}</text>
-          {filas.map(({ a, lineas, y: y0 }) => (
-            <g key={a.clave} data-alerta={a.tipo} style={{ cursor: a.abre ? "pointer" : "default" }} onClick={(e) => { e.stopPropagation(); if (a.abre) onAbrir(a.abre) }}>
-              {lineas.map((l, i) => <text key={i} x={rotulo.x} y={y0 + i * 30} fontFamily={FUENTE} fontSize={24} fill="#f5e9e9">{l}</text>)}
-            </g>
-          ))}
-        </g>
-      )}
     </g>
+  )
+}
+
+export function PanelDeLasAlertas({ alertas, onAbrir, onCerrar }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void }) {
+  const lista = alertas ?? []
+  return (
+    <div className="flex flex-col gap-3" data-panel-alertas>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[11px] uppercase tracking-[.18em] text-zinc-500">Alertas</div>
+          <div className="text-[18px] font-semibold text-red-200">{lista.length === 0 ? "Todo en orden" : lista.length === 1 ? "1 alerta" : `${lista.length} alertas`}</div>
+        </div>
+        <button type="button" onClick={onCerrar} aria-label="Cerrar" className="min-h-[44px] min-w-[44px] rounded-lg text-[22px] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200">×</button>
+      </div>
+      <ul className="space-y-2">
+        {lista.map((a) => (
+          <li key={a.clave} data-alerta={a.tipo}>
+            <button type="button" disabled={!a.abre} onClick={() => onAbrir(a)} className="flex min-h-[52px] w-full items-center rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-[15px] text-zinc-100 hover:bg-white/[0.06] disabled:cursor-default">
+              {a.texto}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
