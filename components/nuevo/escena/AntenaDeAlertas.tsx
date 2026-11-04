@@ -10,7 +10,10 @@ import { ANTENA, BORDE_DE_LA_ANTENA, type AlertaDeLaAntena } from "@/lib/escena-
 export const CSS_DE_LA_ANTENA = `
 @keyframes nvAntPulso{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
 @keyframes nvAntCorre{from{stroke-dashoffset:0}to{stroke-dashoffset:-100}}
+.nv-antena .nv-antena-pulso{animation:nvAntPulso 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.nv-antena .nv-antena-corre{animation:nvAntCorre 4.2s linear infinite}
 @media (prefers-reduced-motion:reduce){.nv-antena .nv-antena-pulso,.nv-antena .nv-antena-corre{animation:none}}`
+// la animación vive en la hoja (NO inline): un estilo inline le ganaría a «reducir movimiento» (CC3 04-nov)
 
 export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: () => void }) {
   if (!alertas?.length) return null
@@ -28,10 +31,10 @@ export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAnten
       {/* la línea del borde de la plataforma, en rojo; la luz corre por dentro de ella sin salirse (mismo trazo, mismo largo) */}
       <g filter="url(#nvAntDifumina)" fill="none" strokeLinejoin="round" strokeLinecap="round">
         <path className="nv-antena-borde" d={BORDE_DE_LA_ANTENA} stroke="#e0301f" strokeWidth={3.2} opacity={0.85} />
-        <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff7a62" strokeWidth={3.2} strokeDasharray="9 91" style={{ animation: "nvAntCorre 4.2s linear infinite" }} />
+        <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff7a62" strokeWidth={3.2} strokeDasharray="9 91" />
       </g>
       {/* la luz de la punta mayor: aura suave que respira, sin círculo plano */}
-      <g className="nv-antena-pulso" style={{ animation: "nvAntPulso 2.2s ease-in-out infinite", transformBox: "fill-box", transformOrigin: "center" }}>
+      <g className="nv-antena-pulso">
         <circle cx={punta2.x} cy={punta2.y} r={28} fill="url(#nvAntRojo)" />
         <circle cx={punta2.x} cy={punta2.y} r={4} fill="#fff4f0" />
       </g>

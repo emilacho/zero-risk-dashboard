@@ -88,7 +88,8 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
     expect(html).not.toMatch(/#ffd2c8|#fff1ee"[^>]*stroke/) // el tramo blanco desapareció (Emilio 15:34Z)
     const trazos = [...html.matchAll(/<path[^>]*stroke-width="([\d.]+)"/g)].map((m) => m[1])
     expect(new Set(trazos).size).toBe(1) // la línea y el tramo que viaja tienen el mismo grosor
-    expect(html).toContain("nvAntPulso 2.2s")
+    expect(html).not.toMatch(/style="[^"]*animation/) // la animación NO va inline: ganaría a «reducir movimiento»
+    expect(CSS_DE_LA_ANTENA).toMatch(/\.nv-antena-pulso\{animation:nvAntPulso 2\.2s/)
     expect(html).toContain(`d="${BORDE_DE_LA_ANTENA}"`) // la luz y la línea comparten el mismo trazo: no se sale del canal
     expect(html).not.toMatch(/<ellipse[^>]*fill-opacity|stroke-width="3"[^>]*fill-opacity/) // ningún plato plano translúcido (#273)
     expect(html).not.toContain("nv-antena-lista")
@@ -97,7 +98,8 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
     const n = BORDE_DE_LA_ANTENA.match(/\d+/g)!.map(Number)
     expect(n[0]).toBeGreaterThan(n[4]) // empieza a la derecha y termina a la izquierda
     expect(n[3]).toBeGreaterThan(n[1]) // pasa por abajo (y mayor)
-    expect(CSS_DE_LA_ANTENA).toContain("prefers-reduced-motion")
+    const [normal, reducido] = CSS_DE_LA_ANTENA.split("@media (prefers-reduced-motion:reduce)")
+    expect(normal).toContain("animation:nvAntCorre"); expect(reducido).toMatch(/nv-antena-pulso[^}]*nv-antena-corre\{animation:none\}/) // en la hoja, tras el movimiento normal: la regla de reducir gana por orden
   })
   it("el panel de la lista: una fila por alerta con su texto; solo es botón activo si hay dónde resolverla; la lectura de datos sigue siendo solo lectura", () => {
     const alertas = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)] })
