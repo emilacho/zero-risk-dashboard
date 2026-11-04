@@ -19,7 +19,6 @@ export const ESTILO_SALA = `
 .nv-sala:hover .nv-sala-rotulo,.nv-sala-rotulo:focus-visible,.nv-sala[data-sala="en_curso"] .nv-sala-rotulo,.nv-sala[data-abierta="true"] .nv-sala-rotulo{opacity:1;transform:none}
 .nv-sala-zona{pointer-events:auto;cursor:pointer}
 .nv-sala-rotulo:hover .nv-sala-t1,.nv-sala-rotulo:focus-visible .nv-sala-t1{stroke:#ffb86b}
-.nv-sala-luz{animation:nvAvLate 2.6s ease-in-out infinite}
 .nv-sala-burbuja{transition:transform 1.4s cubic-bezier(.4,0,.2,1),opacity 1s ease}
 
 @keyframes nvSalaHabla{0%,100%{opacity:.85}50%{opacity:.25}}

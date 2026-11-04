@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import type { FilaDelTrabajo, TrabajoEnVivo as Datos } from "@/lib/trabajo-en-vivo"
 
 const CADA_MS = 5_000
-const LUZ = { trabajando: "bg-amber-400 animate-pulse", listo: "bg-emerald-400", fallo: "bg-rose-500" } as const
+const LUZ = { trabajando: "bg-amber-400", listo: "bg-emerald-400", fallo: "bg-rose-500" } as const // 04-nov (Emilio 13:31Z): sin latido
 
 /** El panel «lo que están haciendo ahora»: arranca con lo que trae el servidor y, mientras la pestaña se ve, pide solo lo nuevo cada pocos segundos (sin recargar la pantalla). */
 export function TrabajoEnVivo({ inicial }: { inicial: Datos }) {
