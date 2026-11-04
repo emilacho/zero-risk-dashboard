@@ -48,8 +48,6 @@ export const LUGAR_DEL_PIZARRON: Punto = { x: 1010, y: 548 }
 export const PUESTOS_EN_EL_PIZARRON: Punto[] = [{ x: 0, y: 0 }, { x: -34, y: 14 }, { x: 34, y: -12 }, { x: -6, y: 30 }].map((d) => ({ x: LUGAR_DEL_PIZARRON.x + d.x, y: LUGAR_DEL_PIZARRON.y + d.y }))
 /** la tarjeta de la entrega se dibuja sobre el pizarrón */
 export const ANCLA_DE_LA_TARJETA: Punto = { x: 985, y: 392 }
-/** la lámpara del escritorio de Dirección (a la izquierda del monitor, sobre la mesa): se enciende cuando algo espera la firma de Emilio y lleva a Tu oficina. Antes era el panel vertical del borde derecho, que ahora es la vitrina */
-export const LAMPARA_DE_FIRMA: Punto = { x: 1081, y: 563 }
 export const ENLACE_A_TU_OFICINA = "/nuevo/oficina"
 
 export interface EntregaViva { id: string; agente: string | null; titulo: string; cerrado_en: string; /** su escritorio (clave de mesa) y su nombre legible: los pone `conRevisiones` con el directorio */ mesa?: string | null; nombre?: string | null }
@@ -76,6 +74,45 @@ export interface EntregasDeLaEscena {
 
 const ES_ENTREGA_FALLIDA = /fallid|tope|cancel|abort/i
 
+/**
+ * 04-nov (CC6 · ADENDAS 1 y 2 de Lenovo): CADA OUTPUT QUE TERMINA camina al pizarrón, no solo las piezas. «Terminó» se lee de los datos: el trabajo raíz
+ * (`agent_invocations.trabajo_tipo` + `trabajo_id`, #878) y el estado final que guarda la tabla de ese trabajo. La base admite hoy 4 clases de trabajo
+ * (`agent_invocations_trabajo_check`); aquí se dice dónde vive el final de cada una. La pieza ya tenía el suyo (`oficina_encargos`), arriba.
+ * Una clase nueva sin final conocido no camina (sin dato no se dibuja) hasta agregar su línea.
+ */
+export interface TrabajoTerminado { tipo: string; id: string; titulo: string; cerrado_en: string }
+export const FIN_DEL_TRABAJO = {
+  plan: { tabla: "plan_corridas", estado: "hecha", cuando: "actualizado_en" },
+  pedido: { tabla: "plan_cambios", estado: "aplicado", cuando: "actualizado_en" },
+  alta: { tabla: "client_journey_state", estado: "completed", cuando: "updated_at" },
+} as const
+
+/** las filas finales de cada tabla → trabajos terminados con su nombre legible (sin pruebas ni ensayos) */
+export function trabajosTerminados(f: { planes?: Fila[]; pedidos?: Fila[]; altas?: Fila[] }): TrabajoTerminado[] {
+  const out: TrabajoTerminado[] = []
+  for (const p of f.planes ?? []) if (p.estado === FIN_DEL_TRABAJO.plan.estado && p.dry_run !== true && t(p.id) && t(p.actualizado_en)) out.push({ tipo: "plan", id: String(p.id), titulo: "Plan de 90 días terminado", cerrado_en: String(p.actualizado_en) })
+  for (const p of f.pedidos ?? []) if (p.estado === FIN_DEL_TRABAJO.pedido.estado && t(p.id) && t(p.actualizado_en)) out.push({ tipo: "pedido", id: String(p.id), titulo: p.documento === "plan" ? "Plan corregido" : "Manual de marca reescrito", cerrado_en: String(p.actualizado_en) })
+  for (const a of f.altas ?? []) if (a.status === FIN_DEL_TRABAJO.alta.estado && t(a.id) && t(a.updated_at)) out.push({ tipo: "alta", id: String(a.id), titulo: "Alta del cliente terminada", cerrado_en: String(a.updated_at) })
+  return out
+}
+
+/**
+ * quién lo dirigió/cerró, solo con llamadas REALES de ese trabajo (`trabajo_tipo` + `trabajo_id`, terminadas): el que el directorio marca `rol = direccion`;
+ * si nadie, el que más llamadas hizo (quien lo llevó); empate → el que terminó último. Sin llamadas con su trabajo (corridas anteriores al 04-nov) → null:
+ * la tarjeta sale igual, pero nadie camina.
+ */
+export function quienCerroElTrabajo(w: { tipo: string; id: string }, llamadas: Fila[], directores: string[]): string | null {
+  const mias = llamadas.filter((l) => t(l.trabajo_tipo) === w.tipo && t(l.trabajo_id) === w.id && t(l.agent_name) && /^(completed|ok|success|hecha)$/i.test(String(l.status ?? "")))
+  if (!mias.length) return null
+  const dir = new Set(directores.map(nombreCanonico))
+  const cuenta = new Map<string, { a: string; n: number; ultima: string }>()
+  for (const l of mias) { const a = String(l.agent_name), k = nombreCanonico(a), c = cuenta.get(k) ?? { a, n: 0, ultima: "" }; c.n++; const fin = t(l.ended_at) ?? ""; if (fin > c.ultima) c.ultima = fin; cuenta.set(k, c) }
+  const todos = [...cuenta.entries()]
+  const director = todos.filter(([k]) => dir.has(k)).sort((a, b) => (a[1].ultima < b[1].ultima ? 1 : -1))[0]
+  if (director) return director[1].a
+  return todos.sort((a, b) => b[1].n - a[1].n || (a[1].ultima < b[1].ultima ? 1 : -1))[0][1].a
+}
+
 export interface LecturaDeEntregas {
   encargos: Fila[]   // oficina_encargos: id, estado, sala_ref, cerrado_en
   turnos: Fila[]     // oficina_turnos: encargo_id, agente, tipo, inicio, fin
@@ -91,6 +128,12 @@ export interface LecturaDeEntregas {
   /** revisiones para atribuir (id, artifact_id, productores[{agente}], prueba, dry_run) */
   atribucion?: Fila[]
   bandeja: Fila[]    // hitl_queue pendientes: id, expires_at
+  /** 04-nov (CC6) · los trabajos raíz que TERMINARON en la ventana (plan, pedido, alta…), ya normalizados por `trabajosTerminados` */
+  trabajos?: TrabajoTerminado[]
+  /** las llamadas de esos trabajos (agent_invocations: agent_name, trabajo_tipo, trabajo_id, status, ended_at) */
+  llamadasDeTrabajos?: Fila[]
+  /** quienes el directorio marca `rol = direccion` (dirigen el trabajo en que aparecen) */
+  directores?: string[]
   ahora: Date
 }
 
@@ -112,6 +155,11 @@ export function armarEntregas(x: LecturaDeEntregas): EntregasDeLaEscena {
     .sort((a, b) => (String(a.cerrado_en) < String(b.cerrado_en) ? 1 : -1))
     .slice(0, MAXIMO_DE_CUADROS)
     .map((e) => ({ id: String(e.id), agente: turnoDe.get(String(e.id))?.agente ?? null, titulo: temaDe.get(filaDelEncargo(e) ?? "") || "pieza entregada", cerrado_en: String(e.cerrado_en) }))
+  // 04-nov (CC6 · Emilio: «cada vez que un output termine») · además de las piezas, cada trabajo raíz terminado: camina quien lo cerró
+  const deTrabajos: EntregaViva[] = (x.trabajos ?? [])
+    .filter((w) => ahora - Date.parse(w.cerrado_en) <= VIGENCIA_DE_LA_ENTREGA_H * 3_600_000 && Date.parse(w.cerrado_en) <= ahora)
+    .map((w) => ({ id: `${w.tipo}:${w.id}`, agente: quienCerroElTrabajo(w, x.llamadasDeTrabajos ?? [], x.directores ?? []), titulo: w.titulo, cerrado_en: w.cerrado_en }))
+  const todas = [...entregas, ...deTrabajos].sort((a, b) => (a.cerrado_en < b.cerrado_en ? 1 : -1)).slice(0, MAXIMO_DE_CUADROS)
 
   const entregadorDe = (encargoId: string) => turnoDe.get(encargoId)?.agente ?? null
   const revisiones: RevisionViva[] = []
@@ -125,7 +173,7 @@ export function armarEntregas(x: LecturaDeEntregas): EntregasDeLaEscena {
     revisiones.push({ id: String(r.id), encargo_id: encargo, entregador: entregadorDe(encargo), revisores, estado: "viva", desde: creado, cerrado_en: cerrado })
   }
   const pendientes = x.bandeja.filter((b) => !t(b.expires_at) || Date.parse(String(b.expires_at)) > ahora).length
-  return { entregas, revisiones, firma: { pendientes }, correcciones: armarCorrecciones(x) }
+  return { entregas: todas, revisiones, firma: { pendientes }, correcciones: armarCorrecciones(x) }
 }
 
 const obj = (v: unknown): Fila => (v && typeof v === "object" && !Array.isArray(v) ? (v as Fila) : {})

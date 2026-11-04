@@ -88,7 +88,7 @@ export function canalesDelCliente(config: unknown, sitio: string | null): CanalD
 
 export interface FotoDeLaBarra { url: string; que_muestra: string | null }
 /** las fotos propias del cliente (producto y ambiente, ya copiadas a nuestro almacén): imágenes sí, nada de otra dirección */
-export function fotosDeLaBarra(filas: Fila[], max = 6): FotoDeLaBarra[] {
+export function fotosDeLaBarra(filas: Fila[], max = 12): FotoDeLaBarra[] {
   return filas
     .filter((f) => /^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\//.test(texto(f.url)) && /\.(jpe?g|png|webp)$/i.test(texto(f.url)))
     .slice(0, max)

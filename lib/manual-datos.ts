@@ -3,6 +3,7 @@
  * Fuentes: `clients` (los clientes elegibles) · `client_brand_books` (la versión vigente = la mayor por cliente). Los textos los interpreta el lector
  * de siempre (`manual-lector.ts`: columna primero, borrador después, quién validó, qué falta); la identidad visual y las listas, `lib/manual.ts`.
  */
+import { leerRevisionesDelEditor, type RevisionDelEditor } from "@/lib/revisiones-del-manual"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { leerManual, type ManualLeido, CAMPOS_DEL_LECTOR } from "@/lib/manual-lector"
@@ -30,6 +31,20 @@ const detalleCorto = (v: unknown): string | null => {
   if (typeof v === "string") return v.trim() || null
   if (v && typeof v === "object") { const o = v as Record<string, unknown>; return t(o.motivo) ?? t(o.error) ?? t(o.mensaje) }
   return null
+}
+/** LA PAUSA DEL MANUAL (reserva de CC3 a #227): la espera de ESTE manual quedó soltada pero el plan no se pidió (`despertado = false`).
+ *  Así «Reintentar pedir el plan» sigue a la vista aunque se recargue. Solo lectura. Con #868 `5b897c4` el pedido por versión también deja su fila. */
+export function planSinPedir(espera: Fila | null, manualId: unknown): boolean {
+  return !!espera && espera.estado === "soltada" && espera.despertado === false && typeof manualId === "string" && espera.manual_id === manualId
+}
+async function leerPlanSinPedir(supa: SupabaseClient, clienteId: string, libro: Fila): Promise<boolean> {
+  try {
+    if (typeof libro.id !== "string") return false
+    // CUALQUIER fila de este manual con el plan sin pedir, no solo la última: si Emilio aprobó antes de que el alta guardara, la última es la del alta
+    // y el pedido fallido queda en la anterior (CC1 · 03-nov 15:28Z). Sirve con espera y sin ella (#868 `5b897c4` deja fila también por versión)
+    const r = await opcional(supa.from("esperas_del_dueno").select("estado, manual_id, despertado").eq("client_id", clienteId).eq("tipo", "manual").eq("estado", "soltada").eq("despertado", false).eq("manual_id", libro.id).limit(1).maybeSingle(), "esperas_del_dueno")
+    return planSinPedir(r.fila, libro.id)
+  } catch { return false } // si no se puede leer, el panel sigue como antes: el botón no aparece por un error
 }
 /** LA BARRA LATERAL (CC6 · 02-nov): logo (del borrador), fotos propias (producto y ambiente, ya en nuestro almacén), sedes con su atención/horario/dirección y fuente, y canales propios. Solo lectura */
 async function leerLaBarra(supa: SupabaseClient, clienteId: string, libro: Fila): Promise<NonNullable<NonNullable<ManualDelCliente["manual"]>["barra"]>> {
@@ -89,13 +104,19 @@ async function leerCicloDelManual(supa: SupabaseClient, clienteId: string, vigen
   const antes = base ? leerManual(base) : null, ahoraL = leerManual(vigente)
   // el aviso del campo validado: solo si el último pedido ya terminó (no abierto); nulo = pedido viejo: nada
   const aviso_del_pedido = esPedidoAbierto(pedido.estado) ? null : avisoDelPedidoSinCambio(f.resultado, etiquetaDelCampo)
-  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [], ...(aviso_del_pedido ? { aviso_del_pedido } : {}) }
+  // se puede reintentar: el aviso no llegó al equipo, o la reescritura no terminó (no «quedó igual»: ahí reintentar no cambia nada)
+  const sinDespertar = esPedidoAbierto(pedido.estado) && pedido.despertado === false
+  const noTermino = pedido.estado === "fallido" && !/sin cambios reales/i.test(pedido.despertar_detalle ?? "")
+  const reintentar = (sinDespertar || noTermino) && pedido.texto.trim() ? pedido.texto : null
+  return { disponible: true, abierto: esPedidoAbierto(pedido.estado) ? pedido : null, avance, que_cambio: antes && ahoraL ? queCambioEnElManual(antes.campos, ahoraL.campos) : [], ...(aviso_del_pedido ? { aviso_del_pedido } : {}), ...(reintentar ? { reintentar } : {}) }
 }
 
 export interface ManualDelCliente {
   clientes: Array<{ id: string; nombre: string; con_manual: boolean }>
   cliente: { id: string; nombre: string } | null
   manual: null | {
+    /** CC6 · 03-nov: la fila de esta versión (el borrador de «Tus cambios» se guarda contra ella) */
+    id?: string
     version: number | null
     /** cuántas versiones lleva el manual de este cliente */
     versiones: number
@@ -118,7 +139,11 @@ export interface ManualDelCliente {
     barra?: { logo: { url: string; procedencia: string | null } | null; fotos: FotoDeLaBarra[]; sedes: SedeDeLaBarra[]; canales: CanalDeLaBarra[] }
     /** CC6 · las secciones nuevas del manual (ADENDA 1): solo las que tienen dato; y la jerarquía tipográfica para la barra */
     secciones_nuevas?: SeccionLeida[]
+    /** CC6 · 02-nov (auditoría, punto 3): las revisiones del editor pendientes de este manual, legibles y con su costo (antes, en Piezas) */
+    revisiones_del_editor?: RevisionDelEditor[]
     jerarquia_tipografica?: Array<{ uso: string; familia: string }>
+    /** CC6 · la pausa del manual: aprobado pero el plan no se pudo pedir (sobrevive a recargar) */
+    plan_sin_pedir?: boolean
     creado_en: string | null
     actualizado_en: string | null
   }
@@ -152,6 +177,7 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
   return {
     ...base, cliente,
     manual: {
+      ...(typeof b.id === "string" ? { id: b.id } : {}),
       version: b.version == null ? null : Number(b.version),
       versiones: versionesPorCliente.get(cliente.id) ?? 1,
       lector,
@@ -167,7 +193,9 @@ export async function leerManualDelCliente(supa: SupabaseClient, o: { cliente?: 
       ciclo: await leerCicloDelManual(supa, cliente.id, b, ahora),
       barra: await leerLaBarra(supa, cliente.id, b),
       secciones_nuevas: seccionesNuevasDelBorrador(borradorDelManual(b)),
+      revisiones_del_editor: await leerRevisionesDelEditor(supa, cliente.id, etiquetaDelCampo).catch(() => []),
       jerarquia_tipografica: jerarquiaTipografica(borradorDelManual(b)),
+      plan_sin_pedir: await leerPlanSinPedir(supa, cliente.id, b),
       creado_en: typeof b.created_at === "string" ? b.created_at : null,
       actualizado_en: typeof b.updated_at === "string" ? b.updated_at : null,
     },

@@ -1,5 +1,7 @@
 "use client"
 
+import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
+import { estadoDelClienteEnElSelector } from "@/lib/lenguaje"
 import { clienteRecordadoEn, guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
@@ -11,7 +13,7 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelInformes } from "@/components/nuevo/PanelInformes"
 import { PanelBrief } from "@/components/nuevo/PanelBrief"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
-import { PanelEquipo } from "@/components/nuevo/PanelEquipo"
+import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 
 const AMBAR = "#e8731a"
@@ -22,7 +24,7 @@ const ESTILO = `
 .ap-cuadro{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease;animation:apEntra .5s cubic-bezier(.2,.8,.2,1) both}
 .ap-cuadro:hover{transform:translateY(-3px) scale(1.02);border-color:rgba(232,115,26,.75);background:rgba(232,115,26,.08);box-shadow:0 0 0 1px rgba(232,115,26,.35),0 10px 30px rgba(0,0,0,.45),0 0 26px rgba(232,115,26,.22)}
 .ap-cuadro:hover .ap-icono{filter:drop-shadow(0 0 8px rgba(232,115,26,.8))}
-.ap-cuadro[data-aviso="true"] .ap-punto{animation:apLate 2.2s ease-in-out infinite}
+.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}
 @keyframes apEntra{from{opacity:0;transform:translateY(10px) scale(.9)}to{opacity:1;transform:none}}
 @keyframes apLate{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.6)}50%{box-shadow:0 0 0 6px rgba(245,165,36,0)}}
 @media (prefers-reduced-motion:reduce){.ap-cuadro{transition:none;animation:none}.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}}
@@ -55,6 +57,12 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
     if (clave === "equipo") return { texto: centro.equipo.texto, aviso: centro.equipo.aviso }
   }
   if (!datos) return { texto: fijo, aviso: false }
+  // 03-nov (firma de Emilio 14:46Z): la cadena no sigue hasta que apruebes el manual
+  // con una campaña en marcha, el plan NO espera: lo que espera es el manual nuevo (reserva 3 de CC3)
+  if (clave === "plan" && datos.manual_aprobado === false) {
+    // MANUAL PRIMERO (Lenovo 20:37Z): con o sin campaña, el mismo texto que el panel del Plan; el plan no se firma antes del manual
+    return { texto: PLAN_ESPERA_EL_MANUAL, aviso: true }
+  }
   if (clave === "plan") return { texto: datos.campana ? textoDeLaFase(datos) : "Sin campaña todavía", aviso: false }
   if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${datos.filas.length} publicaciones${datos.campana.del_plan_anterior ? " · del plan anterior" : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }
   if (clave === "piezas") {
@@ -66,13 +74,13 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
 
 const CLASE_DEL_CUADRO = "ap-cuadro relative flex aspect-[1/0.92] flex-col items-start justify-end rounded-2xl border border-white/10 bg-[#171717]/90 p-4 text-left shadow-xl focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400 sm:aspect-[1/0.85]"
 
-export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null }) {
+export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicial }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   const [centro, setCentro] = useState<Centro | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
-  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>("inicio")
+  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>(vistaInicial ?? "inicio")
   // una pieza abierta desde el calendario: al cerrarla se vuelve al calendario, no a los cuadros
   const [piezaAbierta, setPiezaAbierta] = useState<{ id: string; desde: "calendario" | "inicio" } | null>(null)
   const primero = useRef<HTMLAnchorElement>(null)
@@ -121,6 +129,11 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   }, [datos, idDelCentro])
 
   const volverAlInicio = useCallback(() => setVista("inicio"), [])
+  // 03-nov · una sola vista del equipo (auditoría 15): «Equipo» ya no abre una vista propia; cierra el Centro y abre el Squad Hub de la escena (de CC4)
+  const abrirElSquadHub = useCallback(() => {
+    onCerrar()
+    window.dispatchEvent(new CustomEvent<PedidoDePlantel>(EVENTO_ABRIR_PLANTEL, { detail: { cliente: datos?.cliente?.id ?? cliente ?? null } }))
+  }, [onCerrar, datos, cliente])
   const abrirPieza = useCallback((id: string) => { setPiezaAbierta({ id, desde: "calendario" }); setVista("piezas") }, [])
   const cerrarPiezas = useCallback(() => { setVista(piezaAbierta?.desde === "calendario" ? "calendario" : "inicio"); setPiezaAbierta(null) }, [piezaAbierta])
   if (vista === "calendario") return <PanelPizarron onCerrar={volverAlInicio} datosIniciales={datos} onAbrirPieza={abrirPieza} />
@@ -130,7 +143,6 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
   if (vista === "informes") return <PanelInformes onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "brief") return <PanelBrief onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "gran_idea") return <PanelGranIdea onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "equipo") return <PanelEquipo onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
@@ -144,7 +156,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
             <span>Cliente</span>
             <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/15 bg-black/60 px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_campana ? "" : " · sin campaña"}</option>)}
+              {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{estadoDelClienteEnElSelector(c)}</option>)}
               {!datos && <option value="">Leyendo…</option>}
             </select>
           </label>
@@ -173,7 +185,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerra
               <li key={a.clave} className="contents">
                 {href
                   ? <a ref={i === 0 ? (primero as RefObject<HTMLAnchorElement>) : undefined} href={href} data-aplicacion={a.clave} data-aviso={d.aviso} className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</a>
-                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => setVista(a.clave)} aria-haspopup="dialog" className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</button>}
+                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => (a.clave === "equipo" ? abrirElSquadHub() : setVista(a.clave))} aria-haspopup="dialog" className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</button>}
               </li>
             )
           })}

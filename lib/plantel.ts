@@ -58,3 +58,31 @@ export function costoFrenteASuPromedio(delMes: Array<number | null>, deTodos: Ar
   const base = mediana(b)!
   return Math.round(((mediana(a)! - base) / base) * 100)
 }
+
+/**
+ * 03-nov (auditoría punto 15) · POR QUÉ una celda sale sin número: en vez de una raya, cuántas entregas revisadas por la jefatura tiene y cuántas hacen falta.
+ * La valoración (VAL) pide 5 revisadas; la forma, 5 recientes y 5 anteriores; la moral, 3 contables. Nada se inventa: si no llega al mínimo, se dice así.
+ */
+export const FALTAN_PARA_VAL = 5
+export const FALTAN_PARA_FORMA = 10
+export interface FaltasDeLaFicha { revisadas: number; val: { tiene: number; hace_falta: number; no_cuentan: boolean } | null; forma: { tiene: number; hace_falta: number; no_cuentan: boolean } | null; moral: { tiene: number; hace_falta: number } | null; frase: string | null }
+export function faltasDeLaFicha(x: { revisadas: number; previas: number; contables: number; puntaje: number | null; forma: unknown } | null | undefined): FaltasDeLaFicha {
+  const revisadas = x?.revisadas ?? 0, previas = x?.previas ?? 0, contables = x?.contables ?? 0
+  // con 5 o más entregas revisadas y aun así sin nota: ninguna cuenta (cortadas por tope o fallidas); no se dice «5/5»
+  const noCuentanVal = revisadas >= FALTAN_PARA_VAL
+  const val = x?.puntaje != null ? null : { tiene: Math.min(revisadas, FALTAN_PARA_VAL), hace_falta: FALTAN_PARA_VAL, no_cuentan: noCuentanVal }
+  const forma = x?.forma ? null : { tiene: Math.min(revisadas, 5) + Math.min(previas, 5), hace_falta: FALTAN_PARA_FORMA, no_cuentan: revisadas >= 5 && previas >= 5 }
+  const moral = contables >= MINIMO_PARA_LA_MORAL ? null : { tiene: contables, hace_falta: MINIMO_PARA_LA_MORAL }
+  const frase = !val ? null
+    : noCuentanVal ? `Tiene ${revisadas} entregas revisadas, pero ninguna cuenta para la nota (cortadas por tope o fallidas).`
+    : revisadas === 0 ? "Todavía no tiene entregas revisadas por la jefatura: la valoración llega con 5."
+    : `Tiene ${revisadas} ${revisadas === 1 ? "entrega revisada" : "entregas revisadas"} por la jefatura; hacen falta 5 para la valoración.`
+  return { revisadas, val, forma, moral, frase }
+}
+
+/** lo que dice una celda sin dato: nunca un número que parezca nota («0/5»); «faltan 5», «2 de 5» o «no cuentan» */
+export function textoPendiente(f: { tiene: number; hace_falta: number; no_cuentan?: boolean }): { corto: string; largo: string; avance: number } {
+  if (f.no_cuentan) return { corto: "no cuentan", largo: "Tiene entregas revisadas, pero ninguna cuenta (cortadas por tope o fallidas)", avance: 1 }
+  const faltan = Math.max(0, f.hace_falta - f.tiene)
+  return { corto: f.tiene === 0 ? `faltan ${f.hace_falta}` : `${f.tiene} de ${f.hace_falta}`, largo: `${f.tiene === 0 ? "Ninguna revisión todavía" : `${f.tiene} ${f.tiene === 1 ? "revisión" : "revisiones"}`}: faltan ${faltan} para que haya dato`, avance: Math.min(1, f.tiene / f.hace_falta) }
+}

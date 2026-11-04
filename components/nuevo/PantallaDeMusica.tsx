@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AVISO_MEZCLA, AVISO_SIN_ENLACE, AVISO_SPOTIFY_SESION, ENLACE_DE_LA_MUSICA, GUION_DE_SPOTIFY, PANTALLA_MUSICA, direccionDelReproductor, leerEnlaceDeMusica, uriDeSpotify, type MusicaDeSpotify } from "@/lib/musica"
+import { textoDeLaMusica } from "@/lib/tableros-con-dato"
 
 /**
  * LA PANTALLA CHICA DE LA IZQUIERDA del escritorio de TU OFICINA = música (sprint 6.13 · Emilio, 1-nov: «al tocarla se reproduce mi playlist»; «al tocarla nuevamente se corta»
@@ -15,6 +16,8 @@ import { AVISO_MEZCLA, AVISO_SIN_ENLACE, AVISO_SPOTIFY_SESION, ENLACE_DE_LA_MUSI
 const FOTO = { w: 2560, h: 1440 }
 const TAM_ROTULO = 10 // 6.15 (Emilio): «reduce el tamaño de las letras que dicen música en 70 %» → 32 × 0,3 ≈ 10 (cabe en el ancho de la pantalla chica)
 const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
+/** el centro de la cara de la pantalla de música (promedio de sus 4 esquinas): ahí va su estado */
+const CENTRO_MUSICA = (() => { const p = PANTALLA_MUSICA.forma.split(" ").map((s) => s.split(",").map(Number)); return { x: p.reduce((a, q) => a + q[0], 0) / p.length, y: p.reduce((a, q) => a + q[1], 0) / p.length } })()
 
 const ESTILO = `
 .nv-musica{cursor:pointer;outline:none;pointer-events:auto}
@@ -86,6 +89,8 @@ export function PantallaDeMusica({ enlace = ENLACE_DE_LA_MUSICA, encendidaInicia
           <g clipPath="url(#nv-sup-musica)"><polygon className="nv-luz" points={PANTALLA_MUSICA.forma} filter="url(#nv-luz-suave-musica)" /></g>
           <text className="nv-rotulo" x={PANTALLA_MUSICA.rotulo.x} y={PANTALLA_MUSICA.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO * 0.9 / 16}
             fontSize={TAM_ROTULO} fontWeight="500" letterSpacing={TAM_ROTULO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{PANTALLA_MUSICA.rotulo.texto}</text>
+          {/* 03-nov (CC6 · Lenovo 22:20Z): la pantalla dice en qué está, nunca queda muda */}
+          <text data-estado-musica={encendida ? "sonando" : "apagada"} x={CENTRO_MUSICA.x} y={CENTRO_MUSICA.y + 3} textAnchor="middle" fontSize={9} fontWeight={600} fill="#ffd9a0" fontFamily="system-ui, Arial, sans-serif" pointerEvents="none">{textoDeLaMusica(encendida)}</text>
         </g>
       </svg>
       {montar && (

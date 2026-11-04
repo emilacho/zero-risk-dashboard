@@ -1,10 +1,11 @@
 "use client"
 
+import { abrirPanel } from "@/components/nuevo/BotonesDelMarco"
 import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, type FilaDelTablero } from "@/lib/pizarron"
-import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible } from "@/lib/lenguaje"
+import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible, estadoDelClienteEnElSelector } from "@/lib/lenguaje"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDeFila } from "@/lib/kanban"
 import { diaConNombre, estadoCortoDeLaPublicacion, loQueTeTocaEnElCalendario, origenDeLaPublicacion, resumenDeLaSemana, semanaInicial } from "@/lib/calendario"
@@ -20,7 +21,7 @@ type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 const ESTILO = `
 .pz-casilla{transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
 .pz-casilla:hover,.pz-casilla:focus-visible{transform:translateY(-1px);filter:brightness(1.15)}
-.pz-casilla[data-destacada="true"]{box-shadow:0 0 0 1px rgba(245,165,36,.9),0 0 14px rgba(245,165,36,.55);animation:pzLate 2.2s ease-in-out infinite}
+.pz-casilla[data-destacada="true"]{box-shadow:0 0 0 1px rgba(245,165,36,.9)}
 .pz-casilla[data-elegida="true"]{outline:1px solid #fff;outline-offset:1px}
 @keyframes pzLate{0%,100%{box-shadow:0 0 0 1px rgba(245,165,36,.9),0 0 10px rgba(245,165,36,.4)}50%{box-shadow:0 0 0 1px rgba(245,165,36,1),0 0 20px rgba(245,165,36,.8)}}
 @media (prefers-reduced-motion:reduce){.pz-casilla{transition:none}.pz-casilla[data-destacada="true"]{animation:none}}
@@ -109,7 +110,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
             <span>Cliente</span>
             <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
               className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_campana ? "" : " · sin campaña"}</option>)}
+              {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{estadoDelClienteEnElSelector(c)}</option>)}
               {!datos && <option value="">Leyendo…</option>}
             </select>
           </label>
@@ -314,7 +315,7 @@ function DetalleDeLaFila({ f, onAbrirPieza }: { f: FilaDelTablero; onAbrirPieza?
           )}
           {onAbrirPieza
             ? <button type="button" onClick={() => onAbrirPieza(f.pieza!.id)} data-accion="abrir-pieza" aria-haspopup="dialog" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</button>
-            : <a href={enlaceDeLaPieza(f.pieza.id)} data-accion="abrir-pieza" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</a>}
+            : <a href={enlaceDeLaPieza(f.pieza.id)} onClick={(e) => { e.preventDefault(); abrirPanel("piezas", { pieza: f.pieza!.id }) }} data-accion="abrir-pieza" className={BOTON_ABRIR}>{f.tablero === "emilio" ? "Abrir la pieza para aprobarla o pedir cambios" : "Abrir la pieza"}</a>}
           <p className="mt-2 text-[11.5px] text-zinc-500">{onAbrirPieza ? "Se abre encima, en esta misma oficina; aquí el calendario solo mira." : "Se abre en su ventana; aquí el calendario solo mira."}</p>
         </div>
       ) : (

@@ -5,25 +5,34 @@
  * Sprint 2 (abajo): caminar a la sala de reuniones y volver. La entrega al pizarrón y el clic en el agente son los sprints 3 y 4: NO están aquí.
  */
 import { U, V, type MesaViva, type Punto, type Sentado } from "@/lib/escena-avatares"
+import { nombreCanonico } from "@/lib/organigrama"
 import { SILLAS_DE_LA_SALA } from "@/lib/escena-sala"
 
-export const MAXIMO_EN_LA_MESA = 4 // 1 sentado + 3 de pie; el resto se dice «+N»
 export type Postura = "sentado" | "de_pie"
+/** dónde esperan de pie los que llegan mientras otro trabaja sentado (en los ejes del escritorio, desde su centro): 1.º el extremo derecho, 2.º el frente, 3.º el frente izquierdo; del 4.º en adelante, alrededor del cuadro de líneas del piso
+ *  (frente-izquierda y detrás-izquierda), sin salir de la celda del escritorio ni agrandarla. Cada lugar es FIJO: no se amontonan. */
+export const DE_PIE: Array<[number, number]> = [[64, 38], [-2, 84], [-92, 66], [-120, 22], [-60, -60]]
+export const MAXIMO_EN_LA_MESA = 1 + DE_PIE.length // 1 sentado + los de pie; el resto se dice «+N»
+
 export interface PuestoDeAgente { s: Sentado; pos: Punto; postura: Postura }
 
 const aqui = (c: Punto, u: number, v: number): Punto => ({ x: Math.round(c.x + u * U.x + v * V.x), y: Math.round(c.y + u * U.y + v * V.y) })
-/** dónde se para quien aporta, alrededor de la computadora (en los ejes del escritorio, desde su centro): el extremo derecho, el frente y el extremo izquierdo */
-export const DE_PIE: Array<[number, number]> = [[64, 38], [-2, 84], [-92, 66]]
-
 /** dónde va la etiqueta «+N»: sobre el borde del escritorio, junto a su monitor (pegada a su mesa, no suelta en el piso) */
 export const puntoDelMas = (m: Pick<MesaViva, "centro">): Punto => aqui(m.centro, 66, -50)
 
 /**
- * Una silla por escritorio: se sienta el que lleva más tiempo trabajando en esa mesa (el que escribe); los demás —los que aportan dentro de su dominio— se paran
- * alrededor de esa computadora. Máximo MAXIMO_EN_LA_MESA a la vista; el resto va en `deMas`.
+ * EL ESCRITORIO ES DEL DEPARTAMENTO (04-nov · encargo de Lenovo, adenda 2: Emilio aprobó el video de turnos): una sola silla. Quien empezó primero su llamada se sienta; los demás esperan
+ * de pie en un lugar fijo (DE_PIE), por orden de inicio; cuando el sentado termina, se sienta quien espera hace más tiempo y los de la fila avanzan un lugar. El orden sale de la hora
+ * de inicio de la llamada (`Sentado.desde`); a igual hora, por nombre; sin hora, al final. Máximo MAXIMO_EN_LA_MESA a la vista; el resto va en `deMas`.
  */
 export function repartirEnLaMesa(m: Pick<MesaViva, "sentados" | "silla" | "centro">): { puestos: PuestoDeAgente[]; deMas: number } {
-  const orden = [...m.sentados].sort((a, b) => (a.estado === b.estado ? (a.desde ?? "") < (b.desde ?? "") ? -1 : 1 : a.estado === "trabajando" ? -1 : 1))
+  const t = (s: Sentado) => (s.desde ? Date.parse(s.desde) : NaN)
+  const orden = [...m.sentados].sort((a, b) => {
+    const ta = t(a), tb = t(b)
+    if (Number.isFinite(ta) !== Number.isFinite(tb)) return Number.isFinite(ta) ? -1 : 1
+    if (Number.isFinite(ta) && ta !== tb) return ta - tb
+    return nombreCanonico(a.agente).localeCompare(nombreCanonico(b.agente), "es")
+  })
   const visibles = orden.slice(0, MAXIMO_EN_LA_MESA)
   const puestos = visibles.map((s, i): PuestoDeAgente => i === 0
     ? { s, pos: { x: m.silla.x, y: m.silla.y }, postura: "sentado" }
@@ -82,8 +91,8 @@ export function puntoEnLaRuta(r: Punto[], f: number): Punto {
   }
   return r[r.length - 1]
 }
-/** lo que tarda un recorrido: velocidad pausada de oficina (px de la foto por segundo), entre 0,8 y 4 s */
-export const VELOCIDAD_PX_S = 260
+/** lo que tarda un recorrido: paso de oficina creíble (px de la foto por segundo; 04-nov: antes 260, se veía correr), mínimo 0,8 s */
+export const VELOCIDAD_PX_S = 150
 export const duracionDelRecorrido = (r: Punto[], tope = 4000): number => Math.min(Math.max((largoDeLaRuta(r) / VELOCIDAD_PX_S) * 1000, 800), tope)
 
 /** qué debe hacer cada empleado cuando llega una lectura nueva: comparar lo que se veía con lo que dicen los datos ahora */

@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react"
 import { nombreCanonico } from "@/lib/organigrama"
-import { globoDe, lineasDeLaSala, lineasDelResultado, SALA, type ParticipanteDeLaSala, type ReunionDeLaSala, type SalaDeReuniones, type UsoDelAporte } from "@/lib/escena-sala"
+import { fraseDelGlobo, globoDe, lineasDeLaSala, masReuniones, lineasDelResultado, SALA, type ParticipanteDeLaSala, type ReunionDeLaSala, type SalaDeReuniones, type UsoDelAporte } from "@/lib/escena-sala"
 
 /**
  * LA SALA DE REUNIONES en la foto (CC6 · S3): dentro del SVG de la escena. Cada participante de la reunión real se sienta en una silla de la mesa redonda
@@ -14,14 +14,13 @@ export const ESTILO_SALA = `
 .nv-sala-p{pointer-events:auto;cursor:pointer;outline:none}
 .nv-sala-p .nv-sala-aro{transition:stroke-width .2s ease}
 .nv-sala-p:hover .nv-sala-aro,.nv-sala-p:focus-visible .nv-sala-aro{stroke-width:4}
-.nv-sala-p[data-estado="hablando"] .nv-sala-halo{animation:nvSalaHabla 1.8s ease-in-out infinite}
+
 .nv-sala-rotulo{pointer-events:auto;cursor:pointer;outline:none;opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease}
 .nv-sala:hover .nv-sala-rotulo,.nv-sala-rotulo:focus-visible,.nv-sala[data-sala="en_curso"] .nv-sala-rotulo,.nv-sala[data-abierta="true"] .nv-sala-rotulo{opacity:1;transform:none}
 .nv-sala-zona{pointer-events:auto;cursor:pointer}
 .nv-sala-rotulo:hover .nv-sala-t1,.nv-sala-rotulo:focus-visible .nv-sala-t1{stroke:#ffb86b}
-.nv-sala-luz{animation:nvAvLate 2.6s ease-in-out infinite}
 .nv-sala-burbuja{transition:transform 1.4s cubic-bezier(.4,0,.2,1),opacity 1s ease}
-.nv-sala-burbuja[data-luz="habla"] rect{animation:nvSalaHabla 1.4s ease-in-out infinite}
+
 @keyframes nvSalaHabla{0%,100%{opacity:.85}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.nv-sala-rotulo{transition:none}.nv-sala-p[data-estado="hablando"] .nv-sala-halo,.nv-sala-luz,.nv-sala-burbuja[data-luz="habla"] rect{animation:none}.nv-sala-burbuja{transition:none}}
 `
@@ -66,19 +65,20 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
     return (
     <g className="nv-sala" data-sala={r ? r.estado : "vacia"} data-abierta={abierta} data-corridas={r?.corridas.join(",") ?? ""}>
       {/* la zona del ratón: la sala de vidrio; al pasar por encima aparece el rótulo, como en las mesas */}
-      <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); onAbrir() }} />
-      {r?.estado === "en_curso" && <ellipse className="nv-sala-luz" cx={SALA.mesa.x} cy={SALA.mesa.y} rx={150} ry={95} fill="url(#nv-av-ambar)" opacity={0.7} />}
-      <g className="nv-sala-rotulo" style={{ transform: `translateY(${-subir}px)`, transition: "transform .25s ease" } as CSSProperties} role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={abierta} aria-label={`${lineas.join(". ")}. Ver la reunión`}
-        onClick={(e) => { e.stopPropagation(); onAbrir() }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir() } }}>
+      <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); if (r) onAbrir() }} style={{ cursor: r ? "pointer" : "default" }} />
+      {/* 04-nov (Emilio 13:31Z): sin luz ámbar que late sobre la mesa de la sala */}
+      <g className="nv-sala-rotulo" style={{ transform: `translateY(${-subir}px)`, transition: "transform .25s ease" } as CSSProperties} role={r ? "button" : undefined} tabIndex={r ? 0 : undefined} aria-haspopup={r ? "dialog" : undefined} aria-expanded={r ? abierta : undefined} aria-label={r ? `${lineas.join(". ")}. Ver la reunión` : lineas.join(". ")}
+        onClick={(e) => { e.stopPropagation(); if (r) onAbrir() }} onKeyDown={(e) => { if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onAbrir() } }}>
         <rect x={SALA.rotulo.x - 330} y={SALA.rotulo.y - 34} width={660} height={lineas.length > 2 ? 92 : 64} fill="rgba(0,0,0,0)" />
         <text className="nv-sala-t1" x={SALA.rotulo.x} y={SALA.rotulo.y} textAnchor="middle" fill="none" stroke={r ? "#e8731a" : "#9a9a9a"} strokeWidth={1.4} fontSize={24} fontWeight="500" letterSpacing={5} fontFamily={FUENTE}>{lineas[0]}</text>
         {lineas.slice(1).map((l, i) => (
-          <text key={i} x={SALA.rotulo.x} y={SALA.rotulo.y + 26 + i * 22} textAnchor="middle" fill={i === 0 && r ? "#ffd9a0" : "#a8a097"} fontSize={i === 0 && r ? 19 : 16} fontWeight={i === 0 && r ? 600 : 400} fontFamily={FUENTE} stroke="#0b0a09" strokeWidth={4} strokeOpacity={0.85} paintOrder="stroke" data-sala-linea={i + 1}>{l}</text>
+          <text key={i} x={SALA.rotulo.x} y={SALA.rotulo.y + 26 + i * 22} textAnchor="middle" fill={(r?.fallo && i === 1) || (!r && sala?.ultima?.fallo && i === 0) ? "#f87171" : i === 0 && r ? "#ffd9a0" : "#a8a097"} fontSize={i === 0 && r ? 19 : 16} fontWeight={i === 0 && r ? 600 : 400} fontFamily={FUENTE} stroke="#0b0a09" strokeWidth={4} strokeOpacity={0.85} paintOrder="stroke" data-sala-linea={i + 1}>{l}</text>
         ))}
       </g>
       {/* 02-nov · los participantes ya no son círculos con iniciales: son las siluetas holográficas de `Siluetas.tsx` (que camina, entra, se sienta, habla y sale) */}
       {/* S4 · las burbujas de aporte (encima de las figuras): la que habla se enciende; al cerrar, lo usado viaja al centro y lo que no se usó se apaga */}
-      {r && (() => {
+      {/* sin trabajo vivo ni resultado con texto, la mesa no dibuja burbujas (corrida cerrada o fallida: nada que anunciar) */}
+      {r && (r.estado === "en_curso" || lineasDelResultado(r).length > 0) && (() => {
         const viajan = r.participantes.filter((p) => p.silla && !p.cabecera && luzDeLaBurbuja(p, r) === "centro")
         return r.participantes.filter((p) => p.silla).filter((p) => !sentados || sentados.has(nombreCanonico(p.agente)) || luzDeLaBurbuja(p, r) === "centro").map((p) => {
           const luz = luzDeLaBurbuja(p, r)
@@ -90,7 +90,7 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
           return (
             <g key={`b-${p.agente}`} className="nv-sala-burbuja" data-burbuja={p.agente} data-luz={luz} data-uso={p.aporte?.uso ?? ""} pointerEvents="none"
               style={{ transform: `translate(${d.x}px, ${d.y}px)`, opacity: luz === "apagado" ? 0.28 : luz === "normal" || luz === "quieto" ? 0.75 : 1 } as CSSProperties}>
-              {(luz === "habla" || luz === "centro") && <circle cx={b.x} cy={b.y} r={20} fill="url(#nv-av-ambar)" />}
+              {/* 04-nov: sin el círculo ámbar detrás de quien habla */}
               <rect x={b.x - 11} y={b.y - 8} width={22} height={15} rx={5} fill={fondo} stroke={color} strokeWidth={1.6} />
               <path d={`M ${b.x - 5} ${b.y + 7} l -3 6 l 8 -6 z`} fill={fondo} stroke={color} strokeWidth={1.2} strokeLinejoin="round" />
               {[-5, 0, 5].map((k) => <circle key={k} cx={b.x + k} cy={b.y - 0.5} r={1.5} fill={color} />)}
@@ -108,21 +108,20 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
 export type Globo = { tipo: "participante"; p: ParticipanteDeLaSala; ancla: { x: number; y: number }; lineas: string[] } | { tipo: "resultado"; ancla: { x: number; y: number }; lineas: string[] }
 export function globoVisible(r: ReunionDeLaSala | null | undefined, foco: string | null): Globo | null {
   if (!r) return null
-  const deP = (p: ParticipanteDeLaSala): Globo => ({ tipo: "participante", p, ancla: posBurbuja(p.silla!), lineas: [`${p.nombre}${p.cabecera ? " · dirige" : ""} · ${p.fase}`, globoDe(p), r.estado === "terminada" && p.aporte ? `${usoLegible(p.aporte.uso)} · ${p.aporte.motivo}` : estadoLegible(p)] })
+  const deP = (p: ParticipanteDeLaSala): Globo => ({ tipo: "participante", p, ancla: posBurbuja(p.silla!), lineas: [`${p.nombre}${p.cabecera ? " · dirige" : ""}`, fraseDelGlobo(p)] })
   const f = foco ? r.participantes.find((p) => p.agente === foco && p.silla) : null
   if (f) return deP(f)
-  if (r.estado === "en_curso") {
-    const x = r.participantes.find((p) => p.silla && luzDeLaBurbuja(p, r) === "habla") ?? r.participantes.find((p) => p.silla && luzDeLaBurbuja(p, r) === "ultimo")
-    return x ? deP(x) : null
-  }
+  // 04-nov · el globo de un agente se abre SOLO con el cursor encima y se cierra al salir (antes se quedaba el del que hablaba)
+  if (r.estado === "en_curso") return null
   const l = lineasDelResultado(r)
   // a la derecha de la sala (no tapa la mesa ni las burbujas que llegaron al centro)
   return l.length ? { tipo: "resultado", ancla: { x: SALA.mesa.x + 100, y: SALA.mesa.y - 60 }, lineas: l } : null
 }
 
 /** 02-nov · el globo del aporte DENTRO de la foto, con nuestro estilo (sin depender de clases de CSS): una tarjeta oscura con borde ámbar y las líneas ajustadas al ancho */
-const ancho = (l: string) => Math.min(Math.max(l.length * 7.4, 120), 300)
-function ajustar(texto: string, max = 38): string[] {
+const ANCHO_MAXIMO_DEL_GLOBO = 260, MARGEN_DEL_GLOBO = 18
+const ancho = (l: string) => Math.min(Math.max(l.length * 6.8, 100), ANCHO_MAXIMO_DEL_GLOBO)
+function ajustar(texto: string, max = 30): string[] {
   const out: string[] = []; let cur = ""
   for (const w of texto.split(/\s+/)) { if ((cur + " " + w).trim().length > max && cur) { out.push(cur); cur = w } else cur = (cur + " " + w).trim() }
   if (cur) out.push(cur)
@@ -130,7 +129,7 @@ function ajustar(texto: string, max = 38): string[] {
 }
 function medidasDelGlobo(g: Globo) {
   const lineas = g.lineas.flatMap((l, i) => (i === 0 ? [l] : ajustar(l))).slice(0, 7)
-  const w = Math.max(...lineas.map(ancho)) + 24, h = lineas.length * 19 + 18
+  const w = Math.max(...lineas.map(ancho)) + MARGEN_DEL_GLOBO * 2, h = lineas.length * 20 + MARGEN_DEL_GLOBO + 8
   const x = g.tipo === "resultado" ? g.ancla.x : g.ancla.x - w / 2, y = g.ancla.y - 14 - h
   return { lineas, w, h, x, y }
 }
@@ -148,7 +147,7 @@ export function GloboEnLaFoto({ g }: { g: Globo | null }) {
     <g data-globo={g.tipo === "participante" ? g.p.agente : "resultado"} role="status" aria-label={g.lineas.join(". ")} pointerEvents="none" style={{ filter: "drop-shadow(0 6px 14px rgba(0,0,0,.6))" } as CSSProperties}>
       <rect x={x} y={y} width={w} height={h} rx={14} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.6} strokeWidth={1.4} />
       {g.tipo === "participante" && <path d={`M ${g.ancla.x - 7} ${y + h} l 7 10 l 7 -10 z`} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.6} strokeWidth={1.2} strokeLinejoin="round" />}
-      {lineas.map((l, i) => <text key={i} x={x + 12} y={y + 20 + i * 19} fontFamily={FUENTE} fontSize={i === 0 ? 14 : 13} fontWeight={i === 0 ? 600 : 400} fill={i === 0 ? "#ffe2a8" : i === lineas.length - 1 && g.tipo === "participante" ? "#a8a097" : "#e8dfd2"}>{l}</text>)}
+      {lineas.map((l, i) => <text key={i} x={x + MARGEN_DEL_GLOBO} y={y + MARGEN_DEL_GLOBO + 6 + i * 20} fontFamily={FUENTE} fontSize={i === 0 ? 14 : 13} fontWeight={i === 0 ? 600 : 400} fill={i === 0 ? "#ffe2a8" : "#e8dfd2"}>{l}</text>)}
     </g>
   )
 }
@@ -166,10 +165,10 @@ export function PanelDeLaSala({ sala, onCerrar, onTocar }: { sala: SalaDeReunion
         <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded px-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">×</button>
       </div>
       {!r ? (
-        <p className="text-zinc-400">{sala?.ultima ? `No hay ninguna reunión ahora. La última fue ${sala.ultima.titulo} y terminó ${sala.ultima.hace}.` : "No hubo ninguna reunión en las últimas 24 horas."}</p>
+        <p className="text-zinc-400">{sala?.ultima ? `No hay ninguna reunión ahora. La última fue ${sala.ultima.titulo} y ${sala.ultima.fallo ? "falló" : "terminó"} ${sala.ultima.hace}.` : "No hubo ninguna reunión en las últimas 24 horas."}</p>
       ) : (
         <>
-          <p className="text-zinc-300">Dirige <b className="text-amber-100">{r.dirige}</b> ({r.equipo}) · {r.estado === "en_curso" ? "en curso" : `terminó ${r.hace}`}{r.cliente ? ` · cliente ${r.cliente}` : ""}</p>
+          <p className="text-zinc-300">Dirige <b className="text-amber-100">{r.dirige}</b> ({r.equipo}) · {r.estado === "en_curso" ? "en curso" : <span className={r.fallo ? "text-red-300" : undefined}>{r.fallo ? "falló" : "terminó"} {r.hace}</span>}{r.cliente ? ` · cliente ${r.cliente}` : ""}</p>
           <ol className="space-y-1" aria-label="Fases de la reunión">
             {r.fases.map((f, i) => (
               <li key={f.nombre} data-fase={f.nombre} data-estado={f.estado} className="rounded-lg border border-white/10 px-2 py-1">
@@ -181,18 +180,21 @@ export function PanelDeLaSala({ sala, onCerrar, onTocar }: { sala: SalaDeReunion
               </li>
             ))}
           </ol>
-          <ul className="space-y-0.5" aria-label="En la mesa">
+          <ul className="space-y-2" aria-label="Quién habló y qué dijo">
             {r.participantes.map((p) => (
-              <li key={p.agente} className="flex items-baseline justify-between gap-2" data-participante={p.agente}>
-                <button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); onTocar(p.agente) }} className="truncate text-left underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100">{p.nombre}{p.cabecera ? " · dirige" : ""}</button>
-                <span className={`shrink-0 text-[11px] ${p.estado === "hablando" ? "text-amber-200" : p.estado === "fallo" ? "text-red-300" : "text-zinc-500"}`}>{p.equipo} · {estadoLegible(p)}</span>
+              <li key={p.agente} data-participante={p.agente} className="rounded-lg border border-white/10 px-2 py-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <button type="button" data-abrir-ficha={p.agente} onClick={(e) => { e.stopPropagation(); onTocar(p.agente) }} className="truncate text-left text-[13px] font-medium text-zinc-100 underline decoration-white/20 decoration-dotted underline-offset-4 hover:text-amber-100">{p.nombre}{p.cabecera ? " · dirige" : ""}</button>
+                  <span className={`shrink-0 text-[11px] ${p.estado === "hablando" ? "text-amber-200" : p.estado === "fallo" ? "text-red-300" : "text-zinc-500"}`}>{p.equipo} · {estadoLegible(p)}</span>
+                </div>
+                <p data-dijo className="mt-0.5 text-[12px] leading-snug text-zinc-300">{globoDe(p)}</p>
               </li>
             ))}
           </ul>
-          {sala && sala.otras_en_curso > 0 && <p className="text-[11px] text-zinc-400">Hay {sala.otras_en_curso} reunión(es) más en curso a la vez; se muestra la más reciente.</p>}
+          {sala && sala.otras_en_curso > 0 && <p data-otras-reuniones className="text-[11px] text-zinc-400">{masReuniones(sala.otras_en_curso)}{sala.otras?.length ? `: ${sala.otras.join(" · ")}` : ""}. Aquí se ve la más reciente.</p>}
         </>
       )}
-      <p className="text-[10px] text-zinc-600">{sala?.fuente ?? "sin dato todavía"}{r ? ` · corridas ${r.corridas.join(" + ")}` : ""}</p>
+      <details data-detalle-tecnico className="text-[10px] text-zinc-600"><summary className="cursor-pointer">ver detalle</summary><span className="block break-words">{sala?.fuente ?? "sin dato todavía"}{r ? ` · corridas ${r.corridas.join(" + ")}` : ""}</span></details>
     </div>
   )
 }

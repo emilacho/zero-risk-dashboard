@@ -17,6 +17,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getMiddlewareClient } from "@/lib/supabase-session"
 import { rolDe } from "@/lib/rol-cache"
 import { API_PUBLICAS, llaveInternaValida } from "@/lib/api-gate"
+import { rutaNuevaDe } from "@/lib/rutas-viejas"
 
 const PUBLIC_ROUTES = new Set(["/login", "/auth/callback"])
 // Page prefixes (NOT api prefixes · api routes self-gate)
@@ -61,6 +62,12 @@ export async function middleware(req: NextRequest) {
     const { data: roleRow } = await supa.from("app_roles").select("role").eq("user_id", user.id).maybeSingle()
     return (roleRow?.role as "admin" | "client_viewer" | undefined) ?? null
   })
+
+  // CC6 · 03-nov: el dashboard nuevo es el único que se abre: `/` y las rutas viejas van a su equivalente nuevo (lib/rutas-viejas.ts)
+  if (role === "admin") {
+    const destino = rutaNuevaDe(pathname, req.nextUrl.searchParams)
+    if (destino) return NextResponse.redirect(new URL(destino, req.url))
+  }
 
   // Admin-only prefixes · client_viewer + no-role bounce to their cliente
   if (

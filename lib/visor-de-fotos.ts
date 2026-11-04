@@ -1,0 +1,33 @@
+/** LÓGICA PURA DEL VISOR DE FOTOS (CC4 · 03-nov): miniatura liviana, vuelta circular entre fotos y qué hace cada tecla. */
+
+/** una foto de nuestro almacén se pide chica para la miniatura (≈ 4× más liviana); cualquier otra dirección se deja tal cual */
+export function miniaturaDe(url: string, ancho = 240): string {
+  const m = /^(https:\/\/[^/]+\.supabase\.co)\/storage\/v1\/object\/public\/([^?#]+)$/.exec(url)
+  return m ? `${m[1]}/storage/v1/render/image/public/${m[2]}?width=${ancho}&quality=70` : url
+}
+
+/** la foto que sigue (1) o la anterior (-1) en un grupo de `n`, dando la vuelta */
+export function siguienteFoto(i: number, n: number, d: 1 | -1): number {
+  if (n <= 0) return 0
+  return (((i + d) % n) + n) % n
+}
+
+export function accionDeTecla(tecla: string): "cerrar" | "siguiente" | "anterior" | null {
+  if (tecla === "Escape") return "cerrar"
+  if (tecla === "ArrowRight") return "siguiente"
+  if (tecla === "ArrowLeft") return "anterior"
+  return null
+}
+
+/** Tab dentro del visor: el botón que sigue (o el anterior con Mayús) dando la vuelta; si el foco está fuera, entra por el primero (o el último) */
+export function siguienteEnLaTrampa(actual: number, n: number, atras: boolean): number {
+  if (n <= 0) return 0
+  if (actual < 0) return atras ? n - 1 : 0
+  return (((actual + (atras ? -1 : 1)) % n) + n) % n
+}
+
+/** una original que mide menos que esto (en su lado mayor) es de verdad chica: estirarla la pondría borrosa, así que se muestra a su tamaño y se avisa */
+export const LADO_MINIMO_GRANDE = 480
+export function esFotoChica(ancho: number, alto: number): boolean {
+  return ancho > 0 && alto > 0 && Math.max(ancho, alto) < LADO_MINIMO_GRANDE
+}

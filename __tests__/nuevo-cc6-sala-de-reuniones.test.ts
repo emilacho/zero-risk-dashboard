@@ -16,9 +16,9 @@ const PASOS = ["analisis-escucha_x", "analisis-voz_del_publico", "analisis-reten
 const inv = (agent_name: string, exec: string, finMin: number, extra: Partial<InvocacionViva> = {}): InvocacionViva =>
   ({ agent_name, client_id: "nau", workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: exec, status: "completed", started_at: en(finMin - 2), ended_at: en(finMin), cost_usd: 0.3, step_name: null, task_text: null, ...extra })
 const analisis = (): InvocacionViva[] => ANALISTAS.map((a, i) => inv(a, `210273:${PASOS[i]}`, 2 + i * 0.5))
-const redaccion = inv("jefe-marketing", "210273", 17.85, { started_at: en(6.5) })
+const redaccion = inv("jefe-marketing", "210273:bba-resintesis-c1", 17.85, { started_at: en(6.5) })
 const jefatura = inv("editor-en-jefe", "210300", 19.1, { workflow_id: "o8qaF7bI0PKv2XGZ", started_at: en(18) })
-const despachoJefe = (status: string): Despacho => ({ id: "dj", agent_name: "jefe-marketing", client_id: "nau", workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: "210273", status, running_at: en(6.5), completed_at: status === "completed" ? en(17.85) : null, created_at: en(6.4) })
+const despachoJefe = (status: string): Despacho => ({ id: "dj", agent_name: "jefe-marketing", client_id: "nau", workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: "210273:bba-resintesis-c1", status, running_at: en(6.5), completed_at: status === "completed" ? en(17.85) : null, created_at: en(6.4) })
 const entrada = (minAhora: number, extra: Partial<EntradaDeLaEscena> = {}): EntradaDeLaEscena => ({
   despachos: [], invocaciones: [],
   directorio: [...ANALISTAS.map((a) => ({ agente: a, equipo: "estrategia", rol: "miembro" })), { agente: "portero", equipo: null, rol: "portero" }],
@@ -59,15 +59,19 @@ describe("la sala de reuniones · S3", () => {
     expect(lineasDeLaSala(e.sala)[2]).toContain("en curso · redacción")
   })
 
-  it("la revisión de la jefatura (otra corrida, mismo cliente, enseguida) es la última fase de la MISMA reunión", () => {
+  it("regla C: la revisión de la jefatura (otra corrida, después) es trabajo de escritorio: NO se sienta en la reunión ni es una fase de ella", () => {
     const e = armarEscena(entrada(20, { invocaciones: [...analisis(), redaccion, jefatura], despachos: [despachoJefe("completed")] }))
     const r = e.sala!.reunion!
-    expect(r.corridas).toEqual(["210273", "210300"])
-    expect(r.fases.map((f) => f.nombre)).toEqual(["mesa de análisis", "redacción", "revisión de la jefatura"])
-    const editor = r.participantes.find((p) => p.agente === "editor-en-jefe")!
-    expect(editor).toMatchObject({ nombre: "Editor en jefe", equipo: "Jefatura · Dirección", cabecera: false, fase: "revisión de la jefatura" })
+    expect(r.corridas).toEqual(["210273", "210300"]) // la corrida de la revisión sigue enlazada (para el aporte), pero nadie de ella se sienta
+    expect(r.fases.map((f) => f.nombre)).toEqual(["mesa de análisis", "redacción"])
+    expect(r.participantes.some((p) => p.agente === "editor-en-jefe")).toBe(false)
     expect(r.participantes[0].agente).toBe("jefe-marketing")
-    expect(r.estado).toBe("en_curso") // la última fila es de hace menos de 5 min
+    expect(r.estado).toBe("terminada") // la consolidación terminó a los 17,85 min; la revisión posterior no la alarga
+  })
+  it("regla C: sin ningún paso que consolide (análisis + redacción sin la re-síntesis) no hay reunión: es trabajo de escritorio", () => {
+    const sinPaso = inv("jefe-marketing", "210273", 17.85, { started_at: en(6.5) })
+    expect(armarEscena(entrada(20, { invocaciones: [...analisis(), sinPaso] })).sala!.reunion).toBeNull()
+    expect(armarEscena(entrada(10, { invocaciones: analisis() })).sala!.reunion).toBeNull()
   })
 
   it("una revisión de la jefatura de OTRO cliente o muy posterior no se pega a la reunión", () => {
@@ -94,7 +98,7 @@ describe("la sala de reuniones · S3", () => {
   })
 
   it("quien el directorio marca «dirige» va a la cabecera (la mesa de creativos la dirige creative-director-mesa)", () => {
-    const crea = ["content-creator", "creative-director-mesa", "design-visual-storyteller"].map((a, i) => inv(a, `300:${["idea", "sintesis", "visual"][i]}`, 1 + i, { workflow_id: "GRAN" }))
+    const crea = ["content-creator", "creative-director-mesa", "design-visual-storyteller"].map((a, i) => inv(a, `300:${["idea", "integracion", "visual"][i]}`, 1 + i, { workflow_id: "GRAN" }))
     const e = armarEscena(entrada(4, { invocaciones: crea, directorio: [{ agente: "content-creator", equipo: "creativo", rol: "miembro" }, { agente: "creative-director-mesa", equipo: "creativo", rol: "direccion" }, { agente: "design-visual-storyteller", equipo: "creativo", rol: "miembro" }] }))
     expect(e.sala!.reunion!.participantes[0]).toMatchObject({ agente: "creative-director-mesa", cabecera: true })
     expect(e.sala!.reunion!.equipo).toBe("Creativo")
@@ -102,7 +106,7 @@ describe("la sala de reuniones · S3", () => {
 
   it("un participante que falló se marca en rojo; la fase queda «con fallo»", () => {
     const filas = analisis(); filas[2] = { ...filas[2], status: "failed" }
-    const r = armarEscena(entrada(5, { invocaciones: filas })).sala!.reunion!
+    const r = armarEscena(entrada(20, { invocaciones: [...filas, redaccion] })).sala!.reunion!
     expect(r.participantes.find((p) => p.agente === "growth-hacker")?.estado).toBe("fallo")
     expect(r.fases[0].estado).toBe("fallo")
   })

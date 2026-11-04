@@ -7,6 +7,7 @@ import type { ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import type { ResumenDeRiesgos } from "@/lib/direccion-riesgos"
 import type { ResumenDeDinero } from "@/lib/direccion-dinero"
 import type { ResumenDeCorridas } from "@/lib/direccion-corridas"
+import type { ResumenDeOrganizacion, ResumenDePortafolio } from "@/lib/tableros-con-dato"
 
 /**
  * LAS PANTALLAS DE TU OFICINA (sprint 6.14 → 6.16 · Emilio, 1-nov): las 6 pantallas encendidas del ARCO y las 5 chicas del ESCRITORIO, cada una con su MATIZ de
@@ -175,7 +176,7 @@ export const PANTALLA_DE_RIESGOS = "arco-6"
 export const PANTALLA_DE_DINERO = "arco-4"
 export const PANTALLA_DE_OBSERVABILIDAD = "arco-9"
 export const PANTALLA_DE_ORGANIZACION = "arco-7"
-export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos, dinero = null, alAbrirDinero, corridas = null, alAbrirObservabilidad, alAbrirOrganizacion }: { decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void; dinero?: ResumenDeDinero | null; alAbrirDinero?: () => void; corridas?: ResumenDeCorridas | null; alAbrirObservabilidad?: () => void; alAbrirOrganizacion?: () => void }) {
+export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos = null, alAbrirRiesgos, dinero = null, alAbrirDinero, corridas = null, alAbrirObservabilidad, alAbrirOrganizacion, organizacion = null, portafolio = null }: { organizacion?: ResumenDeOrganizacion | null; portafolio?: ResumenDePortafolio | null; decisiones?: ResumenDeDecisiones | null; alAbrirDecisiones?: () => void; riesgos?: ResumenDeRiesgos | null; alAbrirRiesgos?: () => void; dinero?: ResumenDeDinero | null; alAbrirDinero?: () => void; corridas?: ResumenDeCorridas | null; alAbrirObservabilidad?: () => void; alAbrirOrganizacion?: () => void }) {
   const abre: Record<string, { que: string; etiqueta: string; abrir: () => void } | undefined> = {
     [PANTALLA_DE_DECISIONES]: alAbrirDecisiones && { que: "decisiones", etiqueta: "Abrir tus decisiones", abrir: alAbrirDecisiones },
     [PANTALLA_DE_DINERO]: alAbrirDinero && { que: "dinero", etiqueta: "Abrir el dinero", abrir: alAbrirDinero },
@@ -216,7 +217,7 @@ export function PantallasDelArco({ decisiones = null, alAbrirDecisiones, riesgos
             {/* 6.16b · el dibujo se hace en el plano propio del vidrio y la matriz lo lleva a su perspectiva: cuadrado con sus bordes, no recto contra la foto */}
             <g className="nv-hud" transform={`matrix(${marcoDeLaForma(p.forma).matriz.map((v) => v.toFixed(5)).join(" ")})`}>
               {p.titulo
-                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} decisiones={decisiones} riesgos={riesgos} dinero={dinero} corridas={corridas} /></g>
+                ? <g transform={`scale(${(marcoDeLaForma(p.forma).W / LIENZO_DE_DIRECCION.w).toFixed(5)} ${(marcoDeLaForma(p.forma).H / LIENZO_DE_DIRECCION.h).toFixed(5)})`}><TableroDeDireccionVivo tablero={p.animacion as TableroDeDireccion} titulo={p.titulo} quieto={quieto} decisiones={decisiones} riesgos={riesgos} dinero={dinero} corridas={corridas} organizacion={organizacion} portafolio={portafolio} /></g>
                 : <Tablero animacion={p.animacion} l={lienzoDelMarco(marcoDeLaForma(p.forma))} quieto={quieto} />}
             </g>
           </g>

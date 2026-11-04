@@ -1092,3 +1092,8 @@ html, body { background-image: none !important; }
    (clase nv-panel) termina encima del chat (alto del chat 120 px + 24 px de margen + 12 px de aire), así Emilio lee y escribe al mismo tiempo. */
 :root { --nv-chat-reserva: 156px; }
 body:has([data-chat-de-oficinas]) .nv-panel { bottom: var(--nv-chat-reserva); }
+/* 3-nov · con el chat plegado (botón redondo de 56 px abajo a la derecha), el panel deja una franja libre debajo para que el botón nunca tape un botón del panel */
+body:has([data-chat-boton]) .nv-panel { padding-bottom: 76px; }
+
+/* CC6 · 03-nov · el dashboard nuevo no pinta el fondo violeta del viejo, ni un instante (corrección de Lenovo «al recargar se ve el viejo») */
+body:has([data-pantalla-nueva]) { background-color: #000; }

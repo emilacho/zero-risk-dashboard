@@ -104,7 +104,7 @@ describe("la fase activa y la cuadrícula", () => {
     expect(semanasDelTablero([])).toEqual([])
     expect(totalesDelTablero([f("a", "2026-11-04", null, "idea"), f("b", "2026-11-04", null, "idea"), f("c", "2026-11-04", null, "emilio")])).toEqual({ idea: 2, emilio: 1 })
     expect(redDelTablero("whatsapp")).toEqual({ nombre: "WhatsApp", sigla: "WA" }); expect(redDelTablero("instagram").sigla).toBe("IG"); expect(redDelTablero("rara")).toEqual({ nombre: "rara", sigla: "RA" })
-    expect(enlaceDeLaPieza("70b922a5-e9f8-4f48-9134-24f3418d9a0b")).toBe("/piezas?id=70b922a5-e9f8-4f48-9134-24f3418d9a0b&estado=todas")
+    expect(enlaceDeLaPieza("70b922a5-e9f8-4f48-9134-24f3418d9a0b")).toBe("/nuevo?panel=piezas&pieza=70b922a5-e9f8-4f48-9134-24f3418d9a0b" /* CC6 · 03-nov: el panel de Piezas del dashboard NUEVO */)
   })
 })
 
@@ -175,7 +175,7 @@ describe("la puerta y el dibujo", () => {
     expect(html).toMatch(/<g class="nv-tablero"[^>]*role="button"[^>]*aria-haspopup="dialog" aria-expanded="false"/)
     expect(html).not.toContain('data-seccion="pizarron"')
     const c = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
-    expect(c).toContain("createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)") // 6.2: primero las aplicaciones; el calendario se abre desde ahí
+    expect(c).toContain('createPortal(<PanelAplicaciones key={vistaDelPizarron ?? "inicio"} onCerrar={() => { setVistaDelPizarron(null); cerrarPizarron() }} vistaInicial={vistaDelPizarron ?? undefined} />, document.body)') // 6.2: primero las aplicaciones; el calendario se abre desde ahí
   })
   it("el panel dibuja la campaña, la gran idea ausente, la leyenda, las semanas, la casilla destacada y el enlace a la ventana de la pieza", () => {
     const filas: FilaDelTablero[] = [

@@ -22,13 +22,13 @@ const base = (o: Partial<PlanDelCliente> = {}): PlanDelCliente => ({
 describe("la barra del plan (pura)", () => {
   it("datos reales: fechas de la campaña, meta y presupuesto del documento, sedes, canales que se usan, fases ordenadas con la de hoy", () => {
     const b = barraDelPlan(base())
-    expect(b.fechas).toEqual({ texto: "2 nov → 30 ene · 13 semanas", detalle: null })
+    expect(b.fechas).toEqual({ texto: "2 nov → 24 ene · 84 días", detalle: null }) // auditoría 6: las fechas del PLAN (su documento), no las de la campaña (30 ene)
     expect(b.meta).toMatch(/130 tickets semanales/)
     expect(b.presupuesto).toMatch(/\$200 por semana/)
     expect(b.sedes).toEqual(["Guayaquil", "Olón"])
     expect(b.canales).toEqual(["Instagram"]) // la red con rol «no» no entra
     expect(b.fases.map((f) => `${f.clave}:${f.estado}`)).toEqual(["a:en_curso", "b:por_venir"])
-    expect(b.dia).toBe(1); expect(b.total_dias).toBe(90)
+    expect(b.dia).toBe(1); expect(b.total_dias).toBe(84)
   })
   it("lo que te toca: decidir el plan, la bandeja y la campaña pausada; nunca un dato que no le corresponde pedir al dueño", () => {
     const t = barraDelPlan(base()).te_toca
@@ -37,7 +37,8 @@ describe("la barra del plan (pura)", () => {
     expect(t.some((x) => /pausada \(pausa de pruebas\)/.test(x))).toBe(true)
   })
   it("sin campaña: las fechas del documento, rotuladas; sin plan: se dice que falta", () => {
-    expect(barraDelPlan(base({ campana: null })).fechas).toEqual({ texto: "2 de noviembre de 2026 – 24 de enero de 2027", detalle: "según el documento (todavía sin campaña)" })
+    expect(barraDelPlan(base({ campana: null })).fechas).toEqual({ texto: "2 nov → 24 ene · 84 días", detalle: "según el plan (todavía sin campaña)" })
+    expect(barraDelPlan(base({ campana: null, documento: { ...base().documento!, prosa: "# PLAN\n**Olón · desde noviembre**\n" } })).fechas).toBeNull() // sin fechas legibles ni campaña: no se inventan
     const vacia = barraDelPlan(base({ campana: null, estrategia: null, documento: null, ciclo: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } } }))
     expect(vacia).toMatchObject({ decision: null, meta: null, fechas: null, presupuesto: null, fases: [], te_toca: [] })
   })
@@ -59,7 +60,7 @@ describe("la barra del plan en pantalla", () => {
   it("los siete bloques del boceto, sin cifras de gasto, y fija al bajar en el panel", () => {
     const h = renderToStaticMarkup(createElement(BarraDelPlan, { b: barraDelPlan(base()) }))
     expect([...h.matchAll(/data-barra="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["decision", "meta", "fechas", "presupuesto", "sedes-y-canales", "fases", "te-toca"])
-    expect(h).toContain("Hoy es el día 1 de 90."); expect(h).toContain("Tomado de la sección «Presupuesto» del plan. Lo gastado está en Dinero.")
+    expect(h).toContain("Hoy es el día 1 de 84."); expect(h).toContain("Tomado de la sección «Presupuesto» del plan. Lo gastado está en Dinero.")
     expect(h).not.toContain("Lo que propone el plan") // un solo rótulo, verdadero (Lenovo 02-nov)
     expect(h).not.toMatch(/gastado:|US\$ \d/)
     const panel = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")

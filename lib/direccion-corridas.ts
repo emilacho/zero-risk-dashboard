@@ -6,6 +6,7 @@
  * El costo se muestra como DATO de la corrida (como LangSmith), nunca como aviso.
  */
 import { nombresDeProcesos } from "@/lib/direccion-riesgos"
+import { usdES, usdFinoES } from "@/lib/lenguaje"
 
 export type EstadoCorrida = "completa" | "fallida" | "en_curso" | "atascada" | "sin_cierre"
 export const ESTADOS: readonly EstadoCorrida[] = ["completa", "fallida", "en_curso", "atascada", "sin_cierre"]
@@ -193,16 +194,7 @@ export function duracion(ms: number | null): string {
   return m < 60 ? `${m} min ${r} s` : `${Math.floor(m / 60)} h ${m % 60} min`
 }
 export const miles = (n: number): string => Math.round(n).toLocaleString("es-EC")
-/** 6.52 · con coma, igual que en Dinero: «US$ 2,12» */
-export const costoComoDato = (n: number): string => (n === 0 ? "US$ 0" : `US$ ${n.toLocaleString("es-EC", { minimumFractionDigits: n < 0.01 ? 4 : 2, maximumFractionDigits: n < 0.01 ? 4 : 2 })}`)
-/** 6.52 · los tokens en palabras: «850 tokens» · «12 mil tokens» · «3 millones de tokens» · «1,5 millones de tokens» (nunca «3.007 mil») */
-export function tokensEnPalabras(n: number): string {
-  const t = Math.round(n)
-  if (t < 1000) return `${t.toLocaleString("es-EC")} ${t === 1 ? "token" : "tokens"}`
-  if (t < 1_000_000) return `${Math.round(t / 1000).toLocaleString("es-EC")} mil tokens`
-  const m = Math.round((t / 1_000_000) * 10) / 10
-  return m === 1 ? "1 millón de tokens" : `${m.toLocaleString("es-EC", { maximumFractionDigits: 1 })} millones de tokens`
-}
+export const costoComoDato = (n: number): string => (n === 0 ? "US$ 0" : n < 0.01 ? usdFinoES(n) : usdES(n))
 /** 6.27 · la hora va en la zona del navegador de quien mira (Emilio: su «20:34» salía «14:34», en hora de Ecuador sin decirlo). `zona` solo para pruebas */
 export function cuando(iso: string | null, zona?: string): string {
   if (!iso) return "—"

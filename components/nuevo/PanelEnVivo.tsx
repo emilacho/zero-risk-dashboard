@@ -17,7 +17,7 @@ const AMBAR_SUAVE = "rgba(255,165,58,0.26)"
 interface Pulso { clave: string; recorrido: string; oficina: ClaveDeOficina | null; empleado: string }
 interface Respuesta { ok: boolean; filas: FilaEnVivo[]; hoy: number; cursor: string | null }
 
-const LUZ = { trabajando: "bg-amber-400 animate-pulse", listo: "bg-zinc-400", fallo: "bg-rose-500" } as const
+const LUZ = { trabajando: "bg-amber-400", listo: "bg-zinc-400", fallo: "bg-rose-500" } as const // 04-nov (Emilio 13:31Z): el punto «trabajando» ya no late
 
 /** el rombo isométrico de una oficina: losa fina, trazo ámbar */
 function Losa({ x, y, ancho, activa, grande }: { x: number; y: number; ancho: number; activa: boolean; grande?: boolean }) {
@@ -116,7 +116,7 @@ export function PanelEnVivo({ onCerrar }: { onCerrar: () => void }) {
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-8" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <section role="dialog" aria-modal="true" aria-labelledby="envivo-titulo" data-seccion="en-vivo" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
-          <span aria-hidden className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+          <span aria-hidden className="h-2 w-2 rounded-full bg-amber-400" />
           <h2 id="envivo-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>En vivo</h2>
           <p className="ml-2 hidden text-[12px] text-zinc-500 sm:block">Lo que pasa ahora en las oficinas</p>
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar" className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">

@@ -1,9 +1,12 @@
 "use client"
 
+import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { InformesDelCliente } from "@/lib/informes-datos"
 import { bloquesDelResumen, diaDePeriodo, estadoLegible, periodoLegible, porTipo, tipoLegible, tituloDelInforme, type Informe, type InformeDeAnalisis, type TonoDeEstado } from "@/lib/informes"
 import { diaYHora, plural } from "@/lib/lenguaje"
+import { lecturaDelInforme, sinMarcas, primerasOraciones } from "@/lib/informe-lectura"
+import { TITULO_1, TITULO_2 } from "@/components/nuevo/manual/niveles"
 
 /**
  * INFORMES (sprint 6.9 · Emilio 1-nov: «en vez de cerebro poner informes»): el cuadro «Informes» del Dept. Marketing abre ENCIMA, dentro del cliente enfocado
@@ -38,7 +41,7 @@ function TarjetaDeInforme({ i, onAbrir }: { i: Informe; onAbrir: () => void }) {
     <li>
       <button type="button" data-informe={i.id} data-tipo={i.tipo} data-estado={i.estado} onClick={onAbrir} className={TARJETA}>
         <div className="flex w-full items-start gap-2"><IconoInforme /><span className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-zinc-100">{tituloDelInforme(i)}</span></div>
-        {primero && <p className="line-clamp-3 text-[12px] leading-relaxed text-zinc-400">{primero.parrafo}</p>}
+        {primero?.parrafo && <p className="line-clamp-3 text-[12px] leading-relaxed text-zinc-400">{primerasOraciones(primero.parrafo, 220)}</p>}
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1"><Chip tono={e.tono}>{e.texto}</Chip>{i.pdf_url && <Chip>PDF</Chip>}</div>
         <span className="text-[11px] text-zinc-500">{i.entregado_en ? `Entregado el ${diaYHora(i.entregado_en)}` : i.creado_en ? `Armado el ${diaYHora(i.creado_en)}` : ""}</span>
       </button>
@@ -52,27 +55,29 @@ function InformeDeLaMesa({ a }: { a: InformeDeAnalisis }) {
     <li data-analisis={a.id} data-tipo={a.tipo}>
       <details className="rounded-xl border border-white/10 bg-[#1c1c1c] p-3.5">
         <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-[13px] font-medium text-zinc-100"><IconoInforme /><span>{a.titulo}</span>{a.corte && <span className="text-[11.5px] font-normal text-zinc-500">al {diaDePeriodo(a.corte.slice(0, 10))}</span>}</summary>
-        <div className="mt-2.5 flex flex-wrap gap-1.5"><Chip tono="ambar">Propuesta de la mesa de análisis</Chip>{a.citas > 0 && <Chip>{plural(a.citas, "ficha citada", "fichas citadas")}</Chip>}</div>
-        <p className="mt-1.5 text-[11.5px] text-zinc-500">No es un dato confirmado del cliente: es lo que la mesa de análisis propone a partir de lo que el cerebro tiene.</p>
-        <div className="mt-2.5 whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">{a.texto || "Este informe no trae texto."}</div>
+        {/* 03-nov · se lee como documento (títulos, viñetas, negritas reales), sin códigos de ficha ni la palabra «ficha» · mismo criterio que el manual limpio */}
+        <div className="mt-2.5 flex flex-wrap gap-1.5"><Chip tono="ambar">Propuesta de la mesa de análisis</Chip></div>
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">{a.texto ? <DocumentoLegible texto={a.texto} /> : <p className="text-[13px] text-zinc-400">Este informe no trae texto.</p>}</div>
       </details>
     </li>
   )
 }
 
-export function PanelInformes({ onCerrar, datosIniciales = null, clienteInicial = null, fetchImpl = fetch }: {
+export function PanelInformes({ onCerrar, datosIniciales = null, clienteInicial = null, informeInicial = null, fetchImpl = fetch }: {
   onCerrar: () => void
   /** lectura ya hecha (pruebas) */
   datosIniciales?: InformesDelCliente | null
   /** el cliente en el que está enfocada la oficina (lo pasa el Dept. Marketing). El explorador NO cambia de cliente: para eso está la ventana de selección */
   clienteInicial?: string | null
+  /** solo pruebas y el arnés: abrir este informe de entrada */
+  informeInicial?: string | null
   fetchImpl?: typeof fetch
 }) {
   const [datos, setDatos] = useState<InformesDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [tipo, setTipo] = useState<string | null>(null)
-  const [informeId, setInformeId] = useState<string | null>(null)
+  const [informeId, setInformeId] = useState<string | null>(informeInicial)
   const cerrar = useRef<HTMLButtonElement>(null)
 
   const leer = useCallback(async (id: string | null) => {
@@ -185,38 +190,59 @@ export function PanelInformes({ onCerrar, datosIniciales = null, clienteInicial 
             )}
 
             {/* el informe abierto */}
-            {datos?.cliente && informe && (
-              <article data-vista="informe" data-informe-abierto={informe.id} className="in-entra space-y-4">
+            {datos?.cliente && informe && (() => {
+              const lectura = lecturaDelInforme(informe.resumen)
+              return (
+              <article data-vista="informe" data-informe-abierto={informe.id} className="in-entra max-w-[860px] space-y-6">
                 <div>
-                  <h3 data-titulo-informe className="text-[16px] font-medium leading-snug text-zinc-50">{tituloDelInforme(informe)}</h3>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <h3 data-titulo-informe className={TITULO_1}>{tituloDelInforme(informe)}</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <Chip>{tipoLegible(informe.tipo)}</Chip>
                     <Chip tono={estadoLegible(informe.estado).tono}>{estadoLegible(informe.estado).texto}</Chip>
                     <Chip>{periodoLegible(informe.desde, informe.hasta)}</Chip>
                   </div>
                 </div>
-                {bloquesDelResumen(informe.resumen).map((b) => (
-                  <div key={b.clave} data-bloque={b.clave}>
-                    <Titulito>{b.titulo}</Titulito>
-                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">
-                      {b.parrafo && <p className="whitespace-pre-wrap">{b.parrafo}</p>}
-                      {b.vinetas && <ul className="list-disc space-y-0.5 pl-4">{b.vinetas.map((v, i) => <li key={i}>{v}</li>)}</ul>}
+                {/* lo primero: qué pasó y qué conviene, en grande */}
+                {(lectura.que_paso || lectura.que_conviene.length > 0) && (
+                  <section data-resumen-grande aria-label="Resumen" className="space-y-4 rounded-xl border border-amber-400/30 bg-amber-400/[0.05] p-5 sm:p-6">
+                    {lectura.que_paso && <div data-que-paso><h4 className={`mb-1.5 ${TITULO_2}`}>Qué pasó</h4><p className="text-[18px] leading-relaxed text-zinc-50">{lectura.que_paso}</p></div>}
+                    {lectura.que_conviene.length > 0 && (
+                      <div data-que-conviene><h4 className={`mb-1.5 ${TITULO_2}`}>Qué conviene</h4>
+                        <ul className="list-disc space-y-1.5 pl-5 text-[17px] leading-relaxed text-zinc-100">{lectura.que_conviene.map((x, k) => <li key={k}>{x}</li>)}</ul>
+                      </div>
+                    )}
+                  </section>
+                )}
+                {lectura.secciones.map((b) => (
+                  <section key={b.clave} data-bloque={b.clave}>
+                    <h4 className={`mb-2 ${TITULO_2}`}>{b.titulo}</h4>
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-[14.5px] leading-relaxed text-zinc-200">
+                      {b.parrafo && <DocumentoLegible texto={b.parrafo} />}
+                      {b.vinetas && <DocumentoLegible texto={b.vinetas.map((v) => `- ${v.replace(/\n+/g, " ")}`).join("\n")} />}
                       {b.pares && <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">{b.pares.map((p) => <div key={p.clave} className="flex justify-between gap-3 border-b border-white/5 py-0.5"><dt className="text-zinc-400">{p.clave}</dt><dd className="text-right text-zinc-100">{p.valor}</dd></div>)}</dl>}
                     </div>
-                  </div>
+                  </section>
                 ))}
-                {!bloquesDelResumen(informe.resumen).length && <p className="text-[13px] text-zinc-400">Este informe no trae resumen.</p>}
-                <div data-bloque="entrega">
-                  <Titulito>Entrega</Titulito>
-                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[12.5px] leading-relaxed text-zinc-200">
+                {!lectura.secciones.length && !lectura.que_paso && <p className="text-[13px] text-zinc-400">Este informe no trae resumen.</p>}
+                <section data-bloque="entrega">
+                  <h4 className={`mb-2 ${TITULO_2}`}>Entrega</h4>
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-[13.5px] leading-relaxed text-zinc-200">
                     <p>{informe.entregado_en ? `Entregado el ${diaYHora(informe.entregado_en)}${informe.entregado_a.length ? ` a ${informe.entregado_a.join(", ")}` : ""}` : "Todavía no se entregó."}</p>
-                    {informe.pdf_url && <a href={informe.pdf_url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[12px] text-sky-300 underline-offset-2 hover:underline">Abrir el PDF</a>}
-                    {informe.creado_en && <p className="mt-1 text-[11.5px] text-zinc-500">Armado el {diaYHora(informe.creado_en)}</p>}
+                    {informe.pdf_url && <a href={informe.pdf_url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[13px] text-sky-300 underline-offset-2 hover:underline">Abrir el PDF</a>}
+                    {informe.creado_en && <p className="mt-1 text-[12px] text-zinc-500">Armado el {diaYHora(informe.creado_en)}</p>}
                   </div>
-                </div>
+                </section>
+                {lectura.fuentes.length > 0 && <p data-fuentes className="text-[11.5px] leading-snug text-zinc-500">Fuentes: {lectura.fuentes.map((f) => sinMarcas(f)).join(" · ")}</p>}
+                {lectura.tecnico.length > 0 && (
+                  <details data-tecnico className="text-[12px] text-zinc-500">
+                    <summary className="cursor-pointer select-none hover:text-zinc-300">Datos técnicos</summary>
+                    <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2">{lectura.tecnico.map((p, k) => <div key={k} className="flex justify-between gap-3 border-b border-white/5 py-0.5"><dt>{p.clave}</dt><dd className="break-all text-right">{p.valor}</dd></div>)}</dl>
+                  </details>
+                )}
                 <div><button type="button" onClick={() => setInformeId(null)} className={B_GRIS}>← Volver a {grupo ? grupo.nombre.toLowerCase() : "los informes"}</button></div>
               </article>
-            )}
+              )
+            })()}
           </div>
         </div>
       </section>

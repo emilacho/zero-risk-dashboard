@@ -34,6 +34,8 @@ export interface CicloDelManual {
   que_cambio: string[]
   /** CC6 · 02-nov: lo que dejó el último pedido terminado (`plan_cambios.resultado`): el aviso del campo validado o «no cambió nada» */
   aviso_del_pedido?: AvisoDelPedido
+  /** CC6 · 03-nov: el texto del último pedido que no llegó al equipo o cuya reescritura no terminó; «Reintentar» lo manda otra vez (solo lo escrito, sin lo directo) */
+  reintentar?: string
 }
 export const CICLO_DEL_MANUAL_CERRADO: CicloDelManual = { disponible: false, abierto: null, avance: null, que_cambio: [] }
 

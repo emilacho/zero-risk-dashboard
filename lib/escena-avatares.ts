@@ -12,10 +12,11 @@
  * - la mesa de cada uno = `oficina_directorio.equipo` (el dato); si no tiene tarjeta, el mapa firmado de `lib/organigrama.ts` (rotulado «según el mapa»); si tampoco, «sin mesa».
  * Todo aquí es puro (sin red, sin reloj propio: `ahora` se pasa) y está probado con vitest. Coordenadas en píxeles de `marketing-2560.jpg` (2560×1440), como el Centro de campaña.
  */
+import type { AvisoDeFirma } from "@/lib/escena-avisos"
+import type { AlertaDeLaAntena } from "@/lib/escena-alertas"
+import { estadoDelPlan } from "@/lib/manual-primero"
 import { EQUIPOS, EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico, puestosDelAgente } from "@/lib/organigrama"
 import { haceCuanto } from "@/lib/oficinas"
-import { estadoDeCampanaLegible } from "@/lib/lenguaje"
-import { leerElCiclo } from "@/lib/plan"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { nombreLegible } from "@/lib/trabajo-en-vivo"
 import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
@@ -113,20 +114,10 @@ export function estadoDePantalla(m: Pick<MesaViva, "trabajando" | "fallando">): 
 }
 
 /** en qué se trabaja, para la línea discreta de la escena: el cliente y el momento de su campaña en lenguaje de oficina («Náufrago · plan esperando tu decisión»); sin cliente no hay línea */
-export function momentoDeLaCampana(p: Pick<PlanDelCliente, "cliente" | "documento" | "ciclo" | "campana">): { cliente: string; momento: string } | null {
+export function momentoDeLaCampana(p: Pick<PlanDelCliente, "cliente" | "documento" | "ciclo" | "campana" | "manual_aprobado">): { cliente: string; momento: string } | null {
   if (!p.cliente) return null
-  let momento: string
-  if (p.documento && p.ciclo) {
-    switch (leerElCiclo(p.documento.status, p.ciclo).estado) {
-      case "esperando_decision": momento = "plan esperando tu decisión"; break
-      case "reescribiendo": momento = "plan en reescritura"; break
-      case "en_revision": momento = "plan en revisión de la jefatura"; break
-      case "aprobado": momento = "plan aprobado · sigue el brief"; break
-      default: momento = "plan en marcha"
-    }
-  } else if (p.campana) momento = `campaña ${estadoDeCampanaLegible(p.campana.estado)}`
-  else momento = "todavía sin plan"
-  return { cliente: p.cliente.nombre, momento }
+  // UNA sola función decide el estado del plan (manual primero incluido · Lenovo 21:15Z)
+  return { cliente: p.cliente.nombre, momento: estadoDelPlan(p).texto }
 }
 
 /** UN solo estado verdadero de la mesa: el mismo texto en el rótulo, en el aviso de accesibilidad y en el encabezado de la lista (Emilio 01-nov: no más «nadie trabaja» junto a «activo») */
@@ -169,7 +160,7 @@ export const MINUTOS_TOPE = 20
 export const MINUTOS_FALLO = 10
 export const HORAS_RECIENTE = 24
 
-export interface Despacho { id: string; agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; running_at: string | null; completed_at: string | null; created_at: string | null }
+export interface Despacho { id: string; agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; running_at: string | null; completed_at: string | null; created_at: string | null; /** 04-nov · el paso del flujo (columna `paso`, #878); null = sin dato */ paso?: string | null }
 export interface InvocacionViva { agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; started_at: string | null; ended_at: string | null; cost_usd: number | null; step_name: string | null; task_text: string | null }
 export interface TarjetaDelDirectorio { agente: string; equipo: string | null; /** `direccion` = dirige la sesión (S3 · la cabecera de la sala) */ rol?: string | null }
 export interface NombreDeAgente { name: string; display_name: string | null; /** `agents.is_active`; `false` = dado de baja (no se sienta en la oficina) */ activo?: boolean | null }
@@ -221,11 +212,27 @@ export interface EscenaDatos {
   metricas?: MetricasDelPizarron
   /** la pantalla vertical: la vitrina de las mejores piezas (hoy «métricas pronto» + la última pieza aprobada) (`lib/escena-vitrina.ts`) */
   vitrina?: VitrinaDeLaEscena
+  /** 04-nov (CC6) · lo que espera la firma de Emilio (hoy: el manual listo); el primer recuadro del pizarrón titila (`lib/escena-avisos.ts`) */
+  avisos?: AvisoDeFirma[]
+  /** 04-nov · agentes (nombre canónico) con su última llamada terminada en falla: la flecha de forma se vuelve ✕ roja (`agentesConFalloSinReponer`) */
+  con_fallo?: string[]
+  /** 04-nov · las alertas del departamento que avisa la antena (`lib/escena-alertas.ts`); vacío o ausente = antena apagada */
+  alertas?: AlertaDeLaAntena[]
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
 export const FLUJOS: Record<string, string> = {
   X9F0zp6LQ2xGEYVS: "Plan de 90 días",
+}
+/** el trabajo en palabras de oficina para la sala: los conocidos; si no, el nombre del proceso en n8n («Cambios al manual»); si no hay, «un trabajo sin nombre registrado» (nunca «flujo 2128…») */
+export function nombreDelFlujoEnPalabras(workflowId: string | null | undefined, nombres?: Record<string, string>): string {
+  if (!workflowId) return "un trabajo en curso"
+  const conocido = FLUJOS[workflowId]; if (conocido) return conocido
+  const crudo = nombres?.[workflowId]; if (!crudo) return "un trabajo en curso"
+  const n = crudo.replace(/^Zero Risk\s*[—–-]\s*/i, "").replace(/\s*·\s*CC-[A-Z0-9-]+\s*$/i, "").replace(/\s*\([^)]*\)\s*$/, "").trim()
+  if (/^Cambios? al manual/i.test(n)) return "Cambios al manual"
+  if (/^Cambios? al plan/i.test(n)) return "Cambios al plan"
+  return n || "un trabajo en curso"
 }
 export const nombreDelFlujo = (workflowId: string | null | undefined): string => (workflowId ? FLUJOS[workflowId] ?? `flujo ${workflowId.slice(0, 4)}…` : "sin flujo registrado")
 /** «209744:analisis-mercado» → «análisis mercado» (el paso viene en el id de ejecución; si no, de `metadata.step_name`) */
@@ -257,6 +264,8 @@ export interface EntradaDeLaEscena {
   ahora: Date
   /** el cliente y el momento de su campaña (lo lee quien arma la entrada) */
   contexto?: EscenaDatos["contexto"]
+  /** 03-nov · los nombres de los procesos de n8n (`workflow_id` → nombre) leídos en el servidor; sin dato, el trabajo se dice sin código */
+  nombresDeFlujos?: Record<string, string>
 }
 
 /** la mesa de un agente: el dato del directorio primero; si no tiene tarjeta, el mapa firmado; si no, ninguna */
@@ -279,6 +288,22 @@ export function mesaDeEscritorio(agente: string, directorio: TarjetaDelDirectori
   return (EQUIPOS_DE_MARKETING as string[]).includes(e) && mesaPorClave(e) ? { mesa: e as ClaveDeMesa, origen: "mapa" } : null
 }
 
+/**
+ * 04-nov (Emilio 13:38Z) · los agentes cuya ÚLTIMA llamada terminada falló: su flecha de forma se vuelve una ✕ roja hasta que una llamada NUEVA de ese
+ * agente termine bien (una en curso no la borra). Por agente, no por mesa: en una mesa trabajan varios. Nombres canónicos.
+ */
+export function agentesConFalloSinReponer(e: Pick<EntradaDeLaEscena, "despachos" | "invocaciones">): string[] {
+  const ultimo = new Map<string, { cuando: string; fallo: boolean }>()
+  const anotar = (agente: string, cuando: string | null | undefined, status: unknown) => {
+    if (!cuando || /running|pending|queued|en_curso/i.test(String(status ?? ""))) return
+    const k = nombreCanonico(agente), v = ultimo.get(k)
+    if (!v || cuando > v.cuando) ultimo.set(k, { cuando, fallo: esFallo(status) })
+  }
+  for (const i of e.invocaciones) anotar(i.agent_name, i.ended_at ?? null, i.status)
+  for (const d of e.despachos) anotar(d.agent_name, d.completed_at ?? null, d.status)
+  return [...ultimo].filter(([, v]) => v.fallo).map(([k]) => k).sort()
+}
+
 export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   const t = e.ahora.getTime()
   const nombres = new Map(e.agentes.map((a) => [nombreCanonico(a.name), a.display_name || nombreLegible(a.name)]))
@@ -288,7 +313,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   const fuente = `al día a las ${horaDeEcuador(e.ahora)}`
   const etapas = new Map((e.equipos ?? []).map((q) => [nombreCanonico(q.clave).replace(/-/g, "_"), q]))
   // S3 · la sala de reuniones primero: quien está en una reunión en curso se sienta en la sala, no en su mesa
-  const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo, mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora })
+  const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo: (id) => nombreDelFlujoEnPalabras(id, e.nombresDeFlujos), mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora })
   const enLaSala = agentesEnLaSala(sala)
 
   const sentados: Sentado[] = []
@@ -362,7 +387,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
     const porInstalar = [...new Set(EQUIPOS.find((q) => q.clave === m.clave)?.areas.flatMap((ar) => ar.por_instalar) ?? [])].filter((n) => !instalados.has(nombreCanonico(n)))
     return { ...base, sentados: misSentados, equipo, trabajando: misSentados.filter((s) => s.estado === "trabajando").length, fallando: misSentados.filter((s) => s.estado === "fallo").length, por_instalar: porInstalar }
   })
-  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala, contexto: e.contexto ?? null }
+  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala, contexto: e.contexto ?? null, con_fallo: agentesConFalloSinReponer(e) }
 }
 
 /** las líneas de la ficha al pasar el cursor, en este orden; nunca se rellena: lo que no hay dice «sin dato» */

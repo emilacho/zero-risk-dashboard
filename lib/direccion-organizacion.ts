@@ -34,7 +34,7 @@ export interface Organizacion {
   gerente: string | null
   departamentos: Departamento[]
   personas: Record<string, Persona>
-  resumen: { empleados: number; departamentos: number; trabajando: number; activos: number; por_activar: number; por_cubrir: number }
+  resumen: { empleados: number; departamentos: number; trabajando: number; activos: number; por_activar: number; apagados: number; por_cubrir: number }
   notas: string[]
   leido_en: string
 }
@@ -107,7 +107,7 @@ export function armarOrganizacion(d: { deptos: FilaDepto[]; agentes: FilaAgente[
   // tarjetas del directorio sin empleado instalado (p. ej. el portero del cerebro): se listan, sin inventarles más
   for (const x of d.directorio) {
     if (personas[x.agente] || [...Object.keys(personas)].some((k) => nombreCanonico(k) === nombreCanonico(x.agente))) continue
-    alta(x.agente, nombreLegibleDelAgente(x.agente), "Especialista", x.equipo ? "marketing" : "transversal", { activo: x.activo !== false, instalado: false })
+    alta(x.agente, nombreLegibleDelAgente(x.agente), "Especialista", x.equipo && equiposMk.some((e) => e.clave === x.equipo!.toLowerCase().replace(/-/g, "_")) ? "marketing" : "transversal", { activo: x.activo !== false, instalado: false })
   }
 
   // jefe de cada departamento: el jefe de departamento que no le reporta a otro del mismo departamento
@@ -177,7 +177,7 @@ export function armarOrganizacion(d: { deptos: FilaDepto[]; agentes: FilaAgente[
     resumen: {
       empleados: lista.length, departamentos: departamentos.length,
       trabajando: lista.filter((p) => p.estado === "trabajando").length, activos: lista.filter((p) => p.estado === "activo" || p.estado === "trabajando").length,
-      por_activar: lista.filter((p) => p.estado === "por_activar").length, por_cubrir: departamentos.reduce((n, x) => n + x.equipos.reduce((m, e) => m + e.por_cubrir.length, 0), 0),
+      por_activar: lista.filter((p) => p.estado === "por_activar").length, apagados: lista.filter((p) => p.estado === "apagado").length, por_cubrir: departamentos.reduce((n, x) => n + x.equipos.reduce((m, e) => m + e.por_cubrir.length, 0), 0),
     },
     notas,
     leido_en: o.ahora.toISOString(),
@@ -196,6 +196,19 @@ export function coincide(p: Persona, q: string, org: Organizacion): boolean {
   const t = plano(q.trim()); if (!t) return true
   const eq = p.equipo ? org.departamentos.flatMap((x) => x.equipos).find((e) => e.clave === p.equipo)?.nombre ?? "" : ""
   return plano([p.nombre, p.id, p.puesto, eq, p.especialidad ?? ""].join(" ")).includes(t)
+}
+
+const PARTICULAS = new Set(["de", "del", "la", "las", "el", "los", "y", "e"])
+/** las iniciales de una persona, sin particulas: «Jefe de Marketing» es JM, no JD */
+export const inicialesDe = (n: string) => n.split(/[\s_-]+/).filter((w) => w && !PARTICULAS.has(w.toLowerCase())).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")
+
+/** 3-nov · auditoría n.º 18: los totales se leen como una suma que cuadra. Quien trabaja ahora va aparte de «activos», y lo que está en cero no se nombra */
+export function partesQueSuman(r: Organizacion["resumen"]): string[] {
+  return [r.trabajando ? `${r.trabajando} trabajando ahora` : "", `${r.activos - r.trabajando} activos`, `${r.por_activar} por activar`, r.apagados ? `${r.apagados} apagados` : ""].filter(Boolean)
+}
+export function resumenQueSuma(r: Organizacion["resumen"]): string {
+  const partes = partesQueSuman(r) // la tarjeta de Tu oficina usa las mismas partes (CC6 · 03-nov)
+  return `${r.empleados} empleados: ${partes.join(" + ")} · ${r.departamentos} departamentos · ${r.por_cubrir} puestos por cubrir`
 }
 
 export const NOMBRE_DEL_ESTADO: Record<EstadoDePersona, string> = { trabajando: "Trabajando ahora", activo: "Activo", por_activar: "Por activar", apagado: "Apagado" }

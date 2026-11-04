@@ -1,8 +1,13 @@
 "use client"
 
+import type { ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
+import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
+import { PanelEnVivo } from "@/components/nuevo/PanelEnVivo"
+import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
+import { panelDeLaDireccion } from "@/lib/rutas-viejas"
 import { PanelCerebro } from "@/components/nuevo/PanelCerebro"
 import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
 import { PanelRiesgos } from "@/components/nuevo/PanelRiesgos"
@@ -10,6 +15,7 @@ import { PanelDinero } from "@/components/nuevo/PanelDinero"
 import { PanelObservabilidad } from "@/components/nuevo/PanelObservabilidad"
 import { PanelOrganizacion } from "@/components/nuevo/PanelOrganizacion"
 import { normalizarLista, resumenDeCorridas, type ResumenDeCorridas } from "@/lib/direccion-corridas"
+import { resumenDeOrganizacion, resumenDePortafolio, type ResumenDeOrganizacion, type ResumenDePortafolio } from "@/lib/tableros-con-dato"
 import { resumenDeDinero, type ResumenDeDinero } from "@/lib/direccion-dinero"
 import { resumenDeRiesgos, type ResumenDeRiesgos, type Riesgos } from "@/lib/direccion-riesgos"
 import { resumenDeDecisiones, type Decisiones, type ResumenDeDecisiones } from "@/lib/direccion-decisiones"
@@ -242,6 +248,21 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const [trazas, setTrazas] = useState(false)
   const [corridaDeDinero, setCorridaDeDinero] = useState<string | null>(null) // 6.36 · un pico de Dinero abre su corrida en Observabilidad
   const [organigrama, setOrganigrama] = useState(false) // 6.28-B · la pantalla 7 abre la organización
+  // 03-nov (CC6 · Lenovo 22:20Z) · Organización y Portafolio llevan su dato: las mismas lecturas que su panel y el selector de clientes (sin lectura: «pronto»)
+  const [organizacion, setOrganizacion] = useState<ResumenDeOrganizacion | null>(null)
+  const [portafolio, setPortafolio] = useState<ResumenDePortafolio | null>(null)
+  const leerOrganizacionYPortafolio = useCallback(async () => {
+    try {
+      const r = await fetch("/api/direccion/organizacion", { cache: "no-store" })
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; resumen?: Parameters<typeof resumenDeOrganizacion>[0] } | null
+      setOrganizacion(r.ok && j?.ok && j.resumen ? resumenDeOrganizacion(j.resumen) : null)
+    } catch { setOrganizacion(null) }
+    try {
+      const r = await fetch("/api/direccion/clientes", { cache: "no-store" })
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; clientes?: unknown[] } | null
+      setPortafolio(r.ok && j?.ok && Array.isArray(j.clientes) ? resumenDePortafolio(j.clientes) : null)
+    } catch { setPortafolio(null) }
+  }, [])
   const leerCorridas = useCallback(async () => {
     try {
       const r = await fetch("/api/direccion/corridas?dias=1&resumen=1", { cache: "no-store" })
@@ -271,13 +292,43 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   const abrirCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo/cerebro"); setCerebro(true) }, [])
   const cerrarCerebro = useCallback((cambiarUrl = true) => { if (cambiarUrl) cambiarDireccion("/nuevo"); setCerebro(false) }, [])
 
+  // CC6 · 03-nov · el marco (campana, «$», menú lateral, buscador) pide paneles con `nv:abrir-panel`: si el panel vive en un departamento, se abre ese departamento
+  const [piezasDelMarco, setPiezasDelMarco] = useState<{ pieza: string | null } | null>(null)
+  const [enVivoDelMarco, setEnVivoDelMarco] = useState(false)
+  const [vistaDelPizarron, setVistaDelPizarron] = useState<ClaveDeAplicacion | null>(null) // 04-nov · el aviso del pizarrón abre el manual directo
+  const actual = useRef({ depto, fase }); actual.current = { depto, fase }
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      const { panel, pieza = null, vista } = ((e as CustomEvent<PedidoDePanel>).detail ?? {}) as PedidoDePanel
+      const asegurar = (clave: ClaveDeDepartamento) => { const a = actual.current; if (a.depto !== clave || a.fase === "cerrado" || a.fase === "sale") abrir(clave) }
+      if (panel === "piezas") { setPiezasDelMarco({ pieza }); return }
+      if (panel === "envivo") { setEnVivoDelMarco(true); return }
+      if (panel === "aplicaciones") { asegurar("marketing"); setVistaDelPizarron(vista ?? null); setPizarron(true); return }
+      asegurar("oficina")
+      if (panel === "riesgos") setRadar(true)
+      else if (panel === "dinero") setCaja(true)
+      else if (panel === "organizacion") setOrganigrama(true)
+      else if (panel === "observabilidad") setTrazas(true)
+      else if (panel === "decisiones") setMesa(true)
+    }
+    window.addEventListener(EVENTO_ABRIR_PANEL, alPedir)
+    // CC6 · 03-nov: lo que llega de una ruta vieja (p. ej. la del gasto → `?panel=dinero`, ver lib/rutas-viejas.ts) abre su panel una vez, y la dirección queda limpia
+    const pedido = panelDeLaDireccion(window.location.search)
+    if (pedido) {
+      const limpia = new URL(window.location.href); limpia.searchParams.delete("panel"); limpia.searchParams.delete("pieza")
+      window.history.replaceState(window.history.state, "", limpia.pathname + limpia.search + limpia.hash)
+      alPedir(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: pedido }))
+    }
+    return () => window.removeEventListener(EVENTO_ABRIR_PANEL, alPedir)
+  }, [abrir])
+
   const oficinaAbierta = depto === "oficina" && fase !== "cerrado"
   useEffect(() => {
     if (!oficinaAbierta) return
-    void leerDecisiones(); void leerRiesgos(); void leerCorridas()
-    const t = setInterval(() => { if (!document.hidden) { void leerDecisiones(); void leerRiesgos(); void leerCorridas() } }, 60_000)
+    void leerDecisiones(); void leerRiesgos(); void leerCorridas(); void leerOrganizacionYPortafolio()
+    const t = setInterval(() => { if (!document.hidden) { void leerDecisiones(); void leerRiesgos(); void leerCorridas(); void leerOrganizacionYPortafolio() } }, 60_000)
     return () => clearInterval(t)
-  }, [oficinaAbierta, leerDecisiones, leerRiesgos, leerCorridas])
+  }, [oficinaAbierta, leerDecisiones, leerRiesgos, leerCorridas, leerOrganizacionYPortafolio])
   const cerrarTrazas = useCallback(() => { setTrazas(false); void leerCorridas() }, [leerCorridas])
   const cerrarRadar = useCallback(() => { setRadar(false); void leerRiesgos() }, [leerRiesgos])
   const cerrarCaja = useCallback(() => { setCaja(false); void leerRiesgos() }, [leerRiesgos])
@@ -382,7 +433,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
             {/* 6.13 · dentro de TU OFICINA: la pantalla chica de la izquierda del escritorio = música (tocar para reproducir · tocar otra vez para cortar) */}
             {depto === "oficina" && <PantallaDeMusica />}
             {/* 6.14 · el arco de pantallas de tu oficina: solo animación (6.14b: sin centros asignados; qué abre cada una lo decide Emilio) */}
-            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} alAbrirOrganizacion={() => setOrganigrama(true)} />}
+            {depto === "oficina" && <PantallasDelArco decisiones={decisiones} alAbrirDecisiones={() => setMesa(true)} riesgos={riesgos} alAbrirRiesgos={() => setRadar(true)} dinero={dinero} alAbrirDinero={() => setCaja(true)} corridas={corridas} alAbrirObservabilidad={() => setTrazas(true)} alAbrirOrganizacion={() => setOrganigrama(true)} organizacion={organizacion} portafolio={portafolio} />}
             {depto === "marketing" && (<>
             {/* 5.14 · el pizarrón de piezas: pantallas encendidas + rótulo al pasar el ratón (igual que la plataforma en la sala principal) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -405,7 +456,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
         </div>
       )}
       {/* sprint 6 · el pizarrón sale al <body> (como «En vivo»): la oficina lleva máscaras que lo desvanecerían */}
-      {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)}
+      {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones key={vistaDelPizarron ?? "inicio"} onCerrar={() => { setVistaDelPizarron(null); cerrarPizarron() }} vistaInicial={vistaDelPizarron ?? undefined} />, document.body)}
       {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
       {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
       {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)}
@@ -413,6 +464,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={() => { setCorridaDeDinero(null); cerrarTrazas() }} corridaInicial={corridaDeDinero} alVolver={corridaDeDinero ? () => { setTrazas(false); setCorridaDeDinero(null); setCaja(true) } : undefined} />, document.body)}
       {organigrama && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelOrganizacion onCerrar={() => setOrganigrama(false)} />, document.body)}
       {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
+      {piezasDelMarco && montado && createPortal(<PanelPiezas onCerrar={() => setPiezasDelMarco(null)} piezaInicial={piezasDelMarco.pieza} />, document.body)}
+      {enVivoDelMarco && montado && createPortal(<PanelEnVivo onCerrar={() => setEnVivoDelMarco(false)} />, document.body)}
       {fase !== "cerrado" && (
         <button type="button" onClick={() => cerrar()} aria-label="Volver a la escena (Esc)"
           className="fixed left-4 top-16 z-10 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] tracking-wide text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#e8731a] sm:left-5">

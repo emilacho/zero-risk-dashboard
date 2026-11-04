@@ -5,6 +5,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { listarPiezas } from "@/lib/piezas-datos"
+import { esPiezaAprobada } from "@/lib/piezas"
 import { TEXTO_SIN_METRICAS } from "@/lib/escena-metricas"
 
 export const MAXIMO_DE_PIEZAS_EN_LA_VITRINA = 8
@@ -34,6 +35,17 @@ export interface VitrinaDeLaEscena {
   modo: "mejores" | "ultima" | "vacia"
   piezas: PiezaDeLaVitrina[]
   lectura: LecturaDeMejoresPiezas["estado"]
+  /** el cliente elegido en la escena (para decir «Náufrago aún sin piezas aprobadas») */
+  cliente?: string | null
+  /** las piezas aprobadas de OTROS clientes: la Vitrina filtra por el cliente elegido y lo dice (Lenovo 22:06Z) */
+  otros_clientes?: { cuantos: number; piezas: Array<{ id: string; titulo: string; cliente: string | null }> }
+}
+
+/** el texto de la Vitrina sin piezas del cliente: si hay aprobadas de otros clientes, se dice cuántas (y la Vitrina ofrece verlas) */
+export function textoDeLaVitrinaVacia(v: Pick<VitrinaDeLaEscena, "cliente" | "otros_clientes"> | undefined): string {
+  const n = v?.otros_clientes?.cuantos ?? 0
+  if (n > 0) return `${v?.cliente ?? "Este cliente"} aún sin piezas aprobadas · ${n} de ${n === 1 ? "otro cliente" : "otros clientes"}`
+  return v?.cliente ? `${v.cliente} aún sin piezas aprobadas. Aparecerán aquí cuando se aprueben.` : "Todavía no hay piezas aprobadas. Aparecerán aquí cuando se aprueben."
 }
 
 /** qué se muestra: las mejores piezas (hasta 8) si hay; si no, la última pieza aprobada con «métricas pronto»; si tampoco, la pantalla lo dice */
@@ -43,14 +55,21 @@ export function armarVitrina(mejores: PiezaDeLaVitrina[], ultima: { id: string; 
   return { modo: "vacia", piezas: [], lectura: lectura.estado }
 }
 
-/** la última pieza aprobada de la bandeja (el sistema todavía no publica en redes: «publicada» no existe como estado). Solo lectura */
-export async function leerLaUltimaPieza(supa: SupabaseClient, cliente: string | null): Promise<{ id: string; titulo: string } | null> {
-  const filas = await listarPiezas(supa, { estado: "todas", limite: 60 })
-  const f = filas.find((x) => x.estado === "aprobada" && (!cliente || x.cliente_id === cliente))
-  return f ? { id: f.id, titulo: f.titulo_legible } : null
+/** las piezas aprobadas de la bandeja (la misma definición que Dinero: `esPiezaAprobada`), separadas en las del cliente y las de otros. Solo lectura */
+export async function leerLasAprobadas(supa: SupabaseClient, cliente: string | null): Promise<{ ultima: { id: string; titulo: string } | null; otras: Array<{ id: string; titulo: string; cliente: string | null }> }> {
+  const filas = (await listarPiezas(supa, { estado: "aprobada", limite: 500 })).filter((x) => esPiezaAprobada(x.status))
+  const propias = filas.filter((x) => !cliente || x.cliente_id === cliente)
+  const otras = cliente ? filas.filter((x) => x.cliente_id !== cliente) : []
+  return { ultima: propias[0] ? { id: propias[0].id, titulo: propias[0].titulo_legible } : null, otras: otras.map((x) => ({ id: x.id, titulo: x.titulo_legible, cliente: x.cliente })) }
 }
 
-export async function leerLaVitrina(supa: SupabaseClient, o: { cliente: string | null }): Promise<VitrinaDeLaEscena> {
+/** la última pieza aprobada del cliente (el sistema todavía no publica en redes: «publicada» no existe como estado). Solo lectura */
+export async function leerLaUltimaPieza(supa: SupabaseClient, cliente: string | null): Promise<{ id: string; titulo: string } | null> {
+  return (await leerLasAprobadas(supa, cliente)).ultima
+}
+
+export async function leerLaVitrina(supa: SupabaseClient, o: { cliente: string | null; nombre?: string | null }): Promise<VitrinaDeLaEscena> {
   const lectura = await leerMejoresPiezas(supa, o)
-  return armarVitrina([], await leerLaUltimaPieza(supa, o.cliente), lectura)
+  const { ultima, otras } = await leerLasAprobadas(supa, o.cliente)
+  return { ...armarVitrina([], ultima, lectura), cliente: o.nombre ?? null, otros_clientes: { cuantos: otras.length, piezas: otras.slice(0, MAXIMO_DE_PIEZAS_EN_LA_VITRINA) } }
 }

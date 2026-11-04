@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { TITULO_1, TITULO_2, TITULO_3 } from "@/components/nuevo/manual/niveles"
 import { bloquesDelMarkdown, datosClave, seccionesDelPlan, trozosDelTexto, type Bloque } from "@/lib/plan-documento"
 
 /**
@@ -22,7 +23,7 @@ function Bloques({ bloques }: { bloques: Bloque[] }) {
   return (
     <div className="space-y-3 text-[13px] leading-relaxed text-zinc-200">
       {bloques.map((b, i) => {
-        if (b.tipo === "titulo") return <h5 key={i} className={`${b.nivel === 3 ? "pt-2 text-[13.5px]" : "text-[13px]"} font-semibold text-amber-100`}><Texto texto={b.texto} /></h5>
+        if (b.tipo === "titulo") return <h5 key={i} data-titulo={b.nivel === 3 ? "2" : "3"} className={`${b.nivel === 3 ? `pt-2 ${TITULO_2}` : TITULO_3}`}><Texto texto={b.texto} /></h5>
         if (b.tipo === "parrafo") return <p key={i}><Texto texto={b.texto} /></p>
         if (b.tipo === "cita") return <blockquote key={i} className="border-l-2 border-amber-400/40 pl-3 text-zinc-300"><Texto texto={b.texto} /></blockquote>
         if (b.tipo === "lista") {
@@ -104,7 +105,7 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
                 <button type="button" aria-expanded={abierta} onClick={() => alternar(s.id)} className="flex w-full items-start gap-3 px-3.5 py-3 text-left">
                   <span className="mt-0.5 text-[11px] text-zinc-600">{i + 1}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-medium text-zinc-100">{s.titulo}</span>
+                    <span data-titulo="1" className={`block ${TITULO_1}`}>{s.titulo}</span>
                     {!abierta && s.resumen.length > 0 && (
                       <span className="mt-1 block space-y-0.5 text-[12.5px] leading-snug text-zinc-400">{s.resumen.map((r, k) => <span key={k} className="block"><Texto texto={r} /></span>)}</span>
                     )}

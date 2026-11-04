@@ -9,7 +9,7 @@ import { SECCIONES_NUEVAS } from "@/lib/manual-secciones"
 import { readFileSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { EDITABLES_DESDE_EL_TABLERO, cuerpoDeEdicion, esEditableDesdeElTablero, textoParaEditar } from "@/lib/manual"
+import { EDITABLES_DESDE_EL_TABLERO, TOPE_DEL_TEXTO_DEL_MANUAL, cuerpoDeEdicion, esEditableDesdeElTablero, textoParaEditar } from "@/lib/manual"
 import { CAMPOS_DEL_MANUAL, ejecutarAccion } from "@/lib/tablero-acciones"
 import { PanelManual, llamarAccion, resumenDelGuardado } from "@/components/nuevo/PanelManual"
 import { leerManual } from "@/lib/manual-lector"
@@ -22,11 +22,12 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     expect(EDITABLES_DESDE_EL_TABLERO.map((e) => e.clave).sort()).toEqual(CAMPOS_DEL_MANUAL.map((c) => c.clave).sort())
     expect(esEditableDesdeElTablero("eslogan")).toBe(true); expect(esEditableDesdeElTablero("mision")).toBe(true); expect(esEditableDesdeElTablero("inventado")).toBe(false)
   })
-  it("el cuerpo de la edición es el que valida el servidor del tablero: listas una por línea, límite 2.000, el porqué opcional", async () => {
+  it("el cuerpo de la edición es el que valida el servidor del tablero: listas una por línea, el límite de la plataforma (100.000 · regla 10), el porqué opcional", async () => {
     expect(cuerpoDeEdicion(CLIENTE, "eslogan", "  Del mar a tu mesa ", "lo dijo el dueño")).toEqual({ client_id: CLIENTE, campos: { eslogan: "Del mar a tu mesa" }, comentario: "lo dijo el dueño" })
     expect(cuerpoDeEdicion(CLIENTE, "valores", "Frescura\n\n  Honestidad \nCercanía", "")).toEqual({ client_id: CLIENTE, campos: { valores: "Frescura\nHonestidad\nCercanía" } })
     expect(cuerpoDeEdicion(CLIENTE, "eslogan", "   ", "")).toEqual({ error: "Escribe algo antes de guardar" })
-    expect(cuerpoDeEdicion(CLIENTE, "eslogan", "x".repeat(2001), "")).toEqual({ error: "Máximo 2.000 caracteres" })
+    expect(cuerpoDeEdicion(CLIENTE, "valores", "x".repeat(2001), "")).toEqual({ client_id: CLIENTE, campos: { valores: "x".repeat(2001) } }) // el tope viejo de 2.000 ya no corta
+    expect(cuerpoDeEdicion(CLIENTE, "eslogan", "x".repeat(TOPE_DEL_TEXTO_DEL_MANUAL + 1), "")).toEqual({ error: "Es demasiado largo" }); expect(TOPE_DEL_TEXTO_DEL_MANUAL).toBe(100_000)
     expect(cuerpoDeEdicion(CLIENTE, "inventado", "x", "")).toEqual({ error: "«inventado» todavía no se edita desde aquí" }); expect(cuerpoDeEdicion(CLIENTE, "vision", " Ser el refugio ", "")).toEqual({ client_id: CLIENTE, campos: { vision: "Ser el refugio" } })
     expect(textoParaEditar("valores", "Frescura · Honestidad")).toBe("Frescura\nHonestidad"); expect(textoParaEditar("voz", "a · b")).toBe("a · b"); expect(textoParaEditar("voz", null)).toBe("")
     // lo que arma el panel lo acepta el servidor del tablero y llega a la plataforma por PATCH /api/manual/{cliente}/campos con la llave interna
@@ -43,7 +44,7 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     const ok = await llamarAccion("manual-campos", { a: 1 }, async () => new Response(JSON.stringify({ ok: true, resultado: { version_nueva: 2 } }), { status: 200 }))
     expect(ok).toEqual({ ok: true, texto: "Guardado", detalle: { version_nueva: 2 } })
     expect(await llamarAccion("manual-campos", {}, async () => new Response("{}", { status: 401 }))).toEqual({ ok: false, texto: "Tu sesión venció: entra de nuevo." })
-    expect(await llamarAccion("manual-campos", {}, async () => new Response(JSON.stringify({ ok: false, detalle: "la plataforma no aceptó" }), { status: 502 }))).toEqual({ ok: false, texto: "No se pudo: la plataforma no aceptó" })
+    expect(await llamarAccion("manual-campos", {}, async () => new Response(JSON.stringify({ ok: false, detalle: "la plataforma no aceptó" }), { status: 502 }))).toEqual({ ok: false, texto: "No se pudo: la plataforma no aceptó", detalleCrudo: "la plataforma no aceptó" }) // 03-nov: el detalle viaja aparte para decirlo en palabras
     expect(await llamarAccion("manual-campos", {}, async () => new Response("{}", { status: 501 }))).toMatchObject({ ok: false, texto: expect.stringContaining("Todavía no está disponible") })
   })
   it("el panel pone «Editar» solo en los campos que la plataforma acepta, dice cuáles no, y ofrece validar cuando no lo validó el dueño", () => {
@@ -51,13 +52,13 @@ describe("sprint 6.4 · editar el manual desde el dashboard nuevo", () => {
     const lector = leerManual(fila)!
     const datos: ManualDelCliente = { clientes: [{ id: CLIENTE, nombre: "Náufrago", con_manual: true }], cliente: { id: CLIENTE, nombre: "Náufrago" }, manual: { version: 1, versiones: 1, lector, fidelidad: "Sin revisión de fidelidad", origen: null, colores: [], tipografias: [], opciones_eslogan: [], palabras_prohibidas: [], terminos_propios: [], politica_competidores: null, creado_en: null, actualizado_en: null }, leido_en: "x" }
     const html = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toMatch(/data-campo="proposito" data-estado="lleno" data-editable="true"/); expect(html).toMatch(/data-campo="mision" data-estado="lleno" data-editable="true"/); expect(html).toMatch(/data-campo="vision" data-estado="hueco" data-editable="true"/); expect(html).not.toContain('data-editable="false"')
+    expect(html).toMatch(/data-campo="proposito" data-editable="true"/); expect(html).toMatch(/data-campo="mision" data-editable="true"/); expect(html).toMatch(/data-campo="vision" data-editable="true"/); expect(html).not.toContain('data-editable="false"')
     const deLasSecciones = new Set(SECCIONES_NUEVAS.flatMap((x) => x.claves.map((k) => k.clave)))
     expect(html.match(/data-accion="editar-campo"/g)?.length).toBe(EDITABLES_DESDE_EL_TABLERO.filter((e) => !deLasSecciones.has(e.clave)).length) // todos los campos editables se muestran, llenos o vacíos; las secciones nuevas solo con dato (CC6 02-nov)
     expect(html).toContain('data-campo-editar="eslogan"'); expect(html).toContain('data-campo-editar="mision"'); expect(html).toContain('data-campo-editar="vision"'); expect(html).not.toContain("todavía no se cambia desde aquí") /* CC6 · 02-nov · ADENDA 1 de Lenovo: todos los campos se editan */
     expect(html).not.toContain("Cada «Guardar» crea una versión nueva"); expect(html).not.toContain("cuando la plataforma los acepte") /* ADENDA 2: sin texto técnico en el pie */
     expect(html).toContain('data-accion="validar-manual"'); expect(html).not.toContain('data-editor=') // nada abierto de entrada
-    expect(html).toMatch(/data-campo="nunca" data-estado="hueco" data-editable="true"/); expect(html).toContain("Sin dato todavía: escríbelo aquí") // opcional vacío pero editable: se muestra para poder escribirlo
+    expect(html).toMatch(/data-campo="nunca" data-editable="true"/); expect(html).not.toContain("Sin dato") // opcional vacío pero editable: su título y «Editar», sin rótulo (03-nov)
     // validado por el dueño → no se ofrece validar otra vez
     const validado = leerManual({ ...fila, human_validated: true, provenance_tag: { validado_por: "dueno" } })!
     const html2 = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: { ...datos, manual: { ...datos.manual!, lector: validado } } }))

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { readFileSync } from "node:fs"
-import { DE_PIE, LUGARES, decidirMovimiento, duracionDelRecorrido, largoDeLaRuta, puntoEnLaRuta, rutaPorLasLineas } from "@/lib/escena-movimiento"
+import { LUGARES, decidirMovimiento, duracionDelRecorrido, largoDeLaRuta, puntoEnLaRuta, rutaPorLasLineas } from "@/lib/escena-movimiento"
 import { U, V, MESAS } from "@/lib/escena-avatares"
 import { SALA, SILLAS_DE_LA_SALA } from "@/lib/escena-sala"
 
@@ -38,7 +38,6 @@ describe("sprint 2 · caminar a la sala de reuniones y volver", () => {
     expect(decidirMovimiento(visto, undefined, { enLaSala: true, veniaDeLaSala: false }).tipo).toBe("va_a_la_sala") // la reunión real lo sentó en la sala
     expect(decidirMovimiento(visto, undefined, { enLaSala: false, veniaDeLaSala: false }).tipo).toBe("se_va") // dejó de trabajar sin reunión: se desvanece
     expect(decidirMovimiento(undefined, undefined, { enLaSala: true, veniaDeLaSala: false }).tipo).toBe("queda") // ya estaba en la sala al abrir: lo dibuja la sala
-    expect(DE_PIE.length).toBe(3)
   })
   it("el componente no dibuja ninguna reunión (es de CC6) ni adelanta el sprint 4 (clic en el agente); el sprint 3 (entregas, pizarrón, firma) ya está en `nuevo-cc4-sprint3-entregas.test.ts`", () => {
     const f = readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")

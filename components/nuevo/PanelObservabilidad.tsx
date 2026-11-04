@@ -1,11 +1,12 @@
 "use client"
 
+import { tokensEnPalabras } from "@/lib/formato"
 import { BotonVolver } from "@/components/nuevo/BotonVolver"
 import { FichaDeRendimiento } from "@/components/nuevo/escena/FichaDeRendimiento"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import {
-  COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, tokensEnPalabras, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
+  COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo, type ResumenAgregado,
 } from "@/lib/direccion-corridas"
 import { diaLocal, diasEntre, fechaCorta, horaLocal, PERIODOS, usdCorto, type Dinero, type Periodo } from "@/lib/dinero-completo"

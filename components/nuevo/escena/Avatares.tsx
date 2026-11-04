@@ -1,9 +1,14 @@
 "use client"
 
+import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
-import { CuadrosDeMetricas, ESTILO_ENTREGAS, LamparaDeFirma, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
+import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
+import { AntenaDeAlertas, PanelDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
+import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
+import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
+import { CuadrosDeMetricas, ESTILO_ENTREGAS, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
@@ -43,9 +48,6 @@ const ESTILO = `
 .nv-av .nv-av-rotulo{opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
 .nv-av .nv-av-zona:hover .nv-av-rotulo,.nv-av .nv-av-zona:focus-visible .nv-av-rotulo,.nv-av .nv-av-zona[aria-expanded="true"] .nv-av-rotulo{opacity:1;transform:none}
 .nv-av .nv-av-luz{opacity:0;transition:opacity .6s ease}
-.nv-av .nv-av-luz[data-on="ambar"]{opacity:.9;animation:nvAvLate 2.6s ease-in-out infinite}
-.nv-av .nv-av-luz[data-on="rojo"]{opacity:.85;animation:nvAvLateRojo 1.4s ease-in-out infinite}
-.nv-av .nv-av-luz[data-on="tenue"]{opacity:.2;animation:nvAvTenue 5s ease-in-out infinite}
 @keyframes nvAvTenue{0%,100%{opacity:.14}50%{opacity:.26}}
 .nv-av .nv-av-asiento{pointer-events:auto;cursor:default;outline:none}
 .nv-av .nv-av-asiento rect{fill:transparent}
@@ -72,6 +74,13 @@ const ESTILO = `
 
 /** la mesa vacía que se dibuja antes de que llegue el dato (y si la lectura falla): sin sentados, sin equipo, sin inventar */
 const vacia = (m: Mesa): MesaViva => ({ ...m, sentados: [], equipo: [], trabajando: 0, fallando: 0 })
+/** las mesas que la escena tiene ANTES de leer nada (las 6, vacías): por eso siempre hay una mesa que abrir (CC3 · reserva 3 de #225) */
+export const mesasSinLeer = (): MesaViva[] => MESAS.map(vacia)
+/** CC6 · 03-nov · qué mesa abre el Squad Hub cuando lo pide el Centro de campaña: la pedida, si no la primera con gente, si no la primera.
+ *  Con las mesas sin leer abre la primera (vacía) y se llena sola cuando llegan los datos. */
+export function mesaParaAbrir(mesas: MesaViva[], pedida: string | null = null): MesaViva | null {
+  return (pedida && mesas.find((m) => m.clave === pedida)) || mesas.find((m) => m.equipo.length > 0) || mesas[0] || null
+}
 
 export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arnés: arrancar con estos datos */ datosIniciales?: EscenaDatos | null }) {
   const [datos, setDatos] = useState<EscenaDatos | null>(datosIniciales)
@@ -79,6 +88,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
   const [agenteDelPlantel, setAgenteDelPlantel] = useState<string | null>(null) // el empleado que el plantel muestra en su detalle al abrirse (si vino de tocar su flecha)
   const [fichaDe, setFichaDe] = useState<string | null>(null) // Sprint B · el empleado cuya ficha (currículum) está abierta
+  const [panelTablero, setPanelTablero] = useState<{ tipo: "pizarron"; clave: string | null } | { tipo: "vitrina" } | { tipo: "antena" } | null>(null) // 03-nov · pizarrón y vitrina tocables
   const [salaAbierta, setSalaAbierta] = useState(false) // S3 · el panel de la reunión
   const [enSala, setEnSala] = useState<string | null>(null) // S3 · el participante bajo el cursor
   const [aporteDe, setAporteDe] = useState<string | null>(null) // S4 · el participante cuyo aporte completo está abierto
@@ -114,11 +124,22 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
     return () => { window.removeEventListener("keydown", alTeclear, true); window.removeEventListener("click", alClic, true) }
   }, [salaAbierta])
 
-  const mesas: MesaViva[] = useMemo(() => (datos ? datos.mesas : MESAS.map(vacia)), [datos])
+  const mesas: MesaViva[] = useMemo(() => (datos ? datos.mesas : mesasSinLeer()), [datos])
   const colocaciones = useMemo(() => colocarFiguras(mesas), [mesas])
   const hayFiguras = ESCENA_AVATARES !== ""
   const abierta = mesaAbierta ? mesas.find((m) => m.clave === mesaAbierta) ?? null : null
   const cerrarPlantel = useCallback(() => { setMesaAbierta(null); setAgenteDelPlantel(null) }, [])
+  // CC6 · 03-nov · una sola vista del equipo: el Centro de campaña › Equipo abre ESTE plantel (Squad Hub), en la mesa pedida o la primera con gente
+  const mesasActuales = useRef(mesas); mesasActuales.current = mesas
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      const { mesa = null } = ((e as CustomEvent<PedidoDePlantel>).detail ?? {}) as PedidoDePlantel
+      const elegida = mesaParaAbrir(mesasActuales.current, mesa)
+      if (elegida) { setAgenteDelPlantel(null); setMesaAbierta(elegida.clave) }
+    }
+    window.addEventListener(EVENTO_ABRIR_PLANTEL, alPedir)
+    return () => window.removeEventListener(EVENTO_ABRIR_PLANTEL, alPedir)
+  }, [])
   // tocar la flecha de un empleado: su detalle dentro del plantel de su equipo (false = no está en ningún plantel: se abre la ficha de rendimiento de siempre)
   const abrirPlantelDe = useCallback((agente: string) => {
     const m = mesas.find((q) => q.equipo.some((p) => nombreCanonico(p.agente) === nombreCanonico(agente)))
@@ -144,13 +165,11 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* Sprint A · la pantalla de cada monitor: negra si nadie trabaja, viva según el oficio si alguien trabaja, roja si falló */}
         {mesas.map((m) => <PantallaDeLaMesa key={`pantalla-${m.clave}`} m={m} />)}
         {mesas.map((m) => {
-          const on = m.trabajando > 0 ? "ambar" : m.fallando > 0 ? "rojo" : "tenue" // sin nadie: brillo tenue (la oficina no se ve muerta; la pantalla sigue negra)
+          // 04-nov (Emilio 13:38Z): la mesa ya no se pinta por ningún estado (ni ámbar, ni tenue, ni rojo): la falla va en la ✕ roja del agente
           const subtitulo = estadoDeLaMesa(m)
           return (
             <g key={m.clave} className="nv-av-mesa" data-mesa={m.clave} data-etapa={m.etapa} data-ocupada={m.sentados.length > 0} data-trabajando={m.trabajando} opacity={m.etapa === "segunda_etapa" && !m.sentados.length ? 0.75 : 1}>
               {/* la luz del monitor de la foto: ámbar cuando alguien trabaja, roja si lo último fue un fallo; el derrame al piso va sobre la silla */}
-              <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.monitor.x} cy={m.monitor.y} rx={150} ry={95} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} />
-              <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.silla.x + 10} cy={m.silla.y + 30} rx={170} ry={70} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} style={{ opacity: on ? 0.45 : 0 } as CSSProperties} />
               {/* la zona del ratón: el tablero de la mesa (en las 2 nuevas, además, el trazo punteado del boceto) */}
               <g className="nv-av-zona" role="button" tabIndex={0} aria-label={`${m.nombre}: ${subtitulo}. Ver el equipo`} aria-haspopup="dialog" aria-expanded={mesaAbierta === m.clave}
                 onClick={(e) => { e.stopPropagation(); setMesaAbierta((k) => (k === m.clave ? null : m.clave)) }}
@@ -168,17 +187,27 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} sentados={sentadosEnSala} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
         {/* el pizarrón de métricas: «General» y un cuadro por red del cliente; hoy «métricas pronto» (los gastos se ven en Tu oficina › Dinero). Las entregas ya no quedan fijas aquí: su tarjeta aparece 8 s */}
-        <CuadrosDeMetricas metricas={datos?.metricas} />
-        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
+        <CuadrosDeMetricas metricas={datos?.metricas} onAbrir={(k) => setPanelTablero({ tipo: "pizarron", clave: k || null })}
+          avisos={datos?.avisos ?? []} onAviso={(a) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: a.abre === "piezas" ? { panel: "piezas" } : { panel: "aplicaciones", vista: a.abre } }))} />
+        <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} cargado={datos != null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
-        <FlechasDeForma onAbrir={abrirPlantelDe} />
+        <FlechasDeForma onAbrir={abrirPlantelDe} conFallo={datos?.con_fallo ?? []} />
         {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
-        <VitrinaVertical vitrina={datos?.vitrina} />
-        {/* la lámpara de firma: sobre el escritorio de Dirección, hacia Tu oficina */}
-        <LamparaDeFirma pendientes={datos?.entregas?.firma.pendientes ?? 0} />
+        <VitrinaVertical vitrina={datos?.vitrina} onAbrir={() => setPanelTablero({ tipo: "vitrina" })} />
+        {/* 04-nov (Emilio 14:08Z): sin lámpara en Dirección; el aviso de firma vive solo en el pizarrón (`firma.pendientes` sigue en el dato) */}
+        {/* 04-nov (Emilio 15:19Z): la antena en su opción 3, con luz sutil; la lista abre un panel como los demás */}
+        <AntenaDeAlertas alertas={datos?.alertas} onAbrir={() => setPanelTablero({ tipo: "antena" })} />
         <GloboEnLaFoto g={globoActual} />
       </svg>
+      {/* 03-nov · las redes del pizarrón como botones de ≥44 px, en la zona vacía de arriba del pizarrón: la franja ocupa el 76 % izquierdo del ancho y se centra ahí, o sea sobre el pizarrón (los cuadros de la foto son de 8×12 px a este ancho) */}
+      {MOSTRAR_LA_FRANJA_DE_REDES && <FranjaDeLasRedes botones={botonesDeLaFranja(datos?.metricas)} className="absolute left-0 z-[3]" style={{ width: "76%", top: pct(70, FOTO.h) }}
+        onAbrir={(k) => setPanelTablero(k === "vitrina" ? { tipo: "vitrina" } : { tipo: "pizarron", clave: k })} />}
+      {panelTablero && (
+        <div role="dialog" aria-label={panelTablero.tipo === "vitrina" ? "La vitrina" : panelTablero.tipo === "antena" ? "Las alertas" : "El pizarrón de métricas"} className="nv-av-lista absolute left-1/2 top-1/2 z-[5] max-h-[80%] w-[min(26rem,92%)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-white/15 bg-[#121110]/95 p-4 text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]" onClick={(e) => e.stopPropagation()}>
+          {panelTablero.tipo === "vitrina" ? <PanelDeLaVitrina vitrina={datos?.vitrina} onCerrar={() => setPanelTablero(null)} /> : panelTablero.tipo === "antena" ? <PanelDeLasAlertas alertas={datos?.alertas} onCerrar={() => setPanelTablero(null)} onAbrir={(a) => { setPanelTablero(null); if (a.abre) window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel: a.abre } })) }} /> : <PanelDelPizarron metricas={datos?.metricas} inicial={panelTablero.clave} onCerrar={() => setPanelTablero(null)} />}
+        </div>
+      )}
       {salaAbierta && (
         <div role="dialog" aria-label="La reunión de la sala" className="nv-av-lista nv-sala-panel absolute z-[4] w-[24rem] max-h-[60%] overflow-auto rounded-xl border border-white/15 bg-[#121110]/95 p-3 text-[12px] text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]"
           style={{ left: pct(SALA.mesa.x + 190, FOTO.w), top: pct(SALA.rotulo.y - 40, FOTO.h) }} onClick={(e) => e.stopPropagation()}>

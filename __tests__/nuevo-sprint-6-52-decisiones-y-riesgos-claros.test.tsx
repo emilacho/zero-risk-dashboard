@@ -8,7 +8,8 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { costoDeLaDecision, gruposDeDecisiones, nombreDeEmpleado, normalizarDecisiones, resumenDeDecisiones, tituloDeDecision } from "@/lib/direccion-decisiones"
 import { esTextoTecnico, riesgoClaro } from "@/lib/riesgo-claro"
-import { costoComoDato, tokensEnPalabras } from "@/lib/direccion-corridas"
+import { costoComoDato } from "@/lib/direccion-corridas"
+import { tokensEnPalabras } from "@/lib/formato"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, refresh: () => {}, back: () => {} }) }))
 

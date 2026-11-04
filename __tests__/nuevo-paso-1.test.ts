@@ -28,20 +28,26 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
       expect(readFileSync(f).length, f).toBeLessThan(max)
     }
   })
-  it("barra superior: ≡ · Zero Risk · Seleccionar cliente · Buscar con «/» · y los 5 iconos (+, campana, $, salir, claro/oscuro)", () => {
+  it("barra superior (03-nov · nada decorativo, nada al dashboard viejo): Zero Risk · Seleccionar cliente · Buscar con «/» · campana, $ y Salir que hacen algo", () => {
     const html = renderToStaticMarkup(createElement(BarraSuperior))
-    for (const t of ["Zero Risk", "Seleccionar cliente", "Buscar", "Menú"]) expect(html).toContain(t)
+    for (const t of ["Zero Risk", "Seleccionar cliente", "Buscar"]) expect(html).toContain(t)
     expect(html).toContain("<kbd")
-    for (const e of ["Nuevo", "Alertas", "Gasto", "Salir", "Claro u oscuro"]) expect(html).toContain(`aria-label="${e}"`)
-    expect(enlaces(html).sort()).toEqual(["/alertas", "/gasto"]) // solo los que ya tienen pantalla
+    expect(html).toMatch(/<button[^>]*data-accion="abrir-buscador"/) // un botón de verdad, ya no una forma
+    expect(html).toMatch(/data-abre-panel="riesgos"[^>]*aria-label="Riesgos y alarmas"/); expect(html).toMatch(/data-abre-panel="dinero"[^>]*aria-label="Dinero"/)
+    expect(html).toMatch(/data-accion="salir"/)
+    for (const e of ["Nuevo", "Claro u oscuro", "Menú"]) expect(html).not.toContain(`aria-label="${e}"`) // no hacían nada: fuera
+    expect(enlaces(html)).toEqual([]) // ningún enlace al dashboard viejo (/alertas, /gasto)
+    expect(html).not.toMatch(/role="img" aria-label="(Nuevo|Alertas|Gasto|Salir)"/)
   })
-  it("menú lateral: los 8 lugares de la referencia; enlaza solo donde hay pantalla equivalente", () => {
-    expect(MENU).toHaveLength(8)
+  it("menú lateral (03-nov): cada lugar lleva a algo; Inicio es la escena y los demás abren su panel; sin Guías ni Oficinas", () => {
+    expect(MENU.map((m) => [m.etiqueta, m.href ?? m.panel])).toEqual([["Inicio", "/nuevo"], ["Aplicaciones", "aplicaciones"], ["Piezas", "piezas"], ["Empleados", "organizacion"], ["Flujos", "observabilidad"], ["Actividad", "envivo"]])
     const html = renderToStaticMarkup(createElement(MenuLateral))
-    expect(enlaces(html).sort()).toEqual(["/mapa", "/nuevo", "/oficinas", "/piezas"])
+    expect(enlaces(html)).toEqual(["/nuevo"]) // nada a /mapa, /oficinas ni /piezas
+    expect(html).not.toMatch(/role="img"/) // ningún icono sin acción
+    expect((html.match(/data-abre-panel=/g) ?? []).length).toBe(5)
   })
   it("adenda 4: riel sin teléfono (con el flujo y la onda al final), logo en contorno, escena ya sin viñeta (5.2)", () => {
-    expect(MENU.map((m) => m.etiqueta)).toEqual(["Inicio", "Oficinas", "Guías", "Aplicaciones", "Piezas", "Empleados", "Flujos", "Actividad"])
+    expect(MENU.map((m) => m.etiqueta).slice(-2)).toEqual(["Flujos", "Actividad"]) // el flujo y la onda siguen al final
     const marca = renderToStaticMarkup(createElement(BarraSuperior))
     expect(marca).toMatch(/<text[^>]*fill="none"[^>]*stroke="#e8731a"/) // solo trazo, interior transparente
     expect(marca).not.toMatch(/font-display/)

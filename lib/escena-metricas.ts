@@ -18,9 +18,9 @@ export const REDES_DEL_PIZARRON: Array<{ clave: ClaveDeRed; nombre: string; sigl
   { clave: "google_maps", nombre: "Google Maps", sigla: "MAP" },
 ]
 export const CUADRO_GENERAL = { clave: "general" as const, nombre: "General", sigla: "GEN" }
-export const TEXTO_SIN_METRICAS = "métricas pronto"
+export const TEXTO_SIN_METRICAS = "pronto"
 /** lo que dice el cuadro de una red que el cliente todavía no tiene (no se oculta: el estándar es mostrarlas todas) */
-export const TEXTO_SIN_CUENTA = "sin cuenta todavía"
+export const TEXTO_SIN_CUENTA = "sin cuenta"
 
 /** lo que devuelve la lectura: hoy solo «sin datos» (la forma del dato con métricas la define el contrato de CC1) */
 export type LecturaDeMetricas = { estado: "sin_datos"; motivo: string }

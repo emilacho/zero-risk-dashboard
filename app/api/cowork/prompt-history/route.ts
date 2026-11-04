@@ -44,6 +44,9 @@ export async function GET(req: Request) {
     Math.max(parseInt(url.searchParams.get("limit") ?? "20", 10), 1),
     100,
   )
+  // 3-nov (saludo viejo en /nuevo): el chat pide solo lo reciente; lo más viejo existe en la base pero no se presenta como la conversación de hoy
+  const edadH = Number(url.searchParams.get("max_edad_horas") ?? "")
+  const desde = Number.isFinite(edadH) && edadH > 0 ? new Date(Date.now() - edadH * 3600_000).toISOString() : null
   if (!sessionId) {
     return NextResponse.json(
       { ok: false, error: "session_id_required" },
@@ -52,10 +55,12 @@ export async function GET(req: Request) {
   }
 
   const svc = getServiceRoleClient()
-  const { data, error } = await svc
+  let consulta = svc
     .from("cowork_messages")
     .select("id, created_at, content, response_content, metadata")
     .eq("metadata->>session_id", sessionId)
+  if (desde) consulta = consulta.gte("created_at", desde)
+  const { data, error } = await consulta
     .order("created_at", { ascending: false })
     .limit(limit)
   if (error) {

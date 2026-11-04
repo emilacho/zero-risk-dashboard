@@ -52,7 +52,7 @@ describe("sprint 4 · clic en el agente (cola de CC4 · 03-nov)", () => {
     expect(sil).toContain('e.key === "Enter"')
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
     expect(av).toContain("onTocar={(a) => setTocado(a)}")
-    expect(av).toContain("<FlechasDeForma onAbrir={abrirPlantelDe} />")
+    expect(av).toContain("<FlechasDeForma onAbrir={abrirPlantelDe} conFallo={datos?.con_fallo ?? []} />")
     const tarjeta = readFileSync("components/nuevo/escena/ElAgenteAhora.tsx", "utf8")
     expect(tarjeta).not.toMatch(/\.(insert|update|delete|upsert|rpc)\(/)
     expect(tarjeta.match(/fetch\(/g)).toHaveLength(1) // lo único que pide: el rendimiento, por la ruta que ya lee la flecha

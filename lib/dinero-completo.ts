@@ -10,7 +10,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Saldo, Tope } from "@/lib/direccion-riesgos"
 import { leerOrganizacion } from "@/lib/direccion-organizacion"
-import { nombreDeLaCorrida, procesosDeEjecuciones, tokensEnPalabras } from "@/lib/direccion-corridas"
+import { nombreDeLaCorrida, procesosDeEjecuciones } from "@/lib/direccion-corridas"
+import { tokensEnPalabras } from "@/lib/formato"
+import { esPiezaAprobada } from "@/lib/piezas"
 
 export interface Movimiento {
   /** instante (ISO) */
@@ -318,7 +320,7 @@ export function costoPorResultado(d: Dinero, r: { desde: string; hasta: string }
   ]
   if (d.piezas == null) out.push({ clave: "pieza", nombre: "Una pieza aprobada", por_unidad: null, cuantos: 0, total: 0, nota: "sin dato todavía" })
   else {
-    const ps = d.piezas.filter((x) => enRango(x, r)), ok = ps.filter((x) => x.estado === "approved" || x.estado === "edited"), conCosto = ok.filter((x) => x.usd != null)
+    const ps = d.piezas.filter((x) => enRango(x, r)), ok = ps.filter((x) => esPiezaAprobada(x.estado)), conCosto = ok.filter((x) => x.usd != null)
     const total = r2(conCosto.reduce((s, x) => s + (x.usd ?? 0), 0))
     out.push({ clave: "pieza", nombre: "Una pieza aprobada", por_unidad: conCosto.length ? r2(total / conCosto.length) : null, cuantos: ok.length, total, nota: `${ok.length} ${ok.length === 1 ? "aprobada" : "aprobadas"} de ${ps.length} ${ps.length === 1 ? "revisada" : "revisadas"}` })
   }
