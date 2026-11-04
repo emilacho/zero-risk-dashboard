@@ -213,6 +213,8 @@ export interface EscenaDatos {
   vitrina?: VitrinaDeLaEscena
   /** 04-nov (CC6) · lo que espera la firma de Emilio (hoy: el manual listo); el primer recuadro del pizarrón titila (`lib/escena-avisos.ts`) */
   avisos?: AvisoDeFirma[]
+  /** 04-nov · agentes (nombre canónico) con su última llamada terminada en falla: la flecha de forma se vuelve ✕ roja (`agentesConFalloSinReponer`) */
+  con_fallo?: string[]
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
@@ -281,6 +283,22 @@ export function mesaDeEscritorio(agente: string, directorio: TarjetaDelDirectori
   if (t) return mesaDelAgente(agente, directorio)
   const e = puestosDelAgente(agente).find((p) => p.area !== "revisores")?.equipo ?? "otros"
   return (EQUIPOS_DE_MARKETING as string[]).includes(e) && mesaPorClave(e) ? { mesa: e as ClaveDeMesa, origen: "mapa" } : null
+}
+
+/**
+ * 04-nov (Emilio 13:38Z) · los agentes cuya ÚLTIMA llamada terminada falló: su flecha de forma se vuelve una ✕ roja hasta que una llamada NUEVA de ese
+ * agente termine bien (una en curso no la borra). Por agente, no por mesa: en una mesa trabajan varios. Nombres canónicos.
+ */
+export function agentesConFalloSinReponer(e: Pick<EntradaDeLaEscena, "despachos" | "invocaciones">): string[] {
+  const ultimo = new Map<string, { cuando: string; fallo: boolean }>()
+  const anotar = (agente: string, cuando: string | null | undefined, status: unknown) => {
+    if (!cuando || /running|pending|queued|en_curso/i.test(String(status ?? ""))) return
+    const k = nombreCanonico(agente), v = ultimo.get(k)
+    if (!v || cuando > v.cuando) ultimo.set(k, { cuando, fallo: esFallo(status) })
+  }
+  for (const i of e.invocaciones) anotar(i.agent_name, i.ended_at ?? null, i.status)
+  for (const d of e.despachos) anotar(d.agent_name, d.completed_at ?? null, d.status)
+  return [...ultimo].filter(([, v]) => v.fallo).map(([k]) => k).sort()
 }
 
 export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
@@ -366,7 +384,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
     const porInstalar = [...new Set(EQUIPOS.find((q) => q.clave === m.clave)?.areas.flatMap((ar) => ar.por_instalar) ?? [])].filter((n) => !instalados.has(nombreCanonico(n)))
     return { ...base, sentados: misSentados, equipo, trabajando: misSentados.filter((s) => s.estado === "trabajando").length, fallando: misSentados.filter((s) => s.estado === "fallo").length, por_instalar: porInstalar }
   })
-  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala, contexto: e.contexto ?? null }
+  return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala, contexto: e.contexto ?? null, con_fallo: agentesConFalloSinReponer(e) }
 }
 
 /** las líneas de la ficha al pasar el cursor, en este orden; nunca se rellena: lo que no hay dice «sin dato» */

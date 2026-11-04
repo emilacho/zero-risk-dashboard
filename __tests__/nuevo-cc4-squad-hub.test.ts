@@ -154,7 +154,7 @@ describe("el plantel en pantalla", () => {
   })
   it("la flecha es la de eFootball: sola, chica, sin recuadro, pegada a la cabeza (rama de CC6)", () => {
     const fl = readFileSync("components/nuevo/escena/FlechasDeForma.tsx", "utf8")
-    expect(fl).toContain("TAM_FLECHA = 17"); expect(fl).toContain("ALTO = { de_pie: 85, sentado: 57 }")
+    expect(fl).toContain("TAM_FLECHA = 24") /* CC6 04-nov: Emilio no la veía a 17 */; expect(fl).toContain("ALTO = { de_pie: 85, sentado: 57 }")
     expect(fl).not.toMatch(/<rect[^>]*stroke=/) // sin recuadro: solo el área de toque transparente
   })
 })
