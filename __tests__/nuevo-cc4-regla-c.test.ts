@@ -25,7 +25,7 @@ describe("regla C · qué pasos consolidan", () => {
   it("re-síntesis, integración, ajuste y cierre consolidan (en el nombre del paso o en la clave); lentes, revisores, jueces y análisis NO", () => {
     for (const p of ["bba-resintesis-c1", "bba-resintesis-c3", "bb-equipo-integracion", "ajuste", "cierre"]) expect(esPasoDeConsolidacion(`900:${p}`, null), p).toBe(true)
     expect(esPasoDeConsolidacion("900", "bba-resintesis-c2")).toBe(true) // también por step_name
-    for (const p of ["bba-lente-1", "bba-revisor-brand-strategist-c1", "bba-revisor-jefe-client-success-c2", "analisis-mercado", "juez-de-fidelidad", "preresintesisx"]) expect(esPasoDeConsolidacion(`900:${p}`, null), p).toBe(false)
+    for (const p of ["bba-lente-1", "bba-revisor-brand-strategist-c1", "bba-revisor-jefe-client-success-c2", "analisis-mercado", "juez-de-fidelidad", "preresintesisx", "preajuste", "precierre", "reintegracion"]) expect(esPasoDeConsolidacion(`900:${p}`, null), p).toBe(false)
     expect(esPasoDeConsolidacion("900", null)).toBe(false)
   })
 })
