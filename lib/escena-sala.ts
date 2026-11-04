@@ -110,6 +110,9 @@ const raizDe = (exec: string | null | undefined): string | null => { const s = (
 const pasoCrudo = (exec: string | null | undefined): string | null => { const s = exec ?? ""; return s.includes(":") ? s.slice(s.indexOf(":") + 1) : null }
 const esFallo = (status: unknown) => /error|fail|timeout|cancel/i.test(String(status ?? ""))
 const cuando = (i: InvocacionViva) => i.ended_at ?? i.started_at
+/** REGLA C (Emilio 04-nov 10:54Z; mapa de pasos de CC2 + nombres reales de `step_name`): SOLO los pasos que CONSOLIDAN abren la sala: la re-síntesis del estratega (`bba-resintesis-cN`), la integración del creador (`bb-equipo-integracion`) y el ajuste y el cierre del plan.
+ *  Todo lo demás (lentes, investigación, redacción de una sección, jueces) es trabajo en el escritorio. Sin paso de consolidación con agente, no hay reunión */
+export const esPasoDeConsolidacion = (exec: string | null | undefined, step: string | null | undefined): boolean => /(^|[-_:])(resintesis|integracion|ajuste|cierre)(?![a-z])/i.test(`${pasoCrudo(exec) ?? ""} ${step ?? ""}`)
 /** los revisores de la jefatura (ADR-020: los 3 jefes) según el mapa firmado */
 export const esRevisorDeLaJefatura = (agente: string): boolean => puestosDelAgente(agente).some((p) => p.area === "revisores")
 /** se sienta en la sala si es de la oficina: tiene mesa, es de la jefatura o de la dirección; los de la biblioteca del cerebro y los proveedores no */
@@ -164,7 +167,9 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
 
   // 2 · las reuniones (≥ 2 que se sientan) y la jefatura que las sigue
   const todas = [...grupos.values()].sort((a, b) => a.desde - b.desde)
-  const reuniones = todas.filter((g) => sentables(g).length >= MINIMO_DE_PARTICIPANTES).map((g) => ({ principal: g, jefatura: [] as Grupo[] }))
+  // regla C: una corrida solo abre sala si tiene un paso que consolida con alguien que se sienta (quien dirige basta; sin dato de quién aportó, se sienta solo él)
+  const consolida = (g: Grupo) => g.filas.some((i) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name) && seSienta(i.agent_name, e)) || abiertos.some((d) => raizDe(d.workflow_execution_id) === g.raiz && esPasoDeConsolidacion(d.workflow_execution_id, null) && seSienta(d.agent_name, e))
+  const reuniones = todas.filter(consolida).map((g) => ({ principal: g, jefatura: [] as Grupo[] }))
   for (const g of todas) {
     const ags = sentables(g)
     if (!ags.length || !ags.every(esRevisorDeLaJefatura)) continue
@@ -188,15 +193,27 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
 function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos: Despacho[], nombre: (a: string) => string, clientes: Map<string, string>): ReunionDeLaSala {
   const t = e.ahora.getTime()
   const raices = new Set([g.raiz, ...jefatura.map((j) => j.raiz)])
-  const filas = [...g.filas, ...jefatura.flatMap((j) => j.filas)].filter((i) => seSienta(i.agent_name, e)).sort((a, b) => ms(cuando(a)) - ms(cuando(b)))
-  const abiertosAqui = abiertos.filter((d) => raices.has(raizDe(d.workflow_execution_id) ?? "") && seSienta(d.agent_name, e))
+  const filasTodas = [...g.filas, ...jefatura.flatMap((j) => j.filas)].filter((i) => seSienta(i.agent_name, e)).sort((a, b) => ms(cuando(a)) - ms(cuando(b)))
+  const abiertosTodos = abiertos.filter((d) => raices.has(raizDe(d.workflow_execution_id) ?? "") && seSienta(d.agent_name, e))
+  // regla C: la reunión es la ÚLTIMA consolidación de la corrida. Se sientan quien la dirige y los que aportaron (llamadas ya terminadas ANTES de que ella empezara); las demás llamadas siguen en su escritorio
+  const esC = (i: InvocacionViva) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name)
+  const consolAbiertas = abiertosTodos.filter((d) => esPasoDeConsolidacion(d.workflow_execution_id, null))
+  const inicioDe = (i: InvocacionViva) => ms(i.started_at ?? cuando(i))
+  const ultimaC = filasTodas.filter(esC).sort((a, b) => inicioDe(b) - inicioDe(a))[0]
+  const inicioAbierta = Math.max(-Infinity, ...consolAbiertas.map((d) => ms(d.running_at ?? d.created_at)).filter(Number.isFinite))
+  const abiertaMasNueva = consolAbiertas.length > 0 && (!ultimaC || inicioAbierta >= inicioDe(ultimaC))
+  const inicioC = abiertaMasNueva ? inicioAbierta : ultimaC ? inicioDe(ultimaC) : Infinity
+  const filas = filasTodas.filter((i) => (esC(i) ? !abiertaMasNueva && ultimaC != null && inicioDe(i) === inicioDe(ultimaC) : ms(cuando(i)) <= inicioC))
+  const abiertosAqui = abiertaMasNueva ? consolAbiertas.filter((d) => ms(d.running_at ?? d.created_at) === inicioAbierta) : []
   const esDeJefatura = (exec: string | null) => jefatura.some((j) => j.raiz === raizDe(exec))
 
   // quién dirige: rol del directorio → el que corre la raíz → el primero
   const presentes = [...new Map([...filas.map((i) => [nombreCanonico(i.agent_name), i.agent_name] as const), ...abiertosAqui.map((d) => [nombreCanonico(d.agent_name), d.agent_name] as const)]).values()]
   const porRol = presentes.find((a) => e.directorio.some((d) => nombreCanonico(d.agente) === nombreCanonico(a) && d.rol === "direccion"))
   const porRaiz = [...filas.filter((i) => !esDeJefatura(i.workflow_execution_id)).map((i) => ({ a: i.agent_name, x: i.workflow_execution_id })), ...abiertosAqui.filter((d) => !esDeJefatura(d.workflow_execution_id)).map((d) => ({ a: d.agent_name, x: d.workflow_execution_id }))].find((p) => p.x === g.raiz)?.a
-  const dirige = porRol ?? porRaiz ?? presentes[0] ?? ""
+  // quien consolida dirige (regla C); si no se sabe, los criterios de antes
+  const dirigeC = abiertosAqui[0]?.agent_name ?? (ultimaC && !abiertaMasNueva ? ultimaC.agent_name : undefined)
+  const dirige = dirigeC ?? porRol ?? porRaiz ?? presentes[0] ?? ""
 
   // las fases, en el orden en que pasaron
   const fases: FaseDeLaSala[] = []
@@ -231,9 +248,9 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
     return { agente: a, nombre: nombre(a), mesa: m?.mesa ?? null, equipo, cabecera: k === 0, fase: faseDelAgente.get(nombreCanonico(a)) ?? "sin paso registrado", estado, ultima, hace: ultima ? haceCuanto(ultima, e.ahora) : habla ? "hablando ahora" : "sin fila", silla: SILLAS_DE_LA_SALA[k] ?? null, corrida }
   })
 
-  const hasta = Math.max(g.hasta, ...jefatura.map((j) => j.hasta))
-  const ultimaFila = filas.length ? ms(cuando(filas[filas.length - 1])) : NaN
-  const enCurso = abiertosAqui.length > 0 || (Number.isFinite(ultimaFila) && t - ultimaFila < MINUTOS_PAUSA * 60_000)
+  // regla C: la reunión dura lo que dura el paso que consolida; al terminar, vuelven a sus escritorios (sin pausa de espera)
+  const hasta = Math.max(...filas.map((i) => ms(cuando(i))), ...abiertosAqui.map(() => t))
+  const enCurso = abiertosAqui.length > 0 || (ultimaC != null && !abiertaMasNueva && !ultimaC.ended_at)
   const flujo0 = e.nombreDelFlujo(g.flujo)
   // 04-nov · si el flujo no trae nombre, el título sale del pedido en curso («Reescritura del manual»), no de «un trabajo sin nombre registrado»
   const flujo = /^un trabajo en curso$/i.test(flujo0) ? tituloPorElPedido(filas.map((f) => f.task_text)) : flujo0
