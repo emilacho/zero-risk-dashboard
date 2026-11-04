@@ -32,9 +32,9 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
   })
   it("la lectura: libro sin aprobar + último pedido terminado → aviso; con el pedido en reescritura o con la base caída → nada", async () => {
     const supa = (pedido: string | null, falla = false) => ({ from: (t: string) => {
-      const filas = t === "client_brand_books" ? [{ client_id: C, version: 3, human_validated: false, provenance_tag: {} }] : pedido ? [{ estado: pedido }] : []
+      const filas = t === "client_brand_books" ? [{ client_id: C, version: 3, human_validated: false, provenance_tag: {} }] : t === "hitl_queue" ? [] : pedido ? [{ estado: pedido }] : []
       const q: Record<string, unknown> = {}
-      for (const m of ["select", "eq", "in", "order", "limit"]) q[m] = () => q
+      for (const m of ["select", "eq", "in", "order", "limit", "is"]) q[m] = () => q
       q.maybeSingle = () => Promise.resolve(falla ? { data: null, error: { message: "caída" } } : { data: filas[0] ?? null, error: null })
       q.then = (ok: (r: unknown) => unknown) => Promise.resolve({ data: filas, error: null }).then(ok)
       return q
@@ -45,13 +45,13 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
     expect(await leerAvisosDeFirma(supa("aplicado", true), C)).toEqual([])
     expect(await leerAvisosDeFirma(supa("aplicado"), null)).toEqual([])
   })
-  it("con el aviso, el primer recuadro SOLO titila: sin texto fijo encima (Emilio 12:10Z); el nombre va en aria-label y en el globo al pasar el cursor", () => {
+  it("con el aviso, el primer recuadro SOLO titila: sin texto fijo encima (Emilio 12:10Z); el nombre va en aria-label y en el globo al pasar el cursor", async () => {
     const con = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena({ avisos: [MANUAL] }) as never }))
     expect(con).toContain('data-aviso-firma="manual"'); expect(con).toContain("nv-aviso-firma"); expect(con).toContain("@keyframes nvAvisoFirma")
     expect(con).toContain('aria-label="Manual listo · revísalo"')
     expect(con).not.toContain(">Manual listo · revísalo<") // ningún texto a la vista
     expect(con).not.toContain("nv-aviso-rotulo"); expect(con).not.toContain("data-globo-del-aviso") // el globo solo aparece con el cursor encima
-    expect(con).toMatch(/data-zona-del-aviso[^>]*width="96"[^>]*height="96"/) // zona de toque ≥44 px en un portátil de 1280
+    { const { zonaDelAviso } = await import("@/components/nuevo/escena/EntregasEnLaFoto"); expect(con).toContain(`width="96" height="${zonaDelAviso(0).h}"`) } // ancho 96; alto hasta la mitad del camino al vecino (reserva de CC3 a #271: no pisar al de abajo)
     const q0 = CUADROS_DEL_PIZARRON[0].map((p) => `${p.x},${p.y}`).join(" ")
     expect(con).toContain(`points="${q0}"`)
     expect(con).not.toContain('data-metrica="general"'); expect(con.indexOf('data-aviso-firma="manual"')).toBeLessThan(con.indexOf("data-metrica="))
@@ -61,11 +61,11 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
   })
   it("al tocarlo abre el Centro de campaña directo en el manual", () => {
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
-    expect(av).toContain('detail: { panel: "aplicaciones", vista: a.abre }')
+    expect(av).toContain('detail: a.abre === "piezas" ? { panel: "piezas" } : { panel: "aplicaciones", vista: a.abre }')
     // reserva de CC3 (mutante vivo «tocar no abre»): el recuadro del aviso llama a onAviso con el clic y con Enter/Espacio
     const fo = readFileSync("components/nuevo/escena/EntregasEnLaFoto.tsx", "utf8")
     expect(fo).toContain("onClick={() => onAviso?.(aviso)} onKeyDown={(e) => { if (e.key === \"Enter\" || e.key === \" \") { e.preventDefault(); onAviso?.(aviso) } }}")
-    expect(av).toContain("aviso={datos?.avisos?.[0] ?? null} onAviso={(a) => window.dispatchEvent(")
+    expect(av).toContain("avisos={datos?.avisos ?? []} onAviso={(a) => window.dispatchEvent(")
     expect(readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")).toContain('useState<"inicio" | ClaveDeAplicacion>(vistaInicial ?? "inicio")')
     expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain("vistaInicial={vistaDelPizarron ?? undefined}")
   })

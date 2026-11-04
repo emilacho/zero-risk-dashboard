@@ -187,7 +187,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
         {/* el pizarrón de métricas: «General» y un cuadro por red del cliente; hoy «métricas pronto» (los gastos se ven en Tu oficina › Dinero). Las entregas ya no quedan fijas aquí: su tarjeta aparece 8 s */}
         <CuadrosDeMetricas metricas={datos?.metricas} onAbrir={(k) => setPanelTablero({ tipo: "pizarron", clave: k || null })}
-          aviso={datos?.avisos?.[0] ?? null} onAviso={(a) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel: "aplicaciones", vista: a.abre } }))} />
+          avisos={datos?.avisos ?? []} onAviso={(a) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: a.abre === "piezas" ? { panel: "piezas" } : { panel: "aplicaciones", vista: a.abre } }))} />
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} cargado={datos != null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
