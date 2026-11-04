@@ -14,7 +14,7 @@ export const TOPE_DEL_TEXTO_LIBRE = 100_000
  * PEDIR CAMBIOS AL MANUAL (CC6 · 02-nov · mismo patrón del plan) · 03-nov (corrección de Lenovo 16:40Z): el cuadro del texto libre está
  * SIEMPRE a la vista y lo que se escribe es un cambio pendiente más; no tiene botón propio. Todo sale junto con «Pedir los cambios»
  * (abajo, en «Tus cambios»). «Pedir cambios en esta sección» antepone «Sección «X»: » en este cuadro y lo trae a la vista.
- * Aquí siguen el avance del pedido, «Lo que pediste», «Qué cambió» y el aviso del campo validado.
+ * Aquí siguen el avance del pedido, «Qué cambió» y el aviso del campo validado («Lo que pediste» se quitó el 04-nov: Emilio ya sabe lo que pidió).
  * Mientras la plataforma no tenga el pedido de manuales (`ciclo.disponible` falso) no se ofrece nada: la puerta daría 404.
  */
 export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDelManual, pedirEn = null, libre, onLibre, onReintentar = null, reintentando = false }: {
@@ -53,7 +53,7 @@ export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDel
       {rotulo && <p data-rotulo-reescribiendo className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">{rotulo}</p>}
       {ciclo.avance && barraOculta && <button type="button" data-accion="ver-avance" onClick={() => setBarraOculta(false)} className="mt-2 rounded-full border border-amber-300/50 px-3 py-1 text-[12.5px] text-amber-100 hover:bg-amber-500/15">Ver el avance</button>}
       {ciclo.avance && !barraOculta && <BarraDelPedido avance={ciclo.avance} onOcultar={() => setBarraOculta(true)} />}
-      {ciclo.abierto?.texto && <blockquote className="mt-2 border-l-2 border-amber-400/50 pl-3 text-[12.5px] italic text-zinc-300">Lo que pediste: {ciclo.abierto.texto}</blockquote>}
+      {/* 04-nov (Emilio 09:31Z): «Lo que pediste» se quitó: crea ruido; mientras corre, solo el progreso (los pasos, el tiempo y «Ocultar») */}
       {ciclo.que_cambio.length > 0 && <QueCambio titulo="Qué cambió en el manual" lineas={ciclo.que_cambio} />}
       {ciclo.aviso_del_pedido && (
         <div data-aviso-campo-validado data-con-campos={ciclo.aviso_del_pedido.campos.length > 0} className="mt-3 rounded-md border border-amber-400/40 bg-amber-400/[0.06] px-3 py-2.5 text-[13px] leading-snug text-amber-50">

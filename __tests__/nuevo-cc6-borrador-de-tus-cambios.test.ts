@@ -138,3 +138,20 @@ describe("el panel", () => {
     expect(motivoDeNoAprobar({ texto: "x", codigo: "borrador_pendiente", detalleCrudo: "3 cambios" })).toBe("Todavía no se puede aprobar: hay cambios sin pedir guardados como borrador. Pídelos o descártalos primero (3 cambios).")
   })
 })
+
+describe("si el guardado del borrador falla mientras Emilio escribe, se ve EN EL MOMENTO (Lenovo 04-nov · reserva de CC3 a #260)", () => {
+  it("junto a «Tus cambios»: «No se guardó tu borrador.» con «Reintentar» (botón ≥44 px), sin el aviso de salir abierto", () => {
+    const h = panel({ cambiosIniciales: { eslogan: "Del mar a tu puerta" }, borradorInicial: { revision: 2, actualizado_en: "2026-11-03T18:30:00Z" }, noSePudoGuardarInicial: true })
+    expect(h).toContain("data-borrador-no-guardado"); expect(h).toContain("No se guardó tu borrador.")
+    expect(h).toMatch(/data-accion="reintentar-borrador"[^>]*min-h-11/)
+    expect(h).not.toContain("data-aviso-salir") // no hace falta intentar salir para enterarse
+    expect(h).not.toContain("data-borrador-guardado") // y no dice «borrador guardado» a la vez
+  })
+  it("si se guardó bien, no aparece; sin cambios, tampoco", () => {
+    expect(panel({ cambiosIniciales: { eslogan: "x" }, borradorInicial: { revision: 2, actualizado_en: "2026-11-03T18:30:00Z" } })).not.toContain("data-borrador-no-guardado")
+    expect(panel({ noSePudoGuardarInicial: true })).not.toContain("data-borrador-no-guardado")
+  })
+  it("«Reintentar» vuelve a guardar lo que hay en pantalla (por la misma fila de a uno)", () => {
+    expect(readFileSync("components/nuevo/PanelManual.tsx", "utf8")).toContain('data-accion="reintentar-borrador" onClick={() => { ultimoGuardado.current = ""; void guardarYa.current() }}')
+  })
+})

@@ -146,3 +146,6 @@ export function unoALaVez(tarea: () => Promise<boolean>): () => Promise<boolean>
 
 /** el aviso de un choque REAL con otro equipo: lo escrito aquí ganó; lo del otro equipo se puede recuperar */
 export const TEXTO_DEL_OTRO_EQUIPO = "En otro equipo también se cambió este borrador. Guardé lo que escribiste aquí."
+
+/** el guardado del borrador falló mientras se escribe: se dice en el momento, junto a «Tus cambios» (nunca en silencio) */
+export const TEXTO_NO_SE_GUARDO = "No se guardó tu borrador."
