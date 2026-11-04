@@ -153,6 +153,16 @@ describe("descartar y firmar", () => {
     expect(await contestarDecision({ id: P1, accion: "responder", respuesta: "x".repeat(2001) }, deps(p))).toMatchObject({ status: 400 })
     expect(p.llamadas.filter((x) => x.metodo === "POST")).toHaveLength(0)
   })
+  it("si no se puede leer la lista de decisiones → 502 «no se hizo nada»: ninguna escritura, ni pausa ni cerebro ni firma (CC3 · mutante D14)", async () => {
+    const p = plataforma(); const firmar = vi.fn()
+    const caida = vi.fn(async () => ({ ok: false as const, error: "plataforma caída" }))
+    for (const c of [{ id: P1, accion: "responder", respuesta: "28 dólares" }, { id: P1, accion: "descartar" }, { id: T1, accion: "aceptar" }]) {
+      const r = await contestarDecision(c, deps(p, caida as never, { firmar }))
+      expect(r).toMatchObject({ status: 502, cuerpo: { ok: false, error: "sin_lectura" } })
+      expect(String((r.cuerpo as { detalle?: string }).detalle)).toContain("no se hizo nada")
+    }
+    expect(p.llamadas.filter((x) => x.metodo === "POST")).toHaveLength(0); expect(firmar).not.toHaveBeenCalled()
+  })
   it("quién preguntó: lo lee de la puerta del dueño; apagada o caída = no se sabe (null)", async () => {
     const m = await quienPregunto({ plataformaUrl: "https://plataforma.test", llave: "k", fetchImpl: plataforma().f }, NAUFRAGO)
     expect(m?.get(P1)).toEqual({ oficina: "financiera", agente: "jefe-financiero" })
