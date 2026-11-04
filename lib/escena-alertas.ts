@@ -112,4 +112,6 @@ export function armarAlertas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
 }
 
 /** dónde está la antena en la foto de 2560 px (la parabólica de la plataforma de arriba a la izquierda) */
+/** el borde de la plataforma de la antena (frente), recorrido en sentido del reloj: de la derecha, por abajo, a la izquierda; la luz corre por aquí */
+export const BORDE_DE_LA_ANTENA = "M643 470 L443 563 L282 472"
 export const ANTENA = { plato: { x: 464, y: 316, rx: 66, ry: 56, giro: -28 }, punta1: { x: 366, y: 344 }, punta2: { x: 508, y: 256 }, rotulo: { x: 600, y: 300 } } as const
