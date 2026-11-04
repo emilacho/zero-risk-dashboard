@@ -1,8 +1,8 @@
 "use client"
 /**
  * LA ANTENA (CC4 · 04-nov · Emilio eligió la opción 3 con animación sutil, 15:19Z): la parabólica de la plataforma de arriba a la izquierda avisa las alertas del departamento.
- * Sin alertas: no se dibuja nada (la antena de la foto queda quieta como está). Con alguna: la punta mayor se pone roja con un aura muy suave que respira, el borde de la plataforma
- * se vuelve una línea roja y por dentro de ella corre un tramo de la MISMA línea (mismo color y grosor, solo más brillante), en sentido del reloj, como el agua dentro de una manguera. Al tocarla se abre un panel con la lista (mismo marco que los demás).
+ * Sin alertas: no se dibuja nada (la antena de la foto queda quieta como está). Con alguna: la luz de la punta mayor respira en rojo con un aura suave, CENTRADA en la lucecita de la foto (505,257 medido en la foto de 2560 px),
+ * y el borde de la plataforma queda COMO EN LA FOTO (su línea naranja de siempre): solo un tramo corto de luz roja viaja por dentro de esa línea, en sentido del reloj. Al tocarla se abre un panel con la lista (mismo marco que los demás).
  * Luces pequeñas y realistas sobre la foto: nada de formas planas.
  */
 import { ANTENA, BORDE_DE_LA_ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
@@ -28,10 +28,9 @@ export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAnten
         </radialGradient>
         <filter id="nvAntDifumina"><feGaussianBlur stdDeviation="1.6" /></filter>
       </defs>
-      {/* la línea del borde de la plataforma, en rojo; la luz corre por dentro de ella sin salirse (mismo trazo, mismo largo) */}
+      {/* el borde NO se enciende: la línea naranja de la foto queda como está y solo un tramo corto de luz roja viaja por dentro de ella (mismo trazo que la línea) */}
       <g filter="url(#nvAntDifumina)" fill="none" strokeLinejoin="round" strokeLinecap="round">
-        <path className="nv-antena-borde" d={BORDE_DE_LA_ANTENA} stroke="#e0301f" strokeWidth={3.2} opacity={0.85} />
-        <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff7a62" strokeWidth={3.2} strokeDasharray="9 91" />
+        <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff3b2a" strokeWidth={2.6} strokeDasharray="5 95" />
       </g>
       {/* la luz de la punta mayor: aura suave que respira, sin círculo plano */}
       <g className="nv-antena-pulso">

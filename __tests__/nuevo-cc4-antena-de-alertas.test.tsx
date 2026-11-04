@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { armarAlertas, BORDE_DE_LA_ANTENA, MAXIMO_DE_ALERTAS, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
+import { ANTENA, armarAlertas, BORDE_DE_LA_ANTENA, MAXIMO_DE_ALERTAS, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
 import { AntenaDeAlertas, CSS_DE_LA_ANTENA, PanelDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
 
 // ENCARGO de Lenovo 04-nov 14:06Z + decisiones A/B/C de 14:20Z: la antena avisa las alertas del departamento
@@ -87,7 +87,12 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
     expect(html).toContain("nv-antena-pulso"); expect(html).toContain("nv-antena-corre")
     expect(html).not.toMatch(/#ffd2c8|#fff1ee"[^>]*stroke/) // el tramo blanco desapareció (Emilio 15:34Z)
     const trazos = [...html.matchAll(/<path[^>]*stroke-width="([\d.]+)"/g)].map((m) => m[1])
-    expect(new Set(trazos).size).toBe(1) // la línea y el tramo que viaja tienen el mismo grosor
+    expect(trazos).toHaveLength(1) // un solo trazo: el tramo que viaja; el borde NO se enciende (Emilio 15:49Z)
+    expect(html).not.toContain("nv-antena-borde")
+    expect(html).toContain('stroke-dasharray="5 95"') // tramo corto
+    expect(html).toContain(`<circle cx="${ANTENA.punta2.x}" cy="${ANTENA.punta2.y}" r="28"`) // el aura va centrada en la luz de la punta
+    expect(html).toContain(`<circle cx="${ANTENA.punta2.x}" cy="${ANTENA.punta2.y}" r="4"`)
+    expect([ANTENA.punta2.x, ANTENA.punta2.y]).toEqual([505, 257]) // medido en la foto de 2560 px (pico de luz 505,257)
     expect(html).not.toMatch(/style="[^"]*animation/) // la animación NO va inline: ganaría a «reducir movimiento»
     expect(CSS_DE_LA_ANTENA).toMatch(/\.nv-antena-pulso\{animation:nvAntPulso 2\.2s/)
     expect(html).toContain(`d="${BORDE_DE_LA_ANTENA}"`) // la luz y la línea comparten el mismo trazo: no se sale del canal
