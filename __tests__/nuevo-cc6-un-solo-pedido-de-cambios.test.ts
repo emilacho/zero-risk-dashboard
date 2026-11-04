@@ -253,6 +253,9 @@ describe("el botón del pie dice lo que hace y «Aprobar» está a su lado (Emil
     const pie = h.slice(h.indexOf("data-guardar-cambios"))
     expect(pie).toContain("data-pie-derecha"); expect(pie).toContain('data-accion="validar-manual"')
     expect((h.match(/data-accion="validar-manual"/g) ?? []).length).toBe(1) // uno solo
+    const portada = h.slice(h.indexOf('aria-label="La portada del manual"'), h.indexOf("<footer"))
+    expect(portada.length).toBeGreaterThan(0); expect(portada).not.toContain('data-accion="validar-manual"') // reserva de CC3: fija la POSICIÓN
+    expect(h.slice(h.indexOf("<footer"))).toContain('data-accion="validar-manual"')
     expect(pie.indexOf('data-accion="guardar-cambios"')).toBeLessThan(pie.indexOf('data-accion="validar-manual"')) // al lado, después del de guardar
     expect(h).toMatch(/data-accion="validar-manual"[^>]*disabled=""/) // con cambios sin guardar, apagado
   })
