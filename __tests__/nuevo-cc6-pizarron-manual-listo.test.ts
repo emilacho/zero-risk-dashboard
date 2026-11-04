@@ -45,13 +45,13 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
     expect(await leerAvisosDeFirma(supa("aplicado", true), C)).toEqual([])
     expect(await leerAvisosDeFirma(supa("aplicado"), null)).toEqual([])
   })
-  it("con el aviso, el primer recuadro SOLO titila: sin texto fijo encima (Emilio 12:10Z); el nombre va en aria-label y en el globo al pasar el cursor", () => {
+  it("con el aviso, el primer recuadro SOLO titila: sin texto fijo encima (Emilio 12:10Z); el nombre va en aria-label y en el globo al pasar el cursor", async () => {
     const con = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena({ avisos: [MANUAL] }) as never }))
     expect(con).toContain('data-aviso-firma="manual"'); expect(con).toContain("nv-aviso-firma"); expect(con).toContain("@keyframes nvAvisoFirma")
     expect(con).toContain('aria-label="Manual listo · revísalo"')
     expect(con).not.toContain(">Manual listo · revísalo<") // ningún texto a la vista
     expect(con).not.toContain("nv-aviso-rotulo"); expect(con).not.toContain("data-globo-del-aviso") // el globo solo aparece con el cursor encima
-    expect(con).toMatch(/data-zona-del-aviso[^>]*width="96"[^>]*height="96"/) // zona de toque ≥44 px en un portátil de 1280
+    { const { zonaDelAviso } = await import("@/components/nuevo/escena/EntregasEnLaFoto"); expect(con).toContain(`width="96" height="${zonaDelAviso(0).h}"`) } // ancho 96; alto hasta la mitad del camino al vecino (reserva de CC3 a #271: no pisar al de abajo)
     const q0 = CUADROS_DEL_PIZARRON[0].map((p) => `${p.x},${p.y}`).join(" ")
     expect(con).toContain(`points="${q0}"`)
     expect(con).not.toContain('data-metrica="general"'); expect(con.indexOf('data-aviso-firma="manual"')).toBeLessThan(con.indexOf("data-metrica="))
