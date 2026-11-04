@@ -79,6 +79,10 @@ describe("tras pedir los cambios, el borrador queda en lo que NO se mandó (CC1 
   it("con la revisión vigente y después del guardado automático en vuelo; solo si el borrador de ESTE manual ya se leyó", () => {
     expect(f).toContain("await guardarYa.current().catch(() => false)")
     expect(f).toContain('const g = await apiBorrador.guardar(cliente, "manual", manualId, quedan, revisionVigente.current ?? 0)')
-    expect(f).toContain("if (!cliente || !manualId || borradorDe.current !== llaveDelBorrador) return")
+    expect(f).toContain("if (!cliente || !manualId || borradorDe.current !== llaveDelBorrador || !borradorVacio(quedan)) return") // si quedó algo, lo deja la plataforma en la versión vigente (#876)
+  })
+  it("si la plataforma ya cerró el borrador (409 sin borrador, #876), no se reintenta ni se marca «no pude guardar»", () => {
+    expect(f).toContain("if (g.ok || (g.otroEquipo && !g.borrador)) { revisionVigente.current = 0; setGuardadoDelBorrador(null)")
+    expect(f).toContain('if (paso === "borrar") { setGuardadoDelBorrador(null); setNoSePudoGuardar(false); return true }')
   })
 })
