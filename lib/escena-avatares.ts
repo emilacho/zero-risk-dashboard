@@ -13,6 +13,7 @@
  * Todo aquí es puro (sin red, sin reloj propio: `ahora` se pasa) y está probado con vitest. Coordenadas en píxeles de `marketing-2560.jpg` (2560×1440), como el Centro de campaña.
  */
 import type { AvisoDeFirma } from "@/lib/escena-avisos"
+import type { AlertaDeLaAntena } from "@/lib/escena-alertas"
 import { estadoDelPlan } from "@/lib/manual-primero"
 import { EQUIPOS, EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico, puestosDelAgente } from "@/lib/organigrama"
 import { haceCuanto } from "@/lib/oficinas"
@@ -215,6 +216,8 @@ export interface EscenaDatos {
   avisos?: AvisoDeFirma[]
   /** 04-nov · agentes (nombre canónico) con su última llamada terminada en falla: la flecha de forma se vuelve ✕ roja (`agentesConFalloSinReponer`) */
   con_fallo?: string[]
+  /** 04-nov · las alertas del departamento que avisa la antena (`lib/escena-alertas.ts`); vacío o ausente = antena apagada */
+  alertas?: AlertaDeLaAntena[]
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
