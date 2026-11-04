@@ -1,5 +1,6 @@
 "use client"
 
+import { tokensEnPalabras } from "@/lib/formato"
 import { BotonVolver } from "@/components/nuevo/BotonVolver"
 import { FichaDeRendimiento } from "@/components/nuevo/escena/FichaDeRendimiento"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
@@ -170,7 +171,7 @@ function Traza({ detalle, volver, claveInicial = null, volverA = "Corridas" }: {
                       <IconoDeEstado estado={n.estado} tam={13} />
                       <span className="min-w-0">
                         <span className={`block truncate text-[13px] ${n.tipo === "corrida" ? "font-medium text-white" : "text-zinc-100"}`}>{n.nombre}</span>
-                        <span className="block truncate text-[11px] text-zinc-500" style={NUM}>{[n.sub, duracion(n.duracion_ms), n.tokens ? `${miles(n.tokens)} tokens` : null].filter(Boolean).join(" · ")}</span>
+                        <span className="block truncate text-[11px] text-zinc-500" style={NUM}>{[n.sub, duracion(n.duracion_ms), n.tokens ? tokensEnPalabras(n.tokens) : null].filter(Boolean).join(" · ")}</span>
                       </span>
                     </span>
                     <span className="relative mr-4 h-5 sm:mr-6">

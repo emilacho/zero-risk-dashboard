@@ -27,7 +27,9 @@ describe("6.23 · REGLA · nada de avisos de gasto en botones ni pantallas de /n
     && f !== "PanelCliente.tsx")
   it.each(PANELES)("%s no muestra costos, topes ni «vuelve a gastar»", (f) => {
     const s = readFileSync(`components/nuevo/${f}`, "utf8")
-    expect(s).not.toMatch(/data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|data-costo|Sin costo ·/)
+    // 6.52 · excepción aprobada por Emilio (2-nov 20:45Z): la tarjeta de una decisión dice lo que COSTÓ PRODUCIRLA, como dato (no como aviso de gasto)
+    const regla = f === "PanelDecisiones.tsx" ? /data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|Sin costo ·/ : /data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|data-costo|Sin costo ·/
+    expect(s).not.toMatch(regla)
   })
   it("rehacer una pieza es un clic: el cuerpo sigue diciendo confirmo_gasto (la plataforma cuida el tope), sin preguntarle a Emilio", () => {
     expect(cuerpoDeRehacer("e1", "")).toEqual({ encargo_id: "e1", confirmo_gasto: true })

@@ -7,6 +7,7 @@ import {
   GRADOS_POR_SECTOR, NOMBRE_DE_LA_GRAVEDAD, NOMBRE_DEL_SECTOR, ORIGEN_DEL_RIESGO, SECTORES, SECTORES_SIN_FUENTE, alPlano, lugarEnElRadar,
   type Gravedad, type Riesgo, type Riesgos, type Sector,
 } from "@/lib/direccion-riesgos"
+import { riesgoClaro } from "@/lib/riesgo-claro"
 
 /**
  * TU OFICINA · RIESGOS Y ALARMAS (6.21 · capa 2 del encargo «oficina del humano» · 6.22 correcciones de Emilio): un RADAR de 8 sectores fijos (dinero ·
@@ -50,7 +51,7 @@ const gajo = (C: number, r: number, a0: number, a1: number) => `M${C} ${C} L${pu
 
 /** el radar: bisel con graduación, anillos de gravedad, 8 sectores con su arco de estado, el haz con estela y un punto por riesgo */
 /** 6.31 (Emilio 2-nov: «se demora mucho en cargar y empezar la animación»): el radar se dibuja y gira desde el primer instante; los puntos y las cuentas llegan con la lectura (`cargado`) */
-function Radar({ riesgos, todos, elegido, alElegir, sector, quieto, cargado = true }: { riesgos: Riesgo[]; todos: Riesgo[]; elegido: string | null; alElegir: (id: string) => void; sector: Sector | null; quieto: boolean; cargado?: boolean }) {
+function Radar({ riesgos, todos, elegido, alElegir, sector, quieto }: { riesgos: Riesgo[]; todos: Riesgo[]; elegido: string | null; alElegir: (id: string) => void; sector: Sector | null; quieto: boolean }) {
   const C = 200, R = 150, lugar = useMemo(() => lugarEnElRadar(riesgos), [riesgos])
   return (
     <svg viewBox="-16 -8 432 416" className="h-full w-full" role="img" aria-label={`Radar de riesgos: ${riesgos.length} puntos en 8 sectores`}>
@@ -77,17 +78,12 @@ function Radar({ riesgos, todos, elegido, alElegir, sector, quieto, cargado = tr
       {/* los 8 sectores: frontera fina, arco de estado en el borde (color de su riesgo más grave) y su nombre con la cuenta */}
       {SECTORES.map((s, i) => {
         const a0 = i * GRADOS_POR_SECTOR, a1 = a0 + GRADOS_POR_SECTOR, [x, y] = alPlano(C, C, R, a0, 1), del = todos.filter((r) => r.sector === s), g = peor(del)
-        const [tx, ty] = alPlano(C, C, R + 36, a0 + GRADOS_POR_SECTOR / 2, 1), sinFuente = SECTORES_SIN_FUENTE.includes(s) && !del.length, ancho = Math.max(NOMBRE_DEL_SECTOR[s].corto.length * 7.2 + 16, 52)
+        const sinFuente = SECTORES_SIN_FUENTE.includes(s) && !del.length
         return (
           <g key={s} data-sector={s}>
             <line x1={C} y1={C} x2={x} y2={y} stroke="rgba(255,226,190,.1)" strokeWidth={0.7} />
             <path d={arco(C, R + 3.5, a0 + 2.5, a1 - 2.5)} fill="none" stroke={g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,226,190,.16)"} strokeWidth={g ? 2.6 : 1.4} strokeLinecap="round" strokeDasharray={sinFuente ? "1 3" : undefined} />
-            {/* el nombre va en su propia placa (fondo oscuro y borde), para que no se confunda con las líneas del radar */}
-            <g data-placa={s}>
-              <rect x={tx - ancho / 2} y={ty - 14} width={ancho} height={29} rx={7} fill="#1d1813" stroke={g ? `${COLOR_DE_LA_GRAVEDAD[g]}88` : "rgba(255,226,190,.22)"} strokeWidth={0.8} />
-              <text x={tx} y={ty - 2} fontSize={9} fontWeight={600} letterSpacing=".12em" textAnchor="middle" fill={del.length ? "#fff3e4" : "rgba(255,236,215,.72)"}>{NOMBRE_DEL_SECTOR[s].corto.toUpperCase()}</text>
-              <text x={tx} y={ty + 10} fontSize={10} fontWeight={700} textAnchor="middle" fill={g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,236,215,.5)"} style={{ fontVariantNumeric: "tabular-nums" }}>{!cargado ? "…" : sinFuente ? "sin dato" : del.length}</text>
-            </g>
+            {/* 6.52 · el nombre y la cuenta de cada sector salen UNA sola vez: en los botones grandes de abajo (Emilio: la lista salía dos veces) */}
           </g>
         )
       })}
@@ -109,7 +105,7 @@ function Radar({ riesgos, todos, elegido, alElegir, sector, quieto, cargado = tr
             {elegido === x.id && <circle cx={px} cy={py} r={r + 5} fill="none" stroke="rgba(255,255,255,.9)" strokeWidth={0.9} />}
             <circle className="ri-halo" cx={px} cy={py} r={r * 2.1} fill={COLOR_DE_LA_GRAVEDAD[x.gravedad]} opacity={0.22} />
             <circle className="ri-punto" data-riesgo={x.id} data-gravedad={x.gravedad} data-anima="detecta" style={tarde} cx={px} cy={py} r={r} fill={COLOR_DE_LA_GRAVEDAD[x.gravedad]}
-              onClick={() => alElegir(x.id)}><title>{x.titulo}</title></circle>
+              onClick={() => alElegir(x.id)}><title>{riesgoClaro(x).frase}</title></circle>
           </g>
         )
       })}
@@ -148,6 +144,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
   const todos = datos?.riesgos ?? []
   const visibles = todos.filter((r) => (!filtro || r.gravedad === filtro) && (!sector || r.sector === sector))
   const ficha = visibles.find((r) => r.id === elegido) ?? visibles[0] ?? null
+  const claroFicha = ficha ? riesgoClaro(ficha) : null
   const total = datos?.total ?? 0
   const graves = datos?.por_gravedad[3] ?? 0
   const resumen = !datos ? "" : total ? `${total} ${total === 1 ? "riesgo" : "riesgos"} · ${graves} ${graves === 1 ? "grave" : "graves"}${datos.completo ? "" : " · la lista puede estar incompleta"}` : datos.completo ? "Sin riesgos abiertos ahora" : "No se pudo leer todo: la lista puede estar incompleta"
@@ -179,7 +176,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
           {/* izquierda: el radar (más chico, centrado) y los 8 sectores como tarjetas que filtran */}
           <div className="flex min-h-0 min-w-0 flex-col gap-3 border-white/10 p-4 lg:border-r sm:p-5">
             <div data-radar className="relative aspect-square w-full lg:aspect-auto lg:min-h-0 lg:flex-1">
-              <Radar riesgos={datos ? visibles : []} todos={todos} elegido={ficha?.id ?? null} alElegir={setElegido} sector={sector} quieto={quieto} cargado={!!datos} />
+              <Radar riesgos={datos ? visibles : []} todos={todos} elegido={ficha?.id ?? null} alElegir={setElegido} sector={sector} quieto={quieto} />
               {datos && !total && <p data-vacio className="absolute inset-x-0 bottom-1 text-center text-[12.5px] text-zinc-400">{datos.completo && !error ? "Sin riesgos abiertos ahora." : "No pude leer todas las fuentes: no puedo asegurarte que no haya riesgos."}</p>}
             </div>
             <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
@@ -187,10 +184,10 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
                 const del = todos.filter((r) => r.sector === s), g = peor(del), sinFuente = SECTORES_SIN_FUENTE.includes(s) && !del.length
                 return (
                   <button key={s} type="button" data-tarjeta-sector={s} aria-pressed={sector === s} onClick={() => { setSector((x) => (x === s ? null : s)); setElegido(null) }} title={NOMBRE_DEL_SECTOR[s].que}
-                    className="ri-sector relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-left hover:bg-white/[0.05]">
+                    className="ri-sector relative min-h-[76px] overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3 text-left hover:bg-white/[0.05]">
                     <span className="absolute inset-x-0 top-0 h-[2px]" style={{ background: g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,255,255,.08)" }} />
-                    <span className="block min-h-[26px] text-[10px] uppercase leading-[13px] tracking-[0.12em] text-zinc-400">{NOMBRE_DEL_SECTOR[s].nombre}</span>
-                    <span className="mt-0.5 block text-[20px] font-extralight [font-variant-numeric:tabular-nums]" style={{ color: g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,255,255,.35)" }}>{sinFuente ? <span className="text-[12px] font-normal text-zinc-500">sin dato</span> : del.length}</span>
+                    <span className="block min-h-[28px] text-[12px] uppercase leading-[14px] tracking-[0.1em] text-zinc-300">{NOMBRE_DEL_SECTOR[s].nombre}</span>
+                    <span className="mt-1 block text-[26px] font-extralight leading-none [font-variant-numeric:tabular-nums]" style={{ color: g ? COLOR_DE_LA_GRAVEDAD[g] : "rgba(255,255,255,.35)" }}>{sinFuente ? <span className="text-[13px] font-normal text-zinc-500">sin dato</span> : !datos ? "…" : del.length}</span>
                   </button>
                 )
               })}
@@ -206,8 +203,15 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
                   <span className="truncate uppercase tracking-[0.16em] text-zinc-400">{NOMBRE_DEL_SECTOR[ficha.sector].nombre}</span>
                   <span className="ml-auto shrink-0 text-zinc-400">{ficha.cliente ?? "Toda la empresa"}</span>
                 </div>
-                <h3 data-titulo className="mt-2.5 text-[16px] font-light leading-snug text-white">{ficha.titulo}</h3>
-                {ficha.detalle && <p data-detalle className="mt-1.5 line-clamp-3 text-[12.5px] text-zinc-400">{ficha.detalle}</p>}
+                <h3 data-titulo className="mt-2.5 text-[17px] font-light leading-snug text-white">{claroFicha!.frase}</h3>
+                <p data-quien className="mt-1.5 text-[13px] text-zinc-300">Afecta a {claroFicha!.afecta} · <span className={claroFicha!.arregla ? "text-amber-200" : "text-zinc-500"}>{claroFicha!.arregla ?? "sin responsable asignado"}</span></p>
+                {claroFicha!.detalle && <p data-detalle className="mt-1.5 line-clamp-3 text-[12.5px] text-zinc-400">{claroFicha!.detalle}</p>}
+                {claroFicha!.tecnico && (
+                  <details data-ver-detalle className="mt-2 text-[12px] text-zinc-500">
+                    <summary className="cursor-pointer select-none text-zinc-400 hover:text-zinc-200">ver detalle</summary>
+                    <p className="mt-1 whitespace-pre-wrap break-words rounded-md border border-white/10 bg-black/30 p-2 text-[11.5px] text-zinc-400">{claroFicha!.tecnico}</p>
+                  </details>
+                )}
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-[12.5px]">
                   <div><dt className="text-zinc-500">Desde</dt><dd className="text-zinc-200">{haceCuanto(ficha.desde)}{fecha(ficha.desde) ? <span className="text-zinc-500"> · {fecha(ficha.desde)}</span> : null}</dd></div>
                   <div><dt className="text-zinc-500">Viene de</dt><dd data-origen className="text-zinc-200">{ORIGEN_DEL_RIESGO[ficha.fuente ?? ""] ?? "Sin dato"}</dd></div>
@@ -219,7 +223,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
                 <li key={r.id}>
                   <button type="button" data-fila={r.id} aria-current={ficha?.id === r.id} onClick={() => setElegido(r.id)} className="ri-fila flex w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left hover:bg-white/[0.04]">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COLOR_DE_LA_GRAVEDAD[r.gravedad] }} />
-                    <span className="min-w-0 flex-1"><span className="block truncate text-[12.5px] text-zinc-200">{r.titulo}</span><span className="block truncate text-[11px] text-zinc-500">{NOMBRE_DEL_SECTOR[r.sector].nombre} · {r.cliente ?? "Toda la empresa"} · {haceCuanto(r.desde)}</span></span>
+                    {(() => { const c = riesgoClaro(r); return <span className="min-w-0 flex-1"><span className="block truncate text-[13px] text-zinc-200">{c.frase}</span><span className="block truncate text-[11.5px] text-zinc-500">{c.afecta} · {c.arregla ?? "sin responsable asignado"} · {haceCuanto(r.desde)}</span></span> })()}
                   </button>
                 </li>
               ))}

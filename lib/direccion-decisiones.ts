@@ -25,7 +25,25 @@ export interface Decision {
   decidir: { ruta: string | null; accion: string | null }
   costo_usd: number | null
   costo_nota: string | null
+  /** 04-nov · CONTESTAR EN TU OFICINA (estructura de Agent Inbox). Todo opcional: si la plataforma lo trae, manda; si no, el tablero usa lo que sabe hacer hoy */
+  /** las acciones que la oficina de origen permite (`allow_accept/edit/respond/ignore`) */
+  permite?: AccionDeDecision[] | null
+  /** quién pregunta: la oficina y el empleado (de la fila de la pregunta) */
+  pregunta_de?: { oficina: string; agente: string | null } | null
+  /** para qué lo necesita la oficina */
+  para_que?: string | null
+  /** qué se destraba al contestar */
+  destraba?: string | null
+  /** un trabajo está detenido esperando esto */
+  detiene?: boolean
+  /** el texto como lo guardó la fuente (la puerta del cerebro recibe la pregunta tal cual) */
+  titulo_interno?: string | null
 }
+export type AccionDeDecision = "aceptar" | "editar" | "responder" | "descartar"
+/** lo que aceptan las puertas al contestar (la del dueño: respuesta ≤ 2.000 · motivo de descarte ≤ 300) */
+export const TOPE_RESPUESTA = 2000
+export const TOPE_MOTIVO = 300
+export const ACCIONES_DE_DECISION: readonly AccionDeDecision[] = ["aceptar", "editar", "responder", "descartar"]
 export interface FuenteDeDecisiones { fuente: string; estado: "ok" | "no_existe" | "error" | "sin_credencial" | string; filas: number; truncado?: boolean; detalle?: string }
 export interface Decisiones {
   generado_en: string | null
@@ -34,6 +52,8 @@ export interface Decisiones {
   decisiones: Decision[]
   fuentes: FuenteDeDecisiones[]
   sin_fuente: Array<{ que: string; motivo: string }>
+  /** 6.52 · los clientes en pausa por decisión de Emilio (los agrega el servidor del tablero) */
+  pausados?: ClienteEnPausa[]
 }
 
 const txt = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
@@ -58,6 +78,7 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
       subtipo: txt(d.subtipo), fuente: txt(d.fuente), client_id: txt(d.client_id), cliente: txt(d.cliente),
       desde: txt(d.desde), vence: txt(d.vence), vencida: d.vencida === true, prioridad: txt(d.prioridad),
       decidir: { ruta: txt(dec.ruta), accion: txt(dec.accion) },
+      ...contextoDeLaPlataforma(d),
       costo_usd: num(d.costo_usd), costo_nota: txt(d.costo_nota),
     })
   }
@@ -71,7 +92,8 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
     const que = txt(o.que), motivo = txt(o.motivo)
     return que ? [{ que, motivo: motivo ?? "" }] : []
   })
-  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente }
+  const pausados = (Array.isArray(r.pausados) ? r.pausados : []).flatMap((p) => { const o = (p && typeof p === "object" ? p : {}) as Record<string, unknown>; const cliente = txt(o.cliente); return cliente ? [{ cliente, motivo: txt(o.motivo) }] : [] })
+  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente, ...(pausados.length ? { pausados } : {}) }
 }
 
 /** la lectura (servidor): la ruta certificada de la plataforma con la llave interna; nunca escribe */
@@ -141,8 +163,9 @@ export function haceCuanto(desde: string | null, ahora: number = Date.now()): st
 /** lo que necesita la pantalla del arco: cuántas, si alguna apremia y si la lista está entera */
 export interface ResumenDeDecisiones { total: number; apremia: boolean; completo: boolean }
 export function resumenDeDecisiones(d: Decisiones): ResumenDeDecisiones {
-  // «esperan tu firma» cuenta solo lo que se puede firmar desde el tablero nuevo; lo demás se atiende fuera y no infla el número
-  return { total: d.decisiones.filter((x) => dondeSeDecide(x).panel !== null).length, apremia: d.decisiones.some((x) => x.vencida || prioridadLegible(x.prioridad).nivel === 3), completo: d.completo }
+  // 6.52 · «esperan tu firma» = lo que se firma desde el tablero nuevo y no es de un cliente en pausa (el mismo número en todas partes)
+  const firma = gruposDeDecisiones(d).firma
+  return { total: firma.length, apremia: firma.some((x) => x.vencida || prioridadLegible(x.prioridad).nivel === 3), completo: d.completo }
 }
 
 /** el título limpio para mostrar (la base trae marcas como «⚠️» al inicio) */
@@ -153,4 +176,120 @@ export const tituloLimpio = (t: string): string => {
     .replace(/(?<![\p{L}\p{N}])[A-Z]{2,5}-\d{2,}(?![\p{L}\p{N}])/gu, " ") // BRF-0001
     .replace(/(?<![\p{L}\p{N}])P\d+[a-z]?(?![\p{L}\p{N}])/gu, " ") // P3 · P4 · P10b
   return sinCodigos.replace(/\s+([:,;.])/g, "$1").replace(/([·:—-])\s*(?=[·:—-])/g, "").replace(/\s{2,}/g, " ").replace(/^[\s·:—-]+|[\s·:—-]+$/g, "").trim()
+}
+
+/* ───────────── 6.52 · DECISIONES HABLAN CLARO (corrección aprobada por Emilio 2-nov 20:45Z, `2026-11-02-CORRECCION-LENOVO-a-CC5-decisiones-y-riesgos-hablan-claro.md`) ───────────── */
+
+/** «content-creator» → «Content Creator» (el nombre del empleado, como en el organigrama) */
+export const nombreDeEmpleado = (slug: string): string => slug.replace(/[-_]+/g, " ").trim().replace(/\s+/g, " ").split(" ").map((w) => (w ? w[0].toLocaleUpperCase("es") + w.slice(1) : w)).join(" ")
+/** lo que pidió cada tipo de aviso interno, en una frase (el empleado se agrega después) */
+const PIDIO: Record<string, string> = {
+  editor_escalation: "El editor pidió que mires un texto",
+  content_piece_review: "Hay una pieza lista para que la revises",
+  brand_section_review: "Hay una sección del manual para que la revises",
+}
+/** el título en español: «editor_escalation · content-creator» → «El editor pidió que mires un texto de 👤 Content Creator»; nunca nombres internos */
+export function tituloDeDecision(d: Pick<Decision, "titulo" | "subtipo">): string {
+  const t = tituloLimpio(d.titulo)
+  const m = t.match(/^([a-z]+(?:_[a-z]+)+)\s*·\s*([a-z0-9]+(?:[-_][a-z0-9]+)*)$/)
+  if (m) return `${PIDIO[m[1]] ?? `${mayusculaInicial(m[1].replace(/_/g, " "))}`} de 👤 ${nombreDeEmpleado(m[2])}`
+  if (/^[a-z]+(?:_[a-z]+)+$/.test(t)) return PIDIO[t] ?? mayusculaInicial(t.replace(/_/g, " "))
+  return t
+}
+const mayusculaInicial = (s: string) => (s ? s[0].toLocaleUpperCase("es") + s.slice(1) : s)
+
+/** el costo de producir eso (regla de Emilio): el dato si la plataforma lo trae; si no, se dice */
+export function costoDeLaDecision(d: Pick<Decision, "costo_usd">): string {
+  if (d.costo_usd == null) return "sin dato todavía"
+  return d.costo_usd === 0 ? "US$ 0" : `US$ ${d.costo_usd.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: d.costo_usd < 0.01 ? 4 : 2 })}`
+}
+
+/** los clientes que Emilio puso en pausa (vienen de las pausas que decidió; lo lee el servidor del tablero) */
+export interface ClienteEnPausa { cliente: string; motivo: string | null }
+const clave = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim()
+/**
+ * UN SOLO NÚMERO: «esperan tu firma» = lo que se firma desde el tablero y no es de un cliente en pausa. Es el mismo en la tarjeta de la oficina, la cabecera,
+ * «Todas» y el carrusel. Lo que se atiende fuera y lo de clientes en pausa van en grupos aparte, cada uno con su número.
+ */
+export interface GruposDeDecisiones { firma: Decision[]; fuera: Decision[]; pausa: Array<{ cliente: string; motivo: string | null; decisiones: Decision[] }>; /** 04-nov · las de «firma» que tienen un trabajo detenido esperando (van primero) */ detienen: Decision[] }
+export function gruposDeDecisiones(d: Pick<Decisiones, "decisiones"> & { pausados?: ClienteEnPausa[] }): GruposDeDecisiones {
+  const pausados = new Map((d.pausados ?? []).map((p) => [clave(p.cliente), p]))
+  const firma: Decision[] = [], fuera: Decision[] = [], pausa = new Map<string, { cliente: string; motivo: string | null; decisiones: Decision[] }>()
+  const detenidas = idsQueDetienenUnTrabajo(d.decisiones)
+  for (const x of d.decisiones) {
+    if (esLaTarjetaDeLaPausa(x) && d.decisiones.some((y) => y.client_id === x.client_id && y.tipo === "pregunta_al_dueno")) continue // la pausa se dice en sus preguntas
+    const p = x.cliente ? pausados.get(clave(x.cliente)) : undefined
+    if (p) { const k = clave(p.cliente); const g = pausa.get(k) ?? { cliente: x.cliente ?? p.cliente, motivo: p.motivo, decisiones: [] }; g.decisiones.push(x); pausa.set(k, g) }
+    else if (dondeSeDecide(x).panel || accionesDe(x).length) firma.push(x)
+    else fuera.push(x)
+  }
+  const ordenada = ordenarParaTi(firma, detenidas)
+  return { firma: ordenada, fuera, pausa: [...pausa.values()], detienen: ordenada.filter((x) => detenidas.has(x.id)) }
+}
+
+/* ───────────── 04-nov · CONTESTAR EN TU OFICINA (`2026-11-04-ENCARGO-LENOVO-a-CC5-decisiones-se-contestan-en-tu-oficina.md` + adendas · boceto aprobado 18:08Z) ───────────── */
+
+/** la tarjeta «El plan está en pausa» que la plataforma agrega por cada pausa de la oficina financiera */
+export const esLaTarjetaDeLaPausa = (d: Pick<Decision, "fuente" | "subtipo">): boolean => d.fuente === "esperas_del_dueno" || d.subtipo === "plan_en_pausa"
+
+/** lo que el tablero sabe hacer hoy, por tipo (cada una con su ruta real en la plataforma) */
+const LO_QUE_SE_HACE_AQUI: Partial<Record<TipoDeDecision, AccionDeDecision[]>> = {
+  pregunta_al_dueno: ["responder", "descartar"], // puerta del dueño del cerebro (+ la ruta de la pausa de finanzas)
+  firma_de_finanzas: ["aceptar"], // firmar-tablero
+}
+/**
+ * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;
+ * si no declaró nada, las de su tipo. Una acción sin ruta real nunca se muestra (nada de botones falsos).
+ */
+export function accionesDe(d: Pick<Decision, "tipo" | "permite" | "fuente" | "subtipo">): AccionDeDecision[] {
+  if (esLaTarjetaDeLaPausa(d)) return []
+  const posibles = LO_QUE_SE_HACE_AQUI[d.tipo] ?? []
+  return d.permite ? posibles.filter((a) => d.permite!.includes(a)) : posibles
+}
+
+/** lo que la plataforma ya pueda traer de contexto (todo opcional; lo que no viene, no se inventa) */
+function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
+  const o: Partial<Decision> = {}
+  const per = d.permite ?? d.allow
+  if (Array.isArray(per)) o.permite = ACCIONES_DE_DECISION.filter((a) => per.includes(a))
+  else if (per && typeof per === "object") {
+    const p = per as Record<string, unknown>
+    o.permite = ACCIONES_DE_DECISION.filter((a) => p[a] === true || p[{ aceptar: "allow_accept", editar: "allow_edit", responder: "allow_respond", descartar: "allow_ignore" }[a]] === true)
+  }
+  const pp = (d.pregunta_de ?? d.preguntado_por) as Record<string, unknown> | undefined
+  const oficina = pp && typeof pp === "object" ? txt(pp.oficina) : null
+  if (oficina) o.pregunta_de = { oficina, agente: txt(pp!.agente) }
+  if (txt(d.para_que)) o.para_que = txt(d.para_que)
+  if (txt(d.destraba)) o.destraba = txt(d.destraba)
+  if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
+  if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
+  return o
+}
+
+/** las que tienen un trabajo detenido: lo que la plataforma marca, y las preguntas de un cliente cuyo plan está en pausa esperando respuestas */
+export function idsQueDetienenUnTrabajo(lista: Decision[]): Set<string> {
+  const enPausa = new Set(lista.filter(esLaTarjetaDeLaPausa).map((x) => x.client_id).filter((c): c is string => !!c))
+  return new Set(lista.filter((x) => x.detiene === true || (x.tipo === "pregunta_al_dueno" && !!x.client_id && enPausa.has(x.client_id))).map((x) => x.id))
+}
+
+/** el orden del encargo (punto 5): primero lo que tiene un trabajo detenido; después, el de la plataforma (lo que vence primero y luego lo más antiguo) */
+export function ordenarParaTi(lista: Decision[], detenidas: Set<string> = idsQueDetienenUnTrabajo(lista)): Decision[] {
+  return [...lista.filter((x) => detenidas.has(x.id)), ...lista.filter((x) => !detenidas.has(x.id))]
+}
+
+/** la oficina que pregunta, con su nombre real */
+const OFICINAS: Record<string, string> = {
+  financiera: "Oficina financiera", finanzas: "Oficina financiera", planeacion: "Oficina de planeación", creativa: "Oficina creativa", jefatura: "Jefatura",
+  marketing: "Dpto. Marketing", cerebro: "El cerebro del cliente", portero: "El cerebro del cliente", alta: "Oficina de altas", onboarding: "Oficina de altas",
+}
+export function nombreDeOficina(o: string): string {
+  const k = o.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/^oficina[\s_-]+(de[\s_-]+)?/, "").trim()
+  return OFICINAS[k] ?? OFICINAS[k.split(/[\s_-]+/)[0] ?? ""] ?? mayusculaInicial(o.replace(/[-_]+/g, " "))
+}
+
+/** «qué se destraba»: lo que dice la oficina; si un plan en pausa espera esta respuesta, eso (CC1: con la última, sigue en el acto) */
+export function queSeDestraba(d: Decision, detenidas: Set<string>): string | null {
+  if (d.destraba) return d.destraba
+  if (d.tipo === "pregunta_al_dueno" && detenidas.has(d.id)) return `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.`
+  return null
 }
