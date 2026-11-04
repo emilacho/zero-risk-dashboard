@@ -45,7 +45,9 @@ describe("la escena: sin aura ámbar que late", () => {
     expect(leer("components/nuevo/PanelPizarron.tsx")).not.toContain("animation:pzLate")
     // anexo de CC3: el paso «en curso» del plan, el punto «trabajando» de En vivo y el «por aprobar» del Calendario tampoco laten
     for (const p of ["components/nuevo/PanelPlan.tsx", "components/nuevo/pedido/PiezasDelPedido.tsx"]) { expect(leer(p)).toContain(".nv-pl-paso-vivo{animation:none}"); expect(leer(p)).not.toContain("animation:nvPlPaso") }
-    for (const p of ["components/nuevo/PanelEnVivo.tsx", "components/inicio/TrabajoEnVivo.tsx", "components/nuevo/PanelPizarron.tsx", "components/nuevo/PanelDecisiones.tsx"]) expect(leer(p)).not.toMatch(/bg-amber-\d+[^"`]*animate-pulse|animate-pulse[^"`]*bg-amber/)
+    // Lenovo 13:44Z: el punto «por aprobar» del Calendario SÍ titila cuando hay algo que revisar (criterio de #266); el resto, quieto
+    expect(leer("components/nuevo/PanelPizarron.tsx")).toContain('${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}')
+    for (const p of ["components/nuevo/PanelEnVivo.tsx", "components/inicio/TrabajoEnVivo.tsx", "components/nuevo/PanelDecisiones.tsx"]) expect(leer(p)).not.toMatch(/bg-amber-\d+[^"`]*animate-pulse|animate-pulse[^"`]*bg-amber/)
     // mutante vivo de CC3 (Decisiones vuelve a latir): ninguna regla usa deLate, solo queda su @keyframes
     const de = leer("components/nuevo/PanelDecisiones.tsx")
     expect(de).not.toMatch(/animation(-name)?:\s*deLate/); expect((de.match(/deLate/g) ?? []).length).toBe(1)
