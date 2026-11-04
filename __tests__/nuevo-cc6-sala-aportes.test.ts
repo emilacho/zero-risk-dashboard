@@ -18,9 +18,9 @@ const PASOS = ["analisis-escucha_x", "analisis-voz_del_publico", "analisis-reten
 const inv = (agent_name: string, exec: string, finMin: number, extra: Partial<InvocacionViva> = {}): InvocacionViva =>
   ({ agent_name, client_id: "nau", workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: exec, status: "completed", started_at: en(finMin - 2), ended_at: en(finMin), cost_usd: 0.3, step_name: null, task_text: null, ...extra })
 const analisis = (): InvocacionViva[] => ANALISTAS.map((a, i) => inv(a, `210273:${PASOS[i]}`, 2 + i * 0.5))
-const redaccion = inv("jefe-marketing", "210273", 17.85, { started_at: en(6.5) })
+const redaccion = inv("jefe-marketing", "210273", 17.85, { started_at: en(6.5), step_name: "bb-equipo-integracion" })
 const jefatura = inv("editor-en-jefe", "210300", 19.1, { workflow_id: "o8qaF7bI0PKv2XGZ", started_at: en(18) })
-const despachoJefe: Despacho = { id: "dj", agent_name: "jefe-marketing", client_id: "nau", workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: "210273", status: "running", running_at: en(6.5), completed_at: null, created_at: en(6.4) }
+const despachoJefe: Despacho = { id: "dj", agent_name: "jefe-marketing", client_id: "nau", workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: "210273:bb-equipo-integracion", status: "running", running_at: en(6.5), completed_at: null, created_at: en(6.4) }
 const entrada = (minAhora: number, extra: Partial<EntradaDeLaEscena> = {}): EntradaDeLaEscena => ({
   despachos: [], invocaciones: [],
   directorio: ANALISTAS.map((a) => ({ agente: a, equipo: "estrategia", rol: "miembro" })),
@@ -51,7 +51,7 @@ describe("los aportes de la sala · S4", () => {
     const r = conAportes(reunion(30), { salidas: SALIDAS, informesEnElCerebro: FICHAS, revision: REVISION })
     expect(Object.fromEntries(r.participantes.map((p) => [p.agente, p.aporte?.uso]))).toEqual({
       "jefe-marketing": "resultado", "x-twitter-intelligence-analyst": "apagado", "feedback-synthesizer": "usado", "growth-hacker": "apagado",
-      "competitive-intelligence-agent": "usado", market_research_analyst: "usado", "editor-en-jefe": "revision",
+      "competitive-intelligence-agent": "usado", market_research_analyst: "usado", // regla C: la revisión de la jefatura es trabajo de escritorio, no se sienta aquí
     })
     expect(r.participantes.find((p) => p.agente === "x-twitter-intelligence-analyst")?.aporte?.motivo).toBe("dijo «sin dato» y su informe no entró al cerebro")
     expect(r.participantes.find((p) => p.agente === "growth-hacker")?.aporte?.motivo).toBe("su informe no entró al cerebro (sin motivo registrado)")
@@ -92,8 +92,8 @@ describe("los aportes de la sala · S4", () => {
   })
 
   it("sin dato de uso no se inventa: un participante fuera de la mesa de análisis queda «sin dato de uso»", () => {
-    const crea = ["content-creator", "creative-director-mesa"].map((a, i) => inv(a, `300:${["idea", "sintesis"][i]}`, 1 + i, { workflow_id: "GRAN" }))
-    const e = armarEscena(entrada(3, { invocaciones: crea, directorio: [{ agente: "content-creator", equipo: "creativo", rol: "miembro" }, { agente: "creative-director-mesa", equipo: "creativo", rol: "direccion" }] }))
+    const crea = ["content-creator", "creative-director-mesa"].map((a, i) => inv(a, `300:${["idea", "integracion"][i]}`, 1 + i * 3, { workflow_id: "GRAN" })) // quien aporta termina ANTES de que empiece la consolidación
+    const e = armarEscena(entrada(6, { invocaciones: crea, directorio: [{ agente: "content-creator", equipo: "creativo", rol: "miembro" }, { agente: "creative-director-mesa", equipo: "creativo", rol: "direccion" }] }))
     const r = conAportes(e.sala!.reunion!, { salidas: [], informesEnElCerebro: [], revision: null })
     expect(r.participantes.find((p) => p.agente === "content-creator")?.aporte).toMatchObject({ uso: "sin_dato", motivo: "no hay dato de si su aporte se usó", resumen: null })
     expect(globoDe(r.participantes.find((p) => p.agente === "content-creator")!)).toBe("aporte · sin texto guardado")
@@ -106,10 +106,10 @@ describe("los aportes de la sala · S4", () => {
     expect(globoDe(enCurso.participantes[0])).toBe("escribiendo el resultado…")
     expect(globoVisible(enCurso, null)).toBeNull() // 04-nov: el globo de un agente sale solo con el cursor encima
     const pausa = conAportes(reunion(19.5), { salidas: SALIDAS, informesEnElCerebro: FICHAS, revision: REVISION })
-    expect(pausa.estado).toBe("en_curso")
-    expect(pausa.participantes.filter((p) => luzDeLaBurbuja(p, pausa) === "ultimo").map((p) => p.agente)).toEqual(["editor-en-jefe"])
+    expect(pausa.estado).toBe("terminada") // regla C: la reunión es la consolidación; la revisión de la jefatura que viene después no la alarga
+    expect(pausa.participantes.some((p) => p.agente === "editor-en-jefe")).toBe(false)
     const cerrada = conAportes(reunion(30), { salidas: SALIDAS, informesEnElCerebro: FICHAS, revision: REVISION })
-    expect(Object.fromEntries(cerrada.participantes.map((p) => [p.agente, luzDeLaBurbuja(p, cerrada)]))).toMatchObject({ "jefe-marketing": "centro", "feedback-synthesizer": "centro", "growth-hacker": "apagado", "x-twitter-intelligence-analyst": "apagado", "editor-en-jefe": "quieto" })
+    expect(Object.fromEntries(cerrada.participantes.map((p) => [p.agente, luzDeLaBurbuja(p, cerrada)]))).toMatchObject({ "jefe-marketing": "centro", "feedback-synthesizer": "centro", "growth-hacker": "apagado", "x-twitter-intelligence-analyst": "apagado" })
     expect(globoVisible(cerrada, null)).toMatchObject({ tipo: "resultado" })
     expect(globoVisible(cerrada, "growth-hacker")).toMatchObject({ tipo: "participante", lineas: expect.arrayContaining(["Aporta su informe de la mesa de análisis"]) })
     for (let i = 0; i < 3; i++) { const d = destinoEnElCentro(i, 3, false); expect(Math.abs(d.x - SALA.mesa.x)).toBeLessThanOrEqual(45); expect(Math.abs(d.y - SALA.mesa.y)).toBeLessThanOrEqual(35) }
@@ -121,11 +121,11 @@ describe("los aportes de la sala · S4", () => {
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: e }))
     // 03-nov · el globito de cada quien vive mientras su silueta sigue sentada: con la sala vacía (todos se levantaron) solo quedan los que viajaron al centro
     const sinSentados = (html.match(/data-burbuja=/g) ?? []).length
-    expect(sinSentados).toBeLessThan(7)
+    expect(sinSentados).toBeLessThan(6)
     expect(html).not.toContain('data-luz="apagado"')
     expect(html).toContain('data-luz="centro"')
     const todos = renderToStaticMarkup(createElement("svg", null, createElement(SalaEnLaFoto, { sala: e.sala, abierta: false, onAbrir: () => {} })))
-    expect((todos.match(/data-burbuja=/g) ?? []).length).toBe(7)
+    expect((todos.match(/data-burbuja=/g) ?? []).length).toBe(6)
     expect(todos).toContain('data-luz="apagado"')
     const algunos = renderToStaticMarkup(createElement("svg", null, createElement(SalaEnLaFoto, { sala: e.sala, abierta: false, onAbrir: () => {}, sentados: new Set(["growth-hacker"]) })))
     expect(algunos).toContain('data-burbuja="growth-hacker"')

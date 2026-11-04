@@ -30,8 +30,9 @@ const entrada = (minAhora: number, invocaciones: InvocacionViva[], extra: Partia
   agentes: ANALISTAS.map((a) => ({ name: a, display_name: a })), clientes: [{ id: "nau", nombre: "Náufrago" }], equipos: null,
   ahora: new Date(T0 + minAhora * 60_000), ...extra,
 })
-const conFallo = () => ANALISTAS.map((a, i) => inv(a, `500:paso${i}`, 2 + i, i === 1 ? { status: "failed" } : {}))
-const sinFallo = () => ANALISTAS.map((a, i) => inv(a, `500:paso${i}`, 2 + i))
+// regla C: la reunión es el paso que consolida (el último analista re-sintetiza); los otros dos aportaron ANTES y se sientan con él
+const conFallo = () => ANALISTAS.map((a, i) => inv(a, i === 2 ? "500:bba-resintesis-c1" : `500:paso${i}`, 2 + i * (i === 2 ? 3 : 1), i === 2 ? { started_at: en(4) } : i === 1 ? { status: "failed" } : {}))
+const sinFallo = () => ANALISTAS.map((a, i) => inv(a, i === 2 ? "500:bba-resintesis-c1" : `500:paso${i}`, 2 + i * (i === 2 ? 3 : 1), i === 2 ? { started_at: en(4) } : {}))
 
 describe("CC4 · sala · «falló» sale de los datos (se ejecuta, no se lee)", () => {
   it("una reunión reciente con una fase fallida dice «falló»; sin fallo dice «terminó»", () => {

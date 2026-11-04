@@ -127,6 +127,7 @@ function seSienta(agente: string, e: EntradaDeLaSala): boolean {
 /** el nombre de la fase de una fila: «analisis-mercado» → mesa de análisis; la raíz sin paso → lo escribe quien dirige; la jefatura aparte */
 function faseDe(i: InvocacionViva, dirige: string, esJefatura: boolean): string {
   if (esJefatura) return "revisión de la jefatura"
+  if (esPasoDeConsolidacion(i.workflow_execution_id, i.step_name)) return "redacción" // el paso que consolida se nombra en palabras simples, nunca con su clave interna
   const p = pasoCrudo(i.workflow_execution_id) ?? i.step_name ?? ""
   if (/^an[aá]lisis/i.test(p)) return "mesa de análisis"
   if (p) return p.replace(/[-_]+/g, " ").trim()

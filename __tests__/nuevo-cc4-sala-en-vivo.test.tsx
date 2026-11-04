@@ -23,7 +23,8 @@ const entrada = (minAhora: number, invocaciones: InvocacionViva[]): EntradaDeLaE
   ahora: new Date(T0 + minAhora * 60_000),
 })
 const PEDIDO = "Reescribe el manual de la marca con los datos del cliente"
-const enCurso = () => ANALISTAS.map((a, i) => inv(a, `700:paso${i}`, 2 + i, { task_text: PEDIDO, status: i === 2 ? "running" : "completed", ended_at: i === 2 ? null : en(2 + i) }))
+// regla C: el último analista está re-sintetizando (paso que consolida, en curso); los otros dos aportaron antes
+const enCurso = () => ANALISTAS.map((a, i) => inv(a, i === 2 ? "700:bba-resintesis-c1" : `700:paso${i}`, 2 + i, { task_text: PEDIDO, status: i === 2 ? "running" : "completed", ended_at: i === 2 ? null : en(2 + i), ...(i === 2 ? { started_at: en(4) } : {}) }))
 
 const p = (extra: Partial<ParticipanteDeLaSala> = {}): ParticipanteDeLaSala => ({ agente: "growth-hacker", nombre: "Growth Hacker", mesa: null, equipo: "Estrategia", cabecera: false, fase: "análisis mercado", estado: "hablo", ultima: null, hace: "hace 1 min", corrida: "700:analisis-mercado", silla: { x: 1350, y: 432 }, aporte: { resumen: "Scores emitidos. Razonamiento breve por campo: Campo Score Fundamento positioning 0.88 Olón, GYE", uso: "usado", motivo: "entró al cerebro", recortado: false }, ...extra } as ParticipanteDeLaSala)
 
