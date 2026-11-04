@@ -25,7 +25,25 @@ export interface Decision {
   decidir: { ruta: string | null; accion: string | null }
   costo_usd: number | null
   costo_nota: string | null
+  /** 04-nov · CONTESTAR EN TU OFICINA (estructura de Agent Inbox). Todo opcional: si la plataforma lo trae, manda; si no, el tablero usa lo que sabe hacer hoy */
+  /** las acciones que la oficina de origen permite (`allow_accept/edit/respond/ignore`) */
+  permite?: AccionDeDecision[] | null
+  /** quién pregunta: la oficina y el empleado (de la fila de la pregunta) */
+  pregunta_de?: { oficina: string; agente: string | null } | null
+  /** para qué lo necesita la oficina */
+  para_que?: string | null
+  /** qué se destraba al contestar */
+  destraba?: string | null
+  /** un trabajo está detenido esperando esto */
+  detiene?: boolean
+  /** el texto como lo guardó la fuente (la puerta del cerebro recibe la pregunta tal cual) */
+  titulo_interno?: string | null
 }
+export type AccionDeDecision = "aceptar" | "editar" | "responder" | "descartar"
+/** lo que aceptan las puertas al contestar (la del dueño: respuesta ≤ 2.000 · motivo de descarte ≤ 300) */
+export const TOPE_RESPUESTA = 2000
+export const TOPE_MOTIVO = 300
+export const ACCIONES_DE_DECISION: readonly AccionDeDecision[] = ["aceptar", "editar", "responder", "descartar"]
 export interface FuenteDeDecisiones { fuente: string; estado: "ok" | "no_existe" | "error" | "sin_credencial" | string; filas: number; truncado?: boolean; detalle?: string }
 export interface Decisiones {
   generado_en: string | null
@@ -60,6 +78,7 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
       subtipo: txt(d.subtipo), fuente: txt(d.fuente), client_id: txt(d.client_id), cliente: txt(d.cliente),
       desde: txt(d.desde), vence: txt(d.vence), vencida: d.vencida === true, prioridad: txt(d.prioridad),
       decidir: { ruta: txt(dec.ruta), accion: txt(dec.accion) },
+      ...contextoDeLaPlataforma(d),
       costo_usd: num(d.costo_usd), costo_nota: txt(d.costo_nota),
     })
   }
@@ -192,15 +211,85 @@ const clave = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCa
  * UN SOLO NÚMERO: «esperan tu firma» = lo que se firma desde el tablero y no es de un cliente en pausa. Es el mismo en la tarjeta de la oficina, la cabecera,
  * «Todas» y el carrusel. Lo que se atiende fuera y lo de clientes en pausa van en grupos aparte, cada uno con su número.
  */
-export interface GruposDeDecisiones { firma: Decision[]; fuera: Decision[]; pausa: Array<{ cliente: string; motivo: string | null; decisiones: Decision[] }> }
+export interface GruposDeDecisiones { firma: Decision[]; fuera: Decision[]; pausa: Array<{ cliente: string; motivo: string | null; decisiones: Decision[] }>; /** 04-nov · las de «firma» que tienen un trabajo detenido esperando (van primero) */ detienen: Decision[] }
 export function gruposDeDecisiones(d: Pick<Decisiones, "decisiones"> & { pausados?: ClienteEnPausa[] }): GruposDeDecisiones {
   const pausados = new Map((d.pausados ?? []).map((p) => [clave(p.cliente), p]))
   const firma: Decision[] = [], fuera: Decision[] = [], pausa = new Map<string, { cliente: string; motivo: string | null; decisiones: Decision[] }>()
+  const detenidas = idsQueDetienenUnTrabajo(d.decisiones)
   for (const x of d.decisiones) {
+    if (esLaTarjetaDeLaPausa(x) && d.decisiones.some((y) => y.client_id === x.client_id && y.tipo === "pregunta_al_dueno")) continue // la pausa se dice en sus preguntas
     const p = x.cliente ? pausados.get(clave(x.cliente)) : undefined
     if (p) { const k = clave(p.cliente); const g = pausa.get(k) ?? { cliente: x.cliente ?? p.cliente, motivo: p.motivo, decisiones: [] }; g.decisiones.push(x); pausa.set(k, g) }
-    else if (dondeSeDecide(x).panel) firma.push(x)
+    else if (dondeSeDecide(x).panel || accionesDe(x).length) firma.push(x)
     else fuera.push(x)
   }
-  return { firma, fuera, pausa: [...pausa.values()] }
+  const ordenada = ordenarParaTi(firma, detenidas)
+  return { firma: ordenada, fuera, pausa: [...pausa.values()], detienen: ordenada.filter((x) => detenidas.has(x.id)) }
+}
+
+/* ───────────── 04-nov · CONTESTAR EN TU OFICINA (`2026-11-04-ENCARGO-LENOVO-a-CC5-decisiones-se-contestan-en-tu-oficina.md` + adendas · boceto aprobado 18:08Z) ───────────── */
+
+/** la tarjeta «El plan está en pausa» que la plataforma agrega por cada pausa de la oficina financiera */
+export const esLaTarjetaDeLaPausa = (d: Pick<Decision, "fuente" | "subtipo">): boolean => d.fuente === "esperas_del_dueno" || d.subtipo === "plan_en_pausa"
+
+/** lo que el tablero sabe hacer hoy, por tipo (cada una con su ruta real en la plataforma) */
+const LO_QUE_SE_HACE_AQUI: Partial<Record<TipoDeDecision, AccionDeDecision[]>> = {
+  pregunta_al_dueno: ["responder", "descartar"], // puerta del dueño del cerebro (+ la ruta de la pausa de finanzas)
+  firma_de_finanzas: ["aceptar"], // firmar-tablero
+}
+/**
+ * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;
+ * si no declaró nada, las de su tipo. Una acción sin ruta real nunca se muestra (nada de botones falsos).
+ */
+export function accionesDe(d: Pick<Decision, "tipo" | "permite" | "fuente" | "subtipo">): AccionDeDecision[] {
+  if (esLaTarjetaDeLaPausa(d)) return []
+  const posibles = LO_QUE_SE_HACE_AQUI[d.tipo] ?? []
+  return d.permite ? posibles.filter((a) => d.permite!.includes(a)) : posibles
+}
+
+/** lo que la plataforma ya pueda traer de contexto (todo opcional; lo que no viene, no se inventa) */
+function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
+  const o: Partial<Decision> = {}
+  const per = d.permite ?? d.allow
+  if (Array.isArray(per)) o.permite = ACCIONES_DE_DECISION.filter((a) => per.includes(a))
+  else if (per && typeof per === "object") {
+    const p = per as Record<string, unknown>
+    o.permite = ACCIONES_DE_DECISION.filter((a) => p[a] === true || p[{ aceptar: "allow_accept", editar: "allow_edit", responder: "allow_respond", descartar: "allow_ignore" }[a]] === true)
+  }
+  const pp = (d.pregunta_de ?? d.preguntado_por) as Record<string, unknown> | undefined
+  const oficina = pp && typeof pp === "object" ? txt(pp.oficina) : null
+  if (oficina) o.pregunta_de = { oficina, agente: txt(pp!.agente) }
+  if (txt(d.para_que)) o.para_que = txt(d.para_que)
+  if (txt(d.destraba)) o.destraba = txt(d.destraba)
+  if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
+  if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
+  return o
+}
+
+/** las que tienen un trabajo detenido: lo que la plataforma marca, y las preguntas de un cliente cuyo plan está en pausa esperando respuestas */
+export function idsQueDetienenUnTrabajo(lista: Decision[]): Set<string> {
+  const enPausa = new Set(lista.filter(esLaTarjetaDeLaPausa).map((x) => x.client_id).filter((c): c is string => !!c))
+  return new Set(lista.filter((x) => x.detiene === true || (x.tipo === "pregunta_al_dueno" && !!x.client_id && enPausa.has(x.client_id))).map((x) => x.id))
+}
+
+/** el orden del encargo (punto 5): primero lo que tiene un trabajo detenido; después, el de la plataforma (lo que vence primero y luego lo más antiguo) */
+export function ordenarParaTi(lista: Decision[], detenidas: Set<string> = idsQueDetienenUnTrabajo(lista)): Decision[] {
+  return [...lista.filter((x) => detenidas.has(x.id)), ...lista.filter((x) => !detenidas.has(x.id))]
+}
+
+/** la oficina que pregunta, con su nombre real */
+const OFICINAS: Record<string, string> = {
+  financiera: "Oficina financiera", finanzas: "Oficina financiera", planeacion: "Oficina de planeación", creativa: "Oficina creativa", jefatura: "Jefatura",
+  marketing: "Dpto. Marketing", cerebro: "El cerebro del cliente", portero: "El cerebro del cliente", alta: "Oficina de altas", onboarding: "Oficina de altas",
+}
+export function nombreDeOficina(o: string): string {
+  const k = o.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/^oficina[\s_-]+(de[\s_-]+)?/, "").trim()
+  return OFICINAS[k] ?? OFICINAS[k.split(/[\s_-]+/)[0] ?? ""] ?? mayusculaInicial(o.replace(/[-_]+/g, " "))
+}
+
+/** «qué se destraba»: lo que dice la oficina; si un plan en pausa espera esta respuesta, eso (CC1: con la última, sigue en el acto) */
+export function queSeDestraba(d: Decision, detenidas: Set<string>): string | null {
+  if (d.destraba) return d.destraba
+  if (d.tipo === "pregunta_al_dueno" && detenidas.has(d.id)) return `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.`
+  return null
 }

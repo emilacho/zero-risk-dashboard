@@ -86,14 +86,14 @@ describe("6.20 · la mesa del director (panel)", () => {
   const datos = normalizarDecisiones(CRUDO)
   it("la pila: la primera al frente con todo para decidir, las siguientes asomando detrás; índice por tipo; «sin dato» declarado", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('data-seccion="decisiones"'); expect(html).toContain("2 decisiones esperan tu firma"); expect(html).toContain("1 se atiende fuera de este tablero") // la que no se firma aquí no infla el número
+    expect(html).toContain('data-seccion="decisiones"'); expect(html).toContain("3 esperan por ti"); expect(html).not.toContain("fuera de este tablero") // 04-nov · la firma de finanzas ya se firma aquí
     // 6.52 · el carrusel recorre solo lo que espera tu firma (el mismo número que la cabecera); lo que se atiende fuera va en su grupo aparte
-    expect(html.match(/data-decision="([^"]+)"/)![1]).toBe("9ccb6924-d876-4c8a-8773-a69b0ecdab76")
-    expect((html.match(/data-detras="/g) ?? []).length).toBe(1)
-    expect(html).toContain('data-decidir="piezas"')
-    expect(html).toContain('data-filtro="plan"'); expect(html).toContain('data-filtro="pieza"'); expect(html).not.toContain('data-filtro="firma_de_finanzas"')
-    expect(html).toContain('data-grupo-aparte="fuera"')
-    expect(html).toContain("1 de 2"); expect(html).toContain("gastos por aprobar")
+    expect(html.match(/data-decision="([^"]+)"/)![1]).toBe("f4d46f59-1d22-4780-9e40-252e74fa53b4") // 04-nov · la firma va primero (orden de la plataforma) y se firma en la tarjeta
+    expect((html.match(/data-detras="/g) ?? []).length).toBe(2); expect(html).toContain("data-firmar")
+    expect(html).not.toContain('data-decidir=') // 04-nov · la del frente se firma en la misma tarjeta
+    expect(html).toContain('data-filtro="plan"'); expect(html).toContain('data-filtro="pieza"'); expect(html).toContain('data-filtro="firma_de_finanzas"')
+    expect(html).not.toContain('data-grupo-aparte="fuera"')
+    expect(html).toContain("1 de 3"); expect(html).toContain("gastos por aprobar")
   })
   it("si la lista está incompleta nunca dice «estás al día»", () => {
     const vacia: Decisiones = { ...datos, total: 0, decisiones: [], completo: false }
@@ -106,11 +106,11 @@ describe("6.20 · la mesa del director (panel)", () => {
 describe("6.20 · la pantalla 5 del arco con datos y los títulos más grandes", () => {
   it("dice cuántas esperan (con «+?» si la lista está incompleta), late si alguna apremia, y se abre al tocarla", () => {
     const r = resumenDeDecisiones(normalizarDecisiones(CRUDO))
-    expect(r).toEqual({ total: 2, apremia: true, completo: true }) // solo lo que se firma desde el tablero nuevo
+    expect(r).toEqual({ total: 3, apremia: true, completo: true }) // 04-nov · lo que se decide o se contesta desde el tablero nuevo
     const html = renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: r, alAbrirDecisiones: () => {} }))
-    expect(html).toContain('data-decisiones="2"'); expect(html).toMatch(/<text data-cuantas[^>]*>2<\/text>/)
+    expect(html).toContain('data-decisiones="3"'); expect(html).toMatch(/<text data-cuantas[^>]*>3<\/text>/)
     expect(html).toContain('data-abre="decisiones" role="button" tabindex="0" aria-label="Abrir tus decisiones"')
-    expect(renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: { ...r, completo: false } }))).toMatch(/<text data-cuantas[^>]*>2\+\?<\/text>/)
+    expect(renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: { ...r, completo: false } }))).toMatch(/<text data-cuantas[^>]*>3\+\?<\/text>/)
     expect(renderToStaticMarkup(createElement(PantallasDelArco, { decisiones: { total: 0, apremia: false, completo: true } }))).toContain(">al día</text>")
     const sinLectura = renderToStaticMarkup(createElement(PantallasDelArco))
     expect(sinLectura).toContain('data-decisiones="sin-lectura"'); expect(sinLectura).not.toContain("data-abre=") // sin lectura: el dibujo, y sin toque si no hay quien abra

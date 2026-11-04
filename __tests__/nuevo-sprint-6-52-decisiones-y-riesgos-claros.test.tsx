@@ -37,22 +37,22 @@ const D = normalizarDecisiones(CRUDO)
 describe("6.52 · Decisiones · un solo número", () => {
   it("esperan tu firma = lo que se firma aquí y no es de un cliente en pausa; lo de fuera y lo en pausa, aparte con su número", () => {
     const g = gruposDeDecisiones(D)
-    expect(g.firma.map((x) => x.id)).toEqual(["r4", "p1"])
-    expect(g.fuera.map((x) => x.id)).toEqual(["f2"])
+    expect(g.firma.map((x) => x.id)).toEqual(["r4", "f2", "p1"]) // 04-nov · la firma ya se firma en Tu oficina
+    expect(g.fuera.map((x) => x.id)).toEqual([])
     expect(g.pausa).toEqual([expect.objectContaining({ cliente: "Zero Risk Seguridad Industrial", decisiones: expect.any(Array) })]); expect(g.pausa[0].decisiones).toHaveLength(7)
-    expect(resumenDeDecisiones(D).total).toBe(2) // la tarjeta de la oficina dice lo mismo
+    expect(resumenDeDecisiones(D).total).toBe(3) // la tarjeta de la oficina dice lo mismo
   })
   it("sin la lectura de pausas no se achica nada a ciegas", () => {
-    expect(resumenDeDecisiones(normalizarDecisiones({ ...CRUDO, pausados: [] })).total).toBe(5)
+    expect(resumenDeDecisiones(normalizarDecisiones({ ...CRUDO, pausados: [] })).total).toBe(10) // 04-nov · las preguntas y firmas también se contestan aquí
   })
   it("en pantalla: cabecera, «Todas», tipos y carrusel dicen lo mismo; la pausa va plegada y aparte", async () => {
     const { PanelDecisiones } = await import("@/components/nuevo/PanelDecisiones")
     const h = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: D })).replace(/<!-- -->/g, "")
-    expect(h).toContain("2 decisiones esperan tu firma · 1 se atiende fuera de este tablero · 7 en pausa (Zero Risk SI)")
-    expect(h).toMatch(/data-todas[^>]*>.*?<span class="tabular-nums[^"]*">2<\/span>/)
+    expect(h).toContain("3 esperan por ti · 7 en pausa (Zero Risk SI)"); expect(h).not.toContain("fuera de este tablero")
+    expect(h).toMatch(/data-todas[^>]*>.*?<span class="tabular-nums[^"]*">3<\/span>/)
     const tipos = [...h.matchAll(/data-filtro="[^"]+".*?<span class="tabular-nums[^"]*">(\d+)<\/span>/g)].map((m) => Number(m[1]))
-    expect(tipos.reduce((a, b) => a + b, 0)).toBe(2)
-    expect(h).toContain("1 de 2")
+    expect(tipos.reduce((a, b) => a + b, 0)).toBe(3)
+    expect(h).toContain("1 de 3")
     expect(h).toContain('data-grupo-aparte="pausa:Zero Risk Seguridad Industrial"'); expect(h).toContain("En pausa · Zero Risk SI"); expect(h).toContain('aria-expanded="false"')
   })
 })
@@ -114,6 +114,6 @@ describe("6.52 · de paso en Observabilidad", () => {
     expect(tokensEnPalabras(1_000_000)).toBe("1 millón de tokens"); expect(tokensEnPalabras(12_400)).toBe("12 mil tokens"); expect(tokensEnPalabras(850)).toBe("850 tokens")
   })
   it("ninguna hora de Tu oficina en formato de 12 horas", () => {
-    for (const f of ["components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelOrganizacion.tsx"]) expect(readFileSync(f, "utf8"), f).toMatch(/hourCycle: "h23"/)
+    for (const f of ["components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelOrganizacion.tsx"]) expect(readFileSync(f, "utf8"), f).toMatch(/hourCycle: "h23"|...HORA_24/)
   })
 })
