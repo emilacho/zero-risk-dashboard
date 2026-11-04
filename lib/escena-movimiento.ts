@@ -4,11 +4,11 @@
  * Reglas (Emilio): solo se ven los que trabajan AHORA · UNA silla por escritorio (el que escribe se sienta; los que aportan se paran alrededor de esa computadora).
  * Sprint 2 (abajo): caminar a la sala de reuniones y volver. La entrega al pizarrón y el clic en el agente son los sprints 3 y 4: NO están aquí.
  */
-import { MAXIMO_DE_PUESTOS_FIJOS, U, V, puestoFijo, type MesaViva, type Punto, type Sentado } from "@/lib/escena-avatares"
+import { MAXIMO_DE_PUESTOS_A_LA_VISTA, U, V, puestoDeRebose, puestoFijo, type MesaViva, type Punto, type Sentado } from "@/lib/escena-avatares"
 import { nombreCanonico } from "@/lib/organigrama"
 import { SILLAS_DE_LA_SALA } from "@/lib/escena-sala"
 
-export const MAXIMO_EN_LA_MESA = MAXIMO_DE_PUESTOS_FIJOS // cada uno en SU puesto fijo; el que no cabe se dice «+N»
+export const MAXIMO_EN_LA_MESA = MAXIMO_DE_PUESTOS_A_LA_VISTA // cada uno en SU puesto fijo (los 5 primeros del roster) o, si pasa del 5.º, en un puesto de rebose; el que no cabe se dice «+N»
 export type Postura = "sentado" | "de_pie"
 export interface PuestoDeAgente { s: Sentado; pos: Punto; postura: Postura }
 
@@ -19,15 +19,17 @@ export const puntoDelMas = (m: Pick<MesaViva, "centro">): Punto => aqui(m.centro
 /**
  * Escritorio fijo por agente (04-nov · punto 9): cada empleado tiene SU puesto en la mesa de su equipo, según su lugar en el roster (`m.roster`; sin roster, por nombre), y ahí se
  * sienta a trabajar siempre que tenga una llamada abierta, esté quien esté trabajando a la vez. Nadie se para alrededor de otro. El puesto no depende de cuántos trabajen.
- * Quien no cabe en los MAXIMO_EN_LA_MESA puestos va en `deMas`.
+ * Quien trabaja SIEMPRE se ve: los que pasan del 5.º del roster toman, por su orden, un puesto de rebose; solo quien no cabe en MAXIMO_EN_LA_MESA va en `deMas`.
  */
 export function repartirEnLaMesa(m: Pick<MesaViva, "sentados" | "silla" | "centro"> & { roster?: string[] }): { puestos: PuestoDeAgente[]; deMas: number } {
   const orden = [...(m.roster ?? [])]
   for (const s of [...m.sentados].sort((a, b) => nombreCanonico(a.agente).localeCompare(nombreCanonico(b.agente), "es"))) { const k = nombreCanonico(s.agente); if (!orden.includes(k)) orden.push(k) }
   const puestos: PuestoDeAgente[] = []
-  let deMas = 0
-  for (const s of m.sentados) {
-    const pos = puestoFijo(m, orden.indexOf(nombreCanonico(s.agente)))
+  let deMas = 0, rebose = 0
+  const delRoster = [...m.sentados].sort((a, b) => orden.indexOf(nombreCanonico(a.agente)) - orden.indexOf(nombreCanonico(b.agente)))
+  for (const s of delRoster) {
+    const i = orden.indexOf(nombreCanonico(s.agente))
+    const pos = puestoFijo(m, i) ?? puestoDeRebose(m, rebose++)
     if (pos) puestos.push({ s, pos, postura: "sentado" }); else deMas++
   }
   puestos.sort((a, b) => a.pos.x - b.pos.x || a.pos.y - b.pos.y)

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { MAXIMO_DE_PUESTOS_FIJOS, MESAS, ordenDelRoster, puestoFijo, type MesaViva, type Sentado } from "@/lib/escena-avatares"
+import { MAXIMO_DE_PUESTOS_A_LA_VISTA, MAXIMO_DE_PUESTOS_FIJOS, MESAS, ordenDelRoster, puestoFijo, type MesaViva, type Sentado } from "@/lib/escena-avatares"
 import { repartirEnLaMesa } from "@/lib/escena-movimiento"
 
 // ENCARGO de Lenovo 04-nov (punto 9): cada agente tiene un escritorio fijo en su equipo, en el orden del roster; trabaja sentado en el suyo (punto 10, parte segura)
@@ -25,8 +25,19 @@ describe("CC4 · escritorio fijo por agente", () => {
   it("todos sentados trabajando, ninguno de pie alrededor de otro; quien no cabe va a «+N»", () => {
     const r = repartirEnLaMesa(mesa(["ana", "beto", "carla", "dani"], undefined))
     expect(r.puestos.every((p) => p.postura === "sentado")).toBe(true)
-    const m = repartirEnLaMesa(mesa(["a", "b", "c", "d", "e", "f", "g"], ["a", "b", "c", "d", "e", "f", "g"]))
-    expect(m.puestos).toHaveLength(MAXIMO_DE_PUESTOS_FIJOS); expect(m.deMas).toBe(7 - MAXIMO_DE_PUESTOS_FIJOS)
+    const doce = Array.from({ length: 12 }, (_, i) => `a${String(i).padStart(2, "0")}`)
+    const m = repartirEnLaMesa(mesa(doce, doce))
+    expect(m.puestos).toHaveLength(MAXIMO_DE_PUESTOS_A_LA_VISTA); expect(m.deMas).toBe(12 - MAXIMO_DE_PUESTOS_A_LA_VISTA)
+  })
+  it("QUIEN TRABAJA SIEMPRE SE VE (reserva de CC3 sobre #265): el 6.º del roster trabajando solo aparece sentado, en un punto propio que no pisa ningún puesto fijo", () => {
+    const doce = Array.from({ length: 12 }, (_, i) => `a${String(i).padStart(2, "0")}`)
+    const solo = repartirEnLaMesa(mesa(["a05"], doce))
+    expect(solo.puestos).toHaveLength(1); expect(solo.deMas).toBe(0); expect(solo.puestos[0].postura).toBe("sentado")
+    const fijos = Array.from({ length: MAXIMO_DE_PUESTOS_FIJOS }, (_, i) => JSON.stringify(puestoFijo(base, i)))
+    expect(fijos).not.toContain(JSON.stringify(solo.puestos[0].pos))
+    const seis = repartirEnLaMesa(mesa(doce.slice(0, 6), doce)) // los seis primeros trabajando a la vez: se ven los seis, en puntos distintos
+    expect(seis.puestos).toHaveLength(6); expect(new Set(seis.puestos.map((p) => `${p.pos.x},${p.pos.y}`)).size).toBe(6)
+    expect(repartirEnLaMesa(mesa(["a04"], doce)).puestos[0].pos).toEqual(puestoFijo(base, 4)) // el 5.º conserva su puesto fijo
   })
   it("sin roster el orden es por nombre (estable), y quien falta en el roster va detrás de los que sí están", () => {
     const sinRoster = repartirEnLaMesa(mesa(["dani", "ana"], undefined)).puestos

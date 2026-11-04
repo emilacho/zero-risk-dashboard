@@ -143,6 +143,15 @@ export function puestosDeLaMesa(m: Pick<Mesa, "centro">, n: number): Punto[] {
  *  Quien no cabe se dice «+N» y sigue en la lista de la mesa. */
 export const PUESTOS_FIJOS: ReadonlyArray<readonly [number, number]> = [[-57, 0], [-110, -48], [-110, 0], [-110, 48], [-57, -90]]
 export const MAXIMO_DE_PUESTOS_FIJOS = PUESTOS_FIJOS.length
+/** reserva (certificación de CC3 sobre #265): quien trabaja SIEMPRE se ve. Los del roster que pasan del 5.º no tienen puesto propio: toman, por su orden, estos puestos de rebosamiento
+ *  (más cerca del borde de la celda: se ven apretados, pero se ven). Hasta MAXIMO_DE_PUESTOS_A_LA_VISTA a la vez por equipo; el resto se dice «+N». */
+export const PUESTOS_DE_REBOSE: ReadonlyArray<readonly [number, number]> = [[-110, -96], [-110, 96], [-165, -24], [-165, 24]]
+export const MAXIMO_DE_PUESTOS_A_LA_VISTA = MAXIMO_DE_PUESTOS_FIJOS + PUESTOS_DE_REBOSE.length
+export function puestoDeRebose(m: Pick<Mesa, "centro">, k: number): Punto | null {
+  if (k < 0 || k >= PUESTOS_DE_REBOSE.length) return null
+  const [u, v] = PUESTOS_DE_REBOSE[k]
+  return { x: Math.round(m.centro.x + u * U.x + v * V.x), y: Math.round(m.centro.y + u * U.y + v * V.y) }
+}
 export function puestoFijo(m: Pick<Mesa, "centro" | "silla">, i: number): Punto | null {
   if (i < 0 || i >= MAXIMO_DE_PUESTOS_FIJOS) return null
   if (i === 0) return { x: m.silla.x, y: m.silla.y }

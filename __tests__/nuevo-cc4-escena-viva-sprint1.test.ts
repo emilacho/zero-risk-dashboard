@@ -43,11 +43,11 @@ const mesa = (clave: string, sentados: Sentado[]): MesaViva => ({ ...MESAS.find(
 
 describe("sprint 1 · las siluetas en los escritorios", () => {
   it("escritorio fijo por agente: todos sentados, cada uno en su puesto; máximo MAXIMO_EN_LA_MESA a la vista y el resto se dice «+N» (el detalle está en nuevo-cc4-escritorio-fijo.test.ts)", () => {
-    const m = mesa("creativo", ["a", "b", "c", "d", "e", "f", "g"].map((n, i) => sentado(n, `2026-11-02T10:0${i}:00Z`)))
+    const m = mesa("creativo", Array.from({ length: 12 }, (_, i) => String.fromCharCode(97 + i)).map((n, i) => sentado(n, `2026-11-02T10:${String(i).padStart(2, "0")}:00Z`)))
     const { puestos, deMas } = repartirEnLaMesa(m)
     expect(puestos.every((p) => p.postura === "sentado")).toBe(true)
     expect(puestos).toHaveLength(MAXIMO_EN_LA_MESA)
-    expect(deMas).toBe(7 - MAXIMO_EN_LA_MESA)
+    expect(deMas).toBe(12 - MAXIMO_EN_LA_MESA)
   })
   it("solo se dibujan los que trabajan; sin nadie no hay siluetas y los de la sala no se repiten en el escritorio", () => {
     const html = renderToStaticMarkup(createElement(Siluetas, { mesas: [mesa("creativo", [sentado("content-creator", "2026-11-02T10:00:00Z"), sentado("video-editor", "2026-11-02T10:01:00Z")]), mesa("web", [])], enLaSala: new Set<string>(["video-editor"]) }))
