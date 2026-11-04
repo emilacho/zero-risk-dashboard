@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -36,6 +37,8 @@ describe("CC4 · sala en vivo · 1 · el globo es una línea en español claro",
       fraseDelGlobo(p({ estado: "hablando" })),
     ]
     expect(frases[0]).toBe("Revisa que el texto diga solo lo que está en los datos")
+    expect(frases[1]).toBe("Arma el resultado con lo que traen los demás") // quien dirige
+    expect(frases[2]).toBe("Aporta su informe de la mesa de análisis"); expect(frases[3]).toBe("Aporta lo que sabe de su área"); expect(frases[4]).toBe("Prepara su aporte")
     expect(fraseDelGlobo(p({ agente: "market_research_analyst", fase: "bb faithfulness judge c2", corrida: null }))).toBe(frases[0]) // el caso de la captura de Emilio
     for (const f of frases) { expect(f).not.toMatch(/\d|faithfulness|judge|Score|Campo|GYE|bb |c2|\.json|_/i); expect(f.split("\n")).toHaveLength(1); expect(f.length).toBeLessThanOrEqual(60) }
   })
@@ -108,5 +111,22 @@ describe("CC4 · sala en vivo · 8 · al recargar no se repite la escena", () =>
     est = lecturaInicial(est.yaPaso, false); expect(est.esPrimera).toBe(false) // aún sin datos: nada que pintar
     est = lecturaInicial(est.yaPaso, true); expect(est.esPrimera).toBe(true) // llegaron los datos: ya sentados, sin caminata
     est = lecturaInicial(est.yaPaso, true); expect(est.esPrimera).toBe(false) // lo siguiente sí entra caminando
+  })
+})
+
+describe("CC4 · sala en vivo · el cableado en la pantalla (reserva de CC3 sobre #261: lo que se comprobó a ojo queda fijado)", () => {
+  const sil = readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")
+  const ava = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
+  it("la silueta sentada en la sala pide «sin piernas»; la de un escritorio, no", () => {
+    expect(sil).toContain('postura="sentado" estado={c.fallo ? "falla" : "trabajando"} sinPiernas={c.lugar === "sala"}')
+  })
+  it("el bucle de animación usa el paso natural (no la curva en S) y el tope de un recorrido no es el de 7 s", () => {
+    expect(sil).toContain("c.pos = puntoEnLaRuta(x.ruta, pasoNatural(t - c.t0, x.dur))")
+    expect(sil).not.toContain("puntoEnLaRuta(x.ruta, suave(f))")
+    expect(sil).toContain("const TOPE_DE_UN_RECORRIDO_MS = 20000"); expect(sil).not.toMatch(/duracionDelRecorrido\([^)]*\), 7000\)/)
+  })
+  it("la escena le dice a las siluetas si ya llegó la lectura, y la primera lectura con datos sale de `lecturaInicial`", () => {
+    expect(ava).toContain("cargado={datos != null}")
+    expect(sil).toContain("lecturaInicial(!primera.current, cargado)")
   })
 })
