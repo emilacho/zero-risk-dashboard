@@ -139,6 +139,34 @@ export function puestosDeLaMesa(m: Pick<Mesa, "centro">, n: number): Punto[] {
   })
 }
 
+/** ESCRITORIO FIJO POR AGENTE (04-nov · encargo de Lenovo, punto 9): cada empleado tiene SIEMPRE el mismo puesto de su equipo, según su lugar en el roster, trabaje o no.
+ *  El primero ocupa la silla de la foto; los demás, en fila a su lado, sobre el piso libre de la celda (se probó sobre la foto: más allá de 5 los puestos caen en la celda vecina).
+ *  Quien no cabe se dice «+N» y sigue en la lista de la mesa. */
+export const PUESTOS_FIJOS: ReadonlyArray<readonly [number, number]> = [[-57, 0], [-110, -48], [-110, 0], [-110, 48], [-57, -90]]
+export const MAXIMO_DE_PUESTOS_FIJOS = PUESTOS_FIJOS.length
+/** reserva (certificación de CC3 sobre #265): quien trabaja SIEMPRE se ve. Los del roster que pasan del 5.º no tienen puesto propio: toman, por su orden, estos puestos de rebosamiento
+ *  (más cerca del borde de la celda: se ven apretados, pero se ven). Hasta MAXIMO_DE_PUESTOS_A_LA_VISTA a la vez por equipo; el resto se dice «+N». */
+export const PUESTOS_DE_REBOSE: ReadonlyArray<readonly [number, number]> = [[-110, -96], [-110, 96], [-165, -24], [-165, 24]]
+export const MAXIMO_DE_PUESTOS_A_LA_VISTA = MAXIMO_DE_PUESTOS_FIJOS + PUESTOS_DE_REBOSE.length
+export function puestoDeRebose(m: Pick<Mesa, "centro">, k: number): Punto | null {
+  if (k < 0 || k >= PUESTOS_DE_REBOSE.length) return null
+  const [u, v] = PUESTOS_DE_REBOSE[k]
+  return { x: Math.round(m.centro.x + u * U.x + v * V.x), y: Math.round(m.centro.y + u * U.y + v * V.y) }
+}
+export function puestoFijo(m: Pick<Mesa, "centro" | "silla">, i: number): Punto | null {
+  if (i < 0 || i >= MAXIMO_DE_PUESTOS_FIJOS) return null
+  if (i === 0) return { x: m.silla.x, y: m.silla.y }
+  const [u, v] = PUESTOS_FIJOS[i]
+  return { x: Math.round(m.centro.x + u * U.x + v * V.x), y: Math.round(m.centro.y + u * U.y + v * V.y) }
+}
+/** el orden fijo del roster de un equipo: primero los que firma el mapa (en el orden en que los lista), luego los demás por nombre. Las claves son canónicas */
+export function ordenDelRoster(clave: string, agentes: string[]): string[] {
+  const canon = [...new Set(agentes.map((a) => nombreCanonico(a)))]
+  const firmados = (EQUIPOS.find((q) => q.clave === clave)?.areas.flatMap((a) => a.agentes) ?? []).map((a) => nombreCanonico(a))
+  const primeros = firmados.filter((a, i) => canon.includes(a) && firmados.indexOf(a) === i)
+  return [...primeros, ...canon.filter((a) => !primeros.includes(a)).sort((a, b) => a.localeCompare(b, "es"))]
+}
+
 /** el tablero de una mesa como polígono (puntos «x,y x,y …» para SVG): un paralelogramo isométrico de 200 × 84 alrededor de su centro */
 export function tableroDeLaMesa(m: Mesa, largo = 100, ancho = 42): string {
   const c = m.centro
@@ -192,7 +220,7 @@ export interface Sentado {
   viene_de?: ClaveDeMesa
 }
 export interface MiembroDeMesa { agente: string; nombre: string; estado: EstadoDelMiembro; ultima: string | null; hace: string; nota: string | null; origen_de_la_mesa: OrigenDeLaMesa; /** está ahora en la sala de reuniones: no se dibuja en su puesto */ en_sala?: boolean }
-export interface MesaViva extends Mesa { sentados: Sentado[]; equipo: MiembroDeMesa[]; trabajando: number; fallando: number; /** firmados en el mapa que todavía no están instalados: se dicen, no se sientan */ por_instalar?: string[] }
+export interface MesaViva extends Mesa { sentados: Sentado[]; equipo: MiembroDeMesa[]; /** el orden FIJO del equipo (claves canónicas): de ahí sale el escritorio de cada uno; si falta, se ordena por nombre */ roster?: string[]; trabajando: number; fallando: number; /** firmados en el mapa que todavía no están instalados: se dicen, no se sientan */ por_instalar?: string[] }
 export interface EscenaDatos {
   leido_en: string
   fuente: string
@@ -364,7 +392,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
     // lo firmado en el mapa y todavía no instalado se dice, no se sienta (p. ej. Legal Compliance Checker en Dirección)
     const instalados = new Set([...porCanonico.keys(), ...e.agentes.map((a) => nombreCanonico(a.display_name))])
     const porInstalar = [...new Set(EQUIPOS.find((q) => q.clave === m.clave)?.areas.flatMap((ar) => ar.por_instalar) ?? [])].filter((n) => !instalados.has(nombreCanonico(n)))
-    return { ...base, sentados: misSentados, equipo, trabajando: misSentados.filter((s) => s.estado === "trabajando").length, fallando: misSentados.filter((s) => s.estado === "fallo").length, por_instalar: porInstalar }
+    return { ...base, roster: ordenDelRoster(m.clave, equipo.map((x) => x.agente)), sentados: misSentados, equipo, trabajando: misSentados.filter((s) => s.estado === "trabajando").length, fallando: misSentados.filter((s) => s.estado === "fallo").length, por_instalar: porInstalar }
   })
   return { leido_en: e.ahora.toISOString(), fuente, mesas, sin_mesa: sinMesa, sin_fin_registrado: sinFin, sala, contexto: e.contexto ?? null }
 }

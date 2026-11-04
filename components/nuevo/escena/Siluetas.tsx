@@ -11,7 +11,7 @@ import { LUGAR_DEL_PIZARRON, MAXIMO_JUNTOS_EN_EL_PIZARRON, PUESTOS_EN_EL_PIZARRO
 
 /**
  * LOS AGENTES HOLOGRÁFICOS DE LA OFICINA (CC4 · 02-nov · sprints 1 y 2 + la sala): UN solo dueño de toda la animación, de punta a punta.
- * · En su escritorio: una silueta de luz por cada empleado que trabaja AHORA (o que falló: en rojo); el que escribe, sentado en la única silla; los que aportan, de pie alrededor.
+ * · En su escritorio: una silueta de luz por cada empleado que trabaja AHORA (o que falló: en rojo), sentada en SU puesto fijo del equipo (el mismo siempre; nadie se para alrededor de otro).
  * · Reunión real en la sala (mesa de análisis, brief, gran idea): quien participa se LEVANTA, camina por las líneas de luz del piso hasta la puerta de cristal, ENTRA, rodea la
  *   mesa, llega a su silla y SE SIENTA; quien habla se ilumina (su globo de aporte lo dibuja la sala de CC6); al terminar la reunión se LEVANTA, sale por la puerta y camina de
  *   vuelta a su escritorio. Sin saltos: cada paso es una acción animada en una sola línea de tiempo por empleado.
@@ -127,7 +127,7 @@ export function Siluetas({ mesas, reunion = null, cargado = true, enLaSala, onFo
       const usados = new Set([...visitasRef.current.values()].map((v) => v.slot))
       const slot = [...Array(MAXIMO_JUNTOS_EN_EL_PIZARRON).keys()].find((i) => !usados.has(i))
       if (slot === undefined || visitasRef.current.has(k)) { setExcedentes((n) => n + 1); espera(TARJETA_MS, () => setExcedentes((n) => Math.max(0, n - 1))); continue } // se amontonan: se agrupan con «+N»
-      const silla = { x: mesa.silla.x, y: mesa.silla.y }
+      const silla = repartirEnLaMesa(mesa).puestos.find((q) => nombreCanonico(q.s.agente) === k)?.pos ?? { x: mesa.silla.x, y: mesa.silla.y } // su puesto fijo
       const cambiar = (fase: Visita["fase"] | null) => setVisitas((prev) => { const m = new Map(prev); if (!fase) m.delete(k); else m.set(k, { entrega: e, fase, slot, silla, color: mesa.color, mesa: mesa.nombre }); return m })
       const ida = duracionDelRecorrido(rutaPorLasLineas(silla, PUESTOS_EN_EL_PIZARRON[slot]), TOPE_DE_UN_RECORRIDO_MS)
       cambiar("llega")
