@@ -170,6 +170,9 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   const todas = [...grupos.values()].sort((a, b) => a.desde - b.desde)
   // regla C: una corrida solo abre sala si tiene un paso que consolida con alguien que se sienta (quien dirige basta; sin dato de quién aportó, se sienta solo él)
   const consolida = (g: Grupo) => g.filas.some((i) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name) && seSienta(i.agent_name, e)) || abiertos.some((d) => raizDe(d.workflow_execution_id) === g.raiz && esPasoDeConsolidacion(d.workflow_execution_id, null) && seSienta(d.agent_name, e))
+  // «los que aportaron» (regla C): un trabajo puede cruzar varias corridas de n8n (la reescritura del manual: el flujo principal + el sub-flujo de la re-síntesis). Mientras la plataforma no marque de qué trabajo es cada llamada
+  // en todas las corridas, las hermanas son las corridas del MISMO cliente que se traslapan o están pegadas (≤ MINUTOS_ENLACE) con la que consolida
+  const hermanasDe = (g: Grupo) => todas.filter((h) => h !== g && g.cliente && h.cliente === g.cliente && h.hasta >= g.desde - MINUTOS_ENLACE * 60_000 && h.desde <= g.hasta + MINUTOS_ENLACE * 60_000)
   const reuniones = todas.filter(consolida).map((g) => ({ principal: g, jefatura: [] as Grupo[] }))
   for (const g of todas) {
     const ags = sentables(g)
@@ -177,7 +180,7 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
     const madre = reuniones.filter((r) => r.principal !== g && r.principal.cliente && r.principal.cliente === g.cliente && g.desde >= r.principal.desde && g.desde - r.principal.hasta <= MINUTOS_ENLACE * 60_000).at(-1)
     if (madre) madre.jefatura.push(g)
   }
-  const armadas = reuniones.map((r) => armarReunion(r.principal, r.jefatura, e, abiertos, nombre, clientes))
+  const armadas = reuniones.map((r) => armarReunion(r.principal, r.jefatura, e, abiertos, nombre, clientes, hermanasDe(r.principal).filter((h) => !r.jefatura.includes(h))))
   const enCurso = armadas.filter((r) => r.estado === "en_curso").sort((a, b) => ms(b.hasta) - ms(a.hasta))
   const recientes = armadas.filter((r) => r.estado === "terminada" && t - ms(r.hasta) <= MINUTOS_CIERRE * 60_000).sort((a, b) => ms(b.hasta) - ms(a.hasta))
   const reunion = enCurso[0] ?? recientes[0] ?? null
@@ -191,10 +194,10 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   }
 }
 
-function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos: Despacho[], nombre: (a: string) => string, clientes: Map<string, string>): ReunionDeLaSala {
+function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos: Despacho[], nombre: (a: string) => string, clientes: Map<string, string>, hermanas: Grupo[] = []): ReunionDeLaSala {
   const t = e.ahora.getTime()
   const raices = new Set([g.raiz, ...jefatura.map((j) => j.raiz)])
-  const filasTodas = [...g.filas, ...jefatura.flatMap((j) => j.filas)].filter((i) => seSienta(i.agent_name, e)).sort((a, b) => ms(cuando(a)) - ms(cuando(b)))
+  const filasTodas = [...g.filas, ...jefatura.flatMap((j) => j.filas), ...hermanas.flatMap((h) => h.filas)].filter((i) => seSienta(i.agent_name, e)).sort((a, b) => ms(cuando(a)) - ms(cuando(b)))
   const abiertosTodos = abiertos.filter((d) => raices.has(raizDe(d.workflow_execution_id) ?? "") && seSienta(d.agent_name, e))
   // regla C: la reunión es la ÚLTIMA consolidación de la corrida. Se sientan quien la dirige y los que aportaron (llamadas ya terminadas ANTES de que ella empezara); las demás llamadas siguen en su escritorio
   const esC = (i: InvocacionViva) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name)
@@ -204,7 +207,7 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
   const inicioAbierta = Math.max(-Infinity, ...consolAbiertas.map((d) => ms(d.running_at ?? d.created_at)).filter(Number.isFinite))
   const abiertaMasNueva = consolAbiertas.length > 0 && (!ultimaC || inicioAbierta >= inicioDe(ultimaC))
   const inicioC = abiertaMasNueva ? inicioAbierta : ultimaC ? inicioDe(ultimaC) : Infinity
-  const filas = filasTodas.filter((i) => (esC(i) ? !abiertaMasNueva && ultimaC != null && inicioDe(i) === inicioDe(ultimaC) : ms(cuando(i)) <= inicioC))
+  const filas = filasTodas.filter((i) => (esC(i) ? !abiertaMasNueva && ultimaC != null && inicioDe(i) === inicioDe(ultimaC) : i.ended_at != null && ms(cuando(i)) <= inicioC)) // aportó = su llamada YA terminó antes de que empezara la consolidación
   const abiertosAqui = abiertaMasNueva ? consolAbiertas.filter((d) => ms(d.running_at ?? d.created_at) === inicioAbierta) : []
   const esDeJefatura = (exec: string | null) => jefatura.some((j) => j.raiz === raizDe(exec))
 

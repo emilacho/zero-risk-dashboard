@@ -69,6 +69,17 @@ describe("regla C · cuándo hay reunión y quién se sienta", () => {
     expect(r.dirige).toBe("brand-strategist")
   })
 
+  it("el trabajo cruza dos corridas (el flujo principal y el sub-flujo de la re-síntesis): los de la corrida hermana del MISMO cliente que aportaron se sientan; los de otro cliente o de una corrida lejana, no", () => {
+    const principal = [inv("brand-strategist", "216655:x", 0, 3, { step_name: "bb-lens-brand-strategist" }), inv("editor-en-jefe", "216655:y", 3, 5, { step_name: "bb-voz-revision" })]
+    const sub = inv("jefe-client-success", "216679", 5, 6, { step_name: "bba-revisor-jefe-client-success-c1" })
+    const consolida = inv("brand-strategist", "216679", 6, null, { step_name: "bba-resintesis-c2" })
+    const otroCliente = inv("content-creator", "777", 1, 2, { client_id: "otro" })
+    const lejana = inv("content-creator", "888", -120, -118)
+    const r = armarEscena(entrada(7, [...principal, sub, consolida, otroCliente, lejana])).sala!.reunion!
+    expect(r.dirige).toBe("brand-strategist")
+    expect(r.participantes.map((p) => p.agente).sort()).toEqual(["brand-strategist", "editor-en-jefe", "jefe-client-success"])
+  })
+
   it("terminada la consolidación: la sala se queda MINUTOS_CIERRE y luego se vacía; los que se sentaron vuelven a su escritorio", () => {
     const filas = [...lentes(), inv("brand-strategist", "900:bba-resintesis-c1", 5, 8)]
     const recien = armarEscena(entrada(9, filas))
