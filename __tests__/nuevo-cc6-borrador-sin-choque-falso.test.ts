@@ -60,3 +60,11 @@ describe("el panel del manual", () => {
     expect(f).toContain("onMouseDown={(e) => { abajoAfuera.current = e.target === e.currentTarget }} onMouseUp={(e) => { if (abajoAfuera.current && e.target === e.currentTarget) salirConAviso.current(onCerrar)")
   })
 })
+
+describe("causa 1 (aviso de CC1 #875): una fila de borrador VACÍA en la base", () => {
+  it("al abrir, el panel se queda con su revisión aunque venga vacía: el primer guardado no sale con 0", () => {
+    const f = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
+    expect(f).toContain("if (b) setGuardadoDelBorrador({ revision: b.revision, actualizado_en: b.actualizado_en })")
+    expect(f).not.toContain('if (b && q.tipo !== "nada") setGuardadoDelBorrador')
+  })
+})

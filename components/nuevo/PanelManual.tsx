@@ -324,7 +324,8 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     void apiBorrador.leer(cliente, "manual").then((r) => {
       if (!vivo) return
       const b = r.borrador, q = queHacerAlAbrir(b, manualId)
-      if (b && q.tipo !== "nada") setGuardadoDelBorrador({ revision: b.revision, actualizado_en: b.actualizado_en })
+      // la revisión se guarda SIEMPRE que haya fila, aunque venga vacía (CC1 04-nov: con fila vacía el primer guardado salía con 0 y chocaba)
+      if (b) setGuardadoDelBorrador({ revision: b.revision, actualizado_en: b.actualizado_en })
       if (q.tipo === "recuperar") { ponerTus(q.acciones); ultimoGuardado.current = JSON.stringify(q.acciones) }
       else if (q.tipo === "preguntar") setBorradorViejo(q.borrador)
       // si la lectura falló, NO se marca como leído: no se guarda encima de un borrador que no se pudo ver
