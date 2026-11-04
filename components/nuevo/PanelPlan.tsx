@@ -24,7 +24,7 @@ const ESTILO = `
 .pl-barra{transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .pl-fase[aria-current="step"]{box-shadow:0 0 0 1px rgba(245,165,36,.7),0 0 18px rgba(245,165,36,.25)}
 @keyframes plEntra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.nv-pl-paso-vivo{animation:nvPlPaso 1.6s ease-in-out infinite}
+.nv-pl-paso-vivo{animation:none}
 @keyframes nvPlPaso{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.0)}50%{box-shadow:0 0 0 6px rgba(245,165,36,.25)}}
 @media (prefers-reduced-motion:reduce){.nv-pl-paso-vivo{animation:none}.pl-seccion{animation:none}.pl-barra{transition:none}}
 `

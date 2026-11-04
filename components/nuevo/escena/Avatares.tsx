@@ -47,9 +47,7 @@ const ESTILO = `
 .nv-av .nv-av-rotulo{opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
 .nv-av .nv-av-zona:hover .nv-av-rotulo,.nv-av .nv-av-zona:focus-visible .nv-av-rotulo,.nv-av .nv-av-zona[aria-expanded="true"] .nv-av-rotulo{opacity:1;transform:none}
 .nv-av .nv-av-luz{opacity:0;transition:opacity .6s ease}
-.nv-av .nv-av-luz[data-on="ambar"]{opacity:.9;animation:nvAvLate 2.6s ease-in-out infinite}
 .nv-av .nv-av-luz[data-on="rojo"]{opacity:.85;animation:nvAvLateRojo 1.4s ease-in-out infinite}
-.nv-av .nv-av-luz[data-on="tenue"]{opacity:.2;animation:nvAvTenue 5s ease-in-out infinite}
 @keyframes nvAvTenue{0%,100%{opacity:.14}50%{opacity:.26}}
 .nv-av .nv-av-asiento{pointer-events:auto;cursor:default;outline:none}
 .nv-av .nv-av-asiento rect{fill:transparent}
@@ -172,8 +170,9 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
           return (
             <g key={m.clave} className="nv-av-mesa" data-mesa={m.clave} data-etapa={m.etapa} data-ocupada={m.sentados.length > 0} data-trabajando={m.trabajando} opacity={m.etapa === "segunda_etapa" && !m.sentados.length ? 0.75 : 1}>
               {/* la luz del monitor de la foto: ámbar cuando alguien trabaja, roja si lo último fue un fallo; el derrame al piso va sobre la silla */}
-              <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.monitor.x} cy={m.monitor.y} rx={150} ry={95} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} />
-              <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.silla.x + 10} cy={m.silla.y + 30} rx={170} ry={70} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} style={{ opacity: on ? 0.45 : 0 } as CSSProperties} />
+              {/* 04-nov (Emilio 13:31Z): sin aura ámbar de «trabajando»; solo el rojo de falla, que decide Emilio */}
+              {on === "rojo" && <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.monitor.x} cy={m.monitor.y} rx={150} ry={95} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} />}
+              {on === "rojo" && <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.silla.x + 10} cy={m.silla.y + 30} rx={170} ry={70} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} style={{ opacity: on ? 0.45 : 0 } as CSSProperties} />}
               {/* la zona del ratón: el tablero de la mesa (en las 2 nuevas, además, el trazo punteado del boceto) */}
               <g className="nv-av-zona" role="button" tabIndex={0} aria-label={`${m.nombre}: ${subtitulo}. Ver el equipo`} aria-haspopup="dialog" aria-expanded={mesaAbierta === m.clave}
                 onClick={(e) => { e.stopPropagation(); setMesaAbierta((k) => (k === m.clave ? null : m.clave)) }}

@@ -345,7 +345,7 @@ export const ESTILO_DE_DIRECCION = `
 .nv-titulo-grande .nv-tg-letras .nv-tg-texto{animation:nvTgAbre .55s cubic-bezier(.2,.7,.2,1) both}
 .nv-titulo-grande .nv-tg-barrido .nv-tg-texto{animation:nvTgAbre .55s cubic-bezier(.2,.7,.2,1) both;mix-blend-mode:screen}
 .nv-titulo-grande .nv-tg-linea{stroke-dasharray:1;stroke-dashoffset:1;animation:nvTgTraza .5s .12s cubic-bezier(.4,0,.2,1) forwards;filter:drop-shadow(0 0 1px var(--tono))}
-.nv-titulo-grande .nv-tg-punto{animation:nvTgPunto 2.4s .3s ease-in-out infinite;filter:drop-shadow(0 0 1.2px var(--tono))}
+.nv-titulo-grande .nv-tg-punto{opacity:.9}
 .nv-titulo-grande .nv-tg-esquina{opacity:0;transform-box:fill-box;transform-origin:center;animation:nvTgEsquina .4s .28s cubic-bezier(.2,.7,.2,1) forwards;filter:drop-shadow(0 0 .8px var(--tono))}
 @keyframes nvTgVelo{from{opacity:0}to{opacity:1}}
 @keyframes nvTgAbre{from{letter-spacing:-.6px;opacity:0}60%{opacity:1}to{letter-spacing:1.6px;opacity:1}}
@@ -363,7 +363,7 @@ export const ESTILO_DE_DIRECCION = `
 .nv-pantalla .nv-hud [data-anima="late"]{animation-name:nvLate;animation-duration:4.2s;transform-origin:center}
 .nv-pantalla .nv-hud [data-anima="fluye"]{animation-name:nvFluye;animation-duration:5s;animation-timing-function:linear}
 .nv-pantalla .nv-hud [data-anima="apila"]{animation-name:nvApila;animation-duration:10s}
-.nv-pantalla .nv-hud [data-anima="urge"]{animation-name:nvRespira;animation-duration:2.4s}
+.nv-pantalla .nv-hud [data-anima="urge"]{animation:none}
 .nv-pantalla .nv-hud [data-anima="detecta"]{animation-name:nvDetecta;animation-duration:6s;animation-timing-function:ease-out}
 .nv-pantalla .nv-hud [data-anima="planta"]{animation-name:nvEnciende;animation-duration:9s}
 .nv-pantalla .nv-hud [data-anima="recorrido"]{animation-name:nvCrece;animation-duration:9s;transform-origin:top}

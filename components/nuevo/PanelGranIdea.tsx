@@ -23,7 +23,7 @@ type Respuesta = ({ ok: true } & GranIdeaDelCliente) | { ok: false; error: strin
 const ESTILO = `
 .gi-entra{animation:giEntra .4s cubic-bezier(.2,.8,.2,1) both}
 .gi-nodo[aria-current="true"]{background:rgba(245,165,36,.12);color:#fde68a}
-.gi-punto{animation:giLate 2.2s ease-in-out infinite}
+.gi-punto{animation:none}
 @keyframes giEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes giLate{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.6)}50%{box-shadow:0 0 0 6px rgba(245,165,36,0)}}
 @media (prefers-reduced-motion:reduce){.gi-entra{animation:none}.gi-punto{animation:none}}

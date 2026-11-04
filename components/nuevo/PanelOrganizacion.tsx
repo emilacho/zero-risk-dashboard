@@ -166,7 +166,7 @@ export function PanelOrganizacion({ onCerrar, datosIniciales = null, fetchImpl =
 
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
-      <style>{".or-late{animation:orLate 1.6s ease-in-out infinite}@keyframes orLate{50%{box-shadow:0 0 0 4px rgba(255,176,32,.25)}}.or-lienzo{cursor:grab}.or-lienzo:active{cursor:grabbing}@media (prefers-reduced-motion:reduce){.or-late{animation:none}}"}</style>
+      <style>{".or-late{animation:none}@keyframes orLate{50%{box-shadow:0 0 0 4px rgba(255,176,32,.25)}}.or-lienzo{cursor:grab}.or-lienzo:active{cursor:grabbing}@media (prefers-reduced-motion:reduce){.or-late{animation:none}}"}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="organizacion-titulo" data-seccion="organizacion" className="relative flex h-full max-h-full w-full max-w-[1500px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#161412] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-6">
           <h2 id="organizacion-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Organización</h2>

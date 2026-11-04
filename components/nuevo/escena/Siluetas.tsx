@@ -57,8 +57,6 @@ export const ESTILO_SILUETAS = `
 .nv-av .nv-sil .nv-sil-nombre{opacity:0;transition:opacity .25s ease;pointer-events:none}
 .nv-av .nv-sil:hover .nv-sil-nombre,.nv-av .nv-sil:focus-visible .nv-sil-nombre{opacity:1}
 .nv-av .nv-sil:hover .nv-holo,.nv-av .nv-sil:focus-visible .nv-holo{filter:drop-shadow(0 0 8px rgba(255,215,150,.95))}
-.nv-av .nv-sil[data-habla="true"] .nv-holo{filter:drop-shadow(0 0 9px rgba(255,200,110,1)) drop-shadow(0 0 18px rgba(255,160,50,.8))}
-.nv-av .nv-sil[data-habla="true"] .nv-sil-halo{animation:nvSalaHabla 1.8s ease-in-out infinite}
 @keyframes nvHoloPaso{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
 @keyframes nvHoloSube{from{transform:translateY(0)}to{transform:translateY(4px)}}
 @media (prefers-reduced-motion:reduce){.nv-av .nv-holo-cuerpo,.nv-av .nv-holo-barrido,.nv-av .nv-sil-halo{animation:none!important}}
@@ -257,7 +255,7 @@ export function Siluetas({ mesas, reunion = null, cargado = true, enLaSala, onFo
             onFocus={c.lugar === "sala" && onFoco ? () => onFoco(c.agente) : undefined} onBlur={c.lugar === "sala" && onFoco ? () => onFoco(null) : undefined}
             onClick={onTocar ? (e) => { e.stopPropagation(); onTocar(c.agente) } : undefined}
             onKeyDown={onTocar ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onTocar(c.agente) } } : undefined}>
-            {c.habla && <ellipse className="nv-sil-halo" cx={0} cy={-40} rx={34} ry={46} fill="url(#nv-av-ambar)" />}
+            {/* 04-nov (Emilio 13:31Z): sin halo ámbar que late detrás de quien habla */}
             {k < 0.99 && <g opacity={1 - k} transform={`translate(0 ${(12 * k).toFixed(1)})`}><HologramaFigura semilla={c.agente} color={c.color} postura="de_pie" estado={estado} /></g>}
             {k > 0.01 && <g opacity={k}><HologramaFigura semilla={c.agente} color={c.color} postura="sentado" estado={c.fallo ? "falla" : "trabajando"} sinPiernas={c.lugar === "sala"} /></g>}
             {c.corrige && <g data-marca-corrige transform="translate(0 -100)"><rect x={-27} y={-12} width={54} height={20} rx={10} fill="#0e0c0a" fillOpacity={0.9} stroke="#ffb347" strokeOpacity={0.85} /><text y={3} textAnchor="middle" fill="#ffd9a0" fontSize={13} fontFamily="system-ui, Arial, sans-serif">corrige</text></g>}

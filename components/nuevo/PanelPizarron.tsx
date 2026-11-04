@@ -21,7 +21,7 @@ type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 const ESTILO = `
 .pz-casilla{transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
 .pz-casilla:hover,.pz-casilla:focus-visible{transform:translateY(-1px);filter:brightness(1.15)}
-.pz-casilla[data-destacada="true"]{box-shadow:0 0 0 1px rgba(245,165,36,.9),0 0 14px rgba(245,165,36,.55);animation:pzLate 2.2s ease-in-out infinite}
+.pz-casilla[data-destacada="true"]{box-shadow:0 0 0 1px rgba(245,165,36,.9)}
 .pz-casilla[data-elegida="true"]{outline:1px solid #fff;outline-offset:1px}
 @keyframes pzLate{0%,100%{box-shadow:0 0 0 1px rgba(245,165,36,.9),0 0 10px rgba(245,165,36,.4)}50%{box-shadow:0 0 0 1px rgba(245,165,36,1),0 0 20px rgba(245,165,36,.8)}}
 @media (prefers-reduced-motion:reduce){.pz-casilla{transition:none}.pz-casilla[data-destacada="true"]{animation:none}}

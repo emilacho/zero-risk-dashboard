@@ -25,7 +25,7 @@ const ESTILO = `
 .de-tarjeta{transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .45s ease,filter .45s ease}
 .de-frente{animation:deLlega .55s cubic-bezier(.2,.8,.2,1) both}
 @keyframes deLlega{from{opacity:0;transform:translateY(34px) rotateX(8deg) scale(.97)}to{opacity:1;transform:none}}
-.de-urge{animation:deLate 2.2s ease-in-out infinite}
+.de-urge{animation:none}
 @keyframes deLate{0%,100%{box-shadow:0 0 0 0 rgba(245,120,36,.55)}50%{box-shadow:0 0 0 7px rgba(245,120,36,0)}}
 .de-tipo[aria-pressed="true"]{border-color:rgba(232,115,26,.7);background:rgba(232,115,26,.1);color:#fff}
 @media (prefers-reduced-motion:reduce){.de-tarjeta{transition:none}.de-frente,.de-urge{animation:none}}
