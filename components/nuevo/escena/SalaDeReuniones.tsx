@@ -14,14 +14,14 @@ export const ESTILO_SALA = `
 .nv-sala-p{pointer-events:auto;cursor:pointer;outline:none}
 .nv-sala-p .nv-sala-aro{transition:stroke-width .2s ease}
 .nv-sala-p:hover .nv-sala-aro,.nv-sala-p:focus-visible .nv-sala-aro{stroke-width:4}
-.nv-sala-p[data-estado="hablando"] .nv-sala-halo{animation:nvSalaHabla 1.8s ease-in-out infinite}
+
 .nv-sala-rotulo{pointer-events:auto;cursor:pointer;outline:none;opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease}
 .nv-sala:hover .nv-sala-rotulo,.nv-sala-rotulo:focus-visible,.nv-sala[data-sala="en_curso"] .nv-sala-rotulo,.nv-sala[data-abierta="true"] .nv-sala-rotulo{opacity:1;transform:none}
 .nv-sala-zona{pointer-events:auto;cursor:pointer}
 .nv-sala-rotulo:hover .nv-sala-t1,.nv-sala-rotulo:focus-visible .nv-sala-t1{stroke:#ffb86b}
 .nv-sala-luz{animation:nvAvLate 2.6s ease-in-out infinite}
 .nv-sala-burbuja{transition:transform 1.4s cubic-bezier(.4,0,.2,1),opacity 1s ease}
-.nv-sala-burbuja[data-luz="habla"] rect{animation:nvSalaHabla 1.4s ease-in-out infinite}
+
 @keyframes nvSalaHabla{0%,100%{opacity:.85}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.nv-sala-rotulo{transition:none}.nv-sala-p[data-estado="hablando"] .nv-sala-halo,.nv-sala-luz,.nv-sala-burbuja[data-luz="habla"] rect{animation:none}.nv-sala-burbuja{transition:none}}
 `
@@ -67,7 +67,7 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
     <g className="nv-sala" data-sala={r ? r.estado : "vacia"} data-abierta={abierta} data-corridas={r?.corridas.join(",") ?? ""}>
       {/* la zona del ratón: la sala de vidrio; al pasar por encima aparece el rótulo, como en las mesas */}
       <ellipse className="nv-sala-zona" cx={SALA.mesa.x} cy={SALA.mesa.y - 10} rx={200} ry={125} fill="rgba(0,0,0,0)" onClick={(e) => { e.stopPropagation(); if (r) onAbrir() }} style={{ cursor: r ? "pointer" : "default" }} />
-      {r?.estado === "en_curso" && <ellipse className="nv-sala-luz" cx={SALA.mesa.x} cy={SALA.mesa.y} rx={150} ry={95} fill="url(#nv-av-ambar)" opacity={0.7} />}
+      {/* 04-nov (Emilio 13:31Z): sin luz ámbar que late sobre la mesa de la sala */}
       <g className="nv-sala-rotulo" style={{ transform: `translateY(${-subir}px)`, transition: "transform .25s ease" } as CSSProperties} role={r ? "button" : undefined} tabIndex={r ? 0 : undefined} aria-haspopup={r ? "dialog" : undefined} aria-expanded={r ? abierta : undefined} aria-label={r ? `${lineas.join(". ")}. Ver la reunión` : lineas.join(". ")}
         onClick={(e) => { e.stopPropagation(); if (r) onAbrir() }} onKeyDown={(e) => { if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onAbrir() } }}>
         <rect x={SALA.rotulo.x - 330} y={SALA.rotulo.y - 34} width={660} height={lineas.length > 2 ? 92 : 64} fill="rgba(0,0,0,0)" />
@@ -90,7 +90,7 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
           return (
             <g key={`b-${p.agente}`} className="nv-sala-burbuja" data-burbuja={p.agente} data-luz={luz} data-uso={p.aporte?.uso ?? ""} pointerEvents="none"
               style={{ transform: `translate(${d.x}px, ${d.y}px)`, opacity: luz === "apagado" ? 0.28 : luz === "normal" || luz === "quieto" ? 0.75 : 1 } as CSSProperties}>
-              {(luz === "habla" || luz === "centro") && <circle cx={b.x} cy={b.y} r={20} fill="url(#nv-av-ambar)" />}
+              {/* 04-nov: sin el círculo ámbar detrás de quien habla */}
               <rect x={b.x - 11} y={b.y - 8} width={22} height={15} rx={5} fill={fondo} stroke={color} strokeWidth={1.6} />
               <path d={`M ${b.x - 5} ${b.y + 7} l -3 6 l 8 -6 z`} fill={fondo} stroke={color} strokeWidth={1.2} strokeLinejoin="round" />
               {[-5, 0, 5].map((k) => <circle key={k} cx={b.x + k} cy={b.y - 0.5} r={1.5} fill={color} />)}

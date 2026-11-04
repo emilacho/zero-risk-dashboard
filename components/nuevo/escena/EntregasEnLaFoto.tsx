@@ -11,11 +11,10 @@ import type { AvisoDeFirma } from "@/lib/escena-avisos"
 const FUENTE = "system-ui, Arial, sans-serif"
 export const ESTILO_ENTREGAS = `
 .nv-av .nv-metrica{outline:none}
-.nv-av .nv-metrica .nv-metrica-cuadro{pointer-events:auto;cursor:pointer;filter:drop-shadow(0 0 4px rgba(255,170,60,.55));transition:fill-opacity .25s ease}
+.nv-av .nv-metrica .nv-metrica-cuadro{pointer-events:auto;cursor:pointer;transition:fill-opacity .25s ease}
 .nv-av .nv-metrica:hover .nv-metrica-cuadro,.nv-av .nv-metrica:focus-visible .nv-metrica-cuadro{fill-opacity:.45}
 .nv-av .nv-vitrina-hit{pointer-events:auto;cursor:pointer;outline:none}
 .nv-av .nv-firma{pointer-events:auto;cursor:pointer;outline:none}
-.nv-av .nv-firma .nv-firma-luz{animation:nvFirmaPulso 3.6s ease-in-out infinite}
 .nv-av .nv-firma .nv-firma-rotulo{opacity:0;transition:opacity .25s ease;pointer-events:none}
 .nv-av .nv-firma:hover .nv-firma-rotulo,.nv-av .nv-firma:focus-visible .nv-firma-rotulo{opacity:1}
 @keyframes nvFirmaPulso{0%,100%{opacity:.35}50%{opacity:.95}}
@@ -106,7 +105,7 @@ export function LamparaDeFirma({ pendientes }: { pendientes: number }) {
   const { x, y } = LAMPARA_DE_FIRMA
   return (
     <a className="nv-firma" href={ENLACE_A_TU_OFICINA} data-firma={pendientes} data-lampara aria-label={`${rotulo}. Ir a Tu oficina`}>
-      <ellipse className="nv-firma-luz" cx={x + 2} cy={y - 14} rx={58} ry={42} fill="url(#nv-av-ambar)" />
+      {/* 04-nov (Emilio 13:31Z): la lámpara sin aura ámbar ni latido */}
       <ellipse cx={x} cy={y} rx={8} ry={3.4} fill="#1b1713" stroke="#8a6a3c" strokeWidth={0.6} />
       <line x1={x} y1={y} x2={x + 2} y2={y - 15} stroke="#7a6a55" strokeWidth={1.7} strokeLinecap="round" />
       <polygon className="nv-firma-luz" points={`${x - 7},${y - 14} ${x + 9},${y - 21} ${x + 12},${y - 9} ${x - 3},${y - 6}`} fill="#ffb347" fillOpacity={0.95} stroke="#ffd9a0" strokeWidth={0.8} style={{ filter: "drop-shadow(0 0 7px rgba(255,170,60,.95))" }} />

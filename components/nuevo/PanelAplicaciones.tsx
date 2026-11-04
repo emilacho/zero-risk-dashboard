@@ -24,7 +24,7 @@ const ESTILO = `
 .ap-cuadro{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease;animation:apEntra .5s cubic-bezier(.2,.8,.2,1) both}
 .ap-cuadro:hover{transform:translateY(-3px) scale(1.02);border-color:rgba(232,115,26,.75);background:rgba(232,115,26,.08);box-shadow:0 0 0 1px rgba(232,115,26,.35),0 10px 30px rgba(0,0,0,.45),0 0 26px rgba(232,115,26,.22)}
 .ap-cuadro:hover .ap-icono{filter:drop-shadow(0 0 8px rgba(232,115,26,.8))}
-.ap-cuadro[data-aviso="true"] .ap-punto{animation:apLate 2.2s ease-in-out infinite}
+.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}
 @keyframes apEntra{from{opacity:0;transform:translateY(10px) scale(.9)}to{opacity:1;transform:none}}
 @keyframes apLate{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.6)}50%{box-shadow:0 0 0 6px rgba(245,165,36,0)}}
 @media (prefers-reduced-motion:reduce){.ap-cuadro{transition:none;animation:none}.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}}
