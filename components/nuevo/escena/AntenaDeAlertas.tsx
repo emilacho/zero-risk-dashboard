@@ -2,13 +2,13 @@
 /**
  * LA ANTENA (CC4 · 04-nov · Emilio eligió la opción 3 con animación sutil, 15:19Z): la parabólica de la plataforma de arriba a la izquierda avisa las alertas del departamento.
  * Sin alertas: no se dibuja nada (la antena de la foto queda quieta como está). Con alguna: la punta mayor se pone roja con un aura muy suave que respira, el borde de la plataforma
- * se vuelve una línea roja y por dentro de ella corre una luz, en sentido del reloj, como el agua dentro de una manguera. Al tocarla se abre un panel con la lista (mismo marco que los demás).
+ * se vuelve una línea roja y por dentro de ella corre un tramo de la MISMA línea (mismo color y grosor, solo más brillante), en sentido del reloj, como el agua dentro de una manguera. Al tocarla se abre un panel con la lista (mismo marco que los demás).
  * Luces pequeñas y realistas sobre la foto: nada de formas planas.
  */
 import { ANTENA, BORDE_DE_LA_ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
 
 export const CSS_DE_LA_ANTENA = `
-@keyframes nvAntPulso{0%,100%{opacity:.55}50%{opacity:.95}}
+@keyframes nvAntPulso{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
 @keyframes nvAntCorre{from{stroke-dashoffset:0}to{stroke-dashoffset:-100}}
 @media (prefers-reduced-motion:reduce){.nv-antena .nv-antena-pulso,.nv-antena .nv-antena-corre{animation:none}}`
 
@@ -28,12 +28,12 @@ export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAnten
       {/* la línea del borde de la plataforma, en rojo; la luz corre por dentro de ella sin salirse (mismo trazo, mismo largo) */}
       <g filter="url(#nvAntDifumina)" fill="none" strokeLinejoin="round" strokeLinecap="round">
         <path className="nv-antena-borde" d={BORDE_DE_LA_ANTENA} stroke="#e0301f" strokeWidth={3.2} opacity={0.85} />
-        <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ffd2c8" strokeWidth={3.4} strokeDasharray="9 91" style={{ animation: "nvAntCorre 4.2s linear infinite" }} />
+        <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff7a62" strokeWidth={3.2} strokeDasharray="9 91" style={{ animation: "nvAntCorre 4.2s linear infinite" }} />
       </g>
       {/* la luz de la punta mayor: aura suave que respira, sin círculo plano */}
-      <g className="nv-antena-pulso" style={{ animation: "nvAntPulso 3.6s ease-in-out infinite" }}>
-        <circle cx={punta2.x} cy={punta2.y} r={16} fill="url(#nvAntRojo)" />
-        <circle cx={punta2.x} cy={punta2.y} r={3.5} fill="#fff4f0" />
+      <g className="nv-antena-pulso" style={{ animation: "nvAntPulso 2.2s ease-in-out infinite", transformBox: "fill-box", transformOrigin: "center" }}>
+        <circle cx={punta2.x} cy={punta2.y} r={28} fill="url(#nvAntRojo)" />
+        <circle cx={punta2.x} cy={punta2.y} r={4} fill="#fff4f0" />
       </g>
       <ellipse cx={ANTENA.plato.x} cy={ANTENA.plato.y} rx={ANTENA.plato.rx + 14} ry={ANTENA.plato.ry + 14} fill="rgba(0,0,0,0)" role="button" tabIndex={0}
         aria-label={`${alertas.length === 1 ? "1 alerta" : `${alertas.length} alertas`} del departamento. Ver la lista`} style={{ cursor: "pointer", pointerEvents: "auto", outline: "none" }}

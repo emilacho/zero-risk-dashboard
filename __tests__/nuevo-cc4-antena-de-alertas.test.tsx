@@ -85,6 +85,10 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
     const html = renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas: armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)] }), onAbrir: () => undefined })))
     expect(html).toContain('data-alertas="1"'); expect(html).toContain('aria-label="1 alerta del departamento. Ver la lista"')
     expect(html).toContain("nv-antena-pulso"); expect(html).toContain("nv-antena-corre")
+    expect(html).not.toMatch(/#ffd2c8|#fff1ee"[^>]*stroke/) // el tramo blanco desapareció (Emilio 15:34Z)
+    const trazos = [...html.matchAll(/<path[^>]*stroke-width="([\d.]+)"/g)].map((m) => m[1])
+    expect(new Set(trazos).size).toBe(1) // la línea y el tramo que viaja tienen el mismo grosor
+    expect(html).toContain("nvAntPulso 2.2s")
     expect(html).toContain(`d="${BORDE_DE_LA_ANTENA}"`) // la luz y la línea comparten el mismo trazo: no se sale del canal
     expect(html).not.toMatch(/<ellipse[^>]*fill-opacity|stroke-width="3"[^>]*fill-opacity/) // ningún plato plano translúcido (#273)
     expect(html).not.toContain("nv-antena-lista")
