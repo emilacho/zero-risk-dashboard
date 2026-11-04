@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { MAXIMO_DE_PUESTOS_A_LA_VISTA, MAXIMO_DE_PUESTOS_FIJOS, MESAS, ordenDelRoster, puestoFijo, type MesaViva, type Sentado } from "@/lib/escena-avatares"
+import { MAXIMO_DE_PUESTOS_A_LA_VISTA, MAXIMO_DE_PUESTOS_FIJOS, MESAS, PUESTOS_DE_REBOSE, puestoDeRebose, ordenDelRoster, puestoFijo, type MesaViva, type Sentado } from "@/lib/escena-avatares"
 import { repartirEnLaMesa } from "@/lib/escena-movimiento"
 
 // ENCARGO de Lenovo 04-nov (punto 9): cada agente tiene un escritorio fijo en su equipo, en el orden del roster; trabaja sentado en el suyo (punto 10, parte segura)
@@ -50,6 +50,15 @@ describe("CC4 · escritorio fijo por agente", () => {
     const r = ordenDelRoster("direccion", ["editor-en-jefe", "zzz-nuevo", "revisor-externo-gpt", "jefe-marketing", "aaa-nuevo"])
     expect(r.slice(0, 3)).toEqual(["jefe-marketing", "revisor-externo-gpt", "editor-en-jefe"].map((x) => x.replace(/_/g, "-")))
     expect(r.slice(3)).toEqual(["aaa-nuevo", "zzz-nuevo"])
+  })
+  it("reserva de CC3: ningún puesto de rebose pisa un puesto fijo ni a otro de rebose, en ninguna de las 6 mesas (un cambio de coordenadas que los junte hace saltar esta prueba)", () => {
+    for (const m of MESAS) {
+      const fijos = Array.from({ length: MAXIMO_DE_PUESTOS_FIJOS }, (_, i) => puestoFijo(m, i)!)
+      const rebose = Array.from({ length: PUESTOS_DE_REBOSE.length }, (_, k) => puestoDeRebose(m, k)!)
+      const todos = [...fijos, ...rebose]
+      expect(todos).toHaveLength(MAXIMO_DE_PUESTOS_A_LA_VISTA)
+      for (let a = 0; a < todos.length; a++) for (let b = a + 1; b < todos.length; b++) expect(Math.hypot(todos[a].x - todos[b].x, todos[a].y - todos[b].y), `${m.clave} ${a} vs ${b}`).toBeGreaterThanOrEqual(40)
+    }
   })
   it("cableado: el roster viaja en cada mesa de la escena y las entregas parten del puesto del autor", () => {
     expect(readFileSync("lib/escena-avatares.ts", "utf8")).toContain("roster: ordenDelRoster(m.clave, equipo.map((x) => x.agente))")
