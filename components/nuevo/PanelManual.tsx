@@ -6,7 +6,7 @@ import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
-import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, textoDelAvisoDeSalir, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
+import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, TEXTO_DEL_OTRO_EQUIPO, textoDelAvisoDeSalir, unoALaVez, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
 import { cuantosCambios, enviarTusCambios, quitarDeTusCambios, renglonesDeTusCambios, type ComoCambio, type TusCambios } from "@/lib/pedido-del-manual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { JerarquiaTipografica } from "@/components/nuevo/manual/JerarquiaTipografica"
@@ -268,7 +268,12 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
   const [guardando, setGuardando] = useState(false)
   const [guardadoOk, setGuardadoOk] = useState(false)
   // EL BORRADOR (corrección de Lenovo 18:13Z): «Tus cambios» se guarda solo en la plataforma y vuelve al abrir el manual en cualquier equipo
-  const [guardadoDelBorrador, setGuardadoDelBorrador] = useState<{ revision: number | null; actualizado_en: string | null } | null>(borradorInicial)
+  const [guardadoDelBorrador, ponerGuardadoEnPantalla] = useState<{ revision: number | null; actualizado_en: string | null } | null>(borradorInicial)
+  /** la revisión vigente, al instante (no espera al siguiente render): el guardado que sigue sale con ELLA (04-nov: dos guardados con la misma revisión chocaban) */
+  const revisionVigente = useRef<number | null>(borradorInicial?.revision ?? null)
+  const setGuardadoDelBorrador = (g: { revision: number | null; actualizado_en: string | null } | null) => { revisionVigente.current = g?.revision ?? null; ponerGuardadoEnPantalla(g) }
+  /** choque REAL con otro equipo: lo escrito aquí ganó; lo del otro equipo queda para recuperarlo si Emilio quiere */
+  const [delOtroEquipo, setDelOtroEquipo] = useState<BorradorDelDueno | null>(null)
   const [borradorViejo, setBorradorViejo] = useState<BorradorDelDueno | null>(borradorViejoInicial)
   const [salir, setSalir] = useState<null | (() => void)>(salirInicial ? () => () => {} : null)
   /** el último guardado del borrador falló: el aviso al salir lo dice (no promete) */
@@ -319,7 +324,8 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     void apiBorrador.leer(cliente, "manual").then((r) => {
       if (!vivo) return
       const b = r.borrador, q = queHacerAlAbrir(b, manualId)
-      if (b && q.tipo !== "nada") setGuardadoDelBorrador({ revision: b.revision, actualizado_en: b.actualizado_en })
+      // la revisión se guarda SIEMPRE que haya fila, aunque venga vacía (CC1 04-nov: con fila vacía el primer guardado salía con 0 y chocaba)
+      if (b) setGuardadoDelBorrador({ revision: b.revision, actualizado_en: b.actualizado_en })
       if (q.tipo === "recuperar") { ponerTus(q.acciones); ultimoGuardado.current = JSON.stringify(q.acciones) }
       else if (q.tipo === "preguntar") setBorradorViejo(q.borrador)
       // si la lectura falló, NO se marca como leído: no se guarda encima de un borrador que no se pudo ver
@@ -336,29 +342,51 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     if (paso === "nada") return borradorDe.current === llaveDelBorrador || borradorVacio(tus)
     ultimoGuardado.current = fotoDeTus
     // vaciar se hace guardando VACÍO con la revisión (la plataforma lo borra): si otro equipo marcó algo entretanto, da 409 y se muestra (reserva 2 de CC3)
-    const g = await apiBorrador.guardar(cliente, "manual", manualId, paso === "borrar" ? { campos: {}, como: {}, notas: {}, libre: "" } : tus, guardadoDelBorrador?.revision ?? 0)
-    if (g.otroEquipo && g.borrador) { // otro equipo lo cambió: se muestra lo último guardado (no se pisa)
-      ponerTus(g.borrador.acciones); ultimoGuardado.current = JSON.stringify(g.borrador.acciones)
-      setGuardadoDelBorrador({ revision: g.borrador.revision, actualizado_en: g.borrador.actualizado_en })
-      setAviso({ ok: false, texto: "Tu borrador cambió en otro equipo: te muestro lo último que se guardó." }); setNoSePudoGuardar(false); return true
+    const lo = paso === "borrar" ? { campos: {}, como: {}, notas: {}, libre: "" } : tus
+    let g = await apiBorrador.guardar(cliente, "manual", manualId, lo, revisionVigente.current ?? 0)
+    if (g.otroEquipo && g.borrador) {
+      // choque REAL (otro equipo guardó entretanto): lo que se escribe AQUÍ no se pisa. Se guarda encima con la revisión vigente y lo del otro equipo
+      // queda para recuperarlo con un toque (Lenovo 04-nov: «gana lo último que escribió esta pestaña y el aviso ofrece recuperar lo otro»)
+      const otro = g.borrador
+      revisionVigente.current = otro.revision
+      if (paso === "borrar") {
+        // reserva 2 de CC3 (#240): vaciar NUNCA borra a ciegas lo que otro equipo acaba de marcar; aquí no se escribía nada, así que se muestra lo suyo
+        ponerTus(otro.acciones); ultimoGuardado.current = JSON.stringify(otro.acciones)
+        setGuardadoDelBorrador({ revision: otro.revision, actualizado_en: otro.actualizado_en })
+        setAviso({ ok: true, texto: "En otro equipo se marcaron cambios en este borrador: te los muestro." }); setNoSePudoGuardar(false); return true
+      }
+      g = await apiBorrador.guardar(cliente, "manual", manualId, lo, otro.revision ?? 0)
+      if (!borradorVacio(otro.acciones) && JSON.stringify(otro.acciones) !== JSON.stringify(lo)) setDelOtroEquipo(otro)
     }
     if (g.ok) {
       setGuardadoDelBorrador(g.borrador ? { revision: g.borrador.revision, actualizado_en: g.borrador.actualizado_en } : null)
       if (g.borrador) setBorradorViejo(null)
       setNoSePudoGuardar(false); return true
     }
+    if (g.borrador && g.otroEquipo) revisionVigente.current = g.borrador.revision // segundo choque seguido: se reintenta en el próximo cambio, sin pisar nada
     ultimoGuardado.current = "" // no se guardó: se reintenta en el próximo cambio o al salir, y el aviso de salir lo dice
     setNoSePudoGuardar(true); return false
   }
-  const guardarYa = useRef(guardarElBorradorYa); guardarYa.current = guardarElBorradorYa
+  const guardarAhora = useRef(guardarElBorradorYa); guardarAhora.current = guardarElBorradorYa
+  // un guardado a la vez: el siguiente espera al que está en vuelo y sale con lo último (y su revisión)
+  const guardarYa = useRef<() => Promise<boolean>>(unoALaVez(() => guardarAhora.current()))
   useEffect(() => {
     if (!llaveDelBorrador) return
     const t = setTimeout(() => { void guardarYa.current() }, PAUSA_DEL_BORRADOR_MS)
     return () => clearTimeout(t)
   }, [fotoDeTus, llaveDelBorrador])
+  // el aviso de salir solo aparece al intentar salir: si Emilio sigue escribiendo, se quita (04-nov: quedaba fijo arriba)
+  const fotoAlPedirSalir = useRef<string | null>(null)
+  useEffect(() => {
+    if (!salir) { fotoAlPedirSalir.current = null; return }
+    if (fotoAlPedirSalir.current == null) { fotoAlPedirSalir.current = fotoDeTus; return }
+    if (fotoAlPedirSalir.current !== fotoDeTus) setSalir(null)
+  }, [fotoDeTus, salir])
   // «hace N min» se actualiza solo
   useEffect(() => { const t = setInterval(() => setAhora(new Date()), 30_000); return () => clearInterval(t) }, [])
   // 3 · salir con cambios: aviso propio (cerrar, Esc, fuera del panel, cambiar de cliente) y el nativo del navegador al recargar
+  // clic fuera: solo si el clic EMPIEZA y TERMINA fuera (arrastrar para seleccionar texto y soltar afuera no pide salir · 04-nov)
+  const abajoAfuera = useRef(false)
   const salirConAviso = useRef<(seguir: () => void) => void>(() => {})
   salirConAviso.current = (seguir) => { if (nCambios > 0) setSalir(() => seguir); else seguir() }
   useEffect(() => {
@@ -422,7 +450,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
   ) : null
 
   return (
-    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) salirConAviso.current(onCerrar) }}>
+    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { abajoAfuera.current = e.target === e.currentTarget }} onMouseUp={(e) => { if (abajoAfuera.current && e.target === e.currentTarget) salirConAviso.current(onCerrar); abajoAfuera.current = false }}>
       <style>{ESTILO}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="manual-titulo" data-seccion="manual" className="relative flex max-h-full w-full max-w-[1280px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
@@ -457,6 +485,13 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
           </div>
         )}
         {error && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-6">{error}</p>}
+        {delOtroEquipo && (
+          <div data-del-otro-equipo className="flex flex-wrap items-center gap-3 border-b border-amber-400/40 bg-amber-500/[0.07] px-4 py-3 sm:px-6">
+            <p className="text-[14px] text-amber-50">{TEXTO_DEL_OTRO_EQUIPO}</p>
+            <button type="button" data-accion="recuperar-del-otro-equipo" onClick={() => { const b = delOtroEquipo; setDelOtroEquipo(null); ponerTus(b.acciones) }} className="min-h-11 rounded-lg border border-amber-400/70 bg-amber-400/15 px-4 py-2 text-[14px] font-medium text-amber-50 hover:bg-amber-400/25">Ver lo del otro equipo</button>
+            <button type="button" data-accion="quedarme-con-lo-mio" onClick={() => setDelOtroEquipo(null)} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.06]">Seguir con lo mío</button>
+          </div>
+        )}
         {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
