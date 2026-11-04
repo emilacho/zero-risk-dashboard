@@ -43,8 +43,11 @@ export function resumenDeLaSeccion(cuerpo: string, n = 3, largo = 220): string[]
 }
 
 /** el documento en secciones `##` (lo de antes del primer `##` da el título y la bajada) */
+/** 04-nov · Emilio: el plan sale sin rótulos internos. Las citas [D12] las usa el chequeo sobre el texto guardado; al dueño no se le muestran */
+export const sinCitasInternas = (md: string): string => md.replace(/[ \t]*\[D\d+(?:\s*,\s*D\d+)*\]/g, "")
+
 export function seccionesDelPlan(md: string | null | undefined): DocumentoEnSecciones {
-  const texto = String(md ?? "").replace(/\r/g, "")
+  const texto = sinCitasInternas(String(md ?? "").replace(/\r/g, ""))
   const lineas = texto.split("\n")
   let titulo: string | null = null, bajada: string | null = null
   const secciones: SeccionDelPlan[] = []
