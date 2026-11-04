@@ -73,7 +73,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
   })
   it("el tablero de la oficina abre primero las aplicaciones (la escena ya no monta el calendario directo)", () => {
     const e = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
-    expect(e).toContain("createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)")
+    expect(e).toContain('createPortal(<PanelAplicaciones key={vistaDelPizarron ?? "inicio"} onCerrar={() => { setVistaDelPizarron(null); cerrarPizarron() }} vistaInicial={vistaDelPizarron ?? undefined} />, document.body)')
     expect(e).not.toContain("<PanelPizarron")
   })
 })

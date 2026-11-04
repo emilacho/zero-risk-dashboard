@@ -74,13 +74,13 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
 
 const CLASE_DEL_CUADRO = "ap-cuadro relative flex aspect-[1/0.92] flex-col items-start justify-end rounded-2xl border border-white/10 bg-[#171717]/90 p-4 text-left shadow-xl focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400 sm:aspect-[1/0.85]"
 
-export function PanelAplicaciones({ onCerrar, datosIniciales = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null }) {
+export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicial }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   const [centro, setCentro] = useState<Centro | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
-  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>("inicio")
+  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>(vistaInicial ?? "inicio")
   // una pieza abierta desde el calendario: al cerrarla se vuelve al calendario, no a los cuadros
   const [piezaAbierta, setPiezaAbierta] = useState<{ id: string; desde: "calendario" | "inicio" } | null>(null)
   const primero = useRef<HTMLAnchorElement>(null)

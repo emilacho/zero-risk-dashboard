@@ -6,7 +6,7 @@
 /** los paneles que el marco puede abrir encima de la escena (el mismo nombre que usa el evento `nv:abrir-panel`) */
 export type PanelDelMarco = "riesgos" | "dinero" | "organizacion" | "observabilidad" | "piezas" | "aplicaciones" | "envivo" | "decisiones"
 export const EVENTO_ABRIR_PANEL = "nv:abrir-panel"
-export interface PedidoDePanel { panel: PanelDelMarco; pieza?: string | null }
+export interface PedidoDePanel { panel: PanelDelMarco; pieza?: string | null; /** «aplicaciones»: abrir directo en esta aplicación (04-nov · el aviso del pizarrón abre el manual) */ vista?: import("@/lib/aplicaciones-marketing").ClaveDeAplicacion }
 
 /** CC6 · 03-nov (auditoría punto 15 · una sola vista del equipo): el Centro de campaña pide a la escena de Marketing que abra el Squad Hub de CC4 */
 export const EVENTO_ABRIR_PLANTEL = "nv:abrir-plantel"

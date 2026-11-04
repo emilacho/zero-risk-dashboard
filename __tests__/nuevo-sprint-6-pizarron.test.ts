@@ -175,7 +175,7 @@ describe("la puerta y el dibujo", () => {
     expect(html).toMatch(/<g class="nv-tablero"[^>]*role="button"[^>]*aria-haspopup="dialog" aria-expanded="false"/)
     expect(html).not.toContain('data-seccion="pizarron"')
     const c = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
-    expect(c).toContain("createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)") // 6.2: primero las aplicaciones; el calendario se abre desde ahí
+    expect(c).toContain('createPortal(<PanelAplicaciones key={vistaDelPizarron ?? "inicio"} onCerrar={() => { setVistaDelPizarron(null); cerrarPizarron() }} vistaInicial={vistaDelPizarron ?? undefined} />, document.body)') // 6.2: primero las aplicaciones; el calendario se abre desde ahí
   })
   it("el panel dibuja la campaña, la gran idea ausente, la leyenda, las semanas, la casilla destacada y el enlace a la ventana de la pieza", () => {
     const filas: FilaDelTablero[] = [

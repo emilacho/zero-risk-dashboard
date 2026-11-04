@@ -6,6 +6,7 @@ import { useEffect, useState, type CSSProperties } from "react"
 import { ANCLA_DE_LA_TARJETA, CUADROS_DEL_PIZARRON, ENLACE_A_TU_OFICINA, LAMPARA_DE_FIRMA, rotuloDeLaFirma, type EntregaViva } from "@/lib/escena-entregas"
 import { TEXTO_SIN_METRICAS, type MetricasDelPizarron } from "@/lib/escena-metricas"
 import { PANTALLA_VERTICAL, ROTACION_DE_LA_VITRINA_MS, type VitrinaDeLaEscena } from "@/lib/escena-vitrina"
+import type { AvisoDeFirma } from "@/lib/escena-avisos"
 
 const FUENTE = "system-ui, Arial, sans-serif"
 export const ESTILO_ENTREGAS = `
@@ -18,13 +19,19 @@ export const ESTILO_ENTREGAS = `
 .nv-av .nv-firma .nv-firma-rotulo{opacity:0;transition:opacity .25s ease;pointer-events:none}
 .nv-av .nv-firma:hover .nv-firma-rotulo,.nv-av .nv-firma:focus-visible .nv-firma-rotulo{opacity:1}
 @keyframes nvFirmaPulso{0%,100%{opacity:.35}50%{opacity:.95}}
-@media (prefers-reduced-motion:reduce){.nv-av .nv-firma .nv-firma-luz{animation:none;opacity:.7}.nv-av .nv-metrica .nv-metrica-cuadro{transition:none}}
+.nv-av .nv-aviso-firma .nv-metrica-cuadro{fill:#ffb347;stroke:#ffe2a8;animation:nvAvisoFirma 2.4s ease-in-out infinite}
+.nv-av .nv-aviso-firma .nv-aviso-rotulo{pointer-events:auto;cursor:pointer}
+@keyframes nvAvisoFirma{0%,100%{fill-opacity:.35}50%{fill-opacity:.85}}
+@media (prefers-reduced-motion:reduce){.nv-av .nv-firma .nv-firma-luz{animation:none;opacity:.7}.nv-av .nv-metrica .nv-metrica-cuadro{transition:none}.nv-av .nv-aviso-firma .nv-metrica-cuadro{animation:none;fill-opacity:.7}}
 `
 
 const puntos = (p: Array<{ x: number; y: number }>) => p.map((q) => `${q.x},${q.y}`).join(" ")
 
 /** los cuadros del pizarrón son de MÉTRICAS: «General» y uno por red del cliente. Hoy dicen «métricas pronto»; al pasar el cursor, el nombre y el estado (la métrica principal y su variación llegan con el contrato de CC1) */
-export function CuadrosDeMetricas({ metricas, onAbrir }: { metricas: MetricasDelPizarron | undefined; onAbrir?: (clave: string) => void }) {
+/** el rótulo del aviso de firma, en píxeles de la foto (2560 de ancho): a 1280 px de pantalla queda de 48 px de alto y letra de 15 px */
+export const ROTULO_DEL_AVISO = { alto: 96, letra: 30 } as const
+
+export function CuadrosDeMetricas({ metricas, onAbrir, aviso = null, onAviso }: { metricas: MetricasDelPizarron | undefined; onAbrir?: (clave: string) => void; /** 04-nov · lo que espera la firma: el PRIMER recuadro titila y lo dice */ aviso?: AvisoDeFirma | null; onAviso?: (a: AvisoDeFirma) => void }) {
   const [activo, setActivo] = useState<string | null>(null)
   if (!metricas) return null
   const cuadros = metricas.cuadros.slice(0, CUADROS_DEL_PIZARRON.length)
@@ -37,6 +44,22 @@ export function CuadrosDeMetricas({ metricas, onAbrir }: { metricas: MetricasDel
         width={Math.max(...CUADROS_DEL_PIZARRON.flat().map((q) => q.x)) - Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.x)) + 20} height={Math.max(...CUADROS_DEL_PIZARRON.flat().map((q) => q.y)) - Math.min(...CUADROS_DEL_PIZARRON.flat().map((q) => q.y)) + 20}
         fill="rgba(0,0,0,0)" style={{ filter: "none" }} role="button" tabIndex={0} aria-label="Abrir el pizarrón de métricas" onClick={() => onAbrir?.("")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.("") } }} />
       {cuadros.map((c, i) => {
+        // 04-nov (Emilio 11:29Z) · el primer recuadro (arriba a la izquierda) queda para lo que espera la firma: titila en ámbar y dice qué es; al tocarlo, lo abre
+        if (i === 0 && aviso) {
+          const q = CUADROS_DEL_PIZARRON[0], x = Math.min(...q.map((p) => p.x)), y = Math.min(...q.map((p) => p.y))
+          // reserva 1 de CC3 (#264): en píxeles de la foto (2560 de ancho) el rótulo se ve a la mitad en un portátil de 1280 → se dibuja al DOBLE: ≥44 px de alto y letra ≥14 px ahí
+          const w = Math.max(300, aviso.texto.length * ROTULO_DEL_AVISO.letra * 0.53 + 48)
+          return (
+            <g key={`aviso-${aviso.clave}`} className="nv-metrica nv-aviso-firma" data-aviso-firma={aviso.clave} role="button" tabIndex={0} aria-label={aviso.texto}
+              onClick={() => onAviso?.(aviso)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAviso?.(aviso) } }}>
+              <polygon className="nv-metrica-cuadro" points={puntos(q)} strokeWidth={1.2} />
+              <g className="nv-aviso-rotulo" transform={`translate(${x - 8} ${y - ROTULO_DEL_AVISO.alto - 12})`}>
+                <rect x={0} y={0} width={w} height={ROTULO_DEL_AVISO.alto} rx={20} fill="#0e0c0a" fillOpacity={0.95} stroke="#ffb347" strokeOpacity={0.9} strokeWidth={2.4} />
+                <text x={24} y={ROTULO_DEL_AVISO.alto / 2 + ROTULO_DEL_AVISO.letra * 0.36} fontFamily={FUENTE} fontSize={ROTULO_DEL_AVISO.letra} fontWeight={600} fill="#ffe2a8">{aviso.texto}</text>
+              </g>
+            </g>
+          )
+        }
         return (
           <g key={c.clave} className="nv-metrica" data-metrica={c.clave} data-tiene={c.tiene} opacity={c.tiene ? 1 : 0.4} role="button" tabIndex={0} onClick={() => onAbrir?.(c.clave)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir?.(c.clave) } }} aria-label={`${c.nombre}: ${c.principal ? `${c.principal}${c.variacion ? `, ${c.variacion}` : ""}` : c.texto}`}
             onMouseEnter={() => setActivo(c.clave)} onMouseLeave={() => setActivo(null)} onFocus={() => setActivo(c.clave)} onBlur={() => setActivo(null)}>

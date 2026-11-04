@@ -3,6 +3,7 @@
  * (`agent_invocations`), la mesa de cada uno (`oficina_directorio.equipo` + `oficina_equipos`) y los nombres (`agents`, `clients`). Una lectura pequeña por pedido;
  * el navegador pide cada pocos segundos. Los nombres y el directorio se leen una vez cada 5 min. Nada se escribe.
  */
+import { leerAvisosDeFirma, type AvisoDeFirma } from "@/lib/escena-avisos"
 import { esperaLaFirma, manualAprobadoPorCliente } from "@/lib/manual-primero"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
@@ -87,6 +88,8 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
   try { escena = { ...escena, metricas: await leerElPizarronDeMetricas(supa, ahora, cliente) } } catch { /* sin pizarrón esta vez */ }
   // la pantalla vertical: la vitrina de las mejores piezas (hoy «métricas pronto» + la última pieza aprobada)
   try { escena = { ...escena, vitrina: await leerLaVitrinaDeMarketing(supa, ahora, cliente) } } catch { /* sin vitrina esta vez */ }
+  // 04-nov (CC6) · lo que espera la firma (hoy: el manual listo del cliente de la escena): el primer recuadro del pizarrón titila
+  try { escena = { ...escena, avisos: await leerAvisosDeLaEscena(supa, ahora, cliente) } } catch { /* sin aviso esta vez: no titila por un error */ }
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
@@ -166,6 +169,14 @@ export async function leerElPizarronDeMetricas(supa: SupabaseClient, ahora: Date
     }
     const lectura = await leerMetricas(supa, { cliente: cliente?.id ?? null })
     return { cliente: cliente?.nombre ?? null, cuadros: cuadrosDelPizarron(redes, lectura), lectura: lectura.estado }
+  })
+}
+
+/** los avisos de firma del cliente de la escena (manual listo). Solo lectura, en caché 30 s */
+export async function leerAvisosDeLaEscena(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null): Promise<AvisoDeFirma[]> {
+  return conCache(`escena-viva-avisos:${clientePedido ?? "omision"}`, 30_000, async () => {
+    const plan = await planDeLaEscena(supa, ahora, clientePedido)
+    return leerAvisosDeFirma(supa, plan.cliente?.id ?? null)
   })
 }
 
