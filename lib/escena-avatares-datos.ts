@@ -4,6 +4,7 @@
  * el navegador pide cada pocos segundos. Los nombres y el directorio se leen una vez cada 5 min. Nada se escribe.
  */
 import { leerAvisosDeFirma, type AvisoDeFirma } from "@/lib/escena-avisos"
+import { armarAlertas, DIAS_DE_UNA_FALLA, type AlertaDeLaAntena, type CorridaConGasto } from "@/lib/escena-alertas"
 import { esperaLaFirma, manualAprobadoPorCliente } from "@/lib/manual-primero"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
@@ -90,6 +91,8 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
   try { escena = { ...escena, vitrina: await leerLaVitrinaDeMarketing(supa, ahora, cliente) } } catch { /* sin vitrina esta vez */ }
   // 04-nov (CC6) · lo que espera la firma (hoy: el manual listo del cliente de la escena): el primer recuadro del pizarrón titila
   try { escena = { ...escena, avisos: await leerAvisosDeLaEscena(supa, ahora, cliente) } } catch { /* sin aviso esta vez: no titila por un error */ }
+  // 04-nov · la antena: las alertas del departamento (solo lectura; si una lectura falla, no se inventa ninguna)
+  try { escena = { ...escena, alertas: await leerAlertasDeLaAntena(supa, ahora, cliente) } } catch { /* sin alertas esta vez */ }
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
@@ -177,6 +180,39 @@ export async function leerAvisosDeLaEscena(supa: SupabaseClient, ahora: Date, cl
   return conCache(`escena-viva-avisos:${clientePedido ?? "omision"}`, 30_000, async () => {
     const plan = await planDeLaEscena(supa, ahora, clientePedido)
     return leerAvisosDeFirma(supa, plan.cliente?.id ?? null)
+  })
+}
+
+/** las alertas que avisa la antena del cliente de la escena. Solo lectura, en caché 30 s; un error de lectura es excepción, nunca «sin alertas» */
+export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null): Promise<AlertaDeLaAntena[]> {
+  return conCache(`escena-viva-alertas:${clientePedido ?? "omision"}`, 30_000, async () => {
+    const plan = await planDeLaEscena(supa, ahora, clientePedido)
+    const cliente = plan.cliente?.id ?? null
+    const iso = (h: number) => new Date(ahora.getTime() - h * 3_600_000).toISOString()
+    const [pc, cd, ca, dp, inv] = await Promise.all([
+      filas(supa.from("plan_corridas").select("id, client_id, estado, creado_en, actualizado_en, vence_en, motivo, dry_run").gte("creado_en", iso(DIAS_DE_UNA_FALLA * 24 + 24)).order("creado_en", { ascending: false }).limit(100), "plan_corridas"),
+      filas(supa.from("cerebro_diario_corridas").select("client_id, dia, estado, prueba").order("dia", { ascending: false }).limit(30), "cerebro_diario_corridas"),
+      filas(supa.from("cerebro_alertas").select("clave, ultima_en").is("cerrado_en", null).limit(20), "cerebro_alertas"),
+      filas(supa.from("cerebro_dueno_preguntas").select("id, client_id, pregunta, estado, creado_en").eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(50), "cerebro_dueno_preguntas"),
+      filas(supa.from("agent_invocations").select("workflow_execution_id, workflow_id, client_id, cost_usd, started_at").gte("started_at", iso(72)).gt("cost_usd", 0).limit(2000), "agent_invocations"),
+    ])
+    const porCorrida = new Map<string, CorridaConGasto>()
+    for (const i of inv) {
+      const e = s(i.workflow_execution_id), f = s(i.workflow_id), ini = s(i.started_at)
+      if (!e || !ini) continue
+      const c = porCorrida.get(e) ?? { ejecucion: e, flujo: f, client_id: s(i.client_id), costo: 0, inicio: ini }
+      c.costo += Number(i.cost_usd) || 0
+      if (ini > c.inicio) c.inicio = ini
+      porCorrida.set(e, c)
+    }
+    return armarAlertas({
+      cliente, ahora,
+      plan: pc.map((p) => ({ id: String(p.id), client_id: s(p.client_id), estado: s(p.estado), creado_en: s(p.creado_en), actualizado_en: s(p.actualizado_en), vence_en: s(p.vence_en), motivo: s(p.motivo), dry_run: p.dry_run === true })),
+      cerebroDiario: cd.map((c) => ({ client_id: s(c.client_id), dia: s(c.dia), estado: s(c.estado), prueba: c.prueba === true })),
+      alarmasDelCerebro: ca.map((a) => ({ clave: String(a.clave), ultima_en: s(a.ultima_en) })),
+      preguntas: dp.map((p) => ({ id: String(p.id), client_id: s(p.client_id), pregunta: s(p.pregunta), estado: s(p.estado), creado_en: s(p.creado_en) })),
+      corridas: [...porCorrida.values()],
+    })
   })
 }
 
