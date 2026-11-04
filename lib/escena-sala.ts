@@ -347,9 +347,9 @@ export function globoDe(p: ParticipanteDeLaSala): string {
   if (!p.aporte) return "aporte · sin leer"
   return p.aporte.resumen ?? "aporte · sin texto guardado"
 }
-/** las líneas del centro de la mesa al cerrar */
+/** las líneas del centro de la mesa al cerrar. Un resultado SIN texto (p. ej. corrida fallida: el que dirige no dejó nada) no se anuncia: no le dice nada a Emilio (04-nov, 13:43Z) */
 export function lineasDelResultado(r: ReunionDeLaSala): string[] {
   const x = r.resultado
-  if (!x) return []
-  return [x.titulo ? `Resultado · ${x.titulo}` : "Resultado · sin texto guardado", ...(x.informes ? [`usó ${x.usados} de ${x.informes} informes de la mesa de análisis`] : []), ...(x.revision ? [`revisión de la jefatura · ${x.revision}`] : [])]
+  if (!x || !x.titulo) return []
+  return [`Resultado · ${x.titulo}`, ...(x.informes ? [`usó ${x.usados} de ${x.informes} informes de la mesa de análisis`] : []), ...(x.revision ? [`revisión de la jefatura · ${x.revision}`] : [])]
 }

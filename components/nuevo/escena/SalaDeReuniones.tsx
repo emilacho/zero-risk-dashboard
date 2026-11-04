@@ -78,7 +78,8 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
       </g>
       {/* 02-nov · los participantes ya no son círculos con iniciales: son las siluetas holográficas de `Siluetas.tsx` (que camina, entra, se sienta, habla y sale) */}
       {/* S4 · las burbujas de aporte (encima de las figuras): la que habla se enciende; al cerrar, lo usado viaja al centro y lo que no se usó se apaga */}
-      {r && (() => {
+      {/* sin trabajo vivo ni resultado con texto, la mesa no dibuja burbujas (corrida cerrada o fallida: nada que anunciar) */}
+      {r && (r.estado === "en_curso" || lineasDelResultado(r).length > 0) && (() => {
         const viajan = r.participantes.filter((p) => p.silla && !p.cabecera && luzDeLaBurbuja(p, r) === "centro")
         return r.participantes.filter((p) => p.silla).filter((p) => !sentados || sentados.has(nombreCanonico(p.agente)) || luzDeLaBurbuja(p, r) === "centro").map((p) => {
           const luz = luzDeLaBurbuja(p, r)

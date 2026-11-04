@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { armarEscena, type EntradaDeLaEscena, type InvocacionViva } from "@/lib/escena-avatares"
-import { fraseDelGlobo, lineasDeLaSala, masReuniones, tituloPorElPedido, type ParticipanteDeLaSala } from "@/lib/escena-sala"
+import { fraseDelGlobo, lineasDelResultado, lineasDeLaSala, masReuniones, tituloPorElPedido, type ParticipanteDeLaSala } from "@/lib/escena-sala"
 import { GloboEnLaFoto, globoVisible } from "@/components/nuevo/escena/SalaDeReuniones"
 import { HologramaFigura } from "@/components/nuevo/escena/Holograma"
 import { lecturaInicial, pasoNatural } from "@/components/nuevo/escena/Siluetas"
@@ -128,5 +128,19 @@ describe("CC4 · sala en vivo · el cableado en la pantalla (reserva de CC3 sobr
   it("la escena le dice a las siluetas si ya llegó la lectura, y la primera lectura con datos sale de `lecturaInicial`", () => {
     expect(ava).toContain("cargado={datos != null}")
     expect(sil).toContain("lecturaInicial(!primera.current, cargado)")
+  })
+})
+
+describe("CC4 · sala en vivo · rótulo «sin texto guardado» ya no queda prendido (corrección de Lenovo 04-nov 13:43Z)", () => {
+  const cerrada = (titulo: string | null) => ({ estado: "terminada", fallo: true, participantes: [p()], resultado: { titulo, usados: 0, informes: 0, revision: null } }) as never
+  it("un resultado sin texto no se anuncia: ni líneas ni globo en el centro de la mesa", () => {
+    expect(lineasDelResultado(cerrada(null))).toEqual([])
+    expect(globoVisible(cerrada(null), null)).toBeNull()
+    expect(lineasDelResultado(cerrada("PLAN DE CAMPAÑA"))[0]).toBe("Resultado · PLAN DE CAMPAÑA")
+  })
+  it("sin trabajo vivo ni resultado con texto la mesa no dibuja burbujas; en curso o con resultado sí", () => {
+    const src = readFileSync("components/nuevo/escena/SalaDeReuniones.tsx", "utf8")
+    expect(src).toContain('r && (r.estado === "en_curso" || lineasDelResultado(r).length > 0) && (() => {')
+    expect(readFileSync("lib/escena-sala.ts", "utf8")).not.toContain("Resultado · sin texto guardado")
   })
 })
