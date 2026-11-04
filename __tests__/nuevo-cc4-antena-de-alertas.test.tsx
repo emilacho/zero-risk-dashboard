@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { armarAlertas, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
+import { armarAlertas, MAXIMO_DE_ALERTAS, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
 import { AntenaDeAlertas, partirEnLineas } from "@/components/nuevo/escena/AntenaDeAlertas"
 
 // ENCARGO de Lenovo 04-nov 14:06Z + decisiones A/B/C de 14:20Z: la antena avisa las alertas del departamento
@@ -18,6 +18,7 @@ describe("CC4 · antena · 1 corrida fallida", () => {
     expect(a).toHaveLength(1); expect(a[0].texto).toMatch(/^El plan falló a las \d\d:\d\d esperando al redactor$/); expect(a[0].texto).not.toMatch(/proceso|tardó/)
     expect(fallidas({ ...vacia(), plan: [f, plan("b", "hecha", 2)] })).toEqual([]) // se resolvió: apaga sola
     expect(fallidas({ ...vacia(), plan: [plan("c", "hecha", 4), f] })).toHaveLength(1) // la buena era ANTERIOR: sigue avisando
+    expect(fallidas({ ...vacia(), cliente: null, plan: [f, plan("o", "hecha", 2, { client_id: "otro" })] })).toHaveLength(1) // una «hecha» de OTRO cliente no apaga la alerta (reserva (a) de CC3)
   })
   it("los ensayos en seco y las fallas de más de 7 días no avisan; la de otro cliente tampoco", () => {
     expect(fallidas({ ...vacia(), plan: [plan("a", "fallida", 3, { dry_run: true })] })).toEqual([])
@@ -31,6 +32,7 @@ describe("CC4 · antena · 2 algo colgado", () => {
     expect(colgadas({ ...vacia(), plan: [plan("a", "corriendo", 5, { vence_en: hace(1) })] })).toHaveLength(1)
     expect(colgadas({ ...vacia(), plan: [plan("a", "corriendo", 6, { actualizado_en: hace(4) })] })).toHaveLength(1)
     expect(colgadas({ ...vacia(), plan: [plan("a", "corriendo", 1, { vence_en: hace(-2) })] })).toEqual([])
+    expect(colgadas({ ...vacia(), plan: [plan("a", "corriendo", 6, { actualizado_en: hace(2) })] })).toEqual([]) // sin plazo y movido hace 2 h: aún no (reserva (c))
     expect(colgadas({ ...vacia(), plan: [plan("a", "hecha", 9), plan("b", "fallida", 9)] })).toEqual([])
   })
 })
@@ -44,6 +46,8 @@ describe("CC4 · antena · 3 gasto raro (decisión A)", () => {
     expect(gastosRaros({ ...vacia(), corridas: [...normales, c("x", 0.6)] })).toEqual([]) // más del doble pero no 3×
     expect(gastosRaros({ ...vacia(), corridas: [...normales.slice(0, 2), c("x", 4.5)] })).toEqual([]) // muestra chica
     expect(gastosRaros({ ...vacia(), corridas: [...normales, c("x", 4.5, 30)] })).toEqual([]) // de hace más de un día
+    // el hueco que halló CC3: algunas llamadas guardan como «flujo» el id de la propia ejecución; esa corrida cara igual avisa contra el conjunto
+    expect(gastosRaros({ ...vacia(), corridas: [...normales, { ejecucion: "214515", flujo: "214515", client_id: "c1", costo: 3.63, inicio: hace(2) }] })).toHaveLength(1)
   })
 })
 
@@ -72,6 +76,8 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
     expect(armarAlertas(vacia())).toEqual([])
     const a = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)], preguntas: [{ id: "1", client_id: "c1", pregunta: "x", estado: "pendiente", creado_en: hace(1) }] })
     expect(a.map((x) => x.tipo)).toEqual(["pregunta", "fallida"])
+    const muchas = Array.from({ length: 9 }, (_, i) => ({ id: String(i), client_id: "c1", pregunta: `p${i}`, estado: "pendiente", creado_en: hace(i + 1) }))
+    expect(armarAlertas({ ...vacia(), preguntas: muchas })).toHaveLength(MAXIMO_DE_ALERTAS) // el tope (reserva (b))
   })
   it("sin alertas no se dibuja nada; con alertas, roja fija (sin latido ni aura) y la lista queda cerrada hasta que se toque", () => {
     expect(renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas: [], onAbrir: () => undefined })))).not.toContain("nv-antena")

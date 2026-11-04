@@ -70,8 +70,10 @@ export function gastosRaros(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   const t = e.ahora.getTime()
   const propias = e.corridas.filter((c) => delCliente(c.client_id, e.cliente))
   return propias.filter((c) => { const i = ms(c.inicio); return i != null && t - i <= HORAS_DEL_GASTO * 3_600_000 }).flatMap((c): AlertaDeLaAntena[] => {
-    const hermanas = e.corridas.filter((x) => x.flujo === c.flujo).map((x) => x.costo)
-    if (!c.flujo || hermanas.length < MUESTRA_MINIMA_DE_GASTO) return []
+    // algunas llamadas guardan como «flujo» el id de la propia ejecución: ese tipo tendría 1 corrida y nunca avisaría; sin tipo fiable se compara con el conjunto entero
+    const conTipo = !!c.flujo && c.flujo !== c.ejecucion
+    const hermanas = (conTipo ? e.corridas.filter((x) => x.flujo === c.flujo) : e.corridas).map((x) => x.costo)
+    if (hermanas.length < MUESTRA_MINIMA_DE_GASTO) return []
     const normal = mediana(hermanas)
     if (!(c.costo > VECES_LA_MEDIANA * normal && c.costo > PISO_DE_GASTO_USD)) return []
     return [{ clave: `gasto:${c.ejecucion}`, tipo: "gasto", texto: `Una corrida costó ${usdES(c.costo)}, más de ${VECES_LA_MEDIANA} veces lo normal de su tipo (${usdES(normal)})`, cuando: c.inicio, abre: "dinero" }]
