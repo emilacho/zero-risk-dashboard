@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react"
 import { nombreCanonico } from "@/lib/organigrama"
-import { globoDe, lineasDeLaSala, lineasDelResultado, SALA, type ParticipanteDeLaSala, type ReunionDeLaSala, type SalaDeReuniones, type UsoDelAporte } from "@/lib/escena-sala"
+import { fraseDelGlobo, globoDe, lineasDeLaSala, masReuniones, lineasDelResultado, SALA, type ParticipanteDeLaSala, type ReunionDeLaSala, type SalaDeReuniones, type UsoDelAporte } from "@/lib/escena-sala"
 
 /**
  * LA SALA DE REUNIONES en la foto (CC6 · S3): dentro del SVG de la escena. Cada participante de la reunión real se sienta en una silla de la mesa redonda
@@ -108,21 +108,20 @@ export function SalaEnLaFoto({ sala, abierta, onAbrir, subir = 0, sentados }: {
 export type Globo = { tipo: "participante"; p: ParticipanteDeLaSala; ancla: { x: number; y: number }; lineas: string[] } | { tipo: "resultado"; ancla: { x: number; y: number }; lineas: string[] }
 export function globoVisible(r: ReunionDeLaSala | null | undefined, foco: string | null): Globo | null {
   if (!r) return null
-  const deP = (p: ParticipanteDeLaSala): Globo => ({ tipo: "participante", p, ancla: posBurbuja(p.silla!), lineas: [`${p.nombre}${p.cabecera ? " · dirige" : ""} · ${p.fase}`, globoDe(p), r.estado === "terminada" && p.aporte ? `${usoLegible(p.aporte.uso)} · ${p.aporte.motivo}` : estadoLegible(p)] })
+  const deP = (p: ParticipanteDeLaSala): Globo => ({ tipo: "participante", p, ancla: posBurbuja(p.silla!), lineas: [`${p.nombre}${p.cabecera ? " · dirige" : ""}`, fraseDelGlobo(p)] })
   const f = foco ? r.participantes.find((p) => p.agente === foco && p.silla) : null
   if (f) return deP(f)
-  if (r.estado === "en_curso") {
-    const x = r.participantes.find((p) => p.silla && luzDeLaBurbuja(p, r) === "habla") ?? r.participantes.find((p) => p.silla && luzDeLaBurbuja(p, r) === "ultimo")
-    return x ? deP(x) : null
-  }
+  // 04-nov · el globo de un agente se abre SOLO con el cursor encima y se cierra al salir (antes se quedaba el del que hablaba)
+  if (r.estado === "en_curso") return null
   const l = lineasDelResultado(r)
   // a la derecha de la sala (no tapa la mesa ni las burbujas que llegaron al centro)
   return l.length ? { tipo: "resultado", ancla: { x: SALA.mesa.x + 100, y: SALA.mesa.y - 60 }, lineas: l } : null
 }
 
 /** 02-nov · el globo del aporte DENTRO de la foto, con nuestro estilo (sin depender de clases de CSS): una tarjeta oscura con borde ámbar y las líneas ajustadas al ancho */
-const ancho = (l: string) => Math.min(Math.max(l.length * 7.4, 120), 300)
-function ajustar(texto: string, max = 38): string[] {
+const ANCHO_MAXIMO_DEL_GLOBO = 260, MARGEN_DEL_GLOBO = 18
+const ancho = (l: string) => Math.min(Math.max(l.length * 6.8, 100), ANCHO_MAXIMO_DEL_GLOBO)
+function ajustar(texto: string, max = 30): string[] {
   const out: string[] = []; let cur = ""
   for (const w of texto.split(/\s+/)) { if ((cur + " " + w).trim().length > max && cur) { out.push(cur); cur = w } else cur = (cur + " " + w).trim() }
   if (cur) out.push(cur)
@@ -130,7 +129,7 @@ function ajustar(texto: string, max = 38): string[] {
 }
 function medidasDelGlobo(g: Globo) {
   const lineas = g.lineas.flatMap((l, i) => (i === 0 ? [l] : ajustar(l))).slice(0, 7)
-  const w = Math.max(...lineas.map(ancho)) + 24, h = lineas.length * 19 + 18
+  const w = Math.max(...lineas.map(ancho)) + MARGEN_DEL_GLOBO * 2, h = lineas.length * 20 + MARGEN_DEL_GLOBO + 8
   const x = g.tipo === "resultado" ? g.ancla.x : g.ancla.x - w / 2, y = g.ancla.y - 14 - h
   return { lineas, w, h, x, y }
 }
@@ -148,7 +147,7 @@ export function GloboEnLaFoto({ g }: { g: Globo | null }) {
     <g data-globo={g.tipo === "participante" ? g.p.agente : "resultado"} role="status" aria-label={g.lineas.join(". ")} pointerEvents="none" style={{ filter: "drop-shadow(0 6px 14px rgba(0,0,0,.6))" } as CSSProperties}>
       <rect x={x} y={y} width={w} height={h} rx={14} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.6} strokeWidth={1.4} />
       {g.tipo === "participante" && <path d={`M ${g.ancla.x - 7} ${y + h} l 7 10 l 7 -10 z`} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.6} strokeWidth={1.2} strokeLinejoin="round" />}
-      {lineas.map((l, i) => <text key={i} x={x + 12} y={y + 20 + i * 19} fontFamily={FUENTE} fontSize={i === 0 ? 14 : 13} fontWeight={i === 0 ? 600 : 400} fill={i === 0 ? "#ffe2a8" : i === lineas.length - 1 && g.tipo === "participante" ? "#a8a097" : "#e8dfd2"}>{l}</text>)}
+      {lineas.map((l, i) => <text key={i} x={x + MARGEN_DEL_GLOBO} y={y + MARGEN_DEL_GLOBO + 6 + i * 20} fontFamily={FUENTE} fontSize={i === 0 ? 14 : 13} fontWeight={i === 0 ? 600 : 400} fill={i === 0 ? "#ffe2a8" : "#e8dfd2"}>{l}</text>)}
     </g>
   )
 }
@@ -192,7 +191,7 @@ export function PanelDeLaSala({ sala, onCerrar, onTocar }: { sala: SalaDeReunion
               </li>
             ))}
           </ul>
-          {sala && sala.otras_en_curso > 0 && <p className="text-[11px] text-zinc-400">Hay {sala.otras_en_curso} reunión(es) más en curso a la vez; se muestra la más reciente.</p>}
+          {sala && sala.otras_en_curso > 0 && <p data-otras-reuniones className="text-[11px] text-zinc-400">{masReuniones(sala.otras_en_curso)}{sala.otras?.length ? `: ${sala.otras.join(" · ")}` : ""}. Aquí se ve la más reciente.</p>}
         </>
       )}
       <details data-detalle-tecnico className="text-[10px] text-zinc-600"><summary className="cursor-pointer">ver detalle</summary><span className="block break-words">{sala?.fuente ?? "sin dato todavía"}{r ? ` · corridas ${r.corridas.join(" + ")}` : ""}</span></details>

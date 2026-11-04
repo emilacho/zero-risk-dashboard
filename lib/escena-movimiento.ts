@@ -82,8 +82,8 @@ export function puntoEnLaRuta(r: Punto[], f: number): Punto {
   }
   return r[r.length - 1]
 }
-/** lo que tarda un recorrido: velocidad pausada de oficina (px de la foto por segundo), entre 0,8 y 4 s */
-export const VELOCIDAD_PX_S = 260
+/** lo que tarda un recorrido: paso de oficina creíble (px de la foto por segundo; 04-nov: antes 260, se veía correr), mínimo 0,8 s */
+export const VELOCIDAD_PX_S = 150
 export const duracionDelRecorrido = (r: Punto[], tope = 4000): number => Math.min(Math.max((largoDeLaRuta(r) / VELOCIDAD_PX_S) * 1000, 800), tope)
 
 /** qué debe hacer cada empleado cuando llega una lectura nueva: comparar lo que se veía con lo que dicen los datos ahora */

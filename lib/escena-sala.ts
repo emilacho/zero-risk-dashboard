@@ -87,6 +87,8 @@ export interface SalaDeReuniones {
   ultima: { titulo: string; cliente: string | null; hasta: string | null; hace: string; fallo?: boolean } | null
   /** otras reuniones en curso a la vez (se dicen, no se sientan) */
   otras_en_curso: number
+  /** 04-nov · los títulos de esas otras reuniones en curso (para decir cuáles son al tocar «y 1 reunión más») */
+  otras?: string[]
   fuente: string
 }
 
@@ -178,6 +180,7 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
     reunion,
     ultima: ultimaR ? { titulo: ultimaR.titulo, cliente: ultimaR.cliente, hasta: ultimaR.hasta, hace: ultimaR.hace, fallo: ultimaR.fallo === true } : null,
     otras_en_curso: Math.max(enCurso.length - 1, 0),
+    otras: enCurso.slice(1).map((r) => r.titulo),
     fuente,
   }
 }
@@ -231,7 +234,9 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
   const hasta = Math.max(g.hasta, ...jefatura.map((j) => j.hasta))
   const ultimaFila = filas.length ? ms(cuando(filas[filas.length - 1])) : NaN
   const enCurso = abiertosAqui.length > 0 || (Number.isFinite(ultimaFila) && t - ultimaFila < MINUTOS_PAUSA * 60_000)
-  const flujo = e.nombreDelFlujo(g.flujo)
+  const flujo0 = e.nombreDelFlujo(g.flujo)
+  // 04-nov · si el flujo no trae nombre, el título sale del pedido en curso («Reescritura del manual»), no de «un trabajo sin nombre registrado»
+  const flujo = /^un trabajo en curso$/i.test(flujo0) ? tituloPorElPedido(filas.map((f) => f.task_text)) : flujo0
   const cliente = g.cliente ? clientes.get(g.cliente) ?? "cliente sin nombre" : null
   const md = e.mesaDelAgente(dirige, e.directorio)
   const hastaIso = Number.isFinite(hasta) ? new Date(Math.min(hasta, t)).toISOString() : null
@@ -256,7 +261,7 @@ export function lineasDeLaSala(s: SalaDeReuniones | null | undefined): string[] 
   if (!r) return ["SALA DE REUNIONES", s.ultima ? `sala vacía · la última, ${s.ultima.titulo}, ${s.ultima.fallo ? "falló" : "terminó"} ${s.ultima.hace}` : "sala vacía · ninguna reunión en las últimas 24 h"]
   const enFase = r.fases.find((f) => f.estado === "en_curso")?.nombre
   const estado = r.estado === "en_curso" ? `en curso${enFase ? ` · ${enFase}` : ""}` : `${r.fallo ? "falló" : "terminó"} ${r.hace}`
-  return ["SALA DE REUNIONES", r.titulo, `dirige ${r.dirige} (${r.equipo}) · ${r.participantes.length} en la mesa · ${estado}${s.otras_en_curso ? ` · +${s.otras_en_curso} reunión(es) más en curso` : ""}`]
+  return ["SALA DE REUNIONES", r.titulo, `dirige ${r.dirige} (${r.equipo}) · ${r.participantes.length} en la mesa · ${estado}${s.otras_en_curso ? ` · ${masReuniones(s.otras_en_curso)}` : ""}`]
 }
 
 // ── S4 · los aportes ──
@@ -317,6 +322,24 @@ export function conAportes(r: ReunionDeLaSala, e: EntradaDeAportes): ReunionDeLa
   })
   const lider = participantes.find((p) => p.cabecera)
   return { ...r, participantes, resultado: { titulo: lider && lider.estado !== "hablando" ? tituloDelResultado(salida(lider)) : null, usados, informes, revision: e.revision ? resumenDeLaRevision(e.revision.estado_del_motor) : null } }
+}
+/** «y 1 reunión más» / «y 2 reuniones más» (singular o plural según toque) */
+export const masReuniones = (n: number): string => `y ${n} ${n === 1 ? "reunión más" : "reuniones más"}`
+/** 04-nov · el título de la reunión cuando el flujo no trae nombre: sale de lo que se pidió; si no se reconoce, «Un trabajo en curso» (nunca «sin nombre registrado») */
+export function tituloPorElPedido(pedidos: Array<string | null | undefined>): string {
+  const t = pedidos.filter(Boolean).join(" ").toLowerCase()
+  if (/manual/.test(t)) return "Reescritura del manual"
+  if (/plan de 90|plan a 90|plan de campa/.test(t)) return "Plan de 90 días"
+  return "Un trabajo en curso"
+}
+/** 04-nov · el GLOBO de un participante: UNA línea en español claro de lo que hace (por su papel), sin nombres internos, números, inglés ni abreviaturas. El texto crudo de su aporte se lee en el panel, no aquí */
+export function fraseDelGlobo(p: ParticipanteDeLaSala): string {
+  if (p.estado === "hablando") return p.cabecera ? "Escribe el resultado de la reunión" : "Prepara su aporte"
+  if (p.cabecera) return "Arma el resultado con lo que traen los demás"
+  // el juez de fidelidad llega con fases internas tipo «bb faithfulness judge c2»: por eso también se reconoce por la fase y el paso, no solo por el puesto
+  if (esRevisorDeLaJefatura(p.agente) || /faithfulness|judge|juez|jefatura|revis/i.test(`${p.fase} ${p.corrida ?? ""}`)) return "Revisa que el texto diga solo lo que está en los datos"
+  if (pasoDeAnalisis(p.corrida)) return "Aporta su informe de la mesa de análisis"
+  return "Aporta lo que sabe de su área"
 }
 /** el texto del globo de un participante (lo que se lee sin tocar) */
 export function globoDe(p: ParticipanteDeLaSala): string {

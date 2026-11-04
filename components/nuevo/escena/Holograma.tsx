@@ -29,6 +29,8 @@ export interface PropsFigura {
   postura: "sentado" | "de_pie"
   /** `camina` = en recorrido · `falla` = en rojo */
   estado?: "trabajando" | "camina" | "falla"
+  /** 04-nov · sentado a la mesa de la sala: las piernas quedan debajo de la mesa y no se dibujan encima de ella */
+  sinPiernas?: boolean
 }
 
 const P = (...xs: Array<number | string>) => xs.join(" ")
@@ -89,7 +91,7 @@ function Carga({ a, sentado, yS, yC, w, L, F }: { a: string; sentado: boolean; y
  * Una persona de luz, esbelta: cabeza, cuello, hombros que bajan a la cintura, brazos y piernas (de pie), o torso con el muslo hacia delante y los brazos al escritorio (sentada).
  * Cada empleado combina cabello + accesorio + ropa + contextura + altura (`lib/holograma`), más el visor y la placa del pecho, que son el toque robótico común.
  */
-export function HologramaFigura({ semilla, color, postura, estado = "trabajando" }: PropsFigura) {
+export function HologramaFigura({ semilla, color, postura, estado = "trabajando", sinPiernas = false }: PropsFigura) {
   const r = rasgosDelHolograma(semilla)
   const sentado = postura === "sentado"
   const trazo = estado === "falla" ? "#ff6a55" : AMBAR_HOLOGRAMA
@@ -117,8 +119,8 @@ export function HologramaFigura({ semilla, color, postura, estado = "trabajando"
         {sentado ? (
           <>
             {/* sentada: el muslo hacia delante, la pantorrilla hacia abajo, el torso erguido y los brazos hacia la computadora */}
-            <path d={gr ? `M${P(-8 * w, yC - 1)} Q${P(8 * w, yC - 6)} ${P(16 * w, yC + 2)} Q${P(19 * w, yC + 12)} ${P(17 * w, yC + 26)} L${P(10.5 * w, yC + 26)} L${P(10.5 * w, yC + 12)} Q${P(0, yC + 14)} ${P(-8 * w, yC + 10)}Z` : `M${P(-7 * w, yC - 1)} L${P(16 * w, yC + 1)} L${P(17 * w, yC + 26)} L${P(10.5 * w, yC + 26)} L${P(10.5 * w, yC + 10)} L${P(-7 * w, yC + 10)}Z`} {...L} />
-            {(falda || vestido) && <path d={`M${P(-9 * w, yC - 2)} L${P(17 * w, yC)} L${P((vestido ? 29 : 26) * wf, yC + (vestido ? 22 : 12))} L${P(-12 * wf, yC + (vestido ? 22 : 12))}Z`} {...L} />}
+            {!sinPiernas && <path d={gr ? `M${P(-8 * w, yC - 1)} Q${P(8 * w, yC - 6)} ${P(16 * w, yC + 2)} Q${P(19 * w, yC + 12)} ${P(17 * w, yC + 26)} L${P(10.5 * w, yC + 26)} L${P(10.5 * w, yC + 12)} Q${P(0, yC + 14)} ${P(-8 * w, yC + 10)}Z` : `M${P(-7 * w, yC - 1)} L${P(16 * w, yC + 1)} L${P(17 * w, yC + 26)} L${P(10.5 * w, yC + 26)} L${P(10.5 * w, yC + 10)} L${P(-7 * w, yC + 10)}Z`} {...L} /> }
+            {!sinPiernas && (falda || vestido) && <path d={`M${P(-9 * w, yC - 2)} L${P(17 * w, yC)} L${P((vestido ? 29 : 26) * wf, yC + (vestido ? 22 : 12))} L${P(-12 * wf, yC + (vestido ? 22 : 12))}Z`} {...L} />}
             <path d={tronco} {...L} />
             <path d={`M${P(8 * w, yS + 2)} L${P(14 * w, yS + 14)} L${P(25 * w, yS + 16)}`} {...F} strokeWidth={gr ? 5.2 : 3.8} opacity={0.9} />
           </>

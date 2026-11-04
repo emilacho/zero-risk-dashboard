@@ -104,14 +104,14 @@ describe("los aportes de la sala · S4", () => {
     const enCurso = conAportes(armarEscena(entrada(10, { invocaciones: analisis(), despachos: [despachoJefe] })).sala!.reunion!, { salidas: SALIDAS, informesEnElCerebro: FICHAS, revision: null })
     expect(enCurso.participantes.map((p) => luzDeLaBurbuja(p, enCurso))).toEqual(["habla", "normal", "normal", "normal", "normal", "normal"])
     expect(globoDe(enCurso.participantes[0])).toBe("escribiendo el resultado…")
-    expect(globoVisible(enCurso, null)).toMatchObject({ tipo: "participante", p: { agente: "jefe-marketing" } })
+    expect(globoVisible(enCurso, null)).toBeNull() // 04-nov: el globo de un agente sale solo con el cursor encima
     const pausa = conAportes(reunion(19.5), { salidas: SALIDAS, informesEnElCerebro: FICHAS, revision: REVISION })
     expect(pausa.estado).toBe("en_curso")
     expect(pausa.participantes.filter((p) => luzDeLaBurbuja(p, pausa) === "ultimo").map((p) => p.agente)).toEqual(["editor-en-jefe"])
     const cerrada = conAportes(reunion(30), { salidas: SALIDAS, informesEnElCerebro: FICHAS, revision: REVISION })
     expect(Object.fromEntries(cerrada.participantes.map((p) => [p.agente, luzDeLaBurbuja(p, cerrada)]))).toMatchObject({ "jefe-marketing": "centro", "feedback-synthesizer": "centro", "growth-hacker": "apagado", "x-twitter-intelligence-analyst": "apagado", "editor-en-jefe": "quieto" })
     expect(globoVisible(cerrada, null)).toMatchObject({ tipo: "resultado" })
-    expect(globoVisible(cerrada, "growth-hacker")).toMatchObject({ tipo: "participante", lineas: expect.arrayContaining(["no se usó · su informe no entró al cerebro (sin motivo registrado)"]) })
+    expect(globoVisible(cerrada, "growth-hacker")).toMatchObject({ tipo: "participante", lineas: expect.arrayContaining(["Aporta su informe de la mesa de análisis"]) })
     for (let i = 0; i < 3; i++) { const d = destinoEnElCentro(i, 3, false); expect(Math.abs(d.x - SALA.mesa.x)).toBeLessThanOrEqual(45); expect(Math.abs(d.y - SALA.mesa.y)).toBeLessThanOrEqual(35) }
   })
 
