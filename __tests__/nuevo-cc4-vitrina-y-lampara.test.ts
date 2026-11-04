@@ -49,11 +49,11 @@ describe("vitrina de la pantalla vertical y lámpara de firma (tarea 2 del encar
     expect(fuente).toContain("prefers-reduced-motion: reduce")
     expect(fuente).toContain("setInterval")
   })
-  it("la luz de firma ya NO está en el panel vertical: es una lámpara sobre el escritorio de Dirección", () => {
+  it("la luz de firma ya NO está en el panel vertical ni hay lámpara en Dirección (Emilio 14:08Z)", () => {
     const ent = armarEntregas({ encargos: [], turnos: [], filas: [], bandeja: [{ id: "1", expires_at: null }], revisiones: [], pasos: [], ahora: new Date("2026-11-02T17:00:00Z") } as never)
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena({ entregas: ent }) as never }))
-    expect(html).toMatch(/class="nv-firma"[^>]*data-lampara/)
-    expect(html).toContain("1 espera tu firma")
+    expect(html).not.toContain("data-lampara"); expect(html).not.toContain("nv-firma")
+    expect(readFileSync("components/nuevo/escena/EntregasEnLaFoto.tsx", "utf8")).not.toContain("LamparaDeFirma")
     expect(html).not.toContain("nv-firma-luz\" points=\"1692,525")
     expect(readFileSync("lib/escena-entregas.ts", "utf8")).not.toContain("PANEL_DE_FIRMA")
   })

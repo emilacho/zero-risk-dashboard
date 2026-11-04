@@ -3,7 +3,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { armarEscena, type Despacho } from "@/lib/escena-avatares"
-import { armarCorrecciones, armarEntregas, conRevisiones, CUADROS_DEL_PIZARRON, DUENO_DEL_CAMPO_DEL_MANUAL, devolvioEmilio, MAXIMO_DE_CUADROS, LAMPARA_DE_FIRMA, PUESTOS_EN_EL_PIZARRON, rotuloDeLaFirma, type EntregasDeLaEscena } from "@/lib/escena-entregas"
+import { armarCorrecciones, armarEntregas, conRevisiones, CUADROS_DEL_PIZARRON, DUENO_DEL_CAMPO_DEL_MANUAL, devolvioEmilio, MAXIMO_DE_CUADROS, PUESTOS_EN_EL_PIZARRON, rotuloDeLaFirma, type EntregasDeLaEscena } from "@/lib/escena-entregas"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
 
 const AHORA = new Date("2026-11-02T17:00:00Z")
@@ -150,19 +150,14 @@ describe("sprint 3 · el pizarrón y la luz de firma", () => {
   it("18 cuadros medidos sobre la foto; los puestos frente al pizarrón son 4 y distintos", () => {
     expect(CUADROS_DEL_PIZARRON).toHaveLength(18)
     expect(new Set(PUESTOS_EN_EL_PIZARRON.map((p) => `${p.x},${p.y}`)).size).toBe(4)
-    expect(LAMPARA_DE_FIRMA).toEqual({ x: 1081, y: 563 }) // sobre el escritorio de Dirección (a la izquierda de su monitor)
   })
-  it("se dibuja: la lámpara de firma (en el escritorio de Dirección) que lleva a Tu oficina (sin firmas no hay lámpara); las entregas ya NO quedan fijas como cuadros del pizarrón", () => {
+  it("se dibuja: ya NO hay lámpara de firma en Dirección (Emilio 14:08Z; el aviso vive en el pizarrón); las entregas ya NO quedan fijas como cuadros del pizarrón", () => {
     const ent = armarEntregas({ ...base, encargos: [encargo("a", "cerrado_aprobado", hace(30))], turnos: [turno("a", "growth-hacker", hace(31))], filas: [{ id: "fa", tema: "Cevichería", red: "tiktok" }], bandeja: [{ id: "1", expires_at: null }] })
     const e = { ...escena(), entregas: ent }
     const html = renderToStaticMarkup(createElement(Avatares, { datosIniciales: e }))
-    expect(html).toMatch(/class="nv-firma"[^>]*href="\/nuevo\/oficina"/)
-    expect(html).toContain("data-lampara")
-    expect(html).toContain("1 espera tu firma")
+    expect(html).not.toContain("data-lampara"); expect(html).not.toContain("nv-firma"); expect(ent.firma.pendientes).toBe(1) // el dato sigue para el pizarrón
     expect(html).not.toContain("data-entrega=")
     expect(html).not.toContain("Cevichería · tiktok · entregada")
-    const vacio = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena() }))
-    expect(vacio).not.toContain("nv-firma\"")
   })
   it("respeta prefers-reduced-motion y no se mete con la plataforma: solo lectura", () => {
     const css = readFileSync("components/nuevo/escena/EntregasEnLaFoto.tsx", "utf8")

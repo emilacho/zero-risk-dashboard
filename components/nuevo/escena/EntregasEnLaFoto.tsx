@@ -3,7 +3,7 @@
  * y la luz de firma del panel del borde derecho (la puerta hacia Tu oficina). Solo dibuja lo que dicen los datos: sin entregas, el pizarrón queda apagado; sin firmas, el panel queda como está.
  */
 import { useEffect, useState, type CSSProperties } from "react"
-import { ANCLA_DE_LA_TARJETA, CUADROS_DEL_PIZARRON, ENLACE_A_TU_OFICINA, LAMPARA_DE_FIRMA, rotuloDeLaFirma, type EntregaViva } from "@/lib/escena-entregas"
+import { ANCLA_DE_LA_TARJETA, CUADROS_DEL_PIZARRON, type EntregaViva } from "@/lib/escena-entregas"
 import { TEXTO_SIN_METRICAS, type MetricasDelPizarron } from "@/lib/escena-metricas"
 import { PANTALLA_VERTICAL, ROTACION_DE_LA_VITRINA_MS, type VitrinaDeLaEscena } from "@/lib/escena-vitrina"
 import type { AvisoDeFirma } from "@/lib/escena-avisos"
@@ -14,13 +14,9 @@ export const ESTILO_ENTREGAS = `
 .nv-av .nv-metrica .nv-metrica-cuadro{pointer-events:auto;cursor:pointer;transition:fill-opacity .25s ease}
 .nv-av .nv-metrica:hover .nv-metrica-cuadro,.nv-av .nv-metrica:focus-visible .nv-metrica-cuadro{fill-opacity:.45}
 .nv-av .nv-vitrina-hit{pointer-events:auto;cursor:pointer;outline:none}
-.nv-av .nv-firma{pointer-events:auto;cursor:pointer;outline:none}
-.nv-av .nv-firma .nv-firma-rotulo{opacity:0;transition:opacity .25s ease;pointer-events:none}
-.nv-av .nv-firma:hover .nv-firma-rotulo,.nv-av .nv-firma:focus-visible .nv-firma-rotulo{opacity:1}
-@keyframes nvFirmaPulso{0%,100%{opacity:.35}50%{opacity:.95}}
 .nv-av .nv-aviso-firma .nv-metrica-cuadro{fill:#ffb347;stroke:#ffe2a8;animation:nvAvisoFirma 2.4s ease-in-out infinite}
 @keyframes nvAvisoFirma{0%,100%{fill-opacity:.35}50%{fill-opacity:.85}}
-@media (prefers-reduced-motion:reduce){.nv-av .nv-firma .nv-firma-luz{animation:none;opacity:.7}.nv-av .nv-metrica .nv-metrica-cuadro{transition:none}.nv-av .nv-aviso-firma .nv-metrica-cuadro{animation:none;fill-opacity:.7}}
+@media (prefers-reduced-motion:reduce){.nv-av .nv-metrica .nv-metrica-cuadro{transition:none}.nv-av .nv-aviso-firma .nv-metrica-cuadro{animation:none;fill-opacity:.7}}
 `
 
 const puntos = (p: Array<{ x: number; y: number }>) => p.map((q) => `${q.x},${q.y}`).join(" ")
@@ -95,26 +91,6 @@ export function TarjetaDeLaEntrega({ e }: { e: EntregaViva | null }) {
       <text x={x + 12} y={y + 34} fontFamily={FUENTE} fontSize={14} fontWeight={600} fill="#ffe2a8">{linea}</text>
       {e.nombre && <text x={x + 12} y={y + 50} fontFamily={FUENTE} fontSize={12} fill="#e8dfd2">{e.nombre}</text>}
     </g>
-  )
-}
-
-/** la lámpara de firma: sobre el escritorio de Dirección, se enciende en ámbar y pulsa mientras haya algo esperando a Emilio; al pasar el cursor dice cuántas y lleva a Tu oficina */
-export function LamparaDeFirma({ pendientes }: { pendientes: number }) {
-  if (pendientes <= 0) return null
-  const rotulo = rotuloDeLaFirma(pendientes)
-  const { x, y } = LAMPARA_DE_FIRMA
-  return (
-    <a className="nv-firma" href={ENLACE_A_TU_OFICINA} data-firma={pendientes} data-lampara aria-label={`${rotulo}. Ir a Tu oficina`}>
-      {/* 04-nov (Emilio 13:31Z): la lámpara sin aura ámbar ni latido */}
-      <ellipse cx={x} cy={y} rx={8} ry={3.4} fill="#1b1713" stroke="#8a6a3c" strokeWidth={0.6} />
-      <line x1={x} y1={y} x2={x + 2} y2={y - 15} stroke="#7a6a55" strokeWidth={1.7} strokeLinecap="round" />
-      <polygon className="nv-firma-luz" points={`${x - 7},${y - 14} ${x + 9},${y - 21} ${x + 12},${y - 9} ${x - 3},${y - 6}`} fill="#ffb347" fillOpacity={0.95} stroke="#ffd9a0" strokeWidth={0.8} style={{ filter: "drop-shadow(0 0 7px rgba(255,170,60,.95))" }} />
-      <circle cx={x} cy={y - 12} r={24} fill="rgba(0,0,0,0)" />
-      <g className="nv-firma-rotulo" transform={`translate(${x} ${y - 50})`}>
-        <rect x={-92} y={-18} width={184} height={32} rx={16} fill="#0e0c0a" fillOpacity={0.94} stroke="#ffb347" strokeOpacity={0.8} />
-        <text y={4} textAnchor="middle" fill="#ffe2a8" fontSize={15} fontWeight={600} fontFamily={FUENTE}>{rotulo}</text>
-      </g>
-    </a>
   )
 }
 

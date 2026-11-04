@@ -7,7 +7,7 @@ import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
 import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
 import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
-import { CuadrosDeMetricas, ESTILO_ENTREGAS, LamparaDeFirma, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
+import { CuadrosDeMetricas, ESTILO_ENTREGAS, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
 import { FigurasSpline } from "@/components/nuevo/escena/FigurasSpline"
@@ -198,8 +198,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <FlechasDeForma onAbrir={abrirPlantelDe} />
         {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
         <VitrinaVertical vitrina={datos?.vitrina} onAbrir={() => setPanelTablero({ tipo: "vitrina" })} />
-        {/* la lámpara de firma: sobre el escritorio de Dirección, hacia Tu oficina */}
-        <LamparaDeFirma pendientes={datos?.entregas?.firma.pendientes ?? 0} />
+        {/* 04-nov (Emilio 14:08Z): sin lámpara en Dirección; el aviso de firma vive solo en el pizarrón (`firma.pendientes` sigue en el dato) */}
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {/* 03-nov · las redes del pizarrón como botones de ≥44 px, en la zona vacía de arriba del pizarrón: la franja ocupa el 76 % izquierdo del ancho y se centra ahí, o sea sobre el pizarrón (los cuadros de la foto son de 8×12 px a este ancho) */}
