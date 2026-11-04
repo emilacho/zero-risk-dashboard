@@ -11,7 +11,7 @@ import { LUGAR_DEL_PIZARRON, MAXIMO_JUNTOS_EN_EL_PIZARRON, PUESTOS_EN_EL_PIZARRO
 
 /**
  * LOS AGENTES HOLOGRÁFICOS DE LA OFICINA (CC4 · 02-nov · sprints 1 y 2 + la sala): UN solo dueño de toda la animación, de punta a punta.
- * · En su escritorio: una silueta de luz por cada empleado que trabaja AHORA (o que falló: en rojo), sentada en SU puesto fijo del equipo (el mismo siempre; nadie se para alrededor de otro).
+ * · En su escritorio (el del departamento, una sola silla): una silueta por cada empleado que trabaja AHORA (o que falló: en rojo); el que empezó primero, sentado; los demás, de pie en su lugar fijo, por orden de inicio. Sin aura ni parpadeo (Emilio 04-nov).
  * · Reunión real en la sala (mesa de análisis, brief, gran idea): quien participa se LEVANTA, camina por las líneas de luz del piso hasta la puerta de cristal, ENTRA, rodea la
  *   mesa, llega a su silla y SE SIENTA; quien habla se ilumina (su globo de aporte lo dibuja la sala de CC6); al terminar la reunión se LEVANTA, sale por la puerta y camina de
  *   vuelta a su escritorio. Sin saltos: cada paso es una acción animada en una sola línea de tiempo por empleado.
@@ -49,9 +49,7 @@ export function pasoNatural(msTranscurridos: number, durMs: number): number {
   return 1 - (v * u * u) / (2 * r)
 }
 export const ESTILO_SILUETAS = `
-.nv-av .nv-holo{filter:drop-shadow(0 0 5px rgba(255,170,60,.75))}
 .nv-av .nv-holo[data-estado="falla"]{filter:drop-shadow(0 0 5px rgba(255,90,70,.8))}
-.nv-av .nv-holo-cuerpo{animation:nvHoloFlicker 4.2s ease-in-out infinite}
 .nv-av .nv-holo[data-estado="camina"] .nv-holo-cuerpo{animation:nvHoloPaso .5s ease-in-out infinite}
 .nv-av .nv-holo-barrido{animation:nvHoloSube 3.4s linear infinite}
 .nv-av .nv-sil{pointer-events:auto;cursor:default;outline:none}
@@ -61,7 +59,6 @@ export const ESTILO_SILUETAS = `
 .nv-av .nv-sil:hover .nv-holo,.nv-av .nv-sil:focus-visible .nv-holo{filter:drop-shadow(0 0 8px rgba(255,215,150,.95))}
 .nv-av .nv-sil[data-habla="true"] .nv-holo{filter:drop-shadow(0 0 9px rgba(255,200,110,1)) drop-shadow(0 0 18px rgba(255,160,50,.8))}
 .nv-av .nv-sil[data-habla="true"] .nv-sil-halo{animation:nvSalaHabla 1.8s ease-in-out infinite}
-@keyframes nvHoloFlicker{0%,100%{opacity:1}46%{opacity:.92}48%{opacity:.7}50%{opacity:.95}}
 @keyframes nvHoloPaso{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
 @keyframes nvHoloSube{from{transform:translateY(0)}to{transform:translateY(4px)}}
 @media (prefers-reduced-motion:reduce){.nv-av .nv-holo-cuerpo,.nv-av .nv-holo-barrido,.nv-av .nv-sil-halo{animation:none!important}}
@@ -127,7 +124,7 @@ export function Siluetas({ mesas, reunion = null, cargado = true, enLaSala, onFo
       const usados = new Set([...visitasRef.current.values()].map((v) => v.slot))
       const slot = [...Array(MAXIMO_JUNTOS_EN_EL_PIZARRON).keys()].find((i) => !usados.has(i))
       if (slot === undefined || visitasRef.current.has(k)) { setExcedentes((n) => n + 1); espera(TARJETA_MS, () => setExcedentes((n) => Math.max(0, n - 1))); continue } // se amontonan: se agrupan con «+N»
-      const silla = repartirEnLaMesa(mesa).puestos.find((q) => nombreCanonico(q.s.agente) === k)?.pos ?? { x: mesa.silla.x, y: mesa.silla.y } // su puesto fijo
+      const silla = repartirEnLaMesa(mesa).puestos.find((q) => nombreCanonico(q.s.agente) === k)?.pos ?? { x: mesa.silla.x, y: mesa.silla.y } // su lugar de ahora
       const cambiar = (fase: Visita["fase"] | null) => setVisitas((prev) => { const m = new Map(prev); if (!fase) m.delete(k); else m.set(k, { entrega: e, fase, slot, silla, color: mesa.color, mesa: mesa.nombre }); return m })
       const ida = duracionDelRecorrido(rutaPorLasLineas(silla, PUESTOS_EN_EL_PIZARRON[slot]), TOPE_DE_UN_RECORRIDO_MS)
       cambiar("llega")

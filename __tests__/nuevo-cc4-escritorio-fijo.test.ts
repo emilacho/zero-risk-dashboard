@@ -1,67 +1,45 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
-import { MAXIMO_DE_PUESTOS_A_LA_VISTA, MAXIMO_DE_PUESTOS_FIJOS, MESAS, PUESTOS_DE_REBOSE, puestoDeRebose, ordenDelRoster, puestoFijo, type MesaViva, type Sentado } from "@/lib/escena-avatares"
-import { repartirEnLaMesa } from "@/lib/escena-movimiento"
+import { MESAS, type MesaViva, type Sentado } from "@/lib/escena-avatares"
+import { DE_PIE, MAXIMO_EN_LA_MESA, repartirEnLaMesa } from "@/lib/escena-movimiento"
 
-// ENCARGO de Lenovo 04-nov (punto 9): cada agente tiene un escritorio fijo en su equipo, en el orden del roster; trabaja sentado en el suyo (punto 10, parte segura)
-const sentado = (agente: string): Sentado => ({ agente, nombre: agente, mesa: "creativo", estado: "trabajando", cliente: "Náufrago", flujo: "f", paso: null, tarea: null, desde: "2026-11-04T10:00:00Z", hace: "hace 1 min", gasto_usd: null, fuente: "t", origen_de_la_mesa: "mapa" } as Sentado)
+// ADENDA 2 de Lenovo 04-nov (Emilio aprobó el video de turnos): el escritorio es del departamento; uno sentado y los demás de pie, por orden de inicio
+const sentado = (agente: string, desde: string | null): Sentado => ({ agente, nombre: agente, mesa: "creativo", estado: "trabajando", cliente: "Náufrago", flujo: "f", paso: null, tarea: null, desde, hace: "hace 1 min", gasto_usd: null, fuente: "t", origen_de_la_mesa: "mapa" } as Sentado)
 const base = MESAS.find((m) => m.clave === "creativo")!
-const ROSTER = ["ana", "beto", "carla", "dani"]
-const mesa = (quienes: string[], roster: string[] | undefined = ROSTER): MesaViva => ({ ...base, sentados: quienes.map(sentado), equipo: [], trabajando: quienes.length, fallando: 0, roster })
+const min = (n: number) => `2026-11-04T11:${String(n).padStart(2, "0")}:00Z`
+const mesa = (s: Sentado[]): MesaViva => ({ ...base, sentados: s, equipo: [], trabajando: s.length, fallando: 0 })
 
-describe("CC4 · escritorio fijo por agente", () => {
-  it("el puesto de cada uno es el mismo trabaje solo o con todos: no depende de cuántos haya sentados", () => {
-    const solo = repartirEnLaMesa(mesa(["carla"])).puestos[0]
-    const todos = repartirEnLaMesa(mesa(["dani", "carla", "ana", "beto"])).puestos.find((p) => p.s.agente === "carla")!
-    expect(solo.pos).toEqual(todos.pos)
-    expect(solo.pos).toEqual(puestoFijo(base, 2)) // carla es la tercera del roster
+describe("CC4 · escritorio por turnos", () => {
+  it("el que empezó primero se sienta en la silla; los demás esperan de pie, por orden de inicio, cada uno en su lugar", () => {
+    const { puestos } = repartirEnLaMesa(mesa([sentado("c", min(3)), sentado("a", min(1)), sentado("b", min(2))]))
+    expect(puestos.map((p) => p.s.agente)).toEqual(["a", "b", "c"])
+    expect(puestos.map((p) => p.postura)).toEqual(["sentado", "de_pie", "de_pie"])
+    expect(puestos[0].pos).toEqual({ x: base.silla.x, y: base.silla.y })
+    expect(new Set(puestos.map((p) => `${p.pos.x},${p.pos.y}`)).size).toBe(3)
   })
-  it("el primero del roster ocupa la silla de la foto y los puestos son todos distintos", () => {
-    expect(puestoFijo(base, 0)).toEqual(base.silla)
-    const pts = Array.from({ length: MAXIMO_DE_PUESTOS_FIJOS }, (_, i) => puestoFijo(base, i)!)
-    expect(new Set(pts.map((p) => `${p.x},${p.y}`)).size).toBe(MAXIMO_DE_PUESTOS_FIJOS)
-    expect(puestoFijo(base, MAXIMO_DE_PUESTOS_FIJOS)).toBeNull(); expect(puestoFijo(base, -1)).toBeNull()
+  it("cuando el sentado termina, se sienta quien esperaba hace más tiempo y los de la fila avanzan un lugar", () => {
+    const antes = repartirEnLaMesa(mesa([sentado("a", min(1)), sentado("b", min(2)), sentado("c", min(3))])).puestos
+    const despues = repartirEnLaMesa(mesa([sentado("b", min(2)), sentado("c", min(3))])).puestos
+    expect(despues[0]).toMatchObject({ postura: "sentado", pos: antes[0].pos })
+    expect(despues[0].s.agente).toBe("b")
+    expect(despues[1].pos).toEqual(antes[1].pos) // c ocupa el primer lugar de pie
   })
-  it("todos sentados trabajando, ninguno de pie alrededor de otro; quien no cabe va a «+N»", () => {
-    const r = repartirEnLaMesa(mesa(["ana", "beto", "carla", "dani"], undefined))
-    expect(r.puestos.every((p) => p.postura === "sentado")).toBe(true)
-    const doce = Array.from({ length: 12 }, (_, i) => `a${String(i).padStart(2, "0")}`)
-    const m = repartirEnLaMesa(mesa(doce, doce))
-    expect(m.puestos).toHaveLength(MAXIMO_DE_PUESTOS_A_LA_VISTA); expect(m.deMas).toBe(12 - MAXIMO_DE_PUESTOS_A_LA_VISTA)
+  it("a igual hora decide el nombre; sin hora van al final", () => {
+    const { puestos } = repartirEnLaMesa(mesa([sentado("z", null), sentado("m", min(1)), sentado("b", min(1))]))
+    expect(puestos.map((p) => p.s.agente)).toEqual(["b", "m", "z"])
   })
-  it("QUIEN TRABAJA SIEMPRE SE VE (reserva de CC3 sobre #265): el 6.º del roster trabajando solo aparece sentado, en un punto propio que no pisa ningún puesto fijo", () => {
-    const doce = Array.from({ length: 12 }, (_, i) => `a${String(i).padStart(2, "0")}`)
-    const solo = repartirEnLaMesa(mesa(["a05"], doce))
-    expect(solo.puestos).toHaveLength(1); expect(solo.deMas).toBe(0); expect(solo.puestos[0].postura).toBe("sentado")
-    const fijos = Array.from({ length: MAXIMO_DE_PUESTOS_FIJOS }, (_, i) => JSON.stringify(puestoFijo(base, i)))
-    expect(fijos).not.toContain(JSON.stringify(solo.puestos[0].pos))
-    const seis = repartirEnLaMesa(mesa(doce.slice(0, 6), doce)) // los seis primeros trabajando a la vez: se ven los seis, en puntos distintos
-    expect(seis.puestos).toHaveLength(6); expect(new Set(seis.puestos.map((p) => `${p.pos.x},${p.pos.y}`)).size).toBe(6)
-    expect(repartirEnLaMesa(mesa(["a04"], doce)).puestos[0].pos).toEqual(puestoFijo(base, 4)) // el 5.º conserva su puesto fijo
+  it("máximo a la vista y el resto se dice «+N»; los lugares de pie son todos distintos y NO se agranda el escritorio", () => {
+    const doce = Array.from({ length: 12 }, (_, i) => sentado(`a${String(i).padStart(2, "0")}`, min(i)))
+    const { puestos, deMas } = repartirEnLaMesa(mesa(doce))
+    expect(puestos).toHaveLength(MAXIMO_EN_LA_MESA); expect(deMas).toBe(12 - MAXIMO_EN_LA_MESA)
+    expect(MAXIMO_EN_LA_MESA).toBe(1 + DE_PIE.length)
+    expect(new Set(puestos.map((p) => `${p.pos.x},${p.pos.y}`)).size).toBe(MAXIMO_EN_LA_MESA)
   })
-  it("sin roster el orden es por nombre (estable), y quien falta en el roster va detrás de los que sí están", () => {
-    const sinRoster = repartirEnLaMesa(mesa(["dani", "ana"], undefined)).puestos
-    expect(sinRoster.find((p) => p.s.agente === "ana")!.pos).toEqual(puestoFijo(base, 0))
-    const conOtro = repartirEnLaMesa(mesa(["zeta", "beto"], ["ana", "beto"])).puestos
-    expect(conOtro.find((p) => p.s.agente === "beto")!.pos).toEqual(puestoFijo(base, 1))
-    expect(conOtro.find((p) => p.s.agente === "zeta")!.pos).toEqual(puestoFijo(base, 2))
-  })
-  it("el roster sigue el orden firmado en el mapa y luego el de los demás por nombre", () => {
-    const r = ordenDelRoster("direccion", ["editor-en-jefe", "zzz-nuevo", "revisor-externo-gpt", "jefe-marketing", "aaa-nuevo"])
-    expect(r.slice(0, 3)).toEqual(["jefe-marketing", "revisor-externo-gpt", "editor-en-jefe"].map((x) => x.replace(/_/g, "-")))
-    expect(r.slice(3)).toEqual(["aaa-nuevo", "zzz-nuevo"])
-  })
-  it("reserva de CC3: ningún puesto de rebose pisa un puesto fijo ni a otro de rebose, en ninguna de las 6 mesas (un cambio de coordenadas que los junte hace saltar esta prueba)", () => {
-    for (const m of MESAS) {
-      const fijos = Array.from({ length: MAXIMO_DE_PUESTOS_FIJOS }, (_, i) => puestoFijo(m, i)!)
-      const rebose = Array.from({ length: PUESTOS_DE_REBOSE.length }, (_, k) => puestoDeRebose(m, k)!)
-      const todos = [...fijos, ...rebose]
-      expect(todos).toHaveLength(MAXIMO_DE_PUESTOS_A_LA_VISTA)
-      for (let a = 0; a < todos.length; a++) for (let b = a + 1; b < todos.length; b++) expect(Math.hypot(todos[a].x - todos[b].x, todos[a].y - todos[b].y), `${m.clave} ${a} vs ${b}`).toBeGreaterThanOrEqual(40)
-    }
-  })
-  it("cableado: el roster viaja en cada mesa de la escena y las entregas parten del puesto del autor", () => {
-    expect(readFileSync("lib/escena-avatares.ts", "utf8")).toContain("roster: ordenDelRoster(m.clave, equipo.map((x) => x.agente))")
-    expect(readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")).toContain("repartirEnLaMesa(mesa).puestos.find((q) => nombreCanonico(q.s.agente) === k)?.pos")
+})
+
+describe("CC4 · sin aura propia en las siluetas (Emilio 04-nov: «muy exagerada la luz anaranjada»)", () => {
+  const sil = readFileSync("components/nuevo/escena/Siluetas.tsx", "utf8")
+  it("ni resplandor ni parpadeo en el holograma de la silueta", () => {
+    expect(sil).not.toContain("nvHoloFlicker"); expect(sil).not.toMatch(/\.nv-av \.nv-holo\{filter:drop-shadow/)
   })
 })
