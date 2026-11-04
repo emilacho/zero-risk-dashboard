@@ -84,7 +84,7 @@ describe("el marco ya no manda al dashboard viejo", () => {
   it("la escena abre lo que pide el marco: Riesgos, Dinero, Organización, Flujos y Decisiones en Tu oficina; Aplicaciones en Marketing; Piezas y En vivo encima de todo", () => {
     const e = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
     expect(e).toContain('window.addEventListener(EVENTO_ABRIR_PANEL, alPedir)')
-    expect(e).toMatch(/panel === "aplicaciones"\) \{ asegurar\("marketing"\); setPizarron\(true\)/)
+    expect(e).toMatch(/panel === "aplicaciones"\) \{ asegurar\("marketing"\); setVistaDelPizarron\(vista \?\? null\); setPizarron\(true\)/) // 04-nov: con la aplicación a abrir (el aviso del pizarrón abre el manual)
     expect(e).toMatch(/asegurar\("oficina"\)\s*\n\s*if \(panel === "riesgos"\) setRadar\(true\)/)
     expect(e).toMatch(/<PanelPiezas onCerrar=\{\(\) => setPiezasDelMarco\(null\)\} piezaInicial=\{piezasDelMarco\.pieza\} \/>/)
   })

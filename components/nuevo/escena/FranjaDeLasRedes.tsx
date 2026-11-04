@@ -33,3 +33,6 @@ export function FranjaDeLasRedes({ botones, onAbrir, className = "", style }: { 
     </div>
   )
 }
+
+/** 04-nov (Emilio 11:29Z: «no sé qué son y no me gustan ahí»): la franja de redes NO se muestra hasta nuevo aviso. El código queda: para volver, true */
+export const MOSTRAR_LA_FRANJA_DE_REDES = false

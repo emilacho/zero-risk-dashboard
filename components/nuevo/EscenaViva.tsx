@@ -1,5 +1,6 @@
 "use client"
 
+import type { ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
@@ -294,14 +295,15 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   // CC6 · 03-nov · el marco (campana, «$», menú lateral, buscador) pide paneles con `nv:abrir-panel`: si el panel vive en un departamento, se abre ese departamento
   const [piezasDelMarco, setPiezasDelMarco] = useState<{ pieza: string | null } | null>(null)
   const [enVivoDelMarco, setEnVivoDelMarco] = useState(false)
+  const [vistaDelPizarron, setVistaDelPizarron] = useState<ClaveDeAplicacion | null>(null) // 04-nov · el aviso del pizarrón abre el manual directo
   const actual = useRef({ depto, fase }); actual.current = { depto, fase }
   useEffect(() => {
     const alPedir = (e: Event) => {
-      const { panel, pieza = null } = ((e as CustomEvent<PedidoDePanel>).detail ?? {}) as PedidoDePanel
+      const { panel, pieza = null, vista } = ((e as CustomEvent<PedidoDePanel>).detail ?? {}) as PedidoDePanel
       const asegurar = (clave: ClaveDeDepartamento) => { const a = actual.current; if (a.depto !== clave || a.fase === "cerrado" || a.fase === "sale") abrir(clave) }
       if (panel === "piezas") { setPiezasDelMarco({ pieza }); return }
       if (panel === "envivo") { setEnVivoDelMarco(true); return }
-      if (panel === "aplicaciones") { asegurar("marketing"); setPizarron(true); return }
+      if (panel === "aplicaciones") { asegurar("marketing"); setVistaDelPizarron(vista ?? null); setPizarron(true); return }
       asegurar("oficina")
       if (panel === "riesgos") setRadar(true)
       else if (panel === "dinero") setCaja(true)
@@ -454,7 +456,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
         </div>
       )}
       {/* sprint 6 · el pizarrón sale al <body> (como «En vivo»): la oficina lleva máscaras que lo desvanecerían */}
-      {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones onCerrar={cerrarPizarron} />, document.body)}
+      {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones key={vistaDelPizarron ?? "inicio"} onCerrar={() => { setVistaDelPizarron(null); cerrarPizarron() }} vistaInicial={vistaDelPizarron ?? undefined} />, document.body)}
       {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
       {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
       {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)}

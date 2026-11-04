@@ -5,7 +5,8 @@ import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
-import { FranjaDeLasRedes, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
+import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
+import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
 import { CuadrosDeMetricas, ESTILO_ENTREGAS, LamparaDeFirma, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
@@ -190,7 +191,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <SalaEnLaFoto sala={datos?.sala} abierta={salaAbierta} onAbrir={() => setSalaAbierta((v) => !v)} sentados={sentadosEnSala} subir={subidaDelRotulo(globoActual, lineasDeLaSala(datos?.sala).length)} />
         {/* 02-nov · los agentes holográficos (un solo dueño de toda la animación): en su escritorio, caminando a la sala, sentados en ella, hablando y de vuelta. Van sobre la zona de la sala para recibir el ratón */}
         {/* el pizarrón de métricas: «General» y un cuadro por red del cliente; hoy «métricas pronto» (los gastos se ven en Tu oficina › Dinero). Las entregas ya no quedan fijas aquí: su tarjeta aparece 8 s */}
-        <CuadrosDeMetricas metricas={datos?.metricas} onAbrir={(k) => setPanelTablero({ tipo: "pizarron", clave: k || null })} />
+        <CuadrosDeMetricas metricas={datos?.metricas} onAbrir={(k) => setPanelTablero({ tipo: "pizarron", clave: k || null })}
+          aviso={datos?.avisos?.[0] ?? null} onAviso={(a) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel: "aplicaciones", vista: a.abre } }))} />
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} cargado={datos != null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
@@ -202,8 +204,8 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {/* 03-nov · las redes del pizarrón como botones de ≥44 px, en la zona vacía de arriba del pizarrón: la franja ocupa el 76 % izquierdo del ancho y se centra ahí, o sea sobre el pizarrón (los cuadros de la foto son de 8×12 px a este ancho) */}
-      <FranjaDeLasRedes botones={botonesDeLaFranja(datos?.metricas)} className="absolute left-0 z-[3]" style={{ width: "76%", top: pct(70, FOTO.h) }}
-        onAbrir={(k) => setPanelTablero(k === "vitrina" ? { tipo: "vitrina" } : { tipo: "pizarron", clave: k })} />
+      {MOSTRAR_LA_FRANJA_DE_REDES && <FranjaDeLasRedes botones={botonesDeLaFranja(datos?.metricas)} className="absolute left-0 z-[3]" style={{ width: "76%", top: pct(70, FOTO.h) }}
+        onAbrir={(k) => setPanelTablero(k === "vitrina" ? { tipo: "vitrina" } : { tipo: "pizarron", clave: k })} />}
       {panelTablero && (
         <div role="dialog" aria-label={panelTablero.tipo === "vitrina" ? "La vitrina" : "El pizarrón de métricas"} className="nv-av-lista absolute left-1/2 top-1/2 z-[5] max-h-[80%] w-[min(26rem,92%)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-white/15 bg-[#121110]/95 p-4 text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]" onClick={(e) => e.stopPropagation()}>
           {panelTablero.tipo === "vitrina" ? <PanelDeLaVitrina vitrina={datos?.vitrina} onCerrar={() => setPanelTablero(null)} /> : <PanelDelPizarron metricas={datos?.metricas} inicial={panelTablero.clave} onCerrar={() => setPanelTablero(null)} />}

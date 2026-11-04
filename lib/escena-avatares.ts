@@ -12,6 +12,7 @@
  * - la mesa de cada uno = `oficina_directorio.equipo` (el dato); si no tiene tarjeta, el mapa firmado de `lib/organigrama.ts` (rotulado «según el mapa»); si tampoco, «sin mesa».
  * Todo aquí es puro (sin red, sin reloj propio: `ahora` se pasa) y está probado con vitest. Coordenadas en píxeles de `marketing-2560.jpg` (2560×1440), como el Centro de campaña.
  */
+import type { AvisoDeFirma } from "@/lib/escena-avisos"
 import { estadoDelPlan } from "@/lib/manual-primero"
 import { EQUIPOS, EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico, puestosDelAgente } from "@/lib/organigrama"
 import { haceCuanto } from "@/lib/oficinas"
@@ -210,6 +211,8 @@ export interface EscenaDatos {
   metricas?: MetricasDelPizarron
   /** la pantalla vertical: la vitrina de las mejores piezas (hoy «métricas pronto» + la última pieza aprobada) (`lib/escena-vitrina.ts`) */
   vitrina?: VitrinaDeLaEscena
+  /** 04-nov (CC6) · lo que espera la firma de Emilio (hoy: el manual listo); el primer recuadro del pizarrón titila (`lib/escena-avisos.ts`) */
+  avisos?: AvisoDeFirma[]
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
