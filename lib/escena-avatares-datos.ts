@@ -65,15 +65,16 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
   const desde = new Date(ahora.getTime() - HORAS_RECIENTE * 3_600_000).toISOString()
   const [desp, inv, dir, ctx] = await Promise.all([
     // los despachos abiertos (sin importar cuándo: los viejos se cuentan como «sin fin registrado») + los que terminaron o fallaron en la ventana
-    filas(supa.from("agent_dispatches").select("id, agent_name, client_id, workflow_id, workflow_execution_id, status, running_at, completed_at, created_at").or(`status.eq.running,created_at.gte.${desde}`).order("created_at", { ascending: false }).limit(300), "agent_dispatches"),
-    filas(supa.from("agent_invocations").select("agent_name, client_id, workflow_id, workflow_execution_id, status, started_at, ended_at, cost_usd, step_name:metadata->>step_name, task_text:metadata->>task_text").gte("created_at", desde).order("created_at", { ascending: false }).limit(LIMITE_DE_INVOCACIONES), "agent_invocations"),
+    filas(supa.from("agent_dispatches").select("id, agent_name, client_id, workflow_id, workflow_execution_id, status, running_at, completed_at, created_at, paso").or(`status.eq.running,created_at.gte.${desde}`).order("created_at", { ascending: false }).limit(300), "agent_dispatches"),
+    filas(supa.from("agent_invocations").select("agent_name, client_id, workflow_id, workflow_execution_id, status, started_at, ended_at, cost_usd, paso, step_name:metadata->>step_name, task_text:metadata->>task_text").gte("created_at", desde).order("created_at", { ascending: false }).limit(LIMITE_DE_INVOCACIONES), "agent_invocations"),
     directorio(supa),
     contexto(supa, ahora, cliente),
   ])
-  const despachos: Despacho[] = desp.map((d) => ({ id: String(d.id), agent_name: String(d.agent_name ?? ""), client_id: s(d.client_id), workflow_id: s(d.workflow_id), workflow_execution_id: s(d.workflow_execution_id), status: s(d.status), running_at: s(d.running_at), completed_at: s(d.completed_at), created_at: s(d.created_at) }))
+  const despachos: Despacho[] = desp.map((d) => ({ id: String(d.id), agent_name: String(d.agent_name ?? ""), client_id: s(d.client_id), workflow_id: s(d.workflow_id), workflow_execution_id: s(d.workflow_execution_id), status: s(d.status), running_at: s(d.running_at), completed_at: s(d.completed_at), created_at: s(d.created_at), paso: s(d.paso) }))
   const invocaciones: InvocacionViva[] = inv.map((i) => {
     const meta = (i.metadata && typeof i.metadata === "object" ? i.metadata : {}) as Fila
-    const m = { step_name: i.step_name ?? meta.step_name, task_text: i.task_text ?? meta.task_text } as Fila // 02-nov · solo se pide lo que se usa de `metadata` (antes viajaba el objeto entero de 400 filas)
+    // 04-nov (CC6 · regla C) · el paso: el de `metadata.step_name` y, si no hay, la columna `paso` que la plataforma guarda desde #878 (la mesa de estrategia la usa)
+    const m = { step_name: i.step_name ?? meta.step_name ?? i.paso, task_text: i.task_text ?? meta.task_text } as Fila // 02-nov · solo se pide lo que se usa de `metadata` (antes viajaba el objeto entero de 400 filas)
     return { agent_name: String(i.agent_name ?? ""), client_id: s(i.client_id), workflow_id: s(i.workflow_id), workflow_execution_id: s(i.workflow_execution_id), status: s(i.status), started_at: s(i.started_at), ended_at: s(i.ended_at), cost_usd: i.cost_usd == null ? null : Number(i.cost_usd), step_name: s(m.step_name), task_text: s(m.task_text) }
   })
   // 03-nov · el nombre del trabajo de las corridas recientes (n8n, solo lectura): sin él, la sala diría «flujo 2128…»

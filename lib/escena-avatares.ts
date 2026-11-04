@@ -160,7 +160,7 @@ export const MINUTOS_TOPE = 20
 export const MINUTOS_FALLO = 10
 export const HORAS_RECIENTE = 24
 
-export interface Despacho { id: string; agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; running_at: string | null; completed_at: string | null; created_at: string | null }
+export interface Despacho { id: string; agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; running_at: string | null; completed_at: string | null; created_at: string | null; /** 04-nov · el paso del flujo (columna `paso`, #878); null = sin dato */ paso?: string | null }
 export interface InvocacionViva { agent_name: string; client_id: string | null; workflow_id: string | null; workflow_execution_id: string | null; status: string | null; started_at: string | null; ended_at: string | null; cost_usd: number | null; step_name: string | null; task_text: string | null }
 export interface TarjetaDelDirectorio { agente: string; equipo: string | null; /** `direccion` = dirige la sesión (S3 · la cabecera de la sala) */ rol?: string | null }
 export interface NombreDeAgente { name: string; display_name: string | null; /** `agents.is_active`; `false` = dado de baja (no se sienta en la oficina) */ activo?: boolean | null }
