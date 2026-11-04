@@ -185,7 +185,7 @@ describe("el panel del manual", () => {
   it("con un pedido abierto: rótulo, barra con su animación y lo pedido; sin botones para un segundo pedido", () => {
     const avance = avanceDelPedido({ pedido: { id: "p", estado: "en_reescritura", creado_en: "2026-11-02T09:50:00Z", actualizado_en: null, despertado: true, despertar_detalle: null }, despachos: [], invocaciones: [], version_nueva: null, jefatura: null, compuerta_nueva: null }, AHORA, "manual")
     const h = html({ disponible: true, abierto: { id: "p", estado: "en_reescritura", texto: "Más cercano", seccion: null, creado_en: null, actualizado_en: null, despertado: true, despertar_detalle: null, manual_id: null, manual_nuevo_id: null }, avance, que_cambio: [] })
-    expect(h).toContain("data-rotulo-reescribiendo"); expect(h).toContain("data-barra-del-pedido"); expect(h).toContain("nv-pl-paso-vivo"); expect(h).toContain("Lo que pediste: Más cercano")
+    expect(h).toContain("data-rotulo-reescribiendo"); expect(h).toContain("data-barra-del-pedido"); expect(h).toContain("nv-pl-paso-vivo"); expect(h).not.toContain("Lo que pediste") // 04-nov (Emilio): solo el progreso, sin repetir lo pedido
     expect(h).not.toContain('data-accion="manual-texto-libre"'); expect(h).not.toContain("data-seccion-pedir"); expect(h).not.toContain('data-accion="observacion-campo"')
   })
   it("el panel deja la puerta a la vista del barrido de acciones y usa las piezas comunes del plan", () => {

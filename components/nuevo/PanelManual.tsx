@@ -6,7 +6,7 @@ import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
-import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, TEXTO_DEL_OTRO_EQUIPO, textoDelAvisoDeSalir, unoALaVez, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
+import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, TEXTO_DEL_OTRO_EQUIPO, TEXTO_NO_SE_GUARDO, textoDelAvisoDeSalir, unoALaVez, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
 import { cuantosCambios, enviarTusCambios, quitarDeTusCambios, renglonesDeTusCambios, type ComoCambio, type TusCambios } from "@/lib/pedido-del-manual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { JerarquiaTipografica } from "@/components/nuevo/manual/JerarquiaTipografica"
@@ -630,7 +630,14 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
               </button>
               {nCambios > 0 && !guardando && <button type="button" data-accion="descartar-cambios" onClick={descartarTodo} className="min-h-11 text-[13px] text-zinc-400 underline decoration-dotted underline-offset-4 hover:text-zinc-200">Descartar todo</button>}
               {guardadoOk && !nCambios && <span role="status" data-cambios-guardados className="text-[15px] font-medium text-emerald-300">✓ Cambios pedidos</span>}
-              {nCambios > 0 && guardadoDelBorrador && <span data-borrador-guardado className="ml-auto text-[12px] text-zinc-500">{haceCuanto(guardadoDelBorrador.actualizado_en, ahora)}</span>}
+              {/* 04-nov (Lenovo · reserva de CC3 a #260): si el guardado del borrador falla mientras Emilio escribe, se ve EN EL MOMENTO, con «Reintentar» */}
+              {nCambios > 0 && noSePudoGuardar && (
+                <span role="alert" data-borrador-no-guardado className="ml-auto flex items-center gap-2 text-[12.5px] text-rose-200">
+                  {TEXTO_NO_SE_GUARDO}
+                  <button type="button" data-accion="reintentar-borrador" onClick={() => { ultimoGuardado.current = ""; void guardarYa.current() }} className="min-h-11 rounded-md border border-rose-400/50 px-3 text-[12.5px] text-rose-100 hover:bg-rose-500/15">Reintentar</button>
+                </span>
+              )}
+              {nCambios > 0 && !noSePudoGuardar && guardadoDelBorrador && <span data-borrador-guardado className="ml-auto text-[12px] text-zinc-500">{haceCuanto(guardadoDelBorrador.actualizado_en, ahora)}</span>}
             </div>
           </footer>
         )}
