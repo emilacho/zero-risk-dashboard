@@ -68,7 +68,9 @@ describe("reservas de CC3 a #240: el aviso de salir no promete lo que no cumpli�
   })
   it("reserva 2: vaciar «Tus cambios» se guarda VACÍO con la revisión (no borra a ciegas lo de otro equipo)", () => {
     const f = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
-    expect(f).toMatch(/apiBorrador\.guardar\(cliente, "manual", manualId, paso === "borrar" \? \{ campos: \{\}, como: \{\}, notas: \{\}, libre: "" \} : tus, guardadoDelBorrador\?\.revision \?\? 0\)/)
+    expect(f).toContain('const lo = paso === "borrar" ? { campos: {}, como: {}, notas: {}, libre: "" } : tus')
+    expect(f).toContain('let g = await apiBorrador.guardar(cliente, "manual", manualId, lo, revisionVigente.current ?? 0)') // 04-nov: la revisión al instante, no la del render
+    expect(f).toMatch(/if \(paso === "borrar"\) \{\s*\/\/ reserva 2 de CC3[^\n]*\n\s*ponerTus\(otro\.acciones\)/) // vaciar con choque: se muestra lo del otro equipo, no se reintenta
     expect(f.match(/apiBorrador\.borrar\(/g)?.length).toBe(1) // borrar a secas, solo al descartar el borrador de la versión anterior
   })
 })

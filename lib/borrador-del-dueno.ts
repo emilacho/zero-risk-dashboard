@@ -123,3 +123,26 @@ export function pasoDelGuardado(o: { leido: boolean; igualAlUltimo: boolean; vac
   if (o.vacio) return o.hayViejoSinDecidir || !o.hayGuardado ? "nada" : "borrar"
   return "guardar"
 }
+
+/**
+ * UN GUARDADO A LA VEZ (corrección de Lenovo 04-nov 08:50Z: con Emilio escribiendo solo, salía «Tu borrador cambió en otro equipo»).
+ * Causa: dos guardados automáticos seguidos salían con la MISMA revisión; el segundo chocaba con el primero (409) y la pantalla pisaba lo que escribía.
+ * Aquí: si hay un guardado en vuelo, el siguiente espera y luego corre UNA vez con lo último (y la revisión que dejó el anterior).
+ */
+export function unoALaVez(tarea: () => Promise<boolean>): () => Promise<boolean> {
+  let vuelo: Promise<boolean> | null = null
+  let otraVez = false
+  const correr = async (): Promise<boolean> => {
+    let r = false
+    do { otraVez = false; r = await tarea() } while (otraVez)
+    return r
+  }
+  return () => {
+    if (vuelo) { otraVez = true; return vuelo }
+    vuelo = correr().finally(() => { vuelo = null })
+    return vuelo
+  }
+}
+
+/** el aviso de un choque REAL con otro equipo: lo escrito aquí ganó; lo del otro equipo se puede recuperar */
+export const TEXTO_DEL_OTRO_EQUIPO = "En otro equipo también se cambió este borrador. Guardé lo que escribiste aquí."
