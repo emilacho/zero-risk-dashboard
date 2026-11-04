@@ -344,6 +344,12 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     // vaciar se hace guardando VACÍO con la revisión (la plataforma lo borra): si otro equipo marcó algo entretanto, da 409 y se muestra (reserva 2 de CC3)
     const lo = paso === "borrar" ? { campos: {}, como: {}, notas: {}, libre: "" } : tus
     let g = await apiBorrador.guardar(cliente, "manual", manualId, lo, revisionVigente.current ?? 0)
+    if (g.otroEquipo && !g.borrador) {
+      // la fila ya no existe (la plataforma cierra el borrador con el pedido · CC1 #876): no hay nada que pisar
+      revisionVigente.current = 0
+      if (paso === "borrar") { setGuardadoDelBorrador(null); setNoSePudoGuardar(false); return true }
+      g = await apiBorrador.guardar(cliente, "manual", manualId, lo, 0)
+    }
     if (g.otroEquipo && g.borrador) {
       // choque REAL (otro equipo guardó entretanto): lo que se escribe AQUÍ no se pisa. Se guarda encima con la revisión vigente y lo del otro equipo
       // queda para recuperarlo con un toque (Lenovo 04-nov: «gana lo último que escribió esta pestaña y el aviso ofrece recuperar lo otro»)
@@ -395,6 +401,17 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     window.addEventListener("beforeunload", antes)
     return () => window.removeEventListener("beforeunload", antes)
   }, [nCambios])
+  /**
+   * tras un pedido que salió entero, el borrador de esta versión se borra (vaciar con la revisión vigente, de a uno con el guardado automático).
+   * Si quedó algo sin mandar, NO se guarda desde aquí: la plataforma ya lo deja sobre la versión vigente (CC1 #876) y guardarlo aquí lo ataría a la vieja.
+   */
+  async function dejarElBorradorEnLoQueQueda(quedan: TusCambios) {
+    if (!cliente || !manualId || borradorDe.current !== llaveDelBorrador || !borradorVacio(quedan)) return
+    await guardarYa.current().catch(() => false) // primero termina el guardado automático en vuelo: así este sale con la revisión que dejó
+    const g = await apiBorrador.guardar(cliente, "manual", manualId, quedan, revisionVigente.current ?? 0)
+    // 409 sin borrador = la plataforma ya lo cerró con el pedido (#876): no queda nada que borrar
+    if (g.ok || (g.otroEquipo && !g.borrador)) { revisionVigente.current = 0; setGuardadoDelBorrador(null); ultimoGuardado.current = JSON.stringify(quedan) }
+  }
   async function guardarCambios() {
     if (!cliente || !nCambios) return
     setGuardando(true); setAviso(null)
@@ -402,6 +419,9 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     const r = await enviarTusCambios(accion, cliente, tus, { puedeReescribir: ciclo.disponible && !ciclo.abierto, etiqueta: (k) => etiquetaDeLaClave(k, datos) })
     setGuardando(false)
     ponerTus(r.quedan)
+    // 04-nov (CC1 · borrador de Náufrago): lo pedido crea otra versión del manual; si no se limpia AHORA, el borrador queda atado a la versión vieja y al
+    // volver a leer sale «Tienes un borrador de la versión anterior» con cosas ya mandadas. Se guarda lo que queda (vacío = la plataforma lo borra) ANTES de leer.
+    if (r.ok) await dejarElBorradorEnLoQueQueda(r.quedan)
     if (r.ok) { setGuardadoOk(true); if (r.reescribe) setAviso({ ok: true, texto: r.texto }); void leer(cliente) }
     else { setAviso({ ok: false, texto: r.texto }); if (r.quedan.campos !== cambios) void leer(cliente) }
   }

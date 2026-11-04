@@ -68,3 +68,21 @@ describe("causa 1 (aviso de CC1 #875): una fila de borrador VACÍA en la base", 
     expect(f).not.toContain('if (b && q.tipo !== "nada") setGuardadoDelBorrador')
   })
 })
+
+describe("tras pedir los cambios, el borrador queda en lo que NO se mandó (CC1 04-nov · borrador de Náufrago atado a la versión 1)", () => {
+  const f = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
+  it("se guarda lo que queda (vacío = se borra) ANTES de volver a leer el manual, que ya es otra versión", () => {
+    const guardar = f.indexOf("if (r.ok) await dejarElBorradorEnLoQueQueda(r.quedan)")
+    const leerDespues = f.indexOf("if (r.ok) { setGuardadoOk(true); if (r.reescribe) setAviso({ ok: true, texto: r.texto }); void leer(cliente) }")
+    expect(guardar).toBeGreaterThan(0); expect(leerDespues).toBeGreaterThan(guardar)
+  })
+  it("con la revisión vigente y después del guardado automático en vuelo; solo si el borrador de ESTE manual ya se leyó", () => {
+    expect(f).toContain("await guardarYa.current().catch(() => false)")
+    expect(f).toContain('const g = await apiBorrador.guardar(cliente, "manual", manualId, quedan, revisionVigente.current ?? 0)')
+    expect(f).toContain("if (!cliente || !manualId || borradorDe.current !== llaveDelBorrador || !borradorVacio(quedan)) return") // si quedó algo, lo deja la plataforma en la versión vigente (#876)
+  })
+  it("si la plataforma ya cerró el borrador (409 sin borrador, #876), no se reintenta ni se marca «no pude guardar»", () => {
+    expect(f).toContain("if (g.ok || (g.otroEquipo && !g.borrador)) { revisionVigente.current = 0; setGuardadoDelBorrador(null)")
+    expect(f).toContain('if (paso === "borrar") { setGuardadoDelBorrador(null); setNoSePudoGuardar(false); return true }')
+  })
+})
