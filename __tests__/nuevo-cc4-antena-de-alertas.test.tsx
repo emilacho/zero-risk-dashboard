@@ -87,9 +87,10 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
     expect(html).not.toMatch(/animation|nv-av-ambar|drop-shadow|filter/)
     expect(html).not.toContain("nv-antena-lista")
   })
-  it("el texto largo se parte en renglones cortos y la antena está cableada en la escena y en la lectura (solo lectura)", () => {
+  it("el texto largo se parte en renglones cortos; el dibujo NO está en la escena y la lectura sigue (solo lectura)", () => {
     expect(partirEnLineas("Te preguntaron algo y sigue sin respuesta: ¿Qué sede abre el domingo en la mañana?").every((l) => l.length <= 36)).toBe(true)
-    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("<AntenaDeAlertas alertas={datos?.alertas}")
+    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).not.toContain("<AntenaDeAlertas") // el dibujo salió de la escena (Emilio 14:51Z): solo queda el dato
+    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toContain("alertas: await leerAlertasDeLaAntena")
     const lector = readFileSync("lib/escena-avatares-datos.ts", "utf8").split("export async function leerAlertasDeLaAntena")[1].split("/** la vitrina")[0]
     expect(lector).not.toMatch(/\.(insert|update|upsert|delete)\(/)
   })
