@@ -54,6 +54,9 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
     const q0 = CUADROS_DEL_PIZARRON[0].map((p) => `${p.x},${p.y}`).join(" ")
     expect(con).toMatch(new RegExp(`data-aviso-firma="manual"[^>]*>\\s*<polygon[^>]*points="${q0}"`))
     expect(con).toContain("@keyframes nvAvisoFirma"); expect(con).toMatch(/prefers-reduced-motion:reduce\)\{[^}]*\}[^@]*nv-aviso-firma \.nv-metrica-cuadro\{animation:none/)
+    // anexo 1 de CC3 (mutante «i === 3» vivo): el aviso OCUPA el primer recuadro: el recuadro «General» (el primero) no se dibuja y el aviso va antes que cualquier otro
+    expect(con).not.toContain('data-metrica="general"')
+    expect(con.indexOf('data-aviso-firma="manual"')).toBeLessThan(con.indexOf("data-metrica="))
     const sin = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena() as never }))
     expect(sin).not.toContain("data-aviso-firma"); expect(sin).toContain('data-metrica="general"')
   })
