@@ -16,6 +16,8 @@ import { ejecutarAccion } from "@/lib/tablero-acciones"
 export const FLUJO_DE_TU_OFICINA = "tablero-tu-oficina" // el mismo que usa la ruta de la pausa (CC1 #897): aquí no hay flujo detrás, viene del tablero
 export const CANAL_DE_TU_OFICINA = "dashboard · Tu oficina"
 export { TOPE_MOTIVO, TOPE_RESPUESTA }
+/** el tope de `pregunta` en la puerta del dueño (`MAX_PREGUNTA`): más larga, la puerta rechaza la respuesta entera */
+export const TOPE_PREGUNTA = 600
 
 /** un paso del registro de la decisión (lo que se muestra en su detalle) */
 export interface PasoDelRegistro { cuando: string | null; quien: "oficina" | "tu" | "sistema"; estado: "pregunto" | "respondiste" | "firmaste" | "descartaste" | "guardado" | "retomado" | "espera" | "fallo"; texto: string; cita?: string }
@@ -136,7 +138,7 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
     }
     if (!quien) return { status: 200, cuerpo: fallo(base, "No encontré qué oficina hizo esta pregunta, y el cerebro lo necesita para guardar tu respuesta. No se guardó nada.", ahora) }
     const { status, j } = await llamar(d, "/api/brain/alimentar/dueno", "POST", {
-      evento: "respuesta", client_id: dec.client_id, pregunta_id: dec.id, tema: tema.slice(0, 80), pregunta: (dec.titulo_interno ?? dec.titulo).slice(0, 1000), respuesta: v.respuesta,
+      evento: "respuesta", client_id: dec.client_id, pregunta_id: dec.id, tema: tema.slice(0, 80), pregunta: (dec.titulo_interno ?? dec.titulo).slice(0, TOPE_PREGUNTA), respuesta: v.respuesta,
       canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${dec.id}`, respondido_en: ahora, preguntado_por: { oficina: quien.oficina, agente: quien.agente ?? quien.oficina },
       dry_run: false, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion,
     })
