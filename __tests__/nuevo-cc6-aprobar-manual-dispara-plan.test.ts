@@ -32,7 +32,7 @@ describe("el botón del manual dice que es el disparador del plan", () => {
   it("CC3 reserva 1 · con cambios SIN GUARDAR (un Retirar o un Editar en espera) el botón queda deshabilitado y lo dice: lo retirado tiene que contar", () => {
     const h = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manual({}), cambiosIniciales: { vision: "" } }))
     expect(h).toMatch(/data-accion="validar-manual"[^>]*disabled=""/)
-    expect(h).toContain("Pide tus cambios antes de aprobar.")
+    expect(h).toContain("Guarda tus cambios antes de aprobar.") // 04-nov: solo directos → «Guardar cambios»
     const sin = renderToStaticMarkup(createElement(PanelManual, { onCerrar: () => {}, datosIniciales: manual({}) }))
     expect(sin).not.toMatch(/data-accion="validar-manual"[^>]*disabled=""/)
   })

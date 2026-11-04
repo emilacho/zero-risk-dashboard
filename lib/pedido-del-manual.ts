@@ -135,3 +135,16 @@ export async function enviarTusCambios(accion: Accion, cliente: string | null, c
   }
   return { ok: true, texto: "Pedido enviado: el equipo del manual reescribe el manual con tus observaciones.", quedan: SIN_CAMBIOS, reescribe: true }
 }
+
+/**
+ * EL BOTÓN DEL PIE DICE LO QUE HACE (firma de Emilio 04-nov 10:45Z · sin nota debajo, ADENDA 10:46Z).
+ * Solo ediciones directas o retiros → «Guardar cambios» (se guarda tal cual, sin reescribir ni gastar).
+ * Con observaciones (la caja de arriba o la de un campo) → «Pedir los cambios» (el equipo del manual reescribe).
+ * La misma decisión que `enviarTusCambios` (`hayObservaciones`); el texto junto a «Aprobar» dice lo mismo que el botón.
+ */
+export function botonDelPie(c: TusCambios): { reescribe: boolean; boton: string; antesDeAprobar: string; hecho: string } {
+  const reescribe = cuantosCambios(c) === 0 || hayObservaciones(c)
+  return reescribe
+    ? { reescribe, boton: "Pedir los cambios", antesDeAprobar: "Pide tus cambios antes de aprobar.", hecho: "✓ Cambios pedidos" }
+    : { reescribe, boton: "Guardar cambios", antesDeAprobar: "Guarda tus cambios antes de aprobar.", hecho: "✓ Cambios guardados" }
+}

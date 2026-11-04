@@ -198,7 +198,7 @@ describe("el panel: después de «Elegir» todo sigue a la mano (lo que vio Emil
     expect(h).toContain('data-accion="manual-texto-libre"') // el cuadro de texto libre sigue a la vista
     expect(h).not.toContain("data-campo-observar"); expect(h).not.toContain(">Observación<") // 03-nov 19:53Z (Emilio): el botón «Observación» se quitó; «Editar» basta
     expect(h).toContain('data-campo-editar="valores"'); expect(h).toContain('data-accion="retirar"') // y editar / retirar en otros campos
-    expect(h).toContain("Pide tus cambios antes de aprobar.")
+    expect(h).toContain("Guarda tus cambios antes de aprobar.") // 04-nov: solo un eslogan elegido → «Guardar cambios»
   })
   it("el pie: «Tus cambios · N» con cada uno y su ✕ grande (44 px), y UN botón «Pedir los cambios»", () => {
     const h = panel({ cambiosIniciales: { eslogan: "Del mar a tu puerta" }, notasIniciales: { voz: "Más cercana" }, libreInicial: "Pensar en Guayaquil." })
@@ -232,5 +232,31 @@ describe("caso 3 de CC1: la reescritura no terminó (o el aviso no llegó) → �
     const p = puerta()
     await enviarTusCambios(p.accion, C, { ...SIN_CAMBIOS, libre: "Campo «Voz de la marca»: más cercana" }, O)
     expect(p.llamadas[0].cuerpo).toEqual({ client_id: C, texto: "Campo «Voz de la marca»: más cercana", confirmo_gasto: true, tope_usd: 5 })
+  })
+})
+
+describe("el botón del pie dice lo que hace y «Aprobar» está a su lado (Emilio 04-nov 10:45Z / 10:46Z / 10:47Z)", () => {
+  it("solo ediciones directas o retiros → «Guardar cambios», SIN nota debajo; con texto en la caja (o una observación) → «Pedir los cambios»", async () => {
+    const { botonDelPie } = await import("@/lib/pedido-del-manual")
+    expect(botonDelPie({ campos: { eslogan: "Del mar" }, como: {}, notas: {}, libre: "" }).boton).toBe("Guardar cambios")
+    expect(botonDelPie({ campos: { valores: "" }, como: {}, notas: {}, libre: "" }).boton).toBe("Guardar cambios") // retirar
+    expect(botonDelPie({ campos: { eslogan: "Del mar" }, como: {}, notas: {}, libre: "Pensar en Guayaquil." }).boton).toBe("Pedir los cambios")
+    expect(botonDelPie({ campos: {}, como: {}, notas: { voz: "Más cercana" }, libre: "" }).boton).toBe("Pedir los cambios")
+    const g = panel({ cambiosIniciales: { eslogan: "Del mar a tu puerta" } })
+    expect(g).toMatch(/data-accion="guardar-cambios"[^>]*>Guardar cambios</); expect(g).not.toContain("sin reescribir ni gastar")
+    expect(g).toContain("Guarda tus cambios antes de aprobar.")
+    const p = panel({ cambiosIniciales: { eslogan: "Del mar a tu puerta" }, libreInicial: "Pensar en Guayaquil." })
+    expect(p).toMatch(/data-accion="guardar-cambios"[^>]*>Pedir los cambios</); expect(p).toContain("Pide tus cambios antes de aprobar.")
+  })
+  it("«Aprobar» está en el PIE (junto al botón, a la derecha) y ya no arriba en la portada", () => {
+    const h = panel({ cambiosIniciales: { eslogan: "Del mar a tu puerta" } })
+    const pie = h.slice(h.indexOf("data-guardar-cambios"))
+    expect(pie).toContain("data-pie-derecha"); expect(pie).toContain('data-accion="validar-manual"')
+    expect((h.match(/data-accion="validar-manual"/g) ?? []).length).toBe(1) // uno solo
+    const portada = h.slice(h.indexOf('aria-label="La portada del manual"'), h.indexOf("<footer"))
+    expect(portada.length).toBeGreaterThan(0); expect(portada).not.toContain('data-accion="validar-manual"') // reserva de CC3: fija la POSICIÓN
+    expect(h.slice(h.indexOf("<footer"))).toContain('data-accion="validar-manual"')
+    expect(pie.indexOf('data-accion="guardar-cambios"')).toBeLessThan(pie.indexOf('data-accion="validar-manual"')) // al lado, después del de guardar
+    expect(h).toMatch(/data-accion="validar-manual"[^>]*disabled=""/) // con cambios sin guardar, apagado
   })
 })

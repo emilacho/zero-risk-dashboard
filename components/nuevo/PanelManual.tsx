@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
 import { borrarBorrador, borradorVacio, guardarBorrador, haceCuanto, leerBorrador, pasoDelGuardado, queHacerAlAbrir, salirTrasGuardar, TEXTO_DEL_OTRO_EQUIPO, TEXTO_NO_SE_GUARDO, textoDelAvisoDeSalir, unoALaVez, type BorradorDelDueno } from "@/lib/borrador-del-dueno"
-import { cuantosCambios, enviarTusCambios, quitarDeTusCambios, renglonesDeTusCambios, type ComoCambio, type TusCambios } from "@/lib/pedido-del-manual"
+import { botonDelPie, cuantosCambios, enviarTusCambios, quitarDeTusCambios, renglonesDeTusCambios, type ComoCambio, type TusCambios } from "@/lib/pedido-del-manual"
 import { BarraDelManual } from "@/components/nuevo/manual/BarraDelManual"
 import { JerarquiaTipografica } from "@/components/nuevo/manual/JerarquiaTipografica"
 import { puedeMoverNiveles } from "@/lib/jerarquia-tipografica"
@@ -310,6 +310,9 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
   const anotar = (clave: string, t: string) => { setNotas((n) => { const o = { ...n }; if (t.trim()) o[clave] = t.trim(); else delete o[clave]; return o }); setGuardadoOk(false); setAviso(null) }
   const tus: TusCambios = { campos: cambios, como, notas, libre, detalle: detalles }
   const nCambios = cuantosCambios(tus)
+  // el botón del pie dice lo que hace, en vivo mientras se escribe (Emilio 04-nov 10:45Z)
+  const pie = botonDelPie(tus)
+  const [ultimoHecho, setUltimoHecho] = useState<string>("✓ Cambios pedidos")
   const ponerTus = (t: TusCambios) => { setCambios(t.campos); setComo(t.como); setDetalles(t.detalle ?? {}); setNotas(t.notas); setLibre(t.libre) }
   const descartarTodo = () => { ponerTus({ campos: {}, como: {}, notas: {}, libre: "" }); setEditando(null); setObservando(null) }
 
@@ -416,6 +419,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     if (!cliente || !nCambios) return
     setGuardando(true); setAviso(null)
     const ciclo = datos?.manual?.ciclo ?? CICLO_DEL_MANUAL_CERRADO
+    setUltimoHecho(botonDelPie(tus).hecho)
     const r = await enviarTusCambios(accion, cliente, tus, { puedeReescribir: ciclo.disponible && !ciclo.abierto, etiqueta: (k) => etiquetaDeLaClave(k, datos) })
     setGuardando(false)
     ponerTus(r.quedan)
@@ -528,26 +532,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
                   {(m.secciones_nuevas ?? []).map((sn) => <button key={sn.id} type="button" data-ir-apartado={sn.titulo} onClick={() => document.getElementById(`apartado-${sn.titulo}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">{sn.titulo}</button>)}
                   <button type="button" data-ir-apartado="Palabras" onClick={() => document.getElementById("apartado-Palabras")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-zinc-400 hover:border-amber-400/50 hover:text-amber-100">Palabras</button>
                 </nav>
-                {(m.lector.validadoPor !== "dueno" || reintentarPlan || !!m.plan_sin_pedir) && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {validando !== "confirmar" ? (
-                      // 03-nov (firma de Emilio 14:46Z): este botón es el DISPARADOR de la cadena; con cambios sin guardar o una reescritura en curso no se puede aprobar
-                      <>
-                        <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando" || nCambios > 0 || !!borradorViejo || ciclo.abierto != null}
-                          className="min-h-11 rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-4 py-2 text-[14px] font-medium text-emerald-100 transition hover:bg-emerald-400/20 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">{validando === "enviando" ? "Aprobando…" : (reintentarPlan || !!m.plan_sin_pedir) && m.lector.validadoPor === "dueno" ? "Reintentar pedir el plan" : "✓ Aprobar el manual y seguir con el plan"}</button>
-                        {nCambios > 0 && <span data-aprobar-espera className="text-[13px] text-amber-200">Pide tus cambios antes de aprobar.</span>}
-                        {nCambios === 0 && !!borradorViejo && <span data-aprobar-espera className="text-[13px] text-amber-200">Decide qué hacer con el borrador de la versión anterior.</span>}
-                        {nCambios === 0 && ciclo.abierto != null && <span data-aprobar-espera className="text-[13px] text-amber-200">Espera a que termine la reescritura del manual.</span>}
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-[13.5px] text-zinc-200">Al aprobar, el manual{datos?.cliente?.nombre ? <> de <b data-validar-para className="text-amber-200">{datos.cliente.nombre}</b></> : null} queda como tuyo y <b>arranca el plan de campaña</b> con él. Lo que retiraste o editaste ya cuenta. Después, los cambios al manual van por «Pedir cambios».</span>
-                        <button type="button" data-accion="confirmar-validar" onClick={() => void validar()} className="min-h-11 rounded-lg border border-emerald-400/70 bg-emerald-400/15 px-4 py-2 text-[14px] font-medium text-emerald-50 hover:bg-emerald-400/25">{datos?.cliente?.nombre ? `Sí, aprobar y seguir con el plan de ${datos.cliente.nombre}` : "Sí, aprobar y seguir con el plan"}</button>
-                        <button type="button" onClick={() => setValidando("quieto")} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">Cancelar</button>
-                      </>
-                    )}
-                  </div>
-                )}
+                {/* 04-nov (Emilio 10:47Z): «Aprobar» ya no va aquí arriba: está en el pie, junto a «Guardar cambios» / «Pedir los cambios» */}
                 {/* pedir cambios al manual entero (como el plan); la puerta es `manual-cambios`: data-tablero-accion="manual-cambios" */}
                 <PedirCambiosAlManual clienteNombre={datos?.cliente?.nombre ?? null} ciclo={ciclo} validadosDelManual={validadosDe(APARTADOS_DEL_MANUAL.flatMap((a) => a.claves))} pedirEn={pedirEn}
                   libre={libre} onLibre={(t) => { setLibre(t); setGuardadoOk(false) }} onReintentar={(t) => void reintentar(t)} reintentando={guardando} />
@@ -623,21 +608,44 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
                 ))}</ul>
               </div>
             )}
+            {/* 04-nov (Emilio 10:47Z): pie fijo «como toda plataforma»: a la izquierda descartar y el estado; a la derecha guardar o pedir y, al lado, Aprobar */}
             <div className="flex flex-wrap items-center gap-3">
-              <button type="button" data-accion="guardar-cambios" data-tablero-accion="manual-campos" disabled={!nCambios || guardando || !cliente} onClick={() => void guardarCambios()}
-                className="min-h-11 rounded-lg border border-amber-400/70 bg-amber-400/15 px-5 py-2.5 text-[15px] font-medium text-amber-50 transition hover:bg-amber-400/25 disabled:border-amber-400/25 disabled:bg-amber-400/[0.04] disabled:text-amber-200/40">
-                {guardando ? "Enviando…" : "Pedir los cambios"}
-              </button>
               {nCambios > 0 && !guardando && <button type="button" data-accion="descartar-cambios" onClick={descartarTodo} className="min-h-11 text-[13px] text-zinc-400 underline decoration-dotted underline-offset-4 hover:text-zinc-200">Descartar todo</button>}
-              {guardadoOk && !nCambios && <span role="status" data-cambios-guardados className="text-[15px] font-medium text-emerald-300">✓ Cambios pedidos</span>}
+              {guardadoOk && !nCambios && <span role="status" data-cambios-guardados className="text-[15px] font-medium text-emerald-300">{ultimoHecho}</span>}
               {/* 04-nov (Lenovo · reserva de CC3 a #260): si el guardado del borrador falla mientras Emilio escribe, se ve EN EL MOMENTO, con «Reintentar» */}
               {nCambios > 0 && noSePudoGuardar && (
-                <span role="alert" data-borrador-no-guardado className="ml-auto flex items-center gap-2 text-[12.5px] text-rose-200">
+                <span role="alert" data-borrador-no-guardado className="flex items-center gap-2 text-[12.5px] text-rose-200">
                   {TEXTO_NO_SE_GUARDO}
                   <button type="button" data-accion="reintentar-borrador" onClick={() => { ultimoGuardado.current = ""; void guardarYa.current() }} className="min-h-11 rounded-md border border-rose-400/50 px-3 text-[12.5px] text-rose-100 hover:bg-rose-500/15">Reintentar</button>
                 </span>
               )}
-              {nCambios > 0 && !noSePudoGuardar && guardadoDelBorrador && <span data-borrador-guardado className="ml-auto text-[12px] text-zinc-500">{haceCuanto(guardadoDelBorrador.actualizado_en, ahora)}</span>}
+              {nCambios > 0 && !noSePudoGuardar && guardadoDelBorrador && <span data-borrador-guardado className="text-[12px] text-zinc-500">{haceCuanto(guardadoDelBorrador.actualizado_en, ahora)}</span>}
+              <div data-pie-derecha className="ml-auto flex flex-wrap items-center justify-end gap-3">
+                <button type="button" data-accion="guardar-cambios" data-tablero-accion="manual-campos" disabled={!nCambios || guardando || !cliente} onClick={() => void guardarCambios()}
+                  className="min-h-11 rounded-lg border border-amber-400/70 bg-amber-400/15 px-5 py-2.5 text-[15px] font-medium text-amber-50 transition hover:bg-amber-400/25 disabled:border-amber-400/25 disabled:bg-amber-400/[0.04] disabled:text-amber-200/40">
+                  {guardando ? "Enviando…" : pie.boton}
+                </button>
+                {(m.lector.validadoPor !== "dueno" || reintentarPlan || !!m.plan_sin_pedir) && (
+                  <div data-aprobar-en-el-pie className="flex flex-wrap items-center gap-2">
+                    {validando !== "confirmar" ? (
+                      // 03-nov (firma de Emilio 14:46Z): este botón es el DISPARADOR de la cadena; con cambios sin guardar o una reescritura en curso no se puede aprobar
+                      <>
+                        <button type="button" data-accion="validar-manual" onClick={() => setValidando("confirmar")} disabled={validando === "enviando" || nCambios > 0 || !!borradorViejo || ciclo.abierto != null}
+                          className="min-h-11 rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-4 py-2 text-[14px] font-medium text-emerald-100 transition hover:bg-emerald-400/20 disabled:border-white/10 disabled:bg-transparent disabled:text-zinc-500">{validando === "enviando" ? "Aprobando…" : (reintentarPlan || !!m.plan_sin_pedir) && m.lector.validadoPor === "dueno" ? "Reintentar pedir el plan" : "✓ Aprobar el manual y seguir con el plan"}</button>
+                        {nCambios > 0 && <span data-aprobar-espera className="text-[13px] text-amber-200">{pie.antesDeAprobar}</span>}
+                        {nCambios === 0 && !!borradorViejo && <span data-aprobar-espera className="text-[13px] text-amber-200">Decide qué hacer con el borrador de la versión anterior.</span>}
+                        {nCambios === 0 && ciclo.abierto != null && <span data-aprobar-espera className="text-[13px] text-amber-200">Espera a que termine la reescritura del manual.</span>}
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[13.5px] text-zinc-200">Al aprobar, el manual{datos?.cliente?.nombre ? <> de <b data-validar-para className="text-amber-200">{datos.cliente.nombre}</b></> : null} queda como tuyo y <b>arranca el plan de campaña</b> con él. Lo que retiraste o editaste ya cuenta. Después, los cambios al manual van por «Pedir cambios».</span>
+                        <button type="button" data-accion="confirmar-validar" onClick={() => void validar()} className="min-h-11 rounded-lg border border-emerald-400/70 bg-emerald-400/15 px-4 py-2 text-[14px] font-medium text-emerald-50 hover:bg-emerald-400/25">{datos?.cliente?.nombre ? `Sí, aprobar y seguir con el plan de ${datos.cliente.nombre}` : "Sí, aprobar y seguir con el plan"}</button>
+                        <button type="button" onClick={() => setValidando("quieto")} className="min-h-11 rounded-lg border border-white/10 px-4 py-2 text-[14px] text-zinc-300 hover:bg-white/[0.05]">Cancelar</button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </footer>
         )}
