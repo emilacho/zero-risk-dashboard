@@ -7,7 +7,6 @@ import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
 import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
 import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
-import { AntenaDeAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
 import { CuadrosDeMetricas, ESTILO_ENTREGAS, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
 import type { EntregaViva } from "@/lib/escena-entregas"
 import { agentesEnLaSala, lineasDeLaSala } from "@/lib/escena-sala"
@@ -196,8 +195,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
         <VitrinaVertical vitrina={datos?.vitrina} onAbrir={() => setPanelTablero({ tipo: "vitrina" })} />
         {/* 04-nov (Emilio 14:08Z): sin lámpara en Dirección; el aviso de firma vive solo en el pizarrón (`firma.pendientes` sigue en el dato) */}
-        {/* 04-nov · la antena avisa las alertas del departamento: roja fija con alertas, nada sin ellas */}
-        <AntenaDeAlertas alertas={datos?.alertas} onAbrir={(panel) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel } }))} />
+        {/* 04-nov (Emilio 14:51Z): el dibujo de la antena (#273) SALIÓ de la escena; el dato `alertas` y la lista siguen listos, sin mostrarse, hasta que Emilio apruebe cómo se ve (`AntenaDeAlertas.tsx`) */}
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {/* 03-nov · las redes del pizarrón como botones de ≥44 px, en la zona vacía de arriba del pizarrón: la franja ocupa el 76 % izquierdo del ancho y se centra ahí, o sea sobre el pizarrón (los cuadros de la foto son de 8×12 px a este ancho) */}
