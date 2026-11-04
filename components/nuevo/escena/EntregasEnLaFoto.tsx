@@ -28,6 +28,9 @@ export const ESTILO_ENTREGAS = `
 const puntos = (p: Array<{ x: number; y: number }>) => p.map((q) => `${q.x},${q.y}`).join(" ")
 
 /** los cuadros del pizarrón son de MÉTRICAS: «General» y uno por red del cliente. Hoy dicen «métricas pronto»; al pasar el cursor, el nombre y el estado (la métrica principal y su variación llegan con el contrato de CC1) */
+/** el rótulo del aviso de firma, en píxeles de la foto (2560 de ancho): a 1280 px de pantalla queda de 48 px de alto y letra de 15 px */
+export const ROTULO_DEL_AVISO = { alto: 96, letra: 30 } as const
+
 export function CuadrosDeMetricas({ metricas, onAbrir, aviso = null, onAviso }: { metricas: MetricasDelPizarron | undefined; onAbrir?: (clave: string) => void; /** 04-nov · lo que espera la firma: el PRIMER recuadro titila y lo dice */ aviso?: AvisoDeFirma | null; onAviso?: (a: AvisoDeFirma) => void }) {
   const [activo, setActivo] = useState<string | null>(null)
   if (!metricas) return null
@@ -44,14 +47,15 @@ export function CuadrosDeMetricas({ metricas, onAbrir, aviso = null, onAviso }: 
         // 04-nov (Emilio 11:29Z) · el primer recuadro (arriba a la izquierda) queda para lo que espera la firma: titila en ámbar y dice qué es; al tocarlo, lo abre
         if (i === 0 && aviso) {
           const q = CUADROS_DEL_PIZARRON[0], x = Math.min(...q.map((p) => p.x)), y = Math.min(...q.map((p) => p.y))
-          const w = Math.max(150, aviso.texto.length * 7.4 + 24)
+          // reserva 1 de CC3 (#264): en píxeles de la foto (2560 de ancho) el rótulo se ve a la mitad en un portátil de 1280 → se dibuja al DOBLE: ≥44 px de alto y letra ≥14 px ahí
+          const w = Math.max(300, aviso.texto.length * ROTULO_DEL_AVISO.letra * 0.53 + 48)
           return (
             <g key={`aviso-${aviso.clave}`} className="nv-metrica nv-aviso-firma" data-aviso-firma={aviso.clave} role="button" tabIndex={0} aria-label={aviso.texto}
               onClick={() => onAviso?.(aviso)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAviso?.(aviso) } }}>
               <polygon className="nv-metrica-cuadro" points={puntos(q)} strokeWidth={1.2} />
-              <g className="nv-aviso-rotulo" transform={`translate(${x - 8} ${y - 50})`}>
-                <rect x={0} y={0} width={w} height={44} rx={12} fill="#0e0c0a" fillOpacity={0.95} stroke="#ffb347" strokeOpacity={0.9} strokeWidth={1.4} />
-                <text x={12} y={27} fontFamily={FUENTE} fontSize={14} fontWeight={600} fill="#ffe2a8">{aviso.texto}</text>
+              <g className="nv-aviso-rotulo" transform={`translate(${x - 8} ${y - ROTULO_DEL_AVISO.alto - 12})`}>
+                <rect x={0} y={0} width={w} height={ROTULO_DEL_AVISO.alto} rx={20} fill="#0e0c0a" fillOpacity={0.95} stroke="#ffb347" strokeOpacity={0.9} strokeWidth={2.4} />
+                <text x={24} y={ROTULO_DEL_AVISO.alto / 2 + ROTULO_DEL_AVISO.letra * 0.36} fontFamily={FUENTE} fontSize={ROTULO_DEL_AVISO.letra} fontWeight={600} fill="#ffe2a8">{aviso.texto}</text>
               </g>
             </g>
           )

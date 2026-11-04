@@ -7,6 +7,7 @@ import { armarEscena } from "@/lib/escena-avatares"
 import { avisoDelManual, leerAvisosDeFirma, TEXTO_MANUAL_LISTO } from "@/lib/escena-avisos"
 import { cuadrosDelPizarron } from "@/lib/escena-metricas"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
+import { CUADROS_DEL_PIZARRON } from "@/lib/escena-entregas"
 import { MOSTRAR_LA_FRANJA_DE_REDES } from "@/components/nuevo/escena/FranjaDeLasRedes"
 
 const C = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312"
@@ -47,7 +48,11 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
   it("con el aviso, el primer recuadro titila y DICE «Manual listo · revísalo» (rótulo de 44 px de alto); sin aviso, el recuadro de siempre", () => {
     const con = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena({ avisos: [MANUAL] }) as never }))
     expect(con).toContain('data-aviso-firma="manual"'); expect(con).toContain("Manual listo · revísalo"); expect(con).toContain("nv-aviso-firma")
-    expect(con).toMatch(/nv-aviso-rotulo[^>]*>\s*<rect[^>]*height="44"/)
+    expect(con).toMatch(/nv-aviso-rotulo[^>]*>\s*<rect[^>]*height="96"/) // 96 px de la foto = 48 px en una pantalla de 1280 (reserva 1 de CC3)
+    expect(con).toMatch(/nv-aviso-rotulo[\s\S]*?font-size="30"/)
+    // reserva de CC3 (mutante vivo «aviso en otro recuadro»): el recuadro del aviso es EL PRIMERO, arriba a la izquierda
+    const q0 = CUADROS_DEL_PIZARRON[0].map((p) => `${p.x},${p.y}`).join(" ")
+    expect(con).toMatch(new RegExp(`data-aviso-firma="manual"[^>]*>\\s*<polygon[^>]*points="${q0}"`))
     expect(con).toContain("@keyframes nvAvisoFirma"); expect(con).toMatch(/prefers-reduced-motion:reduce\)\{[^}]*\}[^@]*nv-aviso-firma \.nv-metrica-cuadro\{animation:none/)
     const sin = renderToStaticMarkup(createElement(Avatares, { datosIniciales: escena() as never }))
     expect(sin).not.toContain("data-aviso-firma"); expect(sin).toContain('data-metrica="general"')
@@ -55,6 +60,10 @@ describe("2 · «Manual listo · revísalo» en el PRIMER recuadro del pizarrón
   it("al tocarlo abre el Centro de campaña directo en el manual", () => {
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
     expect(av).toContain('detail: { panel: "aplicaciones", vista: a.abre }')
+    // reserva de CC3 (mutante vivo «tocar no abre»): el recuadro del aviso llama a onAviso con el clic y con Enter/Espacio
+    const fo = readFileSync("components/nuevo/escena/EntregasEnLaFoto.tsx", "utf8")
+    expect(fo).toContain("onClick={() => onAviso?.(aviso)} onKeyDown={(e) => { if (e.key === \"Enter\" || e.key === \" \") { e.preventDefault(); onAviso?.(aviso) } }}")
+    expect(av).toContain("aviso={datos?.avisos?.[0] ?? null} onAviso={(a) => window.dispatchEvent(")
     expect(readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")).toContain('useState<"inicio" | ClaveDeAplicacion>(vistaInicial ?? "inicio")')
     expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain("vistaInicial={vistaDelPizarron ?? undefined}")
   })
