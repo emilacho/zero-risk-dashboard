@@ -7,10 +7,10 @@ import type { CuadroDeMetrica } from "@/lib/escena-metricas"
 const leer = (p: string) => readFileSync(p, "utf8").replace(/\r\n/g, "\n")
 
 describe("CC4 · sala de reuniones · palabras de oficina", () => {
-  it("el trabajo nunca se dice con código: nombre de n8n limpio o «un trabajo sin nombre registrado»", () => {
+  it("el trabajo nunca se dice con código: nombre de n8n limpio o «un trabajo en curso»", () => {
     expect(nombreDelFlujoEnPalabras("2128abcd", { "2128abcd": "Zero Risk — Cambios al manual · CC-12" })).toBe("Cambios al manual")
-    expect(nombreDelFlujoEnPalabras("2128abcd", {})).toBe("un trabajo sin nombre registrado")
-    expect(nombreDelFlujoEnPalabras(null)).toBe("un trabajo sin nombre registrado")
+    expect(nombreDelFlujoEnPalabras("2128abcd", {})).toBe("un trabajo en curso")
+    expect(nombreDelFlujoEnPalabras(null)).toBe("un trabajo en curso")
     expect(nombreDelFlujoEnPalabras("2128abcd", {})).not.toMatch(/2128|flujo/)
   })
   it("sin reunión no hay botón; con fallo lo dice en rojo; el detalle técnico va detrás de «ver detalle»", () => {
