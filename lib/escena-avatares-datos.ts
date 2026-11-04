@@ -161,12 +161,17 @@ export async function leerEntregas(supa: SupabaseClient, ahora: Date): Promise<E
 export async function leerTrabajosTerminados(supa: SupabaseClient, desde: string) {
   const F = FIN_DEL_TRABAJO
   const [planes, pedidos, altas, dir] = await Promise.all([
-    filas(supa.from(F.plan.tabla).select("id, estado, dry_run, actualizado_en").eq("estado", F.plan.estado).eq("dry_run", false).gte(F.plan.cuando, desde).limit(MAXIMO_DE_CUADROS), F.plan.tabla),
-    filas(supa.from(F.pedido.tabla).select("id, estado, documento, actualizado_en").eq("estado", F.pedido.estado).gte(F.pedido.cuando, desde).limit(MAXIMO_DE_CUADROS), F.pedido.tabla),
-    filas(supa.from(F.alta.tabla).select("id, status, updated_at").eq("status", F.alta.estado).gte(F.alta.cuando, desde).limit(MAXIMO_DE_CUADROS), F.alta.tabla),
+    filas(supa.from(F.plan.tabla).select("id, client_id, estado, dry_run, actualizado_en").eq("estado", F.plan.estado).eq("dry_run", false).gte(F.plan.cuando, desde).limit(MAXIMO_DE_CUADROS), F.plan.tabla),
+    filas(supa.from(F.pedido.tabla).select("id, client_id, estado, documento, actualizado_en").eq("estado", F.pedido.estado).gte(F.pedido.cuando, desde).limit(MAXIMO_DE_CUADROS), F.pedido.tabla),
+    filas(supa.from(F.alta.tabla).select("id, client_id, status, updated_at").eq("status", F.alta.estado).gte(F.alta.cuando, desde).limit(MAXIMO_DE_CUADROS), F.alta.tabla),
     filas(supa.from("oficina_directorio").select("agente").eq("rol", "direccion").limit(50), "oficina_directorio"),
   ])
-  const trabajos = trabajosTerminados({ planes, pedidos, altas })
+  // reserva de CC3 a #275: lo de un cliente de práctica no camina (ni plan, ni pedido, ni alta)
+  const idsCli = [...new Set([...planes, ...pedidos, ...altas].map((f) => s(f.client_id)).filter((x): x is string => !!x))]
+  const cli = idsCli.length ? await filas(supa.from("clients").select("id, name, industry").in("id", idsCli).limit(100), "clients") : []
+  const practica = new Set(cli.filter((c) => esDePractica({ nombre: String(c.name ?? ""), rubro: c.industry ? String(c.industry) : null })).map((c) => String(c.id)))
+  const real = (f: Fila) => !practica.has(String(f.client_id ?? ""))
+  const trabajos = trabajosTerminados({ planes: planes.filter(real), pedidos: pedidos.filter(real), altas: altas.filter(real) })
   const ids = [...new Set(trabajos.map((w) => w.id))]
   const llamadasDeTrabajos = ids.length ? await filas(supa.from("agent_invocations").select("agent_name, trabajo_tipo, trabajo_id, status, ended_at").in("trabajo_id", ids).limit(2000), "agent_invocations") : []
   return { trabajos, llamadasDeTrabajos, directores: dir.map((d) => String(d.agente ?? "")).filter(Boolean) }

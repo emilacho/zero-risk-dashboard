@@ -7,8 +7,9 @@ import { leerTrabajosTerminados } from "@/lib/escena-avatares-datos"
 const AHORA = new Date("2026-11-04T15:30:00Z")
 const base = { encargos: [], turnos: [], filas: [], revisiones: [], pasos: [], bandeja: [], ahora: AHORA }
 // datos de forma real (lectura del 04-nov): el plan r3 de Náufrago y la reescritura del manual
-const PLAN = { id: "2c0d2236-50da-44b2-95c5-3aa19885fea4", estado: "hecha", dry_run: false, actualizado_en: "2026-11-04T13:49:30.138+00:00" }
-const PEDIDO = { id: "7d9913a3-007f-4685-bcdd-a2321793a39c", estado: "aplicado", documento: "manual", actualizado_en: "2026-11-04T10:00:10.213+00:00" }
+const N = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312"
+const PLAN = { id: "2c0d2236-50da-44b2-95c5-3aa19885fea4", client_id: N, estado: "hecha", dry_run: false, actualizado_en: "2026-11-04T13:49:30.138+00:00" }
+const PEDIDO = { id: "7d9913a3-007f-4685-bcdd-a2321793a39c", client_id: N, estado: "aplicado", documento: "manual", actualizado_en: "2026-11-04T10:00:10.213+00:00" }
 const llamada = (agent_name: string, trabajo_tipo: string, trabajo_id: string, ended_at: string, status = "completed") => ({ agent_name, trabajo_tipo, trabajo_id, ended_at, status })
 
 describe("1 · «terminó un output» sale del estado final de su trabajo raíz", () => {
@@ -65,17 +66,29 @@ describe("4 · la lectura (solo lectura) pide solo lo terminado, real y de la ve
     const supa = { from: (tabla: string) => {
       const r: Record<string, unknown> = {}, q: string[] = [tabla]
       for (const m of ["select", "eq", "gte", "limit", "in"]) r[m] = (...a: unknown[]) => { q.push(`${m}(${a.map((x) => JSON.stringify(x)).join(",")})`); return r }
-      r.then = (ok: (x: unknown) => unknown) => { pedidos.push(q.join(".")); const d = tabla === "plan_corridas" ? [PLAN] : tabla === "plan_cambios" ? [PEDIDO] : tabla === "oficina_directorio" ? [{ agente: "campaign-brief-agent" }] : tabla === "agent_invocations" ? [llamada("jefe-marketing", "plan", PLAN.id, "2026-11-04T13:45:17Z")] : []; return Promise.resolve({ data: d, error: null }).then(ok) }
+      r.then = (ok: (x: unknown) => unknown) => { pedidos.push(q.join(".")); const d = tabla === "plan_corridas" ? [PLAN] : tabla === "plan_cambios" ? [PEDIDO] : tabla === "oficina_directorio" ? [{ agente: "campaign-brief-agent" }] : tabla === "agent_invocations" ? [llamada("jefe-marketing", "plan", PLAN.id, "2026-11-04T13:45:17Z")] : tabla === "clients" ? [{ id: N, name: "Náufrago", industry: "restaurantes" }] : []; return Promise.resolve({ data: d, error: null }).then(ok) }
       return r
     } } as never
     const x = await leerTrabajosTerminados(supa, "2026-11-03T15:30:00.000Z")
     expect(x.trabajos.map((w) => w.tipo)).toEqual(["plan", "pedido"]); expect(x.directores).toEqual(["campaign-brief-agent"]); expect(x.llamadasDeTrabajos.length).toBe(1)
     const p = pedidos.join("\n")
-    expect(p).toContain('plan_corridas.select("id, estado, dry_run, actualizado_en").eq("estado","hecha").eq("dry_run",false).gte("actualizado_en","2026-11-03T15:30:00.000Z")')
-    expect(p).toContain('plan_cambios.select("id, estado, documento, actualizado_en").eq("estado","aplicado").gte("actualizado_en","2026-11-03T15:30:00.000Z")')
-    expect(p).toContain('client_journey_state.select("id, status, updated_at").eq("status","completed")')
+    expect(p).toContain('plan_corridas.select("id, client_id, estado, dry_run, actualizado_en").eq("estado","hecha").eq("dry_run",false).gte("actualizado_en","2026-11-03T15:30:00.000Z")')
+    expect(p).toContain('plan_cambios.select("id, client_id, estado, documento, actualizado_en").eq("estado","aplicado").gte("actualizado_en","2026-11-03T15:30:00.000Z")')
+    expect(p).toContain('client_journey_state.select("id, client_id, status, updated_at").eq("status","completed")')
     expect(p).toContain('oficina_directorio.select("agente").eq("rol","direccion")')
     expect(p).toContain(`agent_invocations.select("agent_name, trabajo_tipo, trabajo_id, status, ended_at").in("trabajo_id",${JSON.stringify([PLAN.id, PEDIDO.id])})`)
+  })
+  it("reserva de CC3: lo de un cliente de práctica (plan, pedido o alta) no camina; lo del cliente real, sí", async () => {
+    const P = "11111111-1111-1111-1111-111111111111", R = "22222222-2222-2222-2222-222222222222"
+    const supa = { from: (tabla: string) => {
+      const r: Record<string, unknown> = {}
+      for (const m of ["select", "eq", "gte", "limit", "in"]) r[m] = () => r
+      const d = tabla === "plan_corridas" ? [{ ...PLAN, id: "plan-practica", client_id: P }, PLAN] : tabla === "plan_cambios" ? [{ ...PEDIDO, client_id: P }] : tabla === "client_journey_state" ? [{ id: "alta-practica", client_id: P, status: "completed", updated_at: "2026-11-04T12:00:00Z" }, { id: "alta-rubro", client_id: R, status: "completed", updated_at: "2026-11-04T12:00:00Z" }]
+        : tabla === "clients" ? [{ id: P, name: "zz Cliente de práctica", industry: "restaurantes" }, { id: R, name: "Otro", industry: "prueba" }, { id: N, name: "Náufrago", industry: "restaurantes" }] : []
+      r.then = (ok: (x: unknown) => unknown) => Promise.resolve({ data: d, error: null }).then(ok)
+      return r
+    } } as never
+    expect((await leerTrabajosTerminados(supa, "2026-11-03T15:30:00.000Z")).trabajos.map((w) => w.id)).toEqual([PLAN.id])
   })
   it("una tabla que falla lanza (la escena sigue sin entregas; no se inventan)", async () => {
     const supa = { from: (tabla: string) => { const r: Record<string, unknown> = {}; for (const m of ["select", "eq", "gte", "limit", "in"]) r[m] = () => r; r.then = (ok: (x: unknown) => unknown) => Promise.resolve(tabla === "plan_cambios" ? { data: null, error: { message: "caída" } } : { data: [], error: null }).then(ok); return r } } as never
