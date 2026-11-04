@@ -4,31 +4,34 @@
  * Reglas (Emilio): solo se ven los que trabajan AHORA · UNA silla por escritorio (el que escribe se sienta; los que aportan se paran alrededor de esa computadora).
  * Sprint 2 (abajo): caminar a la sala de reuniones y volver. La entrega al pizarrón y el clic en el agente son los sprints 3 y 4: NO están aquí.
  */
-import { U, V, type MesaViva, type Punto, type Sentado } from "@/lib/escena-avatares"
+import { MAXIMO_DE_PUESTOS_FIJOS, U, V, puestoFijo, type MesaViva, type Punto, type Sentado } from "@/lib/escena-avatares"
+import { nombreCanonico } from "@/lib/organigrama"
 import { SILLAS_DE_LA_SALA } from "@/lib/escena-sala"
 
-export const MAXIMO_EN_LA_MESA = 4 // 1 sentado + 3 de pie; el resto se dice «+N»
+export const MAXIMO_EN_LA_MESA = MAXIMO_DE_PUESTOS_FIJOS // cada uno en SU puesto fijo; el que no cabe se dice «+N»
 export type Postura = "sentado" | "de_pie"
 export interface PuestoDeAgente { s: Sentado; pos: Punto; postura: Postura }
 
 const aqui = (c: Punto, u: number, v: number): Punto => ({ x: Math.round(c.x + u * U.x + v * V.x), y: Math.round(c.y + u * U.y + v * V.y) })
-/** dónde se para quien aporta, alrededor de la computadora (en los ejes del escritorio, desde su centro): el extremo derecho, el frente y el extremo izquierdo */
-export const DE_PIE: Array<[number, number]> = [[64, 38], [-2, 84], [-92, 66]]
-
 /** dónde va la etiqueta «+N»: sobre el borde del escritorio, junto a su monitor (pegada a su mesa, no suelta en el piso) */
 export const puntoDelMas = (m: Pick<MesaViva, "centro">): Punto => aqui(m.centro, 66, -50)
 
 /**
- * Una silla por escritorio: se sienta el que lleva más tiempo trabajando en esa mesa (el que escribe); los demás —los que aportan dentro de su dominio— se paran
- * alrededor de esa computadora. Máximo MAXIMO_EN_LA_MESA a la vista; el resto va en `deMas`.
+ * Escritorio fijo por agente (04-nov · punto 9): cada empleado tiene SU puesto en la mesa de su equipo, según su lugar en el roster (`m.roster`; sin roster, por nombre), y ahí se
+ * sienta a trabajar siempre que tenga una llamada abierta, esté quien esté trabajando a la vez. Nadie se para alrededor de otro. El puesto no depende de cuántos trabajen.
+ * Quien no cabe en los MAXIMO_EN_LA_MESA puestos va en `deMas`.
  */
-export function repartirEnLaMesa(m: Pick<MesaViva, "sentados" | "silla" | "centro">): { puestos: PuestoDeAgente[]; deMas: number } {
-  const orden = [...m.sentados].sort((a, b) => (a.estado === b.estado ? (a.desde ?? "") < (b.desde ?? "") ? -1 : 1 : a.estado === "trabajando" ? -1 : 1))
-  const visibles = orden.slice(0, MAXIMO_EN_LA_MESA)
-  const puestos = visibles.map((s, i): PuestoDeAgente => i === 0
-    ? { s, pos: { x: m.silla.x, y: m.silla.y }, postura: "sentado" }
-    : { s, pos: aqui(m.centro, DE_PIE[i - 1][0], DE_PIE[i - 1][1]), postura: "de_pie" })
-  return { puestos, deMas: Math.max(0, orden.length - visibles.length) }
+export function repartirEnLaMesa(m: Pick<MesaViva, "sentados" | "silla" | "centro"> & { roster?: string[] }): { puestos: PuestoDeAgente[]; deMas: number } {
+  const orden = [...(m.roster ?? [])]
+  for (const s of [...m.sentados].sort((a, b) => nombreCanonico(a.agente).localeCompare(nombreCanonico(b.agente), "es"))) { const k = nombreCanonico(s.agente); if (!orden.includes(k)) orden.push(k) }
+  const puestos: PuestoDeAgente[] = []
+  let deMas = 0
+  for (const s of m.sentados) {
+    const pos = puestoFijo(m, orden.indexOf(nombreCanonico(s.agente)))
+    if (pos) puestos.push({ s, pos, postura: "sentado" }); else deMas++
+  }
+  puestos.sort((a, b) => a.pos.x - b.pos.x || a.pos.y - b.pos.y)
+  return { puestos, deMas }
 }
 
 // ── SPRINT 2 · caminar a la sala de reuniones y volver ──

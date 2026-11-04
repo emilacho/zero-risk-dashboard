@@ -42,13 +42,12 @@ const sentado = (agente: string, desde: string, estado: "trabajando" | "fallo" =
 const mesa = (clave: string, sentados: Sentado[]): MesaViva => ({ ...MESAS.find((m) => m.clave === clave)!, sentados, equipo: [], trabajando: sentados.length, fallando: 0 })
 
 describe("sprint 1 · las siluetas en los escritorios", () => {
-  it("una sola silla por escritorio: el que lleva más tiempo se sienta, los demás de pie; máximo 4 a la vista", () => {
-    const m = mesa("creativo", ["a", "b", "c", "d", "e", "f"].map((n, i) => sentado(n, `2026-11-02T10:0${i}:00Z`)))
+  it("escritorio fijo por agente: todos sentados, cada uno en su puesto; máximo MAXIMO_EN_LA_MESA a la vista y el resto se dice «+N» (el detalle está en nuevo-cc4-escritorio-fijo.test.ts)", () => {
+    const m = mesa("creativo", ["a", "b", "c", "d", "e", "f", "g"].map((n, i) => sentado(n, `2026-11-02T10:0${i}:00Z`)))
     const { puestos, deMas } = repartirEnLaMesa(m)
-    expect(puestos.filter((p) => p.postura === "sentado")).toHaveLength(1)
-    expect(puestos[0].s.agente).toBe("a")
+    expect(puestos.every((p) => p.postura === "sentado")).toBe(true)
     expect(puestos).toHaveLength(MAXIMO_EN_LA_MESA)
-    expect(deMas).toBe(2)
+    expect(deMas).toBe(7 - MAXIMO_EN_LA_MESA)
   })
   it("solo se dibujan los que trabajan; sin nadie no hay siluetas y los de la sala no se repiten en el escritorio", () => {
     const html = renderToStaticMarkup(createElement(Siluetas, { mesas: [mesa("creativo", [sentado("content-creator", "2026-11-02T10:00:00Z"), sentado("video-editor", "2026-11-02T10:01:00Z")]), mesa("web", [])], enLaSala: new Set<string>(["video-editor"]) }))
