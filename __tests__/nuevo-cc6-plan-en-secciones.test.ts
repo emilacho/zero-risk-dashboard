@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { anclaDe, bloquesDelMarkdown, datosClave, resumenDeLaSeccion, seccionesDelPlan, trozosDelTexto } from "@/lib/plan-documento"
+import { anclaDe, bloquesDelMarkdown, datosClave, resumenDeLaSeccion, seccionesDelPlan, trozosDelTexto, sinCitasInternas } from "@/lib/plan-documento"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 
 const PLAN = [
@@ -62,5 +62,17 @@ describe("el plan en secciones", () => {
     expect(abierto).not.toContain("<thead") // la cabecera vacía no se pinta
     expect(abierto).toContain('data-pedir-en="presupuesto-propuesta-para-aprobacion"')
     expect(renderToStaticMarkup(createElement(PlanEnSecciones, { prosa: "solo texto" }))).toContain("solo texto") // sin secciones: el texto tal cual
+  })
+})
+
+describe("el plan sin citas internas a la vista (Emilio, 04-nov)", () => {
+  it("🔴 quita [D12] y [D9, D55], y deja lo demás", () => {
+    const d = seccionesDelPlan("# Plan\n\n## Datos\n\nTicket de $10,63 [D142]. Reseñas 4,8 [D9, D55] en Mapas.\n\n| a | b [D1] |\n")
+    const texto = JSON.stringify(d)
+    expect(texto).not.toMatch(/\[D\d/)
+    expect(texto).toContain("Ticket de $10,63. Reseñas 4,8 en Mapas.")
+  })
+  it("🔴 no toca un corchete que no es una cita", () => {
+    expect(sinCitasInternas("Ver [Donde] y [D] y [D12a].")).toBe("Ver [Donde] y [D] y [D12a].")
   })
 })
