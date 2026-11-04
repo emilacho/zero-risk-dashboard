@@ -2,7 +2,7 @@
 
 import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
 import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
@@ -47,7 +47,6 @@ const ESTILO = `
 .nv-av .nv-av-rotulo{opacity:0;transform:translateY(5px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
 .nv-av .nv-av-zona:hover .nv-av-rotulo,.nv-av .nv-av-zona:focus-visible .nv-av-rotulo,.nv-av .nv-av-zona[aria-expanded="true"] .nv-av-rotulo{opacity:1;transform:none}
 .nv-av .nv-av-luz{opacity:0;transition:opacity .6s ease}
-.nv-av .nv-av-luz[data-on="rojo"]{opacity:.85;animation:nvAvLateRojo 1.4s ease-in-out infinite}
 @keyframes nvAvTenue{0%,100%{opacity:.14}50%{opacity:.26}}
 .nv-av .nv-av-asiento{pointer-events:auto;cursor:default;outline:none}
 .nv-av .nv-av-asiento rect{fill:transparent}
@@ -165,14 +164,11 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         {/* Sprint A · la pantalla de cada monitor: negra si nadie trabaja, viva según el oficio si alguien trabaja, roja si falló */}
         {mesas.map((m) => <PantallaDeLaMesa key={`pantalla-${m.clave}`} m={m} />)}
         {mesas.map((m) => {
-          const on = m.trabajando > 0 ? "ambar" : m.fallando > 0 ? "rojo" : "tenue" // sin nadie: brillo tenue (la oficina no se ve muerta; la pantalla sigue negra)
+          // 04-nov (Emilio 13:38Z): la mesa ya no se pinta por ningún estado (ni ámbar, ni tenue, ni rojo): la falla va en la ✕ roja del agente
           const subtitulo = estadoDeLaMesa(m)
           return (
             <g key={m.clave} className="nv-av-mesa" data-mesa={m.clave} data-etapa={m.etapa} data-ocupada={m.sentados.length > 0} data-trabajando={m.trabajando} opacity={m.etapa === "segunda_etapa" && !m.sentados.length ? 0.75 : 1}>
               {/* la luz del monitor de la foto: ámbar cuando alguien trabaja, roja si lo último fue un fallo; el derrame al piso va sobre la silla */}
-              {/* 04-nov (Emilio 13:31Z): sin aura ámbar de «trabajando»; solo el rojo de falla, que decide Emilio */}
-              {on === "rojo" && <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.monitor.x} cy={m.monitor.y} rx={150} ry={95} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} />}
-              {on === "rojo" && <ellipse className="nv-av-luz" data-on={on || undefined} cx={m.silla.x + 10} cy={m.silla.y + 30} rx={170} ry={70} fill={on === "rojo" ? "url(#nv-av-rojo)" : "url(#nv-av-ambar)"} style={{ opacity: on ? 0.45 : 0 } as CSSProperties} />}
               {/* la zona del ratón: el tablero de la mesa (en las 2 nuevas, además, el trazo punteado del boceto) */}
               <g className="nv-av-zona" role="button" tabIndex={0} aria-label={`${m.nombre}: ${subtitulo}. Ver el equipo`} aria-haspopup="dialog" aria-expanded={mesaAbierta === m.clave}
                 onClick={(e) => { e.stopPropagation(); setMesaAbierta((k) => (k === m.clave ? null : m.clave)) }}
@@ -195,7 +191,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <Siluetas mesas={mesas} reunion={datos?.sala?.reunion ?? null} cargado={datos != null} enLaSala={quienEstaEnLaSala} onFoco={setEnSala} onTocar={(a) => setTocado(a)} onSentados={setSentadosEnSala} entregas={datos?.entregas ? entregasVigentes : undefined} onTarjeta={setTarjeta} />
         <TarjetaDeLaEntrega e={tarjeta} />
         {/* CC6 · 02-nov · la flecha de forma sobre cada empleado (capa propia: lee dónde está cada silueta, no toca la animación) */}
-        <FlechasDeForma onAbrir={abrirPlantelDe} />
+        <FlechasDeForma onAbrir={abrirPlantelDe} conFallo={datos?.con_fallo ?? []} />
         {/* la pantalla vertical: la vitrina de las mejores piezas, rotando (hoy «métricas pronto» + la última pieza aprobada) */}
         <VitrinaVertical vitrina={datos?.vitrina} onAbrir={() => setPanelTablero({ tipo: "vitrina" })} />
         {/* la lámpara de firma: sobre el escritorio de Dirección, hacia Tu oficina */}

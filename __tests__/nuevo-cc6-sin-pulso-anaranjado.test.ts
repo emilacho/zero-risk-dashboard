@@ -24,10 +24,9 @@ describe("la escena: sin aura ámbar que late", () => {
     expect(h).not.toContain('data-on="ambar"'); expect(h).not.toContain('data-on="tenue"')
     expect(renderToStaticMarkup(createElement(Avatares, { datosIniciales: armarEscena(base()) as unknown as EscenaDatos }))).not.toContain('class="nv-av-luz"')
   })
-  it("el ROJO de falla se queda (Emilio decide)", () => {
+  it("04-nov (Emilio 13:38Z): la mesa ya no se pinta por ningún estado, tampoco el rojo de falla (la falla va en la ✕ roja del agente)", () => {
     const h = renderToStaticMarkup(createElement(Avatares, { datosIniciales: fallando as unknown as EscenaDatos }))
-    if (fallando.mesas.some((m) => m.fallando > 0 && m.trabajando === 0)) expect(h).toContain('data-on="rojo"')
-    expect(leer("components/nuevo/escena/Avatares.tsx")).toContain(".nv-av .nv-av-luz[data-on=\"rojo\"]{opacity:.85;animation:nvAvLateRojo")
+    expect(h).not.toContain('class="nv-av-luz"'); expect(leer("components/nuevo/escena/Avatares.tsx")).not.toContain('className="nv-av-luz"')
   })
   it("ni la sala, ni quien habla, ni la lámpara de firma, ni los recuadros del pizarrón llevan aura o latido ámbar", () => {
     const sala = leer("components/nuevo/escena/SalaDeReuniones.tsx"), sil = leer("components/nuevo/escena/Siluetas.tsx"), foto = leer("components/nuevo/escena/EntregasEnLaFoto.tsx")

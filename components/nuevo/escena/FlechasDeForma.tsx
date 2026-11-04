@@ -21,10 +21,12 @@ const TRASLADO = /translate\(\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*\)/
 /** la altura de la flecha (su línea de base) sobre los pies de la silueta: justo encima de la cabeza (centro de la cabeza −72 de pie / −44 sentado, radio ~7 + cabello) */
 export const ALTO = { de_pie: 85, sentado: 57 } as const
 /** la letra del nombre de la silueta (`.nv-sil-nombre`, 17) y su línea de base (−92): la flecha usa el mismo tamaño y, con el nombre a la vista, se pone a su lado */
-export const TAM_FLECHA = 17
+/** 04-nov (Emilio 13:38Z «aún no la ve»): de 17 a 24 (≈13 px en un portátil de 1366); el nombre sigue en 17 */
+export const TAM_FLECHA = 24
+const TAM_NOMBRE = 17
 const Y_DEL_NOMBRE = -92
 /** cuánto se corre la flecha para quedar junto al nombre (ancho aproximado del nombre / 2 + aire) */
-export const corrimientoJuntoAlNombre = (nombre: string): number => Math.round((nombre.length * TAM_FLECHA * 0.56) / 2 + 10)
+export const corrimientoJuntoAlNombre = (nombre: string): number => Math.round((nombre.length * TAM_NOMBRE * 0.56) / 2 + 14)
 
 export function leerPuestos(raiz: ParentNode): Puesto[] {
   const salida: Puesto[] = []
@@ -38,7 +40,12 @@ export function leerPuestos(raiz: ParentNode): Puesto[] {
 }
 const igual = (a: Puesto[], b: Puesto[]) => a.length === b.length && a.every((p, i) => p.agente === b[i].agente && Math.abs(p.x - b[i].x) < 0.5 && Math.abs(p.y - b[i].y) < 0.5 && p.sentado === b[i].sentado)
 
-export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null, onAbrir }: { /** solo pruebas y el arnés */ datosIniciales?: Record<string, Rendimiento> | null; /** solo pruebas */ puestosIniciales?: Puesto[] | null; /** tocar la flecha abre el detalle del empleado en su plantel; devuelve false si no pudo (entonces se abre la ficha de rendimiento de siempre) */ onAbrir?: (agente: string) => boolean }) {
+/** 04-nov (Emilio 13:38Z: «aún no la ve») · sin datos suficientes para su forma: flecha gris neutra, del mismo tamaño (antes, un punto casi invisible) */
+export const FLECHA_SIN_DATOS = { flecha: "→", color: "#a1a1aa", texto: "sin datos suficientes todavía" } as const
+/** su última llamada falló: ✕ roja en el mismo lugar y tamaño, hasta que una llamada nueva salga bien */
+export const EQUIS_DE_FALLO = { flecha: "✕", color: "#ef4444", texto: "su última tarea falló" } as const
+
+export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null, onAbrir, conFallo = [] }: { /** agentes (nombre canónico) con su última llamada en falla */ conFallo?: string[]; /** solo pruebas y el arnés */ datosIniciales?: Record<string, Rendimiento> | null; /** solo pruebas */ puestosIniciales?: Puesto[] | null; /** tocar la flecha abre el detalle del empleado en su plantel; devuelve false si no pudo (entonces se abre la ficha de rendimiento de siempre) */ onAbrir?: (agente: string) => boolean }) {
   const capa = useRef<SVGGElement>(null)
   const [datos, setDatos] = useState<Record<string, Rendimiento> | null>(datosIniciales)
   const [puestos, setPuestos] = useState<Puesto[]>(puestosIniciales ?? [])
@@ -64,7 +71,8 @@ export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null,
   const r = (a: string) => datos?.[nombreCanonico(a)] ?? null
   const abrir = (p: Puesto) => { if (!onAbrir?.(p.agente)) setAbierta(p) }
   // con el nombre a la vista (cursor encima de la silueta), la flecha va junto al nombre en vez de encima de la cabeza
-  const junto = puestos.filter((p) => r(p.agente)?.forma).map((p) => {
+  const falla = new Set(conFallo.map((a) => nombreCanonico(a)))
+  const junto = puestos.map((p) => {
     const a = CSS_SEGURO(p.agente)
     const dy = Y_DEL_NOMBRE - -(p.sentado ? ALTO.sentado : ALTO.de_pie)
     return `.nv-av:has(.nv-sil[data-agente="${a}"]:hover) [data-forma-de="${a}"] .nv-flecha,.nv-av:has(.nv-sil[data-agente="${a}"]:focus-visible) [data-forma-de="${a}"] .nv-flecha{transform:translate(${corrimientoJuntoAlNombre(p.nombre)}px,${dy}px)}`
@@ -74,17 +82,19 @@ export function FlechasDeForma({ datosIniciales = null, puestosIniciales = null,
       <style>{`.nv-flecha{transition:transform .25s ease}@media (prefers-reduced-motion:reduce){.nv-flecha{transition:none}}${junto}`}</style>
       {puestos.map((p) => {
         const x = r(p.agente)
-        if (!x) return null
         const y = p.y - (p.sentado ? ALTO.sentado : ALTO.de_pie)
-        if (!x.forma) return <circle key={p.agente} data-forma-de={p.agente} data-forma="sin" cx={p.x} cy={y - 4} r={1.6} fill="#ffb347" opacity={0.22}><title>{`${p.nombre}: ${x.motivo_sin_flecha ?? "sin flecha"}`}</title></circle>
-        const f = FORMA_LEGIBLE[x.forma]
+        // qué marca lleva: ✕ roja si su última llamada falló; si no, su flecha de forma; sin datos todavía, la flecha gris neutra. SIEMPRE visible
+        const f = falla.has(nombreCanonico(p.agente)) ? EQUIS_DE_FALLO : x?.forma ? FORMA_LEGIBLE[x.forma] : FLECHA_SIN_DATOS
+        const marca = falla.has(nombreCanonico(p.agente)) ? "falla" : x?.forma ?? "sin"
+        const dice = marca === "falla" ? EQUIS_DE_FALLO.texto : x?.forma ? f.texto : (x?.motivo_sin_flecha ?? FLECHA_SIN_DATOS.texto)
         return (
-          <g key={p.agente} data-forma-de={p.agente} data-forma={x.forma} transform={`translate(${p.x.toFixed(1)} ${y.toFixed(1)})`} style={{ pointerEvents: "auto", cursor: "pointer" }} role="button" tabIndex={0} aria-label={`${p.nombre}: ${f.texto}. Toca para ver su rendimiento.`}
+          <g key={p.agente} data-forma-de={p.agente} data-forma={marca} transform={`translate(${p.x.toFixed(1)} ${y.toFixed(1)})`} style={{ pointerEvents: "auto", cursor: "pointer" }} role="button" tabIndex={0} aria-label={`${p.nombre}: ${dice}. Toca para ver su rendimiento.`}
             onClick={(e) => { e.stopPropagation(); abrir(p) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(p) } }}>
+            <title>{`${p.nombre}: ${dice}`}</title>
             {/* el área de toque, invisible y generosa */}
             <rect data-toque x={-16} y={-24} width={32} height={30} fill="transparent" />
             <g className="nv-flecha">
-              <text x={0} y={0} textAnchor="middle" fontSize={TAM_FLECHA} fontWeight={700} fill={f.color} fontFamily="system-ui, Arial, sans-serif" stroke="#000" strokeWidth={2.5} strokeOpacity={0.55} paintOrder="stroke">{`${f.flecha}︎`}</text>
+              <text x={0} y={0} textAnchor="middle" fontSize={TAM_FLECHA} fontWeight={700} fill={f.color} fontFamily="system-ui, Arial, sans-serif" stroke="#000" strokeWidth={2.5} strokeOpacity={0.55} paintOrder="stroke">{f.flecha}</text>
             </g>
           </g>
         )
