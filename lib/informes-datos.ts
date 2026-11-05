@@ -37,5 +37,8 @@ export async function leerInformesDelCliente(supa: SupabaseClient, o: { cliente?
     // la mesa de análisis archiva sus informes en el cerebro: una ficha vigente (sin retirar ni descartar) por cliente y tipo
     filas(supa.from("cerebro_fichas").select("id, titulo, contenido, observado_en, creado_en, provenance_tag").eq("client_id", elegido.id).eq("clase", "informe_de_analisis").is("retirada_en", null).eq("descartada", false).order("creado_en", { ascending: false }).limit(50), "cerebro_fichas"),
   ])
-  return { ...base, cliente: elegido, informes: ordenarInformes(xs.map(informeDesdeFila)), analisis: ordenarAnalisis(fichas.map(analisisDesdeFila)) }
+  // el nombre del analista sale de la misma tabla de empleados que usa el resto de la oficina; sin informes de la mesa no hace falta leerla
+  const empleados = fichas.length ? await filas(supa.from("agents").select("name, display_name").limit(1000), "agents") : []
+  const nombres = new Map(empleados.filter((a) => a.display_name).map((a) => [String(a.name), String(a.display_name)]))
+  return { ...base, cliente: elegido, informes: ordenarInformes(xs.map(informeDesdeFila)), analisis: ordenarAnalisis(fichas.map((f) => analisisDesdeFila(f, nombres))) }
 }

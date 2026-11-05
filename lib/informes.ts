@@ -6,6 +6,7 @@
  * HOY (1-nov) la tabla está VACÍA para todos los clientes: la pantalla lo dice tal cual, no inventa informes.
  */
 import { diaCorto } from "@/lib/lenguaje"
+import { nombreLegibleDelAgente } from "@/lib/organigrama"
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 /** las fechas de período son DÍAS (columnas DATE, sin hora): se muestran tal cual, sin pasar por la hora de Ecuador (que las correría un día) */
@@ -47,7 +48,7 @@ export function informeDesdeFila(f: Fila): Informe {
 /** ─── los informes de la mesa de análisis (01-nov · punto 7 de Emilio): viven en el cerebro, no en `client_reports` ───
  * Cada uno es una ficha de clase `informe_de_analisis` (una vigente por cliente y tipo; la puerta `/api/brain/alimentar/informe` retira la anterior). Son PROPUESTAS de la
  * mesa de análisis: se muestran rotuladas, nunca como dato confirmado del cliente. */
-export interface InformeDeAnalisis { id: string; tipo: string; titulo: string; texto: string; /** hasta qué día llega la información (ISO) */ corte: string | null; creado_en: string | null; citas: number }
+export interface InformeDeAnalisis { id: string; tipo: string; titulo: string; texto: string; /** hasta qué día llega la información (ISO) */ corte: string | null; creado_en: string | null; citas: number; /** el analista que lo firmó, en palabras (FIRMA 2 de Emilio, 31-oct: «con autor y fecha»); null si la ficha no lo guardó */ analista: string | null }
 export function tipoDeAnalisisLegible(t: unknown): string {
   switch (String(t ?? "")) {
     case "mercado": return "Mercado"
@@ -59,17 +60,29 @@ export function tipoDeAnalisisLegible(t: unknown): string {
   }
 }
 const objeto = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
-export function analisisDesdeFila(f: Fila): InformeDeAnalisis {
+/** `nombres`: agente → su nombre en la tabla de empleados. Sin nombre, se arma del agente; si la ficha no guardó agente, queda null y la pantalla lo dice */
+export function analisisDesdeFila(f: Fila, nombres?: ReadonlyMap<string, string>): InformeDeAnalisis {
   const datos = objeto(objeto(f.provenance_tag).datos)
   const deltitulo = /Informe\s*·\s*([^·]+?)\s*·/.exec(String(f.titulo ?? ""))?.[1]
   const tipo = texto(datos.tipo) ?? (deltitulo ? deltitulo.trim() : "")
+  const agente = texto(datos.agente)
   return {
     id: String(f.id), tipo, titulo: `Informe de ${tipoDeAnalisisLegible(tipo).toLowerCase()}`,
     // la ficha abre con un rótulo de sistema «[informe de análisis · tipo · PROPUESTA: …]»: se quita, la pantalla lo dice con sus palabras
     texto: String(f.contenido ?? "").replace(/^\[informe de an[aá]lisis[^\]]*\]\s*/i, "").trim(),
     corte: texto(datos.fecha_de_corte) ?? texto(f.observado_en), creado_en: texto(f.creado_en),
     citas: Array.isArray(datos.citas) ? datos.citas.length : 0,
+    analista: agente ? nombres?.get(agente) ?? nombreLegibleDelAgente(agente) : null,
   }
+}
+/** el día de un corte, en hora de Ecuador si trae hora (un corte de las 21:00 de Ecuador ya es el día siguiente en UTC); una fecha sola se muestra tal cual */
+export const diaDelCorte = (corte: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(corte) ? diaDePeriodo(corte) : diaCorto(corte))
+/** «Por Feedback Synthesizer» · «hecho el 1 nov» y, solo si es otro día, «con información hasta el 30 oct» */
+export function firmaDelAnalisis(a: InformeDeAnalisis): { autor: string; fecha: string } {
+  const hecho = a.creado_en ? diaCorto(a.creado_en) : null
+  const corte = a.corte ? diaDelCorte(a.corte) : null
+  const partes = [hecho ? `hecho el ${hecho}` : "", corte && corte !== hecho ? `con información hasta el ${corte}` : ""].filter(Boolean)
+  return { autor: a.analista ? `Por ${a.analista}` : "Sin analista registrado", fecha: partes.join(" · ") || "sin fecha registrada" }
 }
 export const ordenarAnalisis = (xs: InformeDeAnalisis[]): InformeDeAnalisis[] => [...xs].sort((a, b) => (b.creado_en ?? "").localeCompare(a.creado_en ?? ""))
 
@@ -140,7 +153,7 @@ export function porTipo(xs: Informe[]): Array<{ tipo: string; nombre: string; in
 export function detalleDeInformes(xs: Informe[], analisis: InformeDeAnalisis[] = []): { texto: string; aviso: boolean } {
   if (!xs.length && !analisis.length) return { texto: "Todavía no hay informes de este cliente", aviso: false }
   const deAnalisis = analisis.length ? `${analisis.length} ${analisis.length === 1 ? "informe de análisis" : "informes de análisis"}` : ""
-  if (!xs.length) { const u = ordenarAnalisis(analisis)[0]; return { texto: `${deAnalisis}${u.corte ? ` · al ${diaDePeriodo(u.corte.slice(0, 10))}` : ""}`, aviso: false } }
+  if (!xs.length) { const u = ordenarAnalisis(analisis)[0]; return { texto: `${deAnalisis}${u.corte ? ` · al ${diaDelCorte(u.corte)}` : ""}`, aviso: false } }
   const esperan = xs.filter((x) => x.estado === "awaiting_review").length
   const resto = deAnalisis ? ` · ${deAnalisis}` : ""
   if (esperan) return { texto: `${esperan} ${esperan === 1 ? "informe espera" : "informes esperan"} tu revisión${resto}`, aviso: true }

@@ -7,7 +7,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { armarEscena, estadoDeLaMesa, FILA_DE_PUESTOS, MAXIMO_DE_PUESTOS, momentoDeLaCampana, puestosDeLaMesa, MESAS, type EntradaDeLaEscena } from "@/lib/escena-avatares"
 import { Avatares } from "@/components/nuevo/escena/Avatares"
-import { analisisDesdeFila, detalleDeInformes } from "@/lib/informes"
+import { analisisDesdeFila, detalleDeInformes, firmaDelAnalisis } from "@/lib/informes"
 import { PanelInformes } from "@/components/nuevo/PanelInformes"
 import type { InformesDelCliente } from "@/lib/informes-datos"
 import { detalleDelCuadro } from "@/components/nuevo/PanelAplicaciones"
@@ -163,6 +163,48 @@ describe("punto 7 · informes de la mesa de análisis (viven en el cerebro)", ()
     const html = renderToStaticMarkup(createElement(PanelInformes, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('data-vista="analisis"'); expect(html).toContain("Informe de mercado"); expect(html).toContain("Puente de dos feriados."); expect(html).toContain("Propuesta de la mesa de análisis")
     expect(html).not.toContain("Todavía no hay informes"); expect(html).not.toContain('data-vista="vacio"')
+  })
+})
+
+describe("FIRMA 2 de Emilio · cada informe de la mesa con su analista y su fecha", () => {
+  // forma de la ficha real 3b0df105 (market_research_analyst, 01-nov), con el texto recortado
+  const real = (cambios: Record<string, unknown> = {}, tag: Record<string, unknown> = {}) => ({ id: "3b0df105-ace0-48c1-b483-d95735fcaa71", titulo: "Informe · mercado · corte 2026-11-01", contenido: "[informe de análisis · mercado · PROPUESTA: no es dato del cliente] Puente de dos feriados en Manta.", observado_en: "2026-11-01T16:34:50.852+00:00", creado_en: "2026-11-01T16:34:51.821833+00:00", ...cambios, provenance_tag: { type: "evidence", source: "sintesis_de_oficina", canal: "mesa_de_analisis", datos: { mesa: "mesa_de_analisis", tipo: "mercado", citas: ["a", "b", "c", "d"], agente: "market_research_analyst", fecha_de_corte: "2026-11-01T16:32:12.735Z", ...tag } } })
+  const nombres = new Map([["market_research_analyst", "Market Research Agent"]])
+  const panel = (a: ReturnType<typeof analisisDesdeFila>) => renderToStaticMarkup(createElement(PanelInformes, { onCerrar: () => {}, datosIniciales: { clientes: [{ id: NAUFRAGO, nombre: "Náufrago" }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, informes: [], analisis: [a], leido_en: "x" } }))
+  const sinEtiquetas = (h: string) => h.replace(/<[^>]+>/g, "")
+
+  it("el analista sale de la ficha, con el nombre de la tabla de empleados", () => {
+    expect(analisisDesdeFila(real(), nombres).analista).toBe("Market Research Agent")
+  })
+  it("si el empleado no tiene nombre en la tabla, se arma del agente, sin perderlo", () => {
+    expect(analisisDesdeFila(real(), new Map()).analista).toBe("Market research analyst")
+    expect(analisisDesdeFila(real()).analista).toBe("Market research analyst")
+  })
+  it("el panel muestra analista y fecha sin abrir el informe (van en la cabecera)", () => {
+    const h = panel(analisisDesdeFila(real(), nombres))
+    const cabecera = /<summary[\s\S]*?<\/summary>/.exec(h)![0]
+    expect(sinEtiquetas(cabecera)).toContain("Por Market Research Agent · hecho el 1 nov")
+  })
+  it("la fecha de corte solo se agrega si es otro día", () => {
+    const igual = firmaDelAnalisis(analisisDesdeFila(real(), nombres))
+    expect(igual.fecha).toBe("hecho el 1 nov")
+    const otro = firmaDelAnalisis(analisisDesdeFila(real({}, { fecha_de_corte: "2026-10-28T16:32:12.735Z" }), nombres))
+    expect(otro.fecha).toBe("hecho el 1 nov · con información hasta el 28 oct")
+  })
+  it("los días son de Ecuador: a las 21:00 del 4 nov todavía es 4 nov, en la fila y en el cuadro", () => {
+    const noche = analisisDesdeFila(real({ creado_en: "2026-11-05T02:00:00+00:00" }, { fecha_de_corte: "2026-11-05T02:00:00.000Z" }), nombres)
+    expect(firmaDelAnalisis(noche).fecha).toBe("hecho el 4 nov")
+    expect(detalleDeInformes([], [noche]).texto).toBe("1 informe de análisis · al 4 nov")
+  })
+  it("un corte de solo fecha no se corre de día", () => {
+    const a = analisisDesdeFila(real({}, { fecha_de_corte: "2026-10-28" }), nombres)
+    expect(firmaDelAnalisis(a).fecha).toBe("hecho el 1 nov · con información hasta el 28 oct")
+  })
+  it("si la ficha no guardó analista o fecha, se dice; no se inventa", () => {
+    const sin = analisisDesdeFila(real({ creado_en: null, observado_en: null }, { agente: null, fecha_de_corte: null }), nombres)
+    expect(sin.analista).toBeNull()
+    expect(firmaDelAnalisis(sin)).toEqual({ autor: "Sin analista registrado", fecha: "sin fecha registrada" })
+    expect(sinEtiquetas(panel(sin))).toContain("Sin analista registrado · sin fecha registrada")
   })
 })
 

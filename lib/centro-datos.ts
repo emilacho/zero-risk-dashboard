@@ -33,7 +33,7 @@ export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | n
   if (analisisFilas.error) throw new Error(`cerebro_fichas: ${analisisFilas.error.message}`)
   if (abiertas.error) throw new Error(`agent_invocations: ${abiertas.error.message}`)
   const xs = ((informes.data ?? []) as Fila[]).map(informeDesdeFila)
-  const analisis = ((analisisFilas.data ?? []) as Fila[]).map(analisisDesdeFila)
+  const analisis = ((analisisFilas.data ?? []) as Fila[]).map((f) => analisisDesdeFila(f))
   const trabajando = new Set(((abiertas.data ?? []) as Fila[]).map((x) => String(x.agent_name))).size
   return {
     cliente: brief.cliente?.id ?? null,
