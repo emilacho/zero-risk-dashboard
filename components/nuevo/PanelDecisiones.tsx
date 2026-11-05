@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
-import { EditorDeCifra, type VerCambio } from "@/components/nuevo/EditorDeCifra"
+import { BajaParaFirmar, EditorDeCifra, type VerCambio } from "@/components/nuevo/EditorDeCifra"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
@@ -116,7 +116,6 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const [descartando, setDescartando] = useState(false)
   const [motivo, setMotivo] = useState("")
   const [enviando, setEnviando] = useState<AccionDeDecision | null>(null)
-  const [criticosEnteros, setCriticosEnteros] = useState(false) // arriba y en dos líneas: si son largos, no empujan las cifras fuera de la vista
   const [cambiando, setCambiando] = useState<string | null>(null) // la cifra que Emilio está cambiando: una a la vez, porque la meta y el presupuesto están atados
   const cifraEnCambio = d.cifras?.find((c) => c.clave === cambiando && c.editable) ?? null
   const fallo = previa && !previa.resultado.sale ? previa.resultado.motivo ?? previa.resultado.texto : null
@@ -127,13 +126,14 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const falta = faltaQueLeer(d)
   // lo que no salió se lee sin bajar: con varias cifras, el pie fijo lo tapaba (CC6 · #283)
   const porQue = useRef<HTMLParagraphElement>(null)
+  const pie = useRef<HTMLElement>(null) // Firmar no va fijo: se llega a él pasando por las cifras y por lo que sigue abierto (CC6 · #283)
   useEffect(() => { if (fallo) porQue.current?.scrollIntoView({ block: "center", behavior: "smooth" }) }, [fallo, previa?.en, cifraEnCambio])
   return (
     <article data-decision={d.id} data-tipo={d.tipo} data-fallo={fallo ? "si" : undefined} className={`de-tarjeta de-frente relative flex h-full flex-col overflow-y-auto [&>*]:shrink-0 rounded-2xl border bg-[linear-gradient(160deg,#211812,#151110_55%,#110e0d)] p-5 shadow-[0_24px_60px_rgba(0,0,0,.55),0_0_40px_rgba(232,115,26,.08)] sm:p-7 ${fallo ? "border-[rgba(255,90,54,.55)]" : "border-[rgba(232,115,26,.45)]"}`}>
       <header className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(232,115,26,.4)]" style={{ color: AMBAR }}><MarcaDelTipo tipo={d.tipo} className="h-6 w-6" /></span>
         <div className="min-w-0">
-          <p className="text-[11px] whitespace-nowrap uppercase tracking-[0.1em] text-zinc-400 sm:tracking-[0.22em]">{NOMBRE_DEL_TIPO[d.tipo].nombre}</p>
+          <p className="truncate text-[11px] uppercase tracking-[0.1em] text-zinc-400 sm:tracking-[0.22em]">{NOMBRE_DEL_TIPO[d.tipo].nombre}</p>
           <p data-cliente className="truncate text-[14px] text-zinc-200">{d.cliente ?? "Sin cliente asignado"}</p>
         </div>
         {falta ? <span data-chip="falta" className="ml-auto shrink-0 rounded-full border border-white/15 px-2.5 py-0.5 text-[11.5px] text-zinc-300">Falta información</span>
@@ -145,9 +145,6 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
       <h3 data-titulo title={tituloDeDecision(d)} className={`${quien ? "mt-2" : "mt-5"} line-clamp-3 text-[19px] font-light leading-snug text-white sm:text-[21px]`}>{tituloDeDecision(d)}</h3>
       {enPausa && <p data-en-pausa className="mt-2 text-[12.5px] text-zinc-400">{enPausa} está en pausa por tu decisión: esto no cuenta en «esperan por ti».</p>}
       {fallo && !cifraEnCambio && <p ref={porQue} data-por-que-volvio role="status" className="mt-4 rounded-[10px] border border-[rgba(255,90,54,.35)] bg-[rgba(255,90,54,.06)] px-3.5 py-2.5 text-[13.5px] leading-snug text-rose-100"><span className="mb-0.5 block text-[11px] uppercase tracking-[0.1em] text-rose-300">Por qué sigue aquí</span>{fallo}</p>}
-      {!cifraEnCambio && d.criticos?.length ? (
-        <div data-criticos className="mt-3 rounded-[10px] border border-[rgba(232,115,26,.3)] bg-[rgba(232,115,26,.05)] px-3.5 py-2.5"><p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-orange-200/80">Sigue abierto</p><ul className="space-y-1 text-[13.5px] leading-snug text-zinc-200">{d.criticos.map((c) => <li key={c} className={criticosEnteros ? "" : "line-clamp-2"}>{c}</li>)}</ul><button type="button" data-leer-criticos aria-expanded={criticosEnteros} onClick={() => setCriticosEnteros((v) => !v)} className="mt-1.5 text-[13px] text-[#e9d6b6] underline underline-offset-2 hover:text-white">{criticosEnteros ? "Leer menos" : "Leer completo"}</button></div>
-      ) : null}
       {cifraEnCambio ? <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} criticos={d.criticos ?? []} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} /> : d.cifras?.length ? (
         <div data-cifras className="mt-4">
           <p className="mb-2 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Lo que propuso la oficina</p>
@@ -156,13 +153,16 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           </dl>
         </div>
       ) : null}
-      {falta && <p data-falta-informacion role="status" className="mt-4 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-3.5 text-[14.5px] leading-snug text-zinc-200"><span className="mb-1 block text-[11px] uppercase tracking-[0.1em] text-zinc-400">Todavía no hay nada que firmar</span>Falta información: la <b className="font-medium text-white">Oficina financiera</b> debe mandar las cifras que propone.</p>}
       {!cifraEnCambio && (d.para_que || destraba) && (
         <dl data-contexto className="mt-4 grid gap-2.5 sm:grid-cols-2">
           {d.para_que && <div className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2.5"><dt className="mb-1 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Para qué lo necesita</dt><dd className="text-[13.5px] leading-snug text-zinc-200">{d.para_que}</dd></div>}
           {destraba && <div className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2.5"><dt className="mb-1 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Qué se destraba</dt><dd data-destraba className="text-[13.5px] leading-snug text-[#e9d6b6]">{destraba}</dd></div>}
         </dl>
       )}
+      {!cifraEnCambio && d.criticos?.length ? (
+        <div data-criticos className="mt-3 rounded-[10px] border border-[rgba(232,115,26,.3)] bg-[rgba(232,115,26,.05)] px-3.5 py-2.5"><p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-orange-200/80">Sigue abierto</p><ul className="space-y-1 text-[13.5px] leading-snug text-zinc-200">{d.criticos.map((c) => <li key={c}>{c}</li>)}</ul></div>
+      ) : null}
+      {falta && <p data-falta-informacion role="status" className="mt-4 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-3.5 text-[14.5px] leading-snug text-zinc-200"><span className="mb-1 block text-[11px] uppercase tracking-[0.1em] text-zinc-400">Todavía no hay nada que firmar</span>Falta información: la <b className="font-medium text-white">Oficina financiera</b> debe mandar las cifras que propone.</p>}
       {!contestable && !falta && (
         <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 text-[13px] sm:grid-cols-4">
           <div><dt className="text-zinc-500">Espera</dt><dd data-espera className="text-zinc-200">{haceCuanto(d.desde)}{fecha(d.desde) ? <span className="text-zinc-500"> · {fecha(d.desde)}</span> : null}</dd></div>
@@ -184,7 +184,8 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           <div className="flex gap-2"><button type="button" data-confirmar-descartar disabled={!!enviando} onClick={() => void hacer("descartar", { motivo })} className={SECUNDARIO}>{enviando === "descartar" ? "Descartando…" : "Descartar"}</button><button type="button" onClick={() => setDescartando(false)} className={DISCRETO}>Volver</button></div>
         </div>
       )}
-      {!cifraEnCambio && <footer data-pie className={`mt-auto flex flex-wrap items-center gap-2.5 pt-5 ${d.cifras?.length ? "sticky -bottom-5 z-10 -mb-5 bg-[#130f0e] pb-5 sm:-bottom-7 sm:-mb-7 sm:pb-7" : ""}`}>
+      {!cifraEnCambio && acciones.includes("aceptar") && <BajaParaFirmar hasta={pie} />}
+      {!cifraEnCambio && <footer ref={pie} data-pie className="mt-auto flex flex-wrap items-center gap-2.5 pt-5">
         {acciones.includes("responder") && <button type="button" data-enviar disabled={!!enviando || !respuesta.trim()} onClick={() => void hacer("responder", { respuesta })} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "responder" ? "Enviando…" : fallo ? "Enviar de nuevo" : "Enviar respuesta"}</button>}
         {acciones.includes("aceptar") && <button type="button" data-firmar disabled={!!enviando} onClick={() => void hacer("aceptar", {})} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "aceptar" ? "Firmando…" : fallo ? "Firmar de nuevo" : "Firmar"}</button>}
         {acciones.includes("descartar") && !descartando && <button type="button" data-descartar-abrir disabled={!!enviando} onClick={() => setDescartando(true)} className={DISCRETO}>Descartar</button>}
