@@ -48,6 +48,30 @@ describe("el informe de la mesa, sin códigos ni «ficha»", () => {
   ])("no rompe direcciones, archivos ni cuentas: %s", (t) => {
     expect(textoDeLaMesa(t)).toBe(t)
   })
+  it.each([
+    "Mira https://youtu.be/x?v=1a2b3c4d hoy",
+    "Mira https://x.com/a?tipo=ficha y https://x.com/a?ficha=9 hoy",
+    "Mira https://x.com/ficha:1a2b3c4d y https://x.com/ficha1a2b3c4d hoy",
+    "Mira www.x.com/fichas/1a2b3c4d hoy",
+    "Mira naufrago.ec/fichas/1a2b3c4d hoy",
+    "Escribe a ficha@x.com o a 1a2b3c4d@x.com hoy",
+    "Los archivos 1a2b3c4d-foto.jpg y 1a2b3c4d_foto.jpg y ficha_1a2b3c4d.pdf",
+    "La carpeta C:\\fotos\\1a2b3c4d\\a sigue",
+    "La cuenta @ficha_1a2b3c4d y la etiqueta #fichas1a2b3c4d siguen",
+    "Ver [la ficha](https://x.com/ficha/1a2b3c4d) hoy",
+  ])("aparta direcciones, correos, archivos y cuentas enteros: %s", (t) => {
+    // lo único que cambia es «la ficha» del texto del enlace, que sí es texto para leer
+    expect(textoDeLaMesa(t)).toBe(t.replace("[la ficha]", "[la fuente]"))
+  })
+  it("apartar no impide limpiar lo de al lado", () => {
+    expect(textoDeLaMesa("Fichas [6a9f94b0] en https://x.com/1a2b3c4d y 113f3e02.")).toBe("Fuentes en https://x.com/1a2b3c4d.")
+  })
+  it.each([
+    ["ficha/foto", "ficha/foto"], ["ficha_foto", "ficha_foto"], ["a.ficha", "a.ficha"], ["a_ficha", "a_ficha"], ["microficha", "microficha"], ["fichar", "fichar"],
+    ["1a2b3c4d/foto", "1a2b3c4d/foto"], ["a.1a2b3c4d", "a.1a2b3c4d"], ["tel 09-1a2b3c4d", "tel 09-1a2b3c4d"], ["a-1a2b3c4d", "a-1a2b3c4d"],
+  ])("un vecino de un solo lado basta para que se quede: %s", (entra, sale) => {
+    expect(textoDeLaMesa(entra)).toBe(sale)
+  })
   it("el código al final de una frase sí se va", () => {
     expect(textoDeLaMesa("Lo dice 1a2b3c4d. Luego sigue.")).toBe("Lo dice. Luego sigue.")
   })

@@ -54,15 +54,36 @@ const COLGANDO = /[ \t]*,?[ \t]*(?<![\p{L}\p{N}])(?:igual que|como|según|de|en|
 /** la ficha del mundo real (la de Google Maps, la técnica de un producto) se queda; la del cerebro se dice «fuente», que concuerda igual («ninguna de las fichas leídas») */
 const FICHA = /(?<![\p{L}\p{N}/#@._-])(f)icha(s?)(?![\p{L}\p{N}])(?![/_-]|\.[\p{L}\p{N}])(?![ \t]+(?:de[ \t]+(?:Google|Mapas?|Maps|producto)|t[ée]cnicas?))/giu
 
+/**
+ * LO QUE NO SE TOCA (arreglo de raíz, Lenovo 05-nov tras la certificación de CC6 a #287): direcciones, correos, rutas, archivos, cuentas y etiquetas
+ * se apartan ENTEROS antes de limpiar y se devuelven tal cual después. Así un código o la palabra «ficha» dentro de ellos no se toca, venga como venga.
+ */
+const APARTAR = new RegExp(
+  [
+    String.raw`(?:https?:\/\/|www\.)[^\s<>()\[\]{}"'«»]+`, // dirección web, con sus parámetros
+    String.raw`[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+`, // correo
+    String.raw`[A-Za-z]:\\[^\s<>()\[\]"'«»]+`, // ruta de Windows
+    String.raw`(?<![\p{L}\p{N}@])[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*\.(?:com|net|org|ec|co|io|app|es|info|biz|gob|edu)(?:\.[a-z]{2})?\b(?:\/[^\s<>()\[\]"'«»]*)?`, // dominio sin «https://»
+    String.raw`[\p{L}\p{N}_-]+\.(?:jpe?g|png|gif|webp|svg|heic|pdf|mp4|mov|webm|mp3|wav|docx?|xlsx?|pptx?|csv|txt|zip)\b`, // archivo
+    String.raw`(?<![\p{L}\p{N}])[@#][\p{L}\p{N}_.]*[\p{L}\p{N}_]`, // cuenta o etiqueta
+  ].join("|"),
+  "giu",
+)
+/** la marca que ocupa el lugar de lo apartado: ningún limpiador la reconoce (sin letras, sin hexadecimal de 8, sin espacios) */
+const marca = (i: number) => `\uE000${i}\uE001`
+const MARCA = /\uE000(\d+)\uE001/g
+
 export function textoDeLaMesa(t: string): string {
+  const apartado: string[] = []
+  const limpio = t.replace(APARTAR, (m) => marca(apartado.push(m) - 1))
   // primero las formas de la mesa: el limpiador general se lleva los corchetes pero no el «·» que los separa, y quedaría «· ·»
   return textoDelInforme(
-    t
+    limpio
       .replace(CADENA, "")
       .replace(FICHA_CON_CODIGO, "")
       .replace(SUELTOS, "")
       .replace(COLGANDO, "")
       .replace(/\ben ficha\b(?![ \t]+de\b)/gi, "en una fuente")
       .replace(FICHA, (_, f: string, s: string) => `${f}uente${s}`),
-  )
+  ).replace(MARCA, (_, i: string) => apartado[Number(i)] ?? "")
 }
