@@ -54,6 +54,7 @@ describe("el informe de la mesa, sin códigos ni «ficha»", () => {
     "Mira https://x.com/ficha:1a2b3c4d y https://x.com/ficha1a2b3c4d hoy",
     "Mira www.x.com/fichas/1a2b3c4d hoy",
     "Mira naufrago.ec/fichas/1a2b3c4d hoy",
+    "Mira naufrago.ec/ficha1a2b3c4d hoy", // solo lo cuida apartar el dominio (pedido de CC6 a #288)
     "Escribe a ficha@x.com o a 1a2b3c4d@x.com hoy",
     "Los archivos 1a2b3c4d-foto.jpg y 1a2b3c4d_foto.jpg y ficha_1a2b3c4d.pdf",
     "La carpeta C:\\fotos\\1a2b3c4d\\a sigue",
