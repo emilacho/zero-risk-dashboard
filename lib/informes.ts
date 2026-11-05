@@ -55,12 +55,22 @@ export function tipoDeAnalisisLegible(t: unknown): string {
     case "competencia": return "Competencia"
     case "voz_del_publico": return "Voz del público"
     case "tendencias": return "Tendencias"
+    case "retencion": return "Retención"
+    case "escucha_x": return "Escucha en X"
     case "": return "Análisis"
     default: { const s = String(t).replace(/[_-]+/g, " ").trim(); return s.charAt(0).toUpperCase() + s.slice(1) }
   }
 }
 const objeto = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
-/** `nombres`: agente → su nombre en la tabla de empleados. Sin nombre, se arma del agente; si la ficha no guardó agente, queda null y la pantalla lo dice */
+/** los analistas de la mesa, en español y sin tocar la tabla de empleados (GO de Lenovo, 05-nov). Otro agente sale con su nombre de la tabla */
+const ANALISTAS: Readonly<Record<string, string>> = {
+  market_research_analyst: "Analista de mercado",
+  "competitive-intelligence-agent": "Analista de competencia",
+  "feedback-synthesizer": "Analista de voz del público",
+  "x-twitter-intelligence-analyst": "Analista de escucha en X",
+  "growth-hacker": "Analista de crecimiento",
+}
+/** `nombres`: agente → su nombre en la tabla de empleados. Primero el nombre en español de la mesa; sin él, el de la tabla; sin él, se arma del agente; si la ficha no guardó agente, queda null y la pantalla lo dice */
 export function analisisDesdeFila(f: Fila, nombres?: ReadonlyMap<string, string>): InformeDeAnalisis {
   const datos = objeto(objeto(f.provenance_tag).datos)
   const deltitulo = /Informe\s*·\s*([^·]+?)\s*·/.exec(String(f.titulo ?? ""))?.[1]
@@ -72,7 +82,7 @@ export function analisisDesdeFila(f: Fila, nombres?: ReadonlyMap<string, string>
     texto: String(f.contenido ?? "").replace(/^\[informe de an[aá]lisis[^\]]*\]\s*/i, "").trim(),
     corte: texto(datos.fecha_de_corte) ?? texto(f.observado_en), creado_en: texto(f.creado_en),
     citas: Array.isArray(datos.citas) ? datos.citas.length : 0,
-    analista: agente ? nombres?.get(agente) ?? nombreLegibleDelAgente(agente) : null,
+    analista: agente ? ANALISTAS[agente] ?? nombres?.get(agente) ?? nombreLegibleDelAgente(agente) : null,
   }
 }
 /** el día de un corte, en hora de Ecuador si trae hora (un corte de las 21:00 de Ecuador ya es el día siguiente en UTC); una fecha sola se muestra tal cual */
