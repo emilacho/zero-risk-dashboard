@@ -176,7 +176,7 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
           <div className="flex gap-2"><button type="button" data-confirmar-descartar disabled={!!enviando} onClick={() => void hacer("descartar", { motivo })} className={SECUNDARIO}>{enviando === "descartar" ? "Descartando…" : "Descartar"}</button><button type="button" onClick={() => setDescartando(false)} className={DISCRETO}>Volver</button></div>
         </div>
       )}
-      <footer className="mt-auto flex flex-wrap items-center gap-2.5 pt-5">
+      <footer data-pie className={`mt-auto flex flex-wrap items-center gap-2.5 pt-5 ${d.cifras?.length ? "sticky -bottom-5 z-10 -mb-5 bg-[#130f0e] pb-5 sm:-bottom-7 sm:-mb-7 sm:pb-7" : ""}`}>
         {acciones.includes("responder") && <button type="button" data-enviar disabled={!!enviando || !respuesta.trim()} onClick={() => void hacer("responder", { respuesta })} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "responder" ? "Enviando…" : fallo ? "Enviar de nuevo" : "Enviar respuesta"}</button>}
         {acciones.includes("aceptar") && <button type="button" data-firmar disabled={!!enviando} onClick={() => void hacer("aceptar", {})} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "aceptar" ? "Firmando…" : fallo ? "Firmar de nuevo" : "Firmar"}</button>}
         {acciones.includes("descartar") && !descartando && <button type="button" data-descartar-abrir disabled={!!enviando} onClick={() => setDescartando(true)} className={DISCRETO}>Descartar</button>}

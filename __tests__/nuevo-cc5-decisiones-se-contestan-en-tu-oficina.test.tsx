@@ -199,6 +199,7 @@ describe("nunca se firma a ciegas (CORRECCIÓN Lenovo 5-nov)", () => {
     const html = pantalla(d)
     expect(html).toContain("data-firmar"); expect(html).not.toContain("data-falta-informacion")
     expect(html).toContain("US$ 1.341,27"); expect(html).toContain("Instagram y Facebook"); expect(html).toContain("5 ventas por semana"); expect(html).toContain("Dos hallazgos sin cerrar")
+    expect(html).toMatch(/data-pie="true" class="[^"]*sticky/) // con varias cifras, el botón Firmar sigue a la vista
   })
   it("una cifra que no se puede leer no cuenta: sin ninguna buena, falta información", () => {
     const d = leida({ cifras: [{ clave: "x", nombre: "Sin valor" }, { clave: "y", nombre: "Texto", valor: "450" }, { nombre: "Sin clave", valor: 3 }, null] })
