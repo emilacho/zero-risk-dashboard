@@ -120,18 +120,18 @@ describe("6.21 · la pantalla 6 del arco", () => {
   })
 })
 
-describe("6.21 · el panel del radar", () => {
+describe("6.21 · el panel de Riesgos (estilo base 05-nov: recuadros que filtran, tarjeta del más grave y la lista del resto)", () => {
   const d = normalizarRiesgos(CRUDO)
   const html = (datos: Riesgos) => renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: datos }))
-  it("muestra el radar con un punto por riesgo, la ficha del más grave, la lista y el «sin dato»", () => {
-    const h = html(d)
-    expect(h).toContain('data-seccion="riesgos"')
-    expect(h.match(/class="ri-punto"/g)).toHaveLength(4)
+  it("muestra los recuadros, la ficha del más grave, la lista del resto y el «sin dato»", () => {
+    const h = html(d).replace(/<!-- -->/g, "")
+    expect(h).toContain('data-seccion="riesgos"'); expect(h).not.toContain('class="ri-punto"')
+    expect(h).toMatch(/data-recuadro="abiertas" aria-pressed="true"[^>]*>.*?>4<\/span>/); expect(h).toMatch(/data-recuadro="graves"[^>]*>.*?>1<\/span>/)
     expect(h).toContain('data-ficha="a2"'); expect(h).toContain("Incidente abierto en el monitor"); expect(h).toContain("Monitor de servicios")
-    expect(h.match(/data-fila=/g)).toHaveLength(4)
+    expect(h.match(/data-fila=/g)).toHaveLength(3) // la del frente no se repite en la lista
     expect(h).not.toContain("data-medidor") // 6.22: saldos y freno se van a la pantalla Dinero
     expect(h).toContain("credenciales por vencer"); expect(h).toContain("pocas horas")
-    expect(h).toContain("4 riesgos · 1 grave")
+    expect(h).toContain("4 riesgos · 1 grave") // el resumen queda para lectores de pantalla
     expect(h).not.toContain("🟠")
   })
   it("nunca dice «sin riesgos» con la lista incompleta", () => {

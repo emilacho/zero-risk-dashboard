@@ -215,3 +215,10 @@ export function resumenDeRiesgos(d: Riesgos): ResumenDeRiesgos {
 
 /** el título limpio (la base trae marcas como «🟠» o «🟡» al inicio) */
 export const tituloDelRiesgo = (t: string): string => t.replace(/^[\s\p{Extended_Pictographic}️]+/u, "").trim()
+
+/** estilo base (05-nov): la campana del marco muestra su número. La escena avisa cada vez que lee los riesgos, para que la campana no lea dos veces */
+export const EVENTO_RIESGOS_LEIDOS = "nv:riesgos-leidos"
+export interface CuentaDeLaCampana { abiertos: number; graves: number; completo: boolean }
+export const cuentaDeLaCampana = (d: Pick<Riesgos, "total" | "por_gravedad" | "completo">): CuentaDeLaCampana => ({ abiertos: d.total, graves: d.por_gravedad[3], completo: d.completo })
+/** el número de la campana: nada si no hay lectura o no hay riesgos; «+» si la lista puede estar incompleta */
+export const numeroDeLaCampana = (c: CuentaDeLaCampana | null): string | null => (!c || (!c.abiertos && c.completo) ? null : !c.abiertos ? "?" : `${c.abiertos > 99 ? "99" : c.abiertos}${c.completo ? "" : "+"}`)

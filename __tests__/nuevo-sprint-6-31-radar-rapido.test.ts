@@ -8,20 +8,13 @@ import { readFileSync } from "node:fs"
 const panel = readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")
 const escena = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
 
-describe("6.31 · el radar abre y gira al instante", () => {
-  it("el radar se dibuja siempre, sin esperar la lectura", () => {
-    expect(panel).not.toContain("{datos && <Radar")
-    // 6.52 · el radar ya no lleva cuentas (salen una vez, en los botones de los sectores); los botones esperan la lectura con «…»
-    expect(panel).toContain('!datos ? "…" : del.length')
+// estilo base (05-nov): el panel ya no lleva radar (sigue en la pantalla 6 de la escena); se conserva lo de abrir al instante
+describe("6.31 · el panel de Riesgos abre al instante", () => {
+  it("se dibuja siempre, sin esperar la lectura: los recuadros esperan con «…»", () => {
+    expect(panel).toContain('const n = (x: number) => (datos ? x : "…")')
   })
-  it("el haz gira con CSS (tarjeta gráfica), no con SMIL; se queda quieto con movimiento reducido", () => {
-    expect(panel).not.toContain("<animateTransform")
-    expect(panel).toContain("@keyframes riGira")
-    expect(panel).toMatch(/\.ri-eco,\.ri-ficha,\.ri-haz\{animation:none\}/)
-  })
-  it("los puntos llevan un halo barato en vez del filtro de desenfoque", () => {
-    expect(panel).not.toMatch(/className="ri-punto"[^>]*filter=/)
-    expect(panel).toContain('className="ri-halo"')
+  it("sin animaciones ni filtros de desenfoque que demoren el primer cuadro", () => {
+    expect(panel).not.toMatch(/@keyframes|<animateTransform|filter=/)
   })
   it("la oficina le pasa su última lectura y el panel igual se refresca al abrir", () => {
     expect(escena).toContain("datosIniciales={riesgosCrudos}")

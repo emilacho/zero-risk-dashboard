@@ -224,8 +224,8 @@ describe("la pantalla (boceto aprobado)", () => {
   it("la pregunta que detiene el plan va al frente, con quién pregunta, qué se destraba, la caja y sus dos acciones", () => {
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe(P1)
     expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
-    expect(html).toContain("data-detienen"); expect(html).toContain("Detienen un trabajo"); expect(html).toContain('data-chip="detiene"')
-    expect(html).toContain("Pregunta la <b"); expect(html).toContain("Oficina financiera</b>")
+    expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-chip="detiene"') // estilo base: el recuadro es el filtro
+    expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Financiero<\/span>/) // estilo base: DEPARTAMENTO / Financiero, no una frase
     expect(html).toContain("El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.")
     expect(html).toContain("data-respuesta"); expect(html).toContain("Enviar respuesta"); expect(html).toContain("data-descartar-abrir")
     expect(html).not.toContain("data-firmar"); expect(html).not.toContain("buzón de preguntas") // la tarjeta vieja de la pausa (Slack) no se repite
