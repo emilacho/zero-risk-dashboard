@@ -21,7 +21,13 @@ export function estadoDelEditor(escrito: string, propuesto: number, vista: Vista
   return { firmado, distinta: firmado != null && firmado > 0 && firmado !== propuesto, vigente: vista && vista.firmado === firmado ? vista : null }
 }
 
-export function EditorDeCifra({ cifra, todas, alEditar, ver, firmar, volver }: { cifra: CifraDeFirma; todas: CifraDeFirma[]; alEditar: string | null; ver: VerCambio; firmar: (firmado: number) => Promise<unknown>; volver: () => void }) {
+/** qué queda en pantalla si la firma no salió: su motivo, en el mismo lugar que el del cálculo. Si la plataforma la rechazó, lo calculado ya no vale: hay que volver a verlo */
+export function trasFirmar(r: ResultadoDeContestar | null): { problema: { motivo: string; alcanzable: number | null }; quedaLoVisto: boolean } | null {
+  if (r?.sale) return null
+  return { problema: { motivo: r?.motivo ?? r?.texto ?? "No se pudo firmar: actualiza y prueba de nuevo.", alcanzable: r?.alcanzable ?? null }, quedaLoVisto: r?.ok === true }
+}
+
+export function EditorDeCifra({ cifra, todas, alEditar, criticos = [], ver, firmar, volver }: { cifra: CifraDeFirma; todas: CifraDeFirma[]; alEditar: string | null; criticos?: string[]; ver: VerCambio; firmar: (firmado: number) => Promise<ResultadoDeContestar | null>; volver: () => void }) {
   const [escrito, setEscrito] = useState(numeroParaEscribir(cifra.valor))
   const [vista, setVista] = useState<Vista | null>(null)
   const [problema, setProblema] = useState<{ motivo: string; alcanzable: number | null } | null>(null)
@@ -73,14 +79,15 @@ export function EditorDeCifra({ cifra, todas, alEditar, ver, firmar, volver }: {
           <ul className="space-y-1 text-[13.5px] text-zinc-200">
             {cifrasQueCambian(todas, vigente.cifras).map(({ cifra: c, antes }) => <li key={c.clave} data-cambia={c.clave} className="flex flex-wrap justify-between gap-x-3"><span className="text-zinc-400">{c.nombre}</span><span><s className="mr-2 text-zinc-500">{textoDeCifra({ valor: antes, unidad: c.unidad })}</s>{textoDeCifra(c)}</span></li>)}
           </ul>
-          {vigente.alertas.length > 0 && <details data-alertas className="mt-2 border-t border-white/10 pt-2 text-[12.5px] leading-snug text-zinc-400"><summary className="cursor-pointer text-zinc-300">{vigente.alertas.length === 1 ? "1 aviso de la oficina con esta cifra" : `${vigente.alertas.length} avisos de la oficina con esta cifra`}</summary><ul className="mt-1.5 space-y-1">{vigente.alertas.map((a) => <li key={a}>{a}</li>)}</ul></details>}
+          {vigente.alertas.length > 0 && <details data-alertas className="mt-2 border-t border-white/10 pt-2 text-[12.5px] leading-snug text-zinc-400"><summary className="cursor-pointer text-zinc-300">{vigente.alertas.length === 1 ? "1 aviso de la oficina" : `${vigente.alertas.length} avisos de la oficina`}</summary><ul className="mt-1.5 space-y-1">{vigente.alertas.map((a) => <li key={a}>{a}</li>)}</ul></details>}
         </div>
       )}
       </div>
+      {criticos.length > 0 && <div data-criticos className="mt-3 rounded-[10px] border border-[rgba(232,115,26,.3)] bg-[rgba(232,115,26,.05)] px-3.5 py-2.5"><p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-orange-200/80">Sigue abierto</p><ul className="space-y-1 text-[13.5px] leading-snug text-zinc-200">{criticos.map((c) => <li key={c}>{c}</li>)}</ul></div>}
       {alEditar && <p data-al-editar className="mt-3 text-[13px] leading-snug text-zinc-400">{alEditar}</p>}
       <div className="sticky -bottom-5 z-10 -mb-5 mt-auto flex flex-wrap items-center gap-2.5 bg-[#130f0e] pb-5 pt-4 sm:-bottom-7 sm:-mb-7 sm:pb-7">
         {vigente
-          ? <button type="button" data-firmar-cambio disabled={!!ocupado} onClick={() => { setOcupado("firmar"); void firmar(vigente.firmado).finally(() => setOcupado(null)) }} className={`${PRINCIPAL} w-full sm:w-auto`}>{ocupado === "firmar" ? "Firmando…" : `Firmar ${textoDeCifra({ valor: vigente.firmado, unidad: cifra.unidad })}`}</button>
+          ? <button type="button" data-firmar-cambio disabled={!!ocupado} onClick={() => { setOcupado("firmar"); setProblema(null); void firmar(vigente.firmado).then((r) => { const t = trasFirmar(r); if (t) { setProblema(t.problema); if (!t.quedaLoVisto) setVista(null) } }).finally(() => setOcupado(null)) }} className={`${PRINCIPAL} w-full sm:w-auto`}>{ocupado === "firmar" ? "Firmando…" : `Firmar ${textoDeCifra({ valor: vigente.firmado, unidad: cifra.unidad })}`}</button>
           : <button type="button" data-ver-cambio disabled={!!ocupado || !distinta} onClick={() => { if (firmado != null) void calcular(firmado) }} className={`${PRINCIPAL} w-full sm:w-auto`}>{ocupado === "ver" ? "Calculando…" : "Ver cómo queda"}</button>}
         <button type="button" data-volver disabled={!!ocupado} onClick={volver} className={`${SECUNDARIO} w-full sm:w-auto`}>Volver a {textoDeCifra(cifra)}</button>
       </div>

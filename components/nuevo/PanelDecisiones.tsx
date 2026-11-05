@@ -104,7 +104,7 @@ const SECUNDARIO = `${BOTON} border-white/15 bg-white/[0.03] text-zinc-200 hover
 const DISCRETO = `${BOTON} border-transparent px-2 text-zinc-400 hover:text-zinc-200`
 
 /** la tarjeta del frente: todo lo que hace falta para decidir, en palabras de negocio; lo que se contesta aquí, se contesta en la misma tarjeta */
-function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa }: {
+export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa }: {
   d: Decision; alDecidir: (d: Decision) => void; enPausa: string | null; detiene: boolean
   contestar: (d: Decision, accion: AccionDeDecision, texto: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => Promise<ResultadoDeContestar | null>
   verCambio: (d: Decision, clave: string, firmado: number) => ReturnType<VerCambio>
@@ -116,20 +116,24 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio
   const [descartando, setDescartando] = useState(false)
   const [motivo, setMotivo] = useState("")
   const [enviando, setEnviando] = useState<AccionDeDecision | null>(null)
+  const [criticosEnteros, setCriticosEnteros] = useState(false) // arriba y en dos líneas: si son largos, no empujan las cifras fuera de la vista
   const [cambiando, setCambiando] = useState<string | null>(null) // la cifra que Emilio está cambiando: una a la vez, porque la meta y el presupuesto están atados
   const cifraEnCambio = d.cifras?.find((c) => c.clave === cambiando && c.editable) ?? null
   const fallo = previa && !previa.resultado.sale ? previa.resultado.motivo ?? previa.resultado.texto : null
   const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.` : null)
   const quien = d.pregunta_de ? nombreDeOficina(d.pregunta_de.oficina) : d.tipo === "firma_de_finanzas" ? "Oficina financiera" : null
-  const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { await contestar(d, a, t) } finally { setEnviando(null) } }
+  const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { return await contestar(d, a, t) } finally { setEnviando(null) } }
   const contestable = acciones.length > 0
   const falta = faltaQueLeer(d)
+  // lo que no salió se lee sin bajar: con varias cifras, el pie fijo lo tapaba (CC6 · #283)
+  const porQue = useRef<HTMLParagraphElement>(null)
+  useEffect(() => { if (fallo) porQue.current?.scrollIntoView({ block: "center", behavior: "smooth" }) }, [fallo, previa?.en, cifraEnCambio])
   return (
     <article data-decision={d.id} data-tipo={d.tipo} data-fallo={fallo ? "si" : undefined} className={`de-tarjeta de-frente relative flex h-full flex-col overflow-y-auto [&>*]:shrink-0 rounded-2xl border bg-[linear-gradient(160deg,#211812,#151110_55%,#110e0d)] p-5 shadow-[0_24px_60px_rgba(0,0,0,.55),0_0_40px_rgba(232,115,26,.08)] sm:p-7 ${fallo ? "border-[rgba(255,90,54,.55)]" : "border-[rgba(232,115,26,.45)]"}`}>
       <header className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(232,115,26,.4)]" style={{ color: AMBAR }}><MarcaDelTipo tipo={d.tipo} className="h-6 w-6" /></span>
         <div className="min-w-0">
-          <p className="text-[11px] whitespace-nowrap uppercase tracking-[0.1em] text-zinc-400 sm:tracking-[0.22em]">{NOMBRE_DEL_TIPO[d.tipo].nombre}{fallo ? " · volvió" : ""}</p>
+          <p className="text-[11px] whitespace-nowrap uppercase tracking-[0.1em] text-zinc-400 sm:tracking-[0.22em]">{NOMBRE_DEL_TIPO[d.tipo].nombre}</p>
           <p data-cliente className="truncate text-[14px] text-zinc-200">{d.cliente ?? "Sin cliente asignado"}</p>
         </div>
         {falta ? <span data-chip="falta" className="ml-auto shrink-0 rounded-full border border-white/15 px-2.5 py-0.5 text-[11.5px] text-zinc-300">Falta información</span>
@@ -140,7 +144,11 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio
       {quien && <p data-quien className="mt-4 flex items-center gap-2.5 text-[13px] text-zinc-400"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#2a2622] font-display text-[11px] text-[#e9d6b6]">{iniciales(quien)}</span><span>{d.tipo === "firma_de_finanzas" ? "Propone la" : "Pregunta la"} <b className="font-medium text-zinc-200">{quien}</b></span></p>}
       <h3 data-titulo title={tituloDeDecision(d)} className={`${quien ? "mt-2" : "mt-5"} line-clamp-3 text-[19px] font-light leading-snug text-white sm:text-[21px]`}>{tituloDeDecision(d)}</h3>
       {enPausa && <p data-en-pausa className="mt-2 text-[12.5px] text-zinc-400">{enPausa} está en pausa por tu decisión: esto no cuenta en «esperan por ti».</p>}
-      {cifraEnCambio ? <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} /> : d.cifras?.length ? (
+      {fallo && !cifraEnCambio && <p ref={porQue} data-por-que-volvio role="status" className="mt-4 rounded-[10px] border border-[rgba(255,90,54,.35)] bg-[rgba(255,90,54,.06)] px-3.5 py-2.5 text-[13.5px] leading-snug text-rose-100"><span className="mb-0.5 block text-[11px] uppercase tracking-[0.1em] text-rose-300">Por qué sigue aquí</span>{fallo}</p>}
+      {!cifraEnCambio && d.criticos?.length ? (
+        <div data-criticos className="mt-3 rounded-[10px] border border-[rgba(232,115,26,.3)] bg-[rgba(232,115,26,.05)] px-3.5 py-2.5"><p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-orange-200/80">Sigue abierto</p><ul className="space-y-1 text-[13.5px] leading-snug text-zinc-200">{d.criticos.map((c) => <li key={c} className={criticosEnteros ? "" : "line-clamp-2"}>{c}</li>)}</ul><button type="button" data-leer-criticos aria-expanded={criticosEnteros} onClick={() => setCriticosEnteros((v) => !v)} className="mt-1.5 text-[13px] text-[#e9d6b6] underline underline-offset-2 hover:text-white">{criticosEnteros ? "Leer menos" : "Leer completo"}</button></div>
+      ) : null}
+      {cifraEnCambio ? <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} criticos={d.criticos ?? []} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} /> : d.cifras?.length ? (
         <div data-cifras className="mt-4">
           <p className="mb-2 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Lo que propuso la oficina</p>
           <dl className="grid gap-2.5 sm:grid-cols-2">
@@ -155,10 +163,6 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio
           {destraba && <div className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2.5"><dt className="mb-1 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Qué se destraba</dt><dd data-destraba className="text-[13.5px] leading-snug text-[#e9d6b6]">{destraba}</dd></div>}
         </dl>
       )}
-      {!cifraEnCambio && d.criticos?.length ? (
-        <div data-criticos className="mt-3 rounded-[10px] border border-[rgba(232,115,26,.3)] bg-[rgba(232,115,26,.05)] px-3.5 py-2.5"><p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-orange-200/80">Sigue abierto</p><ul className="space-y-1 text-[13.5px] leading-snug text-zinc-200">{d.criticos.map((c) => <li key={c}>{c}</li>)}</ul></div>
-      ) : null}
-      {fallo && <p data-por-que-volvio role="status" className="mt-4 rounded-[10px] border border-[rgba(255,90,54,.35)] bg-[rgba(255,90,54,.06)] px-3.5 py-2.5 text-[13.5px] leading-snug text-rose-100"><span className="mb-0.5 block text-[11px] uppercase tracking-[0.1em] text-rose-300">Por qué sigue aquí</span>{fallo}</p>}
       {!contestable && !falta && (
         <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 text-[13px] sm:grid-cols-4">
           <div><dt className="text-zinc-500">Espera</dt><dd data-espera className="text-zinc-200">{haceCuanto(d.desde)}{fecha(d.desde) ? <span className="text-zinc-500"> · {fecha(d.desde)}</span> : null}</dd></div>

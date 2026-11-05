@@ -7,10 +7,10 @@ import { readFileSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
-import { EditorDeCifra, estadoDelEditor } from "@/components/nuevo/EditorDeCifra"
-import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
+import { EditorDeCifra, estadoDelEditor, trasFirmar } from "@/components/nuevo/EditorDeCifra"
+import { PanelDecisiones, TarjetaDelFrente } from "@/components/nuevo/PanelDecisiones"
 import { contestarDecision, validarContestar } from "@/lib/decisiones-contestar"
-import { accionesDe, cifrasQueCambian, leerNumero, normalizarDecisiones, numeroParaEscribir, type Decisiones } from "@/lib/direccion-decisiones"
+import { accionesDe, cifrasQueCambian, leerNumero, normalizarDecisiones, numeroParaEscribir, textoDeCifra, type Decisiones } from "@/lib/direccion-decisiones"
 import { ACCIONES } from "@/lib/tablero-acciones"
 
 const T1 = "33333333-3333-4333-8333-333333333333"
@@ -48,6 +48,11 @@ describe("cuándo se ofrece cambiar una cifra", () => {
     expect(html).toContain("data-firmar")
     const sinPermiso = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ permite: ["aceptar"] }) }))
     expect(sinPermiso).not.toContain("data-cambiar")
+  })
+  it("lo que sigue abierto se lee antes de las cifras: Firmar está siempre a la vista", () => {
+    const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ criticos: ["Dos hallazgos sin cerrar"] }) }))
+    expect(html.indexOf("data-criticos")).toBeGreaterThan(-1); expect(html.indexOf("data-criticos")).toBeLessThan(html.indexOf("data-cifras"))
+    expect(html).toContain("line-clamp-2"); expect(html).toContain("Dos hallazgos sin cerrar"); expect(html).toContain("Leer completo") // compacto, con el texto entero a un toque
   })
   it("una firma sin cifras muestra su distintivo «Falta información» (CC6 · #282)", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ cifras: [] }) })).replace(/<!-- -->/g, "")
@@ -131,6 +136,38 @@ describe("el servidor: «propuso» sale de su lectura, nunca de la pantalla", ()
   })
 })
 
+describe("una firma rechazada se lee sin bajar (CC6 · #283)", () => {
+  const rechazo = { ok: false, sale: false, texto: "No salió: sigue en tu lista.", motivo: "No se firmó. La oficina financiera está trabajando en este cliente: prueba cuando termine.", registro: [] }
+  it("firmando con un cambio: el motivo pasa a la caja del problema y lo calculado deja de valer", () => {
+    expect(trasFirmar(rechazo)).toEqual({ problema: { motivo: rechazo.motivo, alcanzable: null }, quedaLoVisto: false })
+    expect(trasFirmar({ ...rechazo, alcanzable: 512.4 })?.problema.alcanzable).toBe(512.4)
+  })
+  it("si salió, no queda ningún problema", () => {
+    expect(trasFirmar({ ok: true, sale: true, texto: "Firmado.", registro: [] })).toBeNull()
+  })
+  it("guardada pero sin salir de la lista: dice por qué y lo visto sigue valiendo", () => {
+    const r = trasFirmar({ ok: true, sale: false, texto: "Firmado.", motivo: "Se guardó, pero sigue abierta.", registro: [] })
+    expect(r).toEqual({ problema: { motivo: "Se guardó, pero sigue abierta.", alcanzable: null }, quedaLoVisto: true })
+  })
+  it("sin respuesta también dice algo", () => {
+    expect(trasFirmar(null)?.problema.motivo).toContain("No se pudo firmar")
+  })
+  it("el «Firmar» normal: el motivo va antes de las cifras, no debajo del pie", () => {
+    const d = leida().decisiones[0]
+    const previa = { d, resultado: rechazo, accion: "aceptar" as const, en: "2026-11-05T12:00:00Z" }
+    const html = renderToStaticMarkup(createElement(TarjetaDelFrente, { d, alDecidir: () => {}, enPausa: null, detiene: false, contestar: async () => null, verCambio: async () => rechazo, previa }))
+    const motivo = html.indexOf("data-por-que-volvio")
+    expect(motivo).toBeGreaterThan(-1); expect(motivo).toBeLessThan(html.indexOf("data-cifras")); expect(html).toContain(rechazo.motivo)
+  })
+})
+
+describe("cómo se escribe el dinero", () => {
+  it("con decimales, siempre dos; entero, sin ellos; las otras unidades no se tocan", () => {
+    expect(textoDeCifra({ valor: 512.4, unidad: "US$" })).toBe("US$ 512,40"); expect(textoDeCifra({ valor: 939, unidad: "US$" })).toBe("US$ 939")
+    expect(textoDeCifra({ valor: 3.5, unidad: "ventas" })).toBe("3,5 ventas")
+  })
+})
+
 describe("la validación de las acciones", () => {
   const ID = T1
   it("firmar sin cambios sigue valiendo; con cambios los pasa; con cambios mal hechos, no", () => {
@@ -182,6 +219,11 @@ describe("la pantalla de cambiar una cifra (boceto 2)", () => {
   it("al entrar, sin cambiar nada, no se puede firmar: solo «Ver cómo queda», apagado", () => {
     const html = pintar()
     expect(html).not.toContain("data-firmar-cambio"); expect(html).toMatch(/<button[^>]*data-ver-cambio[^>]*disabled/)
+  })
+  it("lo que sigue abierto se ve también mientras se cambia la cifra", () => {
+    const html = renderToStaticMarkup(createElement(EditorDeCifra, { cifra: PRESUPUESTO, todas: [PRESUPUESTO], alEditar: null, criticos: ["Dos hallazgos sin cerrar"], ver: async () => ({ ok: true, sale: false, texto: "", registro: [] }), firmar: async () => null, volver: () => {} }))
+    expect(html).toContain("Sigue abierto"); expect(html).toContain("Dos hallazgos sin cerrar")
+    expect(pintar()).not.toContain("Sigue abierto")
   })
   it("una meta en ventas lleva su unidad después de la caja", () => {
     const html = pintar(META)
