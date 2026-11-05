@@ -17,7 +17,9 @@ import { Acciones, BOTON_SECUNDARIO, PanelBase, Pares, Recuadros, Rotulo } from 
  * así que la tarjeta no ofrece esos botones. Si la lista está incompleta, nunca dice «sin riesgos».
  */
 type Respuesta = ({ ok: true } & Riesgos) | { ok: false; error: string }
-type Filtro = "abiertas" | "graves" | "atender"
+export type Filtro = "abiertas" | "graves" | "atender"
+/** los recuadros filtran: abiertos = todos; graves = solo gravedad 3; atender = solo gravedad 2 */
+export const filtrarRiesgos = (todos: Riesgo[], filtro: Filtro) => todos.filter((r) => filtro === "abiertas" || (filtro === "graves" ? r.gravedad === 3 : r.gravedad === 2))
 
 const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "numeric", month: "short", ...HORA_24 }) }
 /** el punto de cada riesgo: alarma solo para lo grave; oro para lo que hay que atender; el resto, apagado */
@@ -76,7 +78,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
   }, [onCerrar])
 
   const todos = ordenar(datos?.riesgos ?? [])
-  const visibles = todos.filter((r) => filtro === "abiertas" || (filtro === "graves" ? r.gravedad === 3 : r.gravedad === 2))
+  const visibles = filtrarRiesgos(todos, filtro)
   const ficha = visibles.find((r) => r.id === elegido) ?? visibles[0] ?? null
   const resto = visibles.filter((r) => r.id !== ficha?.id)
   const total = datos?.total ?? 0

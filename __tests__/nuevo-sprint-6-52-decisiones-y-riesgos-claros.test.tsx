@@ -53,7 +53,7 @@ describe("6.52 · Decisiones · un solo número", () => {
     expect(h).toMatch(/data-recuadro="firma"[^>]*>.*?>3<\/span>/)
     expect(h).toContain("1 de 3")
     expect(h).toMatch(/data-recuadro="pausa:Zero Risk Seguridad Industrial" aria-pressed="false"[^>]*>.*?>7<\/span>.*?>En pausa</)
-  })
+  }, 30_000) // dibuja el panel entero: con la máquina cargada pasa de 5 s
 })
 
 describe("6.52 · Decisiones · sin nombres internos y con costo", () => {
@@ -104,7 +104,7 @@ describe("6.52 · Riesgos · qué pasó, a quién afecta, quién lo arregla", ()
     expect(h).not.toMatch(/>[^<]*:warning:[^<]*<\/(h3|span)>/)
     expect(h).not.toContain("data-placa="); expect(h).not.toContain("data-tarjeta-sector="); expect(h).toContain('data-ficha="a"')
     expect(h).toContain("14:29"); expect(h).not.toMatch(/p\.\s?m\./)
-  })
+  }, 30_000) // dibuja el panel entero: con la máquina cargada pasa de 5 s
 })
 
 describe("6.52 · de paso en Observabilidad", () => {

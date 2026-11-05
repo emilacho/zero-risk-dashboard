@@ -8,7 +8,7 @@
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { EVENTO_ABRIR_PANEL, type PanelDelMarco, type PedidoDePanel } from "@/lib/buscador"
-import { EVENTO_RIESGOS_LEIDOS, cuentaDeLaCampana, numeroDeLaCampana, type CuentaDeLaCampana, type Riesgos } from "@/lib/direccion-riesgos"
+import { EVENTO_RIESGOS_LEIDOS, cuentaDeLaLectura, cuentaDelAviso, numeroDeLaCampana, type CuentaDeLaCampana } from "@/lib/direccion-riesgos"
 import { getBrowserClient } from "@/lib/supabase-browser"
 
 /** pide a la escena que abra un panel (Riesgos, Dinero, Organización, Piezas…) */
@@ -31,11 +31,10 @@ export function CampanaDeRiesgos({ className, children, fetchImpl = fetch, cuent
     const leer = async () => {
       try {
         const r = await fetchImpl("/api/direccion/riesgos", { cache: "no-store" })
-        const j = (await r.json().catch(() => null)) as ({ ok: true } & Riesgos) | null
-        setCuenta(r.ok && j?.ok ? cuentaDeLaCampana(j) : null)
+        setCuenta(cuentaDeLaLectura(r.ok, await r.json().catch(() => null)))
       } catch { setCuenta(null) }
     }
-    const deLaEscena = (e: Event) => setCuenta((e as CustomEvent<CuentaDeLaCampana>).detail)
+    const deLaEscena = (e: Event) => setCuenta(cuentaDelAviso(e))
     void leer()
     const t = setInterval(() => { if (!document.hidden) void leer() }, 300_000)
     window.addEventListener(EVENTO_RIESGOS_LEIDOS, deLaEscena)

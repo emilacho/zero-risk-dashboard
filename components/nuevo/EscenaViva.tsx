@@ -18,7 +18,7 @@ import { PanelOrganizacion } from "@/components/nuevo/PanelOrganizacion"
 import { normalizarLista, resumenDeCorridas, type ResumenDeCorridas } from "@/lib/direccion-corridas"
 import { resumenDeOrganizacion, resumenDePortafolio, type ResumenDeOrganizacion, type ResumenDePortafolio } from "@/lib/tableros-con-dato"
 import { resumenDeDinero, type ResumenDeDinero } from "@/lib/direccion-dinero"
-import { EVENTO_RIESGOS_LEIDOS, cuentaDeLaCampana, resumenDeRiesgos, type ResumenDeRiesgos, type Riesgos } from "@/lib/direccion-riesgos"
+import { EVENTO_RIESGOS_LEIDOS, cuentaDeLaLectura, resumenDeRiesgos, type ResumenDeRiesgos, type Riesgos } from "@/lib/direccion-riesgos"
 import { resumenDeDecisiones, type Decisiones, type ResumenDeDecisiones } from "@/lib/direccion-decisiones"
 import { PantallaDeMusica } from "@/components/nuevo/PantallaDeMusica"
 import { PantallasDelArco } from "@/components/nuevo/PantallasDelArco"
@@ -256,8 +256,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       setRiesgos(r.ok && j?.ok ? resumenDeRiesgos(j) : null) // sin lectura: la pantalla vuelve al dibujo, nunca a un «sin riesgos» falso
       setRiesgosCrudos(r.ok && j?.ok ? j : null)
       setDinero(r.ok && j?.ok ? resumenDeDinero(j) : null)
-      if (r.ok && j?.ok) window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: cuentaDeLaCampana(j) })) // la campana del marco toma el mismo número
-    } catch { setRiesgos(null); setDinero(null); setRiesgosCrudos(null) }
+      window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: cuentaDeLaLectura(r.ok, j) })) // la campana del marco toma el mismo número; si la lectura falló, se apaga
+    } catch { setRiesgos(null); setDinero(null); setRiesgosCrudos(null); window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: null })) }
   }, [])
   // 6.26 · Observabilidad: la pantalla 9 dice las corridas de las últimas 24 h (lectura liviana, sin nombres) y al tocarla abre el panel tipo LangSmith
   const [corridas, setCorridas] = useState<ResumenDeCorridas | null>(null)

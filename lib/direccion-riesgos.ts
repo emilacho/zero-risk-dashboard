@@ -221,4 +221,8 @@ export const EVENTO_RIESGOS_LEIDOS = "nv:riesgos-leidos"
 export interface CuentaDeLaCampana { abiertos: number; graves: number; completo: boolean }
 export const cuentaDeLaCampana = (d: Pick<Riesgos, "total" | "por_gravedad" | "completo">): CuentaDeLaCampana => ({ abiertos: d.total, graves: d.por_gravedad[3], completo: d.completo })
 /** el número de la campana: nada si no hay lectura o no hay riesgos; «+» si la lista puede estar incompleta */
+/** la cuenta de una lectura de la ruta: solo si salió bien; con un error, nada (la campana no se queda mostrando un número viejo) */
+export const cuentaDeLaLectura = (ok: boolean, j: unknown): CuentaDeLaCampana | null => { const d = j as ({ ok?: boolean } & Riesgos) | null; return ok && d?.ok === true ? cuentaDeLaCampana(d) : null }
+/** lo que la escena le avisa a la campana: su cuenta, o nada si su lectura falló (o el aviso no trae una cuenta válida) */
+export const cuentaDelAviso = (e: Event): CuentaDeLaCampana | null => { const d = (e as CustomEvent<unknown>).detail as CuentaDeLaCampana | null; return d && typeof d.abiertos === "number" && typeof d.graves === "number" && typeof d.completo === "boolean" ? d : null }
 export const numeroDeLaCampana = (c: CuentaDeLaCampana | null): string | null => (!c || (!c.abiertos && c.completo) ? null : !c.abiertos ? "?" : `${c.abiertos > 99 ? "99" : c.abiertos}${c.completo ? "" : "+"}`)

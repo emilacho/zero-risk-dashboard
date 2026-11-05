@@ -2,9 +2,11 @@
  * ESTILO BASE (aprobado por Emilio 2026-11-05 · guía zr-vault `00-meta/ESTILO-DASHBOARD.md`): los tokens viven en un solo archivo y una revisión
  * automática en CI rechaza colores, tamaños, pesos, radios y sombras fuera de ellos en lo nuevo o tocado de /nuevo (y entero en lo ya migrado).
  */
-import { describe, expect, it } from "vitest"
-import { execFileSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { afterAll, describe, expect, it } from "vitest"
+import { execFileSync, spawnSync } from "node:child_process"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
 
 const tokens = readFileSync("app/estilo-base.css", "utf8")
 const ci = readFileSync(".github/workflows/ci.yml", "utf8")
@@ -29,10 +31,51 @@ describe("estilo base · la revisión automática", () => {
   it("cada regla frena su caso, deja pasar los tokens y no acepta permisos sin razón", () => {
     expect(execFileSync(process.execPath, ["scripts/revisar-estilo.mjs", "probar"], { encoding: "utf8" })).toMatch(/^ok · \d+ frenan, \d+ pasan, 2 permisos sin razón no valen/)
   })
-  it("las pantallas migradas están limpias enteras", () => {
-    const s = readFileSync("scripts/revisar-estilo.mjs", "utf8")
-    for (const f of ["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx"]) expect(s, f).toContain(`"${f}"`)
+  it("la lista de migrados es exactamente la de esta entrega (campana incluida)", () => {
+    const lista = readFileSync("scripts/revisar-estilo.mjs", "utf8").match(/export const MIGRADOS = \[([^\]]*)\]/)?.[1] ?? ""
+    expect([...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1])).toEqual(["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx"])
   })
+})
+
+// CC6 (certificación de #290): que la revisión FRENE la entrega se prueba de verdad, en un repositorio de juguete con su propia historia
+describe("estilo base · la revisión frena la entrega", () => {
+  const SCRIPT = path.resolve("scripts/revisar-estilo.mjs")
+  const MIGRADOS = ["EstiloBase", "PanelRiesgos", "PanelDecisiones", "EditorDeCifra", "BotonesDelMarco"].map((x) => `components/nuevo/${x}.tsx`)
+  const git = (dir: string, ...a: string[]) => execFileSync("git", ["-c", "user.name=prueba", "-c", "user.email=prueba@x", "-c", "core.hooksPath=/dev/null", ...a], { cwd: dir, stdio: "pipe" })
+  const escribir = (dir: string, f: string, t: string) => { mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); writeFileSync(path.join(dir, f), t) }
+  /** repositorio con la rama principal (los migrados, limpios o no) y una rama de trabajo encima */
+  const repo = (migradoSucio = false) => {
+    const dir = mkdtempSync(path.join(tmpdir(), "estilo-"))
+    git(dir, "init", "-q", "-b", "main")
+    for (const f of MIGRADOS) escribir(dir, f, `export const x = "text-hueso bg-grafito"\n${migradoSucio && f.endsWith("PanelRiesgos.tsx") ? 'export const y = "text-amber-200"\n' : ""}`)
+    git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "base"); git(dir, "checkout", "-q", "-b", "trabajo")
+    return dir
+  }
+  const correr = (dir: string, base: string) => spawnSync(process.execPath, [SCRIPT, "diff", base], { cwd: dir, encoding: "utf8" })
+  const dirs: string[] = []
+  afterAll(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }) })
+
+  it("una línea nueva fuera de estilo hace FALLAR la entrega y dice dónde; una limpia pasa", () => {
+    const dir = repo(); dirs.push(dir)
+    escribir(dir, "components/nuevo/Nueva.tsx", 'export const a = "text-cuerpo"\nexport const b = "border: 1px solid #222"\n')
+    git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "mala")
+    const mal = correr(dir, "main")
+    expect(mal.status).toBe(1); expect(mal.stderr).toContain("components/nuevo/Nueva.tsx:2")
+    escribir(dir, "components/nuevo/Nueva.tsx", 'export const a = "text-cuerpo"\nexport const b = "border-linea"\n')
+    git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "arreglada")
+    expect(correr(dir, "main").status).toBe(0)
+  }, 60_000)
+  it("lo migrado se revisa ENTERO: algo fuera de estilo que ya estaba, aunque la entrega no lo toque, frena", () => {
+    const dir = repo(true); dirs.push(dir)
+    escribir(dir, "components/nuevo/Otra.tsx", 'export const a = "text-cuerpo"\n'); git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "limpia")
+    const r = correr(dir, "main")
+    expect(r.status).toBe(1); expect(r.stderr).toContain("components/nuevo/PanelRiesgos.tsx:2")
+  }, 60_000)
+  it("sin la base para comparar FALLA con el motivo (nunca pasa a ciegas)", () => {
+    const dir = repo(); dirs.push(dir)
+    const r = correr(dir, "no-existe")
+    expect(r.status).toBe(2); expect(r.stderr).toContain("No encuentro la base no-existe")
+  }, 60_000)
   it("corre en CI con la historia completa (sin base no revisa a ciegas)", () => {
     expect(ci).toMatch(/actions\/checkout@v4\s+with:\s+fetch-depth: 0/)
     expect(ci).toContain("node scripts/revisar-estilo.mjs diff origin/main")
@@ -47,6 +90,8 @@ describe("estilo base · la campana roja con su número abre Riesgos", () => {
     expect(numeroDeLaCampana({ abiertos: 0, graves: 0, completo: false })).toBe("?")
     expect(numeroDeLaCampana({ abiertos: 3, graves: 1, completo: true })).toBe("3")
     expect(numeroDeLaCampana({ abiertos: 140, graves: 0, completo: true })).toBe("99")
+    expect(numeroDeLaCampana({ abiertos: 3, graves: 0, completo: false })).toBe("3+")
+    expect(numeroDeLaCampana({ abiertos: 140, graves: 2, completo: false })).toBe("99+")
     expect(cuentaDeLaCampana({ total: 4, por_gravedad: { 1: 1, 2: 2, 3: 1 }, completo: true })).toEqual({ abiertos: 4, graves: 1, completo: true })
   })
   it("rojo solo si hay algo grave; oro si no; y la escena le pasa su lectura", async () => {
@@ -57,6 +102,42 @@ describe("estilo base · la campana roja con su número abre Riesgos", () => {
     expect(pinta(1)).toMatch(/data-numero-campana[^>]*bg-alarma[^>]*>3</); expect(pinta(0)).toMatch(/data-numero-campana[^>]*bg-oro[^>]*>3</)
     expect(renderToStaticMarkup(createElement(CampanaDeRiesgos, { className: "x", children: "🔔" }))).not.toContain("data-numero-campana")
     expect(readFileSync("components/nuevo/MarcoNuevo.tsx", "utf8")).toContain("<CampanaDeRiesgos className={ICONO_SUPERIOR}><Bell size={17} /></CampanaDeRiesgos>")
-    expect(readFileSync("components/nuevo/EscenaViva.tsx", "utf8")).toContain("window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: cuentaDeLaCampana(j) }))")
   })
+  it("toma el número que manda la escena; si la lectura falla (de la escena o la suya), se apaga: nunca queda un número viejo", async () => {
+    const { cuentaDeLaLectura, cuentaDelAviso } = await import("@/lib/direccion-riesgos")
+    const lectura = { ok: true, total: 5, por_gravedad: { 1: 1, 2: 2, 3: 2 }, completo: false }
+    expect(cuentaDeLaLectura(true, lectura)).toEqual({ abiertos: 5, graves: 2, completo: false })
+    expect(cuentaDeLaLectura(false, lectura)).toBeNull() // la ruta respondió con error
+    expect(cuentaDeLaLectura(true, { ok: false, error: "x" })).toBeNull()
+    expect(cuentaDeLaLectura(true, null)).toBeNull() // no era JSON
+    const aviso = (detail: unknown) => cuentaDelAviso(new CustomEvent("nv:riesgos-leidos", { detail }))
+    expect(aviso({ abiertos: 2, graves: 1, completo: true })).toEqual({ abiertos: 2, graves: 1, completo: true })
+    expect(aviso(null)).toBeNull(); expect(aviso({ abiertos: "2" })).toBeNull()
+    const campana = readFileSync("components/nuevo/BotonesDelMarco.tsx", "utf8")
+    expect(campana).toContain("setCuenta(cuentaDeLaLectura(r.ok, await r.json().catch(() => null)))")
+    expect(campana).toContain("} catch { setCuenta(null) }")
+    expect(campana).toContain("const deLaEscena = (e: Event) => setCuenta(cuentaDelAviso(e))")
+    const escena = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
+    expect(escena).toContain("window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: cuentaDeLaLectura(r.ok, j) }))")
+    expect(escena).toContain("setRiesgosCrudos(null); window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: null })) }")
+  })
+})
+
+describe("estilo base · los recuadros de Riesgos filtran", () => {
+  const R = (id: string, gravedad: 1 | 2 | 3) => ({ id, gravedad, titulo: `riesgo ${id}`, detalle: null, sector: "flujos", cliente: null, fuente: "n8n", desde: null }) as never
+  const TODOS = [R("g", 3), R("a", 2), R("l", 1), R("g2", 3)]
+  it("abiertos = todos · graves = solo lo grave · atender = solo lo que hay que atender (sin los graves)", async () => {
+    const { filtrarRiesgos } = await import("@/components/nuevo/PanelRiesgos")
+    const ids = (f: "abiertas" | "graves" | "atender") => filtrarRiesgos(TODOS, f).map((r) => r.id)
+    expect(ids("abiertas")).toEqual(["g", "a", "l", "g2"]); expect(ids("graves")).toEqual(["g", "g2"]); expect(ids("atender")).toEqual(["a"])
+  })
+  it("el recuadro «Graves» va en rojo solo si hay algo grave", async () => {
+    const { createElement } = await import("react")
+    const { renderToStaticMarkup } = await import("react-dom/server")
+    const { PanelRiesgos } = await import("@/components/nuevo/PanelRiesgos")
+    const datos = (graves: number) => ({ generado_en: null, completo: true, total: 2, por_gravedad: { 1: 0, 2: 2 - graves, 3: graves }, por_sector: { dinero: 0, accesos: 0, servicios: 0, flujos: 2, datos: 0, calidad: 0, plazos: 0, seguridad: 0 },
+      riesgos: [R("x", graves ? 3 : 2), R("y", 2)], decisiones_tuyas: [], caducados: 0, saldos: [], topes: [], fuentes: [], sin_fuente: [] }) as never
+    const graves = (n: number) => renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: datos(n) })).match(/data-recuadro="graves".*?<\/button>/)?.[0] ?? ""
+    expect(graves(1)).toMatch(/text-alarma[^>]*>1</); expect(graves(0)).not.toContain("text-alarma")
+  }, 30_000)
 })

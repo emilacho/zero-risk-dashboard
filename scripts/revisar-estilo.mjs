@@ -16,8 +16,10 @@ const PALETA = "zinc|amber|rose|emerald|sky|red|orange|yellow|green|blue|neutral
 const PROPIEDAD = "text|bg|border(?:-[trblxy])?|ring|outline|fill|stroke|from|to|via|decoration|divide|placeholder|caret|accent|shadow"
 const RADIOS_OK = new Set(["rounded-panel", "rounded-tarjeta", "rounded-control", "rounded-full", "rounded-none"])
 const SOMBRAS_OK = new Set(["shadow-none"])
+/** ¿la posición i de la línea cae dentro de un comentario? (// … · /* … · línea que sigue un bloque con «*») */
+const enComentario = (l, i) => { const t = l.trimStart(); if (t.startsWith("*") || t.startsWith("/*")) return true; const c = [l.indexOf("//"), l.indexOf("/*")].filter((x) => x >= 0); return c.length > 0 && Math.min(...c) < i }
 const REGLAS = [
-  ["color suelto (usa un token: carbon, grafito, grafito-2, hueso, gris, apagado, oro, ambar, sobre-ambar, alarma, linea, linea-oro, linea-alarma, velo)", (l) => [...l.matchAll(/(.?)#([0-9a-fA-F]{3,8})\b(.?)/g)].some((m) => !(/^\d+$/.test(m[2]) && /^[\s(]$/.test(m[1]) && /^[\s),.]?$/.test(m[3]))) || /\b(?:rgba?|hsla?|oklch|oklab|color-mix)\(/.test(l)], // «· #283» (número de una entrega en un comentario) no es color
+  ["color suelto (usa un token: carbon, grafito, grafito-2, hueso, gris, apagado, oro, ambar, sobre-ambar, alarma, linea, linea-oro, linea-alarma, velo)", (l) => [...l.matchAll(/(.?)#([0-9a-fA-F]{3,8})\b/g)].some((m) => !(/^\d+$/.test(m[2]) && /^[\s(]$/.test(m[1]) && enComentario(l, m.index))) || /\b(?:rgba?|hsla?|oklch|oklab|color-mix)\(/.test(l)], // «ver #283» SOLO en un comentario (número de una entrega) no es color; en código, «#222» sí
   ["color de Tailwind fuera de los tokens", (l) => new RegExp(`\\b(?:${PROPIEDAD})-(?:(?:${PALETA})-\\d{2,3}|white|black|transparent\\/[\\d.\\[\\]]+|current\\/[\\d.\\[\\]]+|\\[[^\\]]*\\])`).test(l)],
   ["tamaño de letra fuera de los tokens (titulo 20 · cuerpo 15 · dato 13 · rotulo 11 · cifra 24 · numero 36)", (l) => /\btext-(?:\[[\d.]+(?:px|rem|em)\]|xs|sm|base|lg|xl|[2-9]xl)(?![\w-])|fontSize[=:]/.test(l)],
   ["peso fuera de los 2 (normal · medio)", (l) => /\bfont-(?:thin|extralight|light|medium|semibold|bold|extrabold|black|\[\d+\])(?![\w-])|fontWeight[=:]/.test(l)],
@@ -31,12 +33,12 @@ const revisarEntero = (f) => readFileSync(f, "utf8").split("\n").forEach((l, i) 
 
 if (modo === "probar") {
   const deben = [
-    ["#e8731a", 0], ["rgba(0,0,0,.5)", 0], ["hsl(20 80% 50%)", 0], ["text-amber-200", 1], ["text-white", 1], ["bg-black/70", 1], ["bg-transparent/40", 1], ["bg-[#111]", 0], ["fill=\"#111\"", 0], ["color: #111;", 0], ["border-white/10", 1],
+    ["#e8731a", 0], ["rgba(0,0,0,.5)", 0], ["hsl(20 80% 50%)", 0], ["text-amber-200", 1], ["text-white", 1], ["bg-black/70", 1], ["bg-transparent/40", 1], ["bg-[#111]", 0], ["fill=\"#111\"", 0], ["color: #111;", 0], ["border: 1px solid #222", 0], ["border: 1px solid #222;", 0], ["boxShadow: \"#000 0px\"", 0], ["color: \"#123\" // ver la guía", 0], ["border-white/10", 1],
     ["text-[13px]", 2], ["text-[0.8rem]", 2], ["text-sm", 2], ["fontSize={13}", 2], ["font-semibold", 3], ["font-light", 3], ["font-medium", 3], ["fontWeight: 600", 3],
     ["rounded-md", 4], ["rounded-lg", 4], ["rounded", 4], ["rounded-[10px]", 4], ["rounded-t-xl", 4], ["borderRadius: 6", 4],
     ["shadow", 5], ["shadow-2xl", 5], ["shadow-[0_0_10px_red]", 5], ["boxShadow: 'x'", 5],
   ]
-  const pasan = ["bg-grafito text-gris text-cuerpo font-medio rounded-tarjeta border-linea", "rounded-full rounded-control rounded-panel", "className=\"text-rotulo text-oro tracking-rotulo\"", "bg-ambar text-sobre-ambar text-numero text-cifra", "x // estilo-ok: el logo exige su contorno exacto #e8731a", "bg-transparent", "shadow-none", "// lo pidió CC6 (#283) · ver #289."]
+  const pasan = ["bg-grafito text-gris text-cuerpo font-medio rounded-tarjeta border-linea", "rounded-full rounded-control rounded-panel", "className=\"text-rotulo text-oro tracking-rotulo\"", "bg-ambar text-sobre-ambar text-numero text-cifra", "x // estilo-ok: el logo exige su contorno exacto #e8731a", "bg-transparent", "shadow-none", "// lo pidió CC6 (#283) · ver #289.", " * corrección de la entrega #290", "{/* entrega #291 */}"]
   const noPasan = ["x // estilo-ok:", "x // estilo-ok: ok"]
   let fallos = 0
   for (const [linea, i] of deben) { const ok = REGLAS[i][1](linea) && !PERMISO.test(linea); if (!ok) { fallos++; console.error(`NO frena «${linea}» (regla ${i})`) } }
