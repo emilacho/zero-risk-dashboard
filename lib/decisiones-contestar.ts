@@ -10,7 +10,7 @@
  * US$ 0: ninguna de estas puertas llama a un modelo.
  */
 import { randomUUID } from "node:crypto"
-import { TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, leerDecisiones, nombreDeOficina, type AccionDeDecision, type Decision } from "@/lib/direccion-decisiones"
+import { TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, faltaQueLeer, leerDecisiones, nombreDeOficina, type AccionDeDecision, type Decision } from "@/lib/direccion-decisiones"
 import { ejecutarAccion } from "@/lib/tablero-acciones"
 
 export const FLUJO_DE_TU_OFICINA = "tablero-tu-oficina" // el mismo que usa la ruta de la pausa (CC1 #897): aquí no hay flujo detrás, viene del tablero
@@ -97,6 +97,7 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
   if (!lectura.ok) return { status: 502, cuerpo: { ok: false, error: "sin_lectura", detalle: "No pude confirmar que la decisión sigue pendiente: no se hizo nada." } }
   const dec = lectura.datos.decisiones.find((x) => x.id === v.id)
   if (!dec) return { status: 409, cuerpo: { ok: false, error: "ya_no_esta", detalle: "Esta decisión ya no está pendiente: se resolvió en otro lugar." } }
+  if (faltaQueLeer(dec)) return { status: 409, cuerpo: { ok: false, error: "falta_informacion", detalle: "Esta firma no trae las cifras que se firman: la oficina financiera debe mandarlas. No se firmó." } }
   if (!accionesDe(dec).includes(v.accion)) return { status: 409, cuerpo: { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." } }
   const ahora = (d.ahora ?? (() => new Date()))().toISOString()
   const ejecucion = `tablero:${(d.id ?? randomUUID)()}`

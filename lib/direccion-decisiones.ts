@@ -36,9 +36,15 @@ export interface Decision {
   destraba?: string | null
   /** un trabajo está detenido esperando esto */
   detiene?: boolean
+  /** 05-nov · firma: QUÉ se firma, las cifras que propone la oficina. Sin ellas la tarjeta no ofrece firmar */
+  cifras?: CifraDeFirma[]
+  /** 05-nov · firma: los críticos que siguen abiertos, en palabras de la oficina */
+  criticos?: string[]
   /** el texto como lo guardó la fuente (la puerta del cerebro recibe la pregunta tal cual) */
   titulo_interno?: string | null
 }
+/** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
+export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null }
 export type AccionDeDecision = "aceptar" | "editar" | "responder" | "descartar"
 /** lo que aceptan las puertas al contestar (la del dueño: respuesta ≤ 2.000 · motivo de descarte ≤ 300) */
 export const TOPE_RESPUESTA = 2000
@@ -220,7 +226,7 @@ export function gruposDeDecisiones(d: Pick<Decisiones, "decisiones"> & { pausado
     if (esLaTarjetaDeLaPausa(x) && d.decisiones.some((y) => y.client_id === x.client_id && y.tipo === "pregunta_al_dueno")) continue // la pausa se dice en sus preguntas
     const p = x.cliente ? pausados.get(clave(x.cliente)) : undefined
     if (p) { const k = clave(p.cliente); const g = pausa.get(k) ?? { cliente: x.cliente ?? p.cliente, motivo: p.motivo, decisiones: [] }; g.decisiones.push(x); pausa.set(k, g) }
-    else if (dondeSeDecide(x).panel || accionesDe(x).length) firma.push(x)
+    else if (dondeSeDecide(x).panel || accionesDe(x).length || faltaQueLeer(x)) firma.push(x) // una firma a la que le falta información sigue a la vista: dice qué falta y quién la debe
     else fuera.push(x)
   }
   const ordenada = ordenarParaTi(firma, detenidas)
@@ -237,12 +243,19 @@ const LO_QUE_SE_HACE_AQUI: Partial<Record<TipoDeDecision, AccionDeDecision[]>> =
   pregunta_al_dueno: ["responder", "descartar"], // puerta del dueño del cerebro (+ la ruta de la pausa de finanzas)
   firma_de_finanzas: ["aceptar"], // firmar-tablero
 }
+/** 05-nov · nunca se firma a ciegas: una firma que no trae las cifras que se firman no tiene nada que leer */
+export const faltaQueLeer = (d: Pick<Decision, "tipo" | "cifras">): boolean => d.tipo === "firma_de_finanzas" && !d.cifras?.length
+/** una cifra para leer: «US$ 1.341,27» · «5 ventas por semana» */
+export function textoDeCifra(c: Pick<CifraDeFirma, "valor" | "unidad">): string {
+  const n = c.valor.toLocaleString("es-EC", { maximumFractionDigits: 2 })
+  return c.unidad === "US$" ? `US$ ${n}` : c.unidad ? `${n} ${c.unidad}` : n
+}
 /**
  * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;
  * si no declaró nada, las de su tipo. Una acción sin ruta real nunca se muestra (nada de botones falsos).
  */
-export function accionesDe(d: Pick<Decision, "tipo" | "permite" | "fuente" | "subtipo">): AccionDeDecision[] {
-  if (esLaTarjetaDeLaPausa(d)) return []
+export function accionesDe(d: Pick<Decision, "tipo" | "permite" | "fuente" | "subtipo" | "cifras">): AccionDeDecision[] {
+  if (esLaTarjetaDeLaPausa(d) || faltaQueLeer(d)) return []
   const posibles = LO_QUE_SE_HACE_AQUI[d.tipo] ?? []
   return d.permite ? posibles.filter((a) => d.permite!.includes(a)) : posibles
 }
@@ -263,6 +276,10 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (txt(d.destraba)) o.destraba = txt(d.destraba)
   if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
   if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
+  const cifras = (Array.isArray(d.cifras) ? d.cifras : []).flatMap((c): CifraDeFirma[] => { const x = (c && typeof c === "object" ? c : {}) as Record<string, unknown>; const clave = txt(x.clave), nombre = txt(x.nombre), valor = num(x.valor); return clave && nombre && valor != null ? [{ clave, nombre, valor, unidad: txt(x.unidad), nota: txt(x.nota) }] : [] })
+  if (cifras.length) o.cifras = cifras
+  const criticos = (Array.isArray(d.criticos) ? d.criticos : []).flatMap((c) => { const t = txt(c); return t ? [t] : [] })
+  if (criticos.length) o.criticos = criticos
   return o
 }
 

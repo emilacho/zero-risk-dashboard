@@ -17,7 +17,7 @@ const base = { subtipo: null, fuente: null, client_id: NAUFRAGO, cliente: "Náuf
 const CRUDO = {
   ok: true, completo: true, fuentes: [], sin_fuente: [],
   decisiones: [
-    { ...base, id: T1, tipo: "firma_de_finanzas", subtipo: "tablero_sin_firma", fuente: "finanzas_tableros", titulo: "Tablero financiero: espera tu firma", desde: "2026-11-01T10:00:00Z", decidir: { ruta: null, accion: "firmar-tablero" } },
+    { ...base, id: T1, tipo: "firma_de_finanzas", subtipo: "tablero_sin_firma", fuente: "finanzas_tableros", titulo: "Tablero financiero: espera tu firma", cifras: [{ clave: "total_mes", nombre: "Presupuesto al mes", valor: 1341.27, unidad: "US$", nota: null }], desde: "2026-11-01T10:00:00Z", decidir: { ruta: null, accion: "firmar-tablero" } },
     { ...base, id: E1, tipo: "pregunta_de_finanzas", subtipo: "plan_en_pausa", fuente: "esperas_del_dueno", titulo: "El plan está en pausa: la oficina financiera espera tus respuestas en el buzón de preguntas" },
     { ...base, id: P1, tipo: "pregunta_al_dueno", subtipo: "ticket promedio", fuente: "cerebro_dueno_preguntas", titulo: "¿Cuánto gasta en promedio una mesa?", titulo_interno: "¿Cuánto gasta en promedio una mesa, en un día normal?" },
     { ...base, id: P2, tipo: "pregunta_al_dueno", subtipo: "mesas urdesa", fuente: "cerebro_dueno_preguntas", titulo: "¿Cuántas mesas tiene la sede de Urdesa?", client_id: "55555555-5555-4555-8555-555555555555", cliente: "Otro cliente" },
@@ -176,6 +176,45 @@ describe("descartar y firmar", () => {
     expect(m?.get(P1)).toEqual({ oficina: "financiera", agente: "jefe-financiero" })
     const apagada = vi.fn(async () => new Response(JSON.stringify({ apagado: true }), { status: 200 })) as unknown as typeof fetch
     expect(await quienPregunto({ plataformaUrl: "https://p.test", llave: "k", fetchImpl: apagada }, NAUFRAGO)).toBeNull()
+  })
+})
+
+describe("nunca se firma a ciegas (CORRECCIÓN Lenovo 5-nov)", () => {
+  const cruda = { id: T1, tipo: "firma_de_finanzas", subtipo: "tablero_sin_firma", fuente: "finanzas_tableros", client_id: NAUFRAGO, cliente: "Náufrago", titulo: "Tablero financiero: espera tu firma", desde: "2026-11-01T10:00:00Z", decidir: { ruta: null, accion: "firmar-tablero" } }
+  const leida = (extra: Record<string, unknown> = {}) => normalizarDecisiones({ ok: true, completo: true, decisiones: [{ ...cruda, ...extra }], fuentes: [], sin_fuente: [] })
+  const pantalla = (d: Decisiones) => renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: d })).replace(/<!-- -->/g, "")
+  const cifra = { clave: "total_mes", nombre: "Presupuesto al mes", valor: 1341.27, unidad: "US$", nota: "Instagram y Facebook" }
+
+  it("sin cifras: sin botón Firmar, dice qué falta y quién la debe, y sigue a la vista en «esperan por ti»", () => {
+    const d = leida()
+    expect(accionesDe(d.decisiones[0])).toEqual([])
+    expect(gruposDeDecisiones(d).firma.map((x) => x.id)).toEqual([T1]); expect(gruposDeDecisiones(d).fuera).toEqual([])
+    const html = pantalla(d)
+    expect(html).not.toContain("data-firmar"); expect(html).toContain("data-falta-informacion"); expect(html).toContain("Oficina financiera"); expect(html).toContain("Falta información")
+    expect(html).not.toContain("data-sin-panel")
+  })
+  it("con cifras: se leen y se puede firmar", () => {
+    const d = leida({ cifras: [cifra, { clave: "meta", nombre: "Meta", valor: 5, unidad: "ventas por semana" }], criticos: ["Dos hallazgos sin cerrar"] })
+    expect(accionesDe(d.decisiones[0])).toEqual(["aceptar"])
+    const html = pantalla(d)
+    expect(html).toContain("data-firmar"); expect(html).not.toContain("data-falta-informacion")
+    expect(html).toContain("US$ 1.341,27"); expect(html).toContain("Instagram y Facebook"); expect(html).toContain("5 ventas por semana"); expect(html).toContain("Dos hallazgos sin cerrar")
+    expect(html).toMatch(/data-pie="true" class="[^"]*sticky/) // con varias cifras, el botón Firmar sigue a la vista
+  })
+  it("una cifra que no se puede leer no cuenta: sin ninguna buena, falta información", () => {
+    const d = leida({ cifras: [{ clave: "x", nombre: "Sin valor" }, { clave: "y", nombre: "Texto", valor: "450" }, { nombre: "Sin clave", valor: 3 }, null] })
+    expect(d.decisiones[0].cifras).toBeUndefined(); expect(accionesDe(d.decisiones[0])).toEqual([])
+    expect(leida({ cifras: [] }).decisiones[0].cifras).toBeUndefined()
+  })
+  it("el servidor tampoco firma a ciegas, aunque le pidan firmar directo", async () => {
+    const firmar = vi.fn(); const p = plataforma(); const d = leida()
+    const r = await contestarDecision({ id: T1, accion: "aceptar" }, deps(p, lecturas(d), { firmar }))
+    expect(r).toMatchObject({ status: 409, cuerpo: { ok: false, error: "falta_informacion" } })
+    expect(String((r.cuerpo as { detalle?: string }).detalle)).toContain("No se firmó")
+    expect(firmar).not.toHaveBeenCalled(); expect(p.llamadas.filter((x) => x.metodo === "POST")).toHaveLength(0)
+  })
+  it("una pregunta sin cifras se sigue contestando: la regla es de las firmas", () => {
+    expect(accionesDe({ tipo: "pregunta_al_dueno", fuente: "cerebro_dueno_preguntas", subtipo: "tema" })).toEqual(["responder", "descartar"])
   })
 })
 
