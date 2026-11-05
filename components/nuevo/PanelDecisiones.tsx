@@ -5,7 +5,7 @@ import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import {
-  NOMBRE_DEL_TIPO, TIPOS_DE_DECISION, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
+  NOMBRE_DEL_TIPO, TIPOS_DE_DECISION, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, textoDeCifra, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
   type AccionDeDecision, type Decision, type Decisiones, type TipoDeDecision,
 } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
@@ -119,6 +119,7 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
   const quien = d.pregunta_de ? nombreDeOficina(d.pregunta_de.oficina) : d.tipo === "firma_de_finanzas" ? "Oficina financiera" : null
   const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string }) => { setEnviando(a); try { await contestar(d, a, t) } finally { setEnviando(null) } }
   const contestable = acciones.length > 0
+  const falta = faltaQueLeer(d)
   return (
     <article data-decision={d.id} data-tipo={d.tipo} data-fallo={fallo ? "si" : undefined} className={`de-tarjeta de-frente relative flex h-full flex-col overflow-y-auto [&>*]:shrink-0 rounded-2xl border bg-[linear-gradient(160deg,#211812,#151110_55%,#110e0d)] p-5 shadow-[0_24px_60px_rgba(0,0,0,.55),0_0_40px_rgba(232,115,26,.08)] sm:p-7 ${fallo ? "border-[rgba(255,90,54,.55)]" : "border-[rgba(232,115,26,.45)]"}`}>
       <header className="flex items-center gap-3">
@@ -127,21 +128,34 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
           <p className="text-[11px] whitespace-nowrap uppercase tracking-[0.1em] text-zinc-400 sm:tracking-[0.22em]">{NOMBRE_DEL_TIPO[d.tipo].nombre}{fallo ? " · volvió" : ""}</p>
           <p data-cliente className="truncate text-[14px] text-zinc-200">{d.cliente ?? "Sin cliente asignado"}</p>
         </div>
-        {fallo ? <span data-chip="volvio" className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-[rgba(255,90,54,.55)] px-2.5 py-0.5 text-[11.5px] text-rose-200"><span className="h-[7px] w-[7px] rounded-full bg-[#ff5a36]" />No salió</span>
+        {falta ? <span data-chip="falta" className="ml-auto shrink-0 rounded-full border border-white/15 px-2.5 py-0.5 text-[11.5px] text-zinc-300">Falta información</span>
+          : fallo ? <span data-chip="volvio" className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-[rgba(255,90,54,.55)] px-2.5 py-0.5 text-[11.5px] text-rose-200"><span className="h-[7px] w-[7px] rounded-full bg-[#ff5a36]" />No salió</span>
           : detiene ? <span data-chip="detiene" className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-[rgba(232,115,26,.55)] px-2.5 py-0.5 text-[11.5px] text-orange-200"><span className="de-punto" />Detiene el plan</span>
             : <span data-prioridad={pr.nivel} className={`ml-auto shrink-0 rounded-full border px-2.5 py-0.5 text-[11.5px] ${pr.nivel === 3 ? "de-urge border-orange-400/60 text-orange-200" : pr.nivel === 2 ? "border-amber-300/40 text-amber-200" : "border-white/15 text-zinc-400"}`}>{contestable && pr.nivel === 0 ? (d.tipo === "firma_de_finanzas" ? "Espera tu firma" : "Espera tu respuesta") : pr.texto}</span>}
       </header>
       {quien && <p data-quien className="mt-4 flex items-center gap-2.5 text-[13px] text-zinc-400"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#2a2622] font-display text-[11px] text-[#e9d6b6]">{iniciales(quien)}</span><span>{d.tipo === "firma_de_finanzas" ? "Propone la" : "Pregunta la"} <b className="font-medium text-zinc-200">{quien}</b></span></p>}
       <h3 data-titulo title={tituloDeDecision(d)} className={`${quien ? "mt-2" : "mt-5"} line-clamp-3 text-[19px] font-light leading-snug text-white sm:text-[21px]`}>{tituloDeDecision(d)}</h3>
       {enPausa && <p data-en-pausa className="mt-2 text-[12.5px] text-zinc-400">{enPausa} está en pausa por tu decisión: esto no cuenta en «esperan por ti».</p>}
+      {d.cifras?.length ? (
+        <div data-cifras className="mt-4">
+          <p className="mb-2 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Lo que propuso la oficina</p>
+          <dl className="grid gap-2.5 sm:grid-cols-2">
+            {d.cifras.map((c) => <div key={c.clave} data-cifra={c.clave} className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3"><dt className="text-[12.5px] text-zinc-400">{c.nombre}</dt><dd className="mt-1 text-[22px] font-light leading-tight text-white">{textoDeCifra(c)}</dd>{c.nota && <dd className="mt-1 text-[12.5px] leading-snug text-zinc-400">{c.nota}</dd>}</div>)}
+          </dl>
+        </div>
+      ) : null}
+      {falta && <p data-falta-informacion role="status" className="mt-4 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-3.5 text-[14.5px] leading-snug text-zinc-200"><span className="mb-1 block text-[11px] uppercase tracking-[0.1em] text-zinc-400">Todavía no hay nada que firmar</span>Falta información: la <b className="font-medium text-white">Oficina financiera</b> debe mandar las cifras que propone.</p>}
       {(d.para_que || destraba) && (
         <dl data-contexto className="mt-4 grid gap-2.5 sm:grid-cols-2">
           {d.para_que && <div className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2.5"><dt className="mb-1 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Para qué lo necesita</dt><dd className="text-[13.5px] leading-snug text-zinc-200">{d.para_que}</dd></div>}
           {destraba && <div className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2.5"><dt className="mb-1 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Qué se destraba</dt><dd data-destraba className="text-[13.5px] leading-snug text-[#e9d6b6]">{destraba}</dd></div>}
         </dl>
       )}
+      {d.criticos?.length ? (
+        <div data-criticos className="mt-3 rounded-[10px] border border-[rgba(232,115,26,.3)] bg-[rgba(232,115,26,.05)] px-3.5 py-2.5"><p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-orange-200/80">Sigue abierto</p><ul className="space-y-1 text-[13.5px] leading-snug text-zinc-200">{d.criticos.map((c) => <li key={c}>{c}</li>)}</ul></div>
+      ) : null}
       {fallo && <p data-por-que-volvio role="status" className="mt-4 rounded-[10px] border border-[rgba(255,90,54,.35)] bg-[rgba(255,90,54,.06)] px-3.5 py-2.5 text-[13.5px] leading-snug text-rose-100"><span className="mb-0.5 block text-[11px] uppercase tracking-[0.1em] text-rose-300">Por qué sigue aquí</span>{fallo}</p>}
-      {!contestable && (
+      {!contestable && !falta && (
         <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 text-[13px] sm:grid-cols-4">
           <div><dt className="text-zinc-500">Espera</dt><dd data-espera className="text-zinc-200">{haceCuanto(d.desde)}{fecha(d.desde) ? <span className="text-zinc-500"> · {fecha(d.desde)}</span> : null}</dd></div>
           <div><dt className="text-zinc-500">Vence</dt><dd data-vence className={d.vencida ? "text-orange-300" : "text-zinc-200"}>{d.vence ? `${fecha(d.vence)}${d.vencida ? " · vencida" : ""}` : "Sin fecha límite"}</dd></div>
@@ -166,7 +180,8 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
         {acciones.includes("responder") && <button type="button" data-enviar disabled={!!enviando || !respuesta.trim()} onClick={() => void hacer("responder", { respuesta })} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "responder" ? "Enviando…" : fallo ? "Enviar de nuevo" : "Enviar respuesta"}</button>}
         {acciones.includes("aceptar") && <button type="button" data-firmar disabled={!!enviando} onClick={() => void hacer("aceptar", {})} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "aceptar" ? "Firmando…" : fallo ? "Firmar de nuevo" : "Firmar"}</button>}
         {acciones.includes("descartar") && !descartando && <button type="button" data-descartar-abrir disabled={!!enviando} onClick={() => setDescartando(true)} className={DISCRETO}>Descartar</button>}
-        {!contestable && (donde.panel
+        {falta && <span data-espera className="ml-auto text-[12px] text-zinc-500">Espera {haceCuanto(d.desde)}</span>}
+        {!contestable && !falta && (donde.panel
           ? <button type="button" data-decidir={donde.panel} onClick={() => alDecidir(d)} className="rounded-lg border border-[rgba(232,115,26,.7)] bg-[rgba(232,115,26,.14)] px-4 py-2 text-[13.5px] text-white transition hover:bg-[rgba(232,115,26,.24)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">{donde.boton}</button>
           : <p data-sin-panel className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[12.5px] text-zinc-400">{donde.nota}</p>)}
         {contestable && <span data-espera className="ml-auto hidden text-[12px] text-zinc-500 sm:inline">Espera {haceCuanto(d.desde)}</span>}
@@ -318,7 +333,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
             )}
             {actual ? (
               <>
-                <div className="de-pila relative mx-auto w-full max-w-[720px]" style={{ height: accionesDe(actual).includes("responder") ? 620 : 460 }}>
+                <div className="de-pila relative mx-auto w-full max-w-[720px]" style={{ height: accionesDe(actual).includes("responder") || actual.cifras?.length ? 620 : 460 }}>
                   {detras.slice().reverse().map((d, k) => {
                     const capa = detras.length - k // 3, 2, 1 desde el fondo: cada una asoma 22 px por encima de la anterior
                     return (
