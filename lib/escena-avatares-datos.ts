@@ -4,7 +4,7 @@
  * el navegador pide cada pocos segundos. Los nombres y el directorio se leen una vez cada 5 min. Nada se escribe.
  */
 import { leerAvisosDeFirma, type AvisoDeFirma } from "@/lib/escena-avisos"
-import { armarAlertas, DIAS_DE_UNA_FALLA, type AlertaDeLaAntena, type CorridaConGasto } from "@/lib/escena-alertas"
+import { armarAlertas, DIAS_DE_UNA_FALLA, GASTO_RARO_EN_LA_ANTENA, type AlertaDeLaAntena, type CorridaConGasto } from "@/lib/escena-alertas"
 import { esperaLaFirma, manualAprobadoPorCliente } from "@/lib/manual-primero"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
@@ -216,7 +216,8 @@ export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, c
       filas(supa.from("cerebro_diario_corridas").select("client_id, dia, estado, prueba").order("dia", { ascending: false }).limit(30), "cerebro_diario_corridas"),
       filas(supa.from("cerebro_alertas").select("clave, ultima_en").is("cerrado_en", null).limit(20), "cerebro_alertas"),
       filas(supa.from("cerebro_dueno_preguntas").select("id, client_id, pregunta, estado, creado_en").eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(50), "cerebro_dueno_preguntas"),
-      filas(supa.from("agent_invocations").select("workflow_execution_id, workflow_id, client_id, cost_usd, started_at").gte("started_at", iso(72)).gt("cost_usd", 0).limit(2000), "agent_invocations"),
+      // apagado el gasto raro, no se lee: son hasta 2000 filas para nada
+      GASTO_RARO_EN_LA_ANTENA ? filas(supa.from("agent_invocations").select("workflow_execution_id, workflow_id, client_id, cost_usd, started_at").gte("started_at", iso(72)).gt("cost_usd", 0).limit(2000), "agent_invocations") : Promise.resolve([] as Record<string, unknown>[]),
     ])
     const porCorrida = new Map<string, CorridaConGasto>()
     for (const i of inv) {
