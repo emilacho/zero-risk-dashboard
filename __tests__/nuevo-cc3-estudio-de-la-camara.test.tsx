@@ -12,7 +12,8 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { PanelEstudio } from "@/components/nuevo/PanelEstudio"
 import { CAMARA } from "@/components/nuevo/EscenaViva"
-import { alEstudio, cuerpoDeCotizacion, cuerpoDelPedido, dolares, estadoDelBoton, RUTAS_DEL_ESTUDIO, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
+import { alEstudio, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
+import { clientesDelEstudio } from "@/lib/estudio-clientes"
 
 const CLIENTE = "a0000000-0000-4000-8000-0000000000e1"
 type Llamada = { url: string; init?: RequestInit }
@@ -123,6 +124,51 @@ describe("el panel", () => {
     expect(h).toContain("Descargar")
     expect(h).toContain("anotado en el libro")
     expect(h).not.toContain("Usar en una pieza")
+  })
+})
+
+describe("lo que pidió CC6 en #289", () => {
+  const P = (id: string, client_id: string): Pieza => ({ id, client_id, tipo: "imagen", estado: "lista", paso: null, prompt: "x", modelo: "m", parametros: {}, foto_partida_url: null, costo_estimado_usd: 0.01, costo_usd: 0.01, archivo_url: "https://a/x.png", archivo_tipo: "image", miniatura_url: null, aviso: null, error: null, creado_en: "2026-11-05T20:00:00Z", terminado_en: null })
+  const OTRO = "b0000000-0000-4000-8000-0000000000e2"
+  const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
+  it("cada clic manda su propia clave: dos creaciones nunca comparten clave", () => {
+    const a = cuerpoDeCreacion({ tipo: "imagen" }), b = cuerpoDeCreacion({ tipo: "imagen" })
+    expect(a.clave).toMatch(/^estudio-[A-Za-z0-9_-]{8,}$/)
+    expect(a.clave).not.toBe(b.clave)
+    expect(claveNueva()).not.toBe(claveNueva())
+  })
+  it("crear nunca sale sin clave: el panel arma el cuerpo con cuerpoDeCreacion", () => {
+    expect(cuerpoDeCreacion({ tipo: "3d" }, "estudio-fija-123")).toEqual({ tipo: "3d", clave: "estudio-fija-123" })
+    expect(panel).toContain('fetchImpl("/api/estudio/crear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCreacion(pedido)) })')
+  })
+  it("la galería se pide siempre por cliente y solo muestra lo del cliente a la vista", () => {
+    expect(rutaDeGaleria(CLIENTE)).toBe(`/api/estudio/piezas?client_id=${CLIENTE}`)
+    expect(panel).toContain("fetchImpl(rutaDeGaleria(id)")
+    // una respuesta tardía de otro cliente no entra; al reemplazar no queda nada del anterior
+    expect(piezasDelCliente(CLIENTE, [P("a", CLIENTE)], [P("b", OTRO)], true)).toEqual([])
+    expect(piezasDelCliente(CLIENTE, [P("a", CLIENTE)], [P("c", CLIENTE)], false).map((p) => p.id)).toEqual(["c", "a"])
+    expect(piezasDelCliente(CLIENTE, [P("a", CLIENTE)], [P("b", OTRO)], false).map((p) => p.id)).toEqual(["a"])
+    expect(piezasDelCliente(null, [], [P("a", CLIENTE)], true)).toEqual([])
+    // al cambiar de cliente la galería se vacía en el acto, y la pieza creada solo entra si es del cliente a la vista
+    expect(panel).toContain("setPiezas([]); setAbierta(null)")
+    expect(panel).toContain("if (j.pieza.client_id !== clienteVisto.current) return")
+    expect(panel).toContain("if (j?.ok && clienteVisto.current === id)")
+  })
+  it("un cliente dado de baja o sin nombre no aparece en la lista (no se le puede crear ni cobrar)", () => {
+    expect(clientesDelEstudio([
+      { id: "1", name: "Náufrago", status: "active" }, { id: "2", name: "Viejo", status: "churned" },
+      { id: "3", name: "Otro", status: "Baja" }, { id: "4", name: null, status: "active" }, { id: "5", name: "Sin estado", status: null },
+    ])).toEqual([{ id: "1", nombre: "Náufrago" }, { id: "5", nombre: "Sin estado" }])
+    expect(readFileSync("app/api/estudio/[ruta]/route.ts", "utf8")).toContain("clientesDelEstudio((r.data ?? []) as FilaDeCliente[])")
+  })
+  it("una pieza que tarda mucho más de lo normal lo dice, en vez de «Creando…» sin fin", () => {
+    const t0 = Date.parse("2026-11-05T20:00:00Z")
+    const p = { tipo: "3d" as const, estado: "creando" as const, creado_en: "2026-11-05T20:00:00Z" }
+    expect(tardaMasDeLoNormal(p, t0 + 19 * 60_000)).toBe(false)
+    expect(tardaMasDeLoNormal(p, t0 + 21 * 60_000)).toBe(true)
+    expect(tardaMasDeLoNormal({ ...p, tipo: "imagen" }, t0 + 6 * 60_000)).toBe(true)
+    expect(tardaMasDeLoNormal({ ...p, estado: "lista" }, t0 + 99 * 60_000)).toBe(false)
+    expect(panel).toContain("Tarda más de lo normal.")
   })
 })
 

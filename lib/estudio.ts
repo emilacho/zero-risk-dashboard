@@ -84,6 +84,26 @@ export function claveNueva(): string {
   return `estudio-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
 }
 
+/** el cuerpo de una creación: el pedido con una clave nueva siempre (sin clave la plataforma no puede evitar el doble cobro) */
+export const cuerpoDeCreacion = (pedido: Record<string, unknown>, clave: string = claveNueva()) => ({ ...pedido, clave })
+
+/** la galería se pide siempre por cliente: nunca sin client_id */
+export const rutaDeGaleria = (clienteId: string) => `/api/estudio/piezas?client_id=${encodeURIComponent(clienteId)}`
+
+/** solo entra a la galería lo que es del cliente que está a la vista (una respuesta tardía o una pieza de otro cliente se descarta) */
+export function piezasDelCliente(clienteVisto: string | null, actuales: Pieza[], nuevas: Pieza[], reemplazar: boolean): Pieza[] {
+  const suyas = nuevas.filter((p) => !!clienteVisto && p.client_id === clienteVisto)
+  if (reemplazar) return suyas
+  return [...suyas, ...actuales.filter((p) => !suyas.some((n) => n.id === p.id))]
+}
+
+/** cuánto suele tardar cada tipo (con holgura): pasado eso la pieza dice que tarda más de lo normal, en vez de «Creando…» sin fin */
+export const MINUTOS_NORMALES: Record<TipoDePieza, number> = { imagen: 5, video: 20, "3d": 20 }
+export function tardaMasDeLoNormal(p: Pick<Pieza, "tipo" | "estado" | "creado_en">, ahoraMs: number): boolean {
+  const desde = Date.parse(p.creado_en)
+  return p.estado === "creando" && Number.isFinite(desde) && ahoraMs - desde > MINUTOS_NORMALES[p.tipo] * 60_000
+}
+
 export const NOMBRE_DEL_TIPO: Record<TipoDePieza, string> = { imagen: "Imagen", video: "Video", "3d": "3D" }
 
 /** ¿hay texto suficiente? En 3D con foto el texto sobra (se convierte la foto) */

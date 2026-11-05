@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
-import { claveNueva, cuerpoDeCotizacion, cuerpoDelPedido, dolares, estadoDelBoton, NOMBRE_DEL_TIPO, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, NOMBRE_DEL_TIPO, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -71,6 +71,7 @@ function Visor3D({ src, poster }: { src: string; poster: string | null }) {
 }
 
 function Vista({ pieza }: { pieza: Pieza }) {
+  if (pieza.estado === "creando" && tardaMasDeLoNormal(pieza, Date.now())) return <div data-tarda className="flex h-full items-center justify-center p-6 text-center text-[13px] text-amber-200">Tarda más de lo normal. Sigue en el proveedor: puedes cerrar y volver más tarde.</div>
   if (pieza.estado === "creando") return <div className="es-cargando relative flex h-full items-center justify-center text-[13px] text-zinc-400">Creando…</div>
   if (pieza.estado === "fallida" || !pieza.archivo_url) return <div className="flex h-full items-center justify-center p-6 text-center text-[13px] text-red-300">No se pudo crear: {pieza.error ?? "sin archivo"}</div>
   if (pieza.tipo === "video") return <video src={pieza.archivo_url} poster={pieza.miniatura_url ?? undefined} controls playsInline className="h-full w-full bg-black object-contain" />
@@ -90,7 +91,7 @@ function Miniatura({ p, alAbrir }: { p: Pieza; alAbrir: () => void }) {
       <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[10.5px]" style={{ color: "#f0a04b" }}>{NOMBRE_DEL_TIPO[p.tipo]}</span>
       <span className="absolute inset-x-0 bottom-0 flex justify-between gap-2 bg-gradient-to-t from-black/90 to-transparent px-2 pb-1.5 pt-5 text-[11.5px] text-zinc-200">
         <span className="truncate">{p.prompt || "desde una foto"}</span>
-        <span className="shrink-0 text-zinc-400">{p.estado === "creando" ? "creando" : p.estado === "fallida" ? "falló" : dolares(p.costo_usd)}</span>
+        <span className="shrink-0 text-zinc-400">{p.estado === "creando" ? (tardaMasDeLoNormal(p, Date.now()) ? "tarda más" : "creando") : p.estado === "fallida" ? "falló" : dolares(p.costo_usd)}</span>
       </span>
     </button>
   )
@@ -156,11 +157,19 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
   }, [clientes, clienteId])
   const cliente = clientes?.find((c) => c.id === clienteId) ?? null
 
+  // el cliente que está a la vista: lo que llega tarde de otro cliente no entra a su galería
+  const clienteVisto = useRef<string | null>(clienteId)
+  clienteVisto.current = clienteId
   const leerGaleria = useCallback(async (id: string) => {
-    const j = await fetchImpl(`/api/estudio/piezas?client_id=${encodeURIComponent(id)}`, { cache: "no-store" }).then(leerJson<{ piezas: Pieza[] }>).catch(() => null)
-    if (j?.ok) setPiezas(j.piezas)
+    const j = await fetchImpl(rutaDeGaleria(id), { cache: "no-store" }).then(leerJson<{ piezas: Pieza[] }>).catch(() => null)
+    if (j?.ok && clienteVisto.current === id) setPiezas(piezasDelCliente(id, [], j.piezas, true))
   }, [fetchImpl])
-  useEffect(() => { if (clienteId && !piezasIniciales) void leerGaleria(clienteId) }, [clienteId, leerGaleria, piezasIniciales])
+  useEffect(() => {
+    if (!clienteId || piezasIniciales) return
+    // al cambiar de cliente la galería anterior se vacía en el acto (si la lectura falla, no queda la de otro cliente)
+    setPiezas([]); setAbierta(null)
+    void leerGaleria(clienteId)
+  }, [clienteId, leerGaleria, piezasIniciales])
 
   // lo que se está creando se pregunta cada pocos segundos (la plataforma avanza la pieza al preguntar)
   const enCurso = piezas.filter((p) => p.estado === "creando").map((p) => p.id).join(",")
@@ -202,10 +211,12 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     if (!puedeCrear) return
     setCreando(true); setError(null)
     try {
-      const r = await fetchImpl("/api/estudio/crear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...pedido, clave: claveNueva() }) })
+      const r = await fetchImpl("/api/estudio/crear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCreacion(pedido)) })
       const j = await leerJson<{ pieza: Pieza }>(r)
       if (!j.ok || !j.pieza) { setError(j.detalle ?? j.error ?? `No se pudo crear (${r.status}).`); return }
-      setPiezas((ps) => [j.pieza, ...ps.filter((p) => p.id !== j.pieza.id)])
+      // si Emilio cambió de cliente mientras se creaba, la pieza no entra en la galería del otro
+      if (j.pieza.client_id !== clienteVisto.current) return
+      setPiezas((ps) => piezasDelCliente(clienteVisto.current, ps, [j.pieza], false))
       setAbierta(j.pieza.id)
     } catch { setError("La plataforma no responde.") } finally { setCreando(false) }
   }

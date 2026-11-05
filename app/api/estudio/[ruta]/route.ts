@@ -5,13 +5,13 @@
  */
 import { NextResponse } from "next/server"
 import { exigirAdmin } from "@/lib/admin-guard"
-import { esDadoDeBaja } from "@/lib/cliente-financiero"
+import { clientesDelEstudio, type FilaDeCliente } from "@/lib/estudio-clientes"
 import { alEstudio } from "@/lib/estudio"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export const maxDuration = 300
+export const maxDuration = 800
 
 const sinSesion = (status: 401 | 403) => NextResponse.json({ ok: false, error: status === 401 ? "sin_sesion" : "sin_permiso" }, { status })
 
@@ -22,7 +22,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ ruta: string }>
   if (ruta === "clientes") {
     const r = await getServiceRoleClient().from("clients").select("id, name, status").order("name", { ascending: true }).limit(500)
     if (r.error) return NextResponse.json({ ok: false, error: r.error.message }, { status: 502 })
-    const clientes = ((r.data ?? []) as Array<{ id: string; name: string | null; status: string | null }>).filter((c) => !esDadoDeBaja(c.status) && c.name).map((c) => ({ id: c.id, nombre: String(c.name) }))
+    const clientes = clientesDelEstudio((r.data ?? []) as FilaDeCliente[])
     return NextResponse.json({ ok: true, clientes }, { headers: { "Cache-Control": "no-store" } })
   }
   const r = await alEstudio(ruta, "GET", new URL(req.url).search, null)
