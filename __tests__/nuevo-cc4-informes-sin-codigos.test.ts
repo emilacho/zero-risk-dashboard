@@ -36,6 +36,33 @@ describe("el informe de la mesa, sin códigos ni «ficha»", () => {
   it("respeta los saltos de línea, para cuando la puerta deje de borrarlos", () => {
     expect(textoDeLaMesa("## Mercado\n\n- Uno [ficha:1c91df08]\n- Dos · [6a9f94b0 · 2026-11-02]\n\nFin")).toBe("## Mercado\n\n- Uno\n- Dos\n\nFin")
   })
+  it.each([
+    "Mira https://x.com/foto/1a2b3c4d hoy",
+    "Mira https://x.com/1a2b3c4d/foto hoy",
+    "Mira https://x.com/ficha/9 y https://x.com/ficha-9 hoy",
+    "La [nota](https://x.com/1a2b3c4d) sigue",
+    "Archivo a1b2c3d4.jpg listo",
+    "La etiqueta #1a2b3c4d sigue",
+    "La cuenta @ab12cd34 sigue",
+    "Escribe a a1b2c3d4@x.com hoy",
+  ])("no rompe direcciones, archivos ni cuentas: %s", (t) => {
+    expect(textoDeLaMesa(t)).toBe(t)
+  })
+  it("el código al final de una frase sí se va", () => {
+    expect(textoDeLaMesa("Lo dice 1a2b3c4d. Luego sigue.")).toBe("Lo dice. Luego sigue.")
+  })
+  it("quitar un código no se come el salto de línea, en corchetes ni suelto", () => {
+    expect(textoDeLaMesa("Uno [6a9f94b0]\n[e8f664a3] dos")).toMatch(/^Uno\n ?dos$/)
+    expect(textoDeLaMesa("Uno 113f3e02\n2cad4b07 dos")).toMatch(/^Uno\n ?dos$/)
+  })
+  it("una palabra hexadecimal sin número y una cifra de 8 se quedan", () => {
+    expect(textoDeLaMesa("La marca deadbeef sigue")).toBe("La marca deadbeef sigue")
+    expect(textoDeLaMesa("Vendió 12345678 unidades")).toBe("Vendió 12345678 unidades")
+    expect(textoDeLaMesa("Marca [deadbeef] sigue")).toBe("Marca sigue") // entre corchetes y con 8 es una cita
+  })
+  it("«ficha» con código sin corchetes se va entera, también con solo números", () => {
+    expect(textoDeLaMesa("Lo dijo ficha:12345678 ayer")).toBe("Lo dijo ayer")
+  })
   it("limpiar dos veces da lo mismo", () => {
     const una = textoDeLaMesa("se apoya en fichas [6a9f94b0 · 2026-11-02] y [e8f664a3 · 2026-11-03], calendario")
     expect(textoDeLaMesa(una)).toBe(una)

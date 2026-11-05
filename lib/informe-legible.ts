@@ -46,13 +46,13 @@ const CITA = String.raw`(?:fichas?[ \t]*:?[ \t]*)?${HEX}(?:[ \t]*·[ \t]*\d{4}-\
 const CORCHETES = String.raw`\[${CITA}(?:[ \t]*[·,;][ \t]*${CITA})*\]`
 const CADENA = new RegExp(String.raw`[ \t]*(?:·[ \t]*)?${CORCHETES}(?:[ \t]*(?:[·,;]|\by\b)?[ \t]*${CORCHETES})*`, "gi")
 const FICHA_CON_CODIGO = new RegExp(String.raw`[ \t]*\bfichas?[ \t]*:?[ \t]*${HEX}`, "gi")
-/** suelto en la frase: 8 caracteres (o el código completo) con letras y números a la vez, para no llevarse una palabra ni una cifra */
-const SUELTO = String.raw`(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{8}(?:-[0-9a-f]{4}){0,3}(?:-[0-9a-f]{12})?(?![0-9a-zA-Z])`
-const SUELTOS = new RegExp(String.raw`[ \t]*(?<![(\w-])${SUELTO}(?:[ \t]*(?:,|\by\b)[ \t]*${SUELTO})*`, "gi")
+/** suelto en la frase: 8 caracteres (o el código completo) con letras y números a la vez, para no llevarse una palabra ni una cifra. Pegado a «/ # @ .» es parte de una dirección, un archivo o una cuenta (CC6, 05-nov): se queda */
+const SUELTO = String.raw`(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{8}(?:-[0-9a-f]{4}){0,3}(?:-[0-9a-f]{12})?(?![0-9a-zA-Z/@]|\.[a-zA-Z])`
+const SUELTOS = new RegExp(String.raw`[ \t]*(?<![(\w/#@.-])${SUELTO}(?:[ \t]*(?:,|\by\b)[ \t]*${SUELTO})*`, "gi")
 /** lo que queda colgando al quitar un código al final de la frase: «igual que .» */
 const COLGANDO = /[ \t]*,?[ \t]*(?<![\p{L}\p{N}])(?:igual que|como|según|de|en|con|y|o)(?=[ \t]*[.;](?:\s|$))/giu
 /** la ficha del mundo real (la de Google Maps, la técnica de un producto) se queda; la del cerebro se dice «fuente», que concuerda igual («ninguna de las fichas leídas») */
-const FICHA = /\b(f)icha(s?)\b(?![ \t]+(?:de[ \t]+(?:Google|Mapas?|Maps|producto)|t[ée]cnicas?))/gi
+const FICHA = /(?<![\p{L}\p{N}/#@._-])(f)icha(s?)(?![\p{L}\p{N}])(?![/_-]|\.[\p{L}\p{N}])(?![ \t]+(?:de[ \t]+(?:Google|Mapas?|Maps|producto)|t[ée]cnicas?))/giu
 
 export function textoDeLaMesa(t: string): string {
   // primero las formas de la mesa: el limpiador general se lleva los corchetes pero no el «·» que los separa, y quedaría «· ·»
