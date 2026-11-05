@@ -28,7 +28,9 @@ describe("6.23 · REGLA · nada de avisos de gasto en botones ni pantallas de /n
   it.each(PANELES)("%s no muestra costos, topes ni «vuelve a gastar»", (f) => {
     const s = readFileSync(`components/nuevo/${f}`, "utf8")
     // 6.52 · excepción aprobada por Emilio (2-nov 20:45Z): la tarjeta de una decisión dice lo que COSTÓ PRODUCIRLA, como dato (no como aviso de gasto)
-    const regla = f === "PanelDecisiones.tsx" ? /data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|Sin costo ·/ : /data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|data-costo|Sin costo ·/
+    // estudio de la cámara · excepción aprobada por Emilio (GO de Lenovo 5-nov, boceto aprobado): «se mantiene a la vista el costo antes de crear»
+    //   (sin tope ni confirmación de gasto: lo demás de la regla sigue valiendo para el estudio)
+    const regla = f === "PanelDecisiones.tsx" || f === "PanelEstudio.tsx" ?/data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|Sin costo ·/ : /data-casilla="gasto"|vuelve a gastar|Entiendo que .* gasta|costó \{|usdES\(|usdFinoES\(|data-costo|Sin costo ·/
     expect(s).not.toMatch(regla)
   })
   it("rehacer una pieza es un clic: el cuerpo sigue diciendo confirmo_gasto (la plataforma cuida el tope), sin preguntarle a Emilio", () => {

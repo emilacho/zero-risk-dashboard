@@ -4,6 +4,7 @@ import type { ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
+import { PanelEstudio } from "@/components/nuevo/PanelEstudio"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelEnVivo } from "@/components/nuevo/PanelEnVivo"
 import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
@@ -114,6 +115,8 @@ const ESTILO = `
 .nv-proy:has(.nv-tablero:hover) .nv-tablero-luz,.nv-proy:has(.nv-tablero:focus-visible) .nv-tablero-luz{opacity:1}
 .nv-tablero{cursor:pointer;outline:none}
 .nv-tablero polygon{fill:rgba(255,140,40,0);stroke:none}
+.nv-camara-halo{opacity:0;transition:opacity .45s ease;pointer-events:none}
+.nv-tablero:hover .nv-camara-halo,.nv-tablero:focus-visible .nv-camara-halo{opacity:1}
 .nv-tablero .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
 .nv-tablero:hover .nv-rotulo,.nv-tablero:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
 .nv-barrido{position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 42%,rgba(255,170,60,.22) 50%,transparent 58%);background-size:260% 100%;opacity:0}
@@ -149,6 +152,15 @@ export const TABLERO = {
   rotulo: { x: 977, y: 250, texto: "CENTRO DE CAMPAÑA" },
   forma: "856,392 1098,286 1098,450 856,548", // la cara del tablero (zona del ratón)
   encendido: { src: "/nuevo/marketing-tablero-encendido.webp", caja: { x: 820, y: 250, w: 320, h: 340 } },
+}
+/** 05-nov (GO de Lenovo · boceto aprobado por Emilio) · la cámara del trípode, en la isla de abajo a la derecha, abre el ESTUDIO (imagen · video · 3D).
+ *  Sin recorte encendido generado: al pasar el ratón la rodea un halo ámbar dibujado aquí y aparece su rótulo. Coordenadas en píxeles de la foto (2560×1440, medido 05-nov). */
+export const CAMARA = {
+  clave: "camara",
+  nombre: "Estudio: imágenes, videos y 3D",
+  rotulo: { x: 2066, y: 826, texto: "ESTUDIO" },
+  forma: "2022,866 2062,852 2104,868 2104,924 2128,1046 2030,1050 2040,926 2022,914", // la cámara y su trípode (zona del ratón)
+  halo: { cx: 2070, cy: 946, rx: 92, ry: 128 },
 }
 const FOTO_MKT = { w: 2560, h: 1440 } // las dos fotos proyectadas miden lo mismo
 const pct = (n: number, total: number) => `${((n / total) * 100).toFixed(4)}%`
@@ -215,6 +227,9 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
   useEffect(() => { setMontado(true) }, [])
   const [pizarron, setPizarron] = useState(false) // sprint 6 · el pizarrón abierto encima de la oficina (6.2: la pantalla de aplicaciones; el calendario se abre desde ahí)
   const tablero = useRef<SVGGElement>(null)
+  const [estudio, setEstudio] = useState(false) // 05-nov · el estudio de la cámara, encima de la oficina de marketing
+  const camara = useRef<SVGGElement>(null)
+  const cerrarEstudio = useCallback(() => { setEstudio(false); requestAnimationFrame(() => camara.current?.focus()) }, [])
   const cerrarPizarron = useCallback(() => { setPizarron(false); requestAnimationFrame(() => tablero.current?.focus()) }, [])
   // 6.20 · Tu oficina · Decisiones: la pantalla 5 del arco dice cuántas esperan tu firma (se lee cada minuto mientras la oficina está abierta y la pestaña
   // visible) y al tocarla abre la mesa del director; al cerrarla se vuelve a leer
@@ -447,6 +462,16 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
                 <text className="nv-rotulo" x={TABLERO.rotulo.x} y={TABLERO.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO_TABLERO * 0.9 / 16}
                   fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{TABLERO.rotulo.texto}</text>
               </g>
+              <g ref={camara} className="nv-tablero" data-zona={CAMARA.clave} role="button" tabIndex={0} aria-label={CAMARA.nombre} aria-haspopup="dialog" aria-expanded={estudio}
+                onClick={(e) => { e.stopPropagation(); setEstudio(true) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEstudio(true) } }}>
+                <ellipse className="nv-camara-halo" cx={CAMARA.halo.cx} cy={CAMARA.halo.cy} rx={CAMARA.halo.rx} ry={CAMARA.halo.ry} fill="url(#nv-camara-luz)" stroke="#e8731a" strokeOpacity={0.55} strokeWidth={2.5} />
+                <polygon points={CAMARA.forma} />
+                <text className="nv-rotulo" x={CAMARA.rotulo.x} y={CAMARA.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO_TABLERO * 0.9 / 16}
+                  fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{CAMARA.rotulo.texto}</text>
+              </g>
+              <defs>
+                <radialGradient id="nv-camara-luz" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="rgba(255,170,70,0.22)" /><stop offset="100%" stopColor="rgba(255,140,40,0)" /></radialGradient>
+              </defs>
             </svg>
             {/* CC6 · Sprint 1 · la escena viva: 6 mesas, el que trabaja ahora sentado en su mesa (figura 3D de Spline), luz del monitor por estado, ficha y equipo al tocar la mesa */}
             <Avatares />
@@ -457,6 +482,8 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       )}
       {/* sprint 6 · el pizarrón sale al <body> (como «En vivo»): la oficina lleva máscaras que lo desvanecerían */}
       {pizarron && fase !== "cerrado" && createPortal(<PanelAplicaciones key={vistaDelPizarron ?? "inicio"} onCerrar={() => { setVistaDelPizarron(null); cerrarPizarron() }} vistaInicial={vistaDelPizarron ?? undefined} />, document.body)}
+      {/* 05-nov · el estudio de la cámara (sale al <body>, como el pizarrón) */}
+      {estudio && montado && fase !== "cerrado" && depto === "marketing" && createPortal(<PanelEstudio onCerrar={cerrarEstudio} />, document.body)}
       {/* 6.9 · el Cerebro sobre la sala principal: con selector de cliente (aquí no hay departamento que lo enfoque) */}
       {mesa && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDecisiones onCerrar={cerrarMesa} />, document.body)}
       {radar && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelRiesgos onCerrar={cerrarRadar} datosIniciales={riesgosCrudos} />, document.body)}
