@@ -11,7 +11,7 @@ const ci = readFileSync(".github/workflows/ci.yml", "utf8")
 
 describe("estilo base · los tokens", () => {
   it("los colores son exactamente los de la guía", () => {
-    for (const [k, v] of Object.entries({ carbon: "#0d0e10", grafito: "#141519", "grafito-2": "#18191e", hueso: "#e9e7e2", gris: "#a3a2a8", apagado: "#6c6c74", oro: "#d6aa64", ambar: "#e8731a", alarma: "#d9534a" })) expect(tokens, k).toContain(`--color-${k}: ${v};`)
+    for (const [k, v] of Object.entries({ carbon: "#0d0e10", grafito: "#141519", "grafito-2": "#18191e", hueso: "#e9e7e2", gris: "#a3a2a8", apagado: "#818189", oro: "#d6aa64", ambar: "#e8731a", alarma: "#d9534a" })) expect(tokens, k).toContain(`--color-${k}: ${v};`)
     expect(tokens.match(/--color-[\w-]+:/g)).toHaveLength(14) // 9 de la guía + letra sobre el ámbar + 3 líneas + el velo: ningún otro
   })
   it("4 tamaños + los 2 de número, 2 pesos y los radios de la guía", () => {

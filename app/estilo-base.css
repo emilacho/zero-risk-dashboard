@@ -1,11 +1,11 @@
 /*
  * ESTILO BASE DEL DASHBOARD · aprobado por Emilio el 2026-11-05 (23:29 local).
- * Guía viva: zr-vault `00-meta/ESTILO-DASHBOARD.md` · imagen: `raw/evidencia/2026-11-05-estilo-base/APROBADO-concepto.png`.
+ * Guía en el repo: `docs/ESTILO-DASHBOARD.md` (copia de la del vault `00-meta/ESTILO-DASHBOARD.md`) · imagen: `raw/evidencia/2026-11-05-estilo-base/APROBADO-concepto.png`.
  * ÚNICO lugar con valores de color, letra, peso, radio y tracking. Las pantallas usan estos nombres; la revisión automática
  * (`scripts/revisar-estilo.mjs`, corre en CI) rechaza cualquier otro valor en lo nuevo o tocado de /nuevo.
  *
  * Colores (los únicos): carbón (fondo) · grafito y grafito-2 (paneles y tarjetas) · hueso (texto que se lee) · gris (dato) ·
- * apagado (SOLO bordes e íconos inactivos: no se lee en letra chica, 3,4-3,7 a 1) · oro (títulos, rótulos, hilos, activo,
+ * apagado (lo inactivo; aclarado el 06-nov a #818189, opción (b) de Lenovo: 4,5 a 1 sobre grafito-2, ya sirve para texto) · oro (títulos, rótulos, hilos, activo,
  * botones secundarios) · ámbar (UN botón principal por tarjeta, a la derecha) · alarma (solo punto, línea fina o número).
  * Letra: título 20 · cuerpo 15 · dato 13 · rótulo 11 · cifra 24 (dentro de una tarjeta) · número 36 (recuadro del panel).
  * Pesos: normal y medio. Radios: panel 20 · tarjeta 14 · control 12 · píldora (full). Sin sombras.
@@ -16,7 +16,7 @@
   --color-grafito-2: #18191e;
   --color-hueso: #e9e7e2;
   --color-gris: #a3a2a8;
-  --color-apagado: #6c6c74;
+  --color-apagado: #818189;
   --color-oro: #d6aa64;
   --color-ambar: #e8731a;
   --color-sobre-ambar: #160b02;
