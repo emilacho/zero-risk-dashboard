@@ -2,7 +2,8 @@
  * LA ANTENA AVISA LAS ALERTAS DEL DEPARTAMENTO (CC4 · 04-nov · encargo de Lenovo, Emilio 14:05Z «sí a todo»; decisiones A/B/C de Lenovo 14:20Z).
  * Lógica PURA y de solo lectura: de las filas que ya existen decide qué alertas hay HOY. Sin dato no se dibuja; ninguna alerta se cierra a mano:
  * cada una desaparece sola cuando su causa deja de ser verdad (una corrida posterior salió bien, llegó la respuesta, pasó la ventana).
- * Las cinco: 1 corrida fallida · 2 algo colgado · 3 gasto raro · 4 el cerebro no corrió · 5 pregunta sin responder.
+ * Las cuatro que se ven: corrida fallida · algo colgado · el cerebro no corrió · pregunta sin responder.
+ * Gasto raro está apagado (Emilio 05-nov 00:13Z): las alertas de dinero no van en el Dpto. Marketing. La lógica queda lista para moverla a Tu oficina › Dinero si la pide.
  * Alta / manual / pedido fallidos: se suman cuando CC1/CC2 digan dónde guardan su estado (hoy solo el plan tiene estado de corrida leíble).
  */
 import { usdES } from "@/lib/lenguaje"
@@ -20,6 +21,8 @@ export const VECES_LA_MEDIANA = 3
 export const PISO_DE_GASTO_USD = 1
 export const MUESTRA_MINIMA_DE_GASTO = 5
 export const HORAS_DEL_GASTO = 24
+/** apagado por Emilio 05-nov: la antena del Dpto. Marketing no avisa de dinero */
+export const GASTO_RARO_EN_LA_ANTENA = false
 export const MAXIMO_DE_ALERTAS = 6
 const HORAS_SIN_AVANZAR = 3
 
@@ -107,7 +110,7 @@ export function preguntasSinResponder(e: EntradaDeAlertas): AlertaDeLaAntena[] {
 
 /** todas las alertas de hoy, la más reciente arriba; sin ninguna, la antena queda apagada */
 export function armarAlertas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
-  return [...fallidas(e), ...colgadas(e), ...gastosRaros(e), ...cerebroNoCorrio(e), ...preguntasSinResponder(e)]
+  return [...fallidas(e), ...colgadas(e), ...(GASTO_RARO_EN_LA_ANTENA ? gastosRaros(e) : []), ...cerebroNoCorrio(e), ...preguntasSinResponder(e)]
     .sort((a, b) => (ms(b.cuando) ?? 0) - (ms(a.cuando) ?? 0)).slice(0, MAXIMO_DE_ALERTAS)
 }
 

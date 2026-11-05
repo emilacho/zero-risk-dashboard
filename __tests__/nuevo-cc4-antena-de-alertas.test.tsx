@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { ANTENA, armarAlertas, BORDE_DE_LA_ANTENA, MAXIMO_DE_ALERTAS, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
+import { ANTENA, armarAlertas, BORDE_DE_LA_ANTENA, GASTO_RARO_EN_LA_ANTENA, MAXIMO_DE_ALERTAS, cerebroNoCorrio, colgadas, fallidas, gastosRaros, preguntasSinResponder, type EntradaDeAlertas } from "@/lib/escena-alertas"
 import { AntenaDeAlertas, CSS_DE_LA_ANTENA, PanelDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
 
 // ENCARGO de Lenovo 04-nov 14:06Z + decisiones A/B/C de 14:20Z: la antena avisa las alertas del departamento
@@ -48,6 +48,30 @@ describe("CC4 · antena · 3 gasto raro (decisión A)", () => {
     expect(gastosRaros({ ...vacia(), corridas: [...normales, c("x", 4.5, 30)] })).toEqual([]) // de hace más de un día
     // el hueco que halló CC3: algunas llamadas guardan como «flujo» el id de la propia ejecución; esa corrida cara igual avisa contra el conjunto
     expect(gastosRaros({ ...vacia(), corridas: [...normales, { ejecucion: "214515", flujo: "214515", client_id: "c1", costo: 3.63, inicio: hace(2) }] })).toHaveLength(1)
+  })
+})
+
+describe("CC4 · antena · sin alertas de dinero (Emilio 05-nov 00:13Z)", () => {
+  const c = (ejecucion: string, costo: number, h = 1) => ({ ejecucion, flujo: "f1", client_id: "c1", costo, inicio: hace(h) })
+  const caras = [c("a", 0.25, 30), c("b", 0.3, 31), c("d", 0.2, 32), c("e", 0.25, 33), c("x", 4.5)]
+  it("una corrida cara ya no llega a la antena, aunque la lógica la siga detectando (control)", () => {
+    expect(GASTO_RARO_EN_LA_ANTENA).toBe(false)
+    expect(gastosRaros({ ...vacia(), corridas: caras })).toHaveLength(1)
+    expect(armarAlertas({ ...vacia(), corridas: caras })).toEqual([])
+  })
+  it("las otras cuatro siguen avisando", () => {
+    const a = armarAlertas({
+      ...vacia(),
+      corridas: caras,
+      plan: [plan("f", "fallida", 3), plan("g", "corriendo", 5, { vence_en: hace(1) })],
+      alarmasDelCerebro: [{ clave: "k", ultima_en: hace(2) }],
+      preguntas: [{ id: "1", client_id: "c1", pregunta: "x", estado: "pendiente", creado_en: hace(1) }],
+    })
+    expect(a.map((x) => x.tipo).sort()).toEqual(["cerebro", "colgada", "fallida", "pregunta"])
+  })
+  it("apagado, no se pide el gasto a la base", () => {
+    const fuente = readFileSync("lib/escena-avatares-datos.ts", "utf8")
+    expect(fuente).toContain('GASTO_RARO_EN_LA_ANTENA ? filas(supa.from("agent_invocations")')
   })
 })
 
