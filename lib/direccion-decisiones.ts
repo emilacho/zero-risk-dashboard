@@ -36,6 +36,8 @@ export interface Decision {
   destraba?: string | null
   /** un trabajo está detenido esperando esto */
   detiene?: boolean
+  /** 05-nov · firma: lo que debes saber antes de cambiar una cifra, en palabras de la oficina */
+  al_editar?: string
   /** 05-nov · firma: QUÉ se firma, las cifras que propone la oficina. Sin ellas la tarjeta no ofrece firmar */
   cifras?: CifraDeFirma[]
   /** 05-nov · firma: los críticos que siguen abiertos, en palabras de la oficina */
@@ -44,7 +46,7 @@ export interface Decision {
   titulo_interno?: string | null
 }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
-export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null }
+export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null; /** 05-nov · la oficina deja cambiarla antes de firmar (hoy: la meta y el presupuesto) */ editable?: boolean }
 export type AccionDeDecision = "aceptar" | "editar" | "responder" | "descartar"
 /** lo que aceptan las puertas al contestar (la del dueño: respuesta ≤ 2.000 · motivo de descarte ≤ 300) */
 export const TOPE_RESPUESTA = 2000
@@ -241,13 +243,13 @@ export const esLaTarjetaDeLaPausa = (d: Pick<Decision, "fuente" | "subtipo">): b
 /** lo que el tablero sabe hacer hoy, por tipo (cada una con su ruta real en la plataforma) */
 const LO_QUE_SE_HACE_AQUI: Partial<Record<TipoDeDecision, AccionDeDecision[]>> = {
   pregunta_al_dueno: ["responder", "descartar"], // puerta del dueño del cerebro (+ la ruta de la pausa de finanzas)
-  firma_de_finanzas: ["aceptar"], // firmar-tablero
+  firma_de_finanzas: ["aceptar", "editar"], // firmar-tablero, con o sin `cambios`
 }
 /** 05-nov · nunca se firma a ciegas: una firma que no trae las cifras que se firman no tiene nada que leer */
 export const faltaQueLeer = (d: Pick<Decision, "tipo" | "cifras">): boolean => d.tipo === "firma_de_finanzas" && !d.cifras?.length
 /** una cifra para leer: «US$ 1.341,27» · «5 ventas por semana» */
 export function textoDeCifra(c: Pick<CifraDeFirma, "valor" | "unidad">): string {
-  const n = c.valor.toLocaleString("es-EC", { maximumFractionDigits: 2 })
+  const n = c.valor.toLocaleString("es-EC", { maximumFractionDigits: 2, ...(c.unidad === "US$" && !Number.isInteger(c.valor) ? { minimumFractionDigits: 2 } : {}) })
   return c.unidad === "US$" ? `US$ ${n}` : c.unidad ? `${n} ${c.unidad}` : n
 }
 /**
@@ -257,7 +259,35 @@ export function textoDeCifra(c: Pick<CifraDeFirma, "valor" | "unidad">): string 
 export function accionesDe(d: Pick<Decision, "tipo" | "permite" | "fuente" | "subtipo" | "cifras">): AccionDeDecision[] {
   if (esLaTarjetaDeLaPausa(d) || faltaQueLeer(d)) return []
   const posibles = LO_QUE_SE_HACE_AQUI[d.tipo] ?? []
-  return d.permite ? posibles.filter((a) => d.permite!.includes(a)) : posibles
+  // cambiar una cifra lo tiene que ofrecer la oficina, y tiene que haber una cifra que se pueda cambiar
+  const sePuede = (a: AccionDeDecision) => a !== "editar" || (!!d.permite?.includes("editar") && !!d.cifras?.some((c) => c.editable))
+  return (d.permite ? posibles.filter((a) => d.permite!.includes(a)) : posibles).filter(sePuede)
+}
+
+/** las cifras que manda la plataforma: la que no trae clave, nombre y valor numérico no cuenta */
+export function leerCifras(v: unknown): CifraDeFirma[] {
+  return (Array.isArray(v) ? v : []).flatMap((c): CifraDeFirma[] => {
+    const x = (c && typeof c === "object" ? c : {}) as Record<string, unknown>
+    const clave = txt(x.clave), nombre = txt(x.nombre), valor = num(x.valor)
+    return clave && nombre && valor != null ? [{ clave, nombre, valor, unidad: txt(x.unidad), nota: txt(x.nota), ...(x.editable === true ? { editable: true } : {}) }] : []
+  })
+}
+/** lo que escribe Emilio: «1.341,27» · «1,341.27» · «1341.27» · «1.341» · «US$ 939». null = no es un número */
+export function leerNumero(t: string): number | null {
+  const s = t.replace(/us\$|\$|\s/gi, "")
+  if (!/^\d[\d.,]*$/.test(s)) return null
+  let n = s
+  if (/^\d{1,3}([.,]\d{3})+$/.test(s)) n = s.replace(/[.,]/g, "")
+  else if (s.includes(",") && s.includes(".")) n = s.lastIndexOf(",") > s.lastIndexOf(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "")
+  else n = s.replace(",", ".")
+  const v = Number(n)
+  return Number.isFinite(v) ? v : null
+}
+/** cómo se escribe una cifra en la caja de texto */
+export const numeroParaEscribir = (v: number): string => String(v).replace(".", ",")
+/** lo que cambiaría al firmar: solo las cifras cuyo valor se mueve */
+export function cifrasQueCambian(antes: CifraDeFirma[], despues: CifraDeFirma[]): Array<{ cifra: CifraDeFirma; antes: number }> {
+  return despues.flatMap((c) => { const a = antes.find((x) => x.clave === c.clave); return a && a.valor !== c.valor ? [{ cifra: c, antes: a.valor }] : [] })
 }
 
 /** lo que la plataforma ya pueda traer de contexto (todo opcional; lo que no viene, no se inventa) */
@@ -276,8 +306,9 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (txt(d.destraba)) o.destraba = txt(d.destraba)
   if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
   if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
-  const cifras = (Array.isArray(d.cifras) ? d.cifras : []).flatMap((c): CifraDeFirma[] => { const x = (c && typeof c === "object" ? c : {}) as Record<string, unknown>; const clave = txt(x.clave), nombre = txt(x.nombre), valor = num(x.valor); return clave && nombre && valor != null ? [{ clave, nombre, valor, unidad: txt(x.unidad), nota: txt(x.nota) }] : [] })
+  const cifras = leerCifras(d.cifras)
   if (cifras.length) o.cifras = cifras
+  if (txt(d.al_editar)) o.al_editar = txt(d.al_editar)!
   const criticos = (Array.isArray(d.criticos) ? d.criticos : []).flatMap((c) => { const t = txt(c); return t ? [t] : [] })
   if (criticos.length) o.criticos = criticos
   return o

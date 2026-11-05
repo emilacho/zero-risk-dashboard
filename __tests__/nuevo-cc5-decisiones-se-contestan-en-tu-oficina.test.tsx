@@ -156,7 +156,7 @@ describe("descartar y firmar", () => {
     const p = plataforma()
     expect(await contestarDecision({ id: P1, accion: "responder", respuesta: "x" }, deps(p, lecturas(sin(P1))))).toMatchObject({ status: 409, cuerpo: { error: "ya_no_esta" } })
     expect(await contestarDecision({ id: T1, accion: "responder", respuesta: "x" }, deps(p))).toMatchObject({ status: 409, cuerpo: { error: "accion_no_permitida" } })
-    expect(await contestarDecision({ id: P1, accion: "editar", respuesta: "x" }, deps(p))).toMatchObject({ status: 409 })
+    expect(await contestarDecision({ id: P1, accion: "editar", cambio: { clave: "total_mes", firmado: 5 } }, deps(p))).toMatchObject({ status: 409 })
     expect(await contestarDecision({ id: P1, accion: "responder", respuesta: "  " }, deps(p))).toMatchObject({ status: 400 })
     expect(await contestarDecision({ id: P1, accion: "responder", respuesta: "x".repeat(2001) }, deps(p))).toMatchObject({ status: 400 })
     expect(p.llamadas.filter((x) => x.metodo === "POST")).toHaveLength(0)

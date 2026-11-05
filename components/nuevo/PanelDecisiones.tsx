@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { EditorDeCifra, type VerCambio } from "@/components/nuevo/EditorDeCifra"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
@@ -103,9 +104,10 @@ const SECUNDARIO = `${BOTON} border-white/15 bg-white/[0.03] text-zinc-200 hover
 const DISCRETO = `${BOTON} border-transparent px-2 text-zinc-400 hover:text-zinc-200`
 
 /** la tarjeta del frente: todo lo que hace falta para decidir, en palabras de negocio; lo que se contesta aquí, se contesta en la misma tarjeta */
-function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }: {
+function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa }: {
   d: Decision; alDecidir: (d: Decision) => void; enPausa: string | null; detiene: boolean
-  contestar: (d: Decision, accion: AccionDeDecision, texto: { respuesta?: string; motivo?: string }) => Promise<ResultadoDeContestar | null>
+  contestar: (d: Decision, accion: AccionDeDecision, texto: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => Promise<ResultadoDeContestar | null>
+  verCambio: (d: Decision, clave: string, firmado: number) => ReturnType<VerCambio>
   /** lo que pasó la última vez que se contestó esta decisión (si no salió, se muestra el motivo) */
   previa: Contestada | null
 }) {
@@ -114,10 +116,12 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
   const [descartando, setDescartando] = useState(false)
   const [motivo, setMotivo] = useState("")
   const [enviando, setEnviando] = useState<AccionDeDecision | null>(null)
+  const [cambiando, setCambiando] = useState<string | null>(null) // la cifra que Emilio está cambiando: una a la vez, porque la meta y el presupuesto están atados
+  const cifraEnCambio = d.cifras?.find((c) => c.clave === cambiando && c.editable) ?? null
   const fallo = previa && !previa.resultado.sale ? previa.resultado.motivo ?? previa.resultado.texto : null
   const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.` : null)
   const quien = d.pregunta_de ? nombreDeOficina(d.pregunta_de.oficina) : d.tipo === "firma_de_finanzas" ? "Oficina financiera" : null
-  const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string }) => { setEnviando(a); try { await contestar(d, a, t) } finally { setEnviando(null) } }
+  const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { await contestar(d, a, t) } finally { setEnviando(null) } }
   const contestable = acciones.length > 0
   const falta = faltaQueLeer(d)
   return (
@@ -136,22 +140,22 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
       {quien && <p data-quien className="mt-4 flex items-center gap-2.5 text-[13px] text-zinc-400"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[#2a2622] font-display text-[11px] text-[#e9d6b6]">{iniciales(quien)}</span><span>{d.tipo === "firma_de_finanzas" ? "Propone la" : "Pregunta la"} <b className="font-medium text-zinc-200">{quien}</b></span></p>}
       <h3 data-titulo title={tituloDeDecision(d)} className={`${quien ? "mt-2" : "mt-5"} line-clamp-3 text-[19px] font-light leading-snug text-white sm:text-[21px]`}>{tituloDeDecision(d)}</h3>
       {enPausa && <p data-en-pausa className="mt-2 text-[12.5px] text-zinc-400">{enPausa} está en pausa por tu decisión: esto no cuenta en «esperan por ti».</p>}
-      {d.cifras?.length ? (
+      {cifraEnCambio ? <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} /> : d.cifras?.length ? (
         <div data-cifras className="mt-4">
           <p className="mb-2 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Lo que propuso la oficina</p>
           <dl className="grid gap-2.5 sm:grid-cols-2">
-            {d.cifras.map((c) => <div key={c.clave} data-cifra={c.clave} className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3"><dt className="text-[12.5px] text-zinc-400">{c.nombre}</dt><dd className="mt-1 text-[22px] font-light leading-tight text-white">{textoDeCifra(c)}</dd>{c.nota && <dd className="mt-1 text-[12.5px] leading-snug text-zinc-400">{c.nota}</dd>}</div>)}
+            {d.cifras.map((c) => <div key={c.clave} data-cifra={c.clave} className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3"><dt className="text-[12.5px] text-zinc-400">{c.nombre}</dt><dd className="mt-1 text-[22px] font-light leading-tight text-white">{textoDeCifra(c)}</dd>{c.nota && <dd className="mt-1 text-[12.5px] leading-snug text-zinc-400">{c.nota}</dd>}{c.editable && acciones.includes("editar") && <dd className="mt-1.5"><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} className="text-[13px] text-[#e9d6b6] underline underline-offset-2 hover:text-white">Cambiar esta cifra</button></dd>}</div>)}
           </dl>
         </div>
       ) : null}
       {falta && <p data-falta-informacion role="status" className="mt-4 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-3.5 text-[14.5px] leading-snug text-zinc-200"><span className="mb-1 block text-[11px] uppercase tracking-[0.1em] text-zinc-400">Todavía no hay nada que firmar</span>Falta información: la <b className="font-medium text-white">Oficina financiera</b> debe mandar las cifras que propone.</p>}
-      {(d.para_que || destraba) && (
+      {!cifraEnCambio && (d.para_que || destraba) && (
         <dl data-contexto className="mt-4 grid gap-2.5 sm:grid-cols-2">
           {d.para_que && <div className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2.5"><dt className="mb-1 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Para qué lo necesita</dt><dd className="text-[13.5px] leading-snug text-zinc-200">{d.para_que}</dd></div>}
           {destraba && <div className="rounded-[10px] border border-white/10 bg-white/[0.02] px-3 py-2.5"><dt className="mb-1 text-[11px] uppercase tracking-[0.1em] text-zinc-500">Qué se destraba</dt><dd data-destraba className="text-[13.5px] leading-snug text-[#e9d6b6]">{destraba}</dd></div>}
         </dl>
       )}
-      {d.criticos?.length ? (
+      {!cifraEnCambio && d.criticos?.length ? (
         <div data-criticos className="mt-3 rounded-[10px] border border-[rgba(232,115,26,.3)] bg-[rgba(232,115,26,.05)] px-3.5 py-2.5"><p className="mb-1 text-[11px] uppercase tracking-[0.1em] text-orange-200/80">Sigue abierto</p><ul className="space-y-1 text-[13.5px] leading-snug text-zinc-200">{d.criticos.map((c) => <li key={c}>{c}</li>)}</ul></div>
       ) : null}
       {fallo && <p data-por-que-volvio role="status" className="mt-4 rounded-[10px] border border-[rgba(255,90,54,.35)] bg-[rgba(255,90,54,.06)] px-3.5 py-2.5 text-[13.5px] leading-snug text-rose-100"><span className="mb-0.5 block text-[11px] uppercase tracking-[0.1em] text-rose-300">Por qué sigue aquí</span>{fallo}</p>}
@@ -176,7 +180,7 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
           <div className="flex gap-2"><button type="button" data-confirmar-descartar disabled={!!enviando} onClick={() => void hacer("descartar", { motivo })} className={SECUNDARIO}>{enviando === "descartar" ? "Descartando…" : "Descartar"}</button><button type="button" onClick={() => setDescartando(false)} className={DISCRETO}>Volver</button></div>
         </div>
       )}
-      <footer data-pie className={`mt-auto flex flex-wrap items-center gap-2.5 pt-5 ${d.cifras?.length ? "sticky -bottom-5 z-10 -mb-5 bg-[#130f0e] pb-5 sm:-bottom-7 sm:-mb-7 sm:pb-7" : ""}`}>
+      {!cifraEnCambio && <footer data-pie className={`mt-auto flex flex-wrap items-center gap-2.5 pt-5 ${d.cifras?.length ? "sticky -bottom-5 z-10 -mb-5 bg-[#130f0e] pb-5 sm:-bottom-7 sm:-mb-7 sm:pb-7" : ""}`}>
         {acciones.includes("responder") && <button type="button" data-enviar disabled={!!enviando || !respuesta.trim()} onClick={() => void hacer("responder", { respuesta })} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "responder" ? "Enviando…" : fallo ? "Enviar de nuevo" : "Enviar respuesta"}</button>}
         {acciones.includes("aceptar") && <button type="button" data-firmar disabled={!!enviando} onClick={() => void hacer("aceptar", {})} className={`${PRINCIPAL} w-full sm:w-auto`}>{enviando === "aceptar" ? "Firmando…" : fallo ? "Firmar de nuevo" : "Firmar"}</button>}
         {acciones.includes("descartar") && !descartando && <button type="button" data-descartar-abrir disabled={!!enviando} onClick={() => setDescartando(true)} className={DISCRETO}>Descartar</button>}
@@ -185,7 +189,7 @@ function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, previa }:
           ? <button type="button" data-decidir={donde.panel} onClick={() => alDecidir(d)} className="rounded-lg border border-[rgba(232,115,26,.7)] bg-[rgba(232,115,26,.14)] px-4 py-2 text-[13.5px] text-white transition hover:bg-[rgba(232,115,26,.24)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">{donde.boton}</button>
           : <p data-sin-panel className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[12.5px] text-zinc-400">{donde.nota}</p>)}
         {contestable && <span data-espera className="ml-auto hidden text-[12px] text-zinc-500 sm:inline">Espera {haceCuanto(d.desde)}</span>}
-      </footer>
+      </footer>}
     </article>
   )
 }
@@ -227,6 +231,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     if (abierta) return // el panel abierto maneja sus propias teclas
     const tecla = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() }
+      else if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return // en una caja de texto, las flechas mueven el cursor: no cambian de tarjeta
       else if (e.key === "ArrowRight") { e.preventDefault(); mover(1) }
       else if (e.key === "ArrowLeft") { e.preventDefault(); mover(-1) }
     }
@@ -235,7 +240,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   }, [onCerrar, mover, abierta])
 
   // 04-nov · contestar en el lugar: el servidor del tablero lo manda a la puerta de la plataforma de esa fuente y confirma que salió
-  const contestar = useCallback(async (d: Decision, accion: AccionDeDecision, t: { respuesta?: string; motivo?: string }): Promise<ResultadoDeContestar | null> => {
+  const contestar = useCallback(async (d: Decision, accion: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }): Promise<ResultadoDeContestar | null> => {
     let resultado: ResultadoDeContestar
     try {
       const r = await fetchImpl("/api/direccion/decisiones/contestar", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: d.id, accion, ...t }) })
@@ -247,13 +252,21 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     const c: Contestada = { d, resultado, accion, en: new Date().toISOString() }
     setContestadas((xs) => [c, ...xs.filter((x) => x.d.id !== d.id)])
     if (resultado.sale) {
-      setAviso(accion === "aceptar" ? "Firmado. Salió de Tu oficina." : accion === "descartar" ? "Descartada. Salió de Tu oficina, de la oficina que preguntó y de la antena." : "Contestada. Salió de Tu oficina, de la oficina que preguntó y de la antena.")
+      setAviso(accion === "editar" ? "Firmado con tu cambio. Salió de Tu oficina." : accion === "aceptar" ? "Firmado. Salió de Tu oficina." : accion === "descartar" ? "Descartada. Salió de Tu oficina, de la oficina que preguntó y de la antena." : "Contestada. Salió de Tu oficina, de la oficina que preguntó y de la antena.")
       setDatos((x) => (x ? { ...x, decisiones: x.decisiones.filter((y) => y.id !== d.id) } : x)) // ya salió de su fuente: se quita sin esperar la lectura
       setRegistro(c)
       void leer()
     } else setAviso(null)
     return resultado
   }, [fetchImpl, leer])
+  // 05-nov · ver cómo quedaría una cifra cambiada: no firma, no mueve la lista y no queda como «contestada»
+  const verCambio = useCallback(async (d: Decision, clave: string, firmado: number): Promise<ResultadoDeContestar> => {
+    try {
+      const r = await fetchImpl("/api/direccion/decisiones/contestar", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: d.id, accion: "recalcular", cambio: { clave, firmado } }) })
+      const j = (await r.json().catch(() => ({}))) as Partial<ResultadoDeContestar> & { detalle?: string }
+      return Array.isArray(j.registro) ? (j as ResultadoDeContestar) : { ok: false, sale: false, texto: "No salió.", motivo: r.status === 401 ? "Tu sesión venció: entra de nuevo." : String(j.detalle ?? `No se pudo calcular (${r.status}).`), registro: [] }
+    } catch (e) { return { ok: false, sale: false, texto: "No salió.", motivo: `No se pudo contactar al tablero: ${e instanceof Error ? e.message : String(e)}`, registro: [] } }
+  }, [fetchImpl])
   useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(null), 6000); return () => clearTimeout(t) }, [aviso])
 
   // decidir: el panel donde esa decisión ya se toma, en el mismo lugar; al volver, la mesa se lee de nuevo
@@ -343,7 +356,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
                       </div>
                     )
                   })}
-                  <div className="absolute inset-x-0 bottom-0" style={{ top: 66 }} key={actual.id}><TarjetaDelFrente d={actual} alDecidir={setAbierta} enPausa={enPausa} detiene={g.detienen.some((x) => x.id === actual.id)} contestar={contestar} previa={contestadas.find((c) => c.d.id === actual.id) ?? null} /></div>
+                  <div className="absolute inset-x-0 bottom-0" style={{ top: 66 }} key={actual.id}><TarjetaDelFrente d={actual} alDecidir={setAbierta} enPausa={enPausa} detiene={g.detienen.some((x) => x.id === actual.id)} contestar={contestar} verCambio={verCambio} previa={contestadas.find((c) => c.d.id === actual.id) ?? null} /></div>
                 </div>
                 <nav aria-label="Pasar de una decisión a otra" className="mx-auto mt-5 flex w-full max-w-[720px] items-center gap-3">
                   <button type="button" onClick={() => mover(-1)} disabled={n < 2} className="rounded-md border border-white/15 px-3 py-1.5 text-[12.5px] text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40">← Anterior</button>
