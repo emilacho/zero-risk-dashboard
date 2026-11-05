@@ -127,9 +127,9 @@ const CLIENTES = [{ id: NAUFRAGO, name: "Náufrago", industry: "restaurante", st
 
 describe("6.9 · informes · lectura y puerta", () => {
   it("cada informe de la mesa llega con el nombre de su analista, tomado de la tabla de empleados", async () => {
-    const ficha = { id: "f1", client_id: NAUFRAGO, clase: "informe_de_analisis", descartada: false, titulo: "Informe · mercado · corte 2026-11-01", contenido: "Puente de dos feriados.", observado_en: "2026-11-01T16:34:50Z", creado_en: "2026-11-01T16:34:51Z", provenance_tag: { datos: { tipo: "mercado", agente: "market_research_analyst", fecha_de_corte: "2026-11-01T16:32:12Z" } } }
-    const r = await leerInformesDelCliente(baseFalsa({ clients: CLIENTES, client_reports: [], cerebro_fichas: [ficha], agents: [{ name: "market_research_analyst", display_name: "Market Research Agent" }] }), { cliente: NAUFRAGO })
-    expect(r.analisis.map((x) => x.analista)).toEqual(["Market Research Agent"])
+    const ficha = { id: "f1", client_id: NAUFRAGO, clase: "informe_de_analisis", descartada: false, titulo: "Informe · mercado · corte 2026-11-01", contenido: "Puente de dos feriados.", observado_en: "2026-11-01T16:34:50Z", creado_en: "2026-11-01T16:34:51Z", provenance_tag: { datos: { tipo: "mercado", agente: "otro_agente", fecha_de_corte: "2026-11-01T16:32:12Z" } } }
+    const r = await leerInformesDelCliente(baseFalsa({ clients: CLIENTES, client_reports: [], cerebro_fichas: [ficha], agents: [{ name: "otro_agente", display_name: "Otro Agente" }] }), { cliente: NAUFRAGO })
+    expect(r.analisis.map((x) => x.analista)).toEqual(["Otro Agente"])
     await expect(leerInformesDelCliente(baseFalsa({ clients: CLIENTES, client_reports: [], cerebro_fichas: [ficha] }, "agents"), { cliente: NAUFRAGO })).rejects.toThrow(/se cayó/)
     // sin informes de la mesa no hace falta leer a los empleados
     await expect(leerInformesDelCliente(baseFalsa({ clients: CLIENTES, client_reports: [], cerebro_fichas: [] }, "agents"), { cliente: NAUFRAGO })).resolves.toMatchObject({ analisis: [] })

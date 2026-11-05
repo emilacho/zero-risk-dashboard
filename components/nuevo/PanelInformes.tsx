@@ -1,6 +1,7 @@
 "use client"
 
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
+import { textoDeLaMesa } from "@/lib/informe-legible"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { InformesDelCliente } from "@/lib/informes-datos"
 import { bloquesDelResumen, estadoLegible, firmaDelAnalisis, periodoLegible, porTipo, tipoLegible, tituloDelInforme, type Informe, type InformeDeAnalisis, type TonoDeEstado } from "@/lib/informes"
@@ -58,7 +59,7 @@ function InformeDeLaMesa({ a }: { a: InformeDeAnalisis }) {
         <summary className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] font-medium text-zinc-100"><IconoInforme /><span>{a.titulo}</span><span data-firma className="basis-full pl-7 text-[12px] font-normal text-zinc-400"><span data-analista className="text-zinc-300">{firma.autor}</span> · <span data-fecha>{firma.fecha}</span></span></summary>
         {/* 03-nov · se lee como documento (títulos, viñetas, negritas reales), sin códigos de ficha ni la palabra «ficha» · mismo criterio que el manual limpio */}
         <div className="mt-2.5 flex flex-wrap gap-1.5"><Chip tono="ambar">Propuesta de la mesa de análisis</Chip></div>
-        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">{a.texto ? <DocumentoLegible texto={a.texto} /> : <p className="text-[13px] text-zinc-400">Este informe no trae texto.</p>}</div>
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">{a.texto ? <DocumentoLegible texto={textoDeLaMesa(a.texto)} /> : <p className="text-[13px] text-zinc-400">Este informe no trae texto.</p>}</div>
       </details>
     </li>
   )

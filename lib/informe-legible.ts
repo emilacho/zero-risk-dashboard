@@ -33,3 +33,36 @@ export function sinCodigosDeFicha(t: string): string {
 
 /** el texto listo para pintar: sin el rótulo de arriba («[informe de análisis …]»), sin códigos de ficha */
 export const textoDelInforme = (t: string): string => sinCodigosDeFicha(t.replace(/^\s*\[informe de an[aá]lisis[^\]]*\]\s*/i, ""))
+
+/**
+ * EL TEXTO DE UN INFORME DE LA MESA DE ANÁLISIS, SIN CÓDIGOS NI LA PALABRA «FICHA» (GO de Lenovo, 05-nov · CC6 midió 12 códigos y 8 «ficha» en un solo informe).
+ * Solo para estos informes: sus analistas citan el cerebro de varias formas que el limpiador general no ve y, en ellos, «ficha» habla del cerebro.
+ * Formas reales: «[ficha:1c91df08 · ficha:6733fe3e]» · «[6a9f94b0 · 2026-11-02] y [e8f664a3 · 2026-11-03]» · «[79396597]» (solo números) · el código completo ·
+ * y el código suelto en la frase («Las reseñas 113f3e02 y 2cad4b07 son copias»). Lo guardado no se toca y los saltos de línea se respetan.
+ * Reserva: un código suelto entre paréntesis se queda («(ab12cd34)» puede ser de un producto), igual que en el limpiador general.
+ */
+const HEX = String.raw`[0-9a-f]{8,}(?:-[0-9a-f]{2,})*(?:…|\.{3})?`
+const CITA = String.raw`(?:fichas?[ \t]*:?[ \t]*)?${HEX}(?:[ \t]*·[ \t]*\d{4}-\d{2}-\d{2})?`
+const CORCHETES = String.raw`\[${CITA}(?:[ \t]*[·,;][ \t]*${CITA})*\]`
+const CADENA = new RegExp(String.raw`[ \t]*(?:·[ \t]*)?${CORCHETES}(?:[ \t]*(?:[·,;]|\by\b)?[ \t]*${CORCHETES})*`, "gi")
+const FICHA_CON_CODIGO = new RegExp(String.raw`[ \t]*\bfichas?[ \t]*:?[ \t]*${HEX}`, "gi")
+/** suelto en la frase: 8 caracteres (o el código completo) con letras y números a la vez, para no llevarse una palabra ni una cifra */
+const SUELTO = String.raw`(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{8}(?:-[0-9a-f]{4}){0,3}(?:-[0-9a-f]{12})?(?![0-9a-zA-Z])`
+const SUELTOS = new RegExp(String.raw`[ \t]*(?<![(\w-])${SUELTO}(?:[ \t]*(?:,|\by\b)[ \t]*${SUELTO})*`, "gi")
+/** lo que queda colgando al quitar un código al final de la frase: «igual que .» */
+const COLGANDO = /[ \t]*,?[ \t]*(?<![\p{L}\p{N}])(?:igual que|como|según|de|en|con|y|o)(?=[ \t]*[.;](?:\s|$))/giu
+/** la ficha del mundo real (la de Google Maps, la técnica de un producto) se queda; la del cerebro se dice «fuente», que concuerda igual («ninguna de las fichas leídas») */
+const FICHA = /\b(f)icha(s?)\b(?![ \t]+(?:de[ \t]+(?:Google|Mapas?|Maps|producto)|t[ée]cnicas?))/gi
+
+export function textoDeLaMesa(t: string): string {
+  // primero las formas de la mesa: el limpiador general se lleva los corchetes pero no el «·» que los separa, y quedaría «· ·»
+  return textoDelInforme(
+    t
+      .replace(CADENA, "")
+      .replace(FICHA_CON_CODIGO, "")
+      .replace(SUELTOS, "")
+      .replace(COLGANDO, "")
+      .replace(/\ben ficha\b(?![ \t]+de\b)/gi, "en una fuente")
+      .replace(FICHA, (_, f: string, s: string) => `${f}uente${s}`),
+  )
+}

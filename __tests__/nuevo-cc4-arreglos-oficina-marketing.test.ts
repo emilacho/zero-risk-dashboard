@@ -169,21 +169,25 @@ describe("punto 7 · informes de la mesa de análisis (viven en el cerebro)", ()
 describe("FIRMA 2 de Emilio · cada informe de la mesa con su analista y su fecha", () => {
   // forma de la ficha real 3b0df105 (market_research_analyst, 01-nov), con el texto recortado
   const real = (cambios: Record<string, unknown> = {}, tag: Record<string, unknown> = {}) => ({ id: "3b0df105-ace0-48c1-b483-d95735fcaa71", titulo: "Informe · mercado · corte 2026-11-01", contenido: "[informe de análisis · mercado · PROPUESTA: no es dato del cliente] Puente de dos feriados en Manta.", observado_en: "2026-11-01T16:34:50.852+00:00", creado_en: "2026-11-01T16:34:51.821833+00:00", ...cambios, provenance_tag: { type: "evidence", source: "sintesis_de_oficina", canal: "mesa_de_analisis", datos: { mesa: "mesa_de_analisis", tipo: "mercado", citas: ["a", "b", "c", "d"], agente: "market_research_analyst", fecha_de_corte: "2026-11-01T16:32:12.735Z", ...tag } } })
-  const nombres = new Map([["market_research_analyst", "Market Research Agent"]])
+  const nombres = new Map([["market_research_analyst", "Market Research Agent"], ["otro_agente", "Otro Agente"]])
   const panel = (a: ReturnType<typeof analisisDesdeFila>) => renderToStaticMarkup(createElement(PanelInformes, { onCerrar: () => {}, datosIniciales: { clientes: [{ id: NAUFRAGO, nombre: "Náufrago" }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, informes: [], analisis: [a], leido_en: "x" } }))
   const sinEtiquetas = (h: string) => h.replace(/<[^>]+>/g, "")
 
-  it("el analista sale de la ficha, con el nombre de la tabla de empleados", () => {
-    expect(analisisDesdeFila(real(), nombres).analista).toBe("Market Research Agent")
+  it("un analista de la mesa sale en español, aunque la tabla lo tenga en inglés", () => {
+    expect(analisisDesdeFila(real(), nombres).analista).toBe("Analista de mercado")
+    expect(analisisDesdeFila(real()).analista).toBe("Analista de mercado")
+  })
+  it("otro agente sale con el nombre de la tabla de empleados", () => {
+    expect(analisisDesdeFila(real({}, { agente: "otro_agente" }), nombres).analista).toBe("Otro Agente")
   })
   it("si el empleado no tiene nombre en la tabla, se arma del agente, sin perderlo", () => {
-    expect(analisisDesdeFila(real(), new Map()).analista).toBe("Market research analyst")
-    expect(analisisDesdeFila(real()).analista).toBe("Market research analyst")
+    expect(analisisDesdeFila(real({}, { agente: "agente_sin_tabla" }), new Map()).analista).toBe("Agente sin tabla")
+    expect(analisisDesdeFila(real({}, { agente: "agente_sin_tabla" })).analista).toBe("Agente sin tabla")
   })
   it("el panel muestra analista y fecha sin abrir el informe (van en la cabecera)", () => {
     const h = panel(analisisDesdeFila(real(), nombres))
     const cabecera = /<summary[\s\S]*?<\/summary>/.exec(h)![0]
-    expect(sinEtiquetas(cabecera)).toContain("Por Market Research Agent · hecho el 1 nov")
+    expect(sinEtiquetas(cabecera)).toContain("Por Analista de mercado · hecho el 1 nov")
   })
   it("la fecha de corte solo se agrega si es otro día", () => {
     const igual = firmaDelAnalisis(analisisDesdeFila(real(), nombres))

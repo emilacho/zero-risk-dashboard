@@ -45,7 +45,7 @@ describe("1 · Informes: se leen como un documento", () => {
   })
   it("el panel usa la vista de documento para el informe de la mesa y para el resumen; sin «fichas citadas» ni la nota interna", () => {
     const p = readFileSync("components/nuevo/PanelInformes.tsx", "utf8")
-    expect(p).toContain("<DocumentoLegible texto={a.texto} />"); expect(p).toContain("{b.parrafo && <DocumentoLegible texto={b.parrafo} />}")
+    expect(p).toContain("<DocumentoLegible texto={textoDeLaMesa(a.texto)} />"); expect(p).toContain("{b.parrafo && <DocumentoLegible texto={b.parrafo} />}")
     expect(p).not.toMatch(/ficha citada|fichas citadas|whitespace-pre-wrap rounded-lg|lo que el cerebro tiene/)
   })
 })
