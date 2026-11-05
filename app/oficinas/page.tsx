@@ -61,9 +61,7 @@ export default async function OficinasPage() {
                       confirmar={manejo.encendida[t.clave] ? `Vas a apagar ${t.nombre}: deja de recibir trabajo nuevo. Lo que ya está en marcha termina.` : `Vas a encender ${t.nombre}: empieza a recibir trabajo.`}
                     />
                     <AccionBoton accion="oficina-tope" datos={{ oficina: t.clave }} etiqueta="Ajustar el tope de gasto" variante="suave" confirmar="Cambiar el tope cambia cuánto puede gastar esta oficina antes de frenarse." campos={[{ clave: "tope_usd", etiqueta: "Tope (US$)", tipo: "numero", requerido: true }]} />
-                    {t.clave === "financiera" && manejo.sin_firmar.map((s) => (
-                      <AccionBoton key={s.id} accion="firmar-tablero" datos={{ tablero_id: s.id }} etiqueta={`Firmar el tablero de ${s.cliente}`} confirmar="Al firmar, das por bueno este tablero financiero: queda firmado con tu nombre y fecha." />
-                    ))}
+                    {t.clave === "financiera" && manejo.sin_firmar.length > 0 && <Link data-firmas-en-decisiones href="/nuevo?panel=decisiones" className="rounded-md border border-white/15 px-3 py-1.5 text-[12.5px] text-zinc-200 hover:bg-white/[0.06]">{manejo.sin_firmar.length === 1 ? "1 tablero por firmar" : `${manejo.sin_firmar.length} tableros por firmar`}: míralos en Decisiones →</Link>}
                   </div>
                 )}
                 {t.enlace && (

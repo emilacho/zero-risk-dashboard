@@ -12,7 +12,7 @@ export type NombreDeAccion =
   | "rehacer-pieza"
   | "archivo-recuperar-pieza"
   | "plan-aprobar" | "plan-cambios" | "plan-responder"
-  | "firmar-tablero"
+  | "firmar-tablero" | "recalcular-tablero"
   | "cliente-editar" | "cliente-nuevo" | "cliente-baja" | "cliente-tope"
   | "oficina-estado" | "oficina-tope"
   | "revision-resolver"
@@ -47,6 +47,13 @@ export interface DefinicionDeAccion {
   metodo?: "POST" | "PATCH"
 }
 
+const cambiosDeUnaFirma = (v: unknown): Array<{ clave: string; propuesto: number; firmado: number }> | null => {
+  if (!Array.isArray(v) || v.length < 1 || v.length > 5) return null
+  const buenos = v.flatMap((c) => (esObjeto(c) && texto(c.clave) && Number.isFinite(c.propuesto) && Number.isFinite(c.firmado) ? [{ clave: texto(c.clave), propuesto: c.propuesto as number, firmado: c.firmado as number }] : []))
+  return buenos.length === v.length ? buenos : null
+}
+/** 05-nov · «nunca se firma a ciegas»: estas solo se llaman desde Tu oficina › Decisiones, que revisa las cifras en el servidor. La ruta genérica de acciones no las atiende */
+export const SOLO_DESDE_DECISIONES: readonly string[] = ["firmar-tablero", "recalcular-tablero"]
 const conId = (c: Cuerpo, campo: string): string | null => (typeof c[campo] === "string" && UUID.test(c[campo] as string) ? (c[campo] as string) : null)
 const comentario = (c: Cuerpo, min: number, max = 2000): string | null => { const t = texto(c.comentario); return t.length >= min && t.length <= max ? t : null }
 
@@ -91,7 +98,9 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
     gasta: null,
     validar: (c) => { const id = conId(c, "espera_id"), t = texto(c.respuesta); return !id ? mal("falta la pregunta que se contesta") : t.length < 1 || t.length > 2000 ? mal("escribe la respuesta (hasta 2.000 caracteres)") : { ok: true, cuerpo: { espera_id: id, respuesta: t } } },
   },
-  "firmar-tablero": { gasta: null, validar: (c) => { const id = conId(c, "tablero_id"); return id ? { ok: true, cuerpo: { tablero_id: id } } : mal("falta el tablero que se firma") } },
+  "firmar-tablero": { gasta: null, validar: (c) => { const id = conId(c, "tablero_id"); if (!id) return mal("falta el tablero que se firma"); if (c.cambios === undefined) return { ok: true, cuerpo: { tablero_id: id } }; const cambios = cambiosDeUnaFirma(c.cambios); return cambios ? { ok: true, cuerpo: { tablero_id: id, cambios } } : mal("las cifras cambiadas no se entienden") } },
+  // 05-nov · ver cómo quedaría una cifra cambiada antes de firmarla: no toca el tablero
+  "recalcular-tablero": { gasta: null, validar: (c) => { const id = conId(c, "tablero_id"), cambios = cambiosDeUnaFirma(c.cambios); return !id ? mal("falta el tablero") : cambios ? { ok: true, cuerpo: { tablero_id: id, cambios } } : mal("las cifras cambiadas no se entienden") } },
   "cliente-editar": {
     gasta: null,
     validar: (c) => {

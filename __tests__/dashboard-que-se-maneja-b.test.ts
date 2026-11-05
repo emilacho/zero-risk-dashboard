@@ -133,7 +133,7 @@ describe("la puerta del tablero: solo administrador con sesión", () => {
     vi.resetModules()
     vi.doMock("@/lib/admin-guard", () => ({ exigirAdmin: async () => puerta }))
     const ejecutar = vi.fn(async () => ({ status: 200, cuerpo: { ok: true } }))
-    vi.doMock("@/lib/tablero-acciones", () => ({ ejecutarAccion: ejecutar }))
+    vi.doMock("@/lib/tablero-acciones", () => ({ ejecutarAccion: ejecutar, SOLO_DESDE_DECISIONES: [] }))
     const { POST } = await import("@/app/api/acciones/[accion]/route")
     const pedir = () => POST(new Request("https://t.test/api/acciones/plan-aprobar", { method: "POST", body: JSON.stringify({ campana_id: ID }) }), { params: Promise.resolve({ accion: "plan-aprobar" }) })
     return { pedir, ejecutar }
@@ -160,7 +160,8 @@ describe("cada botón que pintan las pantallas nombra una acción que existe, y 
     // CC6 · 02-nov: «validar un campo» vive en el manual de /nuevo (su botón lleva data-tablero-accion)
     const todo = [...PANTALLAS, "components/nuevo/PanelManual.tsx", "components/nuevo/PanelPiezas.tsx"].map(leer).join("\n") // CC6 · 03-nov: «Recuperar» del archivo vive en Piezas de /nuevo
     // CC6 · 03-nov · manual limpio (Emilio: «dos botones claros, nada más»): «validar un campo» quedó sin botón; la acción sigue en el catálogo (contrato de la plataforma)
-    const SIN_BOTON_POR_DECISION = ["manual-validar-campo"]
+    // 05-nov · firmar y ver una cifra cambiada viven en Tu oficina › Decisiones, que las llama desde el servidor (la ruta genérica las rechaza)
+    const SIN_BOTON_POR_DECISION = ["manual-validar-campo", "firmar-tablero", "recalcular-tablero"]
     for (const a of Object.keys(ACCIONES)) if (!SIN_BOTON_POR_DECISION.includes(a)) expect(todo.includes(`accion="${a}"`) || todo.includes(`/api/acciones/${a}"`), a).toBe(true)
     expect(todo).not.toContain('accion="manual-validar-campo"')
   })

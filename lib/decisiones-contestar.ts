@@ -5,12 +5,13 @@
  *                               `POST /api/brain/alimentar/dueno` con `evento:"respuesta"` (contrato de Cerebro, 04-nov). Nunca las dos: si la pausa la tomó, ella ya la guardó.
  *   · descartar una pregunta  → `POST /api/brain/alimentar/dueno` con `evento:"descartar"` (queda «obsoleta» con motivo; nada se borra).
  *   · firmar (aceptar)         → la acción `firmar-tablero` de la plataforma.
+ *   · cambiar una cifra        → `recalcular-tablero` para verla (no firma) y `firmar-tablero` con `cambios`. Lo propuesto sale de la lectura del servidor, nunca de la pantalla.
  * La decisión se busca de nuevo en el servidor (no se confía en lo que manda la pantalla): si ya no está, otra persona u otro lugar la resolvió.
  * Al cambiar el estado de la fila de origen, la decisión sale de Tu oficina, de la oficina de origen y de la antena a la vez (todos leen esa fila).
  * US$ 0: ninguna de estas puertas llama a un modelo.
  */
 import { randomUUID } from "node:crypto"
-import { TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, faltaQueLeer, leerDecisiones, nombreDeOficina, type AccionDeDecision, type Decision } from "@/lib/direccion-decisiones"
+import { TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, faltaQueLeer, leerCifras, leerDecisiones, nombreDeOficina, textoDeCifra, type AccionDeDecision, type CifraDeFirma, type Decision } from "@/lib/direccion-decisiones"
 import { ejecutarAccion } from "@/lib/tablero-acciones"
 
 export const FLUJO_DE_TU_OFICINA = "tablero-tu-oficina" // el mismo que usa la ruta de la pausa (CC1 #897): aquí no hay flujo detrás, viene del tablero
@@ -30,6 +31,10 @@ export interface ResultadoDeContestar {
   registro: PasoDelRegistro[]
   /** por qué no salió (se muestra en la tarjeta, que se queda) */
   motivo?: string
+  /** al cambiar una cifra: cómo quedaría todo, antes de firmar */
+  recalculo?: { cifras: CifraDeFirma[]; alertas: string[] }
+  /** al cambiar una cifra que no cuadra: la más cercana que sí */
+  alcanzable?: number
 }
 type Fila = Record<string, unknown>
 export interface DepsDeContestar { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch; ahora?: () => Date; revisor: string; leer?: typeof leerDecisiones; firmar?: typeof ejecutarAccion; id?: () => string }
@@ -60,17 +65,34 @@ export async function quienPregunto(d: Omit<DepsDeContestar, "revisor">, clientI
 }
 
 /** la entrada que manda la pantalla, revisada */
-export function validarContestar(raw: unknown): { ok: true; id: string; accion: AccionDeDecision; respuesta: string; motivo: string } | { ok: false; detalle: string } {
+export type AccionDeContestar = AccionDeDecision | "recalcular"
+export function validarContestar(raw: unknown): { ok: true; id: string; accion: AccionDeContestar; respuesta: string; motivo: string; cambio: { clave: string; firmado: number } | null } | { ok: false; detalle: string } {
   const b = (raw && typeof raw === "object" ? raw : {}) as Fila
-  const id = txt(b.id), accion = txt(b.accion) as AccionDeDecision, respuesta = txt(b.respuesta), motivo = txt(b.motivo)
+  const id = txt(b.id), accion = txt(b.accion) as AccionDeContestar, respuesta = txt(b.respuesta), motivo = txt(b.motivo)
   if (!id || id.length > 200) return { ok: false, detalle: "Falta la decisión que contestas." }
-  if (!["aceptar", "editar", "responder", "descartar"].includes(accion)) return { ok: false, detalle: "Esa acción no existe." }
+  if (!["aceptar", "editar", "recalcular", "responder", "descartar"].includes(accion)) return { ok: false, detalle: "Esa acción no existe." }
   if (accion === "responder" && !respuesta) return { ok: false, detalle: "Escribe tu respuesta." }
   if (respuesta.length > TOPE_RESPUESTA) return { ok: false, detalle: `La respuesta va hasta ${TOPE_RESPUESTA.toLocaleString("es-EC")} letras.` }
   if (motivo.length > TOPE_MOTIVO) return { ok: false, detalle: `El motivo va hasta ${TOPE_MOTIVO} letras.` }
-  return { ok: true, id, accion, respuesta, motivo }
+  const c = (b.cambio && typeof b.cambio === "object" ? b.cambio : {}) as Fila
+  const cambio = txt(c.clave) && typeof c.firmado === "number" && Number.isFinite(c.firmado) && c.firmado > 0 ? { clave: txt(c.clave), firmado: c.firmado } : null
+  if ((accion === "editar" || accion === "recalcular") && !cambio) return { ok: false, detalle: "Escribe la cifra con un número mayor que 0." }
+  return { ok: true, id, accion, respuesta, motivo, cambio }
 }
 
+/** por qué la plataforma no aceptó el cambio de una cifra, en palabras de negocio (su detalle trae los nombres internos de las cifras) */
+const MOTIVO_DEL_CAMBIO: Record<string, string> = {
+  presupuesto_no_cuadra: "Con ese dinero el reparto entre canales no cuadra.",
+  meta_en_cero: "Con esa cifra la meta de ventas queda en cero: no hay plan que firmar.",
+  cifra_demasiado_grande: "Esa cifra da un resultado demasiado grande para guardarlo.",
+  cifras_cambiaron: "Las cifras cambiaron desde que abriste esta tarjeta: actualiza y míralas de nuevo.",
+  huella_no_coincide: "El tablero cambió desde que lo abriste: actualiza y míralo de nuevo.",
+  no_se_puede_recalcular: "Con este tablero no se puede calcular con certeza lo que depende de ese cambio.",
+  corrida_viva: "La oficina financiera está trabajando en este cliente: prueba cuando termine.",
+  no_esta_sin_firma: "Este tablero ya no espera firma: actualiza.",
+  no_es_el_vigente: "Ya hay un tablero más nuevo: actualiza.",
+  sin_cambios: "Esa cifra es la misma que propuso la oficina.",
+}
 const pregunto = (dec: Decision, quien: { oficina: string } | null): PasoDelRegistro => ({ cuando: dec.desde, quien: "oficina", estado: "pregunto", texto: quien ? `Preguntó: ${nombreDeOficina(quien.oficina)}` : "La pregunta llegó a Tu oficina" })
 const fallo = (registro: PasoDelRegistro[], motivo: string, ahora: string): ResultadoDeContestar => ({ ok: false, sale: false, texto: "No salió: sigue en tu lista.", motivo, registro: [...registro, { cuando: ahora, quien: "sistema", estado: "fallo", texto: motivo }] })
 
@@ -98,11 +120,27 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
   const dec = lectura.datos.decisiones.find((x) => x.id === v.id)
   if (!dec) return { status: 409, cuerpo: { ok: false, error: "ya_no_esta", detalle: "Esta decisión ya no está pendiente: se resolvió en otro lugar." } }
   if (faltaQueLeer(dec)) return { status: 409, cuerpo: { ok: false, error: "falta_informacion", detalle: "Esta firma no trae las cifras que se firman: la oficina financiera debe mandarlas. No se firmó." } }
-  if (!accionesDe(dec).includes(v.accion)) return { status: 409, cuerpo: { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." } }
+  if (!accionesDe(dec).includes(v.accion === "recalcular" ? "editar" : v.accion)) return { status: 409, cuerpo: { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." } }
   const ahora = (d.ahora ?? (() => new Date()))().toISOString()
   const ejecucion = `tablero:${(d.id ?? randomUUID)()}`
 
   try {
+    if (v.accion === "editar" || v.accion === "recalcular") {
+      const cifra = dec.cifras?.find((c) => c.clave === v.cambio?.clave)
+      if (!cifra?.editable || !v.cambio) return { status: 409, cuerpo: { ok: false, error: "accion_no_permitida", detalle: "Esa cifra no se puede cambiar." } }
+      const cambios = [{ clave: cifra.clave, propuesto: cifra.valor, firmado: v.cambio.firmado }]
+      const base: PasoDelRegistro[] = [{ cuando: dec.desde, quien: "oficina", estado: "pregunto", texto: `La oficina financiera propuso: ${cifra.nombre}, ${textoDeCifra(cifra)}` }]
+      const r = await (d.firmar ?? ejecutarAccion)(v.accion === "editar" ? "firmar-tablero" : "recalcular-tablero", { tablero_id: dec.id, cambios }, { revisor: d.revisor, plataformaUrl: d.plataformaUrl, llave: d.llave, fetchImpl: d.fetchImpl })
+      if (r.status !== 200 || r.cuerpo.ok !== true) {
+        const pl = (r.cuerpo.plataforma ?? {}) as Fila
+        const motivo = MOTIVO_DEL_CAMBIO[txt(pl.error) || txt(r.cuerpo.plataforma_error)] ?? "La plataforma no aceptó el cambio."
+        return { status: 200, cuerpo: { ...fallo(base, v.accion === "editar" ? `No se firmó. ${motivo}` : motivo, ahora), ...(typeof pl.alcanzable === "number" ? { alcanzable: pl.alcanzable } : {}) } }
+      }
+      const res = (r.cuerpo.resultado ?? {}) as Fila
+      const recalculo = { cifras: leerCifras(res.cifras), alertas: Array.isArray(res.alertas) ? res.alertas.filter((x): x is string => typeof x === "string") : [] }
+      if (v.accion === "recalcular") return { status: 200, cuerpo: { ok: true, sale: false, texto: "Así quedaría.", registro: [], recalculo } }
+      return { status: 200, cuerpo: { ok: true, sale: true, texto: "Firmado.", recalculo, registro: [...base, { cuando: ahora, quien: "tu", estado: "firmaste", texto: `Firmaste con tu cambio: ${cifra.nombre}, ${textoDeCifra({ valor: v.cambio.firmado, unidad: cifra.unidad })}` }, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "El tablero quedó firmado con tu cambio; lo que propuso la oficina se conserva" }] } }
+    }
     if (dec.tipo === "firma_de_finanzas" && v.accion === "aceptar") {
       const base: PasoDelRegistro[] = [{ cuando: dec.desde, quien: "oficina", estado: "pregunto", texto: "La oficina financiera pidió tu firma" }]
       const r = await (d.firmar ?? ejecutarAccion)("firmar-tablero", { tablero_id: dec.id }, { revisor: d.revisor, plataformaUrl: d.plataformaUrl, llave: d.llave, fetchImpl: d.fetchImpl })
