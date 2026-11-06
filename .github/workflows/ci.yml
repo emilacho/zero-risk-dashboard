@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -24,6 +26,9 @@ jobs:
 
       - name: Type-check
         run: pnpm type-check
+
+      - name: Estilo base (tokens de la guía de Emilio)
+        run: node scripts/revisar-estilo.mjs diff origin/main
 
       - name: Lint
         run: pnpm lint

@@ -198,7 +198,7 @@ describe("nunca se firma a ciegas (CORRECCIÓN Lenovo 5-nov)", () => {
     expect(accionesDe(d.decisiones[0])).toEqual(["aceptar"])
     const html = pantalla(d)
     expect(html).toContain("data-firmar"); expect(html).not.toContain("data-falta-informacion")
-    expect(html).toContain("US$ 1.341,27"); expect(html).toContain("Instagram y Facebook"); expect(html).toContain("5 ventas por semana"); expect(html).toContain("Dos hallazgos sin cerrar")
+    expect(html).toMatch(/data-numero-de-cifra[^>]*>1\.341,27<[\s\S]*?>US\$ Presupuesto al mes</); expect(html).toContain("Instagram y Facebook"); expect(html).toMatch(/data-numero-de-cifra[^>]*>5<[\s\S]*?>Meta · ventas por semana</); expect(html).toContain("Dos hallazgos sin cerrar") // 06-nov: el número solo y la unidad en el rótulo (imagen aprobada); la unidad nunca se pierde
     expect(html).not.toMatch(/data-pie="true" class="[^"]*sticky/) // Firmar no va fijo: se llega pasando por las cifras (CC6 · #283)
   })
   it("una cifra que no se puede leer no cuenta: sin ninguna buena, falta información", () => {
@@ -224,8 +224,8 @@ describe("la pantalla (boceto aprobado)", () => {
   it("la pregunta que detiene el plan va al frente, con quién pregunta, qué se destraba, la caja y sus dos acciones", () => {
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe(P1)
     expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
-    expect(html).toContain("data-detienen"); expect(html).toContain("Detienen un trabajo"); expect(html).toContain('data-chip="detiene"')
-    expect(html).toContain("Pregunta la <b"); expect(html).toContain("Oficina financiera</b>")
+    expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-chip="detiene"') // estilo base: el recuadro es el filtro
+    expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Financiero<\/span>/) // estilo base: DEPARTAMENTO / Financiero, no una frase
     expect(html).toContain("El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.")
     expect(html).toContain("data-respuesta"); expect(html).toContain("Enviar respuesta"); expect(html).toContain("data-descartar-abrir")
     expect(html).not.toContain("data-firmar"); expect(html).not.toContain("buzón de preguntas") // la tarjeta vieja de la pausa (Slack) no se repite

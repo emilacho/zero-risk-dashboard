@@ -45,16 +45,15 @@ describe("6.52 · Decisiones · un solo número", () => {
   it("sin la lectura de pausas no se achica nada a ciegas", () => {
     expect(resumenDeDecisiones(normalizarDecisiones({ ...CRUDO, pausados: [] })).total).toBe(10) // 04-nov · las preguntas y firmas también se contestan aquí
   })
-  it("en pantalla: cabecera, «Todas», tipos y carrusel dicen lo mismo; la pausa va plegada y aparte", async () => {
+  // estilo base (05-nov · guía de Emilio, reglas 5 y 6): los recuadros de número son los filtros; una tarjeta a la vez con «1 de N»; sin pila ni índice por tipo
+  it("en pantalla: el resumen, el recuadro «Esperan» y el «1 de N» dicen lo mismo; la pausa va en su propio recuadro", async () => {
     const { PanelDecisiones } = await import("@/components/nuevo/PanelDecisiones")
     const h = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: D })).replace(/<!-- -->/g, "")
     expect(h).toContain("3 esperan por ti · 7 en pausa (Zero Risk SI)"); expect(h).not.toContain("fuera de este tablero")
-    expect(h).toMatch(/data-todas[^>]*>.*?<span class="tabular-nums[^"]*">3<\/span>/)
-    const tipos = [...h.matchAll(/data-filtro="[^"]+".*?<span class="tabular-nums[^"]*">(\d+)<\/span>/g)].map((m) => Number(m[1]))
-    expect(tipos.reduce((a, b) => a + b, 0)).toBe(3)
+    expect(h).toMatch(/data-recuadro="firma"[^>]*>.*?>3<\/span>/)
     expect(h).toContain("1 de 3")
-    expect(h).toContain('data-grupo-aparte="pausa:Zero Risk Seguridad Industrial"'); expect(h).toContain("En pausa · Zero Risk SI"); expect(h).toContain('aria-expanded="false"')
-  })
+    expect(h).toMatch(/data-recuadro="pausa:Zero Risk Seguridad Industrial" aria-pressed="false"[^>]*>.*?>7<\/span>.*?>En pausa</)
+  }, 30_000) // dibuja el panel entero: con la máquina cargada pasa de 5 s
 })
 
 describe("6.52 · Decisiones · sin nombres internos y con costo", () => {
@@ -95,16 +94,17 @@ describe("6.52 · Riesgos · qué pasó, a quién afecta, quién lo arregla", ()
     expect(riesgoClaro(R({ sector: "dinero", fuente: "x", titulo: "Saldo bajo", detalle: null })).arregla).toBeNull()
     expect(esTextoTecnico("1 ejecución fallida en las últimas horas")).toBe(false); expect(esTextoTecnico("Task execution timed out")).toBe(true)
   })
-  it("en pantalla: frase, a quién y quién; los sectores salen UNA vez (botones grandes); hora en 24 h", async () => {
+  // estilo base (05-nov): el panel ya no repite los 8 sectores; el sector va una vez, en la tarjeta del riesgo
+  it("en pantalla: frase, a quién y quién; el sector sale UNA vez; hora en 24 h", async () => {
     const { PanelRiesgos } = await import("@/components/nuevo/PanelRiesgos")
     const datos = { generado_en: null, completo: true, total: 1, por_gravedad: { 1: 0, 2: 1, 3: 0 }, por_sector: { dinero: 0, accesos: 0, servicios: 0, flujos: 0, datos: 1, calidad: 0, plazos: 0, seguridad: 0 },
       riesgos: [R({ id: "a", gravedad: 2, sector: "datos", titulo: ":warning: [RASPADOR] cambió el esquema de «trustpilot_scraper» en Apify", desde: "2026-11-02T19:29:00Z" })], decisiones_tuyas: [], caducados: 0, saldos: [], topes: [], fuentes: [], sin_fuente: [] }
     const h = renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: datos as never })).replace(/<!-- -->/g, "")
     expect(h).toContain("Apify cambió el lector de Trustpilot"); expect(h).toContain("lo revisa CC2"); expect(h).toContain("data-ver-detalle")
     expect(h).not.toMatch(/>[^<]*:warning:[^<]*<\/(h3|span)>/)
-    expect(h).not.toContain("data-placa="); expect((h.match(/data-tarjeta-sector=/g) ?? []).length).toBe(8)
+    expect(h).not.toContain("data-placa="); expect(h).toContain('data-ficha="a"') // 06-nov: el tema sale en su recuadro de la izquierda y en la ficha
     expect(h).toContain("14:29"); expect(h).not.toMatch(/p\.\s?m\./)
-  })
+  }, 30_000) // dibuja el panel entero: con la máquina cargada pasa de 5 s
 })
 
 describe("6.52 · de paso en Observabilidad", () => {
