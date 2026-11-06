@@ -5,7 +5,7 @@ import { HORA_24 } from "@/lib/formato"
 import { haceCuanto } from "@/lib/direccion-decisiones"
 import { GRADOS_POR_SECTOR, NOMBRE_DE_LA_GRAVEDAD, NOMBRE_DEL_SECTOR, ORIGEN_DEL_RIESGO, SECTORES, SECTORES_SIN_FUENTE, alPlano, lugarEnElRadar, type Gravedad, type Riesgo, type Riesgos, type Sector } from "@/lib/direccion-riesgos"
 import { riesgoClaro } from "@/lib/riesgo-claro"
-import { claveDelRiesgo, estadoDeLosRiesgos, type Cerrada, type VistosDeRiesgos } from "@/lib/riesgos-vistos"
+import { estadoDeLosRiesgos, marcarRiesgoVisto, type Cerrada, type VistosDeRiesgos } from "@/lib/riesgos-vistos"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Pares, Recuadros } from "@/components/nuevo/EstiloBase"
 
 /**
@@ -16,7 +16,8 @@ import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Pares, Recuadro
  * «Visto» guarda la marca en la tabla de marcas del tablero (`lib/riesgos-vistos.ts`): pasa a Tomada; cuando la plataforma deja de mostrarlo, a Cerrada.
  * Datos: `/api/direccion/riesgos` (servidor del tablero → ruta certificada de la plataforma + las marcas). Si la lista está incompleta, nunca dice «sin riesgos».
  */
-type Respuesta = ({ ok: true; vistos?: VistosDeRiesgos | null } & Riesgos) | { ok: false; error: string }
+type ConMarcas = { vistos?: VistosDeRiesgos | null; cierres?: VistosDeRiesgos | null }
+type Respuesta = ({ ok: true } & ConMarcas & Riesgos) | { ok: false; error: string }
 export type Filtro = "abiertas" | "tomadas" | "cerradas"
 
 const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "numeric", month: "short", ...HORA_24 }) }
@@ -156,19 +157,19 @@ function Tarjeta({ r, tomada, puedeMarcar, marcando, alMarcar }: { r: Riesgo; to
   )
 }
 
-/** de una cerrada solo se sabe cuándo la viste (la marca no guarda el título) */
+/** de una cerrada solo se sabe cuándo se cerró (la marca no guarda el título) */
 function TarjetaCerrada({ x }: { x: Cerrada }) {
   return (
     <article data-ficha-cerrada={x.id} className="shrink-0 rounded-tarjeta border border-linea bg-grafito-2 p-6 text-center">
       <p className="text-rotulo uppercase tracking-rotulo text-gris">Cerrada</p>
       <h3 className="mt-3 text-cuerpo font-medio text-hueso">Ya no aparece: se resolvió</h3>
-      <p className="mt-1.5 text-dato text-gris">La marcaste vista {haceCuanto(x.visto_en)}{fecha(x.visto_en) ? ` · ${fecha(x.visto_en)}` : ""}</p>
+      <p className="mt-1.5 text-dato text-gris">Se cerró {haceCuanto(x.cerrada_en)}{fecha(x.cerrada_en) ? ` · ${fecha(x.cerrada_en)}` : ""}</p>
     </article>
   )
 }
 
-export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetch, filtroInicial = "abiertas" }: { onCerrar: () => void; datosIniciales?: (Riesgos & { vistos?: VistosDeRiesgos | null }) | null; fetchImpl?: typeof fetch; filtroInicial?: Filtro }) {
-  const [datos, setDatos] = useState<(Riesgos & { vistos?: VistosDeRiesgos | null }) | null>(datosIniciales)
+export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetch, filtroInicial = "abiertas" }: { onCerrar: () => void; datosIniciales?: (Riesgos & ConMarcas) | null; fetchImpl?: typeof fetch; filtroInicial?: Filtro }) {
+  const [datos, setDatos] = useState<(Riesgos & ConMarcas) | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [elegido, setElegido] = useState<string | null>(null)
@@ -195,24 +196,20 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
   // «Visto»: guarda la marca y la pasa a Tomada sin esperar otra lectura
   const marcar = useCallback(async (id: string) => {
     setMarcando(id); setError(null)
-    try {
-      const r = await fetchImpl("/api/alertas/visto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clave: claveDelRiesgo(id) }) })
-      const j = (await r.json().catch(() => null)) as { ok?: boolean } | null
-      if (!r.ok || !j?.ok) throw new Error("No pude guardar que lo viste. Prueba otra vez.")
-      setDatos((d) => (d ? { ...d, vistos: { ...(d.vistos ?? {}), [id]: new Date().toISOString() } } : d))
-      setElegido(null)
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setMarcando(null) }
-  }, [fetchImpl])
+    const r = await marcarRiesgoVisto(fetchImpl, id, datos?.vistos)
+    if (r.ok) { setDatos((d) => (d ? { ...d, vistos: { ...(d.vistos ?? {}), ...r.vistos } } : d)); setElegido(null) } else setError(r.error)
+    setMarcando(null)
+  }, [fetchImpl, datos?.vistos])
 
   const todos = ordenar(datos?.riesgos ?? [])
   // sin las marcas leídas (todavía, o no se pudieron leer) no se inventan tomadas ni cerradas
   const vistos = datos?.vistos ?? null
-  const estado = estadoDeLosRiesgos(todos, vistos ?? {})
+  const estado = estadoDeLosRiesgos(todos, vistos ?? {}, { cierres: datos?.cierres ?? null, completo: !!datos?.completo })
   const delSector = (xs: Riesgo[]) => (sector ? xs.filter((r) => r.sector === sector) : xs)
   const visibles = filtro === "cerradas" ? [] : delSector(filtro === "tomadas" ? estado.tomadas : vistos ? estado.abiertas : todos)
   const ficha = visibles.find((r) => r.id === elegido) ?? visibles[0] ?? null
   const resto = visibles.filter((r) => r.id !== ficha?.id)
-  const cerradas = filtro === "cerradas" ? estado.cerradas : []
+  const cerradas = filtro === "cerradas" ? (estado.cerradas ?? []) : []
   const total = datos?.total ?? 0
   const n = (x: number) => (!datos ? "…" : x)
   // «…» mientras llegan las marcas (la escena pasa su lectura sin ellas); «—» si no se pudieron leer
@@ -229,13 +226,13 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
       <Recuadros etiqueta="Filtrar los riesgos" alElegir={elegirFiltro} items={[
         { clave: "abiertas", numero: vistos ? n(estado.abiertas.length) : n(total), rotulo: "Abiertas", activo: filtro === "abiertas", alarma: estado.abiertas.some((r) => r.gravedad === 3) },
         { clave: "tomadas", numero: conMarcas(estado.tomadas.length), rotulo: "Tomadas", activo: filtro === "tomadas" },
-        { clave: "cerradas", numero: conMarcas(estado.cerradas.length), rotulo: "Cerradas", activo: filtro === "cerradas" },
+        { clave: "cerradas", numero: !datos || datos.cierres === undefined ? "…" : estado.cerradas ? estado.cerradas.length : "—", rotulo: "Cerradas", activo: filtro === "cerradas" },
       ]} />
       {error && <p role="alert" className="mb-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{error}</p>}
       {datos && !vistos && datos.vistos === null && <p data-sin-marcas className="mb-4 text-center text-dato text-gris">No pude leer lo que marcaste visto: por ahora no se puede marcar.</p>}
 
       {filtro === "cerradas" ? (
-        cerradas.length ? <TarjetaCerrada x={cerradas[0]} /> : <p data-vacio className="py-6 text-center text-cuerpo text-gris">{vistos ? `Nada cerrado en los últimos 7 días.` : "Sin dato de lo cerrado."}</p>
+        cerradas.length ? <TarjetaCerrada x={cerradas[0]} /> : <p data-vacio className="py-6 text-center text-cuerpo text-gris">{estado.cerradas ? `Nada cerrado en los últimos 7 días.` : datos && !datos.completo ? "La lista vino incompleta: no puedo decirte qué se cerró." : "Sin dato de lo cerrado."}</p>
       ) : ficha ? <Tarjeta key={ficha.id} r={ficha} tomada={vistos?.[ficha.id] ?? null} puedeMarcar={!!vistos} marcando={marcando === ficha.id} alMarcar={() => void marcar(ficha.id)} />
         : datos ? (
           <p data-vacio className="py-6 text-center text-cuerpo text-gris">
@@ -260,7 +257,7 @@ export function PanelRiesgos({ onCerrar, datosIniciales = null, fetchImpl = fetc
       )}
       {cerradas.length > 1 && (
         <ul aria-label="Las demás cerradas" className="mt-6 shrink-0">
-          {cerradas.slice(1).map((x) => <li key={x.id} data-fila-cerrada={x.id} className="border-t border-linea py-4 text-dato text-gris"><span className="text-cuerpo text-hueso">Se resolvió</span> · la marcaste vista {haceCuanto(x.visto_en)}</li>)}
+          {cerradas.slice(1).map((x) => <li key={x.id} data-fila-cerrada={x.id} className="border-t border-linea py-4 text-dato text-gris"><span className="text-cuerpo text-hueso">Se resolvió</span> · se cerró {haceCuanto(x.cerrada_en)}</li>)}
         </ul>
       )}
     </PanelBase>

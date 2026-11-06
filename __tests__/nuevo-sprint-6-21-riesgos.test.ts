@@ -142,6 +142,9 @@ describe("6.21 · el panel de Riesgos (estilo base 05-nov: recuadros que filtran
   })
   it("lo único que escribe es «Visto» (la marca del tablero) y no enlaza al tablero viejo", () => {
     const s = readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")
-    expect(s.match(/method:\s*"(POST|PUT|PATCH|DELETE)"/g)).toEqual(['method: "POST"']); expect(s).toContain('fetchImpl("/api/alertas/visto", { method: "POST"'); expect(s).not.toContain("href=")
+    // 06-nov (CC6): el «Visto» vive en lib/riesgos-vistos.ts (marcarRiesgoVisto) para probar su clic; el panel no escribe por su cuenta
+    expect(s.match(/method:\s*"(POST|PUT|PATCH|DELETE)"/g)).toBeNull(); expect(s).toContain("marcarRiesgoVisto(fetchImpl"); expect(s).not.toContain("href=")
+    const l = readFileSync("lib/riesgos-vistos.ts", "utf8")
+    expect(l.match(/method:\s*"(POST|PUT|PATCH|DELETE)"/g)).toEqual(['method: "POST"']); expect(l).toContain('fetchImpl("/api/alertas/visto", { method: "POST"')
   })
 })
