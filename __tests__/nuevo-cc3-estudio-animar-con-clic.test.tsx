@@ -72,6 +72,21 @@ describe("Animar con clic", () => {
     expect((document.querySelector("[data-buscar]") as HTMLInputElement).value).toBe("")
   })
 
+  it("al cambiar de pieza se vuelve al primer movimiento, aunque la nueva tenga menos (menor CC6 #299)", async () => {
+    // la otra animación tiene un solo movimiento y su archivo principal no es ese clip: si quedara el 2.º, el visor y las descargas no lo encontrarían
+    const otra = animada({ id: "p8", prompt: "mesero · animado: Bailar", archivo_url: "https://a/principal.glb", parametros: { origen_pieza_id: "p2", archivos: [{ action_id: 591, nombre: "Hip_Hop_Dance", glb: "https://a/d.glb", fbx: "https://a/d.fbx" }] } })
+    abrir({ piezasIniciales: [animada(), otra], abiertaInicial: "p9" })
+    await visor()
+    fireEvent.click(screen.getByText("Saludar"))
+    expect(document.querySelector('[data-bajar="GLB"]')!.getAttribute("href")).toBe("https://a/h.glb")
+    fireEvent.click(screen.getByText("← Galería"))
+    fireEvent.click(boton('[data-pieza="p8"]'))
+    const v = await visor()
+    await waitFor(() => expect(v.getAttribute("src")).toBe("https://a/d.glb"))
+    expect(document.querySelector('[data-bajar="GLB"]')?.getAttribute("href")).toBe("https://a/d.glb")
+    expect(document.querySelector('[data-bajar="FBX"]')?.getAttribute("href")).toBe("https://a/d.fbx")
+  })
+
   it("el visor de una animación arranca solo con el primer movimiento", async () => {
     abrir({ piezasIniciales: [animada()], abiertaInicial: "p9" })
     const v = await visor()
