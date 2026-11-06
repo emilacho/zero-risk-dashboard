@@ -6,6 +6,7 @@ import type { BarraDelPlan as Barra } from "@/lib/plan-barra"
 const AMBAR = "#f5a524"
 const COLOR_DECISION: Record<string, string> = {
   en_revision: "border-sky-400/50 text-sky-100", reescribiendo: "border-violet-400/50 text-violet-100", esperando_decision: "border-amber-400/70 text-amber-100", aprobado: "border-emerald-400/60 text-emerald-100",
+  en_preparacion: "border-violet-400/50 text-violet-100", sin_plan_vigente: "border-zinc-400/50 text-zinc-100",
 }
 function Bloque({ id, titulo, children, nota, realce = false }: { id: string; titulo: string; children: React.ReactNode; nota?: string | null; realce?: boolean }) {
   return (

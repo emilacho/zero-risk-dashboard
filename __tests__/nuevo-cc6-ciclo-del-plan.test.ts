@@ -24,13 +24,13 @@ const base: CicloDelPlan = { disponible: true, version: 1, historial: [], con_co
 
 describe("CC6 · el estado del ciclo del plan", () => {
   it("cada estado sale de lo real: aprobado · reescribiendo · en revisión · esperando tu decisión (con sus botones)", () => {
-    expect(leerElCiclo("approved", base)).toMatchObject({ estado: "aprobado", titulo: "Aprobado → pasa al brief", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null })
+    expect(leerElCiclo("approved", base)).toMatchObject({ estado: "aprobado", titulo: "Aprobado", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null })
     expect(leerElCiclo("draft", { ...base, compuerta: { estado: "aprobado", decidido_por: "emilio", decidido_en: "2026-11-01T15:00:00Z", despertado: true, despertar_detalle: null } }).detalle).toContain("aprobado por emilio")
     const re = leerElCiclo("draft", { ...base, version: 2, con_compuerta: true, compuerta: { estado: "cambios_pedidos", decidido_por: null, decidido_en: null, despertado: true, despertar_detalle: null }, pedido: { id: "p", estado: "en_reescritura", texto: "Sube la meta a 130", vuelta: 2, despertado: true, despertar_detalle: null } })
     expect(re).toMatchObject({ estado: "reescribiendo", titulo: "Reescribiendo", puede_aprobar: false, puede_pedir_cambios: false }); expect(re.detalle).toContain("vuelta 2 de 3")
     expect(leerElCiclo("draft", { ...base, con_compuerta: true })).toMatchObject({ estado: "en_revision", titulo: "En revisión", puede_aprobar: false, puede_pedir_cambios: false }) // la jefatura sigue: sin botones
     const espera = leerElCiclo("draft", { ...base, con_compuerta: true, compuerta: { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null } })
-    expect(espera).toMatchObject({ estado: "esperando_decision", titulo: "Esperando tu decisión", puede_aprobar: true, puede_pedir_cambios: true, avisos: [] })
+    expect(espera).toMatchObject({ estado: "esperando_decision", titulo: "Espera tu decisión", puede_aprobar: true, puede_pedir_cambios: true, avisos: [] })
   })
   it("plan de antes del ciclo, versión 4 (3 reescrituras), ciclo aún no abierto y llamadas que no despertaron: todo se dice", () => {
     expect(leerElCiclo("draft", base).avisos.join(" ")).toContain("de antes del ciclo")
@@ -187,7 +187,7 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
   const pinta = (d: PlanDelCliente) => renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: d }))
   it("esperando tu decisión: los dos botones grandes salen aunque el plan no tenga «puntos por resolver»; versión, «corregido» e historial", () => {
     const html = pinta(datos({ ...base, version: 2, con_compuerta: true, compuerta: { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null }, historial: [{ id: PLAN, version: 1, creado_en: "2026-10-30T23:13:22Z", status: "draft", reemplaza_a: null, superseded_por: PLAN_V2 }] }))
-    expect(html).toContain('data-ciclo="esperando_decision"'); expect(html).toContain("Esperando tu decisión")
+    expect(html).toContain('data-ciclo="esperando_decision"'); expect(html).toContain("Espera tu decisión")
     expect(html).toContain('data-accion="plan-aprobar-asi"'); expect(html).toContain('data-accion="plan-pedir-cambios"'); expect(html).toMatch(/min-h-\[56px\][^"]*text-\[16px\]/) // grandes
     expect(html).toContain("Corregido 1 vez"); expect(html).not.toContain("Versión"); expect(html).toContain('data-accion="ver-historial"')
     expect(html).not.toContain("el plan en sí no cambia"); expect(html).not.toContain("data-confirmar") // sin confirmaciones de gasto
@@ -200,7 +200,7 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
     const sin = pinta(datos({ ...base, pedido: { id: "p", estado: "pendiente", texto: "Sube la meta a 130", vuelta: 1, despertado: false, despertar_detalle: "sin llave" } }))
     expect(sin).toContain('data-accion="reintentar"'); expect(sin).toContain("Reintentar el pedido"); expect(sin).not.toContain("US$")
     const ap = pinta(datos(base, "approved"))
-    expect(ap).toContain("Aprobado → pasa al brief"); expect(ap).not.toContain('data-accion="plan-aprobar-asi"')
+    expect(ap).toContain(">Aprobado<"); expect(ap).not.toContain('data-accion="plan-aprobar-asi"')
     const cerrado = pinta(datos({ ...base, disponible: false }))
     expect(cerrado).toContain("El ciclo del plan se abre pronto"); expect(cerrado).toContain('data-accion="plan-aprobar-asi"') // se ofrece y responde «aún no disponible»
   })
