@@ -43,9 +43,12 @@ export function BarraDelPlan({ b }: { b: Barra }) {
       <Bloque id="decision" titulo="Estado de la decisión">
         {b.decision ? <span data-decision={b.decision.estado} className={`inline-flex rounded-full border px-2.5 py-0.5 text-[12px] ${COLOR_DECISION[b.decision.estado] ?? "border-white/15 text-zinc-200"}`}>{b.decision.titulo}</span> : <Falta>Todavía no hay plan escrito.</Falta>}
       </Bloque>
+      {/* plan cerrado: sin meta, fechas ni presupuesto, para que nada se tome por cifra vigente (Lenovo 06-nov) */}
+      {!b.plan_cerrado && <>
       <Bloque id="meta" titulo="Meta">{b.meta ? <Meta texto={b.meta} /> : <Falta>El plan todavía no dice su meta.</Falta>}</Bloque>
       <Bloque id="fechas" titulo="Fechas" nota={b.fechas?.detalle}>{b.fechas ? <p className="text-[13px] text-zinc-100">{b.fechas.texto}</p> : <Falta>Sin fechas todavía.</Falta>}</Bloque>
       <Bloque id="presupuesto" titulo="Presupuesto" nota={b.presupuesto ? "Tomado de la sección «Presupuesto» del plan. Lo gastado está en Dinero." : null}>{b.presupuesto ? <p className="text-[13px] leading-snug text-zinc-100">{b.presupuesto}</p> : <Falta>El plan todavía no trae la cifra.</Falta>}</Bloque>
+      </>}
       <Bloque id="sedes-y-canales" titulo="Sedes y canales">
         {b.sedes.length + b.canales.length === 0 ? <Falta>{b.sin_estrategia ? "Se definen con la estrategia, después de aprobar el plan." : "Sin sedes ni canales todavía."}</Falta> : <div className="flex flex-wrap gap-1.5">{b.sedes.map((s) => <Chip key={`s-${s}`}>{s}</Chip>)}{b.canales.map((c) => <Chip key={`c-${c}`}>{c}</Chip>)}</div>}
       </Bloque>
