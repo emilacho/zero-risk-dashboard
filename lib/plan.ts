@@ -335,6 +335,11 @@ export interface CicloDelPlan {
   avance_de?: "esta_version" | "pedido_que_la_creo" | null
   /** al guardar esta versión no se pudo compararla con la anterior (`provenance_tag.comparacion_fallo` · CC2 adenda 5): puede ser una copia sin cambios */
   comparacion_fallo?: boolean
+  /** la versión que se muestra está CERRADA según la plataforma (rechazada, reemplazada o vencida · `lib/plan-vigencia.ts`, la regla del cerebro y del alta):
+   *  nunca se ofrece para aprobar. Solo se llena cuando el cliente no tiene ninguna versión abierta. */
+  cerrado?: null | { estado: "rechazado" | "reemplazado" | "vencido"; motivo: string | null }
+  /** hay una corrida REAL de planeación en curso para el cliente (`plan_corridas` estado «corriendo», sin ensayo): el plan nuevo se está escribiendo */
+  preparando?: null | { desde: string | null; vence_en: string | null }
 }
 
 /** la versión de una fila del plan y si sigue vigente, de su `provenance_tag` (contrato: versión ausente = 1; vigente salvo `vigente:false` o `superseded_por`) */
@@ -344,7 +349,7 @@ export function versionDelTag(tag: unknown): { version: number; vigente: boolean
   return { version: v && v >= 1 ? Math.floor(v) : 1, vigente: t.vigente !== false && !texto(t.superseded_por), reemplaza_a: texto(t.reemplaza_a) || null, superseded_por: texto(t.superseded_por) || null, con_compuerta: t.compuerta === true, plan_cambio_id: texto(t.plan_cambio_id) || null, comparacion_fallo: t.comparacion_fallo === true }
 }
 
-export type EstadoDelCiclo = "en_revision" | "reescribiendo" | "esperando_decision" | "aprobado"
+export type EstadoDelCiclo = "en_revision" | "reescribiendo" | "esperando_decision" | "aprobado" | "en_preparacion" | "sin_plan_vigente"
 export interface LecturaDelCiclo {
   estado: EstadoDelCiclo
   /** el estado en palabras (lo que se ve grande) */
@@ -361,6 +366,8 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
   if (ciclo.comparacion_fallo) avisos.push("No se pudo comparar esta versión con la anterior al guardarla: puede ser una copia sin cambios. Revísala antes de aprobar.")
   if (!ciclo.disponible) avisos.push("El ciclo del plan se abre pronto: hasta entonces los botones responden «aún no disponible». No se cambia nada.")
   const cp = ciclo.compuerta, pd = ciclo.pedido
+  // lo CERRADO manda sobre todo lo demás (encargo de Lenovo 06-nov): un plan rechazado, reemplazado o vencido nunca se ofrece para aprobar ni para pedir cambios
+  if (ciclo.cerrado) return lecturaDelPlanCerrado(ciclo.cerrado, ciclo.preparando ?? null)
   if (statusDelDocumento === "approved" || cp?.estado === "aprobado") {
     const sinDespertar = cp?.estado === "aprobado" && cp.despertado === false
     const quien = cp?.decidido_por ? ` por ${cp.decidido_por}` : ""
@@ -391,6 +398,20 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
   return { estado: "esperando_decision", titulo: "Esperando tu decisión", detalle: "Apruébalo para que pase al brief, o pide cambios para que el jefe de marketing lo reescriba.", puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
 }
 
+
+/** qué le pasó a la versión cerrada, en palabras de dueño (sin nombres internos ni quién lo ejecutó) */
+export const QUE_LE_PASO_AL_PLAN: Record<NonNullable<CicloDelPlan["cerrado"]>["estado"], string> = {
+  rechazado: "fue rechazado",
+  reemplazado: "fue reemplazado por una versión más nueva",
+  vencido: "venció sin aprobación",
+}
+/** la lectura del ciclo cuando la versión que hay está cerrada: «Plan en preparación» si el plan nuevo se está escribiendo; si no, «Sin plan vigente». Nunca botones. */
+export function lecturaDelPlanCerrado(cerrado: NonNullable<CicloDelPlan["cerrado"]>, preparando: CicloDelPlan["preparando"]): LecturaDelCiclo {
+  const paso = QUE_LE_PASO_AL_PLAN[cerrado.estado] ?? "ya no está vigente"
+  const abajo = "Lo que ves abajo es esa versión, solo para consulta."
+  if (preparando) return { estado: "en_preparacion", titulo: "Plan en preparación", detalle: `El equipo está escribiendo un plan nuevo; decides cuando llegue. El anterior ${paso}. ${abajo}`, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos: [] }
+  return { estado: "sin_plan_vigente", titulo: "Sin plan vigente", detalle: `El último plan ${paso} y todavía no hay uno nuevo para decidir. ${abajo}`, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos: [] }
+}
 
 // ── el avance de un pedido de cambios (CC6 · 01-nov · ADENDA 1 de Emilio: «quiero VER que se está haciendo algo») ──
 // Pasos: Recibido → El jefe de marketing está reescribiendo → Controles automáticos → La jefatura revisa → Listo para ti. Cada paso se enciende con su hora.

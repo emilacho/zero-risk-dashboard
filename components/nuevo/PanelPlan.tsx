@@ -64,6 +64,8 @@ const ESTADO_CICLO_COLOR: Record<EstadoDelCiclo, string> = {
   reescribiendo: "border-violet-400/50 bg-violet-400/10 text-violet-100",
   esperando_decision: "border-amber-400/70 bg-amber-400/15 text-amber-100",
   aprobado: "border-emerald-400/60 bg-emerald-400/10 text-emerald-100",
+  en_preparacion: "border-violet-400/50 bg-violet-400/10 text-violet-100",
+  sin_plan_vigente: "border-zinc-400/50 bg-zinc-400/10 text-zinc-100",
 }
 const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibold tracking-[0.01em] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:opacity-50"
 
