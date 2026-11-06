@@ -3,7 +3,8 @@
  * Copia fiel, sin cambios de lógica, de la plataforma:
  *  · `zero-risk-platform/src/lib/cerebro/estado-en-plataforma.ts` (#930 `ce228bf` · #931 `e02b9e0`): `estadoDeLaSalida` y la lectura de la cola y las aprobaciones;
  *  · `zero-risk-platform/src/lib/portero-alimenta/plan-vigente.ts` (#928 `d46bf35`): qué planes del cliente cuentan (sin los de prueba).
- * Si la regla cambia allá, cambia aquí en el mismo encargo. Un plan rechazado, reemplazado o vencido sigue en el historial, pero nunca se ofrece para aprobar.
+ * Copia de la plataforma, `main` `609f4cb`; no se edita aquí (CC1, 06-nov). Si la regla cambia allá, cambia aquí en el mismo encargo, hasta que la plataforma
+ * dé la ruta de solo lectura con los vigentes y cerrados del cliente: entonces esta copia se borra. Un plan rechazado, reemplazado o vencido sigue en el historial, pero nunca se ofrece para aprobar.
  * Solo LEE filas ya traídas: US$ 0, sin modelo.
  */
 type Fila = Record<string, unknown>
