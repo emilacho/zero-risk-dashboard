@@ -5,7 +5,11 @@
  * y el borde de la plataforma queda COMO EN LA FOTO (su línea naranja de siempre): solo un tramo corto de luz roja viaja por dentro de esa línea, en sentido del reloj. Al tocarla se abre un panel con la lista (mismo marco que los demás).
  * Luces pequeñas y realistas sobre la foto: nada de formas planas.
  */
+import { useEffect } from "react"
 import { ANTENA, BORDE_DE_LA_ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
+import type { PanelDelMarco } from "@/lib/buscador"
+import { haceCuanto } from "@/lib/direccion-decisiones"
+import { PanelBase } from "@/components/nuevo/EstiloBase"
 
 export const CSS_DE_LA_ANTENA = `
 @keyframes nvAntPulso{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
@@ -32,6 +36,8 @@ export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAnten
       <g filter="url(#nvAntDifumina)" fill="none" strokeLinejoin="round" strokeLinecap="round">
         <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff3b2a" strokeWidth={2.6} strokeDasharray="5 95" />
       </g>
+      {/* 06-nov (Emilio 01:51 local): el número de avisos va SOLO, en rojo, sin círculo ni fondo (el fondo de la foto ya es negro), arriba a la derecha de la luz */}
+      <text data-numero-antena x={punta2.x + 30} y={punta2.y - 26} className="fill-alarma font-medio" fontSize={40} aria-hidden style={{ fontVariantNumeric: "tabular-nums" }}>{alertas.length}</text>
       {/* la luz de la punta mayor: aura suave que respira, sin círculo plano */}
       <g className="nv-antena-pulso">
         <circle cx={punta2.x} cy={punta2.y} r={28} fill="url(#nvAntRojo)" />
@@ -44,26 +50,62 @@ export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAnten
   )
 }
 
-export function PanelDeLasAlertas({ alertas, onAbrir, onCerrar }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void }) {
+/** a dónde lleva cada aviso, en palabras del menú */
+const NOMBRE_DEL_LUGAR: Partial<Record<PanelDelMarco, string>> = { envivo: "En vivo", observabilidad: "Observabilidad", decisiones: "Decisiones", riesgos: "Riesgos", piezas: "Piezas", aplicaciones: "Centro de campaña", organizacion: "Organización" }
+
+/**
+ * LA LISTA DE LA ANTENA EN ESTILO BASE (boceto aprobado por Emilio 06-nov 01:51 local): se abre encima y sigues en Dept. Marketing.
+ * Título ALERTAS en oro con la ✕, «Dept. Marketing», un recuadro con el número en rojo y cada aviso con su punto rojo, cuándo pasó y qué abre.
+ */
+/** tocar un aviso (CC6 06-nov, prueba del clic): si tiene lugar, cierra la lista y abre ese lugar; sin lugar no hace nada */
+export function alTocarElAviso(a: AlertaDeLaAntena, h: { cerrar: () => void; abrir: (panel: PanelDelMarco) => void }): boolean {
+  if (!a.abre) return false
+  h.cerrar(); h.abrir(a.abre)
+  return true
+}
+
+/** Esc cierra SOLO la lista (en captura, sin que llegue a la oficina); devuelve cómo soltarlo al cerrar */
+export function escucharEsc(w: Pick<Window, "addEventListener" | "removeEventListener">, onCerrar: () => void): () => void {
+  const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar() }
+  w.addEventListener("keydown", tecla as EventListener, true)
+  return () => w.removeEventListener("keydown", tecla as EventListener, true)
+}
+
+export function PanelDeLasAlertas(p: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void; ahora?: number }) {
+  const { onCerrar } = p
+  useEffect(() => escucharEsc(window, onCerrar), [onCerrar])
+  return ListaDeLasAlertas(p)
+}
+
+/** lo que se dibuja (sin ganchos de React: se puede probar el clic llamándola) */
+export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void; ahora?: number }) {
   const lista = alertas ?? []
   return (
-    <div className="flex flex-col gap-3" data-panel-alertas>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-[11px] uppercase tracking-[.18em] text-zinc-500">Alertas</div>
-          <div className="text-[18px] font-semibold text-red-200">{lista.length === 0 ? "Todo en orden" : lista.length === 1 ? "1 alerta" : `${lista.length} alertas`}</div>
+    <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[440px]">
+      <div data-panel-alertas className="flex flex-col">
+        <p className="mb-5 text-center text-rotulo uppercase tracking-rotulo text-gris">Dept. <span className="font-medio text-hueso">Marketing</span></p>
+        <div data-recuadro-alertas className={`mb-5 rounded-tarjeta border bg-grafito-2 px-3 py-4 text-center ${lista.length ? "border-linea-alarma" : "border-linea"}`}>
+          <span data-numero className={`block text-cifra font-medio tabular-nums ${lista.length ? "text-alarma" : "text-hueso"}`}>{lista.length}</span>
+          <span className="mt-1.5 block text-rotulo uppercase tracking-rotulo text-gris">{lista.length === 0 ? "Todo en orden" : lista.length === 1 ? "Aviso abierto" : "Avisos abiertos"}</span>
         </div>
-        <button type="button" onClick={onCerrar} aria-label="Cerrar" className="min-h-[44px] min-w-[44px] rounded-lg text-[22px] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200">×</button>
+        <ul>
+          {lista.map((a) => {
+            const lugar = a.abre ? NOMBRE_DEL_LUGAR[a.abre] ?? null : null
+            return (
+              <li key={a.clave} data-alerta={a.tipo} className="border-t border-linea">
+                <button type="button" disabled={!a.abre} onClick={() => onAbrir(a)} className="grid min-h-11 w-full grid-cols-[16px_1fr_auto] items-center gap-1.5 py-3 text-left hover:text-hueso disabled:cursor-default">
+                  <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />
+                  <span className="min-w-0">
+                    <span className="block text-cuerpo text-hueso">{a.texto}</span>
+                    <span data-cuando className="mt-0.5 block text-dato text-gris">{haceCuanto(a.cuando, ahora)}{lugar ? ` · abre ${lugar}` : ""}</span>
+                  </span>
+                  {a.abre && <span aria-hidden className="text-gris">›</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
       </div>
-      <ul className="space-y-2">
-        {lista.map((a) => (
-          <li key={a.clave} data-alerta={a.tipo}>
-            <button type="button" disabled={!a.abre} onClick={() => onAbrir(a)} className="flex min-h-[52px] w-full items-center rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-[15px] text-zinc-100 hover:bg-white/[0.06] disabled:cursor-default">
-              {a.texto}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    </PanelBase>
   )
 }

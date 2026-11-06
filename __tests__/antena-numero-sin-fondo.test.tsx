@@ -1,0 +1,89 @@
+/** LA ANTENA CON SU NÚMERO (Emilio 06-nov 01:51 local: «el número no necesita fondo… el resto aprobado»). US$ 0 · sin red. */
+import { describe, expect, it, vi } from "vitest"
+import { createElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { readFileSync } from "node:fs"
+import { AntenaDeAlertas, ListaDeLasAlertas, PanelDeLasAlertas, alTocarElAviso, escucharEsc } from "@/components/nuevo/escena/AntenaDeAlertas"
+import { isValidElement, type ReactElement, type ReactNode } from "react"
+import { ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
+
+const AHORA = Date.parse("2026-11-06T10:00:00Z")
+const A = (clave: string, abre: AlertaDeLaAntena["abre"], horas: number): AlertaDeLaAntena => ({ clave, tipo: "fallida", texto: `aviso ${clave}`, cuando: new Date(AHORA - horas * 3_600_000).toISOString(), abre })
+const antena = (alertas: AlertaDeLaAntena[] | undefined) => renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas, onAbrir: () => {} })))
+
+describe("el número de la antena", () => {
+  it("🔴 con avisos: el número rojo, solo, sin círculo ni fondo detrás, arriba a la derecha de la luz", () => {
+    const h = antena([A("a", "envivo", 1), A("b", null, 2), A("c", "decisiones", 3)])
+    const t = h.match(/<text data-numero-antena[^>]*>([^<]*)<\/text>/)
+    expect(t?.[1]).toBe("3")
+    expect(t?.[0]).toContain('class="fill-alarma font-medio"')
+    expect(t?.[0]).toContain(`x="${ANTENA.punta2.x + 30}"`); expect(t?.[0]).toContain(`y="${ANTENA.punta2.y - 26}"`)
+    const c = readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8")
+    const cerca = c.split("data-numero-antena")[0].split("\n").slice(-3).join("\n") + c.split("data-numero-antena")[1].split("\n")[0]
+    expect(cerca).not.toMatch(/<circle|<rect|<ellipse|paint-order|stroke=/) // nada detrás ni alrededor del número
+  })
+  it("🔴 sin avisos: ni número ni luz", () => {
+    expect(antena([])).toBe("<svg></svg>"); expect(antena(undefined)).toBe("<svg></svg>")
+  })
+})
+
+describe("la lista al tocarla, en estilo base", () => {
+  it("🔴 ALERTAS con la ✕, Dept. Marketing, el número en rojo en su recuadro y cada aviso con su punto, cuándo y qué abre", () => {
+    const h = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [A("a", "envivo", 1), A("b", "observabilidad", 48), A("c", null, 5)], onAbrir: () => {}, onCerrar: () => {}, ahora: AHORA }))
+    expect(h).toMatch(/data-estilo="base"[\s\S]*>Alertas<\/h2>[\s\S]*data-cerrar/)
+    expect(h).toContain("Dept. <span")
+    expect(h).toMatch(/data-recuadro-alertas[^>]*border-linea-alarma[\s\S]*data-numero[^>]*text-alarma[^>]*>3</); expect(h).toContain("Avisos abiertos")
+    expect(h).toContain(">hace una hora · abre En vivo<"); expect(h).toContain(">hace 2 días · abre Observabilidad<")
+    expect(h).toContain(">hace 5 horas<") // sin lugar: no dice «abre» y el botón queda quieto
+    expect((h.match(/rounded-full bg-alarma/g) ?? []).length).toBe(3)
+    expect((h.match(/<button type="button" disabled=""/g) ?? []).length).toBe(1)
+  })
+  it("🔴 sin avisos: «Todo en orden», número sin rojo", () => {
+    const h = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [], onAbrir: () => {}, onCerrar: () => {} }))
+    expect(h).toContain("Todo en orden"); expect(h).not.toContain("text-alarma"); expect(h).not.toContain("border-linea-alarma")
+  })
+  it("🔴 se abre encima con su propio panel y sigues en Dept. Marketing (no en el marco viejo del pizarrón); Esc lo cierra", () => {
+    const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
+    expect(av).toContain('{panelTablero?.tipo === "antena" && <PanelDeLasAlertas')
+    expect(av).toContain('{panelTablero && panelTablero.tipo !== "antena" && (')
+    const c = readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8")
+    expect(c).toContain('if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar()') // en escucharEsc
+  })
+  it("🔴 CC6 · el clic: tocar un aviso con lugar cierra la lista y abre ese lugar; sin lugar, nada; la ✕ cierra", () => {
+    // se recorre lo que dibuja la lista (sin navegador) y se aprietan sus botones de verdad
+    const botones = (n: ReactNode, out: ReactElement<{ onClick?: () => void; disabled?: boolean; "data-cerrar"?: boolean }>[] = []) => {
+      if (Array.isArray(n)) n.forEach((x) => botones(x, out))
+      else if (isValidElement(n)) { const el = n as ReactElement<{ children?: ReactNode; onClick?: () => void }>; if (el.type === "button") out.push(el as never); botones(el.props.children, out) }
+      return out
+    }
+    const tocados: AlertaDeLaAntena[] = [], cerrar = vi.fn()
+    const avisos = [A("a", "envivo", 1), A("c", null, 5)]
+    const el = ListaDeLasAlertas({ alertas: avisos, onAbrir: (a) => tocados.push(a), onCerrar: cerrar, ahora: AHORA }) as ReactElement<{ onCerrar: () => void; children: ReactNode }>
+    expect(el.props.onCerrar).toBe(cerrar) // la ✕ del panel base llama a cerrar
+    el.props.onCerrar(); expect(cerrar).toHaveBeenCalledTimes(1)
+    const b = botones(el.props.children)
+    expect(b).toHaveLength(2); expect(b[1].props.disabled).toBe(true)
+    b[0].props.onClick!(); expect(tocados.map((x) => x.clave)).toEqual(["a"])
+    // y lo que hace la oficina con ese toque
+    const pasos: string[] = []
+    expect(alTocarElAviso(avisos[0], { cerrar: () => pasos.push("cerrar"), abrir: (p) => pasos.push(`abrir:${p}`) })).toBe(true)
+    expect(pasos).toEqual(["cerrar", "abrir:envivo"])
+    expect(alTocarElAviso(avisos[1], { cerrar: () => pasos.push("x"), abrir: () => pasos.push("y") })).toBe(false); expect(pasos).toHaveLength(2)
+    expect(readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")).toContain("onAbrir={(a) => alTocarElAviso(a, { cerrar: () => setPanelTablero(null), abrir: (panel) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel } })) })}")
+    expect(PanelDeLasAlertas).toBeTypeOf("function")
+  })
+  it("🔴 CC6 · Esc cierra solo la lista (no llega a la oficina) y se suelta al cerrarla", () => {
+    const oyentes = new Map<string, { f: (e: KeyboardEvent) => void; captura: unknown }>()
+    const w = { addEventListener: (t: string, f: unknown, c: unknown) => oyentes.set(t, { f: f as never, captura: c }), removeEventListener: (t: string, f: unknown) => { if (oyentes.get(t)?.f === f) oyentes.delete(t) } }
+    const cerrar = vi.fn(), soltar = escucharEsc(w as never, cerrar)
+    expect(oyentes.get("keydown")?.captura).toBe(true)
+    const e = { key: "Escape", stopPropagation: vi.fn(), preventDefault: vi.fn() }
+    oyentes.get("keydown")!.f(e as never); expect(cerrar).toHaveBeenCalledTimes(1); expect(e.stopPropagation).toHaveBeenCalled()
+    oyentes.get("keydown")!.f({ key: "a", stopPropagation: vi.fn(), preventDefault: vi.fn() } as never); expect(cerrar).toHaveBeenCalledTimes(1)
+    soltar(); expect(oyentes.has("keydown")).toBe(false)
+    expect(readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8")).toContain("useEffect(() => escucharEsc(window, onCerrar), [onCerrar])")
+  })
+  it("sin avisos de dinero en la antena (firmado)", () => {
+    expect(readFileSync("lib/escena-alertas.ts", "utf8")).toContain("export const GASTO_RARO_EN_LA_ANTENA = false")
+  })
+})
