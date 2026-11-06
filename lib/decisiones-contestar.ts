@@ -2,8 +2,9 @@
  * CONTESTAR EN TU OFICINA (04-nov · encargo `2026-11-04-ENCARGO-LENOVO-a-CC5-decisiones-se-contestan-en-tu-oficina.md` + adendas · boceto aprobado por Emilio 18:08Z).
  * El tablero NO escribe la base. Cada acción va a la puerta de la plataforma que ya hace ese cambio, con la llave interna (que nunca llega al navegador):
  *   · responder una pregunta  → primero `POST /api/finanzas/responder` (la pausa de la oficina financiera, contrato de CC1 #897); si la pregunta no es de la pausa,
- *                               `POST /api/brain/alimentar/dueno` con `evento:"respuesta"` (contrato de Cerebro, 04-nov). Nunca las dos: si la pausa la tomó, ella ya la guardó.
- *   · descartar una pregunta  → `POST /api/brain/alimentar/dueno` con `evento:"descartar"` (queda «obsoleta» con motivo; nada se borra).
+ *                               `POST /api/dueno/preguntas` con `accion:"responder"` (la ruta de la plataforma, #939: guarda la ficha en el cerebro y cierra la fila). Nunca las dos.
+ *   · descartar una pregunta  → `POST /api/dueno/preguntas` con `accion:"descartar"` (queda «descartada» con motivo; nada se borra).
+ *   (06-nov · condición A de CC7 para #939/#940: el tablero deja la puerta del cerebro para las preguntas; la puerta ya no acepta «descartar»)
  *   · firmar (aceptar)         → la acción `firmar-tablero` de la plataforma.
  *   · cambiar una cifra        → `recalcular-tablero` para verla (no firma) y `firmar-tablero` con `cambios`. Lo propuesto sale de la lectura del servidor, nunca de la pantalla.
  * La decisión se busca de nuevo en el servidor (no se confía en lo que manda la pantalla): si ya no está, otra persona u otro lugar la resolvió.
@@ -56,8 +57,8 @@ async function llamar(d: DepsDeContestar, ruta: string, metodo: "GET" | "POST", 
 /** quién preguntó cada pregunta pendiente de un cliente (la puerta del dueño lo guarda: oficina + empleado). null = no se pudo leer */
 export async function quienPregunto(d: Omit<DepsDeContestar, "revisor">, clientId: string): Promise<Map<string, { oficina: string; agente: string | null }> | null> {
   try {
-    const { status, j } = await llamar({ ...d, revisor: "" }, `/api/brain/alimentar/dueno?client_id=${encodeURIComponent(clientId)}&limite=100`, "GET")
-    if (status !== 200 || j.apagado === true || !Array.isArray(j.pendientes)) return null
+    const { status, j } = await llamar({ ...d, revisor: "" }, `/api/dueno/preguntas?client_id=${encodeURIComponent(clientId)}`, "GET")
+    if (status !== 200 || j.ok !== true || !Array.isArray(j.pendientes)) return null
     const m = new Map<string, { oficina: string; agente: string | null }>()
     for (const p of j.pendientes as Fila[]) { const id = txt(p.pregunta_id), oficina = txt(p.oficina); if (id && oficina) m.set(id, { oficina, agente: txt(p.agente) || null }) }
     return m
@@ -155,10 +156,10 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
 
     if (v.accion === "descartar") {
       const motivo = (v.motivo ? `Emilio la descartó en Tu oficina: ${v.motivo}` : "Emilio la descartó en Tu oficina").slice(0, TOPE_MOTIVO)
-      const { status, j } = await llamar(d, "/api/brain/alimentar/dueno", "POST", { evento: "descartar", client_id: dec.client_id, pregunta_id: dec.id, motivo, dry_run: false, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion })
-      if (status !== 200 || j.ok !== true || j.apagado === true) return { status: 200, cuerpo: fallo(base, `No se pudo descartar: ${txt(j.detalle) || txt(j.error) || `la plataforma respondió ${status}`}.`, ahora) }
-      if (Number(j.descartadas ?? 0) < 1) return { status: 200, cuerpo: fallo(base, "La pregunta ya no estaba pendiente en el cerebro.", ahora) }
-      return { status: 200, cuerpo: { ok: true, sale: true, texto: "Descartada.", registro: [...base, { cuando: ahora, quien: "tu", estado: "descartaste", texto: v.motivo ? `La descartaste: ${v.motivo}` : "La descartaste" }, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Quedó archivada como obsoleta; nada se borró" }] } }
+      const { status, j } = await llamar(d, "/api/dueno/preguntas", "POST", { accion: "descartar", client_id: dec.client_id, pregunta_id: dec.id, motivo, decidido_por: d.revisor, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion })
+      if (status === 409) return { status: 200, cuerpo: fallo(base, "La pregunta ya no estaba pendiente: alguien la cerró antes.", ahora) }
+      if (status !== 200 || j.ok !== true || j.descartada !== true) return { status: 200, cuerpo: fallo(base, `No se pudo descartar: ${txt(j.detalle) || txt(j.error) || `la plataforma respondió ${status}`}.`, ahora) }
+      return { status: 200, cuerpo: { ok: true, sale: true, texto: "Descartada.", registro: [...base, { cuando: ahora, quien: "tu", estado: "descartaste", texto: v.motivo ? `La descartaste: ${v.motivo}` : "La descartaste" }, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Quedó archivada con tu motivo; nada se borró" }] } }
     }
 
     // responder: 1) la pausa de la oficina financiera; 2) si no es suya, la puerta del dueño
@@ -175,13 +176,13 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
       if (pausa.j.en_el_cerebro !== true) return { status: 200, cuerpo: { ok: true, sale: false, texto: "El plan ya usa tu respuesta.", motivo: "El cerebro no la recibió: por eso la pregunta sigue en tu lista. Puedes enviarla de nuevo.", registro: [...pasos, { cuando: ahora, quien: "sistema", estado: "fallo", texto: "El cerebro no recibió la respuesta" }] } }
       return { status: 200, cuerpo: { ok: true, sale: true, texto: "Contestada.", registro: pasos } }
     }
-    if (!quien) return { status: 200, cuerpo: fallo(base, "No encontré qué oficina hizo esta pregunta, y el cerebro lo necesita para guardar tu respuesta. No se guardó nada.", ahora) }
-    const { status, j } = await llamar(d, "/api/brain/alimentar/dueno", "POST", {
-      evento: "respuesta", client_id: dec.client_id, pregunta_id: dec.id, tema: tema.slice(0, 80), pregunta: (dec.titulo_interno ?? dec.titulo).slice(0, TOPE_PREGUNTA), respuesta: v.respuesta,
-      canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${dec.id}`, respondido_en: ahora, preguntado_por: { oficina: quien.oficina, agente: quien.agente ?? quien.oficina },
-      dry_run: false, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion,
+    // la ruta de la plataforma saca de la fila quién preguntó, el tema y la pregunta: el tablero solo dice cuál, qué respondiste y quién
+    const { status, j } = await llamar(d, "/api/dueno/preguntas", "POST", {
+      accion: "responder", client_id: dec.client_id, pregunta_id: dec.id, respuesta: v.respuesta, decidido_por: d.revisor,
+      canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${dec.id}`, respondido_en: ahora, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion,
     })
-    if (status !== 200 || j.ok !== true || j.apagado === true) return { status: 200, cuerpo: fallo([...base, tu], `El cerebro no guardó tu respuesta: ${txt(j.detalle) || txt(j.error) || `respondió ${status}`}.`, ahora) }
+    if (status === 409) return { status: 200, cuerpo: fallo([...base, tu], "La pregunta ya no estaba pendiente: alguien la cerró antes. Tu respuesta no se marcó aquí; mira el cerebro antes de reenviarla.", ahora) }
+    if (status !== 200 || j.ok !== true || j.guardada !== true) return { status: 200, cuerpo: fallo([...base, tu], `El cerebro no guardó tu respuesta: ${txt(j.detalle) || txt(j.error) || `respondió ${status}`}.`, ahora) }
     return { status: 200, cuerpo: { ok: true, sale: true, texto: "Contestada.", registro: [...base, tu, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Guardó tu respuesta en el cerebro como dato confirmado por ti; todas las oficinas la leen así" }] } }
   } catch (e) {
     return { status: 200, cuerpo: fallo([], `No se pudo contactar a la plataforma: ${e instanceof Error ? e.message : String(e)}. No sé si se guardó: actualiza antes de reintentar.`, ahora) }
