@@ -156,7 +156,7 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
 
     if (v.accion === "descartar") {
       const motivo = (v.motivo ? `Emilio la descartó en Tu oficina: ${v.motivo}` : "Emilio la descartó en Tu oficina").slice(0, TOPE_MOTIVO)
-      const { status, j } = await llamar(d, "/api/dueno/preguntas", "POST", { accion: "descartar", client_id: dec.client_id, pregunta_id: dec.id, motivo, decidido_por: d.revisor, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion })
+      const { status, j } = await llamar(d, "/api/dueno/preguntas", "POST", { accion: "descartar", client_id: dec.client_id, pregunta_id: dec.id, motivo, decidido_por: d.revisor || "emilio", workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion })
       if (status === 409) return { status: 200, cuerpo: fallo(base, "La pregunta ya no estaba pendiente: alguien la cerró antes.", ahora) }
       if (status !== 200 || j.ok !== true || j.descartada !== true) return { status: 200, cuerpo: fallo(base, `No se pudo descartar: ${txt(j.detalle) || txt(j.error) || `la plataforma respondió ${status}`}.`, ahora) }
       return { status: 200, cuerpo: { ok: true, sale: true, texto: "Descartada.", registro: [...base, { cuando: ahora, quien: "tu", estado: "descartaste", texto: v.motivo ? `La descartaste: ${v.motivo}` : "La descartaste" }, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Quedó archivada con tu motivo; nada se borró" }] } }
@@ -178,7 +178,7 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
     }
     // la ruta de la plataforma saca de la fila quién preguntó, el tema y la pregunta: el tablero solo dice cuál, qué respondiste y quién
     const { status, j } = await llamar(d, "/api/dueno/preguntas", "POST", {
-      accion: "responder", client_id: dec.client_id, pregunta_id: dec.id, respuesta: v.respuesta, decidido_por: d.revisor,
+      accion: "responder", client_id: dec.client_id, pregunta_id: dec.id, respuesta: v.respuesta, decidido_por: d.revisor || "emilio", // CC1 06-nov: vacío = 400 en la ruta
       canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${dec.id}`, respondido_en: ahora, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion,
     })
     if (status === 409) return { status: 200, cuerpo: fallo([...base, tu], "La pregunta ya no estaba pendiente: alguien la cerró antes. Tu respuesta no se marcó aquí; mira el cerebro antes de reenviarla.", ahora) }

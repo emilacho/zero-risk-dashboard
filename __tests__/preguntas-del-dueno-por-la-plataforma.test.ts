@@ -50,6 +50,23 @@ describe("el Cerebro contesta una pregunta pendiente por la ruta de la plataform
   })
 })
 
+describe("quién contestó nunca va vacío (CC1 06-nov: la ruta da 400 sin «decidido_por»)", () => {
+  it("🔴 Decisiones y Cerebro ponen «emilio» si la sesión no trae correo", async () => {
+    const { contestarDecision } = await import("@/lib/decisiones-contestar")
+    const { normalizarDecisiones } = await import("@/lib/direccion-decisiones")
+    const D = normalizarDecisiones({ ok: true, completo: true, fuentes: [], sin_fuente: [], decisiones: [{ id: P, tipo: "pregunta_al_dueno", subtipo: "t", fuente: "dueno_preguntas", titulo: "¿?", client_id: C, cliente: "N", desde: null, vence: null, vencida: false, prioridad: null, decidir: { ruta: null, accion: null }, costo_usd: null, costo_nota: null }] })
+    for (const accion of ["responder", "descartar"]) {
+      const cuerpos: Record<string, unknown>[] = []
+      const f = (async (url: string, init: RequestInit) => { if (url.endsWith("/api/dueno/preguntas")) cuerpos.push(JSON.parse(String(init.body))); return new Response(JSON.stringify(url.endsWith("/api/finanzas/responder") ? { en_pausa: false } : { ok: true, guardada: true, descartada: true }), { status: 200 }) }) as unknown as typeof fetch
+      await contestarDecision({ id: P, accion, respuesta: "abc", motivo: "x" }, { plataformaUrl: "https://p.test", llave: "k", fetchImpl: f, revisor: "", leer: async () => ({ ok: true as const, datos: D }), ahora: () => AHORA, id: () => "i" })
+      expect(cuerpos[0]?.decidido_por).toBe("emilio")
+    }
+    const p = plataforma(); await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, { ...deps(p), revisor: "" })
+    expect(p.llamadas[0].cuerpo.decidido_por).toBe("emilio")
+    expect(readFileSync("app/api/direccion/decisiones/contestar/route.ts", "utf8")).toContain('{ revisor: puerta.email || "emilio" }')
+  })
+})
+
 describe("las lecturas salen de la tabla de la plataforma", () => {
   it("🔴 el panel del Cerebro y la antena leen `dueno_preguntas`; ningún archivo del tablero nombra la tabla vieja", () => {
     expect(readFileSync("lib/cerebro-datos.ts", "utf8")).toContain(`supa.from("dueno_preguntas").select("id, tema, pregunta, canal, oficina, agente, creado_en, sede_clave")`)
