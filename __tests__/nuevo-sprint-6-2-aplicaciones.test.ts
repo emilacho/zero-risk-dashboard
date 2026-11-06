@@ -69,7 +69,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(c).toContain("<PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />")
     expect(c).toContain("<PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />")
     expect(c).toContain("<PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />")
-    expect(c).toContain("@media (prefers-reduced-motion:reduce)")
+    expect(c).not.toMatch(/@keyframes|animation:/) // 06-nov · estilo base: sin animaciones, no hace falta frenarlas
   })
   it("el tablero de la oficina abre primero las aplicaciones (la escena ya no monta el calendario directo)", () => {
     const e = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")

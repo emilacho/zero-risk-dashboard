@@ -11,7 +11,7 @@ const modo = process.argv[2] ?? "diff", base = process.argv[3] ?? "origin/main"
 const CARPETAS = /^(components\/nuevo|app\/nuevo)\//
 const EXENTOS = /^components\/nuevo\/escena\/|TablerosDeDireccion\.tsx$|GloboQueGira\.tsx$/ // dibujos de la escena: ilustración, no interfaz
 /** pantallas ya migradas al estilo base: se revisan enteras en cada cambio; cada migración agrega la suya */
-export const MIGRADOS = ["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx"]
+export const MIGRADOS = ["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx", "components/nuevo/PanelAplicaciones.tsx"]
 const PALETA = "zinc|amber|rose|emerald|sky|red|orange|yellow|green|blue|neutral|stone|slate|gray|lime|teal|cyan|indigo|violet|purple|fuchsia|pink"
 const PROPIEDAD = "text|bg|border(?:-[trblxy])?|ring|outline|fill|stroke|from|to|via|decoration|divide|placeholder|caret|accent|shadow"
 const RADIOS_OK = new Set(["rounded-panel", "rounded-tarjeta", "rounded-control", "rounded-full", "rounded-none"])
