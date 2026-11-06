@@ -164,6 +164,9 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     // la decisión pendiente: solo lo elemental (Emilio, 06-nov) · el estado y los dos botones, sin las marcas del chequeo ni la línea de la jefatura
     expect(html).toContain('data-apartado="decision"'); expect(html).not.toContain(">P3<"); expect(html).not.toContain("lleva nombres internos"); expect(html).not.toContain("Lo que dice el chequeo"); expect(html).not.toContain("La jefatura dejó desacuerdos"); expect(html).toContain("Espera tu decisión")
     expect(html.indexOf('data-accion="plan-pedir-cambios"')).toBeLessThan(html.indexOf('data-accion="plan-aprobar-asi"')) // Aprobar a la derecha
+    // pedido de CC6 (certificación de #291/#294): el bloque de la decisión no habla de la jefatura ni del chequeo con NINGUNA palabra
+    const bloque = html.match(/data-apartado="decision"[\s\S]*?<\/section>/)?.[0] ?? ""
+    expect(bloque).toContain("Espera tu decisión"); expect(bloque).not.toMatch(/jefatura|chequeo|revisi[oó]n del sistema|revisores?/i)
     expect(html).toContain('data-accion="plan-aprobar-asi"'); expect(html).toContain("Aprobar el plan así"); expect(html).toContain('data-accion="plan-pedir-cambios"'); expect(html).toContain("Pedir cambios al plan")
     expect(html).not.toContain('data-editor="plan-cambios"') // el formulario del porqué no está abierto de entrada
     // fases · meta · redes · pilares · semana tipo · lo dicho · esperas
