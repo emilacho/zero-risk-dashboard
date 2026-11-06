@@ -374,7 +374,7 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
     const detalle = sinDespertar
       ? `Quedó aprobado, pero no se pudo avisar para seguir al PDF y al brief${cp?.despertar_detalle ? ` (${cp.despertar_detalle})` : ""}. No se cambió nada.`
       : `Plan aprobado${quien}: sigue el PDF, la sala y el brief.`
-    return { estado: "aprobado", titulo: "Aprobado → pasa al brief", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-aprobar" : null, avisos }
+    return { estado: "aprobado", titulo: "Aprobado", detalle, puede_aprobar: false, puede_pedir_cambios: false, reintentar: sinDespertar ? "plan-aprobar" : null, avisos }
   }
   if (pd && (pd.estado === "pendiente" || pd.estado === "en_reescritura")) {
     const sinDespertar = pd.despertado === false
@@ -395,7 +395,7 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
   const alTope = ciclo.version > VUELTAS_MAXIMAS
   if (alTope) avisos.push(`Ya van ${VUELTAS_MAXIMAS} reescrituras: desde aquí solo se puede aprobar; lo demás se decide a mano.`)
   if (ciclo.disponible && !ciclo.con_compuerta && !cp) avisos.push("Este plan es de antes del ciclo: aprobarlo lo deja firme sin reanudar nada (su brief ya salió). Pedir cambios crea la versión siguiente, con su revisión.")
-  return { estado: "esperando_decision", titulo: "Esperando tu decisión", detalle: "Apruébalo para que pase al brief, o pide cambios para que el jefe de marketing lo reescriba.", puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
+  return { estado: "esperando_decision", titulo: "Espera tu decisión", detalle: "Apruébalo para que pase al brief, o pide cambios.", puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
 }
 
 
@@ -405,12 +405,14 @@ export const QUE_LE_PASO_AL_PLAN: Record<NonNullable<CicloDelPlan["cerrado"]>["e
   reemplazado: "fue reemplazado por una versión más nueva",
   vencido: "venció sin aprobación",
 }
-/** la lectura del ciclo cuando la versión que hay está cerrada: «Plan en preparación» si el plan nuevo se está escribiendo; si no, «Sin plan vigente». Nunca botones. */
+export const TITULO_DEL_CERRADO: Record<NonNullable<CicloDelPlan["cerrado"]>["estado"], string> = { rechazado: "Rechazado", reemplazado: "Reemplazado", vencido: "Vencido" }
+/** la lectura del ciclo cuando la versión que hay está cerrada: «En preparación» si el plan nuevo se está escribiendo; si no, «Rechazado», «Reemplazado» o «Vencido». Nunca botones. */
 export function lecturaDelPlanCerrado(cerrado: NonNullable<CicloDelPlan["cerrado"]>, preparando: CicloDelPlan["preparando"]): LecturaDelCiclo {
   const paso = QUE_LE_PASO_AL_PLAN[cerrado.estado] ?? "ya no está vigente"
-  const abajo = "Lo que ves abajo es esa versión, solo para consulta."
-  if (preparando) return { estado: "en_preparacion", titulo: "Plan en preparación", detalle: `El equipo está escribiendo un plan nuevo; decides cuando llegue. El anterior ${paso}. ${abajo}`, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos: [] }
-  return { estado: "sin_plan_vigente", titulo: "Sin plan vigente", detalle: `El último plan ${paso} y todavía no hay uno nuevo para decidir. ${abajo}`, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos: [] }
+  const abajo = "Abajo queda, solo para consulta."
+  // corrección de Lenovo 06-nov «solo lo elemental»: el estado en una o dos palabras y una línea corta
+  if (preparando) return { estado: "en_preparacion", titulo: "En preparación", detalle: `El equipo escribe un plan nuevo; decides cuando llegue. El anterior ${paso}.`, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos: [] }
+  return { estado: "sin_plan_vigente", titulo: TITULO_DEL_CERRADO[cerrado.estado] ?? "Sin plan vigente", detalle: `Todavía no hay un plan nuevo para decidir. ${abajo}`, puede_aprobar: false, puede_pedir_cambios: false, reintentar: null, avisos: [] }
 }
 
 // ── el avance de un pedido de cambios (CC6 · 01-nov · ADENDA 1 de Emilio: «quiero VER que se está haciendo algo») ──

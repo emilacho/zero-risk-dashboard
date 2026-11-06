@@ -77,14 +77,14 @@ const base: CicloDelPlan = { disponible: true, version: 1, historial: [], con_co
 describe("el ciclo: lo cerrado nunca se ofrece para aprobar", () => {
   it("cerrado y con el plan nuevo escribiéndose: «Plan en preparación», sin botones", () => {
     const l = leerElCiclo("rejected", { ...base, cerrado: { estado: "rechazado", motivo: "rechazado en la plataforma" }, preparando: { desde: "2026-11-05T22:40:19Z", vence_en: null } })
-    expect(l).toMatchObject({ estado: "en_preparacion", titulo: "Plan en preparación", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null })
+    expect(l).toMatchObject({ estado: "en_preparacion", titulo: "En preparación", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null })
     expect(l.detalle).toContain("fue rechazado"); expect(l.detalle).not.toMatch(/CC\d|plataforma|cc1/i) // sin nombres internos
   })
   it("cerrado y sin nada escribiéndose: «Sin plan vigente», sin botones; vale para rechazado, reemplazado y vencido", () => {
-    for (const [estado, paso] of [["rechazado", "fue rechazado"], ["reemplazado", "fue reemplazado"], ["vencido", "venció sin aprobación"]] as const) {
+    for (const [estado, paso] of [["rechazado", "Rechazado"], ["reemplazado", "Reemplazado"], ["vencido", "Vencido"]] as const) {
       const l = leerElCiclo("draft", { ...base, cerrado: { estado, motivo: null } })
-      expect(l).toMatchObject({ estado: "sin_plan_vigente", titulo: "Sin plan vigente", puede_aprobar: false, puede_pedir_cambios: false })
-      expect(l.detalle).toContain(paso)
+      expect(l).toMatchObject({ estado: "sin_plan_vigente", titulo: paso, puede_aprobar: false, puede_pedir_cambios: false }) // el estado en una palabra (Emilio, 06-nov)
+      expect(l.detalle).toContain("solo para consulta")
     }
   })
   it("lo cerrado manda aunque la fila diga aprobado o la compuerta esté aprobada o haya un pedido abierto", () => {
@@ -134,7 +134,7 @@ describe("la lectura del panel con los datos reales de Náufrago", () => {
     expect(leerElCiclo(p.documento!.status, p.ciclo!)).toMatchObject({ estado: "en_preparacion", puede_aprobar: false })
     expect(registro.join("\n")).toContain(`hitl_queue.eq("client_id","${CLIENTE}")`)
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: p }))
-    expect(html).toContain('data-ciclo="en_preparacion"'); expect(html).toContain("Plan en preparación")
+    expect(html).toContain('data-ciclo="en_preparacion"'); expect(html).toContain("En preparación")
     expect(html).not.toContain('data-accion="plan-aprobar-asi"'); expect(html).not.toContain('data-accion="plan-pedir-cambios"'); expect(html).not.toContain("Esperando tu decisión")
     expect(estadoDelPlan({ ...p, manual_aprobado: true }).texto).toBe("plan en preparación")
     expect(barraDelPlan({ ...p, manual_aprobado: true }).te_toca).not.toContain("Aprobar el plan o pedir cambios")
