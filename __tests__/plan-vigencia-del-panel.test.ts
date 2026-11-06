@@ -1,7 +1,7 @@
 /**
  * CC4 · 06-nov · encargo de Lenovo «panel del plan · errores», punto 1: el panel ofrecía «Aprobar el plan así» sobre el plan r3 rechazado el 4-nov.
  * El panel lee la vigencia con la MISMA regla que el cerebro (#930/#931) y el alta (#928 `d46bf35`): `lib/plan-vigencia.ts`.
- * Un plan rechazado, reemplazado o vencido nunca se ofrece para aprobar; mientras se escribe uno nuevo, «Plan en preparación».
+ * Un plan rechazado, reemplazado o vencido nunca se ofrece para aprobar; mientras se escribe uno nuevo, «En preparación».
  * Las filas de Náufrago son las reales (lectura de la base del 06-nov), recortadas a las columnas que lee la regla.
  */
 import { describe, expect, it } from "vitest"
@@ -75,12 +75,12 @@ describe("la regla de vigencia es la de la plataforma (copia fiel de estado-en-p
 
 const base: CicloDelPlan = { disponible: true, version: 1, historial: [], con_compuerta: true, compuerta: { estado: "pendiente", decidido_por: null, decidido_en: null, despertado: null, despertar_detalle: null }, pedido: null, avance: null }
 describe("el ciclo: lo cerrado nunca se ofrece para aprobar", () => {
-  it("cerrado y con el plan nuevo escribiéndose: «Plan en preparación», sin botones", () => {
+  it("cerrado y con el plan nuevo escribiéndose: «En preparación», sin botones", () => {
     const l = leerElCiclo("rejected", { ...base, cerrado: { estado: "rechazado", motivo: "rechazado en la plataforma" }, preparando: { desde: "2026-11-05T22:40:19Z", vence_en: null } })
     expect(l).toMatchObject({ estado: "en_preparacion", titulo: "En preparación", puede_aprobar: false, puede_pedir_cambios: false, reintentar: null })
     expect(l.detalle).toContain("fue rechazado"); expect(l.detalle).not.toMatch(/CC\d|plataforma|cc1/i) // sin nombres internos
   })
-  it("cerrado y sin nada escribiéndose: «Sin plan vigente», sin botones; vale para rechazado, reemplazado y vencido", () => {
+  it("cerrado y sin nada escribiéndose: el estado en una palabra (Rechazado, Reemplazado, Vencido), sin botones; vale para rechazado, reemplazado y vencido", () => {
     for (const [estado, paso] of [["rechazado", "Rechazado"], ["reemplazado", "Reemplazado"], ["vencido", "Vencido"]] as const) {
       const l = leerElCiclo("draft", { ...base, cerrado: { estado, motivo: null } })
       expect(l).toMatchObject({ estado: "sin_plan_vigente", titulo: paso, puede_aprobar: false, puede_pedir_cambios: false }) // el estado en una palabra (Emilio, 06-nov)
@@ -121,7 +121,7 @@ const salidas = (planes: typeof PLANES) => (f: string[]) => { const porId = f.fi
 const cola = (f: string[]) => (f.some((x) => x.includes('.in("output_id"')) ? COLA : [])
 
 describe("la lectura del panel con los datos reales de Náufrago", () => {
-  it("todo cerrado y la corrida r4 en curso: muestra r3 como «Plan en preparación», sin «Aprobar el plan así»", async () => {
+  it("todo cerrado y la corrida r4 en curso: muestra r3 como «En preparación», sin «Aprobar el plan así»", async () => {
     const registro: string[] = []
     const b = baseFalsa({
       clients: CLIENTES, cadena_campanas: [], hitl_queue: cola, client_historical_outputs: salidas(PLANES), plan_cambios: [],
@@ -135,7 +135,7 @@ describe("la lectura del panel con los datos reales de Náufrago", () => {
     expect(registro.join("\n")).toContain(`hitl_queue.eq("client_id","${CLIENTE}")`)
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: p }))
     expect(html).toContain('data-ciclo="en_preparacion"'); expect(html).toContain("En preparación")
-    expect(html).not.toContain('data-accion="plan-aprobar-asi"'); expect(html).not.toContain('data-accion="plan-pedir-cambios"'); expect(html).not.toContain("Esperando tu decisión")
+    expect(html).not.toContain('data-accion="plan-aprobar-asi"'); expect(html).not.toContain('data-accion="plan-pedir-cambios"'); expect(html).not.toContain("Espera tu decisión")
     expect(estadoDelPlan({ ...p, manual_aprobado: true }).texto).toBe("plan en preparación")
     expect(barraDelPlan({ ...p, manual_aprobado: true }).te_toca).not.toContain("Aprobar el plan o pedir cambios")
   })
