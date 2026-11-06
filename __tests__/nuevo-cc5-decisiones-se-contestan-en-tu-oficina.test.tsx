@@ -27,13 +27,13 @@ const D = normalizarDecisiones(CRUDO)
 const sin = (...ids: string[]): Decisiones => ({ ...D, decisiones: D.decisiones.filter((x) => !ids.includes(x.id)) })
 
 /** la plataforma de mentira: responde según ruta y método, y anota todo */
-function plataforma(r: { pausa?: [number, Record<string, unknown>]; dueno?: [number, Record<string, unknown>]; pendientes?: unknown[] } = {}) {
+function plataforma(r: { pausa?: [number, Record<string, unknown>]; dueno?: [number, Record<string, unknown>]; pendientes?: unknown[]; puerta?: [number, Record<string, unknown>] } = {}) {
   const llamadas: Array<{ url: string; metodo: string; cuerpo: Record<string, unknown> | null; llave: string | null }> = []
   const f = vi.fn(async (url: string, init: RequestInit) => {
     const cuerpo = init.body ? JSON.parse(String(init.body)) : null
     llamadas.push({ url, metodo: String(init.method), cuerpo, llave: (init.headers as Record<string, string>)["x-api-key"] ?? null })
     const res = (s: number, j: unknown) => new Response(JSON.stringify(j), { status: s })
-    if (url.includes("/api/brain/alimentar/dueno")) return res(410, { ok: false, error: "evento_retirado" }) // la puerta del cerebro ya no es para preguntas
+    if (url.includes("/api/brain/alimentar/dueno")) { const [s, j] = r.puerta ?? [410, { ok: false, error: "evento_retirado" }]; return res(s, j) } // la puerta del cerebro ya no es para preguntas (solo datos sueltos)
     if (url.includes("/api/dueno/preguntas?")) return res(200, { ok: true, pendientes: r.pendientes ?? [{ pregunta_id: P1, tema: "ticket promedio", oficina: "financiera", agente: "jefe-financiero" }] })
     if (url.endsWith("/api/finanzas/responder")) { const [s, j] = r.pausa ?? [200, { en_pausa: false }]; return res(s, j) }
     if (url.endsWith("/api/dueno/preguntas")) { const [s, j] = r.dueno ?? [200, cuerpo?.accion === "descartar" ? { ok: true, descartada: true, estado: "descartada" } : { ok: true, guardada: true, ficha_ref: "f1", preguntas_cerradas: 1 }]; return res(s, j) }
@@ -114,11 +114,21 @@ describe("responder · primero la pausa de finanzas, después la ruta de las pre
     expect(r.cuerpo).toMatchObject({ ok: true, sale: true })
     expect((r.cuerpo as { registro: Array<{ texto: string }> }).registro[0].texto).toBe("La pregunta llegó a Tu oficina")
   })
-  it("409 de la ruta (otro la cerró antes) → no se dice «salió» y no se reenvía a ciegas", async () => {
+  it("🔴 409 con la respuesta ya en el cerebro (otro cerró la fila entre medio) → contestada, sin repetirla", async () => {
     const p = plataforma({ dueno: [409, { ok: false, error: "ya_cerrada", detalle: "la respuesta quedó en el cerebro, pero otro cerró la pregunta antes" }] })
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))
-    expect(r.cuerpo).toMatchObject({ ok: false, sale: false }); expect((r.cuerpo as { motivo: string }).motivo).toMatch(/alguien la cerró antes/)
-    expect(p.llamadas.filter((x) => x.url.endsWith("/api/dueno/preguntas"))).toHaveLength(1)
+    expect(r.cuerpo).toMatchObject({ ok: true, sale: true }); expect(JSON.stringify(r.cuerpo)).toContain("ya había quedado en el cerebro")
+    expect(p.llamadas.some((x) => x.url.includes("/api/brain/alimentar/dueno"))).toBe(false)
+  })
+  it("🔴 CC7 · 409 antes de guardar (la pregunta ya estaba cerrada) → tu palabra va como dato suelto por la puerta del cerebro; si falla, se dice", async () => {
+    const p = plataforma({ dueno: [409, { ok: false, error: "ya_cerrada", detalle: "la pregunta ya está «respondida»" }], puerta: [200, { ok: true, guardada: true, ficha_id: "fs" }] })
+    const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))
+    expect(r.cuerpo).toMatchObject({ ok: true, sale: true }); expect(JSON.stringify(r.cuerpo)).toContain("La pregunta ya la había cerrado otro")
+    const suelto = p.llamadas.find((x) => x.url.endsWith("/api/brain/alimentar/dueno"))!
+    expect(suelto.cuerpo).toMatchObject({ evento: "respuesta", client_id: NAUFRAGO, tema: "ticket promedio", respuesta: "28", preguntado_por: { oficina: "financiera", agente: "jefe-financiero" }, dry_run: false })
+    expect(suelto.cuerpo).not.toHaveProperty("pregunta_id")
+    const falla = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ dueno: [409, { ok: false, error: "ya_cerrada", detalle: "la pregunta ya está «respondida»" }], puerta: [502, { ok: false, error: "x" }] })))
+    expect(falla.cuerpo).toMatchObject({ ok: false, sale: false }); expect((falla.cuerpo as { motivo: string }).motivo).toMatch(/tampoco se pudo guardar como dato suelto/)
   })
   it("si la puerta rechaza, la tarjeta se queda con el motivo", async () => {
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ dueno: [400, { error: "entrada_invalida", detalle: "`tema` va hasta 80" }] })))

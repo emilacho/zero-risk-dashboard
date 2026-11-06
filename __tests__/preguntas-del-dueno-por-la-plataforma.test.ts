@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { readFileSync } from "node:fs"
 import { guardarDatoDelDueno } from "@/lib/cerebro-dueno"
-import { errorTrasGuardar, preguntaDesdeFila } from "@/lib/cerebro"
+import { errorTrasGuardar, preguntaDesdeFila, textoTrasGuardar } from "@/lib/cerebro"
 
 const C = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312", P = "11111111-1111-4111-8111-111111111111"
 const AHORA = new Date("2026-11-06T15:00:00Z")
@@ -37,9 +37,25 @@ describe("el Cerebro contesta una pregunta pendiente por la ruta de la plataform
     expect(p.llamadas.map((x) => x.url)).toEqual(["https://p.test/api/brain/alimentar/dueno"])
   })
   it("🔴 409 (otro la cerró antes) se dice tal cual; 404 sin error = la ruta todavía no existe; ok sin «guardada» no es éxito", async () => {
-    const ya = await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, deps(plataforma([409, { ok: false, error: "ya_cerrada" }])))
+    // CC7 · 409 antes de guardar: la palabra de Emilio va como dato suelto (sin pregunta) por la puerta del cerebro
+    const p1 = plataforma([409, { ok: false, error: "ya_cerrada", detalle: "la pregunta ya está «respondida»" }])
+    const suelto = await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, deps(p1))
+    expect(suelto).toMatchObject({ status: 200, cuerpo: { ok: true, ficha_id: "fp", pregunta_ya_cerrada: true } })
+    expect(p1.llamadas.map((x) => x.url)).toEqual(["https://p.test/api/dueno/preguntas", "https://p.test/api/brain/alimentar/dueno"])
+    expect(p1.llamadas[1].cuerpo).not.toHaveProperty("pregunta_id"); expect(p1.llamadas[1].cuerpo).toMatchObject({ evento: "respuesta", tema: "t", respuesta: "abc" })
+    expect(textoTrasGuardar(suelto.cuerpo)).toBe("La pregunta ya la había cerrado otro, pero tu dato quedó guardado en el cerebro")
+    // 409 con la respuesta ya en el cerebro: no se repite
+    const p2 = plataforma([409, { ok: false, error: "ya_cerrada", detalle: "la respuesta quedó en el cerebro, pero otro cerró la pregunta antes" }])
+    expect(await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, deps(p2))).toMatchObject({ status: 200, cuerpo: { ok: true, pregunta_ya_cerrada: true } })
+    expect(p2.llamadas).toHaveLength(1)
+    // 409 y la puerta también falla: se dice
+    const f3 = (async (url: string) => new Response(JSON.stringify(url.endsWith("/api/dueno/preguntas") ? { ok: false, error: "ya_cerrada", detalle: "ya está" } : { ok: false, error: "x" }), { status: url.endsWith("/api/dueno/preguntas") ? 409 : 500 })) as unknown as typeof fetch
+    const ya = await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, { ...deps(p2), fetchImpl: f3 })
     expect(ya).toMatchObject({ status: 409, cuerpo: { ok: false, error: "ya_cerrada" } })
     expect(errorTrasGuardar(409, ya.cuerpo)).toBe("Esa pregunta ya no estaba pendiente: alguien la cerró antes. Actualiza antes de volver a contestar.")
+    // CC6 · un 404 de la ruta nueva dice que la pregunta ya no existe (no «ese cliente»)
+    expect(errorTrasGuardar(404, { error: "pregunta_inexistente" })).toBe("Esa pregunta ya no existe: actualiza para ver lo que esperan del dueño.")
+    expect(errorTrasGuardar(404, {})).toBe("Ese cliente no existe en la plataforma: no se guardó nada.")
     expect(await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, deps(plataforma([404, {}])))).toMatchObject({ status: 501 })
     expect(await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, deps(plataforma([404, { error: "pregunta_inexistente" }])))).toMatchObject({ status: 404 })
     expect(await guardarDatoDelDueno({ client_id: C, tema: "t", respuesta: "abc", pregunta_id: P }, deps(plataforma([200, { ok: true }])))).toMatchObject({ status: 502 })
@@ -72,6 +88,26 @@ describe("las lecturas salen de la tabla de la plataforma", () => {
     expect(readFileSync("lib/cerebro-datos.ts", "utf8")).toContain(`supa.from("dueno_preguntas").select("id, tema, pregunta, canal, oficina, agente, creado_en, sede_clave")`)
     expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toContain(`supa.from("dueno_preguntas").select("id, client_id, pregunta, estado, creado_en").eq("estado", "pendiente")`)
     for (const f of ["lib/cerebro-datos.ts", "lib/escena-avatares-datos.ts", "lib/decisiones-contestar.ts", "lib/cerebro-dueno.ts"]) expect(readFileSync(f, "utf8")).not.toContain('from("cerebro_dueno_preguntas")')
+  })
+  it("🔴 CC6 · el panel del Cerebro muestra solo las pendientes: una respondida o descartada no aparece", async () => {
+    const { leerCerebroDelCliente } = await import("@/lib/cerebro-datos")
+    const filas = [{ id: P, client_id: C, tema: "t", pregunta: "¿pendiente?", oficina: "o", agente: "a", canal: "c", creado_en: "2026-11-06", sede_clave: null, estado: "pendiente" },
+      { id: "22222222-2222-4222-8222-222222222222", client_id: C, tema: "t2", pregunta: "¿respondida?", oficina: "o", agente: "a", canal: "c", creado_en: "2026-11-06", sede_clave: null, estado: "respondida" }]
+    const vistas: string[] = []
+    // base de mentira que SÍ aplica los filtros .eq, para que quitar el de «pendiente» se note
+    const consulta = (tabla: string) => {
+      let rs: Record<string, unknown>[] = tabla === "dueno_preguntas" ? filas : tabla === "clients" ? [{ id: C, name: "N", slug: "n" }] : []
+      const q: Record<string, unknown> = {}
+      for (const m of ["select", "order", "limit", "in", "not", "is", "gte", "lte", "neq", "ilike", "or", "range"]) q[m] = () => q
+      q.eq = (col: string, v: unknown) => { rs = rs.filter((r) => !(col in r) || r[col] === v); return q }
+      q.maybeSingle = () => Promise.resolve({ data: rs[0] ?? null, error: null }); q.single = q.maybeSingle
+      q.then = (ok: (x: unknown) => unknown, ko?: (e: unknown) => unknown) => Promise.resolve({ data: rs, error: null, count: rs.length }).then(ok, ko)
+      vistas.push(tabla); return q
+    }
+    const r = await leerCerebroDelCliente({ from: consulta } as never, { cliente: C }).catch((e: unknown) => ({ error: String(e) }))
+    expect(vistas).toContain("dueno_preguntas")
+    const preguntas = (r as { preguntas?: Array<{ pregunta: string }> }).preguntas ?? (r as { datos?: { preguntas?: Array<{ pregunta: string }> } }).datos?.preguntas
+    expect(preguntas?.map((x) => x.pregunta)).toEqual(["¿pendiente?"])
   })
   it("🔴 quién preguntó sale de las columnas nuevas (oficina, agente)", () => {
     expect(preguntaDesdeFila({ id: P, tema: "t", pregunta: "¿?", oficina: "financiera", agente: "jefe-financiero", canal: "x", creado_en: "2026-11-06", sede_clave: null })).toMatchObject({ oficina: "financiera", agente: "jefe-financiero" })

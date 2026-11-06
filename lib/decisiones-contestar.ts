@@ -14,6 +14,7 @@
 import { randomUUID } from "node:crypto"
 import { TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, faltaQueLeer, leerCifras, leerDecisiones, nombreDeOficina, textoDeCifra, type AccionDeDecision, type CifraDeFirma, type Decision } from "@/lib/direccion-decisiones"
 import { ejecutarAccion } from "@/lib/tablero-acciones"
+import { yaQuedoEnElCerebro } from "@/lib/cerebro-dueno"
 
 export const FLUJO_DE_TU_OFICINA = "tablero-tu-oficina" // el mismo que usa la ruta de la pausa (CC1 #897): aquí no hay flujo detrás, viene del tablero
 export const CANAL_DE_TU_OFICINA = "dashboard · Tu oficina"
@@ -181,7 +182,19 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
       accion: "responder", client_id: dec.client_id, pregunta_id: dec.id, respuesta: v.respuesta, decidido_por: d.revisor || "emilio", // CC1 06-nov: vacío = 400 en la ruta
       canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${dec.id}`, respondido_en: ahora, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion,
     })
-    if (status === 409) return { status: 200, cuerpo: fallo([...base, tu], "La pregunta ya no estaba pendiente: alguien la cerró antes. Tu respuesta no se marcó aquí; mira el cerebro antes de reenviarla.", ahora) }
+    if (status === 409) {
+      // CC7 06-nov: tu palabra no se pierde. Si ya quedó en el cerebro, no se repite; si no, va como dato suelto por la puerta del cerebro (como el buzón)
+      const cerrada: PasoDelRegistro = { cuando: ahora, quien: "sistema", estado: "guardado", texto: "La pregunta ya la había cerrado otro" }
+      if (yaQuedoEnElCerebro(txt(j.detalle))) return { status: 200, cuerpo: { ok: true, sale: true, texto: "Contestada.", registro: [...base, tu, cerrada, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Tu respuesta ya había quedado en el cerebro" }] } }
+      if (!tema) return { status: 200, cuerpo: fallo([...base, tu], "La pregunta ya no estaba pendiente y no tiene tema para guardar tu respuesta como dato suelto. No se guardó.", ahora) }
+      const s = await llamar(d, "/api/brain/alimentar/dueno", "POST", {
+        evento: "respuesta", client_id: dec.client_id, tema: tema.slice(0, 80), pregunta: (dec.titulo_interno ?? dec.titulo).slice(0, TOPE_PREGUNTA), respuesta: v.respuesta,
+        canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${dec.id}`, respondido_en: ahora, preguntado_por: { oficina: quien?.oficina ?? "dashboard", agente: quien?.agente ?? "emilio" },
+        dry_run: false, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion,
+      })
+      if (s.status !== 200 || s.j.ok !== true || s.j.apagado === true) return { status: 200, cuerpo: fallo([...base, tu], `La pregunta ya no estaba pendiente y tu respuesta tampoco se pudo guardar como dato suelto: ${txt(s.j.detalle) || txt(s.j.error) || `respondió ${s.status}`}.`, ahora) }
+      return { status: 200, cuerpo: { ok: true, sale: true, texto: "Contestada.", registro: [...base, tu, cerrada, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Tu respuesta quedó en el cerebro como dato confirmado por ti" }] } }
+    }
     if (status !== 200 || j.ok !== true || j.guardada !== true) return { status: 200, cuerpo: fallo([...base, tu], `El cerebro no guardó tu respuesta: ${txt(j.detalle) || txt(j.error) || `respondió ${status}`}.`, ahora) }
     return { status: 200, cuerpo: { ok: true, sale: true, texto: "Contestada.", registro: [...base, tu, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Guardó tu respuesta en el cerebro como dato confirmado por ti; todas las oficinas la leen así" }] } }
   } catch (e) {
