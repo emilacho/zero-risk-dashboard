@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { PanelEstudio } from "@/components/nuevo/PanelEstudio"
 import { CAMARA } from "@/components/nuevo/EscenaViva"
-import { alEstudio, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, esAnimable, estadoDeAnimar, nombreDelMovimiento, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
+import { alEstudio, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, esAnimable, estadoDeAnimar, nombreDelMovimiento, respuestaDeAnimar, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
 import { clientesDelEstudio } from "@/lib/estudio-clientes"
 
 const CLIENTE = "a0000000-0000-4000-8000-0000000000e1"
@@ -338,6 +338,31 @@ describe("animar un modelo 3D (GO 06-nov)", () => {
   })
   it("un archivo guardado sin número de movimiento no cuenta como movimiento", () => {
     expect(clipsDe(animada({ parametros: { archivos: [{ glb: "g", fbx: "f", nombre: "n" }, { action_id: "3", glb: "g" }] } }))).toEqual([])
+  })
+  it("la respuesta de animar: la pieza de otro cliente no entra a la galería a la vista (CC6 #292)", () => {
+    const suya = animada()
+    expect(respuestaDeAnimar({ ok: true, pieza: suya }, 201, CLIENTE)).toEqual({ pieza: suya })
+    expect(respuestaDeAnimar({ ok: true, pieza: { ...suya, client_id: "b0000000-0000-4000-8000-0000000000e2" } }, 201, CLIENTE)).toEqual({ otroCliente: true })
+    expect(respuestaDeAnimar({ ok: true, pieza: suya }, 201, null)).toEqual({ otroCliente: true })
+    const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
+    expect(panel).toContain("const x = respuestaDeAnimar(await leerJson<{ pieza: Pieza }>(r), r.status, clienteVisto.current)")
+    expect(panel).toContain('if ("otroCliente" in x) return')
+  })
+  it("si la plataforma rechaza la animación, el motivo se ve (CC6 #292)", () => {
+    expect(respuestaDeAnimar({ ok: false, error: "modelo_no_animable", detalle: "solo se anima un modelo 3D listo, en GLB" }, 400, CLIENTE)).toEqual({ error: "solo se anima un modelo 3D listo, en GLB" })
+    expect(respuestaDeAnimar({ ok: false, error: "pedido_invalido" }, 400, CLIENTE)).toEqual({ error: "pedido_invalido" })
+    expect(respuestaDeAnimar({ ok: false }, 502, CLIENTE)).toEqual({ error: "No se pudo animar (502)." })
+    expect(respuestaDeAnimar({ ok: true }, 200, CLIENTE)).toEqual({ error: "No se pudo animar (200)." })
+    const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
+    expect(panel).toContain('if ("error" in x) { setErrorAnimar(x.error); return }')
+    expect(panel).toContain('{errorAnimar && <p role="alert" className="text-[12.5px] text-red-300">{errorAnimar}</p>}')
+    expect(panel).toContain('catch { setErrorAnimar("La plataforma no responde.") }')
+  })
+  it("con el cajón abierto, el único botón ámbar es «Animar»: «Descargar» pasa a borde (nota CC6 #292)", () => {
+    const abierto = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1", animarInicial: [0] })
+    expect(abierto).toMatch(/data-descargar="true" href="https:\/\/a\/m.glb" download="" target="_blank" rel="noreferrer" class="rounded-lg border/)
+    const cerrado = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1" })
+    expect(cerrado).toMatch(/data-descargar="true"[^>]*style="background:#e8731a/)
   })
   it("el pedido va por la puerta del tablero a /api/estudio/animar", () => {
     const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")

@@ -191,5 +191,12 @@ export function clipsDe(p: Pick<Pieza, "modelo" | "parametros">): Clip[] {
   return (p.parametros.archivos as unknown[]).filter((x): x is Clip => !!x && typeof x === "object" && typeof (x as Clip).action_id === "number")
 }
 
+/** qué hacer con la respuesta de animar: un error se muestra; la pieza de otro cliente (Emilio cambió de cliente mientras tanto) no entra */
+export function respuestaDeAnimar(j: { ok?: boolean; pieza?: Pieza; error?: string; detalle?: string }, status: number, clienteVisto: string | null): { error: string } | { otroCliente: true } | { pieza: Pieza } {
+  if (!j.ok || !j.pieza) return { error: j.detalle ?? j.error ?? `No se pudo animar (${status}).` }
+  if (j.pieza.client_id !== clienteVisto) return { otroCliente: true }
+  return { pieza: j.pieza }
+}
+
 /** el pedido de animación que va a la plataforma */
 export const cuerpoDeAnimacion = (clienteId: string, piezaId: string, movimientos: number[], clave: string = claveNueva()) => ({ client_id: clienteId, origen_pieza_id: piezaId, movimientos, clave })

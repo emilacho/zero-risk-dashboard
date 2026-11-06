@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
-import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -259,11 +259,11 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     setEnviando(true); setErrorAnimar(null)
     try {
       const r = await fetchImpl("/api/estudio/animar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeAnimacion(clienteId, origen.id, movimientos)) })
-      const j = await leerJson<{ pieza: Pieza }>(r)
-      if (!j.ok || !j.pieza) { setErrorAnimar(j.detalle ?? j.error ?? `No se pudo animar (${r.status}).`); return }
-      if (j.pieza.client_id !== clienteVisto.current) return
-      setPiezas((ps) => piezasDelCliente(clienteVisto.current, ps, [j.pieza], false))
-      setAbierta(j.pieza.id)
+      const x = respuestaDeAnimar(await leerJson<{ pieza: Pieza }>(r), r.status, clienteVisto.current)
+      if ("error" in x) { setErrorAnimar(x.error); return }
+      if ("otroCliente" in x) return
+      setPiezas((ps) => piezasDelCliente(clienteVisto.current, ps, [x.pieza], false))
+      setAbierta(x.pieza.id)
     } catch { setErrorAnimar("La plataforma no responde.") } finally { setEnviando(false) }
   }
 
@@ -395,7 +395,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                 )}
                 <div className="flex flex-wrap items-center gap-2">
                   {pieza.estado === "lista" && clipsDe(pieza).length > 0 && [["GLB", clipsDe(pieza)[clip]?.glb], ["FBX", clipsDe(pieza)[clip]?.fbx]].map(([que, url]) => url && <a key={que} data-bajar={que} href={url} download target="_blank" rel="noreferrer" className={que === "GLB" ? "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold" : "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]"} style={que === "GLB" ? { background: AMBAR, color: "#1a0d02" } : undefined}>Descargar {que}</a>)}
-                  {pieza.archivo_url && pieza.estado === "lista" && clipsDe(pieza).length === 0 && <a href={pieza.archivo_url} download target="_blank" rel="noreferrer" className="rounded-lg px-3.5 py-2 text-[13.5px] font-semibold" style={{ background: AMBAR, color: "#1a0d02" }}>Descargar</a>}
+                  {pieza.archivo_url && pieza.estado === "lista" && clipsDe(pieza).length === 0 && <a data-descargar href={pieza.archivo_url} download target="_blank" rel="noreferrer" className={animando ? "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" : "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold"} style={animando ? undefined : { background: AMBAR, color: "#1a0d02" }}>Descargar</a>}
                   {pieza.tipo === "imagen" && pieza.estado === "lista" && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setFoto({ pieza }); setAbierta(null) }}>Usar como imagen de partida</button>}
                   {esAnimable(pieza) && puedeAnimar && <button type="button" data-animar aria-expanded={animando} className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => setAnimando(!animando)}>Animar</button>}
                   {pieza.modelo !== MODELO_DE_ANIMACION && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setTipo(pieza.tipo); setTexto(pieza.prompt); setAbierta(null) }}>Crear otra versión</button>}
