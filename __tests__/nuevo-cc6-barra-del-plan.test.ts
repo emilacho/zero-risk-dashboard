@@ -68,6 +68,6 @@ describe("la barra del plan en pantalla", () => {
   })
   it("sin datos dice qué falta", () => {
     const h = renderToStaticMarkup(createElement(BarraDelPlan, { b: barraDelPlan(base({ campana: null, estrategia: null, documento: null, ciclo: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } } })) }))
-    expect(h).toContain("Todavía no hay plan escrito."); expect(h).toContain("La estrategia todavía no tiene fases."); expect(h).toContain("Nada pendiente de tu lado.")
+    expect(h).toContain("Todavía no hay plan escrito."); expect(h).toContain("se arman cuando el plan esté escrito y lo apruebes."); expect(h).toContain("Nada pendiente de tu lado.") // CC4 06-nov · punto 2: sin estrategia se dice el paso, no «todavía no tiene fases»
   })
 })

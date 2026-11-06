@@ -189,6 +189,17 @@ describe("la lectura del panel con los datos reales de Náufrago", () => {
     expect(i).toBeGreaterThan(0); expect(registro[i - 1]).toBe(`hitl_queue.eq("client_id","${CLIENTE}")`)
     expect(registro).toContain(`plan_aprobaciones.eq("client_id","${CLIENTE}")`)
   })
+  it("una corrida de OTRO cliente en curso no hace decir «Plan en preparación» (pedido de CC6 en la certificación de #291)", async () => {
+    const OTRO = "99999999-8888-4777-8666-555544443333"
+    const corridas = [{ client_id: OTRO, estado: "corriendo", creado_en: "2026-11-06T00:00:00Z", vence_en: null, dry_run: false }]
+    const p = await leerPlanDelCliente(baseFalsa({
+      clients: CLIENTES, cadena_campanas: [], hitl_queue: cola, client_historical_outputs: salidas(PLANES), plan_cambios: [], plan_aprobaciones: APROBACIONES,
+      // la base falsa respeta el filtro por cliente: sin él, devolvería la corrida del otro cliente
+      plan_corridas: (f: string[]) => { const id = f.map((x) => x.match(/plan_corridas\.eq\("client_id","([^"]+)"\)/)?.[1]).find(Boolean); return id ? corridas.filter((c) => c.client_id === id) : corridas },
+    }), { cliente: CLIENTE })
+    expect(p.ciclo?.preparando).toBeNull()
+    expect(leerElCiclo(p.documento!.status, p.ciclo!).estado).toBe("sin_plan_vigente")
+  })
   it("si la cola no se puede leer, lanza: no se adivina que un plan está abierto", async () => {
     await expect(leerPlanDelCliente(baseFalsa({ clients: CLIENTES, cadena_campanas: [], client_historical_outputs: salidas(PLANES), plan_cambios: [], plan_aprobaciones: APROBACIONES, plan_corridas: [] }, [], { hitl_queue: { message: "se cayó la base" } }), { cliente: CLIENTE })).rejects.toThrow(/se cayó la base/)
   })

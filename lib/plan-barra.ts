@@ -5,7 +5,7 @@
  */
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { datosClave, resumenDeLaSeccion, seccionesDelPlan } from "@/lib/plan-documento"
-import { leerElCiclo, sedeLegible, textoDeLaMeta } from "@/lib/plan"
+import { leerElCiclo, lineaSinEstrategia, sedeLegible, textoDeLaMeta } from "@/lib/plan"
 import { redDelTablero } from "@/lib/pizarron"
 import { periodoDelPlan, textoDelPeriodo } from "@/lib/plan-periodo"
 import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
@@ -24,6 +24,8 @@ export interface BarraDelPlan {
   dia: number | null
   total_dias: number | null
   te_toca: string[]
+  /** sin estrategia todavía: la línea con el paso en que va (punto 2 del encargo del 06-nov); null si hay estrategia */
+  sin_estrategia?: string | null
 }
 
 /** la barra del plan con lo que ya leyó el panel (no lee la base) */
@@ -67,5 +69,6 @@ export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
     meta, fechas, presupuesto: dato("presupuesto"),
     sedes: (c?.sedes ?? d?.plan?.zonas ?? []).map(sedeLegible),
     canales, fases, dia, total_dias: total ?? (fases.length ? Math.max(...fases.map((f) => f.hasta)) : null), te_toca: teToca,
+    sin_estrategia: e ? null : lineaSinEstrategia({ hay_documento: !!d, estado_del_ciclo: lectura?.estado ?? null }),
   }
 }

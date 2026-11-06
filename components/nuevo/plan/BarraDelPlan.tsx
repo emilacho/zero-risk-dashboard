@@ -47,10 +47,10 @@ export function BarraDelPlan({ b }: { b: Barra }) {
       <Bloque id="fechas" titulo="Fechas" nota={b.fechas?.detalle}>{b.fechas ? <p className="text-[13px] text-zinc-100">{b.fechas.texto}</p> : <Falta>Sin fechas todavía.</Falta>}</Bloque>
       <Bloque id="presupuesto" titulo="Presupuesto" nota={b.presupuesto ? "Tomado de la sección «Presupuesto» del plan. Lo gastado está en Dinero." : null}>{b.presupuesto ? <p className="text-[13px] leading-snug text-zinc-100">{b.presupuesto}</p> : <Falta>El plan todavía no trae la cifra.</Falta>}</Bloque>
       <Bloque id="sedes-y-canales" titulo="Sedes y canales">
-        {b.sedes.length + b.canales.length === 0 ? <Falta>Sin sedes ni canales todavía.</Falta> : <div className="flex flex-wrap gap-1.5">{b.sedes.map((s) => <Chip key={`s-${s}`}>{s}</Chip>)}{b.canales.map((c) => <Chip key={`c-${c}`}>{c}</Chip>)}</div>}
+        {b.sedes.length + b.canales.length === 0 ? <Falta>{b.sin_estrategia ? "Se definen con la estrategia, después de aprobar el plan." : "Sin sedes ni canales todavía."}</Falta> : <div className="flex flex-wrap gap-1.5">{b.sedes.map((s) => <Chip key={`s-${s}`}>{s}</Chip>)}{b.canales.map((c) => <Chip key={`c-${c}`}>{c}</Chip>)}</div>}
       </Bloque>
       <Bloque id="fases" titulo="Fases" nota={b.dia ? `Hoy es el día ${b.dia}${b.total_dias ? ` de ${b.total_dias}` : ""}.` : null}>
-        {b.fases.length === 0 ? <Falta>La estrategia todavía no tiene fases.</Falta> : (
+        {b.fases.length === 0 ? <Falta>{b.sin_estrategia ?? "La estrategia todavía no tiene fases."}</Falta> : (
           <>
             <div className="relative mt-1 h-6" aria-hidden>
               <div className="absolute left-0 right-0 top-2.5 h-1 rounded-full bg-white/10" />
