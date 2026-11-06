@@ -123,14 +123,14 @@ describe("6.21 · la pantalla 6 del arco", () => {
 describe("6.21 · el panel de Riesgos (estilo base 05-nov: recuadros que filtran, tarjeta del más grave y la lista del resto)", () => {
   const d = normalizarRiesgos(CRUDO)
   const html = (datos: Riesgos) => renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: datos }))
-  it("muestra los recuadros, la ficha del más grave, la lista del resto y el «sin dato»", () => {
+  it("muestra el radar, los recuadros Abiertas · Tomadas · Cerradas, la ficha del más grave y la lista del resto (06-nov: sin «sin dato» ni pausas)", () => {
     const h = html(d).replace(/<!-- -->/g, "")
-    expect(h).toContain('data-seccion="riesgos"'); expect(h).not.toContain('class="ri-punto"')
-    expect(h).toMatch(/data-recuadro="abiertas" aria-pressed="true"[^>]*>.*?>4<\/span>/); expect(h).toMatch(/data-recuadro="graves"[^>]*>.*?>1<\/span>/)
+    expect(h).toContain('data-seccion="riesgos"'); expect(h).toContain("data-radar"); expect(h).toContain('data-riesgo="a2"')
+    expect(h).toMatch(/data-recuadro="abiertas" aria-pressed="true"[^>]*>.*?>4<\/span>/); expect(h).toMatch(/data-recuadro="tomadas"[^>]*>.*?>…<\/span>/) // las marcas todavía no llegaron
     expect(h).toContain('data-ficha="a2"'); expect(h).toContain("Incidente abierto en el monitor"); expect(h).toContain("Monitor de servicios")
     expect(h.match(/data-fila=/g)).toHaveLength(3) // la del frente no se repite en la lista
     expect(h).not.toContain("data-medidor") // 6.22: saldos y freno se van a la pantalla Dinero
-    expect(h).toContain("credenciales por vencer"); expect(h).toContain("pocas horas")
+    expect(h).not.toContain("data-sin-dato"); expect(h).not.toContain("credenciales por vencer") // Lenovo 06-nov: se quita «Sin dato»
     expect(h).toContain("4 riesgos · 1 grave") // el resumen queda para lectores de pantalla
     expect(h).not.toContain("🟠")
   })
@@ -140,8 +140,8 @@ describe("6.21 · el panel de Riesgos (estilo base 05-nov: recuadros que filtran
     const inc = html({ ...vacio, completo: false })
     expect(inc).not.toContain("Sin riesgos abiertos ahora"); expect(inc).toContain("no puedo asegurarte")
   })
-  it("es solo lectura: no hace ningún POST ni enlaza al tablero viejo", () => {
+  it("lo único que escribe es «Visto» (la marca del tablero) y no enlaza al tablero viejo", () => {
     const s = readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")
-    expect(s).not.toMatch(/method:\s*"(POST|PUT|PATCH|DELETE)"/); expect(s).not.toContain("href=")
+    expect(s.match(/method:\s*"(POST|PUT|PATCH|DELETE)"/g)).toEqual(['method: "POST"']); expect(s).toContain('fetchImpl("/api/alertas/visto", { method: "POST"'); expect(s).not.toContain("href=")
   })
 })

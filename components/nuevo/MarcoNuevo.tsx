@@ -9,7 +9,7 @@ import Link from "next/link"
 import type { ReactNode } from "react"
 import { ChatDeOficinas } from "@/components/nuevo/ChatDeOficinas"
 import { SelectorDeCliente } from "@/components/nuevo/SelectorDeCliente"
-import { BotonDePanel, BotonSalir, CampanaDeRiesgos } from "@/components/nuevo/BotonesDelMarco"
+import { BotonDePanel, BotonSalir } from "@/components/nuevo/BotonesDelMarco"
 import { Buscador } from "@/components/nuevo/Buscador"
 import type { PanelDelMarco } from "@/lib/buscador"
 import {
@@ -33,7 +33,7 @@ export function BarraSuperior() {
       {/* 03-nov · el buscador busca de verdad (clientes, empleados, paneles y piezas); «/» lo abre */}
       <Buscador />
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <CampanaDeRiesgos className={ICONO_SUPERIOR}><Bell size={17} /></CampanaDeRiesgos>
+        <BotonDePanel panel="riesgos" etiqueta="Riesgos y alarmas" className={ICONO_SUPERIOR}><Bell size={17} /></BotonDePanel>
         <BotonDePanel panel="dinero" etiqueta="Dinero" className={ICONO_SUPERIOR}><CurrencyDollar size={17} /></BotonDePanel>
         <BotonSalir className={`${ICONO_SUPERIOR} disabled:opacity-50`}><SignOut size={17} /></BotonSalir>
       </div>

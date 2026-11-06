@@ -99,9 +99,9 @@ describe("6.22 · el servidor busca el nombre de los procesos (solo lectura)", (
 describe("6.22 · el panel", () => {
   const html = renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: normalizarRiesgos(conNombres(), AHORA) }))
   // estilo base (05-nov · imagen aprobada por Emilio): el radar y las 8 tarjetas de sector salen del panel; los recuadros de número son los filtros
-  it("los recuadros filtran por gravedad (abiertos · graves · atender) y no hay radar ni tarjetas de sector dentro del panel", () => {
-    expect(html).not.toContain("<g data-sector="); expect(html).not.toContain("data-tarjeta-sector=")
-    expect(html.match(/data-recuadro="(abiertas|graves|atender)"/g)).toEqual(['data-recuadro="abiertas"', 'data-recuadro="graves"', 'data-recuadro="atender"'])
+  it("06-nov · el radar y los 8 temas a la izquierda; a la derecha, el título y Abiertas · Tomadas · Cerradas", () => {
+    expect(html).toMatch(/data-columna="lado"[\s\S]*data-radar[\s\S]*data-tarjeta-sector=[\s\S]*data-columna="principal"[\s\S]*riesgos-titulo/); expect(html.match(/data-tarjeta-sector=/g)).toHaveLength(8)
+    expect(html.match(/data-recuadro="[a-z]+"/g)).toEqual(['data-recuadro="abiertas"', 'data-recuadro="tomadas"', 'data-recuadro="cerradas"'])
   })
   it("el color solo marca lo grave: el punto rojo es de la gravedad 3; el resto, oro o apagado", () => {
     expect(readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")).toContain('const PUNTO: Record<Gravedad, string> = { 3: "bg-alarma", 2: "bg-oro", 1: "bg-apagado" }')
@@ -109,10 +109,10 @@ describe("6.22 · el panel", () => {
   it("ya no muestra saldos ni freno de gasto (se van a la pantalla Dinero)", () => {
     expect(html).not.toContain("Saldos de proveedores"); expect(html).not.toContain("Freno de gasto"); expect(html).not.toContain("techo")
   })
-  it("tus pausas van fuera del radar y lo que no tiene fuente dice «sin dato»", () => {
-    expect(html).toContain("Tus pausas"); expect(html).toContain("No son riesgo"); expect(html).toContain("foco en Náufrago")
-    expect(html).toContain("calidad, plazos, seguridad y cumplimiento: el sistema todavía no tiene de dónde leerlos"); expect(html).not.toMatch(/: n8n conserva/)
-    expect(html).toContain("1 aviso viejo caducó solo")
+  it("06-nov · se quitan «Tus pausas» y «Sin dato» (Lenovo); las pausas siguen fuera del radar", () => {
+    expect(html).not.toContain("Tus pausas"); expect(html).not.toContain("foco en Náufrago"); expect(html).not.toContain("data-sin-dato")
+    expect(html).not.toContain("el sistema todavía no tiene de dónde leerlos")
+    expect(html).not.toContain("caducó solo")
   })
   it("6.24 · sin vacío: el panel mide lo que su contenido (guía, regla 7) y se arma con las piezas del estilo base", () => {
     const c = readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")

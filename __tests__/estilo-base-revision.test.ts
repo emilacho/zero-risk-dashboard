@@ -82,7 +82,7 @@ describe("estilo base · la revisión frena la entrega", () => {
   })
 })
 
-describe("estilo base · la campana roja con su número abre Riesgos", () => {
+describe("la cuenta de riesgos (la usará el número de la antena; la campana no lleva número)", () => {
   it("el número: abiertos; «+» si la lista puede estar incompleta; nada sin lectura o sin riesgos (nunca un «0» falso)", async () => {
     const { numeroDeLaCampana, cuentaDeLaCampana } = await import("@/lib/direccion-riesgos")
     expect(numeroDeLaCampana(null)).toBeNull()
@@ -94,16 +94,12 @@ describe("estilo base · la campana roja con su número abre Riesgos", () => {
     expect(numeroDeLaCampana({ abiertos: 140, graves: 2, completo: false })).toBe("99+")
     expect(cuentaDeLaCampana({ total: 4, por_gravedad: { 1: 1, 2: 2, 3: 1 }, completo: true })).toEqual({ abiertos: 4, graves: 1, completo: true })
   })
-  it("rojo solo si hay algo grave; oro si no; y la escena le pasa su lectura", async () => {
-    const { createElement } = await import("react")
-    const { renderToStaticMarkup } = await import("react-dom/server")
-    const { CampanaDeRiesgos } = await import("@/components/nuevo/BotonesDelMarco")
-    const pinta = (graves: number) => renderToStaticMarkup(createElement(CampanaDeRiesgos, { className: "x", cuentaInicial: { abiertos: 3, graves, completo: true }, children: "🔔" }))
-    expect(pinta(1)).toMatch(/data-numero-campana[^>]*bg-alarma[^>]*>3</); expect(pinta(0)).toMatch(/data-numero-campana[^>]*bg-oro[^>]*>3</)
-    expect(renderToStaticMarkup(createElement(CampanaDeRiesgos, { className: "x", children: "🔔" }))).not.toContain("data-numero-campana")
-    expect(readFileSync("components/nuevo/MarcoNuevo.tsx", "utf8")).toContain("<CampanaDeRiesgos className={ICONO_SUPERIOR}><Bell size={17} /></CampanaDeRiesgos>")
+  it("🔴 la campana y el $ de arriba no se tocan (Emilio 01:37 · Lenovo 01:47): la campana es la de producción, sin número", () => {
+    const marco = readFileSync("components/nuevo/MarcoNuevo.tsx", "utf8")
+    expect(marco).toContain("<BotonDePanel panel=\"riesgos\" etiqueta=\"Riesgos y alarmas\" className={ICONO_SUPERIOR}><Bell size={17} /></BotonDePanel>")
+    expect(marco).not.toContain("CampanaDeRiesgos"); expect(readFileSync("components/nuevo/BotonesDelMarco.tsx", "utf8")).not.toMatch(/CampanaDeRiesgos|data-numero-campana/)
   })
-  it("toma el número que manda la escena; si la lectura falla (de la escena o la suya), se apaga: nunca queda un número viejo", async () => {
+  it("la cuenta sale de la lectura; si la lectura falla, no hay cuenta: nunca queda un número viejo", async () => {
     const { cuentaDeLaLectura, cuentaDelAviso } = await import("@/lib/direccion-riesgos")
     const lectura = { ok: true, total: 5, por_gravedad: { 1: 1, 2: 2, 3: 2 }, completo: false }
     expect(cuentaDeLaLectura(true, lectura)).toEqual({ abiertos: 5, graves: 2, completo: false })
@@ -113,31 +109,10 @@ describe("estilo base · la campana roja con su número abre Riesgos", () => {
     const aviso = (detail: unknown) => cuentaDelAviso(new CustomEvent("nv:riesgos-leidos", { detail }))
     expect(aviso({ abiertos: 2, graves: 1, completo: true })).toEqual({ abiertos: 2, graves: 1, completo: true })
     expect(aviso(null)).toBeNull(); expect(aviso({ abiertos: "2" })).toBeNull()
-    const campana = readFileSync("components/nuevo/BotonesDelMarco.tsx", "utf8")
-    expect(campana).toContain("setCuenta(cuentaDeLaLectura(r.ok, await r.json().catch(() => null)))")
-    expect(campana).toContain("} catch { setCuenta(null) }")
-    expect(campana).toContain("const deLaEscena = (e: Event) => setCuenta(cuentaDelAviso(e))")
     const escena = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
     expect(escena).toContain("window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: cuentaDeLaLectura(r.ok, j) }))")
     expect(escena).toContain("setRiesgosCrudos(null); window.dispatchEvent(new CustomEvent(EVENTO_RIESGOS_LEIDOS, { detail: null })) }")
   })
 })
 
-describe("estilo base · los recuadros de Riesgos filtran", () => {
-  const R = (id: string, gravedad: 1 | 2 | 3) => ({ id, gravedad, titulo: `riesgo ${id}`, detalle: null, sector: "flujos", cliente: null, fuente: "n8n", desde: null }) as never
-  const TODOS = [R("g", 3), R("a", 2), R("l", 1), R("g2", 3)]
-  it("abiertos = todos · graves = solo lo grave · atender = solo lo que hay que atender (sin los graves)", async () => {
-    const { filtrarRiesgos } = await import("@/components/nuevo/PanelRiesgos")
-    const ids = (f: "abiertas" | "graves" | "atender") => filtrarRiesgos(TODOS, f).map((r) => r.id)
-    expect(ids("abiertas")).toEqual(["g", "a", "l", "g2"]); expect(ids("graves")).toEqual(["g", "g2"]); expect(ids("atender")).toEqual(["a"])
-  })
-  it("el recuadro «Graves» va en rojo solo si hay algo grave", async () => {
-    const { createElement } = await import("react")
-    const { renderToStaticMarkup } = await import("react-dom/server")
-    const { PanelRiesgos } = await import("@/components/nuevo/PanelRiesgos")
-    const datos = (graves: number) => ({ generado_en: null, completo: true, total: 2, por_gravedad: { 1: 0, 2: 2 - graves, 3: graves }, por_sector: { dinero: 0, accesos: 0, servicios: 0, flujos: 2, datos: 0, calidad: 0, plazos: 0, seguridad: 0 },
-      riesgos: [R("x", graves ? 3 : 2), R("y", 2)], decisiones_tuyas: [], caducados: 0, saldos: [], topes: [], fuentes: [], sin_fuente: [] }) as never
-    const graves = (n: number) => renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: datos(n) })).match(/data-recuadro="graves".*?<\/button>/)?.[0] ?? ""
-    expect(graves(1)).toMatch(/text-alarma[^>]*>1</); expect(graves(0)).not.toContain("text-alarma")
-  }, 30_000)
-})
+// 06-nov · los recuadros de Riesgos pasaron a Abiertas · Tomadas · Cerradas (Lenovo): sus pruebas viven en `riesgos-abiertas-tomadas-cerradas.test.tsx`

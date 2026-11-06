@@ -19,22 +19,30 @@ export function Rotulo({ children, tono = "oro", className = "" }: { children: R
   return <p className={`text-rotulo font-medio uppercase tracking-rotulo ${color} ${className}`}>{children}</p>
 }
 
-export function PanelBase({ titulo, id, seccion, onCerrar, etiquetaCerrar, ancho = "max-w-[480px]", children }: {
-  titulo: string; id: string; seccion: string; onCerrar: () => void; etiquetaCerrar: string; ancho?: string; children: ReactNode
+/** `lado`: una columna a la izquierda (en escritorio), fuera de la columna con el título; p. ej. el radar de Riesgos (Lenovo 06-nov) */
+export function PanelBase({ titulo, id, seccion, onCerrar, etiquetaCerrar, ancho = "max-w-[480px]", lado, children }: {
+  titulo: string; id: string; seccion: string; onCerrar: () => void; etiquetaCerrar: string; ancho?: string; lado?: ReactNode; children: ReactNode
 }) {
   const cerrar = useRef<HTMLButtonElement>(null)
   useEffect(() => { cerrar.current?.focus() }, [])
+  const cabecera = (
+    <header className="mb-1 grid shrink-0 grid-cols-[44px_1fr_44px] items-center">
+      <h2 id={id} className="col-start-2 text-center text-titulo font-medio uppercase tracking-titulo text-oro">{titulo}</h2>
+      <button ref={cerrar} type="button" data-cerrar onClick={onCerrar} aria-label={etiquetaCerrar} className={`col-start-3 flex h-11 w-11 items-center justify-center justify-self-end rounded-control text-gris hover:text-hueso ${TOCABLE}`}>
+        <svg viewBox="0 0 24 24" aria-hidden className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+    </header>
+  )
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-velo p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <section role="dialog" aria-modal="true" aria-labelledby={id} data-seccion={seccion} data-estilo="base"
         className={`zr-hilo-oro flex max-h-full w-full ${ancho} flex-col overflow-y-auto rounded-panel border border-linea bg-grafito p-6 text-cuerpo text-hueso`}>
-        <header className="mb-1 grid shrink-0 grid-cols-[44px_1fr_44px] items-center">
-          <h2 id={id} className="col-start-2 text-center text-titulo font-medio uppercase tracking-titulo text-oro">{titulo}</h2>
-          <button ref={cerrar} type="button" data-cerrar onClick={onCerrar} aria-label={etiquetaCerrar} className={`col-start-3 flex h-11 w-11 items-center justify-center justify-self-end rounded-control text-gris hover:text-hueso ${TOCABLE}`}>
-            <svg viewBox="0 0 24 24" aria-hidden className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-          </button>
-        </header>
-        {children}
+        {lado ? (
+          <div className="grid gap-12 lg:grid-cols-2">
+            <div data-columna="lado" className="flex min-w-0 flex-col">{lado}</div>
+            <div data-columna="principal" className="flex min-w-0 flex-col">{cabecera}{children}</div>
+          </div>
+        ) : <>{cabecera}{children}</>}
       </section>
     </div>
   )

@@ -7,9 +7,8 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
-  NOMBRE_DEL_TIPO, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, textoDeCifra, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
-  type AccionDeDecision, type Decision, type Decisiones,
-} from "@/lib/direccion-decisiones"
+  NOMBRE_DEL_TIPO, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
+  type AccionDeDecision, type Decision, type Decisiones, cifraEnRecuadro, partirLoDecisivo } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
 
@@ -124,7 +123,8 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           <Rotulo tono="gris">Propuesta</Rotulo>
           <div className={`mt-3 grid gap-3 ${d.cifras.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
             {d.cifras.map((c) => {
-              const cuerpo = <><span className="block whitespace-nowrap text-cifra font-medio [font-variant-numeric:tabular-nums] text-hueso">{textoDeCifra(c)}</span><span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{c.nombre}</span>{c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}</>
+              const enRecuadro = cifraEnRecuadro(c) // como en la imagen aprobada: el número solo, grande; la moneda en el rótulo (Lenovo 06-nov)
+              const cuerpo = <><span data-numero-de-cifra className="block whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums] text-hueso">{enRecuadro.numero}</span><span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{enRecuadro.rotulo}</span>{c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}</>
               return editables.some((x) => x.clave === c.clave)
                 ? <div key={c.clave} data-cifra={c.clave}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">{cuerpo}</button></div>
                 : <div key={c.clave} data-cifra={c.clave} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4">{cuerpo}</div>
@@ -132,7 +132,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           </div>
         </div>
       ) : null}
-      {!cifraEnCambio && d.criticos?.length ? <div data-criticos><Aviso rotulo="Sigue abierto"><ul className="space-y-1">{d.criticos.map((c) => <li key={c}>{c}</li>)}</ul></Aviso></div> : null}
+      {!cifraEnCambio && d.criticos?.length ? <div data-criticos><Aviso rotulo="Decisivo"><ul className="space-y-2">{d.criticos.map((c) => { const p = partirLoDecisivo(c); return <li key={c}>{p.frase}{p.porque && <span data-porque className="block text-cuerpo font-normal text-gris">{p.porque}</span>}</li> })}</ul></Aviso></div> : null}
       {!cifraEnCambio && (d.para_que || destraba) && (
         <div data-contexto className="mt-4"><Pares valor="text-dato" pares={[
           ...(d.para_que ? [{ rotulo: "Uso", valor: d.para_que }] : []),

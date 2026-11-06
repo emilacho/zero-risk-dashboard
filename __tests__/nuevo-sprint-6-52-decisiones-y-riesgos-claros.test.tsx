@@ -102,7 +102,7 @@ describe("6.52 · Riesgos · qué pasó, a quién afecta, quién lo arregla", ()
     const h = renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: datos as never })).replace(/<!-- -->/g, "")
     expect(h).toContain("Apify cambió el lector de Trustpilot"); expect(h).toContain("lo revisa CC2"); expect(h).toContain("data-ver-detalle")
     expect(h).not.toMatch(/>[^<]*:warning:[^<]*<\/(h3|span)>/)
-    expect(h).not.toContain("data-placa="); expect(h).not.toContain("data-tarjeta-sector="); expect(h).toContain('data-ficha="a"')
+    expect(h).not.toContain("data-placa="); expect(h).toContain('data-ficha="a"') // 06-nov: el tema sale en su recuadro de la izquierda y en la ficha
     expect(h).toContain("14:29"); expect(h).not.toMatch(/p\.\s?m\./)
   }, 30_000) // dibuja el panel entero: con la máquina cargada pasa de 5 s
 })

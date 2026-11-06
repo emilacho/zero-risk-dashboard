@@ -252,6 +252,20 @@ export function textoDeCifra(c: Pick<CifraDeFirma, "valor" | "unidad">): string 
   const n = c.valor.toLocaleString("es-EC", { maximumFractionDigits: 2, ...(c.unidad === "US$" && !Number.isInteger(c.valor) ? { minimumFractionDigits: 2 } : {}) })
   return c.unidad === "US$" ? `US$ ${n}` : c.unidad ? `${n} ${c.unidad}` : n
 }
+/** la cifra en su recuadro, como en la imagen aprobada (Lenovo 06-nov): el número solo, grande; la moneda va en el rótulo («5» · «Meta semanal»; «1.341» · «US$ al mes») */
+export function cifraEnRecuadro(c: Pick<CifraDeFirma, "valor" | "unidad" | "nombre">): { numero: string; rotulo: string } {
+  const numero = c.valor.toLocaleString("es-EC", { maximumFractionDigits: 2, ...(c.unidad === "US$" && !Number.isInteger(c.valor) ? { minimumFractionDigits: 2 } : {}) })
+  // la unidad nunca se pierde: el dólar va delante del rótulo; otra unidad, detrás (salvo que el nombre ya la diga)
+  if (c.unidad === "US$") return { numero, rotulo: /US\$/.test(c.nombre) ? c.nombre : `US$ ${c.nombre}` }
+  return { numero, rotulo: c.unidad && !c.nombre.toLowerCase().includes(c.unidad.toLowerCase()) ? `${c.nombre} · ${c.unidad}` : c.nombre }
+}
+/** lo decisivo en dos líneas, como en la imagen aprobada: la frase y, debajo, su porqué («Con esta meta el plan no se paga» · «Hacen falta 8 ventas…») */
+export function partirLoDecisivo(texto: string): { frase: string; porque: string | null } {
+  const i = texto.indexOf(": ")
+  if (i <= 0 || i === texto.length - 2) return { frase: texto, porque: null }
+  const resto = texto.slice(i + 2).trim()
+  return { frase: texto.slice(0, i).trim(), porque: resto.charAt(0).toUpperCase() + resto.slice(1) }
+}
 /**
  * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;
  * si no declaró nada, las de su tipo. Una acción sin ruta real nunca se muestra (nada de botones falsos).
