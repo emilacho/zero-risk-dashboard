@@ -57,13 +57,29 @@ const NOMBRE_DEL_LUGAR: Partial<Record<PanelDelMarco, string>> = { envivo: "En v
  * LA LISTA DE LA ANTENA EN ESTILO BASE (boceto aprobado por Emilio 06-nov 01:51 local): se abre encima y sigues en Dept. Marketing.
  * Título ALERTAS en oro con la ✕, «Dept. Marketing», un recuadro con el número en rojo y cada aviso con su punto rojo, cuándo pasó y qué abre.
  */
-export function PanelDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void; ahora?: number }) {
+/** tocar un aviso (CC6 06-nov, prueba del clic): si tiene lugar, cierra la lista y abre ese lugar; sin lugar no hace nada */
+export function alTocarElAviso(a: AlertaDeLaAntena, h: { cerrar: () => void; abrir: (panel: PanelDelMarco) => void }): boolean {
+  if (!a.abre) return false
+  h.cerrar(); h.abrir(a.abre)
+  return true
+}
+
+/** Esc cierra SOLO la lista (en captura, sin que llegue a la oficina); devuelve cómo soltarlo al cerrar */
+export function escucharEsc(w: Pick<Window, "addEventListener" | "removeEventListener">, onCerrar: () => void): () => void {
+  const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar() }
+  w.addEventListener("keydown", tecla as EventListener, true)
+  return () => w.removeEventListener("keydown", tecla as EventListener, true)
+}
+
+export function PanelDeLasAlertas(p: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void; ahora?: number }) {
+  const { onCerrar } = p
+  useEffect(() => escucharEsc(window, onCerrar), [onCerrar])
+  return ListaDeLasAlertas(p)
+}
+
+/** lo que se dibuja (sin ganchos de React: se puede probar el clic llamándola) */
+export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void; ahora?: number }) {
   const lista = alertas ?? []
-  useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar() }
-    window.addEventListener("keydown", tecla, true)
-    return () => window.removeEventListener("keydown", tecla, true)
-  }, [onCerrar])
   return (
     <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[440px]">
       <div data-panel-alertas className="flex flex-col">

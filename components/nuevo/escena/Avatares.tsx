@@ -5,7 +5,7 @@ import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
-import { AntenaDeAlertas, PanelDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
+import { AntenaDeAlertas, PanelDeLasAlertas, alTocarElAviso } from "@/components/nuevo/escena/AntenaDeAlertas"
 import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
 import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
 import { CuadrosDeMetricas, ESTILO_ENTREGAS, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
@@ -204,7 +204,7 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
       {MOSTRAR_LA_FRANJA_DE_REDES && <FranjaDeLasRedes botones={botonesDeLaFranja(datos?.metricas)} className="absolute left-0 z-[3]" style={{ width: "76%", top: pct(70, FOTO.h) }}
         onAbrir={(k) => setPanelTablero(k === "vitrina" ? { tipo: "vitrina" } : { tipo: "pizarron", clave: k })} />}
       {/* 06-nov · la lista de la antena se abre encima en estilo base (su propio panel); sigues en Dept. Marketing */}
-      {panelTablero?.tipo === "antena" && <PanelDeLasAlertas alertas={datos?.alertas} onCerrar={() => setPanelTablero(null)} onAbrir={(a) => { setPanelTablero(null); if (a.abre) window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel: a.abre } })) }} />}
+      {panelTablero?.tipo === "antena" && <PanelDeLasAlertas alertas={datos?.alertas} onCerrar={() => setPanelTablero(null)} onAbrir={(a) => alTocarElAviso(a, { cerrar: () => setPanelTablero(null), abrir: (panel) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel } })) })} />}
       {panelTablero && panelTablero.tipo !== "antena" && (
         <div role="dialog" aria-label={panelTablero.tipo === "vitrina" ? "La vitrina" : "El pizarrón de métricas"} className="nv-av-lista absolute left-1/2 top-1/2 z-[5] max-h-[80%] w-[min(26rem,92%)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-white/15 bg-[#121110]/95 p-4 text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]" onClick={(e) => e.stopPropagation()}>
           {panelTablero.tipo === "vitrina" ? <PanelDeLaVitrina vitrina={datos?.vitrina} onCerrar={() => setPanelTablero(null)} /> : <PanelDelPizarron metricas={datos?.metricas} inicial={panelTablero.clave} onCerrar={() => setPanelTablero(null)} />}
