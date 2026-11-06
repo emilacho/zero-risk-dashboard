@@ -29,16 +29,18 @@ export interface Pieza {
 }
 
 export interface Catalogo {
-  listos: { imagen: boolean; video: boolean; "3d": boolean; almacen: boolean }
+  listos: { imagen: boolean; video: boolean; "3d": boolean; almacen: boolean; animar?: boolean }
   imagen: { modelo: string; formatos: string[]; precio: Record<string, { sin_foto: number; con_foto: number }> }
   video: { modelos: Array<{ id: string; nombre: string }>; formatos: string[]; resoluciones: string[]; segundos: { min: number; max: number } }
   "3d": { modelos: Array<{ id: string; nombre: string; nota: string; precio: { normal: number; alta: number } }>; imagen_previa_usd: number }
+  /** animar un modelo 3D (GO 06-nov) · falta mientras la plataforma no lo tenga */
+  animar?: { precio: { base: number; por_movimiento: number }; maximo: number; comunes: Array<{ id: number; nombre: string }>; biblioteca: Array<readonly [number, string, string]> }
 }
 
 export interface Cotizacion { total_usd: number; partes: Array<{ que: string; usd: number }> }
 
 /** lo que la puerta deja pasar a la plataforma: nada más */
-export const RUTAS_DEL_ESTUDIO: Readonly<Record<string, "GET" | "POST">> = { catalogo: "GET", piezas: "GET", pieza: "GET", cotizar: "POST", crear: "POST" }
+export const RUTAS_DEL_ESTUDIO: Readonly<Record<string, "GET" | "POST">> = { catalogo: "GET", piezas: "GET", pieza: "GET", cotizar: "POST", crear: "POST", animar: "POST" }
 
 const sinBarra = (s: string) => s.replace(/\/+$/, "")
 
@@ -137,3 +139,57 @@ export function cuerpoDeCotizacion(cuerpo: Record<string, unknown>): Record<stri
   const sinFoto = Object.fromEntries(Object.entries(cuerpo).filter(([k]) => k !== "foto_b64" && k !== "foto_pieza_id"))
   return { ...sinFoto, prompt: (typeof sinFoto.prompt === "string" && sinFoto.prompt) || "cotización", con_foto: "foto_b64" in cuerpo || "foto_pieza_id" in cuerpo }
 }
+
+// ── animar un modelo 3D (GO de Lenovo 06-nov) ─────────────────────────────────
+
+/** el modelo de la animación (lo fija la plataforma) */
+export const MODELO_DE_ANIMACION = "meshy-animar"
+
+/** se anima un 3D listo en GLB que no sea ya una animación */
+export const esAnimable = (p: Pick<Pieza, "tipo" | "estado" | "archivo_tipo" | "modelo">) => p.tipo === "3d" && p.estado === "lista" && p.archivo_tipo === "glb" && p.modelo !== MODELO_DE_ANIMACION
+
+/** el costo antes de crear: esqueleto + cada movimiento (misma cuenta que la plataforma) */
+export function cotizarAnimacion(precio: { base: number; por_movimiento: number }, n: number): Cotizacion {
+  const partes = [{ que: "esqueleto", usd: precio.base }, { que: `${n} movimiento${n === 1 ? "" : "s"}`, usd: +(precio.por_movimiento * n).toFixed(4) }]
+  return { total_usd: +partes.reduce((s, x) => s + x.usd, 0).toFixed(4), partes }
+}
+
+/** marcar o desmarcar un movimiento, sin pasar del máximo */
+export function alternarMovimiento(elegidos: number[], id: number, maximo: number): number[] {
+  if (elegidos.includes(id)) return elegidos.filter((x) => x !== id)
+  return elegidos.length >= maximo ? elegidos : [...elegidos, id]
+}
+
+/** el botón «Animar»: se enciende con cliente, la función conectada y al menos un movimiento; el costo siempre a la vista */
+export function estadoDeAnimar(x: { clienteId: string | null; conectado: boolean; cotizacion: Cotizacion | null; enviando: boolean }): { habilitado: boolean; costo: string } {
+  const habilitado = !!x.clienteId && x.conectado && !!x.cotizacion && !x.enviando
+  return { habilitado, costo: x.cotizacion ? dolares(x.cotizacion.total_usd) : "elige un movimiento" }
+}
+
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+
+/** el buscador de la biblioteca: por nombre o grupo (los guiones bajos cuentan como espacios); vacío no muestra nada */
+export function buscarMovimientos(biblioteca: ReadonlyArray<readonly [number, string, string]>, consulta: string, tope = 40): Array<readonly [number, string, string]> {
+  const q = sinTildes(consulta.trim()).replace(/_/g, " ")
+  if (q.length < 2) return []
+  return biblioteca.filter(([, nombre, grupo]) => sinTildes(nombre).replace(/_/g, " ").includes(q) || sinTildes(grupo).includes(q)).slice(0, tope)
+}
+
+/** el nombre que se muestra de un movimiento: el común si lo es, si no el de la biblioteca sin guiones bajos */
+export function nombreDelMovimiento(cat: Catalogo["animar"] | undefined, id: number): string {
+  const comun = cat?.comunes.find((m) => m.id === id)
+  if (comun) return comun.nombre
+  const fila = cat?.biblioteca.find((m) => m[0] === id)
+  return fila ? fila[1].replace(/_/g, " ") : `#${id}`
+}
+
+export interface Clip { action_id: number; nombre: string; glb: string | null; fbx: string | null }
+
+/** los movimientos guardados de una animación (vacío si no lo es o si aún no termina) */
+export function clipsDe(p: Pick<Pieza, "modelo" | "parametros">): Clip[] {
+  if (p.modelo !== MODELO_DE_ANIMACION || !Array.isArray(p.parametros?.archivos)) return []
+  return (p.parametros.archivos as unknown[]).filter((x): x is Clip => !!x && typeof x === "object" && typeof (x as Clip).action_id === "number")
+}
+
+/** el pedido de animación que va a la plataforma */
+export const cuerpoDeAnimacion = (clienteId: string, piezaId: string, movimientos: number[], clave: string = claveNueva()) => ({ client_id: clienteId, origen_pieza_id: piezaId, movimientos, clave })
