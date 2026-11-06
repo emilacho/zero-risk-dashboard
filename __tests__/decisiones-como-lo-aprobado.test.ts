@@ -16,6 +16,11 @@ describe("Decisiones como en la imagen aprobada", () => {
     expect(partirLoDecisivo("Con esta meta el plan no se paga: hacen falta 8 ventas por semana (supuesto)")).toEqual({ frase: "Con esta meta el plan no se paga", porque: "Hacen falta 8 ventas por semana (supuesto)" })
     expect(partirLoDecisivo("Dos hallazgos sin cerrar")).toEqual({ frase: "Dos hallazgos sin cerrar", porque: null })
     expect(partirLoDecisivo("Raro: ")).toEqual({ frase: "Raro: ", porque: null })
+    // caso real (06-nov): el «:» dentro de un paréntesis no parte; el primero fuera, sí
+    const real = "Instagram @zeroriskgye lleva 6 años inactivo (últimos posts: Junio 2020) y el Business Manager no está confirmado"
+    expect(partirLoDecisivo(real)).toEqual({ frase: real, porque: null })
+    expect(partirLoDecisivo("Precios reales sin dato: D4 y D6 son nulos")).toEqual({ frase: "Precios reales sin dato", porque: "D4 y D6 son nulos" })
+    expect(partirLoDecisivo(`${"x".repeat(95)}: resto`).porque).toBeNull() // la frase larga no es un título
   })
   it("🔴 el rótulo rojo dice «Decisivo», no «Sigue abierto»; las cifras con el número grande", () => {
     const c = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")

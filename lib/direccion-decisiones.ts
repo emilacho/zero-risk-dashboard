@@ -261,8 +261,15 @@ export function cifraEnRecuadro(c: Pick<CifraDeFirma, "valor" | "unidad" | "nomb
 }
 /** lo decisivo en dos líneas, como en la imagen aprobada: la frase y, debajo, su porqué («Con esta meta el plan no se paga» · «Hacen falta 8 ventas…») */
 export function partirLoDecisivo(texto: string): { frase: string; porque: string | null } {
-  const i = texto.indexOf(": ")
-  if (i <= 0 || i === texto.length - 2) return { frase: texto, porque: null }
+  // solo un «: » fuera de paréntesis y tras una frase corta (si no, el texto queda entero: «(últimos posts: Junio 2020)» no se parte)
+  let i = -1, hondo = 0
+  for (let k = 0; k < texto.length - 1; k++) {
+    const ch = texto[k]
+    if (ch === "(") hondo++
+    else if (ch === ")") hondo = Math.max(0, hondo - 1)
+    else if (ch === ":" && texto[k + 1] === " " && hondo === 0) { i = k; break }
+  }
+  if (i <= 0 || i > 90 || i === texto.length - 2) return { frase: texto, porque: null }
   const resto = texto.slice(i + 2).trim()
   return { frase: texto.slice(0, i).trim(), porque: resto.charAt(0).toUpperCase() + resto.slice(1) }
 }
