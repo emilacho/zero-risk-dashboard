@@ -33,14 +33,14 @@ describe("estilo base · la revisión automática", () => {
   })
   it("la lista de migrados es exactamente la de esta entrega (campana incluida)", () => {
     const lista = readFileSync("scripts/revisar-estilo.mjs", "utf8").match(/export const MIGRADOS = \[([^\]]*)\]/)?.[1] ?? ""
-    expect([...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1])).toEqual(["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx"])
+    expect([...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1])).toEqual(["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx", "components/nuevo/PanelAplicaciones.tsx"]) // 06-nov · el Centro de campaña pasa al estilo base
   })
 })
 
 // CC6 (certificación de #290): que la revisión FRENE la entrega se prueba de verdad, en un repositorio de juguete con su propia historia
 describe("estilo base · la revisión frena la entrega", () => {
   const SCRIPT = path.resolve("scripts/revisar-estilo.mjs")
-  const MIGRADOS = ["EstiloBase", "PanelRiesgos", "PanelDecisiones", "EditorDeCifra", "BotonesDelMarco"].map((x) => `components/nuevo/${x}.tsx`)
+  const MIGRADOS = ["EstiloBase", "PanelRiesgos", "PanelDecisiones", "EditorDeCifra", "BotonesDelMarco", "PanelAplicaciones"].map((x) => `components/nuevo/${x}.tsx`)
   const git = (dir: string, ...a: string[]) => execFileSync("git", ["-c", "user.name=prueba", "-c", "user.email=prueba@x", "-c", "core.hooksPath=/dev/null", ...a], { cwd: dir, stdio: "pipe" })
   const escribir = (dir: string, f: string, t: string) => { mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); writeFileSync(path.join(dir, f), t) }
   /** repositorio con la rama principal (los migrados, limpios o no) y una rama de trabajo encima */

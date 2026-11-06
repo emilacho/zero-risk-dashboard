@@ -30,7 +30,7 @@ describe("6.10 · el Centro de campaña tiene 9 botones en el orden de la cadena
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {} }))
     expect(html.match(/data-paso="\d"/g)).toHaveLength(9)
     expect(html).toContain('data-aplicacion="gran_idea"'); expect(html).toContain('data-aplicacion="equipo"'); expect(html).toContain('data-aplicacion="brief"')
-    expect(html).toContain("los 9 pasos de la campaña")
+    expect(html).toContain('aria-label="Los 9 pasos del Centro de campaña"') // 06-nov · estilo base: el subtítulo largo se fue
   })
   it("la segunda línea de los cuadros nuevos la trae la lectura del centro (lo real o lo que falta); sin ella queda la descripción fija", () => {
     const centro: Centro = { cliente: NAUFRAGO, informes: { texto: "todavía sin informes", aviso: false, total: 0 }, brief: { texto: "La cadena aún no publica el brief (llega con T9)", aviso: false, publicado: false }, gran_idea: { texto: "Espera tu decisión", aviso: true, publicado: true }, equipo: { texto: "2 empleados trabajan ahora mismo", aviso: false, trabajando: 2 }, leido_en: "x" }
