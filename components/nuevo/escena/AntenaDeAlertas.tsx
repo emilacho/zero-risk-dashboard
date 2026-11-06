@@ -37,7 +37,7 @@ export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAnten
         <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff3b2a" strokeWidth={2.6} strokeDasharray="5 95" />
       </g>
       {/* 06-nov (Emilio 01:51 local): el número de avisos va SOLO, en rojo, sin círculo ni fondo (el fondo de la foto ya es negro), arriba a la derecha de la luz */}
-      <text data-numero-antena x={punta2.x + 30} y={punta2.y - 26} className="fill-alarma font-medio" fontSize={34} aria-hidden style={{ fontVariantNumeric: "tabular-nums" }}>{alertas.length}</text>
+      <text data-numero-antena x={punta2.x + 30} y={punta2.y - 26} className="fill-alarma font-medio" fontSize={40} aria-hidden style={{ fontVariantNumeric: "tabular-nums" }}>{alertas.length}</text>
       {/* la luz de la punta mayor: aura suave que respira, sin círculo plano */}
       <g className="nv-antena-pulso">
         <circle cx={punta2.x} cy={punta2.y} r={28} fill="url(#nvAntRojo)" />
