@@ -398,6 +398,18 @@ export function leerElCiclo(statusDelDocumento: string | null, ciclo: CicloDelPl
   return { estado: "esperando_decision", titulo: "Espera tu decisión", detalle: "Apruébalo para que pase al brief, o pide cambios.", puede_aprobar: true, puede_pedir_cambios: !alTope, reintentar: null, avisos }
 }
 
+/**
+ * SIN ESTRATEGIA TODAVÍA (encargo de Lenovo 06-nov, punto 2 · acordado con CC1): las fases, las redes, los pilares y la semana tipo salen de la estrategia
+ * de la campaña, que se arma DESPUÉS de aprobar el plan. Mientras no existe no se muestran como campos que faltan: una sola línea con el paso en que va.
+ * No es texto inventado; es el estado. (Cuando el redactor entregue la ficha estructurada del plan, el panel la leerá; eso es otra entrega.)
+ */
+export function lineaSinEstrategia(o: { hay_documento: boolean; estado_del_ciclo: EstadoDelCiclo | null }): string {
+  const que = "Las fases, las redes, los pilares y la semana tipo"
+  if (!o.hay_documento) return `${que} se arman cuando el plan esté escrito y lo apruebes.`
+  if (o.estado_del_ciclo === "aprobado") return `${que} se están armando con el plan que aprobaste.`
+  if (o.estado_del_ciclo === "en_preparacion" || o.estado_del_ciclo === "sin_plan_vigente") return `${que} se arman cuando llegue el plan nuevo y lo apruebes.`
+  return `${que} se arman cuando apruebes el plan.`
+}
 
 /** qué le pasó a la versión cerrada, en palabras de dueño (sin nombres internos ni quién lo ejecutó) */
 export const QUE_LE_PASO_AL_PLAN: Record<NonNullable<CicloDelPlan["cerrado"]>["estado"], string> = {

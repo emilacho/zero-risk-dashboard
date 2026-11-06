@@ -8,7 +8,7 @@ import { BarraDelPlan } from "@/components/nuevo/plan/BarraDelPlan"
 import { barraDelPlan } from "@/lib/plan-barra"
 import { periodoDelPlan, textoDelPeriodo } from "@/lib/plan-periodo"
 import { coberturaDelPlan, diasPrometidos, PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
-import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, lineaSinEstrategia, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
@@ -320,8 +320,8 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
 
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
                 <div className="min-w-0 space-y-5">
-                  {/* las fases */}
-                  <Seccion titulo="Las fases" nota={e && c?.del_plan_anterior ? "de la estrategia del plan anterior" : undefined} retraso={60}>
+                  {/* las fases (sin estrategia todavía, no se pintan como un campo que falta: va una sola línea más abajo · encargo 06-nov, punto 2) */}
+                  {e && <Seccion titulo="Las fases" nota={e && c?.del_plan_anterior ? "de la estrategia del plan anterior" : undefined} retraso={60}>
                     {!e || e.fases.length === 0 ? <Vacio>La estrategia todavía no trae fases.</Vacio> : (
                       <ol className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Las fases de la estrategia">
                         {e.fases.map((f) => (
@@ -333,7 +333,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                         ))}
                       </ol>
                     )}
-                  </Seccion>
+                  </Seccion>}
 
                   {/* la meta y el reparto, del documento del plan */}
                   <Seccion titulo="La meta y el reparto" nota={d ? rotuloDelTextoMientrasSeRehace(datos.ciclo) ?? undefined : "sin documento del plan"} retraso={120}>
@@ -368,6 +368,13 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                     )}
                   </Seccion>
 
+                  {!e && (
+                    <Seccion titulo="Fases, redes y semana tipo" retraso={180}>
+                      <p data-sin-estrategia className="text-[13px] leading-relaxed text-zinc-200">{lineaSinEstrategia({ hay_documento: !!d, estado_del_ciclo: d && datos?.ciclo ? leerElCiclo(d.status, datos.ciclo).estado : null })}</p>
+                    </Seccion>
+                  )}
+
+                  {e && <>
                   {/* las redes y su ritmo */}
                   <Seccion titulo="Redes y ritmo" nota={ritmo ? `${plural(ritmo.total, "publicación", "publicaciones")} por semana · ${ritmo.feed} feed · ${ritmo.historias} historias · ${plural(ritmo.anuncios, "anuncio", "anuncios")}` : undefined} retraso={180}>
                     {!e || e.redes.length === 0 ? <Vacio>La estrategia todavía no reparte las redes.</Vacio> : (
@@ -427,6 +434,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                       </div>
                     )}
                   </Seccion>
+                  </>}
                 </div>
 
                 {/* al costado: lo que espera la campaña y lo que el sistema no buscó */}

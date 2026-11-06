@@ -68,6 +68,16 @@ describe("la barra del plan en pantalla", () => {
   })
   it("sin datos dice qué falta", () => {
     const h = renderToStaticMarkup(createElement(BarraDelPlan, { b: barraDelPlan(base({ campana: null, estrategia: null, documento: null, ciclo: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } } })) }))
-    expect(h).toContain("Todavía no hay plan escrito."); expect(h).toContain("La estrategia todavía no tiene fases."); expect(h).toContain("Nada pendiente de tu lado.")
+    expect(h).toContain("Todavía no hay plan escrito."); expect(h).toContain("se arman cuando el plan esté escrito y lo apruebes."); expect(h).toContain("Nada pendiente de tu lado.") // CC4 06-nov · punto 2: sin estrategia se dice el paso, no «todavía no tiene fases»
+  })
+  it("🔴 plan cerrado (rechazado): sin meta, fechas ni presupuesto de ese plan · nada que se tome por cifra vigente (Lenovo 06-nov, «solo lo elemental»)", () => {
+    const ciclo = { ...(base().ciclo as object), cerrado: { estado: "rechazado", motivo: null } } as never
+    const b = barraDelPlan(base({ ciclo }))
+    expect(b).toMatchObject({ meta: null, fechas: null, presupuesto: null, plan_cerrado: true }); expect(b.decision?.titulo).toBe("Rechazado")
+    const h = renderToStaticMarkup(createElement(BarraDelPlan, { b }))
+    expect([...h.matchAll(/data-barra="([a-z-]+)"/g)].map((x) => x[1])).toEqual(["decision", "sedes-y-canales", "fases", "te-toca"])
+    expect(h).not.toMatch(/130 tickets|\$200|2 nov|Sin fechas todavía|todavía no dice su meta|todavía no trae la cifra/)
+    // control: el mismo plan abierto sí los muestra
+    expect(barraDelPlan(base())).toMatchObject({ plan_cerrado: false }); expect(barraDelPlan(base()).presupuesto).toMatch(/\$200/)
   })
 })

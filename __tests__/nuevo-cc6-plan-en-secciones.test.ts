@@ -72,6 +72,20 @@ describe("el plan sin citas internas a la vista (Emilio, 04-nov)", () => {
     expect(texto).not.toMatch(/\[D\d/)
     expect(texto).toContain("Ticket de $10,63. Reseñas 4,8 en Mapas.")
   })
+  it("🔴 un paréntesis que solo traía citas se va entero: nunca «(,,)» (encargo de Lenovo 06-nov, punto 3; formas sacadas de los planes reales)", () => {
+    expect(sinCitasInternas("lo dicen espontáneamente ([D126], [D8], [D77]).")).toBe("lo dicen espontáneamente.")
+    expect(sinCitasInternas("tres fuentes ([D1]; [D2] y [D3, D4]) y más")).toBe("tres fuentes y más")
+    expect(sinCitasInternas("una sola ( [D5] ), listo")).toBe("una sola, listo")
+    expect(sinCitasInternas("vista al mar [D3]) sigue")).toBe("vista al mar) sigue") // el paréntesis tiene texto: queda
+    expect(sinCitasInternas("(la sede de Olón [D3]) abre")).toBe("(la sede de Olón) abre")
+    expect(sinCitasInternas("según [D1], [D2] y [D3]. Fin")).toBe("según. Fin") // la lista suelta no deja comas
+    expect(sinCitasInternas("$2,00 [D9] | $1,00 [D10] |")).toBe("$2,00 | $1,00 |")
+    expect(sinCitasInternas("(sin citas) y ()")).toBe("(sin citas) y ()") // lo que no son citas no se toca
+    expect(sinCitasInternas("Dato [D1] y yo")).toBe("Dato y yo") // «y» solo une citas, no come texto
+    expect(sinCitasInternas("ticket [D1] según el sitio [D2].")).toBe("ticket según el sitio.") // una palabra entre dos citas se queda
+    expect(sinCitasInternas("precio [D1] real [D2] hoy")).toBe("precio real hoy")
+    expect(JSON.stringify(seccionesDelPlan("# Plan\n\n## Voz\n\nLo dicen ([D126], [D8], [D77]) los clientes.\n"))).not.toMatch(/\(\s*[,;\s]*\)/)
+  })
   it("🔴 no toca un corchete que no es una cita", () => {
     expect(sinCitasInternas("Ver [Donde] y [D] y [D12a].")).toBe("Ver [Donde] y [D] y [D12a].")
   })
