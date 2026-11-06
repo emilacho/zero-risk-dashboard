@@ -8,7 +8,7 @@ import { BarraDelPlan } from "@/components/nuevo/plan/BarraDelPlan"
 import { barraDelPlan } from "@/lib/plan-barra"
 import { periodoDelPlan, textoDelPeriodo } from "@/lib/plan-periodo"
 import { coberturaDelPlan, diasPrometidos, PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
-import { BOTONES_DEL_PLAN, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, resultadoDeJefaturaDelPlanLegible, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
+import { BOTONES_DEL_PLAN, lineaSinEstrategia, rotuloDelTextoMientrasSeRehace, canalDelPlanLegible, cuerpoDeAprobar, cuerpoDePedirCambios, decisionDeEquilibrioLegible, leerElCiclo, inicioSujetoAReanudar, estadoDeLaEstrategia, type CicloDelPlan, type EstadoDelCiclo, type RespuestaDelCiclo, estadoDelPlanLegible, fuenteDeLaAlertaLegible, origenDeLaFechaLegible, pedirALegible, porcentaje, publicacionesPorSemana, rolDeLaRedLegible, sedeLegible, semanaDelPatron, textoDeLaMeta, tipoDeHitoLegible } from "@/lib/plan"
 import { formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
@@ -64,6 +64,8 @@ const ESTADO_CICLO_COLOR: Record<EstadoDelCiclo, string> = {
   reescribiendo: "border-violet-400/50 bg-violet-400/10 text-violet-100",
   esperando_decision: "border-amber-400/70 bg-amber-400/15 text-amber-100",
   aprobado: "border-emerald-400/60 bg-emerald-400/10 text-emerald-100",
+  en_preparacion: "border-violet-400/50 bg-violet-400/10 text-violet-100",
+  sin_plan_vigente: "border-zinc-400/50 bg-zinc-400/10 text-zinc-100",
 }
 const BOTON_GRANDE = "min-h-[56px] rounded-xl px-6 py-3 text-[16px] font-semibold tracking-[0.01em] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:opacity-50"
 
@@ -152,9 +154,10 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       {children}
 
       {modo === "quieto" && (lectura.puede_aprobar || lectura.puede_pedir_cambios) && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {lectura.puede_aprobar && <button type="button" data-accion="plan-aprobar-asi" disabled={!!ocupado} onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, ""))} className={`${BOTON_GRANDE} border border-amber-300/80 bg-amber-400/90 text-black hover:bg-amber-300`}>{ocupado === "plan-aprobar" ? "Aprobando…" : BOTONES_DEL_PLAN.aprobar}</button>}
-          {lectura.puede_pedir_cambios && <button type="button" data-accion="plan-pedir-cambios" disabled={!!ocupado} onClick={() => { setError(null); setModo("escribir") }} className={`${BOTON_GRANDE} border border-white/25 bg-white/[0.06] text-zinc-50 hover:border-violet-300/70 hover:bg-violet-400/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
+        // «Pedir cambios» con borde oro a la izquierda y «Aprobar» en ámbar a la derecha (corrección de Lenovo 06-nov · estilo base)
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+          {lectura.puede_pedir_cambios && <button type="button" data-accion="plan-pedir-cambios" disabled={!!ocupado} onClick={() => { setError(null); setModo("escribir") }} className={`${BOTON_GRANDE} border border-[#d6aa64]/70 bg-transparent text-[#d6aa64] hover:bg-[#d6aa64]/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
+          {lectura.puede_aprobar && <button type="button" data-accion="plan-aprobar-asi" disabled={!!ocupado} onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, ""))} className={`${BOTON_GRANDE} border border-[#e8731a] bg-[#e8731a] text-[#160b02] hover:bg-[#f0832e]`}>{ocupado === "plan-aprobar" ? "Aprobando…" : BOTONES_DEL_PLAN.aprobar}</button>}
         </div>
       )}
       {modo === "quieto" && lectura.reintentar && (
@@ -310,27 +313,15 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
               )}
               {/* la decisión sobre el plan: para TODO plan, con el estado del ciclo a la vista y los dos botones grandes */}
               {d && datos.ciclo && datos.manual_aprobado !== false && (
-                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio} palabraDelDueno={datos.palabra_del_dueno ?? []} pedirEn={pedirEn}>
-                  {d.marcas.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-[12.5px] text-zinc-300">El chequeo del sistema marcó estos puntos antes de darlo por bueno:</p>
-                      <ol className="mt-1.5 space-y-1.5" aria-label="Las marcas del chequeo">
-                        {d.marcas.map((m, i) => <li key={`${m.codigo}-${i}`} className="flex gap-2 text-[12.5px]"><span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/70" /><span className="text-zinc-200">{m.texto}</span></li>)}
-                      </ol>
-                    </div>
-                  )}
-                  {d.aviso_del_chequeo.length > 0 && (
-                    <details className="mt-2 text-[12px] text-zinc-400"><summary className="cursor-pointer">Lo que dice el chequeo, punto por punto</summary>
-                      <ul className="mt-1 list-disc space-y-0.5 pl-5">{d.aviso_del_chequeo.map((p, i) => <li key={i}>{p}</li>)}</ul></details>
-                  )}
-                  {d.jefatura && <p className="mt-2 text-[12px] text-zinc-400">{resultadoDeJefaturaDelPlanLegible(d.jefatura.resultado)}{d.jefatura.marcado_en ? ` · ${fechaCortaEC(d.jefatura.marcado_en)}` : ""}</p>}
-                </DecisionDelPlan>
+                // SOLO LO ELEMENTAL (corrección de Lenovo 06-nov, Emilio 01:27 local): el estado, una línea corta y los botones. Las marcas del chequeo,
+                // «lo que dice el chequeo» y el resultado de la jefatura NO se muestran al dueño (ni plegados): esa información es de la jefatura
+                <DecisionDelPlan planId={d.id} statusDelDocumento={d.status} ciclo={datos.ciclo} enviar={enviarCiclo} onResultado={alResultado} queCambio={d.que_cambio} palabraDelDueno={datos.palabra_del_dueno ?? []} pedirEn={pedirEn} />
               )}
 
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
                 <div className="min-w-0 space-y-5">
-                  {/* las fases */}
-                  <Seccion titulo="Las fases" nota={e && c?.del_plan_anterior ? "de la estrategia del plan anterior" : undefined} retraso={60}>
+                  {/* las fases (sin estrategia todavía, no se pintan como un campo que falta: va una sola línea más abajo · encargo 06-nov, punto 2) */}
+                  {e && <Seccion titulo="Las fases" nota={e && c?.del_plan_anterior ? "de la estrategia del plan anterior" : undefined} retraso={60}>
                     {!e || e.fases.length === 0 ? <Vacio>La estrategia todavía no trae fases.</Vacio> : (
                       <ol className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Las fases de la estrategia">
                         {e.fases.map((f) => (
@@ -342,7 +333,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                         ))}
                       </ol>
                     )}
-                  </Seccion>
+                  </Seccion>}
 
                   {/* la meta y el reparto, del documento del plan */}
                   <Seccion titulo="La meta y el reparto" nota={d ? rotuloDelTextoMientrasSeRehace(datos.ciclo) ?? undefined : "sin documento del plan"} retraso={120}>
@@ -377,6 +368,13 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                     )}
                   </Seccion>
 
+                  {!e && (
+                    <Seccion titulo="Fases, redes y semana tipo" retraso={180}>
+                      <p data-sin-estrategia className="text-[13px] leading-relaxed text-zinc-200">{lineaSinEstrategia({ hay_documento: !!d, estado_del_ciclo: d && datos?.ciclo ? leerElCiclo(d.status, datos.ciclo).estado : null })}</p>
+                    </Seccion>
+                  )}
+
+                  {e && <>
                   {/* las redes y su ritmo */}
                   <Seccion titulo="Redes y ritmo" nota={ritmo ? `${plural(ritmo.total, "publicación", "publicaciones")} por semana · ${ritmo.feed} feed · ${ritmo.historias} historias · ${plural(ritmo.anuncios, "anuncio", "anuncios")}` : undefined} retraso={180}>
                     {!e || e.redes.length === 0 ? <Vacio>La estrategia todavía no reparte las redes.</Vacio> : (
@@ -436,6 +434,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                       </div>
                     )}
                   </Seccion>
+                  </>}
                 </div>
 
                 {/* al costado: lo que espera la campaña y lo que el sistema no buscó */}

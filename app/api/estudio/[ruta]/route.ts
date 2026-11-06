@@ -1,5 +1,5 @@
 /**
- * `/api/estudio/{catalogo|piezas|pieza|cotizar|crear}` · la puerta del estudio de la cámara. Solo un administrador con sesión.
+ * `/api/estudio/{catalogo|piezas|pieza|cotizar|crear|animar}` · la puerta del estudio de la cámara. Solo un administrador con sesión.
  * El tablero no llama a los proveedores ni guarda nada: reenvía a la plataforma con la llave interna (que nunca llega al navegador). Lógica en `lib/estudio.ts`.
  * `clientes` es la única lectura propia: la lista de clientes (id y nombre) para elegir a quién pertenece la pieza. SOLO LECTURA.
  */

@@ -9,6 +9,7 @@
  * inventa; cualquier OTRO error de la base sigue lanzando.
  */
 import { manualAprobadoPorCliente } from "@/lib/manual-primero"
+import { vigenciaDeLosPlanes, type EstadoDeLaSalida } from "@/lib/plan-vigencia"
 import { clientePorOmision } from "@/lib/cliente-por-omision"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
@@ -80,10 +81,34 @@ const detalleCorto = (v: unknown): string | null => {
   return m ?? (Object.keys(o).length ? JSON.stringify(o).slice(0, 160) : null)
 }
 const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null)
+/** como `opcional`, para una lista: la tabla puede no existir todavía (falta = true); cualquier otro error lanza */
+async function opcionalFilas(q: PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>, que: string): Promise<{ falta: boolean; filas: Fila[] }> {
+  const r = await q
+  if (r.error) { if (TABLA_QUE_FALTA.test(`${r.error.code ?? ""} ${r.error.message}`)) return { falta: true, filas: [] }; throw new Error(`${que}: ${r.error.message}`) }
+  return { falta: false, filas: (r.data ?? []) as Fila[] }
+}
+/**
+ * LA VIGENCIA DE CADA VERSIÓN (encargo de Lenovo 06-nov): la misma lectura que el cerebro (#930/#931) y el alta (#928) · la fila, la última decisión real de la
+ * cola (`hitl_queue`) y la aprobación más reciente (`plan_aprobaciones`). Un error de la cola lanza (no se adivina que algo está abierto).
+ */
+async function leerVigencia(supa: SupabaseClient, clienteId: string, versiones: Fila[]): Promise<Map<string, EstadoDeLaSalida>> {
+  if (!versiones.length) return new Map()
+  const ids = versiones.map((v) => String(v.id))
+  const [cola, ap] = await Promise.all([
+    filas(supa.from("hitl_queue").select("output_id, type, status, decision, reviewer, resolved_by, resolved_at, created_at").eq("client_id", clienteId).in("output_id", ids).limit(1000), "hitl_queue"),
+    opcionalFilas(supa.from("plan_aprobaciones").select("plan_id, estado, version, creado_en").eq("client_id", clienteId).limit(1000), "plan_aprobaciones"),
+  ])
+  return vigenciaDeLosPlanes(versiones, cola, ap.filas)
+}
 
-async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[], ahora: Date, clienteId: string | null = null): Promise<CicloDelPlan | null> {
+async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[], ahora: Date, clienteId: string | null = null, vigencia: Map<string, EstadoDeLaSalida> = new Map()): Promise<CicloDelPlan | null> {
   if (!d) return null
   const id = String(d.id)
+  const ev = vigencia.get(id)
+  const cerrado: CicloDelPlan["cerrado"] = ev?.cerrada && ev.estado !== "aprobado" && ev.estado !== "abierto" ? { estado: ev.estado, motivo: ev.motivo } : null
+  // cerrado: ¿se está escribiendo el plan nuevo? (una corrida REAL de planeación en curso para el cliente)
+  const prep = cerrado && clienteId ? await opcional(supa.from("plan_corridas").select("estado, creado_en, vence_en, dry_run").eq("client_id", clienteId).eq("estado", "corriendo").eq("dry_run", false).order("creado_en", { ascending: false }).limit(1).maybeSingle(), "plan_corridas") : null
+  const preparando: CicloDelPlan["preparando"] = prep?.fila ? { desde: t(prep.fila.creado_en), vence_en: t(prep.fila.vence_en) } : null
   const tag = versionDelTag(d.provenance_tag)
   const [ap, pc] = await Promise.all([
     opcional(supa.from("plan_aprobaciones").select("*").eq("plan_id", id).limit(1).maybeSingle(), "plan_aprobaciones"),
@@ -135,6 +160,8 @@ async function leerCiclo(supa: SupabaseClient, d: Fila | null, versiones: Fila[]
     avance,
     avance_de,
     comparacion_fallo: tag.comparacion_fallo,
+    cerrado,
+    preparando,
   }
 }
 
@@ -174,16 +201,18 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
   }))
   const revision: PlanDelCliente["revision"] = rev ? { id: String(rev.id), titulo: String(rev.title ?? ""), creada_en: String(rev.created_at ?? ""), status: String(rev.status ?? ""), decision: decisionDelPlanLegible(rev.status, rev.decision), vence_en: t(rev.expires_at) } : null
 
-  // el documento: el VIGENTE del ciclo (contrato CC1 §2); si ninguna versión lo es, el que señala la campaña o, sin campaña, el último del cliente
+  // el documento: la versión ABIERTA más nueva según la regla de vigencia de la plataforma (`lib/plan-vigencia.ts` · encargo de Lenovo 06-nov). Si todas están
+  // cerradas (rechazadas, reemplazadas o vencidas) se muestra la más nueva marcada como cerrada, SIN botones; sin versiones, la que señala la campaña.
   const versionesP = filas(supa.from("client_historical_outputs").select("id, status, created_at, provenance_tag").eq("client_id", cliente.id).eq("output_type", "campaign_plan_90d").order("created_at", { ascending: false }).limit(40), "client_historical_outputs")
-  const docP = versionesP.then((versiones) => {
-    const vigente = versiones.find((v) => v.status !== "rejected" && versionDelTag(v.provenance_tag).vigente)
-    const planId = vigente ? String(vigente.id) : camp ? t(camp.plan_id) : null
+  const vigenciaP = versionesP.then((versiones) => leerVigencia(supa, cliente.id, versiones))
+  const docP = Promise.all([versionesP, vigenciaP]).then(([versiones, vigencia]) => {
+    const abierta = versiones.find((v) => vigencia.get(String(v.id))?.cerrada === false)
+    const planId = abierta ? String(abierta.id) : versiones.length ? String(versiones[0].id) : camp ? t(camp.plan_id) : null
     let qDoc = supa.from("client_historical_outputs").select("id, title, status, content_text, content, provenance_tag, created_at, updated_at").eq("client_id", cliente.id).eq("output_type", "campaign_plan_90d")
     qDoc = planId ? qDoc.eq("id", planId) : qDoc.order("created_at", { ascending: false })
     return una(qDoc.limit(1).maybeSingle(), "client_historical_outputs")
   })
-  const cicloP = Promise.all([docP, versionesP]).then(([d, versiones]) => leerCiclo(supa, d, versiones, ahora, cliente.id))
+  const cicloP = Promise.all([docP, versionesP, vigenciaP]).then(([d, versiones, vigencia]) => leerCiclo(supa, d, versiones, ahora, cliente.id, vigencia))
   const topesP = filas(supa.from("plan_catalogo_topes").select("tramo, usd, version, desde").eq("vigente", true).order("tramo", { ascending: true }).limit(20), "plan_catalogo_topes")
     .then((xs) => xs.map((x): TopeDelTramo => ({ tramo: String(x.tramo ?? ""), nombre: nombreDelTramo(x.tramo), usd: Number(x.usd ?? 0), version: x.version == null ? null : Number(x.version), desde: t(x.desde) })))
 

@@ -68,6 +68,8 @@ export function estadoDelPlan(p: Pick<PlanDelCliente, "documento" | "ciclo" | "c
       case "reescribiendo": return { clave: "reescribiendo", texto: "plan en reescritura" }
       case "en_revision": return { clave: "en_revision", texto: "plan en revisión de la jefatura" }
       case "aprobado": return { clave: "aprobado", texto: "plan aprobado · sigue el brief" }
+      case "en_preparacion": return { clave: "en_preparacion", texto: "plan en preparación" }
+      case "sin_plan_vigente": return { clave: "sin_plan_vigente", texto: "sin plan vigente" }
       default: return { clave: "en_marcha", texto: "plan en marcha" }
     }
   }

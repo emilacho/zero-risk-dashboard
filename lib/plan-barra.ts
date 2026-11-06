@@ -5,7 +5,7 @@
  */
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { datosClave, resumenDeLaSeccion, seccionesDelPlan } from "@/lib/plan-documento"
-import { leerElCiclo, sedeLegible, textoDeLaMeta } from "@/lib/plan"
+import { leerElCiclo, lineaSinEstrategia, sedeLegible, textoDeLaMeta } from "@/lib/plan"
 import { redDelTablero } from "@/lib/pizarron"
 import { periodoDelPlan, textoDelPeriodo } from "@/lib/plan-periodo"
 import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
@@ -24,6 +24,10 @@ export interface BarraDelPlan {
   dia: number | null
   total_dias: number | null
   te_toca: string[]
+  /** sin estrategia todavía: la línea con el paso en que va (punto 2 del encargo del 06-nov); null si hay estrategia */
+  sin_estrategia?: string | null
+  /** el plan que se ve está cerrado (rechazado, reemplazado o vencido): la barra no muestra su meta, fechas ni presupuesto, para que nadie los tome por vigentes (Lenovo 06-nov, «solo lo elemental») */
+  plan_cerrado?: boolean
 }
 
 /** la barra del plan con lo que ya leyó el panel (no lee la base) */
@@ -62,10 +66,12 @@ export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
   if (bandeja) teToca.push(bandeja === 1 ? "1 aprobación en tu bandeja" : `${bandeja} aprobaciones en tu bandeja`)
   for (const x of p.palabra_del_dueno ?? []) teToca.push(x.requiere_humano ? `Revisar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}` : `Mirar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}`)
   if (c?.estado === "pausada" || c?.estado === "necesita_humano") teToca.push(c.estado === "pausada" ? `La campaña está pausada${c.estado_motivo ? ` (${c.estado_motivo})` : ""}: reanudarla es decisión tuya` : "La campaña necesita una decisión tuya")
+  const cerrado = !!p.ciclo?.cerrado
   return {
     decision: esperaElManual ? { titulo: PLAN_ESPERA_EL_MANUAL, estado: "espera_el_manual" } : lectura ? { titulo: lectura.titulo, estado: lectura.estado } : null,
-    meta, fechas, presupuesto: dato("presupuesto"),
+    meta: cerrado ? null : meta, fechas: cerrado ? null : fechas, presupuesto: cerrado ? null : dato("presupuesto"), plan_cerrado: cerrado,
     sedes: (c?.sedes ?? d?.plan?.zonas ?? []).map(sedeLegible),
     canales, fases, dia, total_dias: total ?? (fases.length ? Math.max(...fases.map((f) => f.hasta)) : null), te_toca: teToca,
+    sin_estrategia: e ? null : lineaSinEstrategia({ hay_documento: !!d, estado_del_ciclo: lectura?.estado ?? null }),
   }
 }
