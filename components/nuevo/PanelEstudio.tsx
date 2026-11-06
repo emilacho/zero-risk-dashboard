@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
-import { cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, NOMBRE_DEL_TIPO, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -51,9 +51,12 @@ async function fotoAchicada(archivo: File): Promise<{ b64: string; vista: string
   } finally { URL.revokeObjectURL(url) }
 }
 
-function Visor3D({ src, poster }: { src: string; poster: string | null }) {
+type VisorAnimable = HTMLElement & { play?: () => void; pause?: () => void }
+
+function Visor3D({ src, poster, animado = false }: { src: string; poster: string | null; animado?: boolean }) {
   const [listo, setListo] = useState(false)
-  const visor = useRef<HTMLElement>(null)
+  const [enPausa, setEnPausa] = useState(false)
+  const visor = useRef<VisorAnimable>(null)
   useEffect(() => { let vivo = true; void import("@google/model-viewer").then(() => vivo && setListo(true)).catch(() => vivo && setListo(false)); return () => { vivo = false } }, [])
   // React 19 pasa `src` a un elemento web como propiedad y el visor no la toma (medido 05-nov: src nulo, nunca carga): se fija como atributo
   useEffect(() => {
@@ -61,21 +64,27 @@ function Visor3D({ src, poster }: { src: string; poster: string | null }) {
     if (!listo || !v) return
     v.setAttribute("src", src)
     if (poster) v.setAttribute("poster", poster); else v.removeAttribute("poster")
-  }, [listo, src, poster])
+    // una animación arranca sola (cada movimiento es su propio archivo: al cambiarlo vuelve a sonar)
+    if (animado) { v.setAttribute("autoplay", ""); setEnPausa(false) } else v.removeAttribute("autoplay")
+  }, [listo, src, poster, animado])
   if (!listo) return <div className="flex h-full items-center justify-center text-[13px] text-zinc-500">Preparando el visor 3D…</div>
+  const alternar = () => { const v = visor.current; if (!v) return; if (enPausa) v.play?.(); else v.pause?.(); setEnPausa(!enPausa) }
   return (
-    <model-viewer ref={visor} data-visor-3d alt="El modelo 3D creado" camera-controls="" auto-rotate="" auto-rotate-delay="0" rotation-per-second="18deg"
-      touch-action="pan-y" interaction-prompt="none" shadow-intensity="1" exposure="1.05" environment-image="neutral"
-      style={{ width: "100%", height: "100%", background: "radial-gradient(ellipse at 50% 60%,#2a2016,#0c0c0c 70%)", ["--poster-color" as string]: "transparent" }} />
+    <>
+      <model-viewer ref={visor} data-visor-3d alt={animado ? "El modelo 3D animado" : "El modelo 3D creado"} camera-controls="" auto-rotate={animado ? undefined : ""} auto-rotate-delay="0" rotation-per-second="18deg"
+        touch-action="pan-y" interaction-prompt="none" shadow-intensity="1" exposure="1.05" environment-image="neutral"
+        style={{ width: "100%", height: "100%", background: "radial-gradient(ellipse at 50% 60%,#2a2016,#0c0c0c 70%)", ["--poster-color" as string]: "transparent" }} />
+      {animado && <button type="button" data-reproducir aria-pressed={!enPausa} onClick={alternar} className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/70 px-3 py-1.5 text-[12.5px] text-zinc-100">{enPausa ? "▶ Reproducir" : "❚❚ Pausa"}</button>}
+    </>
   )
 }
 
-function Vista({ pieza }: { pieza: Pieza }) {
+function Vista({ pieza, glb }: { pieza: Pieza; glb?: string | null }) {
   if (pieza.estado === "creando" && tardaMasDeLoNormal(pieza, Date.now())) return <div data-tarda className="flex h-full items-center justify-center p-6 text-center text-[13px] text-amber-200">Tarda más de lo normal. Sigue en el proveedor: puedes cerrar y volver más tarde.</div>
   if (pieza.estado === "creando") return <div className="es-cargando relative flex h-full items-center justify-center text-[13px] text-zinc-400">Creando…</div>
   if (pieza.estado === "fallida" || !pieza.archivo_url) return <div className="flex h-full items-center justify-center p-6 text-center text-[13px] text-red-300">No se pudo crear: {pieza.error ?? "sin archivo"}</div>
   if (pieza.tipo === "video") return <video src={pieza.archivo_url} poster={pieza.miniatura_url ?? undefined} controls playsInline className="h-full w-full bg-black object-contain" />
-  if (pieza.tipo === "3d" && pieza.archivo_tipo === "glb") return <Visor3D src={pieza.archivo_url} poster={pieza.miniatura_url} />
+  if (pieza.tipo === "3d" && pieza.archivo_tipo === "glb") return <Visor3D src={glb ?? pieza.archivo_url} poster={pieza.miniatura_url} animado={pieza.modelo === MODELO_DE_ANIMACION} />
   if (pieza.tipo === "3d") return <div className="flex h-full items-center justify-center p-6 text-center text-[13px] text-zinc-400">El modelo salió en formato {pieza.archivo_tipo}: se descarga, pero el visor solo gira GLB.</div>
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={pieza.archivo_url} alt={pieza.prompt} className="h-full w-full object-contain" />
@@ -88,7 +97,7 @@ function Miniatura({ p, alAbrir }: { p: Pieza; alAbrir: () => void }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {img && p.estado !== "creando" && <img src={img} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
       {p.tipo === "video" && p.estado === "lista" && <span aria-hidden className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white">▶</span>}
-      <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[10.5px]" style={{ color: "#f0a04b" }}>{NOMBRE_DEL_TIPO[p.tipo]}</span>
+      <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[10.5px]" style={{ color: "#f0a04b" }}>{p.modelo === MODELO_DE_ANIMACION ? "Animado" : NOMBRE_DEL_TIPO[p.tipo]}</span>
       <span className="absolute inset-x-0 bottom-0 flex justify-between gap-2 bg-gradient-to-t from-black/90 to-transparent px-2 pb-1.5 pt-5 text-[11.5px] text-zinc-200">
         <span className="truncate">{p.prompt || "desde una foto"}</span>
         <span className="shrink-0 text-zinc-400">{p.estado === "creando" ? (tardaMasDeLoNormal(p, Date.now()) ? "tarda más" : "creando") : p.estado === "fallida" ? "falló" : dolares(p.costo_usd)}</span>
@@ -101,7 +110,7 @@ function Chips<T extends string>({ valores, valor, alElegir, nombre }: { valores
   return <div className="flex flex-wrap gap-1.5">{valores.map((v) => <button key={v} type="button" className="es-chip" aria-pressed={v === valor} onClick={() => alElegir(v)}>{nombre ? nombre(v) : v}</button>)}</div>
 }
 
-export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = null, piezasIniciales = null, clientesIniciales = null, abiertaInicial = null }: {
+export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = null, piezasIniciales = null, clientesIniciales = null, abiertaInicial = null, animarInicial = null, clipInicial = 0 }: {
   onCerrar: () => void
   fetchImpl?: typeof fetch
   /** solo pruebas y el arnés de imágenes */
@@ -109,6 +118,10 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
   piezasIniciales?: Pieza[] | null
   clientesIniciales?: Cliente[] | null
   abiertaInicial?: string | null
+  /** solo pruebas y el arnés: el cajón de animar abierto con estos movimientos */
+  animarInicial?: number[] | null
+  /** solo pruebas y el arnés: qué movimiento de una animación se ve */
+  clipInicial?: number
 }) {
   const [catalogo, setCatalogo] = useState<Catalogo | null>(catalogoInicial)
   const [clientes, setClientes] = useState<Cliente[] | null>(clientesIniciales)
@@ -130,6 +143,20 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
   const [sinPrecio, setSinPrecio] = useState<string | null>(null)
   const [creando, setCreando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // animar un modelo 3D de la galería (GO 06-nov)
+  const [animando, setAnimando] = useState(!!animarInicial)
+  const [movimientos, setMovimientos] = useState<number[]>(animarInicial ?? [])
+  const [busca, setBusca] = useState("")
+  const [enviando, setEnviando] = useState(false)
+  const [errorAnimar, setErrorAnimar] = useState<string | null>(null)
+  const [clip, setClip] = useState(clipInicial)
+  // otra pieza abierta: lo de animar empieza de cero
+  const abiertaAntes = useRef(abierta)
+  useEffect(() => {
+    if (abiertaAntes.current === abierta) return
+    abiertaAntes.current = abierta
+    setAnimando(false); setMovimientos([]); setBusca(""); setErrorAnimar(null); setClip(0)
+  }, [abierta])
   const cerrar = useRef<HTMLButtonElement>(null)
   const archivo = useRef<HTMLInputElement>(null)
   const cuerpo = useRef<HTMLDivElement>(null)
@@ -221,6 +248,25 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     } catch { setError("La plataforma no responde.") } finally { setCreando(false) }
   }
 
+  const catAnimar = catalogo?.animar
+  const puedeAnimar = !!catAnimar && catalogo?.listos.animar === true
+  const cotizacionAnimar = catAnimar && movimientos.length ? cotizarAnimacion(catAnimar.precio, movimientos.length) : null
+  const botonAnimar = estadoDeAnimar({ clienteId, conectado: puedeAnimar, cotizacion: cotizacionAnimar, enviando })
+  const listoParaAnimar = botonAnimar.habilitado
+
+  async function animar(origen: Pieza) {
+    if (!listoParaAnimar || !clienteId) return
+    setEnviando(true); setErrorAnimar(null)
+    try {
+      const r = await fetchImpl("/api/estudio/animar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeAnimacion(clienteId, origen.id, movimientos)) })
+      const x = respuestaDeAnimar(await leerJson<{ pieza: Pieza }>(r), r.status, clienteVisto.current)
+      if ("error" in x) { setErrorAnimar(x.error); return }
+      if ("otroCliente" in x) return
+      setPiezas((ps) => piezasDelCliente(clienteVisto.current, ps, [x.pieza], false))
+      setAbierta(x.pieza.id)
+    } catch { setErrorAnimar("La plataforma no responde.") } finally { setEnviando(false) }
+  }
+
   async function alSubir(f: File | undefined) {
     if (!f) return
     try { setFoto(await fotoAchicada(f)) } catch (e) { setError(e instanceof Error ? e.message : "No pude leer esa imagen.") }
@@ -304,8 +350,8 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
             )}
             {enProceso && (
               <div data-pasos className="es-caja flex flex-col gap-2 p-3 text-[13px]">
-                {enProceso.tipo === "3d" && <Paso hecho={enProceso.paso === "3d"} activo={enProceso.paso === "imagen"} texto={enProceso.foto_partida_url ? "Imagen de partida lista" : "Creando la imagen"} />}
-                <Paso hecho={false} activo texto={enProceso.tipo === "3d" ? "Convirtiendo en 3D" : enProceso.tipo === "video" ? "Creando el video" : "Creando la imagen"} nota={enProceso.tipo === "3d" ? (enProceso.modelo === "meshy-6" ? "5 a 10 min" : "≈ 1-3 min") : enProceso.tipo === "video" ? "unos minutos" : undefined} />
+                {enProceso.tipo === "3d" && enProceso.modelo !== MODELO_DE_ANIMACION && <Paso hecho={enProceso.paso === "3d"} activo={enProceso.paso === "imagen"} texto={enProceso.foto_partida_url ? "Imagen de partida lista" : "Creando la imagen"} />}
+                <Paso hecho={false} activo texto={enProceso.modelo === MODELO_DE_ANIMACION ? "Poniendo esqueleto y movimientos" : enProceso.tipo === "3d" ? "Convirtiendo en 3D" : enProceso.tipo === "video" ? "Creando el video" : "Creando la imagen"} nota={enProceso.modelo === MODELO_DE_ANIMACION ? "≈ 1-3 min" : enProceso.tipo === "3d" ? (enProceso.modelo === "meshy-6" ? "5 a 10 min" : "≈ 1-3 min") : enProceso.tipo === "video" ? "unos minutos" : undefined} />
                 <Paso hecho={false} activo={false} texto={`Guardar en la galería de ${cliente?.nombre ?? "este cliente"}`} />
               </div>
             )}
@@ -329,12 +375,12 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
               <>
                 <div className="flex items-baseline gap-2">
                   <h3 className="truncate text-[16px] font-semibold">{pieza.prompt || "Desde una foto"}</h3>
-                  <span className="shrink-0 text-[12.5px] text-zinc-500">{NOMBRE_DEL_TIPO[pieza.tipo]}{pieza.estado === "creando" ? " · creando" : ""}</span>
+                  <span className="shrink-0 text-[12.5px] text-zinc-500">{NOMBRE_DEL_TIPO[pieza.tipo]}{pieza.modelo === MODELO_DE_ANIMACION ? " · animado" : ""}{pieza.estado === "creando" ? " · creando" : ""}</span>
                   <button type="button" className="es-chip ml-auto" onClick={() => setAbierta(null)}>← Galería</button>
                 </div>
                 <div data-visor className="relative min-h-[280px] flex-1 overflow-hidden rounded-xl border border-white/10 bg-[#0c0c0c]">
-                  <Vista pieza={pieza} />
-                  {pieza.tipo === "3d" && pieza.estado === "lista" && pieza.archivo_tipo === "glb" && <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[12px] text-zinc-200">Arrastra con el mouse o el dedo para girarlo</span>}
+                  <Vista pieza={pieza} glb={clipsDe(pieza)[clip]?.glb ?? null} />
+                  {pieza.tipo === "3d" && pieza.estado === "lista" && pieza.archivo_tipo === "glb" && pieza.modelo !== MODELO_DE_ANIMACION && <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[12px] text-zinc-200">Arrastra con el mouse o el dedo para girarlo</span>}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-zinc-500">
                   <span>Modelo <b className="font-medium text-zinc-300">{pieza.modelo}</b></span>
@@ -342,12 +388,51 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                   <span>Para <b className="font-medium text-zinc-300">{cliente?.nombre}</b></span>
                   {pieza.aviso && <span className="text-amber-300/80">{pieza.aviso}</span>}
                 </div>
+                {clipsDe(pieza).length > 1 && (
+                  <div data-clips className="flex flex-wrap gap-1.5">
+                    {clipsDe(pieza).map((c, i) => <button key={c.action_id} type="button" className="es-chip" aria-pressed={clip === i} onClick={() => setClip(i)}>{nombreDelMovimiento(catAnimar, c.action_id)}</button>)}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
-                  {pieza.archivo_url && pieza.estado === "lista" && <a href={pieza.archivo_url} download target="_blank" rel="noreferrer" className="rounded-lg px-3.5 py-2 text-[13.5px] font-semibold" style={{ background: AMBAR, color: "#1a0d02" }}>Descargar</a>}
+                  {pieza.estado === "lista" && clipsDe(pieza).length > 0 && [["GLB", clipsDe(pieza)[clip]?.glb], ["FBX", clipsDe(pieza)[clip]?.fbx]].map(([que, url]) => url && <a key={que} data-bajar={que} href={url} download target="_blank" rel="noreferrer" className={que === "GLB" ? "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold" : "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]"} style={que === "GLB" ? { background: AMBAR, color: "#1a0d02" } : undefined}>Descargar {que}</a>)}
+                  {pieza.archivo_url && pieza.estado === "lista" && clipsDe(pieza).length === 0 && <a data-descargar href={pieza.archivo_url} download target="_blank" rel="noreferrer" className={animando ? "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" : "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold"} style={animando ? undefined : { background: AMBAR, color: "#1a0d02" }}>Descargar</a>}
                   {pieza.tipo === "imagen" && pieza.estado === "lista" && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setFoto({ pieza }); setAbierta(null) }}>Usar como imagen de partida</button>}
-                  <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setTipo(pieza.tipo); setTexto(pieza.prompt); setAbierta(null) }}>Crear otra versión</button>
+                  {esAnimable(pieza) && puedeAnimar && <button type="button" data-animar aria-expanded={animando} className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => setAnimando(!animando)}>Animar</button>}
+                  {pieza.modelo !== MODELO_DE_ANIMACION && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setTipo(pieza.tipo); setTexto(pieza.prompt); setAbierta(null) }}>Crear otra versión</button>}
                   <span className="ml-auto text-[12.5px] text-zinc-500">{pieza.estado === "creando" ? `Costará ≈ ${dolares(pieza.costo_estimado_usd)}` : <>Costó <b className="text-zinc-200">{dolares(pieza.costo_usd)}</b> · anotado en el libro</>}</span>
                 </div>
+                {animando && catAnimar && esAnimable(pieza) && (
+                  <div data-cajon-animar className="es-caja flex flex-col gap-3 p-3.5">
+                    <div>
+                      <div className="es-eti">Movimiento</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {catAnimar.comunes.map((m) => <button key={m.id} type="button" data-movimiento={m.id} className="es-chip" aria-pressed={movimientos.includes(m.id)} disabled={!movimientos.includes(m.id) && movimientos.length >= catAnimar.maximo} onClick={() => setMovimientos((x) => alternarMovimiento(x, m.id, catAnimar.maximo))}>{m.nombre}</button>)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="es-eti">Buscar</div>
+                      <input data-buscar value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={`${catAnimar.biblioteca.length} movimientos: dance, jump, sit…`} className="es-caja w-full px-3 py-2 text-[13.5px] text-zinc-100 placeholder:text-zinc-600 focus:border-[#e8731a]/60 focus:outline-none" />
+                      {busca.trim().length >= 2 && (
+                        <div data-resultados className="mt-2 flex max-h-[150px] flex-wrap gap-1.5 overflow-y-auto">
+                          {buscarMovimientos(catAnimar.biblioteca, busca).map(([id, nombre]) => <button key={id} type="button" data-movimiento={id} className="es-chip" aria-pressed={movimientos.includes(id)} disabled={!movimientos.includes(id) && movimientos.length >= catAnimar.maximo} onClick={() => setMovimientos((x) => alternarMovimiento(x, id, catAnimar.maximo))}>{nombre.replace(/_/g, " ")}</button>)}
+                          {buscarMovimientos(catAnimar.biblioteca, busca).length === 0 && <span className="text-[12px] text-zinc-500">Nada con ese nombre.</span>}
+                        </div>
+                      )}
+                    </div>
+                    {movimientos.length > 0 && <p data-elegidos className="text-[12.5px] text-zinc-400">Elegidos ({movimientos.length} de {catAnimar.maximo}): <span className="text-zinc-200">{movimientos.map((id) => nombreDelMovimiento(catAnimar, id)).join(", ")}</span></p>}
+                    <p className="text-[11.5px] leading-snug text-zinc-500">Solo se anima una figura humana con brazos y piernas. Si no lo es, se avisa y no se cobra.</p>
+                    {errorAnimar && <p role="alert" className="text-[12.5px] text-red-300">{errorAnimar}</p>}
+                    <div className="flex items-center justify-end gap-3">
+                      {cotizacionAnimar && <span data-desglose-animar className="text-[11.5px] text-zinc-500">{cotizacionAnimar.partes.map((x) => `${x.que} ${dolares(x.usd)}`).join(" + ")}</span>}
+                      <button type="button" data-animar-crear onClick={() => void animar(pieza)} disabled={!listoParaAnimar}
+                        className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-[14px] font-bold disabled:cursor-not-allowed"
+                        style={{ background: listoParaAnimar ? AMBAR : "#3a2a1a", color: listoParaAnimar ? "#1a0d02" : "#f0a04b" }}>
+                        <span>{enviando ? "Animando…" : "Animar"}</span>
+                        <span data-costo-animar className="text-[12.5px] font-medium opacity-90">{botonAnimar.costo}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <>
