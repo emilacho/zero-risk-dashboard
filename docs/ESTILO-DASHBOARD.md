@@ -35,6 +35,7 @@
 7. **Aprovechar el espacio:** cada panel mide lo que su contenido. Sin huecos abajo, y sin achicar las letras para que quepa.
 8. **Nada flota sobre la escena** de Tu oficina. Los avisos viven en sus paneles (p. ej. Riesgos). La campana roja con su número se queda y abre su panel.
 9. **Jerga técnica nunca a la vista.** Se corrige donde se escribe (el agente), no se tapa en pantalla.
+10. **Nombres propios del sistema** (09-nov, Emilio · ficha única v7): llevan mayúscula en cada palabra principal: «Plan de Marketing», «Campaña de Marketing», «Tablero Financiero», «Oficina Financiera». Dentro del texto llevan una línea dorada sutil debajo; en la fila de cuenta y departamento, sin línea. La lista vive en `lib/ficha-de-decision.ts` y la revisión automática rechaza un nombre de la lista escrito sin su mayúscula. Un nombre que no está en la lista no se inventa: se pregunta a Emilio por Lenovo.
 
 ## 5 · Cómo se trabaja con Emilio en diseño
 - **Siempre boceto (imagen) antes de construir.** Nada visual se publica sin que él lo vea.

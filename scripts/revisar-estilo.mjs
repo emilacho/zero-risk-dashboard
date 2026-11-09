@@ -11,13 +11,15 @@ const modo = process.argv[2] ?? "diff", base = process.argv[3] ?? "origin/main"
 const CARPETAS = /^(components\/nuevo|app\/nuevo)\//
 const EXENTOS = /^components\/nuevo\/escena\/|TablerosDeDireccion\.tsx$|GloboQueGira\.tsx$/ // dibujos de la escena: ilustración, no interfaz
 /** pantallas ya migradas al estilo base: se revisan enteras en cada cambio; cada migración agrega la suya */
-export const MIGRADOS = ["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx", "components/nuevo/PanelAplicaciones.tsx"]
+export const MIGRADOS = ["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx", "components/nuevo/PanelAplicaciones.tsx", "components/nuevo/FichaDeDecision.tsx"]
 const PALETA = "zinc|amber|rose|emerald|sky|red|orange|yellow|green|blue|neutral|stone|slate|gray|lime|teal|cyan|indigo|violet|purple|fuchsia|pink"
 const PROPIEDAD = "text|bg|border(?:-[trblxy])?|ring|outline|fill|stroke|from|to|via|decoration|divide|placeholder|caret|accent|shadow"
 const RADIOS_OK = new Set(["rounded-panel", "rounded-tarjeta", "rounded-control", "rounded-full", "rounded-none"])
 const SOMBRAS_OK = new Set(["shadow-none"])
 /** ¿la posición i de la línea cae dentro de un comentario? (// … · /* … · línea que sigue un bloque con «*») */
 const enComentario = (l, i) => { const t = l.trimStart(); if (t.startsWith("*") || t.startsWith("/*")) return true; const c = [l.indexOf("//"), l.indexOf("/*")].filter((x) => x >= 0); return c.length > 0 && Math.min(...c) < i }
+/** NOMBRES PROPIOS DEL SISTEMA (Emilio 09-nov · GO ficha única): mayúscula en cada palabra principal. La MISMA lista que «lib/ficha-de-decision.ts» (una prueba lo exige) */
+export const NOMBRES_PROPIOS = ["Plan de Marketing", "Campaña de Marketing", "Tablero Financiero", "Oficina Financiera"]
 const REGLAS = [
   ["color suelto (usa un token: carbon, grafito, grafito-2, hueso, gris, apagado, oro, ambar, sobre-ambar, alarma, linea, linea-oro, linea-alarma, velo)", (l) => [...l.matchAll(/(.?)#([0-9a-fA-F]{3,8})\b/g)].some((m) => !(/^\d+$/.test(m[2]) && /^[\s(]$/.test(m[1]) && enComentario(l, m.index))) || /\b(?:rgba?|hsla?|oklch|oklab|color-mix)\(/.test(l)], // «ver #283» SOLO en un comentario (número de una entrega) no es color; en código, «#222» sí
   ["color de Tailwind fuera de los tokens", (l) => new RegExp(`\\b(?:${PROPIEDAD})-(?:(?:${PALETA})-\\d{2,3}|white|black|transparent\\/[\\d.\\[\\]]+|current\\/[\\d.\\[\\]]+|\\[[^\\]]*\\])`).test(l)],
@@ -25,6 +27,7 @@ const REGLAS = [
   ["peso fuera de los 2 (normal · medio)", (l) => /\bfont-(?:thin|extralight|light|medium|semibold|bold|extrabold|black|\[\d+\])(?![\w-])|fontWeight[=:]/.test(l)],
   ["radio fuera de los tokens (panel · tarjeta · control · píldora)", (l) => [...l.matchAll(/(?<![\w-])rounded(?:-[\w[\].]+)*(?![\w-])/g)].some((m) => !RADIOS_OK.has(m[0])) || /border-?[rR]adius[=:]/.test(l)],
   ["sombra (el estilo base no usa sombras)", (l) => [...l.matchAll(/(?<![\w-])shadow(?:-[\w[\].,()/]+)*(?![\w-])/g)].some((m) => !SOMBRAS_OK.has(m[0])) || /box-?[sS]hadow[=:]/.test(l)],
+  ["nombre propio del sistema sin su mayúscula (Plan de Marketing · Campaña de Marketing · Tablero Financiero · Oficina Financiera)", (l) => NOMBRES_PROPIOS.some((n) => [...l.matchAll(new RegExp(n.replace(/ /g, "\\s+"), "giu"))].some((m) => m[0] !== n && !enComentario(l, m.index)))],
 ]
 const PERMISO = /estilo-ok:\s*\p{L}[\p{L} ,.]{8,}/u
 const hallazgos = []
@@ -60,9 +63,9 @@ if (modo === "probar") {
     ["#e8731a", 0], ["rgba(0,0,0,.5)", 0], ["hsl(20 80% 50%)", 0], ["text-amber-200", 1], ["text-white", 1], ["bg-black/70", 1], ["bg-transparent/40", 1], ["bg-[#111]", 0], ["fill=\"#111\"", 0], ["color: #111;", 0], ["border: 1px solid #222", 0], ["border: 1px solid #222;", 0], ["boxShadow: \"#000 0px\"", 0], ["color: \"#123\" // ver la guía", 0], ["border-white/10", 1],
     ["text-[13px]", 2], ["text-[0.8rem]", 2], ["text-sm", 2], ["fontSize={13}", 2], ["font-semibold", 3], ["font-light", 3], ["font-medium", 3], ["fontWeight: 600", 3],
     ["rounded-md", 4], ["rounded-lg", 4], ["rounded", 4], ["rounded-[10px]", 4], ["rounded-t-xl", 4], ["borderRadius: 6", 4],
-    ["shadow", 5], ["shadow-2xl", 5], ["shadow-[0_0_10px_red]", 5], ["boxShadow: 'x'", 5],
+    ["shadow", 5], ["shadow-2xl", 5], ["shadow-[0_0_10px_red]", 5], ["boxShadow: 'x'", 5], ["la Oficina financiera debe mandar", 6], ["\"plan de marketing\"", 6], ["Ir a la Campaña de marketing", 6],
   ]
-  const pasan = ["bg-grafito text-gris text-cuerpo font-medio rounded-tarjeta border-linea", "rounded-full rounded-control rounded-panel", "className=\"text-rotulo text-oro tracking-rotulo\"", "bg-ambar text-sobre-ambar text-numero text-cifra", "x // estilo-ok: el logo exige su contorno exacto #e8731a", "bg-transparent", "shadow-none", "// lo pidió CC6 (#283) · ver #289.", " * corrección de la entrega #290", "{/* entrega #291 */}"]
+  const pasan = ["Ir al Plan de Marketing → · Tablero Financiero: espera", "// la oficina financiera, en un comentario", "bg-grafito text-gris text-cuerpo font-medio rounded-tarjeta border-linea", "rounded-full rounded-control rounded-panel", "className=\"text-rotulo text-oro tracking-rotulo\"", "bg-ambar text-sobre-ambar text-numero text-cifra", "x // estilo-ok: el logo exige su contorno exacto #e8731a", "bg-transparent", "shadow-none", "// lo pidió CC6 (#283) · ver #289.", " * corrección de la entrega #290", "{/* entrega #291 */}"]
   const noPasan = ["x // estilo-ok:", "x // estilo-ok: ok"]
   let fallos = 0
   const botonesMal = ['<button className="rounded-control bg-ambar px-3 text-cuerpo font-medio text-sobre-ambar">', '<button className="rounded-control border border-linea-oro text-dato text-oro">', '<button className={`${BOTON_PRINCIPAL} text-cuerpo`}>', '<button\n  className="rounded-control px-4 font-medio"\n  style={{ background: listo ? AMBAR : "#3a2a1a" }}>', '<button className="rounded-full border border-linea-oro px-4 text-oro">']

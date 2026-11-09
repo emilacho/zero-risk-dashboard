@@ -214,7 +214,7 @@ describe("nunca se firma a ciegas (CORRECCIÓN Lenovo 5-nov)", () => {
     expect(accionesDe(d.decisiones[0])).toEqual([])
     expect(gruposDeDecisiones(d).firma.map((x) => x.id)).toEqual([T1]); expect(gruposDeDecisiones(d).fuera).toEqual([])
     const html = pantalla(d)
-    expect(html).not.toContain("data-firmar"); expect(html).toContain("data-falta-informacion"); expect(html).toContain("Oficina financiera"); expect(html).toContain("Falta información")
+    expect(html).not.toContain("data-firmar"); expect(html).toContain("data-falta-informacion"); expect(html).toContain("Oficina Financiera"); expect(html).toContain("Falta información")
     expect(html).not.toContain("data-sin-panel")
   })
   it("con cifras: se leen y se puede firmar", () => {
@@ -248,12 +248,11 @@ describe("la pantalla (boceto aprobado)", () => {
   it("la pregunta que detiene el plan va al frente, con quién pregunta, qué se destraba, la caja y sus dos acciones", () => {
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe(P1)
     expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
-    expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-chip="detiene"') // estilo base: el recuadro es el filtro
+    expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-detiene="true"') // estilo base: el recuadro es el filtro · 09-nov ficha única (v7): «Detiene el plan» en alarma
     expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Financiero<\/span>/) // estilo base: DEPARTAMENTO / Financiero, no una frase
-    // 09-nov · Lenovo: «Desbloquea» muestra la primera frase entera (aquí es una sola, así que no se repite en el detalle)
-    expect(html).toContain('<span data-destraba="true">El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.</span>')
-    expect(renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: conQuien, detalleInicial: true }))).not.toContain("data-destraba-entero")
-    expect(html).toContain("data-respuesta"); expect(html).toContain("Enviar respuesta"); expect(html).toContain("data-descartar-abrir")
+    // 09-nov · ficha única (v7): sin corto de la oficina, «Desbloquea» se ve entero (nunca se recorta)
+    expect(html).toContain('<span data-desbloquea="true"><span>El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.</span></span>')
+    expect(html).toContain("data-respuesta"); expect(html).toMatch(/data-verbo="responder"[^>]*>Responder</); expect(html).toContain('data-verbo="descartar"')
     expect(html).not.toContain("data-firmar"); expect(html).not.toContain("buzón de preguntas") // la tarjeta vieja de la pausa (Slack) no se repite
   })
   it("sin «se atienden fuera» y sin textos técnicos a la vista", () => {

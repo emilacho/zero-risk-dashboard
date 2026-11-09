@@ -11,6 +11,8 @@ import {
   type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, primeraFrase } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
+import { FichaDeDecision } from "@/components/nuevo/FichaDeDecision"
+import { ACCION_DEL_VERBO, VERBO_DE_LA_ACCION, esPregunta, fichaDeLaPregunta } from "@/lib/ficha-de-decision"
 
 /**
  * TU OFICINA · DECISIONES (6.20 · la mesa del director): todo lo que espera la firma de Emilio, de cualquier departamento.
@@ -28,7 +30,7 @@ type Respuesta = ({ ok: true } & Decisiones) | { ok: false; error: string }
 
 /** de qué parte de la empresa viene cada decisión (la tabla de origen, en palabras de negocio) */
 const ORIGEN: Record<string, string> = {
-  hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina financiera", finanzas_preguntas: "Oficina financiera",
+  hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina Financiera", finanzas_preguntas: "Oficina Financiera",
   cerebro_dueno_preguntas: "El cerebro del cliente", dueno_preguntas: "Preguntas de las oficinas", plan_aprobaciones: "Oficina de planeación",
 }
 /** el departamento en una o dos palabras (rótulo fijo DEPARTAMENTO / valor) */
@@ -135,6 +137,23 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const porQue = useRef<HTMLDivElement>(null)
   const pie = useRef<HTMLElement>(null) // Firmar no va fijo: se llega a él pasando por las cifras y por lo que sigue abierto (CC6 · #283)
   useEffect(() => { if (fallo) porQue.current?.scrollIntoView({ block: "center", behavior: "smooth" }) }, [fallo, previa?.en, cifraEnCambio])
+  // 09-nov · T1 de la ficha única (GO Lenovo, boceto v7 de Emilio): las preguntas se dibujan con la ficha; las demás siguen aquí hasta el T2
+  if (esPregunta(d)) {
+    const ficha = fichaDeLaPregunta(d, { departamento: departamentoDe(d), detiene, destraba, conAsumir, responder: acciones.includes("responder"), descartar: acciones.includes("descartar") })
+    return (
+      <FichaDeDecision ficha={ficha} enviando={enviando ? VERBO_DE_LA_ACCION[enviando] ?? null : null} textoInicial={respuesta}
+        nota={enPausa ? `${enPausa} está en pausa por tu decisión: esto no cuenta en «esperan».` : undefined}
+        alVerbo={(v, t) => { if (v === "asumir") { asumir?.(d); return } const a = ACCION_DEL_VERBO[v]; if (a) void hacer(a, v === "responder" ? { respuesta: t.texto ?? "" } : { motivo: t.motivo ?? "" }) }}
+        alIr={() => alDecidir(d)}
+        estado={{
+          arriba: fallo ? <span data-chip="volvio" className="inline-flex items-center gap-1.5"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />No salió</span> : null,
+          abajo: <>
+            {fallo && <div ref={porQue} data-por-que-volvio role="status"><Aviso rotulo="No salió">{fallo}</Aviso></div>}
+            {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">{previa?.resultado.ya_no_se_asume ? previa.resultado.motivo : "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo."}</p></div>}
+          </>,
+        }} />
+    )
+  }
   const estado = falta ? <span data-chip="falta">Falta información</span>
     : fallo ? <span data-chip="volvio" className="inline-flex items-center gap-1.5 text-alarma"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />No salió</span>
     : detiene ? <span data-chip="detiene" className="inline-flex items-center gap-1.5 text-oro"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-oro" />Detiene el plan</span>
@@ -191,7 +210,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div></div>}
         </div>
       )}
-      {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina financiera debe mandar las cifras que propone.</Aviso></div>}
+      {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina Financiera debe mandar las cifras que propone.</Aviso></div>}
       {!contestable && !falta && (
         <div className="mt-5 space-y-4">
           <Pares valor="text-dato" pares={[
