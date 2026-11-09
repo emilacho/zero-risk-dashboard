@@ -122,8 +122,11 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   // CC6 #290: si la firma no trae «Decisivo», «Uso» ni «Desbloquea», no hay bloque que abra el detalle; entonces las demás cifras se ven sin tocar nada (ninguna información se pierde)
   const sinPuerta = !corto && !d.para_que && !destraba
   // CC6 #290 (e145a7c): el detalle solo existe si tiene algo que mostrar; si no, «Uso / Desbloquea» es texto, no un botón que abre una caja vacía
-  const usoDeMas = !!d.para_que && primeraFrase(d.para_que) !== d.para_que.trim()
-  const destrabaDeMas = !!destraba && primeraFrase(destraba) !== destraba.trim()
+  // 09-nov (#957): el frente lleva el corto de la oficina; si no vino, la primera frase entera (como hasta hoy)
+  const usoAlFrente = d.para_que ? (d.para_que_corto ?? primeraFrase(d.para_que)) : null
+  const destrabaAlFrente = destraba ? ((d.destraba && d.destraba_corto) || primeraFrase(destraba)) : null
+  const usoDeMas = !!d.para_que && usoAlFrente !== d.para_que.trim()
+  const destrabaDeMas = !!destraba && destrabaAlFrente !== destraba.trim()
   const hayDetalle = !!d.criticos?.length || usoDeMas || destrabaDeMas || cifrasDelDetalle.length > 0
   const recuadro = (c: CifraDeFirma, marca: Record<string, string>) => editables.some((x) => x.clave === c.clave)
     ? <div key={c.clave} {...marca}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><CuerpoDeCifra c={c} /></button></div>
@@ -173,8 +176,8 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
       )}
       {!cifraEnCambio && (d.para_que || destraba) && (() => {
         const pares = <Pares valor="text-dato" pares={[
-          ...(d.para_que ? [{ rotulo: "Uso", valor: <span data-uso>{primeraFrase(d.para_que)}</span> }] : []),
-          ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{primeraFrase(destraba)}</span> }] : []),
+          ...(d.para_que ? [{ rotulo: "Uso", valor: <span data-uso>{usoAlFrente}</span> }] : []),
+          ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{destrabaAlFrente}</span> }] : []),
         ]} />
         return hayDetalle
           ? <button type="button" data-contexto aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="mt-4 block w-full rounded-control focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">{pares}</button>

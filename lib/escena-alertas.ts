@@ -10,6 +10,15 @@ import { usdES } from "@/lib/lenguaje"
 import type { PanelDelMarco } from "@/lib/buscador"
 
 export type TipoDeAlerta = "fallida" | "colgada" | "gasto" | "cerebro" | "pregunta"
+/**
+ * 09-nov (CORRECCIÓN de Lenovo): cada aviso abre LA PANTALLA DE DONDE SALIÓ, y si no tiene pantalla propia no lleva a ningún lado.
+ * La alarma del cerebro (`cerebro_alertas`) vive en Riesgos (la plataforma la lee como «Portero del cerebro»). La corrida diaria del cerebro
+ * (`cerebro_diario_corridas`) no se ve en ninguna pantalla: su aviso queda sin destino (anotado para Lenovo). Antes las tres iban a Observabilidad, que no las muestra.
+ */
+export const DESTINO_DEL_AVISO = {
+  fallida: "envivo", colgada: "envivo", gasto: "dinero", cerebro_alarma: "riesgos", cerebro_diario: null, pregunta: "decisiones",
+} as const satisfies Record<string, PanelDelMarco | null>
+
 export interface AlertaDeLaAntena { clave: string; tipo: TipoDeAlerta; /** la frase, en palabras simples */ texto: string; /** cuándo pasó (ISO), para poner la más reciente arriba */ cuando: string; /** el lugar donde se resuelve, si existe */ abre: PanelDelMarco | null }
 
 /** las preguntas más viejas que esto no avisan (decisión C) */
@@ -52,7 +61,7 @@ export function fallidas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     const cuando = p.actualizado_en ?? p.creado_en, tc = ms(cuando), ini = ms(p.creado_en)
     if (tc == null || ini == null || t - tc > DIAS_DE_UNA_FALLA * DIA) return []
     if (reales.some((q) => q.estado === "hecha" && q.client_id === p.client_id && (ms(q.creado_en) ?? 0) > ini)) return []
-    return [{ clave: `fallida:${p.id}`, tipo: "fallida", texto: `El plan falló a las ${horaEC(cuando!)}${porQue(p.motivo)}`, cuando: cuando!, abre: "envivo" }]
+    return [{ clave: `fallida:${p.id}`, tipo: "fallida", texto: `El plan falló a las ${horaEC(cuando!)}${porQue(p.motivo)}`, cuando: cuando!, abre: DESTINO_DEL_AVISO.fallida }]
   })
 }
 
@@ -64,7 +73,7 @@ export function colgadas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     const pasado = vence != null ? vence < t : mov != null && t - mov > HORAS_SIN_AVANZAR * 3_600_000
     if (!pasado) return []
     const cuando = (vence != null ? p.vence_en : p.actualizado_en ?? p.creado_en)!
-    return [{ clave: `colgada:${p.id}`, tipo: "colgada", texto: `El plan sigue en marcha desde las ${horaEC(p.creado_en ?? cuando)} y ya pasó su tiempo normal`, cuando, abre: "envivo" }]
+    return [{ clave: `colgada:${p.id}`, tipo: "colgada", texto: `El plan sigue en marcha desde las ${horaEC(p.creado_en ?? cuando)} y ya pasó su tiempo normal`, cuando, abre: DESTINO_DEL_AVISO.colgada }]
   })
 }
 
@@ -79,7 +88,7 @@ export function gastosRaros(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     if (hermanas.length < MUESTRA_MINIMA_DE_GASTO) return []
     const normal = mediana(hermanas)
     if (!(c.costo > VECES_LA_MEDIANA * normal && c.costo > PISO_DE_GASTO_USD)) return []
-    return [{ clave: `gasto:${c.ejecucion}`, tipo: "gasto", texto: `Una corrida costó ${usdES(c.costo)}, más de ${VECES_LA_MEDIANA} veces lo normal de su tipo (${usdES(normal)})`, cuando: c.inicio, abre: "dinero" }]
+    return [{ clave: `gasto:${c.ejecucion}`, tipo: "gasto", texto: `Una corrida costó ${usdES(c.costo)}, más de ${VECES_LA_MEDIANA} veces lo normal de su tipo (${usdES(normal)})`, cuando: c.inicio, abre: DESTINO_DEL_AVISO.gasto }]
   })
 }
 
@@ -90,10 +99,10 @@ export function cerebroNoCorrio(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   if (reales.length) {
     const ultimo = reales.map((c) => c.dia!).sort().at(-1)!, filaUltima = reales.filter((c) => c.dia === ultimo)
     const ayer = diaEC(t - DIA)
-    if (ultimo < ayer) out.push({ clave: "cerebro:sin-corrida", tipo: "cerebro", texto: `El cerebro no hizo su corrida diaria desde el ${ultimo.split("-").reverse().slice(0, 2).join("/")}`, cuando: `${ultimo}T12:00:00Z`, abre: "observabilidad" })
-    else if (filaUltima.every((c) => /fall|error|cort/i.test(c.estado ?? ""))) out.push({ clave: "cerebro:fallo", tipo: "cerebro", texto: "La última corrida diaria del cerebro salió mal", cuando: `${ultimo}T12:00:00Z`, abre: "observabilidad" })
+    if (ultimo < ayer) out.push({ clave: "cerebro:sin-corrida", tipo: "cerebro", texto: `El cerebro no hizo su corrida diaria desde el ${ultimo.split("-").reverse().slice(0, 2).join("/")}`, cuando: `${ultimo}T12:00:00Z`, abre: DESTINO_DEL_AVISO.cerebro_diario })
+    else if (filaUltima.every((c) => /fall|error|cort/i.test(c.estado ?? ""))) out.push({ clave: "cerebro:fallo", tipo: "cerebro", texto: "La última corrida diaria del cerebro salió mal", cuando: `${ultimo}T12:00:00Z`, abre: DESTINO_DEL_AVISO.cerebro_diario })
   }
-  for (const a of e.alarmasDelCerebro) out.push({ clave: `cerebro:alarma:${a.clave}`, tipo: "cerebro", texto: "El cerebro tiene una alarma abierta", cuando: a.ultima_en ?? e.ahora.toISOString(), abre: "observabilidad" })
+  for (const a of e.alarmasDelCerebro) out.push({ clave: `cerebro:alarma:${a.clave}`, tipo: "cerebro", texto: "El cerebro tiene una alarma abierta", cuando: a.ultima_en ?? e.ahora.toISOString(), abre: DESTINO_DEL_AVISO.cerebro_alarma })
   return out
 }
 
@@ -104,7 +113,7 @@ export function preguntasSinResponder(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     const c = ms(p.creado_en)
     if (c == null || t - c > DIAS_DE_UNA_PREGUNTA * DIA) return []
     const q = String(p.pregunta ?? "").replace(/\s+/g, " ").trim()
-    return [{ clave: `pregunta:${p.id}`, tipo: "pregunta", texto: q ? `Te preguntaron algo y sigue sin respuesta: ${q.length > 90 ? `${q.slice(0, 89).replace(/\s+\S*$/, "")}…` : q}` : "Te preguntaron algo y sigue sin respuesta", cuando: p.creado_en!, abre: "decisiones" }]
+    return [{ clave: `pregunta:${p.id}`, tipo: "pregunta", texto: q ? `Te preguntaron algo y sigue sin respuesta: ${q.length > 90 ? `${q.slice(0, 89).replace(/\s+\S*$/, "")}…` : q}` : "Te preguntaron algo y sigue sin respuesta", cuando: p.creado_en!, abre: DESTINO_DEL_AVISO.pregunta }]
   })
 }
 
