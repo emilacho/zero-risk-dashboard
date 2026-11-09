@@ -3,13 +3,13 @@
  * Qué dice cada tarjeta con datos reales, qué dice cuando el dato no viene («—», nunca un cero inventado), y que las lecturas nuevas del servidor
  * no inventan un cero cuando la base falla. Todo sin red ni base real: US$ 0.
  */
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { diaCorto, SIN_DATO, tarjetaDelCentro } from "@/lib/centro-tarjetas"
-import { leerCentro, type Centro } from "@/lib/centro-datos"
+import { ESPERA_DEL_DINERO_MS, leerCentro, type Centro } from "@/lib/centro-datos"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { faseActiva } from "@/lib/pizarron"
 import type { SupabaseClient } from "@supabase/supabase-js"
@@ -166,5 +166,19 @@ describe("leerCentro · las lecturas nuevas", () => {
   it("el cliente sin tope en la lista de riesgos: dinero null («—»), no un cero", async () => {
     const c = await leerCentro(baseFalsa({}), { cliente: NAUFRAGO, riesgos: riesgosCon([]) })
     expect(c.dinero).toBeNull(); expect(c.plan).toBeNull(); expect(c.manual).toEqual({ total: 0, aprobado: null, fecha: null })
+  })
+  it("🔴 una lectura de Riesgos que nunca termina no cuelga el Centro: a los 6 s vuelve con dinero null («—»)", async () => {
+    vi.useFakeTimers()
+    try {
+      let listo = false
+      const p = leerCentro(baseFalsa({}), { cliente: NAUFRAGO, riesgos: () => new Promise<never>(() => {}) }).then((c) => { listo = true; return c })
+      await vi.advanceTimersByTimeAsync(ESPERA_DEL_DINERO_MS - 1)
+      expect(listo).toBe(false) // espera de verdad a Riesgos hasta el plazo
+      await vi.advanceTimersByTimeAsync(1)
+      expect(listo).toBe(true)
+      const c = await p
+      expect(c.dinero).toBeNull()
+      expect(ESPERA_DEL_DINERO_MS).toBe(6000)
+    } finally { vi.useRealTimers() }
   })
 })
