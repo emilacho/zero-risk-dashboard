@@ -246,6 +246,16 @@ const BORRADOR_REAL: ApiDelBorrador = { leer: leerBorrador, guardar: guardarBorr
 /** cuánto espera para guardar después del último toque (un guardado por ráfaga, no uno por tecla) */
 export const PAUSA_DEL_BORRADOR_MS = 1200
 
+/** 02-nov (corrección urgente) + 06-nov selector único: el manual abre en el cliente que le pasan; si no, en el de arriba; sin recuerdo, decide el servidor */
+export function clienteConElQueAbre(clienteInicial: string | null | undefined, arriba: { id: string | null } | null): string | null {
+  return clienteInicial ?? arriba?.id ?? null
+}
+
+/** con cambios sin guardar, salir (cerrar, Esc, fuera del panel, elegir otro cliente arriba) pide el aviso; sin cambios, sigue */
+export function salirOAvisar(nCambios: number, seguir: () => void, avisar: (seguir: () => void) => void): void {
+  if (nCambios > 0) avisar(seguir); else seguir()
+}
+
 export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorInicial = null, borradorViejoInicial = null, salirInicial = false, noSePudoGuardarInicial = false, onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, notasIniciales = {}, libreInicial = "", confirmarAprobarInicial = false, reintentarPlanInicial = false }: { borrador?: ApiDelBorrador; /** pruebas: el borrador ya guardado / el de una versión anterior / el aviso de salir a la vista */ borradorInicial?: { revision: number | null; actualizado_en: string | null } | null; borradorViejoInicial?: BorradorDelDueno | null; salirInicial?: boolean; noSePudoGuardarInicial?: boolean; /** pruebas: observaciones y texto libre pendientes */ notasIniciales?: Record<string, string>; libreInicial?: string; /** pruebas: aprobado pero sin plan pedido */ reintentarPlanInicial?: boolean; onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
   const [datos, setDatos] = useState<ManualDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
@@ -303,7 +313,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
   // abre en el cliente que le pasan; si no, en el cliente de trabajo (el de arriba); sin recuerdo, decide el servidor
-  useEffect(() => { if (!datosIniciales) void leer(clienteInicial ?? leerClienteDeTrabajo()?.id ?? null) }, [leer, datosIniciales, clienteInicial])
+  useEffect(() => { if (!datosIniciales) void leer(clienteConElQueAbre(clienteInicial, leerClienteDeTrabajo())) }, [leer, datosIniciales, clienteInicial])
 
   // después de guardar: se dice qué pasó y se vuelve a leer (la versión nueva es la que verá el siguiente empleado)
   const guardado = (r: ResultadoDeGuardado) => { setEditando(null); setAviso(r.ok ? { ok: true, texto: resumenDelGuardado(r.detalle) } : { ok: false, texto: r.texto }); if (r.ok) void leer(cliente) }
@@ -399,7 +409,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
   // clic fuera: solo si el clic EMPIEZA y TERMINA fuera (arrastrar para seleccionar texto y soltar afuera no pide salir · 04-nov)
   const abajoAfuera = useRef(false)
   const salirConAviso = useRef<(seguir: () => void) => void>(() => {})
-  salirConAviso.current = (seguir) => { if (nCambios > 0) setSalir(() => seguir); else seguir() }
+  salirConAviso.current = (seguir) => salirOAvisar(nCambios, seguir, (s) => setSalir(() => s))
   useEffect(() => {
     if (nCambios === 0) return
     const antes = (e: BeforeUnloadEvent) => { void guardarYa.current(); e.preventDefault(); e.returnValue = "" }

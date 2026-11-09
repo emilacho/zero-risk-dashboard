@@ -7,7 +7,10 @@ import { elegirTodosLosClientes, escucharClienteDeTrabajo, guardarClienteDeTraba
 import { conIdYCampana } from "@/lib/cliente-financiero"
 import { ESTADOS_VIVOS } from "@/lib/pizarron-datos"
 import { SelectorDeCliente, estadoJuntoAlNombre, type ClienteDeLaLista } from "@/components/nuevo/SelectorDeCliente"
-import { ClienteComoTexto, NotaDeTodos } from "@/components/nuevo/ClienteComoTexto"
+import { ClienteComoTexto, NotaDeTodos, clienteAlQueSePasa } from "@/components/nuevo/ClienteComoTexto"
+import { clienteConElQueAbre, salirOAvisar } from "@/components/nuevo/PanelManual"
+import { clienteDeObservabilidad } from "@/components/nuevo/PanelObservabilidad"
+import { elegirCliente } from "@/components/nuevo/SelectorDeCliente"
 
 const NAUFRAGO = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312", ZR = "df7e47cc-bec4-4fa2-bc24-ff97ba5213a5"
 const g = globalThis as unknown as { window?: unknown }
@@ -76,7 +79,7 @@ describe("la lista de arriba: id de cada cliente y el estado que dice el panel",
       { nombre: "Zero Risk", ruta: "/nuevo/cliente/zero-risk", id: ZR, con_campana: false, estado_campana: "borrador" },
       { nombre: "Nuevo", ruta: "/nuevo/cliente/nuevo", id: "n3", con_campana: false, estado_campana: null },
     ])
-    expect(r.map((c) => estadoJuntoAlNombre(c))).toEqual(["", "campaña en borrador", "sin campaña"])
+    expect(r.map((c) => estadoJuntoAlNombre(c))).toEqual(["campaña archivada", "campaña en borrador", "sin campaña"]) // siempre la última, aunque haya una viva
   })
   it("si las campañas no se leen, la lista sale igual SIN estado (nunca uno inventado); un nombre sin fila queda sin id", () => {
     const r = conIdYCampana(lista, filas.slice(0, 2), nombres.slice(0, 2), null, ESTADOS_VIVOS)
@@ -102,7 +105,7 @@ describe("cómo se ve", () => {
     const h = renderToStaticMarkup(createElement(SelectorDeCliente, { inicial: clientes, abiertoInicial: true, elegidoInicial: { id: NAUFRAGO, nombre: "Náufrago" } }))
     expect(h).toMatch(/role="menuitemradio" aria-checked="true" data-cliente-del-selector="Náufrago"/)
     expect(h).toMatch(/role="menuitemradio" aria-checked="false" data-cliente-del-selector="Zero Risk"/)
-    expect(h).toContain(">campaña archivada<"); expect(h.match(/data-estado-del-cliente/g)).toHaveLength(1)
+    expect(h).toContain(">campaña archivada<"); expect(h).toContain(">campaña en marcha<"); expect(h.match(/data-estado-del-cliente/g)).toHaveLength(2)
     expect(h).toMatch(/data-todos-los-clientes[^>]*>.*Todos los clientes <span[^>]*>\(Dinero, Observabilidad\)/)
     expect(h).not.toContain("href=") // elegir ya no navega: la vista financiera se abre desde Dinero
   })
@@ -122,5 +125,53 @@ describe("cómo se ve", () => {
   it("Esc cierra solo la lista y no se cuela a la escena", () => {
     const s = readFileSync("components/nuevo/SelectorDeCliente.tsx", "utf8")
     expect(s).toContain('e.stopPropagation(); e.preventDefault(); setAbierto(false)'); expect(s).toContain('window.addEventListener("keydown", tecla, true)')
+  })
+})
+
+describe("09-nov · CC6 🟡 #300: el rótulo sale del estado real y lo que vivía queda fijado", () => {
+  afterEach(() => { delete g.window })
+  it("el rótulo con los estados de hoy: Náufrago en necesita_humano → «campaña detenida»; Zero Risk en pausada → «campaña en pausa» (aunque las dos estén vivas)", () => {
+    const r = conIdYCampana([{ nombre: "Náufrago", ruta: "" }, { nombre: "Zero Risk Seguridad Industrial", ruta: "" }], [{ id: NAUFRAGO }, { id: ZR }], ["Náufrago", "Zero Risk Seguridad Industrial"],
+      [{ client_id: NAUFRAGO, estado: "necesita_humano" }, { client_id: ZR, estado: "pausada" }], ESTADOS_VIVOS)
+    expect(r.map((c) => c.con_campana)).toEqual([true, true])
+    expect(r.map((c) => estadoJuntoAlNombre(c))).toEqual(["campaña detenida", "campaña en pausa"])
+    expect(estadoJuntoAlNombre({ nombre: "x", ruta: "", id: "x", con_campana: true, estado_campana: "activa" })).toBe("campaña en marcha")
+  })
+  it("el manual con cambios sin guardar pasa por el aviso al elegir otro cliente arriba (y sin cambios, se pasa directo)", () => {
+    const pasos: string[] = [], seguir = () => pasos.push("seguir")
+    let pendiente: (() => void) | null = null
+    salirOAvisar(2, seguir, (s) => { pasos.push("aviso"); pendiente = s })
+    expect(pasos).toEqual(["aviso"]) // no se borró nada todavía
+    pendiente!(); expect(pasos).toEqual(["aviso", "seguir"]) // «Salir sin guardar»
+    salirOAvisar(0, seguir, () => pasos.push("aviso")); expect(pasos).toEqual(["aviso", "seguir", "seguir"])
+    const m = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
+    expect(m).toContain("salirConAviso.current = (seguir) => salirOAvisar(nCambios, seguir, (s) => setSalir(() => s))")
+    const linea = m.split("\n").find((l) => l.includes("useAlCambiarElCliente(datos")) ?? ""
+    expect(linea.trim().startsWith("useAlCambiarElCliente(datos?.cliente?.id ?? cliente, (id) => salirConAviso.current(() => {")).toBe(true)
+    expect(linea.trimEnd().endsWith("void leer(id) }))")).toBe(true)
+  })
+  it("el manual abre en el cliente de arriba (corrección urgente del 02-nov); el que le pasan gana; sin nada, decide el servidor", () => {
+    expect(clienteConElQueAbre(null, { id: NAUFRAGO })).toBe(NAUFRAGO)
+    expect(clienteConElQueAbre(ZR, { id: NAUFRAGO })).toBe(ZR)
+    expect(clienteConElQueAbre(undefined, null)).toBeNull()
+    expect(readFileSync("components/nuevo/PanelManual.tsx", "utf8")).toContain("void leer(clienteConElQueAbre(clienteInicial, leerClienteDeTrabajo()))")
+  })
+  it("Observabilidad con «Todos» arriba muestra todos; con un cliente, ese", () => {
+    expect(clienteDeObservabilidad({ id: NAUFRAGO, nombre: "Náufrago", todos: true })).toBe("")
+    expect(clienteDeObservabilidad({ id: NAUFRAGO, nombre: "Náufrago", todos: false })).toBe(NAUFRAGO)
+    expect(clienteDeObservabilidad(null)).toBe("")
+    expect(readFileSync("components/nuevo/PanelObservabilidad.tsx", "utf8")).toContain("const cliente = clienteDeObservabilidad(arriba)")
+  })
+  it("elegir un cliente en la lista apaga «Todos»", () => {
+    ventana()
+    guardarClienteDeTrabajo({ id: NAUFRAGO, nombre: "Náufrago", todos: false }); elegirTodosLosClientes()
+    elegirCliente({ nombre: "Zero Risk", ruta: "", id: ZR })
+    expect(leerClienteDeTrabajo()).toEqual({ id: ZR, nombre: "Zero Risk", todos: false })
+  })
+  it("menor · elegir el mismo cliente que muestra el panel no lo recarga; uno sin id tampoco", () => {
+    expect(clienteAlQueSePasa({ id: NAUFRAGO, nombre: "Náufrago" }, NAUFRAGO)).toBeNull()
+    expect(clienteAlQueSePasa({ id: ZR, nombre: "Zero Risk" }, NAUFRAGO)).toBe(ZR)
+    expect(clienteAlQueSePasa({ id: null, nombre: "Sin id" }, NAUFRAGO)).toBeNull()
+    expect(readFileSync("components/nuevo/ClienteComoTexto.tsx", "utf8")).toContain("const id = clienteAlQueSePasa(c, a.current); if (id) f.current(id)") // los paneles la usan
   })
 })

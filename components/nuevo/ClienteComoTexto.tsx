@@ -21,7 +21,13 @@ export function useClienteDeTrabajo(): ClienteDeTrabajo | null {
 export function useAlCambiarElCliente(actual: string | null, alCambiar: (id: string) => void): void {
   const a = useRef(actual), f = useRef(alCambiar)
   a.current = actual; f.current = alCambiar
-  useEffect(() => escucharClienteDeTrabajo(window, (c) => { const id = c?.id ?? null; if (id && id !== a.current) f.current(id) }), [])
+  useEffect(() => escucharClienteDeTrabajo(window, (c) => { const id = clienteAlQueSePasa(c, a.current); if (id) f.current(id) }), [])
+}
+
+/** a qué cliente se pasa un panel que muestra `actual`: al elegido arriba si tiene id y es otro; si es el mismo, a ninguno (no recarga) */
+export function clienteAlQueSePasa(c: ClienteDeTrabajo | null, actual: string | null): string | null {
+  const id = c?.id ?? null
+  return id && id !== actual ? id : null
 }
 
 /** el texto «Cliente · X» de un panel de un solo cliente; con «Todos» arriba, dice que sigue con el último */

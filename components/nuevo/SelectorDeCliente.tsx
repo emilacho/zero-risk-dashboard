@@ -1,7 +1,7 @@
 "use client"
 
 import { elegirTodosLosClientes, guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
-import { estadoDelClienteEnElSelector } from "@/lib/lenguaje"
+import { estadoDeCampanaLegible } from "@/lib/lenguaje"
 import { useClienteDeTrabajo } from "@/components/nuevo/ClienteComoTexto"
 import { useEffect, useRef, useState } from "react"
 import { CaretDown } from "@phosphor-icons/react/dist/ssr/CaretDown"
@@ -14,10 +14,14 @@ import { CaretDown } from "@phosphor-icons/react/dist/ssr/CaretDown"
  */
 export type ClienteDeLaLista = { nombre: string; ruta: string; id: string | null; con_campana?: boolean; estado_campana?: string | null }
 
-/** lo que dice el selector junto al nombre: lo mismo que dice el panel («sin campaña», «campaña archivada»…); sin dato, nada */
+/**
+ * lo que dice el selector junto al nombre: SIEMPRE el estado de la última campaña real (09-nov · CC6 🟡 + Lenovo: con una campaña viva no decía nada
+ * y Náufrago, en `necesita_humano`, salía sin estado). `necesita_humano` → «detenida». Sin campañas leídas, nada (nunca un estado inventado).
+ */
 export function estadoJuntoAlNombre(c: ClienteDeLaLista): string {
   if (typeof c.con_campana !== "boolean") return ""
-  return estadoDelClienteEnElSelector({ con_campana: c.con_campana, estado_campana: c.estado_campana ?? null }).replace(/^ · /, "")
+  if (!c.estado_campana) return "sin campaña"
+  return `campaña ${c.estado_campana === "necesita_humano" ? "detenida" : estadoDeCampanaLegible(c.estado_campana)}`
 }
 
 /** al elegir un cliente: se guarda como cliente de trabajo (sin «Todos») y se avisa a los paneles */
