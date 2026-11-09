@@ -25,6 +25,8 @@
   --color-linea-oro: rgb(214 170 100 / 0.45);
   --color-linea-alarma: rgb(217 83 74 / 0.6);
   --color-velo: rgb(0 0 0 / 0.7);
+  /* 09-nov (Emilio, boceto del Centro de campaña): la tarjeta que va DIRECTO sobre la escena, sin panel de fondo, conserva su color de hoy */
+  --color-tarjeta-escena: #151515;
 
   --text-titulo: 20px;
   --text-titulo--line-height: 1.3;

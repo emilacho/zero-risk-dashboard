@@ -15,34 +15,26 @@ import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { ClienteComoTexto, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
+import { PanelBase } from "@/components/nuevo/EstiloBase"
+import { tarjetaDelCentro, type TonoDeEstado } from "@/lib/centro-tarjetas"
 
-const AMBAR = "#e8731a"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 type RespuestaCentro = ({ ok: true } & Centro) | { ok: false; error: string }
 
-const ESTILO = `
-.ap-cuadro{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease;animation:apEntra .5s cubic-bezier(.2,.8,.2,1) both}
-.ap-cuadro:hover{transform:translateY(-3px) scale(1.02);border-color:rgba(232,115,26,.75);background:rgba(232,115,26,.08);box-shadow:0 0 0 1px rgba(232,115,26,.35),0 10px 30px rgba(0,0,0,.45),0 0 26px rgba(232,115,26,.22)}
-.ap-cuadro:hover .ap-icono{filter:drop-shadow(0 0 8px rgba(232,115,26,.8))}
-.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}
-@keyframes apEntra{from{opacity:0;transform:translateY(10px) scale(.9)}to{opacity:1;transform:none}}
-@keyframes apLate{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.6)}50%{box-shadow:0 0 0 6px rgba(245,165,36,0)}}
-@media (prefers-reduced-motion:reduce){.ap-cuadro{transition:none;animation:none}.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}}
-`
 
 /** el icono de cada cuadro: trazos finos en ámbar, como los rótulos de la escena */
 function Icono({ clave }: { clave: ClaveDeAplicacion }) {
-  const p = { fill: "none", stroke: AMBAR, strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const }
   switch (clave) {
-    case "manual": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M6 7.5A2.5 2.5 0 0 1 8.5 5H16v21H8.5A2.5 2.5 0 0 0 6 28.5V7.5ZM26 7.5A2.5 2.5 0 0 0 23.5 5H16v21h7.5a2.5 2.5 0 0 1 2.5 2.5V7.5Z" /><path {...p} d="M9.5 10.5h3.5M9.5 14h3.5M19 10.5h3.5M19 14h3.5" /></svg>
-    case "plan": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M5 26h22M8 26V14M16 26V8M24 26v-9" /><path {...p} d="M8 14l8-6 8 3" /><circle cx="8" cy="14" r="1.6" {...p} /><circle cx="16" cy="8" r="1.6" {...p} /><circle cx="24" cy="11" r="1.6" {...p} /></svg>
-    case "calendario": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><rect x="5" y="7" width="22" height="20" rx="2.5" {...p} /><path {...p} d="M5 12.5h22M11 4.5v5M21 4.5v5" /><path {...p} d="M9.5 17h3v3h-3zM14.5 17h3v3h-3zM19.5 17h3v3h-3zM9.5 22h3v3h-3zM14.5 22h3v3h-3z" /></svg>
-    case "piezas": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><rect x="4" y="9" width="18" height="18" rx="2" {...p} /><path {...p} d="M10 5h16a2 2 0 0 1 2 2v16" /><path {...p} d="M4 22l5-5 4 4 3-3 6 6" /><circle cx="16" cy="14" r="1.8" {...p} /></svg>
-    case "brief": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M7 6h18v22H7z" /><path {...p} d="M11 12h10M11 16h10M11 20h6" /><path {...p} d="M12 3v5M20 3v5" /></svg>
-    case "gran_idea": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M16 4a8 8 0 0 0-4.5 14.6c.9.7 1.5 1.7 1.5 2.9V23h6v-1.5c0-1.2.6-2.2 1.5-2.9A8 8 0 0 0 16 4Z" /><path {...p} d="M13 26h6M14 29h4" /><path {...p} d="M16 10v4M14 12h4" /></svg>
-    case "equipo": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><circle cx="16" cy="10" r="3.5" {...p} /><circle cx="7.5" cy="13" r="2.8" {...p} /><circle cx="24.5" cy="13" r="2.8" {...p} /><path {...p} d="M10 25c0-4 2.7-6.5 6-6.5s6 2.5 6 6.5" /><path {...p} d="M3 24c0-3 2-5 4.5-5 .9 0 1.7.2 2.4.6M29 24c0-3-2-5-4.5-5-.9 0-1.7.2-2.4.6" /></svg>
-    case "informes": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><path {...p} d="M8 4h11l6 6v18H8V4Z" /><path {...p} d="M19 4v6h6" /><path {...p} d="M12 22v-4M16 22v-7M20 22v-5" /><path {...p} d="M12 13h3" /></svg>
-    case "gasto": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-9 w-9"><circle cx="16" cy="16" r="11" {...p} /><path {...p} d="M16 9.5v13M19.5 12.5c0-1.5-1.5-2.5-3.5-2.5s-3.5 1-3.5 2.5 1.5 2.3 3.5 2.6 3.5 1.2 3.5 2.7-1.5 2.7-3.5 2.7-3.5-1-3.5-2.5" /></svg>
+    case "manual": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><path {...p} d="M6 7.5A2.5 2.5 0 0 1 8.5 5H16v21H8.5A2.5 2.5 0 0 0 6 28.5V7.5ZM26 7.5A2.5 2.5 0 0 0 23.5 5H16v21h7.5a2.5 2.5 0 0 1 2.5 2.5V7.5Z" /><path {...p} d="M9.5 10.5h3.5M9.5 14h3.5M19 10.5h3.5M19 14h3.5" /></svg>
+    case "plan": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><path {...p} d="M5 26h22M8 26V14M16 26V8M24 26v-9" /><path {...p} d="M8 14l8-6 8 3" /><circle cx="8" cy="14" r="1.6" {...p} /><circle cx="16" cy="8" r="1.6" {...p} /><circle cx="24" cy="11" r="1.6" {...p} /></svg>
+    case "calendario": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><rect x="5" y="7" width="22" height="20" rx="2.5" {...p} /><path {...p} d="M5 12.5h22M11 4.5v5M21 4.5v5" /><path {...p} d="M9.5 17h3v3h-3zM14.5 17h3v3h-3zM19.5 17h3v3h-3zM9.5 22h3v3h-3zM14.5 22h3v3h-3z" /></svg>
+    case "piezas": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><rect x="4" y="9" width="18" height="18" rx="2" {...p} /><path {...p} d="M10 5h16a2 2 0 0 1 2 2v16" /><path {...p} d="M4 22l5-5 4 4 3-3 6 6" /><circle cx="16" cy="14" r="1.8" {...p} /></svg>
+    case "brief": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><path {...p} d="M7 6h18v22H7z" /><path {...p} d="M11 12h10M11 16h10M11 20h6" /><path {...p} d="M12 3v5M20 3v5" /></svg>
+    case "gran_idea": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><path {...p} d="M16 4a8 8 0 0 0-4.5 14.6c.9.7 1.5 1.7 1.5 2.9V23h6v-1.5c0-1.2.6-2.2 1.5-2.9A8 8 0 0 0 16 4Z" /><path {...p} d="M13 26h6M14 29h4" /><path {...p} d="M16 10v4M14 12h4" /></svg>
+    case "equipo": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><circle cx="16" cy="10" r="3.5" {...p} /><circle cx="7.5" cy="13" r="2.8" {...p} /><circle cx="24.5" cy="13" r="2.8" {...p} /><path {...p} d="M10 25c0-4 2.7-6.5 6-6.5s6 2.5 6 6.5" /><path {...p} d="M3 24c0-3 2-5 4.5-5 .9 0 1.7.2 2.4.6M29 24c0-3-2-5-4.5-5-.9 0-1.7.2-2.4.6" /></svg>
+    case "informes": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><path {...p} d="M8 4h11l6 6v18H8V4Z" /><path {...p} d="M19 4v6h6" /><path {...p} d="M12 22v-4M16 22v-7M20 22v-5" /><path {...p} d="M12 13h3" /></svg>
+    case "gasto": return <svg viewBox="0 0 32 32" aria-hidden className="ap-icono h-11 w-11 text-ambar"><circle cx="16" cy="16" r="11" {...p} /><path {...p} d="M16 9.5v13M19.5 12.5c0-1.5-1.5-2.5-3.5-2.5s-3.5 1-3.5 2.5 1.5 2.3 3.5 2.6 3.5 1.2 3.5 2.7-1.5 2.7-3.5 2.7-3.5-1-3.5-2.5" /></svg>
   }
 }
 
@@ -72,11 +64,15 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
   return { texto: fijo, aviso: false }
 }
 
-const CLASE_DEL_CUADRO = "ap-cuadro relative flex aspect-[1/0.92] flex-col items-start justify-end rounded-2xl border border-white/10 bg-[#171717]/90 p-4 text-left shadow-xl focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400 sm:aspect-[1/0.85]"
+/** ESTILO BASE (Lenovo 06-nov, boceto 2): tarjetas más pequeñas y centradas, el ícono un poco más grande; sin sombras ni brillos */
+/** 09-nov · sin panel de fondo: la tarjeta va directo sobre la escena con su color de hoy (token `tarjeta-escena`) y el borde tenue */
+const CLASE_DEL_CUADRO = "ap-cuadro relative flex flex-col items-center rounded-tarjeta border border-linea bg-tarjeta-escena px-4 pb-4 pt-5 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"
+const COLOR_DEL_TONO: Record<TonoDeEstado, string> = { oro: "text-oro", alarma: "text-alarma", gris: "text-gris" }
+const PUNTO_DEL_TONO: Record<TonoDeEstado, string> = { oro: "bg-oro", alarma: "bg-alarma", gris: "bg-gris" }
 
-export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicial }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
+export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
-  const [centro, setCentro] = useState<Centro | null>(null)
+  const [centro, setCentro] = useState<Centro | null>(centroInicial)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
@@ -148,46 +144,42 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicia
 
   const idCliente = datos?.cliente?.id ?? null
   return (
-    <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[3px] sm:p-8" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
-      <style>{ESTILO}</style>
-      <section role="dialog" aria-modal="true" aria-labelledby="aplicaciones-titulo" data-seccion="aplicaciones" className="relative w-full max-w-[780px] text-zinc-200">
-        <header className="mb-5 flex flex-wrap items-center gap-3 px-1">
-          <h2 id="aplicaciones-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.3em]" style={{ color: AMBAR }}>Centro de campaña</h2>
-          <p className="hidden text-[12px] text-zinc-400 md:block">Dept. Marketing · los 9 pasos de la campaña, en el orden de la cadena</p>
-          {/* 06-nov · selector único: el cliente se elige arriba; aquí solo se dice cuál es */}
-          <ClienteComoTexto nombre={datos ? datos.cliente?.nombre : "Leyendo…"} className="ml-auto" />
-          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
-          </button>
-        </header>
+    <PanelBase titulo="Centro de campaña" id="aplicaciones-titulo" seccion="aplicaciones" onCerrar={onCerrar} etiquetaCerrar="Cerrar" ancho="max-w-[820px]" fondo={false}>
+        {/* 06-nov · selector único (#300): el cliente se elige arriba; aquí solo se dice cuál es */}
+        <div className="mb-6 mt-1 flex justify-center"><ClienteComoTexto nombre={datos ? datos.cliente?.nombre : "Leyendo…"} /></div>
 
-        {error && <p role="alert" className="mb-4 rounded-md border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200">{error}</p>}
+        {error && <p role="alert" className="mb-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{error}</p>}
 
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Los 9 pasos del Centro de campaña">
+        <ul className="grid grid-cols-3 gap-3" aria-label="Los 9 pasos del Centro de campaña">
           {APLICACIONES.map((a, i) => {
             const d = detalleDelCuadro(a.clave, datos, centro)
             const href = a.enlace(idCliente, datos?.cliente?.nombre ?? null)
-            const retraso = { animationDelay: `${i * 45}ms` }
+            const t = tarjetaDelCentro(a.clave, datos, centro, cargando)
+            // 09-nov (boceto aprobado por Emilio 15:15Z): sin número de paso ni descripción; debajo del nombre, el estado con su punto, una línea fina y la cantidad
             const dentro = (
               <>
-                <span className="ap-punto absolute right-3 top-3 h-2 w-2 rounded-full" style={{ background: d.aviso ? "#f5a524" : "transparent" }} aria-hidden />
-                <span data-paso={a.paso} className="absolute left-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/15 text-[10.5px] font-medium text-zinc-400" aria-label={`Paso ${a.paso}`}>{a.paso}</span>
                 <Icono clave={a.clave} />
-                <span className="mt-3 block text-[14px] font-medium text-zinc-100">{a.nombre}</span>
-                <span className="mt-1 block min-h-[2.4em] text-[11.5px] leading-snug text-zinc-400">{cargando && !datos ? "Leyendo…" : d.texto}</span>
+                <span className="mt-3 block text-cuerpo font-medio text-hueso">{a.nombre}</span>
+                <span data-estado={t.estado} data-tono={t.tono} className={`mt-1.5 flex items-center justify-center gap-1.5 text-rotulo font-medio uppercase tracking-rotulo ${COLOR_DEL_TONO[t.tono]}`}>
+                  <span className={`h-[6px] w-[6px] shrink-0 rounded-full ${PUNTO_DEL_TONO[t.tono]}`} aria-hidden />{t.estado}
+                </span>
+                <span className="mt-3 block w-full border-t border-linea" aria-hidden />
+                <span className="mt-3 flex w-full min-w-0 items-center gap-3 text-left">
+                  <span data-cantidad className="min-w-11 shrink-0 rounded-control border border-linea px-2.5 py-1 text-center text-cuerpo font-medio text-hueso [font-variant-numeric:tabular-nums]">{t.cantidad}</span>
+                  <span data-linea className="min-w-0 truncate text-dato text-gris">{t.linea}</span>
+                </span>
               </>
             )
             return (
               <li key={a.clave} className="contents">
                 {href
-                  ? <a ref={i === 0 ? (primero as RefObject<HTMLAnchorElement>) : undefined} href={href} data-aplicacion={a.clave} data-aviso={d.aviso} className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</a>
-                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => (a.clave === "equipo" ? abrirElSquadHub() : setVista(a.clave))} aria-haspopup="dialog" className={CLASE_DEL_CUADRO} style={retraso}>{dentro}</button>}
+                  ? <a ref={i === 0 ? (primero as RefObject<HTMLAnchorElement>) : undefined} href={href} data-aplicacion={a.clave} data-aviso={d.aviso} className={CLASE_DEL_CUADRO}>{dentro}</a>
+                  : <button type="button" data-aplicacion={a.clave} data-aviso={d.aviso} onClick={() => (a.clave === "equipo" ? abrirElSquadHub() : setVista(a.clave))} aria-haspopup="dialog" className={CLASE_DEL_CUADRO}>{dentro}</button>}
               </li>
             )
           })}
         </ul>
-        <p className="mt-4 px-1 text-[11.5px] text-zinc-500">Esc o clic fuera para volver a la oficina</p>
-      </section>
-    </div>
+        <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
+    </PanelBase>
   )
 }

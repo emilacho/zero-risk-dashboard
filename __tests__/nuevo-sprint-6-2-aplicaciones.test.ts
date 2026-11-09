@@ -52,16 +52,18 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
   })
   it("el panel dibuja los nueve cuadros como enlaces (el calendario como botón que abre encima), el selector de cliente y el aviso en Piezas", () => {
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="aplicaciones"'); expect(html).toContain("Dept. Marketing")
+    expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="aplicaciones"'); expect(html).toContain("data-cliente-como-texto") // 09-nov · «Cliente · X» como texto (selector único #300)
     expect(html.match(/data-aplicacion="/g)?.length).toBe(9) // 6.10: nueve pasos
     expect(html).toMatch(/<button type="button" data-aplicacion="manual" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.3: abre encima
     expect(html).toMatch(/<button type="button" data-aplicacion="plan" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.5: abre encima
     expect(html).toMatch(/<button type="button" data-aplicacion="piezas" data-aviso="true"[^>]*aria-haspopup="dialog"/) // 6.6: abre encima, con el punto de aviso
     expect(html).toMatch(/<button type="button" data-aplicacion="calendario" data-aviso="false"[^>]*aria-haspopup="dialog"/)
-    expect(html).toContain("1 pieza espera tu aprobación"); expect(html).toContain("Campaña en pausa"); expect(html).toContain("2 publicaciones"); expect(html).not.toContain("calendario v1")
+    // 09-nov (boceto aprobado): la tarjeta dice estado + cantidad + una línea; sin la lectura del centro, lo que no viene dice «—» (nunca un cero inventado)
+    expect(html).toContain('data-estado="Por aprobar" data-tono="oro"'); expect(html).toContain("Espera tu aprobación"); expect(html).toMatch(/data-cantidad="true"[^>]*>1</); expect(html).not.toContain("calendario v1")
+    expect(html).toMatch(/data-aplicacion="calendario"[\s\S]*?data-estado="—"/)
     expect(html).not.toContain("<select"); expect(html).toContain("data-cliente-como-texto") // 06-nov selector único: el cliente se elige arriba
     expect(html).not.toContain('data-seccion="pizarron"') // el calendario no está abierto de entrada
-    expect(html).not.toMatch(/decidir|aprobar\b/i)
+    expect(html).not.toMatch(/<button[^>]*>\s*(decidir|aprobar)\b/i) // ningún botón decide aquí («Por aprobar» es un estado, no una acción)
     const c = readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")
     expect(c).not.toContain('method: "POST"'); expect(c).toContain('window.addEventListener("keydown", tecla, true)') // Esc cierra las aplicaciones y no la oficina
     expect(c).toContain('if (vista !== "inicio") return') // con el calendario encima, su Esc manda y solo vuelve a las aplicaciones
@@ -69,7 +71,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(c).toContain("<PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />")
     expect(c).toContain("<PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />")
     expect(c).toContain("<PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />")
-    expect(c).toContain("@media (prefers-reduced-motion:reduce)")
+    expect(c).not.toMatch(/@keyframes|animation:/) // 06-nov · estilo base: sin animaciones, no hace falta frenarlas
   })
   it("el tablero de la oficina abre primero las aplicaciones (la escena ya no monta el calendario directo)", () => {
     const e = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")

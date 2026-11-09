@@ -64,7 +64,7 @@ describe("6.9 · «Centro de campaña» (ya no «Pizarrón de piezas») e «Info
     const cal = leer("components/nuevo/PanelPizarron.tsx")
     for (const t of ["Pizarrón de piezas", "el pizarrón", "Colores del pizarrón", "Leyendo el pizarrón"]) expect(cal, t).not.toContain(t)
     expect(cal).toContain(">Calendario</h2>")
-    expect(leer("components/nuevo/PanelAplicaciones.tsx")).toContain(">Centro de campaña</h2>")
+    expect(leer("components/nuevo/PanelAplicaciones.tsx")).toContain('<PanelBase titulo="Centro de campaña"')
   })
   it("el Centro de campaña tiene Informes (abre encima) y ya no tiene Cerebro", () => {
     expect(APLICACIONES.map((a) => a.clave)).toContain("informes")
