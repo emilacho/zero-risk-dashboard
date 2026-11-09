@@ -38,6 +38,12 @@ describe("la fila «Departamento» de la decisión", () => {
     expect(departamentoDe(D({ pregunta_de: { oficina: "planeacion", agente: "x" } }))).toBe("Departamento de Marketing")
     expect(departamentoDe(D({ pregunta_de: { oficina: "oficina-creativa", agente: "x" } }))).toBe("Departamento de Marketing")
   })
+  it("CC6 #310 menores · el tipo manda sobre la oficina; sin tipo de departamento, el origen; la oficina compuesta por su primera palabra", () => {
+    expect(departamentoDe(D({ tipo: "firma_de_finanzas", pregunta_de: { oficina: "planeacion", agente: "x" } }))).toBe("Departamento de Finanzas")
+    expect(departamentoDe(D({ tipo: "pregunta_al_dueno", fuente: "finanzas_tableros" }))).toBe("Departamento de Finanzas")
+    expect(departamentoDe(D({ tipo: "pregunta_al_dueno", fuente: "plan_aprobaciones" }))).toBe("Departamento de Marketing")
+    expect(departamentoDeLaOficina("financiera_algo")).toBe("finanzas"); expect(departamentoDe(D({ pregunta_de: { oficina: "financiera_algo", agente: "x" } }))).toBe("Departamento de Finanzas")
+  })
   it("lo que no es de un departamento no se disfraza de uno: el cerebro sigue diciendo «Cerebro»", () => {
     expect(departamentoDe(D({ tipo: "pregunta_al_dueno", fuente: "cerebro_dueno_preguntas" }))).toBe("Cerebro")
     expect(departamentoDe(D({ pregunta_de: { oficina: "cerebro", agente: "x" } }))).not.toMatch(/^Departamento/)
@@ -51,6 +57,7 @@ describe("la revisión de estilo los atrapa", () => {
   it("«Financiero» o «Plan de 90 días» en el campo departamento frenan; el nombre oficial, el título del plan y un comentario pasan (modo probar)", () => {
     const fuente = readFileSync("scripts/revisar-estilo.mjs", "utf8")
     expect(fuente).toContain('["{ departamento: \\"Financiero\\" }", 7]')
+    expect(fuente).toContain('["{ nombre: \\"Financiero\\" }", 7]') // CC6 #310: «Financiero» frena en cualquier campo, no solo en «departamento»
     expect(fuente).toContain('["DEPARTAMENTO = { plan: \\"Plan de 90 días\\" }", 7]')
     expect(fuente).toContain('"titulo: \\"Plan de 90 días\\""')
     expect(execFileSync(process.execPath, ["scripts/revisar-estilo.mjs", "probar"], { encoding: "utf8" })).toMatch(/^ok · /)
