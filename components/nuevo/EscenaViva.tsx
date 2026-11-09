@@ -115,7 +115,7 @@ const ESTILO = `
 .nv-proy:has(.nv-tablero:hover) .nv-tablero-luz,.nv-proy:has(.nv-tablero:focus-visible) .nv-tablero-luz{opacity:1}
 .nv-tablero{cursor:pointer;outline:none}
 .nv-tablero polygon{fill:rgba(255,140,40,0);stroke:none}
-.nv-camara-halo{opacity:0;transition:opacity .45s ease;pointer-events:none}
+.nv-camara-halo{opacity:0;transition:opacity .45s ease;pointer-events:none;stroke:none}
 .nv-tablero:hover .nv-camara-halo,.nv-tablero:focus-visible .nv-camara-halo{opacity:1}
 .nv-tablero .nv-rotulo{opacity:0;transform:translateY(5px);transition:opacity .45s ease,transform .45s ease;pointer-events:none}
 .nv-tablero:hover .nv-rotulo,.nv-tablero:focus-visible .nv-rotulo{opacity:1;transform:translateY(0)}
@@ -154,7 +154,8 @@ export const TABLERO = {
   encendido: { src: "/nuevo/marketing-tablero-encendido.webp", caja: { x: 820, y: 250, w: 320, h: 340 } },
 }
 /** 05-nov (GO de Lenovo · boceto aprobado por Emilio) · la cámara del trípode, en la isla de abajo a la derecha, abre el ESTUDIO (imagen · video · 3D).
- *  Sin recorte encendido generado: al pasar el ratón la rodea un halo ámbar dibujado aquí y aparece su rótulo. Coordenadas en píxeles de la foto (2560×1440, medido 05-nov). */
+ *  Sin recorte encendido generado: al pasar el ratón la rodea una luz ámbar suave dibujada aquí y aparece su rótulo.
+ *  09-nov (boceto aprobado por Emilio): la luz va SIN contorno; el óvalo naranja se quitó en todos los estados. Coordenadas en píxeles de la foto (2560×1440, medido 05-nov). */
 export const CAMARA = {
   clave: "camara",
   nombre: "Estudio: imágenes, videos y 3D",
@@ -465,7 +466,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
               </g>
               <g ref={camara} className="nv-tablero" data-zona={CAMARA.clave} role="button" tabIndex={0} aria-label={CAMARA.nombre} aria-haspopup="dialog" aria-expanded={estudio}
                 onClick={(e) => { e.stopPropagation(); setEstudio(true) }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEstudio(true) } }}>
-                <ellipse className="nv-camara-halo" cx={CAMARA.halo.cx} cy={CAMARA.halo.cy} rx={CAMARA.halo.rx} ry={CAMARA.halo.ry} fill="url(#nv-camara-luz)" stroke="#e8731a" strokeOpacity={0.55} strokeWidth={2.5} />
+                <ellipse className="nv-camara-halo" cx={CAMARA.halo.cx} cy={CAMARA.halo.cy} rx={CAMARA.halo.rx} ry={CAMARA.halo.ry} fill="url(#nv-camara-luz)" stroke="none" />
                 <polygon points={CAMARA.forma} />
                 <text className="nv-rotulo" x={CAMARA.rotulo.x} y={CAMARA.rotulo.y} textAnchor="middle" fill="none" stroke="#e8731a" strokeWidth={TAM_ROTULO_TABLERO * 0.9 / 16}
                   fontSize={TAM_ROTULO_TABLERO} fontWeight="500" letterSpacing={TAM_ROTULO_TABLERO * 3.4 / 16} fontFamily="system-ui, Arial, sans-serif">{CAMARA.rotulo.texto}</text>
