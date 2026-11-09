@@ -113,8 +113,14 @@ export const textoListo = (tipo: TipoDePieza, texto: string, conFoto: boolean) =
 
 /** la pista del botón cuando solo falta el texto; en escritorio no se muestra (boceto aprobado 09-nov: «Crear» centrado) */
 export const PISTA_DE_TEXTO = "escribe qué quieres"
-/** clases del costo dentro del botón: en escritorio va a la derecha sin empujar «Crear»; la pista se oculta en escritorio */
-export const claseDelCosto = (costo: string) => `text-[12.5px] font-medium opacity-90 md:absolute md:right-4${costo === PISTA_DE_TEXTO ? " md:hidden" : ""}`
+/** un aviso largo («proveedor no conectado todavía», «sin precio: …») taparía «Crear» centrado en la columna de 400 px (CC6 #304) */
+export const LARGO_MAXIMO_CENTRADO = 20
+/** ¿«Crear» va centrado en escritorio? Sí con el precio, la pista oculta o un aviso corto; con un aviso largo vuelve a la izquierda */
+export const crearCentrado = (costo: string) => costo === PISTA_DE_TEXTO || costo.length <= LARGO_MAXIMO_CENTRADO
+/** clases del botón que cambian con el costo: centrado en escritorio (el costo queda a la derecha sin empujarlo) o como antes */
+export const claseDelCentrado = (costo: string) => (crearCentrado(costo) ? "relative md:justify-center" : "")
+/** clases del costo dentro del botón: centrado, va a la derecha sin empujar «Crear»; la pista se oculta en escritorio */
+export const claseDelCosto = (costo: string) => `text-[12.5px] font-medium opacity-90${crearCentrado(costo) ? " md:absolute md:right-4" : ""}${costo === PISTA_DE_TEXTO ? " md:hidden" : ""}`
 
 /**
  * El botón Crear: solo se enciende con cliente, texto, proveedor conectado y una COTIZACIÓN en la mano (el dueño ve el costo antes, siempre).

@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { PanelEstudio } from "@/components/nuevo/PanelEstudio"
 import { CAMARA } from "@/components/nuevo/EscenaViva"
-import { alEstudio, PISTA_DE_TEXTO, claseDelCosto, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, esAnimable, estadoDeAnimar, nombreDelMovimiento, respuestaDeAnimar, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
+import { alEstudio, PISTA_DE_TEXTO, LARGO_MAXIMO_CENTRADO, claseDelCentrado, claseDelCosto, crearCentrado, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, esAnimable, estadoDeAnimar, nombreDelMovimiento, respuestaDeAnimar, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
 import { clientesDelEstudio } from "@/lib/estudio-clientes"
 
 const CLIENTE = "a0000000-0000-4000-8000-0000000000e1"
@@ -125,6 +125,19 @@ describe("el panel", () => {
     expect(claseDelCosto(PISTA_DE_TEXTO).split(" ")).toContain("md:hidden")
     expect(claseDelCosto(PISTA_DE_TEXTO).split(" ")).not.toContain("hidden")
     expect(estadoDelBoton({ clienteId: CLIENTE, textoListo: false, listo: true, cotizacion: null, cotizando: false, sinPrecio: null, creando: false }).costo).toBe(PISTA_DE_TEXTO)
+    // centrado: el botón es la referencia del costo a la derecha (sin «relative» el costo se va a otra esquina)
+    expect(claseDelCentrado("≈ US$ 0,31").split(" ")).toEqual(["relative", "md:justify-center"])
+  })
+  it("con un aviso largo «Crear» vuelve a la izquierda y el aviso no lo tapa (CC6 #304)", () => {
+    const base = { clienteId: CLIENTE, textoListo: true, cotizacion: null, cotizando: false, creando: false }
+    for (const aviso of [estadoDelBoton({ ...base, listo: false, sinPrecio: null }).costo, estadoDelBoton({ ...base, listo: true, sinPrecio: "no_se_pudo_cotizar" }).costo]) {
+      expect(aviso.length).toBeGreaterThan(LARGO_MAXIMO_CENTRADO)
+      expect(crearCentrado(aviso)).toBe(false)
+      expect(claseDelCentrado(aviso)).toBe("")
+      expect(claseDelCosto(aviso).split(" ")).not.toEqual(expect.arrayContaining(["md:absolute"]))
+      expect(claseDelCosto(aviso).split(" ")).not.toContain("md:hidden")
+    }
+    for (const corto of ["≈ US$ 0,014", "≈ US$ 12,50", "cotizando…", "elige el cliente", PISTA_DE_TEXTO]) expect(crearCentrado(corto)).toBe(true)
   })
   it("la galería muestra cada pieza con su tipo y su costo", () => {
     const h = pintar({ piezasIniciales: [pieza({}), pieza({ id: "p2", tipo: "video", estado: "creando", archivo_url: null })] })

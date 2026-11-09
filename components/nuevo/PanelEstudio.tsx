@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
-import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelCosto, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelCentrado, claseDelCosto, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -358,7 +358,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
               </div>
             )}
             <button type="button" data-crear onClick={() => void crear()} disabled={!puedeCrear}
-              className="relative mt-auto flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-bold transition-opacity disabled:cursor-not-allowed md:justify-center" /* estilo-ok: el pedido de Emilio dice que no cambian color ni tamaño del botón, solo se centra */
+              className={`mt-auto flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-bold transition-opacity disabled:cursor-not-allowed ${claseDelCentrado(boton.costo)}`} /* estilo-ok: el pedido de Emilio dice que no cambian color ni tamaño del botón, solo se centra */
               style={{ background: puedeCrear ? AMBAR : "#3a2a1a", color: puedeCrear ? "#1a0d02" : "#f0a04b" }}>
               <span>{creando ? "Creando…" : "Crear"}</span>
               {/* en escritorio «Crear» va centrado: el costo o el aviso queda a la derecha sin empujarlo, y la pista «escribe qué quieres» no se muestra */}
