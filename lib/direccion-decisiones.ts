@@ -252,6 +252,76 @@ export function textoDeCifra(c: Pick<CifraDeFirma, "valor" | "unidad">): string 
   const n = c.valor.toLocaleString("es-EC", { maximumFractionDigits: 2, ...(c.unidad === "US$" && !Number.isInteger(c.valor) ? { minimumFractionDigits: 2 } : {}) })
   return c.unidad === "US$" ? `US$ ${n}` : c.unidad ? `${n} ${c.unidad}` : n
 }
+/** la cifra en su recuadro, como en la imagen aprobada (Lenovo 06-nov): el número solo, grande; la moneda va en el rótulo («5» · «Meta semanal»; «1.341» · «US$ al mes») */
+export function cifraEnRecuadro(c: Pick<CifraDeFirma, "valor" | "unidad" | "nombre">): { numero: string; rotulo: string } {
+  const numero = c.valor.toLocaleString("es-EC", { maximumFractionDigits: 2, ...(c.unidad === "US$" && !Number.isInteger(c.valor) ? { minimumFractionDigits: 2 } : {}) })
+  // la unidad nunca se pierde: el dólar va delante del rótulo; otra unidad, detrás (salvo que el nombre ya la diga)
+  if (c.unidad === "US$") return { numero, rotulo: /US\$/.test(c.nombre) ? c.nombre : `US$ ${c.nombre}` }
+  return { numero, rotulo: c.unidad && !c.nombre.toLowerCase().includes(c.unidad.toLowerCase()) ? `${c.nombre} · ${c.unidad}` : c.nombre }
+}
+/** lo decisivo en dos líneas, como en la imagen aprobada: la frase y, debajo, su porqué («Con esta meta el plan no se paga» · «Hacen falta 8 ventas…») */
+export function partirLoDecisivo(texto: string): { frase: string; porque: string | null } {
+  // solo un «: » fuera de paréntesis y tras una frase corta (si no, el texto queda entero: «(últimos posts: Junio 2020)» no se parte)
+  let i = -1, hondo = 0
+  for (let k = 0; k < texto.length - 1; k++) {
+    const ch = texto[k]
+    if (ch === "(") hondo++
+    else if (ch === ")") hondo = Math.max(0, hondo - 1)
+    else if (ch === ":" && texto[k + 1] === " " && hondo === 0) { i = k; break }
+  }
+  if (i <= 0 || i > 90 || i === texto.length - 2) return { frase: texto, porque: null }
+  const resto = texto.slice(i + 2).trim()
+  return { frase: texto.slice(0, i).trim(), porque: resto.charAt(0).toUpperCase() + resto.slice(1) }
+}
+/**
+ * 09-nov · DECISIONES IGUAL A LO APROBADO (firma de Emilio 15:20Z). El frente de la tarjeta es corto; el detalle (al tocar «Decisivo» o «Uso»)
+ * guarda SIEMPRE el texto entero. El resumen sale de lo que ya trae cada pieza; si no trae versión corta, se corta sin inventar.
+ */
+/** las cifras del frente: las dos que decide el dueño (las que deja cambiar; si ninguna, las dos primeras). Las demás van al detalle */
+export function cifrasDelFrente(cifras: CifraDeFirma[]): { frente: CifraDeFirma[]; detalle: CifraDeFirma[] } {
+  const editables = cifras.filter((c) => c.editable)
+  const frente = (editables.length ? editables : cifras).slice(0, 2)
+  return { frente, detalle: cifras.filter((c) => !frente.includes(c)) }
+}
+/** corta un texto sin inventar: hasta `tope` caracteres, en un borde de palabra, y «…» si cortó */
+export function cortarSinInventar(texto: string, tope: number): string {
+  const s = texto.trim()
+  if (s.length <= tope) return s
+  const c = s.slice(0, tope + 1), i = c.lastIndexOf(" ")
+  let r = i > tope / 2 ? c.slice(0, i) : s.slice(0, tope)
+  // nunca un paréntesis abierto: se corta antes de él
+  if ((r.match(/\(/g) ?? []).length > (r.match(/\)/g) ?? []).length) r = r.slice(0, r.lastIndexOf("("))
+  return r.replace(/[\s,;:.(—-]+$/, "") + "…"
+}
+/** las frases de un texto (un punto seguido de espacio y mayúscula o número; nunca dentro de un paréntesis) */
+export function frasesDe(texto: string): string[] {
+  const out: string[] = []
+  let hondo = 0, desde = 0
+  for (let k = 0; k < texto.length; k++) {
+    const ch = texto[k]
+    if (ch === "(") hondo++
+    else if (ch === ")") hondo = Math.max(0, hondo - 1)
+    else if ((ch === "." || ch === "!" || ch === "?") && hondo === 0 && texto[k + 1] === " " && /[A-ZÁÉÍÓÚÑ¿¡0-9]/.test(texto[k + 2] ?? "")) { out.push(texto.slice(desde, k + 1).trim()); desde = k + 2 }
+  }
+  const resto = texto.slice(desde).trim()
+  if (resto) out.push(resto)
+  return out
+}
+/** «Decisivo» en dos líneas: la frase y su porqué (del «:» si lo trae; si no, la primera y la segunda frase), cada una corta. `cortado` = el detalle dice más */
+export function decisivoCorto(texto: string): { frase: string; porque: string | null; cortado: boolean } {
+  const t = texto.trim(), p = partirLoDecisivo(t)
+  const fs = p.porque ? [p.frase, ...frasesDe(p.porque)] : frasesDe(t)
+  const primera = fs[0] ?? t, segunda = fs[1] ?? null
+  const frase = cortarSinInventar(primera, 70), porque = segunda ? cortarSinInventar(segunda, 90) : null
+  return { frase, porque, cortado: fs.length > 2 || frase !== primera || (segunda !== null && porque !== segunda) }
+}
+/**
+ * «Uso» y «Desbloquea» al frente: la PRIMERA FRASE ENTERA (Lenovo 09-nov: nunca palabras cortadas a la mitad).
+ * Si el texto trae más de una frase, el resto se lee en el detalle; si es una sola, no se repite allí.
+ */
+export function primeraFrase(texto: string): string {
+  return frasesDe(texto)[0] ?? texto.trim() // frasesDe ya recorta los espacios de cada frase
+}
 /**
  * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;
  * si no declaró nada, las de su tipo. Una acción sin ruta real nunca se muestra (nada de botones falsos).

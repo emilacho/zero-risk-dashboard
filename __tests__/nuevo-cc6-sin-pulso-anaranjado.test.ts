@@ -38,7 +38,7 @@ describe("la escena: sin aura ámbar que late", () => {
   })
   it("los paneles: los puntos y casillas naranjas ya no laten", () => {
     expect(leer("components/nuevo/PanelAplicaciones.tsx")).toContain('.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}')
-    expect(leer("components/nuevo/PanelDecisiones.tsx")).toContain(".de-urge{animation:none}")
+    expect(leer("components/nuevo/PanelDecisiones.tsx")).not.toMatch(/@keyframes|animation:|animate-/) // estilo base (05-nov): Decisiones no tiene ninguna animación
     expect(leer("components/nuevo/PanelGranIdea.tsx")).toContain(".gi-punto{animation:none}")
     expect(leer("components/nuevo/PanelOrganizacion.tsx")).toContain(".or-late{animation:none}")
     expect(leer("components/nuevo/PanelPizarron.tsx")).not.toContain("animation:pzLate")
@@ -47,9 +47,8 @@ describe("la escena: sin aura ámbar que late", () => {
     // Lenovo 13:44Z: el punto «por aprobar» del Calendario SÍ titila cuando hay algo que revisar (criterio de #266); el resto, quieto
     expect(leer("components/nuevo/PanelPizarron.tsx")).toContain('${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}')
     for (const p of ["components/nuevo/PanelEnVivo.tsx", "components/inicio/TrabajoEnVivo.tsx", "components/nuevo/PanelDecisiones.tsx"]) expect(leer(p)).not.toMatch(/bg-amber-\d+[^"`]*animate-pulse|animate-pulse[^"`]*bg-amber/)
-    // mutante vivo de CC3 (Decisiones vuelve a latir): ninguna regla usa deLate, solo queda su @keyframes
-    const de = leer("components/nuevo/PanelDecisiones.tsx")
-    expect(de).not.toMatch(/animation(-name)?:\s*deLate/); expect((de.match(/deLate/g) ?? []).length).toBe(1)
+    // mutante vivo de CC3 (Decisiones vuelve a latir): con el estilo base no queda ni el @keyframes
+    expect(leer("components/nuevo/PanelDecisiones.tsx")).not.toContain("deLate")
     const t = leer("components/nuevo/TablerosDeDireccion.tsx")
     expect(t).not.toContain("animation:nvTgPunto"); expect(t).toContain('[data-anima="urge"]{animation:none}')
   })

@@ -84,16 +84,17 @@ describe("6.20 · dónde se decide cada una (tablero nuevo, nunca el viejo)", ()
 
 describe("6.20 · la mesa del director (panel)", () => {
   const datos = normalizarDecisiones(CRUDO)
-  it("la pila: la primera al frente con todo para decidir, las siguientes asomando detrás; índice por tipo; «sin dato» declarado", () => {
+  // estilo base (05-nov · guía de Emilio, reglas 5 y 6): los recuadros de número son los filtros; una tarjeta a la vez con «1 de N»; sin pila ni índice por tipo
+  it("la primera al frente con todo para decidir; los recuadros filtran; «1 de N»; «sin dato» declarado", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('data-seccion="decisiones"'); expect(html).toContain("3 esperan por ti"); expect(html).not.toContain("fuera de este tablero") // 04-nov · la firma de finanzas ya se firma aquí
     // 6.52 · el carrusel recorre solo lo que espera tu firma (el mismo número que la cabecera); lo que se atiende fuera va en su grupo aparte
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe("f4d46f59-1d22-4780-9e40-252e74fa53b4") // 04-nov · la firma va primero (orden de la plataforma) y se firma en la tarjeta
-    expect((html.match(/data-detras="/g) ?? []).length).toBe(2); expect(html).toContain("data-firmar")
+    expect(html).not.toContain("data-detras="); expect(html).toContain("data-firmar")
     expect(html).not.toContain('data-decidir=') // 04-nov · la del frente se firma en la misma tarjeta
-    expect(html).toContain('data-filtro="plan"'); expect(html).toContain('data-filtro="pieza"'); expect(html).toContain('data-filtro="firma_de_finanzas"')
-    expect(html).not.toContain('data-grupo-aparte="fuera"')
-    expect(html).toContain("1 de 3"); expect(html).toContain("gastos por aprobar")
+    expect(html).toMatch(/data-recuadro="firma" aria-pressed="true"[^>]*>.*?>3<\/span>/); expect(html).toContain('data-recuadro="detienen"'); expect(html).not.toContain("data-filtro=")
+    expect(html).not.toContain('data-recuadro="fuera"')
+    expect(html).toContain("1 de 3"); expect(html).not.toContain("gastos por aprobar"); expect(html).not.toContain("data-sin-dato") // 09-nov: fuera el pie «Sin dato»
   })
   it("si la lista está incompleta nunca dice «estás al día»", () => {
     const vacia: Decisiones = { ...datos, total: 0, decisiones: [], completo: false }

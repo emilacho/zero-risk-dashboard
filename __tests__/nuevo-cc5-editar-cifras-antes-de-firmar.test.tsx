@@ -49,9 +49,10 @@ describe("cuándo se ofrece cambiar una cifra", () => {
     const sinPermiso = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ permite: ["aceptar"] }) }))
     expect(sinPermiso).not.toContain("data-cambiar")
   })
+  // estilo base (05-nov · guía de Emilio, regla 6): cada tarjeta en el mismo orden · propuesta → aviso (lo que sigue abierto) → para qué → acciones
   it("Firmar va después de todo lo que hay que leer, y no va fijo (CC6 · #283)", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ para_que: "Para repartir el dinero", criticos: ["Dos hallazgos sin cerrar"] }) }))
-    const orden = ["data-cifras", "data-contexto", "data-criticos", "data-baja-para-firmar", "data-pie", "data-firmar"].map((x) => html.indexOf(x))
+    const orden = ["data-cifras", "data-criticos", "data-contexto", "data-pie", "data-firmar"].map((x) => html.indexOf(x))
     expect(orden.every((x) => x > -1)).toBe(true); expect(orden).toEqual([...orden].sort((x, y) => x - y))
     expect(html).not.toMatch(/data-pie="true" class="[^"]*sticky/)
   })
@@ -59,9 +60,9 @@ describe("cuándo se ofrece cambiar una cifra", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ criticos: ["Dos hallazgos sin cerrar"] }) }))
     expect(html).toContain("Dos hallazgos sin cerrar"); expect(html).not.toContain("line-clamp-2"); expect(html).not.toContain("Leer completo")
   })
-  it("la indicación de bajar es solo de lo que se firma", () => {
+  it("09-nov · Decisiones igual a lo aprobado: ya no hay «Baja para leer todo y firmar» (quedan «1 de N» y las flechas)", () => {
     const pinta = (x: Record<string, unknown>) => renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida(x) }))
-    expect(pinta({})).toContain("data-baja-para-firmar")
+    expect(pinta({})).not.toContain("data-baja-para-firmar"); expect(pinta({})).not.toContain("Baja para leer")
     expect(pinta({ cifras: [] })).not.toContain("data-baja-para-firmar")
     expect(pinta({ tipo: "pregunta_al_dueno", fuente: "cerebro_dueno_preguntas", subtipo: "tema", permite: undefined, cifras: [] })).not.toContain("data-baja-para-firmar")
   })
@@ -224,7 +225,7 @@ describe("la pantalla de cambiar una cifra (boceto 2)", () => {
   const pintar = (cifra = PRESUPUESTO) => renderToStaticMarkup(createElement(EditorDeCifra, { cifra, todas: [PRESUPUESTO, META, COSTO], alEditar: AL_EDITAR, ver: async () => ({ ok: true, sale: false, texto: "", registro: [] }), firmar: async () => null, volver: () => {} })).replace(/<!-- -->/g, "")
   it("muestra lo propuesto, la caja con la cifra para cambiarla, «Volver a X» y lo que hay que saber", () => {
     const html = pintar()
-    expect(html).toContain("Lo que propuso la oficina"); expect(html).toContain("Lo que vas a firmar"); expect(html).toContain("US$ 1.341,27")
+    expect(html).toContain(">Propuso<"); expect(html).toContain(">Firmas<"); expect(html).toContain("US$ 1.341,27") // estilo base: rótulos de una palabra (guía, regla 2)
     expect(html).toContain('value="1341,27"'); expect(html).toContain('inputMode="decimal"'); expect(html).toContain("Volver a US$ 1.341,27"); expect(html).toContain(AL_EDITAR)
   })
   it("al entrar, sin cambiar nada, no se puede firmar: solo «Ver cómo queda», apagado", () => {

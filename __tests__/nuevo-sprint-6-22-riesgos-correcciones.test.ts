@@ -98,29 +98,25 @@ describe("6.22 · el servidor busca el nombre de los procesos (solo lectura)", (
 
 describe("6.22 · el panel", () => {
   const html = renderToStaticMarkup(createElement(PanelRiesgos, { onCerrar: () => {}, datosIniciales: normalizarRiesgos(conNombres(), AHORA) }))
-  it("el radar dibuja los 8 sectores y debajo 8 tarjetas que filtran", () => {
-    expect(html.match(/<g data-sector=/g)).toHaveLength(8)
-    expect(html.match(/data-tarjeta-sector=/g)).toHaveLength(8)
-    expect(html).toContain("Credenciales y accesos"); expect(html).toContain("Seguridad y cumplimiento")
+  // estilo base (05-nov · imagen aprobada por Emilio): el radar y las 8 tarjetas de sector salen del panel; los recuadros de número son los filtros
+  it("06-nov · el radar y los 8 temas a la izquierda; a la derecha, el título y Abiertas · Tomadas · Cerradas", () => {
+    expect(html).toMatch(/data-columna="lado"[\s\S]*data-radar[\s\S]*data-tarjeta-sector=[\s\S]*data-columna="principal"[\s\S]*riesgos-titulo/); expect(html.match(/data-tarjeta-sector=/g)).toHaveLength(8)
+    expect(html.match(/data-recuadro="[a-z]+"/g)).toEqual(['data-recuadro="abiertas"', 'data-recuadro="tomadas"', 'data-recuadro="cerradas"'])
   })
-  it("6.25 · dentro del radar no hay palabras de gravedad: 3 franjas de color (Emilio: «es suficiente con los colores, asegúrate que sean 3»)", () => {
-    const radar = html.match(/<svg[^>]*viewBox="-16 -8 432 416"[^]*?<\/svg>/)?.[0] ?? ""
-    expect(radar).not.toBe("")
-    expect(radar).not.toMatch(/>(GRAVE|ATENDER|A LA VISTA)</i)
-    expect(radar.match(/data-anillo="(3|2|1)"/g)).toEqual(['data-anillo="3"', 'data-anillo="2"', 'data-anillo="1"'])
-    for (const color of ["#ff5a36", "#f5a524", "#e9d6b6"]) expect(radar).toContain(`stroke="${color}"`)
+  it("el color solo marca lo grave: el punto rojo es de la gravedad 3; el resto, oro o apagado", () => {
+    expect(readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")).toContain('const PUNTO: Record<Gravedad, string> = { 3: "bg-alarma", 2: "bg-oro", 1: "bg-apagado" }')
   })
   it("ya no muestra saldos ni freno de gasto (se van a la pantalla Dinero)", () => {
     expect(html).not.toContain("Saldos de proveedores"); expect(html).not.toContain("Freno de gasto"); expect(html).not.toContain("techo")
   })
-  it("tus pausas van fuera del radar y lo que no tiene fuente dice «sin dato»", () => {
-    expect(html).toContain("Pausas que decidiste"); expect(html).toContain("foco en Náufrago")
-    expect(html).toContain("calidad, plazos, seguridad y cumplimiento: el sistema todavía no tiene de dónde leerlos"); expect(html).not.toMatch(/: n8n conserva/)
-    expect(html).toContain("1 aviso viejo caducó solo")
+  it("06-nov · se quitan «Tus pausas» y «Sin dato» (Lenovo); las pausas siguen fuera del radar", () => {
+    expect(html).not.toContain("Tus pausas"); expect(html).not.toContain("foco en Náufrago"); expect(html).not.toContain("data-sin-dato")
+    expect(html).not.toContain("el sistema todavía no tiene de dónde leerlos")
+    expect(html).not.toContain("caducó solo")
   })
-  it("6.24 · el radar llena su columna: sin vacío alrededor (Emilio: «reduce el espacio vacío que lo rodea, que todo tenga más simetría»)", () => {
+  it("6.24 · sin vacío: el panel mide lo que su contenido (guía, regla 7) y se arma con las piezas del estilo base", () => {
     const c = readFileSync("components/nuevo/PanelRiesgos.tsx", "utf8")
-    expect(c).toContain('data-radar className="relative aspect-square w-full lg:aspect-auto lg:min-h-0 lg:flex-1"'); expect(c).not.toContain("max-w-[380px]"); expect(c).toContain("const C = 200, R = 150,")
+    expect(c).toContain('<PanelBase titulo="Riesgos"'); expect(c).not.toContain("h-full max-h-full")
   })
 })
 
@@ -131,13 +127,14 @@ describe("6.22 · REGLA GENERAL · el chat de abajo siempre visible en todo /nue
     expect(css).toContain("--nv-chat-reserva: 156px")
     expect(css).toContain("body:has([data-chat-de-oficinas]) .nv-panel { bottom: var(--nv-chat-reserva); }")
   })
-  it("TODOS los paneles de /nuevo llevan la clase que les deja espacio al chat", () => {
+  it("TODOS los paneles de /nuevo llevan la clase que les deja espacio al chat (directo o por el PanelBase del estilo base)", () => {
     const paneles = readdirSync("components/nuevo").filter((f) => /^Panel.*\.tsx$/.test(f))
     expect(paneles.length).toBeGreaterThanOrEqual(13)
+    expect(readFileSync("components/nuevo/EstiloBase.tsx", "utf8")).toContain('className="nv-panel fixed inset-0 z-[70]')
     for (const f of paneles) {
       const s = readFileSync(`components/nuevo/${f}`, "utf8")
       expect(s, f).not.toMatch(/<div className="fixed inset-0 z-\[70\]/)
-      expect(s, f).toContain('className="nv-panel fixed inset-0 z-[70]')
+      if (!s.includes("<PanelBase ")) expect(s, f).toContain('className="nv-panel fixed inset-0 z-[70]')
     }
   })
 })
