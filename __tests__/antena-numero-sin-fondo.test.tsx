@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { AntenaDeAlertas, ListaDeLasAlertas, PanelDeLasAlertas, alTocarElAviso, escucharEsc } from "@/components/nuevo/escena/AntenaDeAlertas"
+import { AntenaDeAlertas, ListaDeLasAlertas, LucesApagadas, PanelDeLasAlertas, alTocarElAviso, escucharEsc } from "@/components/nuevo/escena/AntenaDeAlertas"
 import { isValidElement, type ReactElement, type ReactNode } from "react"
 import { ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
 
@@ -119,5 +119,14 @@ describe("09-nov · regla de Emilio: la luz de la antena solo se prende cuando h
     const h = pinta([A("a", "envivo", 1)])
     expect(h).toMatch(/<g class="nv-antena" data-alertas="1">[\s\S]*?<g data-luces-apagadas[\s\S]*data-luz-apagada="plato"[\s\S]*nv-antena-pulso/)
     expect(h).toContain("data-numero-antena")
+  })
+})
+
+describe("CC6 #296 · sin avisos se dibuja EXACTAMENTE la tapa y nada más", () => {
+  it("con 0 avisos (o sin dato), la antena es igual a la tapa de las luces: cualquier luz que se agregue rompe la prueba", () => {
+    const soloLaTapa = renderToStaticMarkup(createElement("svg", null, createElement(LucesApagadas)))
+    for (const alertas of [[], undefined]) expect(renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas, onAbrir: () => {} })))).toBe(soloLaTapa)
+    expect(soloLaTapa.match(/<circle /g)).toHaveLength(6) // 3 velos + 3 bombillas apagadas, nada más
+    expect(soloLaTapa).not.toMatch(/#ff|#d81a10|#fff4f0|nv-antena|<text/i) // ningún rojo, ningún blanco encendido, nada que respire, ningún número
   })
 })
