@@ -29,7 +29,7 @@ export function BajaParaFirmar({ hasta }: { hasta: RefObject<HTMLElement | null>
   if (llego) return null
   return (
     <div className="pointer-events-none sticky -bottom-6 z-10 -mb-6 flex justify-center bg-gradient-to-t from-grafito-2 via-grafito-2 to-transparent pb-6 pt-6">
-      <button type="button" data-baja-para-firmar onClick={() => hasta.current?.scrollIntoView({ block: "end", behavior: "smooth" })} className="pointer-events-auto min-h-11 rounded-full border border-linea-oro bg-grafito-2 px-4 text-dato text-oro">Baja para leer todo y firmar ↓</button>
+      <button type="button" data-baja-para-firmar onClick={() => hasta.current?.scrollIntoView({ block: "end", behavior: "smooth" })} className="pointer-events-auto min-h-11 rounded-full border border-linea-oro bg-grafito-2 px-4 text-boton font-medio text-oro">Baja para leer todo y firmar ↓</button>
     </div>
   )
 }

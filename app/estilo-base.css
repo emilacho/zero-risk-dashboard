@@ -7,7 +7,8 @@
  * Colores (los únicos): carbón (fondo) · grafito y grafito-2 (paneles y tarjetas) · hueso (texto que se lee) · gris (dato) ·
  * apagado (lo inactivo; aclarado el 06-nov a #818189, opción (b) de Lenovo: 4,5 a 1 sobre grafito-2, ya sirve para texto) · oro (títulos, rótulos, hilos, activo,
  * botones secundarios) · ámbar (UN botón principal por tarjeta, a la derecha) · alarma (solo punto, línea fina o número).
- * Letra: título 20 · cuerpo 15 · dato 13 · rótulo 11 · cifra 24 (dentro de una tarjeta) · número 36 (recuadro del panel).
+ * Letra: título 20 · cuerpo 15 · dato 13 · rótulo 11 · cifra 24 (dentro de una tarjeta) · número 36 (recuadro del panel) ·
+ * botón 18 (09-nov, Emilio: la letra de TODOS los botones, ámbar y de borde oro, peso medio; el costo junto al botón sigue en dato 13).
  * Pesos: normal y medio. Radios: panel 20 · tarjeta 14 · control 12 · píldora (full). Sin sombras.
  */
 @theme {
@@ -40,6 +41,8 @@
   --text-cifra--line-height: 1.15;
   --text-numero: 36px;
   --text-numero--line-height: 1.1;
+  --text-boton: 18px;
+  --text-boton--line-height: 1.3;
 
   --font-weight-medio: 500;
 
