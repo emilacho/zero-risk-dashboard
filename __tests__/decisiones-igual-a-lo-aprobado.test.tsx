@@ -1,0 +1,96 @@
+/** 09-nov · DECISIONES EN ESCRITORIO IGUAL A LA IMAGEN APROBADA (firma de Emilio 15:20Z). US$ 0 · sin red. */
+import { describe, expect, it } from "vitest"
+import { createElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { readFileSync } from "node:fs"
+import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
+import { cifrasDelFrente, cortarSinInventar, decisivoCorto, enDosPalabras, frasesDe, normalizarDecisiones, type CifraDeFirma, type Decisiones } from "@/lib/direccion-decisiones"
+
+// la firma de Finanzas de hoy (Zero Risk SI), con sus textos tal como los manda la oficina
+const INSTAGRAM = "Instagram @zeroriskgye lleva 6 años inactivo (últimos posts: junio 2020) y el Business Manager de Meta no está confirmado como activo. El 60% del presupuesto mensual ($804.78) va a Meta/IG. Si el BM está deshabilitado o la cuenta suspendida, ese presupuesto no puede ejecutarse en absoluto y el modelo colapsa en su canal principal."
+const PRECIOS = "Precios reales sin dato: D4 y D6 son nulos. Ticket ($280) y margen (38%) son supuestos de mercado."
+const USO = "La oficina financiera dejó 2 hallazgos críticos abiertos: tu firma da por buenas sus cifras."
+const DESBLOQUEA = "El plan no espera esta firma: queda constancia de que diste por buenas estas cifras."
+const META: CifraDeFirma = { clave: "meta_ventas_semana", nombre: "Meta de ventas por semana", valor: 5, unidad: "ventas", nota: "Dato", editable: true }
+const TOTAL: CifraDeFirma = { clave: "presupuesto_total_mes", nombre: "Presupuesto total al mes", valor: 1341.27, unidad: "US$", nota: "Supuesto", editable: true }
+const PAUTA: CifraDeFirma = { clave: "pauta_dia", nombre: "Pauta por día", valor: 26, unidad: "US$", nota: "Supuesto" }
+const CPV: CifraDeFirma = { clave: "cpv_pauta", nombre: "Costo por venta, solo con la pauta", valor: 26, unidad: "US$", nota: "Supuesto" }
+const CPV_PLAN: CifraDeFirma = { clave: "cpv_plan", nombre: "Costo por venta, con todo el plan", valor: 61.9, unidad: "US$", nota: "Calculado" }
+const firma = (extra: Record<string, unknown> = {}): Decisiones => normalizarDecisiones({ ok: true, completo: false, fuentes: [{ fuente: "Gastos", estado: "error" }], sin_fuente: [{ que: "gastos por aprobar", motivo: "x" }], decisiones: [{
+  id: "33333333-3333-4333-8333-333333333333", tipo: "firma_de_finanzas", subtipo: "tablero_sin_firma", fuente: "finanzas_tableros", client_id: "c", cliente: "Zero Risk Seguridad Industrial",
+  titulo: "Tablero financiero: espera tu firma", desde: "2026-10-23T10:00:00Z", decidir: { ruta: null, accion: "firmar-tablero" }, permite: ["aceptar", "editar"],
+  cifras: [META, TOTAL, PAUTA, CPV, CPV_PLAN], criticos: [INSTAGRAM, PRECIOS], para_que: USO, destraba: DESBLOQUEA, ...extra,
+}] })
+const pinta = (d: Decisiones, detalleInicial = false) => renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: d, detalleInicial })).replace(/<!-- -->/g, "")
+
+describe("1 · solo 2 recuadros de propuesta: las dos cifras que decide el dueño", () => {
+  it("son las que deja cambiar (meta y monto al mes); las demás van al detalle, en su orden", () => {
+    expect(cifrasDelFrente([PAUTA, META, CPV, TOTAL, CPV_PLAN])).toEqual({ frente: [META, TOTAL], detalle: [PAUTA, CPV, CPV_PLAN] })
+    expect(cifrasDelFrente([PAUTA, CPV, CPV_PLAN])).toEqual({ frente: [PAUTA, CPV], detalle: [CPV_PLAN] }) // sin editables: las dos primeras
+    expect(cifrasDelFrente([META])).toEqual({ frente: [META], detalle: [] })
+  })
+  it("el frente pinta 2 recuadros; el detalle abierto, las otras 3; ninguna cifra se pierde", () => {
+    const h = pinta(firma())
+    expect(h.match(/data-cifra="/g)).toHaveLength(2); expect(h).toContain('data-cifra="meta_ventas_semana"'); expect(h).toContain('data-cifra="presupuesto_total_mes"')
+    expect(h).not.toContain("data-cifra-del-detalle"); expect(h).not.toContain("data-detalle")
+    const a = pinta(firma(), true)
+    expect([...a.matchAll(/data-cifra-del-detalle="([^"]+)"/g)].map((m) => m[1])).toEqual(["pauta_dia", "cpv_pauta", "cpv_plan"])
+  })
+})
+
+describe("2 · «Decisivo»: una frase y su porqué en dos líneas; el texto largo se abre al tocar el bloque", () => {
+  it("corta sin inventar: en borde de palabra, con «…», y nunca deja un paréntesis abierto", () => {
+    expect(cortarSinInventar("corto", 70)).toBe("corto")
+    expect(cortarSinInventar("uno dos tres cuatro", 9)).toBe("uno dos…")
+    expect(cortarSinInventar("lleva 6 años inactivo (últimos posts: junio 2020) y más", 40)).toBe("lleva 6 años inactivo…")
+  })
+  it("las frases no se parten dentro de un paréntesis ni en un decimal", () => {
+    expect(frasesDe(INSTAGRAM)).toHaveLength(3)
+    expect(frasesDe(INSTAGRAM)[1]).toBe("El 60% del presupuesto mensual ($804.78) va a Meta/IG.")
+    expect(frasesDe("Falta la cuenta (ver nota. Sin ella no hay pauta) y el pixel. Después, todo.")).toEqual(["Falta la cuenta (ver nota. Sin ella no hay pauta) y el pixel.", "Después, todo."])
+    expect(frasesDe("Cuesta 3 dólares p. ej. por día. Luego sube.")).toEqual(["Cuesta 3 dólares p. ej. por día.", "Luego sube."]) // tras el punto, minúscula: no es otra frase
+  })
+  it("el caso de hoy: la primera frase corta y la segunda como porqué; con «:» manda el «:»", () => {
+    expect(decisivoCorto(INSTAGRAM)).toEqual({ frase: "Instagram @zeroriskgye lleva 6 años inactivo…", porque: "El 60% del presupuesto mensual ($804.78) va a Meta/IG.", cortado: true })
+    expect(decisivoCorto(PRECIOS)).toEqual({ frase: "Precios reales sin dato", porque: "D4 y D6 son nulos.", cortado: true })
+    expect(decisivoCorto("Faltan datos: sin ellos no se firma.")).toEqual({ frase: "Faltan datos", porque: "Sin ellos no se firma.", cortado: false })
+    expect(decisivoCorto("Dos hallazgos sin cerrar")).toEqual({ frase: "Dos hallazgos sin cerrar", porque: null, cortado: false })
+  })
+  it("el frente lleva esas dos líneas; el bloque es el que abre (sin botón nuevo) y el detalle trae TODO el texto de la oficina", () => {
+    const h = pinta(firma())
+    expect(h).toMatch(/<button type="button" data-criticos="true" aria-expanded="false"[^>]*>.*?<span data-frase="true"[^>]*>Instagram @zeroriskgye lleva 6 años inactivo…<\/span><span data-porque="true"[^>]*>El 60% del presupuesto mensual \(\$804\.78\) va a Meta\/IG\.<\/span>/)
+    expect(h).not.toContain("canal principal"); expect(h).not.toContain(PRECIOS)
+    const a = pinta(firma(), true)
+    expect(a).toContain('data-criticos="true" aria-expanded="true"')
+    expect([...a.matchAll(/<li data-critico-entero="true">([^<]+)<\/li>/g)].map((m) => m[1].replace(/&#x27;/g, "'"))).toEqual([INSTAGRAM, PRECIOS])
+    const t = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")
+    expect(t.match(/onClick=\{\(\) => setVerDetalle\(\(v\) => !v\)\}/g)).toHaveLength(2) // el bloque Decisivo y el de Uso/Desbloquea; ningún botón más
+  })
+})
+
+describe("3 · «Uso» y «Desbloquea» con una o dos palabras; la frase larga en el mismo detalle", () => {
+  it("dos palabras con contenido (sin artículo), antes del «:»; «…» si el texto dice más", () => {
+    expect(enDosPalabras(USO)).toBe("Oficina financiera…")
+    expect(enDosPalabras(DESBLOQUEA)).toBe("Plan no…")
+    expect(enDosPalabras("Campañas")).toBe("Campañas")
+    expect(enDosPalabras("Reparto de anuncios")).toBe("Reparto de…")
+    expect(enDosPalabras("Pausa: nada más")).toBe("Pausa…")
+    expect(enDosPalabras("El plan")).toBe("Plan")
+  })
+  it("al frente las dos palabras; en el detalle, enteras", () => {
+    const h = pinta(firma())
+    expect(h).toContain('<span data-uso="true">Oficina financiera…</span>'); expect(h).toContain('<span data-destraba="true">Plan no…</span>')
+    expect(h).not.toContain(USO); expect(h).not.toContain(DESBLOQUEA)
+    const a = pinta(firma(), true)
+    expect(a).toContain(`<p data-uso-entero="true" class="mt-1.5 text-dato text-hueso">${USO}</p>`); expect(a).toContain(DESBLOQUEA)
+  })
+})
+
+describe("4 · fuera «Baja para leer todo y firmar» y el pie «Sin dato»; quedan «1 de N» y las flechas", () => {
+  it("aunque la lectura venga incompleta y haya «sin dato»", () => {
+    const h = pinta(firma())
+    expect(h).not.toContain("Baja para leer"); expect(h).not.toContain("data-baja-para-firmar")
+    expect(h).not.toContain("data-sin-dato"); expect(h).not.toContain("gastos por aprobar"); expect(h).not.toContain("no se pudo leer")
+    expect(h).toContain("1 de 1"); expect(h).toContain("data-firmar")
+  })
+})

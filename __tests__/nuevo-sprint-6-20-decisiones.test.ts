@@ -94,7 +94,7 @@ describe("6.20 · la mesa del director (panel)", () => {
     expect(html).not.toContain('data-decidir=') // 04-nov · la del frente se firma en la misma tarjeta
     expect(html).toMatch(/data-recuadro="firma" aria-pressed="true"[^>]*>.*?>3<\/span>/); expect(html).toContain('data-recuadro="detienen"'); expect(html).not.toContain("data-filtro=")
     expect(html).not.toContain('data-recuadro="fuera"')
-    expect(html).toContain("1 de 3"); expect(html).toContain("gastos por aprobar")
+    expect(html).toContain("1 de 3"); expect(html).not.toContain("gastos por aprobar"); expect(html).not.toContain("data-sin-dato") // 09-nov: fuera el pie «Sin dato»
   })
   it("si la lista está incompleta nunca dice «estás al día»", () => {
     const vacia: Decisiones = { ...datos, total: 0, decisiones: [], completo: false }

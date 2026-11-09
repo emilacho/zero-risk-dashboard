@@ -274,6 +274,63 @@ export function partirLoDecisivo(texto: string): { frase: string; porque: string
   return { frase: texto.slice(0, i).trim(), porque: resto.charAt(0).toUpperCase() + resto.slice(1) }
 }
 /**
+ * 09-nov · DECISIONES IGUAL A LO APROBADO (firma de Emilio 15:20Z). El frente de la tarjeta es corto; el detalle (al tocar «Decisivo» o «Uso»)
+ * guarda SIEMPRE el texto entero. El resumen sale de lo que ya trae cada pieza; si no trae versión corta, se corta sin inventar.
+ */
+/** las cifras del frente: las dos que decide el dueño (las que deja cambiar; si ninguna, las dos primeras). Las demás van al detalle */
+export function cifrasDelFrente(cifras: CifraDeFirma[]): { frente: CifraDeFirma[]; detalle: CifraDeFirma[] } {
+  const editables = cifras.filter((c) => c.editable)
+  const frente = (editables.length ? editables : cifras).slice(0, 2)
+  return { frente, detalle: cifras.filter((c) => !frente.includes(c)) }
+}
+/** corta un texto sin inventar: hasta `tope` caracteres, en un borde de palabra, y «…» si cortó */
+export function cortarSinInventar(texto: string, tope: number): string {
+  const s = texto.trim()
+  if (s.length <= tope) return s
+  const c = s.slice(0, tope + 1), i = c.lastIndexOf(" ")
+  let r = i > tope / 2 ? c.slice(0, i) : s.slice(0, tope)
+  // nunca un paréntesis abierto: se corta antes de él
+  if ((r.match(/\(/g) ?? []).length > (r.match(/\)/g) ?? []).length) r = r.slice(0, r.lastIndexOf("("))
+  return r.replace(/[\s,;:.(—-]+$/, "") + "…"
+}
+/** las frases de un texto (un punto seguido de espacio y mayúscula o número; nunca dentro de un paréntesis) */
+export function frasesDe(texto: string): string[] {
+  const out: string[] = []
+  let hondo = 0, desde = 0
+  for (let k = 0; k < texto.length; k++) {
+    const ch = texto[k]
+    if (ch === "(") hondo++
+    else if (ch === ")") hondo = Math.max(0, hondo - 1)
+    else if ((ch === "." || ch === "!" || ch === "?") && hondo === 0 && texto[k + 1] === " " && /[A-ZÁÉÍÓÚÑ¿¡0-9]/.test(texto[k + 2] ?? "")) { out.push(texto.slice(desde, k + 1).trim()); desde = k + 2 }
+  }
+  const resto = texto.slice(desde).trim()
+  if (resto) out.push(resto)
+  return out
+}
+/** «Decisivo» en dos líneas: la frase y su porqué (del «:» si lo trae; si no, la primera y la segunda frase), cada una corta. `cortado` = el detalle dice más */
+export function decisivoCorto(texto: string): { frase: string; porque: string | null; cortado: boolean } {
+  const t = texto.trim(), p = partirLoDecisivo(t)
+  const fs = p.porque ? [p.frase, ...frasesDe(p.porque)] : frasesDe(t)
+  const primera = fs[0] ?? t, segunda = fs[1] ?? null
+  const frase = cortarSinInventar(primera, 70), porque = segunda ? cortarSinInventar(segunda, 90) : null
+  return { frase, porque, cortado: fs.length > 2 || frase !== primera || (segunda !== null && porque !== segunda) }
+}
+const ARTICULOS = new Set(["el", "la", "los", "las", "lo", "un", "una", "tu", "tus", "su", "sus"])
+/** «Uso» y «Desbloquea» en una o dos palabras: de lo que va antes del «:» (si lo trae), las dos primeras con contenido; «…» si el texto dice más */
+export function enDosPalabras(texto: string): string {
+  const t = texto.trim()
+  const w = t.split(/\s+/).filter(Boolean)
+  let k = 0
+  while (k < w.length - 1 && ARTICULOS.has(w[k].toLocaleLowerCase("es"))) k++
+  const tomadas = w.slice(k, k + 2)
+  const corte = tomadas.findIndex((x) => /[:;,.]$/.test(x)) // un «:» o un punto corta antes
+  const dos = (corte >= 0 ? tomadas.slice(0, corte + 1) : tomadas).join(" ").replace(/[:;,.]+$/, "")
+  if (!dos) return t
+  const r = dos.charAt(0).toLocaleUpperCase("es") + dos.slice(1)
+  const usadas = k + (corte >= 0 ? corte + 1 : tomadas.length)
+  return usadas < w.length ? r + "…" : r
+}
+/**
  * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;
  * si no declaró nada, las de su tipo. Una acción sin ruta real nunca se muestra (nada de botones falsos).
  */
