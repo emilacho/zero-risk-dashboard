@@ -55,6 +55,16 @@ describe("1 · la gran idea de Náufrago (la respuesta real de hoy) prende la an
   })
 })
 
+describe("1b · ADENDA 1 de Lenovo (Emilio 23:17Z): la antena solo avisa, no muestra la decisión", () => {
+  it("el aviso trae solo frase, hora, destino y departamento: nada de la ficha ni de sus botones", () => {
+    const [a] = armarAlertas({ ...vacia(), decisiones: deLaPlataforma(RESPUESTA_REAL) })
+    expect(Object.keys(a).sort()).toEqual(["abre", "clave", "cuando", "departamento", "texto", "tipo"])
+    expect(a.texto).not.toMatch(/oro que nunca buscaste|aprobar|pedir cambios/i)
+    const lista = renderToStaticMarkup(ListaDeLasAlertas({ alertas: [a], onAbrir: () => undefined, onCerrar: () => undefined, ahora: AHORA.getTime() }))
+    expect(lista).not.toMatch(/oro que nunca buscaste|Aprobar|Pedir cambios/)
+  })
+})
+
 describe("2 · lo que no es de marketing no la prende", () => {
   it("una decisión del cerebro (fuente del cerebro, sin departamento) no entra", () => {
     const delCerebro = dec({ id: "c", tipo: "revision", fuente: "cerebro_conocimiento", oficina: null })
