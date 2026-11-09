@@ -250,8 +250,8 @@ describe("la pantalla (boceto aprobado)", () => {
     expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
     expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-detiene="true"') // estilo base: el recuadro es el filtro · 09-nov ficha única (v7): «Detiene el plan» en alarma
     expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Departamento de Finanzas<\/span>/) // estilo base: DEPARTAMENTO / su nombre oficial (Emilio 09-nov 23:29Z), nunca «Financiero»
-    // 09-nov · ficha única (v7): sin corto de la oficina, «Desbloquea» se ve entero (nunca se recorta)
-    expect(html).toContain('<span data-desbloquea="true"><span>El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.</span></span>')
+    // 10-nov (Emilio, #310 ajuste 1): lo que arma el tablero va corto, «Sigue el Plan de Marketing», con el nombre propio; el entero se abre al tocar
+    expect(html).toContain('<span data-desbloquea="true"><span>Sigue el </span><span data-nombre-propio="true" class="underline decoration-linea-oro decoration-1 underline-offset-4">Plan de Marketing</span></span>')
     expect(html).toContain("data-respuesta"); expect(html).toMatch(/data-verbo="responder"[^>]*>Responder</); expect(html).toContain('data-verbo="descartar"')
     expect(html).not.toContain("data-firmar"); expect(html).not.toContain("buzón de preguntas") // la tarjeta vieja de la pausa (Slack) no se repite
   })

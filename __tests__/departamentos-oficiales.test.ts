@@ -62,7 +62,7 @@ describe("la revisión de estilo los atrapa", () => {
 
 describe("la escena", () => {
   it("«Dept. Marketing» pasa a «Departamento de Marketing» en el rótulo y en el nombre (cabe: imagen del 10-nov)", () => {
-    expect(readFileSync("components/nuevo/EscenaNuevo.tsx", "utf8")).toContain('texto: "DEPARTAMENTO DE MARKETING"')
+    expect(readFileSync("components/nuevo/EscenaNuevo.tsx", "utf8")).toContain('texto: "Departamento de Marketing"') // el nombre propio tal cual; las mayúsculas las pone el dibujo
     for (const f of ["components/nuevo/EscenaNuevo.tsx", "components/nuevo/EscenaViva.tsx", "lib/direccion-decisiones.ts"]) expect(readFileSync(f, "utf8"), f).not.toMatch(/["'](Dept|Dpto)\. Marketing["']/)
   })
 })

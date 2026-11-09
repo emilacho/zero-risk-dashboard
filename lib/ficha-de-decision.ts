@@ -111,7 +111,7 @@ export const nombrePropioO = (t: string): string => conNombresPropios(t).map((p)
 
 /** T1 · TRADUCTOR DEL TABLERO (solo las preguntas; las demás siguen en la tarjeta de siempre hasta el T2). Si la plataforma ya manda `ficha`, manda la suya.
  *  Nada se inventa: lo que la fila no trae, la ficha no lo trae, y el dibujante pone el guion rojo */
-export function fichaDeLaPregunta(d: Decision, x: { departamento: string; detiene: boolean; destraba: string | null; conAsumir: boolean; responder: boolean; descartar: boolean }): FichaDeDecision {
+export function fichaDeLaPregunta(d: Decision, x: { departamento: string; detiene: boolean; destraba: string | null; destrabaCorto?: string | null; conAsumir: boolean; responder: boolean; descartar: boolean }): FichaDeDecision {
   const acciones: Accion[] = [
     ...(x.descartar ? [{ verbo: "descartar" as const, pide: { que: "motivo" as const, obligatorio: false }, destino: "dueno-preguntas" }] : []),
     ...(x.conAsumir ? [{ verbo: "asumir" as const, destino: "dueno-preguntas" }] : []),
@@ -124,7 +124,7 @@ export function fichaDeLaPregunta(d: Decision, x: { departamento: string; detien
     que_se_decide: d.titulo,
     ...(d.criticos?.length ? { decisivo: d.criticos.map((c) => ({ corto: decisivoCorto(c).frase, largo: c })) } : {}),
     ...(d.para_que ? { uso: { largo: d.para_que, ...(d.para_que_corto ? { corto: d.para_que_corto } : {}) } } : {}),
-    ...(x.destraba ? { desbloquea: { largo: x.destraba, ...(d.destraba && d.destraba_corto ? { corto: d.destraba_corto } : {}) } } : {}),
+    ...(x.destraba ? { desbloquea: { largo: x.destraba, ...(x.destrabaCorto ? { corto: x.destrabaCorto } : d.destraba && d.destraba_corto ? { corto: d.destraba_corto } : {}) } } : {}),
     ...(x.detiene ? { detiene: { que: "el plan" } } : {}),
     ...(d.supuesto ? { propuesta: { supuesto: d.supuesto } } : {}),
     // la pregunta no trae plazo: la fila no lo sabe (guion rojo), salvo que la plataforma mande uno

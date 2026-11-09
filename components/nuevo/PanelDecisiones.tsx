@@ -8,7 +8,7 @@ import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
   TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
-  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, primeraFrase } from "@/lib/direccion-decisiones"
+  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, desbloqueaElPlan, DESBLOQUEA_EL_PLAN_CORTO, primeraFrase } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
 import { FichaDeDecision } from "@/components/nuevo/FichaDeDecision"
@@ -122,7 +122,9 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const conAsumir = acciones.includes("asumir") && !!asumir && !!d.supuesto
   // las preguntas de las oficinas (la ruta de la plataforma): si la oficina no propuso supuesto, se dice por qué no hay «Asumir»
   const esDeLasOficinas = d.tipo === "pregunta_al_dueno" && d.fuente === "dueno_preguntas"
-  const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.` : null)
+  const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? desbloqueaElPlan(d.cliente) : null)
+  // 10-nov (#310 ajuste 1): el corto que manda la oficina; si el texto lo pone el tablero (el plan espera), «Sigue el Plan de Marketing»; si la oficina no mandó corto, la primera frase
+  const destrabaCorto = d.destraba ? (d.destraba_corto ?? null) : destraba ? DESBLOQUEA_EL_PLAN_CORTO : null
   const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { return await contestar(d, a, t) } finally { setEnviando(null) } }
   const contestable = acciones.length > 0
   const falta = faltaQueLeer(d)
@@ -132,7 +134,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   // CC6 #290 (e145a7c): el detalle solo existe si tiene algo que mostrar; si no, «Uso / Desbloquea» es texto, no un botón que abre una caja vacía
   // 09-nov (#957): el frente lleva el corto de la oficina; si no vino, la primera frase entera (como hasta hoy)
   const usoAlFrente = d.para_que ? (d.para_que_corto ?? primeraFrase(d.para_que)) : null
-  const destrabaAlFrente = destraba ? ((d.destraba && d.destraba_corto) || primeraFrase(destraba)) : null
+  const destrabaAlFrente = destraba ? (destrabaCorto || primeraFrase(destraba)) : null
   const usoDeMas = !!d.para_que && usoAlFrente !== d.para_que.trim()
   const destrabaDeMas = !!destraba && destrabaAlFrente !== destraba.trim()
   const hayDetalle = !!d.criticos?.length || usoDeMas || destrabaDeMas || cifrasDelDetalle.length > 0
@@ -145,7 +147,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   useEffect(() => { if (fallo) porQue.current?.scrollIntoView({ block: "center", behavior: "smooth" }) }, [fallo, previa?.en, cifraEnCambio])
   // 09-nov · T1 de la ficha única (GO Lenovo, boceto v7 de Emilio): las preguntas se dibujan con la ficha; las demás siguen aquí hasta el T2
   if (esPregunta(d)) {
-    const ficha = fichaDeLaPregunta(d, { departamento: departamentoDe(d), detiene, destraba, conAsumir, responder: acciones.includes("responder"), descartar: acciones.includes("descartar") })
+    const ficha = fichaDeLaPregunta(d, { departamento: departamentoDe(d), detiene, destraba, destrabaCorto, conAsumir, responder: acciones.includes("responder"), descartar: acciones.includes("descartar") })
     return (
       <FichaDeDecision ficha={ficha} enviando={enviando ? VERBO_DE_LA_ACCION[enviando] ?? null : null} textoInicial={respuesta}
         nota={enPausa ? `${enPausa} está en pausa por tu decisión: esto no cuenta en «esperan».` : undefined}

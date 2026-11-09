@@ -418,6 +418,10 @@ export function nombreDeOficina(o: string): string {
 /** «qué se destraba»: lo que dice la oficina; si un plan en pausa espera esta respuesta, eso (CC1: con la última, sigue en el acto) */
 export function queSeDestraba(d: Decision, detenidas: Set<string>): string | null {
   if (d.destraba) return d.destraba
-  if (d.tipo === "pregunta_al_dueno" && detenidas.has(d.id)) return `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.`
+  if (d.tipo === "pregunta_al_dueno" && detenidas.has(d.id)) return desbloqueaElPlan(d.cliente)
   return null
 }
+
+/** 10-nov (Emilio, #310 ajuste 1) · cuando el plan espera esta respuesta y la oficina no dijo qué destraba: al frente, corto y con el nombre propio oficial */
+export const DESBLOQUEA_EL_PLAN_CORTO = "Sigue el Plan de Marketing"
+export const desbloqueaElPlan = (cliente: string | null | undefined): string => `El Plan de Marketing${cliente ? ` de ${cliente}` : ""} sigue en cuanto contestes sus preguntas.`

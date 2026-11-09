@@ -66,7 +66,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(OVALO_SALA).toContain("radial-gradient(ellipse 40% 46% at 48.8% 40.5%")
     expect(abierta).toContain("@keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}")
     expect(abierta).toContain("@keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}")
-    expect(abierta).toMatch(/<img[^>]*alt=""[^>]*class="nv-foto-a/); expect(abierta).toMatch(/<img[^>]*alt="El interior del departamento de marketing"[^>]*class="nv-foto-b/)
+    expect(abierta).toMatch(/<img[^>]*alt=""[^>]*class="nv-foto-a/); expect(abierta).toMatch(/<img[^>]*alt="El interior del Departamento de Marketing"[^>]*class="nv-foto-b/)
   })
   it("5.3/5.4 · al pasar por Dept. Marketing se enciende la ESTRUCTURA ENTERA con una imagen real generada (no una figura pintada); sin campo naranja ni línea dura", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
