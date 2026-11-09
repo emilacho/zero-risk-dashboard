@@ -162,6 +162,35 @@ describe("lo que pidió CC6 en #289", () => {
     ])).toEqual([{ id: "1", nombre: "Náufrago" }, { id: "5", nombre: "Sin estado" }])
     expect(readFileSync("app/api/estudio/[ruta]/route.ts", "utf8")).toContain("clientesDelEstudio((r.data ?? []) as FilaDeCliente[])")
   })
+  it("una pieza que ya estaba (misma clave) no aparece dos veces: queda una, al frente y con lo último", () => {
+    const vieja = { ...P("a", CLIENTE), estado: "creando" as const }
+    const nueva = { ...P("a", CLIENTE), estado: "lista" as const }
+    const r = piezasDelCliente(CLIENTE, [P("z", CLIENTE), vieja], [nueva], false)
+    expect(r.map((p) => p.id)).toEqual(["a", "z"])
+    expect(r[0].estado).toBe("lista")
+    expect(panel).toContain("setPiezas((ps) => piezasDelCliente(clienteVisto.current, ps, [j.pieza], false))")
+  })
+  it("el tiempo normal del video y del 3D es 20 min (imagen 5): antes no avisa, después sí", () => {
+    const t0 = Date.parse("2026-11-05T20:00:00Z")
+    for (const tipo of ["video", "3d"] as const) {
+      const p = { tipo, estado: "creando" as const, creado_en: "2026-11-05T20:00:00Z" }
+      expect(tardaMasDeLoNormal(p, t0 + 19 * 60_000)).toBe(false)
+      expect(tardaMasDeLoNormal(p, t0 + 21 * 60_000)).toBe(true)
+    }
+    const img = { tipo: "imagen" as const, estado: "creando" as const, creado_en: "2026-11-05T20:00:00Z" }
+    expect(tardaMasDeLoNormal(img, t0 + 4 * 60_000)).toBe(false)
+  })
+  it("la vista grande de una pieza colgada dice «tarda más de lo normal», no «Creando…»", () => {
+    const vieja = { ...P("v1", CLIENTE), tipo: "video" as const, estado: "creando" as const, archivo_url: null, creado_en: new Date(Date.now() - 60 * 60_000).toISOString() }
+    const h = renderToStaticMarkup(createElement(PanelEstudio, { onCerrar: () => undefined, clientesIniciales: [{ id: CLIENTE, nombre: "Náufrago" }], piezasIniciales: [vieja], abiertaInicial: "v1" }))
+    expect(h).toContain("data-tarda")
+    expect(h).toContain("Tarda más de lo normal.")
+    expect(h).not.toContain(">Creando…<")
+    const reciente = { ...vieja, creado_en: new Date().toISOString() }
+    const h2 = renderToStaticMarkup(createElement(PanelEstudio, { onCerrar: () => undefined, clientesIniciales: [{ id: CLIENTE, nombre: "Náufrago" }], piezasIniciales: [reciente], abiertaInicial: "v1" }))
+    expect(h2).not.toContain("data-tarda")
+    expect(h2).toContain(">Creando…<")
+  })
   it("una pieza que tarda mucho más de lo normal lo dice, en vez de «Creando…» sin fin", () => {
     const t0 = Date.parse("2026-11-05T20:00:00Z")
     const p = { tipo: "3d" as const, estado: "creando" as const, creado_en: "2026-11-05T20:00:00Z" }
@@ -353,6 +382,9 @@ describe("animar un modelo 3D (GO 06-nov)", () => {
     expect(respuestaDeAnimar({ ok: false, error: "pedido_invalido" }, 400, CLIENTE)).toEqual({ error: "pedido_invalido" })
     expect(respuestaDeAnimar({ ok: false }, 502, CLIENTE)).toEqual({ error: "No se pudo animar (502)." })
     expect(respuestaDeAnimar({ ok: true }, 200, CLIENTE)).toEqual({ error: "No se pudo animar (200)." })
+    // una respuesta con pieza pero sin ok es un error: la pieza no entra a la galería (CC6 #292 fd3e3d6)
+    expect(respuestaDeAnimar({ ok: false, pieza: animada(), error: "base_fallida" }, 500, CLIENTE)).toEqual({ error: "base_fallida" })
+    expect(respuestaDeAnimar({ pieza: animada() }, 200, CLIENTE)).toEqual({ error: "No se pudo animar (200)." })
     const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
     expect(panel).toContain('if ("error" in x) { setErrorAnimar(x.error); return }')
     expect(panel).toContain('{errorAnimar && <p role="alert" className="text-[12.5px] text-red-300">{errorAnimar}</p>}')
