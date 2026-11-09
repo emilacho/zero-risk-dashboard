@@ -30,7 +30,7 @@ describe("dashboard nuevo · sprint 1 (/nuevo)", () => {
   })
   it("barra superior (03-nov · nada decorativo, nada al dashboard viejo): Zero Risk · Seleccionar cliente · Buscar con «/» · campana, $ y Salir que hacen algo", () => {
     const html = renderToStaticMarkup(createElement(BarraSuperior))
-    for (const t of ["Zero Risk", "Seleccionar cliente", "Buscar"]) expect(html).toContain(t)
+    for (const t of ["Zero Risk", "Elige un cliente", "Buscar"]) expect(html).toContain(t) // 06-nov selector único: el botón dice el cliente elegido
     expect(html).toContain("<kbd")
     expect(html).toMatch(/<button[^>]*data-accion="abrir-buscador"/) // un botón de verdad, ya no una forma
     expect(html).toMatch(/data-abre-panel="riesgos"[^>]*aria-label="Riesgos y alarmas"/); expect(html).toMatch(/data-abre-panel="dinero"[^>]*aria-label="Dinero"/)

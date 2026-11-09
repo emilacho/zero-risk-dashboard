@@ -8,7 +8,8 @@
  * Toda llamada pasa por `/api/estudio/*` (solo administrador): las llaves de los proveedores nunca llegan aquí.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
@@ -183,6 +184,8 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     if (elegido) setClienteId(elegido.id)
   }, [clientes, clienteId])
   const cliente = clientes?.find((c) => c.id === clienteId) ?? null
+  // 06-nov · selector único: si se elige otro cliente arriba con el estudio abierto, se pasa a ese (lo que estaba abierto o adjunto era del otro)
+  useAlCambiarElCliente(clienteId, (id) => { if (!clientes?.some((c) => c.id === id)) return; setClienteId(id); setAbierta(null); setFoto(null) })
 
   // el cliente que está a la vista: lo que llega tarde de otro cliente no entra a su galería
   const clienteVisto = useRef<string | null>(clienteId)
@@ -286,15 +289,14 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <h2 id="estudio-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Estudio</h2>
           <p className="hidden text-[12px] text-zinc-500 lg:block">Crea imágenes, videos y modelos 3D</p>
-          <label className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[12.5px]">
+          <div data-para-el-cliente className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[12.5px]">
             <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: AMBAR }} />
             <span className="sr-only">Para el cliente</span>
             <span className="hidden text-zinc-400 sm:inline">Para:</span>
-            <select data-cliente value={clienteId ?? ""} onChange={(e) => { const c = clientes?.find((x) => x.id === e.target.value); setClienteId(e.target.value); setAbierta(null); setFoto(null); if (c) guardarClienteDeTrabajo({ id: c.id, nombre: c.nombre }) }}
-              className="max-w-[180px] bg-transparent text-zinc-100 outline-none">
-              {(clientes ?? []).map((c) => <option key={c.id} value={c.id} className="bg-[#171717]">{c.nombre}</option>)}
-            </select>
-          </label>
+            {/* 06-nov · selector único: el cliente se elige arriba; aquí solo se dice para quién */}
+            <span data-cliente className="max-w-[220px] truncate text-zinc-100">{cliente?.nombre ?? (clientes ? "sin elegir" : "Leyendo…")}</span>
+          </div>
+          <NotaDeTodos />
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar el estudio" className="ml-auto rounded-md border border-white/15 px-2.5 py-1 text-[12px] text-zinc-300 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">Cerrar · Esc</button>
         </header>
 

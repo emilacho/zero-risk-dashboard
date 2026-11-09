@@ -1,7 +1,6 @@
 "use client"
 
 import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
-import { estadoDelClienteEnElSelector } from "@/lib/lenguaje"
 import { clienteRecordadoEn, guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
@@ -13,9 +12,11 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelInformes } from "@/components/nuevo/PanelInformes"
 import { PanelBrief } from "@/components/nuevo/PanelBrief"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
+import { ClienteComoTexto, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 import { PanelBase } from "@/components/nuevo/EstiloBase"
+import { tarjetaDelCentro, type TonoDeEstado } from "@/lib/centro-tarjetas"
 
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 type RespuestaCentro = ({ ok: true } & Centro) | { ok: false; error: string }
@@ -64,11 +65,14 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
 }
 
 /** ESTILO BASE (Lenovo 06-nov, boceto 2): tarjetas más pequeñas y centradas, el ícono un poco más grande; sin sombras ni brillos */
-const CLASE_DEL_CUADRO = "ap-cuadro relative flex flex-col items-center rounded-tarjeta border border-linea bg-grafito-2 px-3 pb-4 pt-5 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"
+/** 09-nov · sin panel de fondo: la tarjeta va directo sobre la escena con su color de hoy (token `tarjeta-escena`) y el borde tenue */
+const CLASE_DEL_CUADRO = "ap-cuadro relative flex flex-col items-center rounded-tarjeta border border-linea bg-tarjeta-escena px-4 pb-4 pt-5 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"
+const COLOR_DEL_TONO: Record<TonoDeEstado, string> = { oro: "text-oro", alarma: "text-alarma", gris: "text-gris" }
+const PUNTO_DEL_TONO: Record<TonoDeEstado, string> = { oro: "bg-oro", alarma: "bg-alarma", gris: "bg-gris" }
 
-export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicial }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
+export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
-  const [centro, setCentro] = useState<Centro | null>(null)
+  const [centro, setCentro] = useState<Centro | null>(centroInicial)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
@@ -108,6 +112,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicia
     if (id && id !== datos.cliente?.id) void leer(id)
     else if (datos.cliente) guardarClienteDeTrabajo({ id: datos.cliente.id, nombre: datos.cliente.nombre })
   }, [datos, leer])
+  // 06-nov · selector único: si se elige otro cliente arriba con el Centro abierto, el Centro se pasa a ese
+  useAlCambiarElCliente(datos?.cliente?.id ?? cliente, (id) => void leer(id))
   // la segunda línea de los cuadros nuevos (6.10): una lectura liviana aparte, por cliente; si falla, los cuadros quedan con su descripción fija
   const idDelCentro = datos?.cliente?.id ?? null
   useEffect(() => {
@@ -132,21 +138,15 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicia
   if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "piezas") return <PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />
-  if (vista === "informes") return <PanelInformes onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "brief") return <PanelBrief onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "gran_idea") return <PanelGranIdea onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "informes") return <PanelInformes key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
-    <PanelBase titulo="Centro de campaña" id="aplicaciones-titulo" seccion="aplicaciones" onCerrar={onCerrar} etiquetaCerrar="Cerrar" ancho="max-w-[720px]">
-        <div className="mb-6 mt-1 flex items-center justify-center gap-3 text-dato text-gris">
-          <span>Dept. Marketing · Cliente</span>
-          <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
-            className="min-h-11 rounded-control border border-linea-oro bg-grafito-2 px-3 text-cuerpo text-hueso focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">
-            {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{estadoDelClienteEnElSelector(c)}</option>)}
-            {!datos && <option value="">Leyendo…</option>}
-          </select>
-        </div>
+    <PanelBase titulo="Centro de campaña" id="aplicaciones-titulo" seccion="aplicaciones" onCerrar={onCerrar} etiquetaCerrar="Cerrar" ancho="max-w-[820px]" fondo={false}>
+        {/* 06-nov · selector único (#300): el cliente se elige arriba; aquí solo se dice cuál es */}
+        <div className="mb-6 mt-1 flex justify-center"><ClienteComoTexto nombre={datos ? datos.cliente?.nombre : "Leyendo…"} /></div>
 
         {error && <p role="alert" className="mb-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{error}</p>}
 
@@ -154,13 +154,20 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicia
           {APLICACIONES.map((a, i) => {
             const d = detalleDelCuadro(a.clave, datos, centro)
             const href = a.enlace(idCliente, datos?.cliente?.nombre ?? null)
+            const t = tarjetaDelCentro(a.clave, datos, centro, cargando)
+            // 09-nov (boceto aprobado por Emilio 15:15Z): sin número de paso ni descripción; debajo del nombre, el estado con su punto, una línea fina y la cantidad
             const dentro = (
               <>
-                {d.aviso && <span data-punto-aviso className="ap-punto absolute right-3 top-3 h-[7px] w-[7px] rounded-full bg-oro" aria-hidden />}
-                <span data-paso={a.paso} className="absolute left-3 top-2.5 text-rotulo font-medio tracking-rotulo text-apagado" aria-label={`Paso ${a.paso}`}>{a.paso}</span>
                 <Icono clave={a.clave} />
                 <span className="mt-3 block text-cuerpo font-medio text-hueso">{a.nombre}</span>
-                <span className="mt-1 block min-h-[2.6em] text-dato leading-snug text-gris">{cargando && !datos ? "Leyendo…" : d.texto}</span>
+                <span data-estado={t.estado} data-tono={t.tono} className={`mt-1.5 flex items-center justify-center gap-1.5 text-rotulo font-medio uppercase tracking-rotulo ${COLOR_DEL_TONO[t.tono]}`}>
+                  <span className={`h-[6px] w-[6px] shrink-0 rounded-full ${PUNTO_DEL_TONO[t.tono]}`} aria-hidden />{t.estado}
+                </span>
+                <span className="mt-3 block w-full border-t border-linea" aria-hidden />
+                <span className="mt-3 flex w-full min-w-0 items-center gap-3 text-left">
+                  <span data-cantidad className="min-w-11 shrink-0 rounded-control border border-linea px-2.5 py-1 text-center text-cuerpo font-medio text-hueso [font-variant-numeric:tabular-nums]">{t.cantidad}</span>
+                  <span data-linea className="min-w-0 truncate text-dato text-gris">{t.linea}</span>
+                </span>
               </>
             )
             return (

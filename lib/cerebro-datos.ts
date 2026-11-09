@@ -1,7 +1,7 @@
 /**
  * CEREBRO · lectura (servidor, SOLO LECTURA · sprint 6.8). Un error de la base lanza; nunca se lee como «cerebro vacío».
  * Fuentes: `cerebro_fichas` (las vigentes = `retirada_en IS NULL`, sin las descartadas) · `client_competitive_landscape` (competidores analizados) ·
- * `client_icp_documents` (cliente ideal) · `cerebro_dueno_preguntas` (lo que las oficinas esperan del dueño) · `client_sedes` · `client_brain_chunks` (cuántos trozos ya busca el sistema).
+ * `client_icp_documents` (cliente ideal) · `dueno_preguntas` (lo que las oficinas esperan del dueño · tabla de la plataforma desde #939, condición A de CC7 06-nov) · `client_sedes` · `client_brain_chunks` (cuántos trozos ya busca el sistema).
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
@@ -50,7 +50,7 @@ export async function leerCerebroDelCliente(supa: SupabaseClient, o: { cliente?:
     filas(supa.from("cerebro_fichas").select(COLUMNAS_DE_FICHA).eq("client_id", id).is("retirada_en", null).order("observado_en", { ascending: false, nullsFirst: false }).limit(3000), "cerebro_fichas"),
     filas(supa.from("client_competitive_landscape").select("id, competitor_name, competitor_type, value_proposition, key_differentiators, weaknesses, last_analyzed_at, analysis_source, content_text, created_at").eq("client_id", id).limit(200), "client_competitive_landscape"),
     filas(supa.from("client_icp_documents").select("*").eq("client_id", id).order("segment_priority", { ascending: true, nullsFirst: false }).limit(50), "client_icp_documents"),
-    filas(supa.from("cerebro_dueno_preguntas").select("id, tema, pregunta, canal, preguntado_por_oficina, preguntado_por_agente, creado_en, sede_clave").eq("client_id", id).eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(100), "cerebro_dueno_preguntas"),
+    filas(supa.from("dueno_preguntas").select("id, tema, pregunta, canal, oficina, agente, creado_en, sede_clave").eq("client_id", id).eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(100), "dueno_preguntas"),
     filas(supa.from("client_sedes").select("clave, ciudad").eq("client_id", id).limit(50), "client_sedes"),
     contar(supa.from("client_brain_chunks").select("id", { count: "exact", head: true }).eq("client_id", id), "client_brain_chunks"),
     contar(supa.from("cerebro_fichas").select("id", { count: "exact", head: true }).eq("client_id", id).not("retirada_en", "is", null), "cerebro_fichas retiradas"),

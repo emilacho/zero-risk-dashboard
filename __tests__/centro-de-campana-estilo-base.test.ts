@@ -13,13 +13,14 @@ describe("Centro de campaña en estilo base", () => {
   })
   it("🔴 la tarjeta es más chica: sin proporción fija, sin sombra, centrada, con tokens", () => {
     const clase = c.match(/const CLASE_DEL_CUADRO = "([^"]+)"/)?.[1] ?? ""
-    expect(clase).toContain("rounded-tarjeta"); expect(clase).toContain("bg-grafito-2"); expect(clase).toContain("text-center")
+    expect(clase).toContain("rounded-tarjeta"); expect(clase).toContain("bg-tarjeta-escena") /* 09-nov · sin panel de fondo: el color de hoy */; expect(clase).toContain("text-center")
     expect(clase).not.toMatch(/aspect-|shadow|white\/|amber-/)
     expect(c).toContain('<ul className="grid grid-cols-3 gap-3"')
   })
-  it("🔴 el punto de aviso solo existe cuando hay aviso, y es oro", () => {
-    expect(c).toContain("{d.aviso && <span data-punto-aviso")
-    expect(c).toMatch(/data-punto-aviso[^>]*bg-oro/)
+  it("🔴 09-nov (boceto aprobado): el punto vive junto al estado y su color sale del tono (oro · alarma · gris); el punto de la esquina y el número de paso se fueron", () => {
+    expect(c).not.toContain("data-punto-aviso"); expect(c).not.toContain("data-paso=")
+    expect(c).toContain('const PUNTO_DEL_TONO: Record<TonoDeEstado, string> = { oro: "bg-oro", alarma: "bg-alarma", gris: "bg-gris" }')
+    expect(c).toContain("PUNTO_DEL_TONO[t.tono]")
   })
   it("🔴 usa el panel base y el revisor de estilo lo vigila entero", () => {
     expect(c).toContain('<PanelBase titulo="Centro de campaña"')

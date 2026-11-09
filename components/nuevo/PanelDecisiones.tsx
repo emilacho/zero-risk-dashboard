@@ -29,7 +29,7 @@ type Respuesta = ({ ok: true } & Decisiones) | { ok: false; error: string }
 /** de qué parte de la empresa viene cada decisión (la tabla de origen, en palabras de negocio) */
 const ORIGEN: Record<string, string> = {
   hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina financiera", finanzas_preguntas: "Oficina financiera",
-  cerebro_dueno_preguntas: "El cerebro del cliente", plan_aprobaciones: "Oficina de planeación",
+  cerebro_dueno_preguntas: "El cerebro del cliente", dueno_preguntas: "Preguntas de las oficinas", plan_aprobaciones: "Oficina de planeación",
 }
 /** el departamento en una o dos palabras (rótulo fijo DEPARTAMENTO / valor) */
 const DEPARTAMENTO: Record<string, string> = {

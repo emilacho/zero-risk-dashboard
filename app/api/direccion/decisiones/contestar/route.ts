@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const puerta = await exigirAdmin()
   if (!puerta.ok) return NextResponse.json({ ok: false, error: puerta.status === 401 ? "sin_sesion" : "sin_permiso" }, { status: puerta.status })
   const cuerpo = await req.json().catch(() => null)
-  const r = await contestarDecision(cuerpo, { revisor: puerta.email ?? "emilio" })
+  const r = await contestarDecision(cuerpo, { revisor: puerta.email || "emilio" })
   vaciarCache() // la próxima lectura (la antena, la oficina) ya ve el cambio
   return NextResponse.json(r.cuerpo, { status: r.status, headers: { "Cache-Control": "no-store" } })
 }

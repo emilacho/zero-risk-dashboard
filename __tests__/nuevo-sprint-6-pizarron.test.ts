@@ -194,7 +194,7 @@ describe("la puerta y el dibujo", () => {
     expect(html).toContain("La campaña espera: espera la revisión")
     expect(agruparEsperas([{ motivo: "a" }, { motivo: "b" }, { motivo: "a" }])).toEqual(["a ×2", "b"])
     expect(html).toContain("Esperando tu aprobación"); expect(html).toMatch(/<button[^>]*class="pz-casilla[^"]*"[^>]*data-estado="emilio" data-destacada="true"/)
-    expect(html).toMatch(/aria-label="Elegir el cliente"/); expect(html).toContain("<option value=\"" + CLIENTE + "\"")
+    expect(html).not.toContain("<select") // 06-nov selector único: el cliente se elige arriba
     expect(html).toContain("2 nov – 8 nov"); expect(html).toContain("Haz clic en una casilla")
     // nada de aprobar/rechazar aquí: el pizarrón solo enlaza a la ventana de la pieza
     expect(html).not.toMatch(/decidir|aprobar\b/i)

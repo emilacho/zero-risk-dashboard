@@ -28,7 +28,8 @@ describe("6.10 · el Centro de campaña tiene 9 botones en el orden de la cadena
     expect(APLICACIONES.map((a) => a.paso)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
     for (const k of ["brief", "gran_idea", "equipo"] as const) expect(APLICACIONES.find((a) => a.clave === k)!.enlace(NAUFRAGO)).toBeNull()
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {} }))
-    expect(html.match(/data-paso="\d"/g)).toHaveLength(9)
+    expect(html).not.toMatch(/data-paso=/) // 09-nov (Emilio): los números de paso generan ruido; el orden se queda
+    expect(html.match(/data-aplicacion="/g)).toHaveLength(9)
     expect(html).toContain('data-aplicacion="gran_idea"'); expect(html).toContain('data-aplicacion="equipo"'); expect(html).toContain('data-aplicacion="brief"')
     expect(html).toContain('aria-label="Los 9 pasos del Centro de campaña"') // 06-nov · estilo base: el subtítulo largo se fue
   })

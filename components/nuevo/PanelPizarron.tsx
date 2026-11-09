@@ -1,11 +1,12 @@
 "use client"
 
 import { abrirPanel } from "@/components/nuevo/BotonesDelMarco"
-import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, type FilaDelTablero } from "@/lib/pizarron"
-import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible, estadoDelClienteEnElSelector } from "@/lib/lenguaje"
+import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible } from "@/lib/lenguaje"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDeFila } from "@/lib/kanban"
 import { diaConNombre, estadoCortoDeLaPublicacion, loQueTeTocaEnElCalendario, origenDeLaPublicacion, resumenDeLaSemana, semanaInicial } from "@/lib/calendario"
@@ -82,7 +83,10 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
       setDatos(j); setCliente(j.cliente?.id ?? null); setElegida(null); setSemana(semanaInicial(j.semanas, j.hoy))
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
-  useEffect(() => { if (!datosIniciales) void leer(null) }, [leer, datosIniciales])
+  // abre en el cliente de trabajo (el de arriba); sin recuerdo, decide el servidor
+  useEffect(() => { if (!datosIniciales) void leer(leerClienteDeTrabajo()?.id ?? null) }, [leer, datosIniciales])
+  // 06-nov · selector único: si se elige otro cliente arriba con el calendario abierto, se pasa a ese
+  useAlCambiarElCliente(datos?.cliente?.id ?? cliente, (id) => void leer(id))
 
   const filaElegida = useMemo(() => datos?.filas.find((f) => `${f.id}|${f.fecha}` === elegida) ?? null, [datos, elegida])
   const porAprobar = datos?.totales.emilio ?? 0
@@ -106,14 +110,9 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
               <button key={v} type="button" data-vista-tablero={v} aria-pressed={vista === v} onClick={() => setVista(v)} className={`rounded px-2.5 py-1 transition ${vista === v ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{NOMBRE_DE_LA_VISTA[v]}</button>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-[12px] text-zinc-400">
-            <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
-              className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{estadoDelClienteEnElSelector(c)}</option>)}
-              {!datos && <option value="">Leyendo…</option>}
-            </select>
-          </label>
+          {/* 06-nov · selector único: el cliente se elige arriba; la cabecera ya lo dice */}
+          <NotaDeTodos />
+          {cargando && <span data-leyendo className="text-[11.5px] text-zinc-500">Leyendo…</span>}
           <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
           </button>
