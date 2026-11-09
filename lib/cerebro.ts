@@ -135,7 +135,7 @@ export function perfilDesdeFila(f: Fila): PerfilIdeal {
 /** una pregunta que una oficina le hizo al dueño y sigue sin respuesta */
 export interface PreguntaPendiente { id: string; tema: string; pregunta: string; oficina: string | null; agente: string | null; canal: string | null; desde: string | null; sede_clave: string | null }
 export function preguntaDesdeFila(p: Fila): PreguntaPendiente {
-  return { id: String(p.id), tema: txt(p.tema) ?? "sin tema", pregunta: txt(p.pregunta) ?? "", oficina: txt(p.preguntado_por_oficina), agente: txt(p.preguntado_por_agente), canal: txt(p.canal), desde: txt(p.creado_en), sede_clave: txt(p.sede_clave) }
+  return { id: String(p.id), tema: txt(p.tema) ?? "sin tema", pregunta: txt(p.pregunta) ?? "", oficina: txt(p.oficina), agente: txt(p.agente), /* `dueno_preguntas` (plataforma, #939) */ canal: txt(p.canal), desde: txt(p.creado_en), sede_clave: txt(p.sede_clave) }
 }
 
 // ─── palabras ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -308,6 +308,7 @@ export function cuerpoParaLaPuertaDelDueno(raw: unknown, ahora: Date = new Date(
 
 /** lo que se le dice a Emilio después de guardar (con lo que contestó la puerta) */
 export function textoTrasGuardar(j: Record<string, unknown>): string {
+  if (j.pregunta_ya_cerrada === true) return "La pregunta ya la había cerrado otro, pero tu dato quedó guardado en el cerebro"
   const reemplaza = Array.isArray(j.reemplaza) ? j.reemplaza.length : j.reemplaza ? 1 : 0
   const sede = typeof j.sede === "string" && j.sede ? ` · sede ${j.sede}` : ""
   const base = reemplaza ? `Guardado en el cerebro${sede} · reemplazó ${plural(reemplaza, "dato anterior", "datos anteriores")} del mismo tema` : `Guardado en el cerebro${sede} · dato nuevo`
@@ -321,8 +322,9 @@ export function errorTrasGuardar(status: number, j: Record<string, unknown>): st
   if (status === 401) return "Tu sesión venció: entra de nuevo."
   if (status === 403) return "Solo el administrador puede escribir en el cerebro."
   if (status === 400) return d ? `No se guardó: ${d}` : "No se guardó: revisa el tema y el dato."
-  if (status === 404) return "Ese cliente no existe en la plataforma: no se guardó nada."
+  if (status === 404) return j.error === "pregunta_inexistente" ? "Esa pregunta ya no existe: actualiza para ver lo que esperan del dueño." : "Ese cliente no existe en la plataforma: no se guardó nada."
   if (status === 501) return "La plataforma todavía no tiene la puerta del dueño: no se guardó nada."
+  if (status === 409) return "Esa pregunta ya no estaba pendiente: alguien la cerró antes. Actualiza antes de volver a contestar."
   if (status === 503) return j.error === "puerta_apagada" ? "La puerta del dueño está apagada en la plataforma: no se guardó nada." : d || "El tablero no tiene la llave con la que habla con la plataforma."
   if (status === 502) return `La plataforma no lo guardó: ${d || "sin detalle"}`
   return `No se pudo (${status})${d ? `: ${d}` : ""}`
