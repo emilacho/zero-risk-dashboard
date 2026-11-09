@@ -1,6 +1,7 @@
 "use client"
 
-import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
@@ -14,7 +15,7 @@ import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
 import { fechaCortaEC } from "@/lib/manual"
 import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
-import { estadoDeCampanaLegible, pilarLegible, plural, estadoDelClienteEnElSelector } from "@/lib/lenguaje"
+import { estadoDeCampanaLegible, pilarLegible, plural } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type Respuesta = ({ ok: true } & PlanDelCliente) | { ok: false; error: string }
@@ -226,7 +227,10 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
       setDatos(j); setCliente(j.cliente?.id ?? null)
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
-  useEffect(() => { if (!datosIniciales) void leer(clienteInicial) }, [leer, datosIniciales, clienteInicial])
+  // abre en el cliente que le pasan; si no, en el cliente de trabajo (el de arriba); sin recuerdo, decide el servidor
+  useEffect(() => { if (!datosIniciales) void leer(clienteInicial ?? leerClienteDeTrabajo()?.id ?? null) }, [leer, datosIniciales, clienteInicial])
+  // 06-nov · selector único: si se elige otro cliente arriba con el plan abierto, se pasa a ese
+  useAlCambiarElCliente(datos?.cliente?.id ?? cliente, (id) => void leer(id))
   // mientras el plan se reescribe o la jefatura lo revisa, el panel se actualiza solo (sin recargar) cada 15 s
   const enMarcha = !!datos?.ciclo && (datos.ciclo.pedido !== null || (datos.ciclo.con_compuerta && !datos.ciclo.compuerta))
   useEffect(() => {
@@ -259,15 +263,10 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
           <h2 id="plan-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>{`Plan de ${prometidos} días`}</h2>
           {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">La meta, las fases, las redes y lo que la campaña espera · se decide aquí</p>
-          <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
-            <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(ev) => { const id = ev.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
-              className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              {(datos?.clientes ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}{estadoDelClienteEnElSelector(x)}</option>)}
-              {!datos && <option value="">Leyendo…</option>}
-            </select>
-          </label>
-          <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
+          {/* 06-nov · selector único: el cliente se elige arriba; la cabecera ya lo dice */}
+          <NotaDeTodos />
+          {cargando && <span data-leyendo className="text-[11.5px] text-zinc-500">Leyendo…</span>}
+          <button ref={cerrar} type="button" onClick={onCerrar} aria-label="Cerrar" className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
           </button>
         </header>

@@ -490,7 +490,7 @@ export function EscenaViva({ inicial = false, cerebroInicial = false }: { inicia
       {caja && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelDinero onCerrar={cerrarCaja} alAbrirCorrida={(id) => { setCaja(false); setCorridaDeDinero(id); setTrazas(true) }} />, document.body)}
       {trazas && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelObservabilidad onCerrar={() => { setCorridaDeDinero(null); cerrarTrazas() }} corridaInicial={corridaDeDinero} alVolver={corridaDeDinero ? () => { setTrazas(false); setCorridaDeDinero(null); setCaja(true) } : undefined} />, document.body)}
       {organigrama && montado && fase !== "cerrado" && depto === "oficina" && createPortal(<PanelOrganizacion onCerrar={() => setOrganigrama(false)} />, document.body)}
-      {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)}
+      {cerebro && montado && createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} />, document.body)}
       {piezasDelMarco && montado && createPortal(<PanelPiezas onCerrar={() => setPiezasDelMarco(null)} piezaInicial={piezasDelMarco.pieza} />, document.body)}
       {enVivoDelMarco && montado && createPortal(<PanelEnVivo onCerrar={() => setEnVivoDelMarco(false)} />, document.body)}
       {fase !== "cerrado" && (

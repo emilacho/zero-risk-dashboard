@@ -42,7 +42,7 @@ export interface Pizarron {
   leido_en: string
 }
 
-const ESTADOS_VIVOS = ["abierta", "estrategia", "calendario", "activa", "pausada", "necesita_humano"]
+export const ESTADOS_VIVOS = ["abierta", "estrategia", "calendario", "activa", "pausada", "necesita_humano"]
 
 export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date } = {}): Promise<Pizarron> {
   const ahora = o.ahora ?? new Date()

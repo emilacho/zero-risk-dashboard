@@ -38,7 +38,7 @@ describe("6.9 · el Cerebro es una estructura de la sala principal (el monolito)
   })
   it("la escena viva lo abre encima como portal (con selector de cliente), cambia la dirección y atiende atrás/adelante; la entrada directa existe y pide administrador", () => {
     const v = leer("components/nuevo/EscenaViva.tsx")
-    expect(v).toContain('createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)')
+    expect(v).toContain('createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} />, document.body)')
     expect(v).toContain('cambiarDireccion("/nuevo/cerebro")')
     expect(v).toContain('window.location.pathname.startsWith("/nuevo/cerebro")')
     expect(v).toContain('alAbrirOficina={() => abrir("oficina")}') // 6.12: el monolito abre tu oficina
@@ -46,12 +46,11 @@ describe("6.9 · el Cerebro es una estructura de la sala principal (el monolito)
     expect(p).toContain("exigirAdmin()"); expect(p).toContain("<PantallaNuevo cerebro />")
     expect(leer("components/nuevo/PantallaNuevo.tsx")).toContain("cerebroInicial={cerebro}")
   })
-  it("desde la sala el Cerebro trae el selector de cliente (aquí no hay departamento que lo enfoque); desde el departamento, no", () => {
+  it("06-nov · selector único: el Cerebro ya no trae selector propio (ni desde la sala): dice el cliente como texto", () => {
     const datos: CerebroDelCliente = { clientes: [{ id: NAUFRAGO, nombre: "Náufrago" }, { id: OTRO, nombre: "Otro" }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, fichas: [], perfiles: [], preguntas: [], sedes: [], trozos: 0, retiradas: 0, descartadas: 0, leido_en: "x" }
-    const conSelector = renderToStaticMarkup(createElement(PanelCerebro, { onCerrar: () => {}, datosIniciales: datos, elegirCliente: true }))
-    expect(conSelector).toContain("data-elegir-cliente"); expect(conSelector).toContain(">Náufrago</option>"); expect(conSelector).toContain(">Otro</option>")
-    const sinSelector = renderToStaticMarkup(createElement(PanelCerebro, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(sinSelector).not.toContain("data-elegir-cliente")
+    const h = renderToStaticMarkup(createElement(PanelCerebro, { onCerrar: () => {}, datosIniciales: datos }))
+    expect(h).not.toContain("data-elegir-cliente"); expect(h).not.toContain("<select"); expect(h).not.toContain(">Otro</option>")
+    expect(h).toMatch(/data-cliente-como-texto[^>]*>Cliente · <span data-cliente-nombre[^>]*>Náufrago</span>/)
   })
 })
 

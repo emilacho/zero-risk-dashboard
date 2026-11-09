@@ -1,7 +1,6 @@
 "use client"
 
 import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
-import { estadoDelClienteEnElSelector } from "@/lib/lenguaje"
 import { clienteRecordadoEn, guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
@@ -13,6 +12,7 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelInformes } from "@/components/nuevo/PanelInformes"
 import { PanelBrief } from "@/components/nuevo/PanelBrief"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
+import { ClienteComoTexto, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 
@@ -116,6 +116,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicia
     if (id && id !== datos.cliente?.id) void leer(id)
     else if (datos.cliente) guardarClienteDeTrabajo({ id: datos.cliente.id, nombre: datos.cliente.nombre })
   }, [datos, leer])
+  // 06-nov · selector único: si se elige otro cliente arriba con el Centro abierto, el Centro se pasa a ese
+  useAlCambiarElCliente(datos?.cliente?.id ?? cliente, (id) => void leer(id))
   // la segunda línea de los cuadros nuevos (6.10): una lectura liviana aparte, por cliente; si falla, los cuadros quedan con su descripción fija
   const idDelCentro = datos?.cliente?.id ?? null
   useEffect(() => {
@@ -140,9 +142,9 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicia
   if (vista === "manual") return <PanelManual onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "piezas") return <PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />
-  if (vista === "informes") return <PanelInformes onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "brief") return <PanelBrief onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "gran_idea") return <PanelGranIdea onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "informes") return <PanelInformes key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
+  if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
   return (
@@ -152,14 +154,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, vistaInicia
         <header className="mb-5 flex flex-wrap items-center gap-3 px-1">
           <h2 id="aplicaciones-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.3em]" style={{ color: AMBAR }}>Centro de campaña</h2>
           <p className="hidden text-[12px] text-zinc-400 md:block">Dept. Marketing · los 9 pasos de la campaña, en el orden de la cadena</p>
-          <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
-            <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) }} disabled={!datos || cargando} aria-label="Elegir el cliente"
-              className="rounded-md border border-white/15 bg-black/60 px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{estadoDelClienteEnElSelector(c)}</option>)}
-              {!datos && <option value="">Leyendo…</option>}
-            </select>
-          </label>
+          {/* 06-nov · selector único: el cliente se elige arriba; aquí solo se dice cuál es */}
+          <ClienteComoTexto nombre={datos ? datos.cliente?.nombre : "Leyendo…"} className="ml-auto" />
           <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
           </button>
