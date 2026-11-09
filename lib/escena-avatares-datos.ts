@@ -5,6 +5,7 @@
  */
 import { leerAvisosDeFirma, type AvisoDeFirma } from "@/lib/escena-avisos"
 import { armarAlertas, DIAS_DE_UNA_FALLA, GASTO_RARO_EN_LA_ANTENA, type AlertaDeLaAntena, type CorridaConGasto } from "@/lib/escena-alertas"
+import { leerDecisiones } from "@/lib/direccion-decisiones"
 import { esperaLaFirma, manualAprobadoPorCliente } from "@/lib/manual-primero"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
@@ -206,18 +207,21 @@ export async function leerAvisosDeLaEscena(supa: SupabaseClient, ahora: Date, cl
 }
 
 /** las alertas que avisa la antena del cliente de la escena. Solo lectura, en caché 30 s; un error de lectura es excepción, nunca «sin alertas» */
-export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null): Promise<AlertaDeLaAntena[]> {
+export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null, lectorDeDecisiones: typeof leerDecisiones = leerDecisiones): Promise<AlertaDeLaAntena[]> {
   return conCache(`escena-viva-alertas:${clientePedido ?? "omision"}`, 30_000, async () => {
     const plan = await planDeLaEscena(supa, ahora, clientePedido)
     const cliente = plan.cliente?.id ?? null
     const iso = (h: number) => new Date(ahora.getTime() - h * 3_600_000).toISOString()
-    const [pc, cd, ca, dp, inv] = await Promise.all([
+    // 10-nov · lo que espera tu aprobación: la misma lista de la plataforma que lee Tu oficina › Decisiones. Si no llega, es error de lectura (nunca «sin decisiones»)
+    const decisionesDeLaPlataforma = lectorDeDecisiones().then((r) => { if (!r.ok) throw new Error(`decisiones: ${r.error}`); return r.datos.decisiones })
+    const [pc, cd, ca, dp, inv, dec] = await Promise.all([
       filas(supa.from("plan_corridas").select("id, client_id, estado, creado_en, actualizado_en, vence_en, motivo, dry_run").gte("creado_en", iso(DIAS_DE_UNA_FALLA * 24 + 24)).order("creado_en", { ascending: false }).limit(100), "plan_corridas"),
       filas(supa.from("cerebro_diario_corridas").select("client_id, dia, estado, prueba").order("dia", { ascending: false }).limit(30), "cerebro_diario_corridas"),
       filas(supa.from("cerebro_alertas").select("clave, ultima_en").is("cerrado_en", null).limit(20), "cerebro_alertas"),
       filas(supa.from("dueno_preguntas").select("id, client_id, pregunta, estado, creado_en, oficina").eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(50), "dueno_preguntas"), // la tabla de la plataforma (#939)
       // apagado el gasto raro, no se lee: son hasta 2000 filas para nada
       GASTO_RARO_EN_LA_ANTENA ? filas(supa.from("agent_invocations").select("workflow_execution_id, workflow_id, client_id, cost_usd, started_at").gte("started_at", iso(72)).gt("cost_usd", 0).limit(2000), "agent_invocations") : Promise.resolve([] as Record<string, unknown>[]),
+      decisionesDeLaPlataforma,
     ])
     const porCorrida = new Map<string, CorridaConGasto>()
     for (const i of inv) {
@@ -235,6 +239,7 @@ export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, c
       alarmasDelCerebro: ca.map((a) => ({ clave: String(a.clave), ultima_en: s(a.ultima_en) })),
       preguntas: dp.map((p) => ({ id: String(p.id), client_id: s(p.client_id), pregunta: s(p.pregunta), estado: s(p.estado), creado_en: s(p.creado_en), oficina: s(p.oficina) })),
       corridas: [...porCorrida.values()],
+      decisiones: dec.map((d) => ({ id: d.id, tipo: d.tipo, fuente: d.fuente, client_id: d.client_id, desde: d.desde, oficina: d.departamento_oficina ?? null })),
     })
   })
 }
