@@ -110,6 +110,11 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const contestable = acciones.length > 0
   const falta = faltaQueLeer(d)
   const editables = acciones.includes("editar") ? (d.cifras ?? []).filter((c) => c.editable) : []
+  // CC6 #290: si la firma no trae «Decisivo», «Uso» ni «Desbloquea», no hay bloque que abra el detalle; entonces las demás cifras se ven sin tocar nada (ninguna información se pierde)
+  const sinPuerta = !corto && !d.para_que && !destraba
+  const recuadro = (c: CifraDeFirma, marca: Record<string, string>) => editables.some((x) => x.clave === c.clave)
+    ? <div key={c.clave} {...marca}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><CuerpoDeCifra c={c} /></button></div>
+    : <div key={c.clave} {...marca} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center"><CuerpoDeCifra c={c} /></div>
   // lo que no salió se lee sin bajar (CC6 · #283)
   const porQue = useRef<HTMLDivElement>(null)
   const pie = useRef<HTMLElement>(null) // Firmar no va fijo: se llega a él pasando por las cifras y por lo que sigue abierto (CC6 · #283)
@@ -134,9 +139,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           <Rotulo tono="gris">Propuesta</Rotulo>
           {/* 09-nov · solo las dos cifras que decide el dueño; las demás, en el detalle */}
           <div className={`mt-3 grid gap-3 ${frente.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-            {frente.map((c) => editables.some((x) => x.clave === c.clave)
-              ? <div key={c.clave} data-cifra={c.clave}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><CuerpoDeCifra c={c} /></button></div>
-              : <div key={c.clave} data-cifra={c.clave} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4"><CuerpoDeCifra c={c} /></div>)}
+            {frente.map((c) => recuadro(c, { "data-cifra": c.clave }))}
           </div>
         </div>
       ) : null}
@@ -152,12 +155,12 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{enDosPalabras(destraba)}</span> }] : []),
         ]} /></button>
       )}
-      {!cifraEnCambio && verDetalle && (
+      {!cifraEnCambio && (verDetalle || (sinPuerta && cifrasDelDetalle.length > 0)) && (
         <div data-detalle className="mt-4 space-y-4 border-t border-linea pt-4 text-left">
           {d.criticos?.length ? <div><Rotulo tono="alarma">Decisivo</Rotulo><ul className="mt-1.5 space-y-2 text-dato text-hueso">{d.criticos.map((c) => <li key={c} data-critico-entero>{c}</li>)}</ul></div> : null}
           {d.para_que && <div><Rotulo tono="gris">Uso</Rotulo><p data-uso-entero className="mt-1.5 text-dato text-hueso">{d.para_que}</p></div>}
           {destraba && <div><Rotulo tono="gris">Desbloquea</Rotulo><p data-destraba-entero className="mt-1.5 text-dato text-hueso">{destraba}</p></div>}
-          {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => <div key={c.clave} data-cifra-del-detalle={c.clave} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center"><CuerpoDeCifra c={c} /></div>)}</div></div>}
+          {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div></div>}
         </div>
       )}
       {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina financiera debe mandar las cifras que propone.</Aviso></div>}

@@ -94,3 +94,28 @@ describe("4 · fuera «Baja para leer todo y firmar» y el pie «Sin dato»; que
     expect(h).toContain("1 de 1"); expect(h).toContain("data-firmar")
   })
 })
+
+describe("CC6 #290 · ninguna información se pierde aunque la firma no traiga textos", () => {
+  it("sin «Decisivo», «Uso» ni «Desbloquea», las demás cifras se ven sin tocar nada", () => {
+    const h = pinta(firma({ criticos: [], para_que: null, destraba: null }))
+    expect(h).not.toContain("data-criticos"); expect(h).not.toContain("data-contexto")
+    expect(h).toContain("data-detalle"); expect(h).toContain("Las demás cifras")
+    expect([...h.matchAll(/data-cifra-del-detalle="([^"]+)"/g)].map((m) => m[1])).toEqual(["pauta_dia", "cpv_pauta", "cpv_plan"])
+  })
+  it("con algún texto, el detalle sigue cerrado hasta tocarlo; sin cifras de más, no hay detalle vacío", () => {
+    expect(pinta(firma({ criticos: [], destraba: null }))).not.toContain("data-detalle") // solo «Uso»
+    expect(pinta(firma({ para_que: null, destraba: null }))).not.toContain("data-detalle") // solo «Decisivo»
+    expect(pinta(firma({ criticos: [], para_que: null }))).not.toContain("data-detalle") // solo «Desbloquea»
+    expect(pinta(firma({ criticos: [], para_que: null, destraba: null, cifras: [META, TOTAL] }))).not.toContain("data-detalle")
+  })
+  it("una tercera cifra que se puede cambiar sigue cambiándose en el detalle", () => {
+    const TERCERA: CifraDeFirma = { ...PAUTA, editable: true }
+    const h = pinta(firma({ cifras: [META, TOTAL, TERCERA, CPV] }), true)
+    expect(h).toMatch(/data-cifra-del-detalle="pauta_dia"><button type="button" data-cambiar="pauta_dia"/)
+    expect(h).not.toMatch(/data-cifra-del-detalle="cpv_pauta"><button/)
+  })
+  it("«Uso» y «Desbloquea» nunca dejan un paréntesis abierto", () => {
+    expect(enDosPalabras("(Importante para el plan) de ventas")).toBe("Importante para…")
+    expect(enDosPalabras("Pauta (Meta) al mes")).toBe("Pauta (Meta)…")
+  })
+})

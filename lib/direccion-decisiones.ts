@@ -324,7 +324,9 @@ export function enDosPalabras(texto: string): string {
   while (k < w.length - 1 && ARTICULOS.has(w[k].toLocaleLowerCase("es"))) k++
   const tomadas = w.slice(k, k + 2)
   const corte = tomadas.findIndex((x) => /[:;,.]$/.test(x)) // un «:» o un punto corta antes
-  const dos = (corte >= 0 ? tomadas.slice(0, corte + 1) : tomadas).join(" ").replace(/[:;,.]+$/, "")
+  let dos = (corte >= 0 ? tomadas.slice(0, corte + 1) : tomadas).join(" ").replace(/[:;,.]+$/, "")
+  // nunca un paréntesis abierto (CC6 #290): si se abre y no se cierra en las dos palabras, se quita
+  if ((dos.match(/\(/g) ?? []).length > (dos.match(/\)/g) ?? []).length) dos = dos.replace(/\(/g, "").trim()
   if (!dos) return t
   const r = dos.charAt(0).toLocaleUpperCase("es") + dos.slice(1)
   const usadas = k + (corte >= 0 ? corte + 1 : tomadas.length)
