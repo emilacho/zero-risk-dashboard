@@ -58,7 +58,7 @@ function MarcaDelTipo({ tipo, className = "h-5 w-5" }: { tipo: TipoDeDecision; c
 /** de qué parte de la empresa viene cada decisión (la tabla de origen, en palabras de negocio) */
 const ORIGEN: Record<string, string> = {
   hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina financiera", finanzas_preguntas: "Oficina financiera",
-  cerebro_dueno_preguntas: "El cerebro del cliente", plan_aprobaciones: "Oficina de planeación",
+  cerebro_dueno_preguntas: "El cerebro del cliente", dueno_preguntas: "Preguntas de las oficinas", plan_aprobaciones: "Oficina de planeación",
 }
 const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
