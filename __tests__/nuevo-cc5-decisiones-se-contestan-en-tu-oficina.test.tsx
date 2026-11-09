@@ -226,9 +226,9 @@ describe("la pantalla (boceto aprobado)", () => {
     expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
     expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-chip="detiene"') // estilo base: el recuadro es el filtro
     expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Financiero<\/span>/) // estilo base: DEPARTAMENTO / Financiero, no una frase
-    // 09-nov · Decisiones igual a lo aprobado: al frente, en dos palabras; el texto entero, en el detalle
-    expect(html).toContain('<span data-destraba="true">Plan de…</span>'); expect(html).not.toContain("El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.")
-    expect(renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: conQuien, detalleInicial: true }))).toContain("El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.")
+    // 09-nov · Lenovo: «Desbloquea» muestra la primera frase entera (aquí es una sola, así que no se repite en el detalle)
+    expect(html).toContain('<span data-destraba="true">El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.</span>')
+    expect(renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: conQuien, detalleInicial: true }))).not.toContain("data-destraba-entero")
     expect(html).toContain("data-respuesta"); expect(html).toContain("Enviar respuesta"); expect(html).toContain("data-descartar-abrir")
     expect(html).not.toContain("data-firmar"); expect(html).not.toContain("buzón de preguntas") // la tarjeta vieja de la pausa (Slack) no se repite
   })

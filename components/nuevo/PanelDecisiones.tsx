@@ -8,7 +8,7 @@ import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
   NOMBRE_DEL_TIPO, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
-  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, enDosPalabras } from "@/lib/direccion-decisiones"
+  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, primeraFrase } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
 
@@ -151,15 +151,15 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
       )}
       {!cifraEnCambio && (d.para_que || destraba) && (
         <button type="button" data-contexto aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="mt-4 block w-full rounded-control focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><Pares valor="text-dato" pares={[
-          ...(d.para_que ? [{ rotulo: "Uso", valor: <span data-uso>{enDosPalabras(d.para_que)}</span> }] : []),
-          ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{enDosPalabras(destraba)}</span> }] : []),
+          ...(d.para_que ? [{ rotulo: "Uso", valor: <span data-uso>{primeraFrase(d.para_que)}</span> }] : []),
+          ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{primeraFrase(destraba)}</span> }] : []),
         ]} /></button>
       )}
       {!cifraEnCambio && (verDetalle || (sinPuerta && cifrasDelDetalle.length > 0)) && (
         <div data-detalle className="mt-4 space-y-4 border-t border-linea pt-4 text-left">
           {d.criticos?.length ? <div><Rotulo tono="alarma">Decisivo</Rotulo><ul className="mt-1.5 space-y-2 text-dato text-hueso">{d.criticos.map((c) => <li key={c} data-critico-entero>{c}</li>)}</ul></div> : null}
-          {d.para_que && <div><Rotulo tono="gris">Uso</Rotulo><p data-uso-entero className="mt-1.5 text-dato text-hueso">{d.para_que}</p></div>}
-          {destraba && <div><Rotulo tono="gris">Desbloquea</Rotulo><p data-destraba-entero className="mt-1.5 text-dato text-hueso">{destraba}</p></div>}
+          {d.para_que && primeraFrase(d.para_que) !== d.para_que.trim() && <div><Rotulo tono="gris">Uso</Rotulo><p data-uso-entero className="mt-1.5 text-dato text-hueso">{d.para_que}</p></div>}
+          {destraba && primeraFrase(destraba) !== destraba.trim() && <div><Rotulo tono="gris">Desbloquea</Rotulo><p data-destraba-entero className="mt-1.5 text-dato text-hueso">{destraba}</p></div>}
           {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div></div>}
         </div>
       )}

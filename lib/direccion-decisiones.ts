@@ -315,22 +315,12 @@ export function decisivoCorto(texto: string): { frase: string; porque: string | 
   const frase = cortarSinInventar(primera, 70), porque = segunda ? cortarSinInventar(segunda, 90) : null
   return { frase, porque, cortado: fs.length > 2 || frase !== primera || (segunda !== null && porque !== segunda) }
 }
-const ARTICULOS = new Set(["el", "la", "los", "las", "lo", "un", "una", "tu", "tus", "su", "sus"])
-/** «Uso» y «Desbloquea» en una o dos palabras: de lo que va antes del «:» (si lo trae), las dos primeras con contenido; «…» si el texto dice más */
-export function enDosPalabras(texto: string): string {
-  const t = texto.trim()
-  const w = t.split(/\s+/).filter(Boolean)
-  let k = 0
-  while (k < w.length - 1 && ARTICULOS.has(w[k].toLocaleLowerCase("es"))) k++
-  const tomadas = w.slice(k, k + 2)
-  const corte = tomadas.findIndex((x) => /[:;,.]$/.test(x)) // un «:» o un punto corta antes
-  let dos = (corte >= 0 ? tomadas.slice(0, corte + 1) : tomadas).join(" ").replace(/[:;,.]+$/, "")
-  // nunca un paréntesis abierto (CC6 #290): si se abre y no se cierra en las dos palabras, se quita
-  if ((dos.match(/\(/g) ?? []).length > (dos.match(/\)/g) ?? []).length) dos = dos.replace(/\(/g, "").trim()
-  if (!dos) return t
-  const r = dos.charAt(0).toLocaleUpperCase("es") + dos.slice(1)
-  const usadas = k + (corte >= 0 ? corte + 1 : tomadas.length)
-  return usadas < w.length ? r + "…" : r
+/**
+ * «Uso» y «Desbloquea» al frente: la PRIMERA FRASE ENTERA (Lenovo 09-nov: nunca palabras cortadas a la mitad).
+ * Si el texto trae más de una frase, el resto se lee en el detalle; si es una sola, no se repite allí.
+ */
+export function primeraFrase(texto: string): string {
+  return frasesDe(texto)[0] ?? texto.trim() // frasesDe ya recorta los espacios de cada frase
 }
 /**
  * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;

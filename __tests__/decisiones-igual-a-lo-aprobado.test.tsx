@@ -4,7 +4,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import { PanelDecisiones } from "@/components/nuevo/PanelDecisiones"
-import { cifrasDelFrente, cortarSinInventar, decisivoCorto, enDosPalabras, frasesDe, normalizarDecisiones, type CifraDeFirma, type Decisiones } from "@/lib/direccion-decisiones"
+import { cifrasDelFrente, cortarSinInventar, decisivoCorto, frasesDe, primeraFrase, normalizarDecisiones, type CifraDeFirma, type Decisiones } from "@/lib/direccion-decisiones"
 
 // la firma de Finanzas de hoy (Zero Risk SI), con sus textos tal como los manda la oficina
 const INSTAGRAM = "Instagram @zeroriskgye lleva 6 años inactivo (últimos posts: junio 2020) y el Business Manager de Meta no está confirmado como activo. El 60% del presupuesto mensual ($804.78) va a Meta/IG. Si el BM está deshabilitado o la cuenta suspendida, ese presupuesto no puede ejecutarse en absoluto y el modelo colapsa en su canal principal."
@@ -68,21 +68,27 @@ describe("2 · «Decisivo»: una frase y su porqué en dos líneas; el texto lar
   })
 })
 
-describe("3 · «Uso» y «Desbloquea» con una o dos palabras; la frase larga en el mismo detalle", () => {
-  it("dos palabras con contenido (sin artículo), antes del «:»; «…» si el texto dice más", () => {
-    expect(enDosPalabras(USO)).toBe("Oficina financiera…")
-    expect(enDosPalabras(DESBLOQUEA)).toBe("Plan no…")
-    expect(enDosPalabras("Campañas")).toBe("Campañas")
-    expect(enDosPalabras("Reparto de anuncios")).toBe("Reparto de…")
-    expect(enDosPalabras("Pausa: nada más")).toBe("Pausa…")
-    expect(enDosPalabras("El plan")).toBe("Plan")
+describe("3 · «Uso» y «Desbloquea»: la primera frase ENTERA, nunca palabras cortadas (Lenovo 09-nov)", () => {
+  it("la primera frase, sin cortar ni agregar «…»", () => {
+    expect(primeraFrase(USO)).toBe(USO); expect(primeraFrase(DESBLOQUEA)).toBe(DESBLOQUEA)
+    expect(primeraFrase("  Campañas ")).toBe("Campañas")
+    expect(primeraFrase("Reparte la pauta. Después mide el costo por venta.")).toBe("Reparte la pauta.")
+    expect(primeraFrase("Importa (ver D4. Precios) para el plan. Lo demás después.")).toBe("Importa (ver D4. Precios) para el plan.")
+    expect(primeraFrase("")).toBe(""); expect(primeraFrase("   ")).toBe("")
   })
-  it("al frente las dos palabras; en el detalle, enteras", () => {
+  it("una sola frase: entera al frente y no se repite en el detalle", () => {
     const h = pinta(firma())
-    expect(h).toContain('<span data-uso="true">Oficina financiera…</span>'); expect(h).toContain('<span data-destraba="true">Plan no…</span>')
-    expect(h).not.toContain(USO); expect(h).not.toContain(DESBLOQUEA)
+    expect(h).toContain(`<span data-uso="true">${USO}</span>`); expect(h).toContain(`<span data-destraba="true">${DESBLOQUEA}</span>`)
+    expect(h).not.toContain("…</span></dd>")
     const a = pinta(firma(), true)
-    expect(a).toContain(`<p data-uso-entero="true" class="mt-1.5 text-dato text-hueso">${USO}</p>`); expect(a).toContain(DESBLOQUEA)
+    expect(a).not.toContain("data-uso-entero"); expect(a).not.toContain("data-destraba-entero"); expect(a.split(USO)).toHaveLength(2)
+  })
+  it("varias frases: la primera al frente y el texto entero en el detalle", () => {
+    const LARGO = "Reparte la pauta. Después mide el costo por venta."
+    const h = pinta(firma({ para_que: LARGO, destraba: LARGO }))
+    expect(h).toContain('<span data-uso="true">Reparte la pauta.</span>'); expect(h).toContain('<span data-destraba="true">Reparte la pauta.</span>'); expect(h).not.toContain("Después mide")
+    const a = pinta(firma({ para_que: LARGO, destraba: LARGO }), true)
+    expect(a).toContain(`<p data-uso-entero="true" class="mt-1.5 text-dato text-hueso">${LARGO}</p>`); expect(a).toContain(`<p data-destraba-entero="true" class="mt-1.5 text-dato text-hueso">${LARGO}</p>`)
   })
 })
 
@@ -113,9 +119,5 @@ describe("CC6 #290 · ninguna información se pierde aunque la firma no traiga t
     const h = pinta(firma({ cifras: [META, TOTAL, TERCERA, CPV] }), true)
     expect(h).toMatch(/data-cifra-del-detalle="pauta_dia"><button type="button" data-cambiar="pauta_dia"/)
     expect(h).not.toMatch(/data-cifra-del-detalle="cpv_pauta"><button/)
-  })
-  it("«Uso» y «Desbloquea» nunca dejan un paréntesis abierto", () => {
-    expect(enDosPalabras("(Importante para el plan) de ventas")).toBe("Importante para…")
-    expect(enDosPalabras("Pauta (Meta) al mes")).toBe("Pauta (Meta)…")
   })
 })
