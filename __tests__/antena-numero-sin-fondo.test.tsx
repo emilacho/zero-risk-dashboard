@@ -28,11 +28,12 @@ describe("el número de la antena", () => {
 })
 
 describe("la lista al tocarla, en estilo base", () => {
-  it("🔴 ALERTAS con la ✕, Dept. Marketing, el número en rojo en su recuadro y cada aviso con su punto, cuándo y qué abre", () => {
+  it("🔴 09-nov · boceto aprobado: ALERTAS y el número en una sola línea (recuadro chico de borde rojo), la ✕ a la derecha; sin «Dept. Marketing» ni el recuadro grande; cada aviso con su punto, cuándo y qué abre", () => {
     const h = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [A("a", "envivo", 1), A("b", "observabilidad", 48), A("c", null, 5)], onAbrir: () => {}, onCerrar: () => {}, ahora: AHORA }))
-    expect(h).toMatch(/data-estilo="base"[\s\S]*>Alertas<\/h2>[\s\S]*data-cerrar/)
-    expect(h).toContain("Dept. <span")
-    expect(h).toMatch(/data-recuadro-alertas[^>]*border-linea-alarma[\s\S]*data-numero[^>]*text-alarma[^>]*>3</); expect(h).toContain("Avisos abiertos")
+    expect(h).toMatch(/data-estilo="base"[\s\S]*<header[^>]*><div class="col-start-2 flex items-center justify-center gap-3"><h2 [^>]*text-oro">Alertas<\/h2><span data-numero="true" aria-label="3 avisos abiertos" class="[^"]*border-linea-alarma text-alarma"[^>]*>3<\/span><\/div><button[^>]*data-cerrar/)
+    expect(h).not.toContain("Dept."); expect(h).not.toContain("Marketing"); expect(h).not.toContain("data-recuadro-alertas"); expect(h).not.toContain("Avisos abiertos<")
+    expect(h).toMatch(/max-w-\[min\(640px,100%\)\] sm:w-auto/) // se ensancha lo justo para que el aviso quepa
+    expect(h).toMatch(/<span class="block text-cuerpo text-hueso">[^<]+<\/span><span data-cuando="true" class="mt-0\.5 block text-dato text-gris">/) // 15 hueso y debajo 13 gris
     expect(h).toContain(">hace una hora · abre En vivo<"); expect(h).toContain(">hace 2 días · abre Observabilidad<")
     expect(h).toContain(">hace 5 horas<") // sin lugar: no dice «abre» y el botón queda quieto
     expect((h.match(/rounded-full bg-alarma/g) ?? []).length).toBe(3)
@@ -40,11 +41,12 @@ describe("la lista al tocarla, en estilo base", () => {
   })
   it("🔴 sin avisos: «Todo en orden», número sin rojo", () => {
     const h = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [], onAbrir: () => {}, onCerrar: () => {} }))
-    expect(h).toContain("Todo en orden"); expect(h).not.toContain("text-alarma"); expect(h).not.toContain("border-linea-alarma")
+    expect(h).toContain(">Todo en orden<"); expect(h).not.toContain("text-alarma"); expect(h).not.toContain("border-linea-alarma"); expect(h).toMatch(/data-numero="true" aria-label="0 avisos abiertos"[^>]*>0</)
+    expect(renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [A("a", "envivo", 1)], onAbrir: () => {}, onCerrar: () => {}, ahora: AHORA }))).not.toContain("Todo en orden")
   })
   it("🔴 se abre encima con su propio panel y sigues en Dept. Marketing (no en el marco viejo del pizarrón); Esc lo cierra", () => {
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
-    expect(av).toContain('{panelTablero?.tipo === "antena" && <PanelDeLasAlertas')
+    expect(av).toContain('{panelTablero?.tipo === "antena" && <PanelDeLasAlertas alertas={datos?.alertas} onCerrar={() => setPanelTablero(null)} ') // menor CC6 #296: la ✕ y Esc cierran de verdad
     expect(av).toContain('{panelTablero && panelTablero.tipo !== "antena" && (')
     const c = readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8")
     expect(c).toContain('if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar()') // en escucharEsc
@@ -85,5 +87,12 @@ describe("la lista al tocarla, en estilo base", () => {
   })
   it("sin avisos de dinero en la antena (firmado)", () => {
     expect(readFileSync("lib/escena-alertas.ts", "utf8")).toContain("export const GASTO_RARO_EN_LA_ANTENA = false")
+  })
+})
+
+describe("09-nov · el título con algo al lado es solo para quien lo pide", () => {
+  it("sin «junto», la cabecera de los demás paneles no cambia", () => {
+    const e = readFileSync("components/nuevo/EstiloBase.tsx", "utf8")
+    expect(e).toContain('        : <h2 id={id} className="col-start-2 text-center text-titulo font-medio uppercase tracking-titulo text-oro">{titulo}</h2>}')
   })
 })

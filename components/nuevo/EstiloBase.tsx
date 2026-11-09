@@ -20,14 +20,19 @@ export function Rotulo({ children, tono = "oro", className = "" }: { children: R
 }
 
 /** `lado`: una columna a la izquierda (en escritorio), fuera de la columna con el título; p. ej. el radar de Riesgos (Lenovo 06-nov) */
-export function PanelBase({ titulo, id, seccion, onCerrar, etiquetaCerrar, ancho = "max-w-[480px]", lado, children }: {
-  titulo: string; id: string; seccion: string; onCerrar: () => void; etiquetaCerrar: string; ancho?: string; lado?: ReactNode; children: ReactNode
+export function PanelBase({ titulo, id, seccion, onCerrar, etiquetaCerrar, ancho = "max-w-[480px]", lado, junto, children }: {
+  titulo: string; id: string; seccion: string; onCerrar: () => void; etiquetaCerrar: string; ancho?: string; lado?: ReactNode
+  /** 09-nov (alertas de la antena): algo chico en la misma línea del título, centrado con él (p. ej. el número) */
+  junto?: ReactNode
+  children: ReactNode
 }) {
   const cerrar = useRef<HTMLButtonElement>(null)
   useEffect(() => { cerrar.current?.focus() }, [])
   const cabecera = (
     <header className="mb-1 grid shrink-0 grid-cols-[44px_1fr_44px] items-center">
-      <h2 id={id} className="col-start-2 text-center text-titulo font-medio uppercase tracking-titulo text-oro">{titulo}</h2>
+      {junto
+        ? <div className="col-start-2 flex items-center justify-center gap-3"><h2 id={id} className="text-center text-cuerpo font-medio uppercase tracking-titulo text-oro">{titulo}</h2>{junto}</div>
+        : <h2 id={id} className="col-start-2 text-center text-titulo font-medio uppercase tracking-titulo text-oro">{titulo}</h2>}
       <button ref={cerrar} type="button" data-cerrar onClick={onCerrar} aria-label={etiquetaCerrar} className={`col-start-3 flex h-11 w-11 items-center justify-center justify-self-end rounded-control text-gris hover:text-hueso ${TOCABLE}`}>
         <svg viewBox="0 0 24 24" aria-hidden className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
       </button>

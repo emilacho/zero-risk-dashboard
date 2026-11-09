@@ -81,19 +81,18 @@ export function PanelDeLasAlertas(p: { alertas: AlertaDeLaAntena[] | undefined; 
 export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void; ahora?: number }) {
   const lista = alertas ?? []
   return (
-    <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[440px]">
-      <div data-panel-alertas className="flex flex-col">
-        <p className="mb-5 text-center text-rotulo uppercase tracking-rotulo text-gris">Dept. <span className="font-medio text-hueso">Marketing</span></p>
-        <div data-recuadro-alertas className={`mb-5 rounded-tarjeta border bg-grafito-2 px-3 py-4 text-center ${lista.length ? "border-linea-alarma" : "border-linea"}`}>
-          <span data-numero className={`block text-cifra font-medio tabular-nums ${lista.length ? "text-alarma" : "text-hueso"}`}>{lista.length}</span>
-          <span className="mt-1.5 block text-rotulo uppercase tracking-rotulo text-gris">{lista.length === 0 ? "Todo en orden" : lista.length === 1 ? "Aviso abierto" : "Avisos abiertos"}</span>
-        </div>
+    // 09-nov · boceto aprobado: cabecera de una línea (ALERTAS + el número en un recuadro chico), sin «Dept. Marketing» ni el recuadro grande;
+    // el aviso es lo principal y el panel se ensancha lo justo para que su texto quepa en una línea (hasta 640 px)
+    <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[min(640px,100%)] sm:w-auto sm:min-w-[420px]"
+      junto={<span data-numero aria-label={lista.length === 1 ? "1 aviso abierto" : `${lista.length} avisos abiertos`} className={`inline-flex h-6 min-w-6 items-center justify-center rounded-control border px-1.5 text-dato font-medio tabular-nums ${lista.length ? "border-linea-alarma text-alarma" : "border-linea text-gris"}`}>{lista.length}</span>}>
+      <div data-panel-alertas className="mt-2 flex flex-col">
+        {lista.length === 0 && <p data-todo-en-orden className="border-t border-linea py-4 text-center text-cuerpo text-gris">Todo en orden</p>}
         <ul>
           {lista.map((a) => {
             const lugar = a.abre ? NOMBRE_DEL_LUGAR[a.abre] ?? null : null
             return (
               <li key={a.clave} data-alerta={a.tipo} className="border-t border-linea">
-                <button type="button" disabled={!a.abre} onClick={() => onAbrir(a)} className="grid min-h-11 w-full grid-cols-[16px_1fr_auto] items-center gap-1.5 py-3 text-left hover:text-hueso disabled:cursor-default">
+                <button type="button" disabled={!a.abre} onClick={() => onAbrir(a)} className="grid min-h-11 w-full grid-cols-[16px_1fr_auto] items-center gap-2 py-4 text-left hover:text-hueso disabled:cursor-default">
                   <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />
                   <span className="min-w-0">
                     <span className="block text-cuerpo text-hueso">{a.texto}</span>
