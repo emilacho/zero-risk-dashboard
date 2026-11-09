@@ -111,13 +111,18 @@ export const NOMBRE_DEL_TIPO: Record<TipoDePieza, string> = { imagen: "Imagen", 
 /** ¿hay texto suficiente? En 3D con foto el texto sobra (se convierte la foto) */
 export const textoListo = (tipo: TipoDePieza, texto: string, conFoto: boolean) => texto.trim().length >= 3 || (tipo === "3d" && conFoto)
 
+/** la pista del botón cuando solo falta el texto; en escritorio no se muestra (boceto aprobado 09-nov: «Crear» centrado) */
+export const PISTA_DE_TEXTO = "escribe qué quieres"
+/** clases del costo dentro del botón: en escritorio va a la derecha sin empujar «Crear»; la pista se oculta en escritorio */
+export const claseDelCosto = (costo: string) => `text-[12.5px] font-medium opacity-90 md:absolute md:right-4${costo === PISTA_DE_TEXTO ? " md:hidden" : ""}`
+
 /**
  * El botón Crear: solo se enciende con cliente, texto, proveedor conectado y una COTIZACIÓN en la mano (el dueño ve el costo antes, siempre).
  * Sin precio (p. ej. el proveedor de video no cotizó) no se crea. Sin tope: ningún monto apaga el botón.
  */
 export function estadoDelBoton(x: { clienteId: string | null; textoListo: boolean; listo: boolean | null; cotizacion: Cotizacion | null; cotizando: boolean; sinPrecio: string | null; creando: boolean }): { habilitado: boolean; costo: string } {
   const habilitado = !!x.clienteId && x.textoListo && x.listo === true && !!x.cotizacion && !x.creando && !x.cotizando
-  const costo = x.listo === false ? "proveedor no conectado todavía" : x.sinPrecio ? "sin precio: no se puede crear" : x.cotizando ? "cotizando…" : x.cotizacion ? `≈ ${dolares(x.cotizacion.total_usd)}` : !x.clienteId ? "elige el cliente" : "escribe qué quieres"
+  const costo = x.listo === false ? "proveedor no conectado todavía" : x.sinPrecio ? "sin precio: no se puede crear" : x.cotizando ? "cotizando…" : x.cotizacion ? `≈ ${dolares(x.cotizacion.total_usd)}` : !x.clienteId ? "elige el cliente" : PISTA_DE_TEXTO
   return { habilitado, costo }
 }
 

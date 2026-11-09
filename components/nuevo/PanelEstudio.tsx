@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
-import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelCosto, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -358,10 +358,11 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
               </div>
             )}
             <button type="button" data-crear onClick={() => void crear()} disabled={!puedeCrear}
-              className="mt-auto flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-bold transition-opacity disabled:cursor-not-allowed"
+              className="relative mt-auto flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-bold transition-opacity disabled:cursor-not-allowed md:justify-center"
               style={{ background: puedeCrear ? AMBAR : "#3a2a1a", color: puedeCrear ? "#1a0d02" : "#f0a04b" }}>
               <span>{creando ? "Creando…" : "Crear"}</span>
-              <span data-costo className="text-[12.5px] font-medium opacity-90">
+              {/* en escritorio «Crear» va centrado: el costo o el aviso queda a la derecha sin empujarlo, y la pista «escribe qué quieres» no se muestra */}
+              <span data-costo className={claseDelCosto(boton.costo)}>
                 {boton.costo}
               </span>
             </button>
