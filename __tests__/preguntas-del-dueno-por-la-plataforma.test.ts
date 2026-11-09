@@ -86,7 +86,7 @@ describe("quién contestó nunca va vacío (CC1 06-nov: la ruta da 400 sin «dec
 describe("las lecturas salen de la tabla de la plataforma", () => {
   it("🔴 el panel del Cerebro y la antena leen `dueno_preguntas`; ningún archivo del tablero nombra la tabla vieja", () => {
     expect(readFileSync("lib/cerebro-datos.ts", "utf8")).toContain(`supa.from("dueno_preguntas").select("id, tema, pregunta, canal, oficina, agente, creado_en, sede_clave")`)
-    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toContain(`supa.from("dueno_preguntas").select("id, client_id, pregunta, estado, creado_en").eq("estado", "pendiente")`)
+    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toContain(`supa.from("dueno_preguntas").select("id, client_id, pregunta, estado, creado_en, oficina").eq("estado", "pendiente")`)
     for (const f of ["lib/cerebro-datos.ts", "lib/escena-avatares-datos.ts", "lib/decisiones-contestar.ts", "lib/cerebro-dueno.ts"]) expect(readFileSync(f, "utf8")).not.toContain('from("cerebro_dueno_preguntas")')
   })
   it("🔴 CC6 · el panel del Cerebro muestra solo las pendientes: una respondida o descartada no aparece", async () => {

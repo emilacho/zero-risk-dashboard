@@ -8,7 +8,7 @@ import { isValidElement, type ReactElement, type ReactNode } from "react"
 import { ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
 
 const AHORA = Date.parse("2026-11-06T10:00:00Z")
-const A = (clave: string, abre: AlertaDeLaAntena["abre"], horas: number): AlertaDeLaAntena => ({ clave, tipo: "fallida", texto: `aviso ${clave}`, cuando: new Date(AHORA - horas * 3_600_000).toISOString(), abre })
+const A = (clave: string, abre: AlertaDeLaAntena["abre"], horas: number): AlertaDeLaAntena => ({ clave, tipo: "fallida", texto: `aviso ${clave}`, cuando: new Date(AHORA - horas * 3_600_000).toISOString(), abre, departamento: "marketing" })
 const antena = (alertas: AlertaDeLaAntena[] | undefined) => renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas, onAbrir: () => {} })))
 
 describe("el número de la antena", () => {
