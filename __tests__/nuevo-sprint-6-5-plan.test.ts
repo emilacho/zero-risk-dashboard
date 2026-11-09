@@ -161,8 +161,9 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     expect(html).toContain("campaña en pausa"); expect(html).toContain("pausa de pruebas por decisión del dueño"); expect(html).not.toContain("Día 4 · fase"); // con la campaña en pausa no se dice en qué día va; expect(html).toContain("estrategia validada"); expect(html).not.toContain("estrategia v1"); expect(html).toContain("Con puntos por resolver · 3")
     expect(html).not.toContain("Topes de la planeación"); expect(html).not.toContain("US$ 1,50"); expect(html).not.toContain("Tope de planeación"); // 01-nov (punto 8 de Emilio): el panel del plan no muestra dinero; el dinero va en Dinero
      expect(html).toContain("136"); expect(html).toContain("Guayaquil · Olón")
-    // la decisión pendiente: las marcas del chequeo y los dos botones con las palabras de la bandeja
-    expect(html).toContain('data-apartado="decision"'); expect(html).not.toContain(">P3<"); expect(html).toContain("lleva nombres internos"); expect(html).toContain("La jefatura dejó desacuerdos")
+    // la decisión pendiente: solo lo elemental (Emilio, 06-nov) · el estado y los dos botones, sin las marcas del chequeo ni la línea de la jefatura
+    expect(html).toContain('data-apartado="decision"'); expect(html).not.toContain(">P3<"); expect(html).not.toContain("lleva nombres internos"); expect(html).not.toContain("Lo que dice el chequeo"); expect(html).not.toContain("La jefatura dejó desacuerdos"); expect(html).toContain("Espera tu decisión")
+    expect(html.indexOf('data-accion="plan-pedir-cambios"')).toBeLessThan(html.indexOf('data-accion="plan-aprobar-asi"')) // Aprobar a la derecha
     expect(html).toContain('data-accion="plan-aprobar-asi"'); expect(html).toContain("Aprobar el plan así"); expect(html).toContain('data-accion="plan-pedir-cambios"'); expect(html).toContain("Pedir cambios al plan")
     expect(html).not.toContain('data-editor="plan-cambios"') // el formulario del porqué no está abierto de entrada
     // fases · meta · redes · pilares · semana tipo · lo dicho · esperas
@@ -175,7 +176,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     expect(html).not.toMatch(/meta_ig|con_pendientes|espera_video(?![^<]*")|mantengo_la_meta/) // nada crudo de la base en el texto visible
     // CC6 · ciclo del plan: un plan ya aprobado dice su estado y no ofrece botones (la nota vieja de la bandeja se sigue mostrando como dato)
     const decidido = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, documento: { ...datos.documento!, status: "approved" }, revision: { ...datos.revision!, status: "approved", decision: "Aprobado así" } } }))
-    expect(decidido).not.toContain('data-accion="plan-aprobar-asi"'); expect(decidido).toContain("Aprobado → pasa al brief"); expect(decidido).toContain("Aprobado así")
+    expect(decidido).not.toContain('data-accion="plan-aprobar-asi"'); expect(decidido).toContain(">Aprobado<"); expect(decidido).toContain("Aprobado así")
     // sin nada: se dice
     const nada = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: { ...datos, campana: null, estrategia: null, documento: null, revision: null, esperas: { vivas: 0, grupos: [], vencidas: { n: 0, grupos: [] } }, topes: [] } }))
     expect(nada).toContain("todavía no tiene plan ni campaña")

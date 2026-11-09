@@ -44,7 +44,13 @@ export function resumenDeLaSeccion(cuerpo: string, n = 3, largo = 220): string[]
 
 /** el documento en secciones `##` (lo de antes del primer `##` da el título y la bajada) */
 /** 04-nov · Emilio: el plan sale sin rótulos internos. Las citas [D12] las usa el chequeo sobre el texto guardado; al dueño no se le muestran */
-export const sinCitasInternas = (md: string): string => md.replace(/[ \t]*\[D\d+(?:\s*,\s*D\d+)*\]/g, "")
+// una cita: [D12] o [D9, D55] · una lista de citas: varias seguidas, separadas por coma, punto y coma o «y»
+const CITA = String.raw`\[D\d+(?:\s*,\s*D\d+)*\]`
+const LISTA_DE_CITAS = String.raw`${CITA}(?:\s*(?:[,;]|y)\s*${CITA})*`
+/** 06-nov · encargo de Lenovo, punto 3: un paréntesis que solo traía citas se quita entero (antes quedaba «(,,)»); el que tiene texto queda con su texto */
+const PARENTESIS_SOLO_CITAS = new RegExp(String.raw`[ \t]*\(\s*${LISTA_DE_CITAS}\s*\)`, "g")
+const CITAS_SUELTAS = new RegExp(String.raw`[ \t]*${LISTA_DE_CITAS}`, "g")
+export const sinCitasInternas = (md: string): string => md.replace(PARENTESIS_SOLO_CITAS, "").replace(CITAS_SUELTAS, "")
 
 export function seccionesDelPlan(md: string | null | undefined): DocumentoEnSecciones {
   const texto = sinCitasInternas(String(md ?? "").replace(/\r/g, ""))
@@ -90,7 +96,7 @@ export function datosClave(doc: DocumentoEnSecciones): DatoClave[] {
   const bajada = doc.bajada ?? ""
   const fechas = bajada.match(FECHAS)?.[1] ?? null
   const lugar = bajada ? limpio(bajada.replace(FECHAS, "").replace(/[·|]\s*$/, "").replace(/\s*[·|]\s*$/, "")) || null : null
-  const pres = porTitulo(/^presupuesto/i)
+  const pres = porTitulo(/^(?:el |los |la )?presupuesto/i) // 06-nov · el plan real titula «El presupuesto»
   // presupuesto: la primera línea de su sección que trae una cifra en dinero (tal cual)
   const dinero = /(US\$|\$|USD)\s?\d/
   const lineaPres = pres ? pres.cuerpo.split("\n").map((l) => l.trim()).find((l) => l && !/^\|?\s*:?-{2,}/.test(l) && dinero.test(l)) ?? null : null

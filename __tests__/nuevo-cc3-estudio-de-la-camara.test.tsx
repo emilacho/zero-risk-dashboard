@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { PanelEstudio } from "@/components/nuevo/PanelEstudio"
 import { CAMARA } from "@/components/nuevo/EscenaViva"
-import { alEstudio, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
+import { alEstudio, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, esAnimable, estadoDeAnimar, nombreDelMovimiento, respuestaDeAnimar, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
 import { clientesDelEstudio } from "@/lib/estudio-clientes"
 
 const CLIENTE = "a0000000-0000-4000-8000-0000000000e1"
@@ -24,8 +24,9 @@ const plataforma = (status = 200, cuerpo: unknown = { ok: true }, comoTexto = fa
 }
 
 describe("la puerta del estudio", () => {
-  it("solo 5 rutas, cada una con su método", async () => {
-    expect(Object.keys(RUTAS_DEL_ESTUDIO).sort()).toEqual(["catalogo", "cotizar", "crear", "pieza", "piezas"])
+  it("solo 6 rutas, cada una con su método", async () => {
+    expect(Object.keys(RUTAS_DEL_ESTUDIO).sort()).toEqual(["animar", "catalogo", "cotizar", "crear", "pieza", "piezas"])
+    expect(RUTAS_DEL_ESTUDIO.animar).toBe("POST")
     const p = plataforma()
     expect((await alEstudio("../agents/run-sdk", "POST", "", "{}", { fetch: p.f, llave: "k" })).status).toBe(404)
     expect((await alEstudio("crear", "GET", "", null, { fetch: p.f, llave: "k" })).status).toBe(404)
@@ -208,5 +209,196 @@ describe("la cámara en la escena", () => {
     const escena = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
     expect(escena).toMatch(/data-zona=\{CAMARA\.clave\}[^>]*\n\s*onClick=\{\(e\) => \{ e\.stopPropagation\(\); setEstudio\(true\) \}\}/)
     expect(escena).toMatch(/estudio && montado && fase !== "cerrado" && depto === "marketing" && createPortal\(<PanelEstudio/)
+  })
+})
+
+describe("animar un modelo 3D (GO 06-nov)", () => {
+  const BIB = [[0, "Idle", "diario"], [28, "Big_Wave_Hello", "diario"], [30, "Casual_Walk", "caminar y correr"], [14, "Run_02", "caminar y correr"], [591, "Hip_Hop_Dance", "baile"], [22, "Jump_Over", "cuerpo"]] as const
+  const animar = { precio: { base: 0.2, por_movimiento: 0.12 }, maximo: 10, comunes: [{ id: 0, nombre: "Quieto" }, { id: 30, nombre: "Caminar" }, { id: 14, nombre: "Correr" }, { id: 28, nombre: "Saludar" }, { id: 591, nombre: "Bailar" }], biblioteca: [...BIB] }
+  const catalogo = { listos: { imagen: true, video: true, "3d": true, almacen: true, animar: true }, imagen: { modelo: "m", formatos: ["1:1"], precio: {} }, video: { modelos: [], formatos: ["9:16"], resoluciones: ["720p"], segundos: { min: 4, max: 15 } }, "3d": { modelos: [], imagen_previa_usd: 0.0138 }, animar } satisfies Catalogo
+  const pieza = (x: Partial<Pieza>): Pieza => ({ id: "p1", client_id: CLIENTE, tipo: "3d", estado: "lista", paso: null, prompt: "surfista", modelo: "tripo-h3.1", parametros: {}, foto_partida_url: null, costo_estimado_usd: 0.3, costo_usd: 0.3, archivo_url: "https://a/m.glb", archivo_tipo: "glb", miniatura_url: "https://a/m.png", aviso: null, error: null, creado_en: "2026-11-06T10:00:00Z", terminado_en: null, ...x })
+  const animada = (x: Partial<Pieza> = {}) => pieza({ id: "p9", modelo: "meshy-animar", prompt: "surfista · animado: Caminar, Saludar", parametros: { origen_pieza_id: "p1", archivos: [{ action_id: 30, nombre: "Casual_Walk", glb: "https://a/w.glb", fbx: "https://a/w.fbx" }, { action_id: 28, nombre: "Big_Wave_Hello", glb: "https://a/h.glb", fbx: "https://a/h.fbx" }] }, archivo_url: "https://a/w.glb", costo_usd: 0.44, ...x })
+  const pintar = (props: Record<string, unknown>, cat: Catalogo = catalogo) => renderToStaticMarkup(createElement(PanelEstudio, { onCerrar: () => undefined, catalogoInicial: cat, clientesIniciales: [{ id: CLIENTE, nombre: "Náufrago" }], ...props }))
+
+  it("el costo es esqueleto 0,20 + 0,12 por movimiento, igual que la plataforma", () => {
+    expect(cotizarAnimacion(animar.precio, 1)).toEqual({ total_usd: 0.32, partes: [{ que: "esqueleto", usd: 0.2 }, { que: "1 movimiento", usd: 0.12 }] })
+    expect(cotizarAnimacion(animar.precio, 3).total_usd).toBe(0.56)
+    expect(cotizarAnimacion(animar.precio, 2).partes[1].que).toBe("2 movimientos")
+  })
+  it("se anima un 3D listo en GLB que no sea ya una animación", () => {
+    expect(esAnimable(pieza({}))).toBe(true)
+    expect(esAnimable(pieza({ estado: "creando" }))).toBe(false)
+    expect(esAnimable(pieza({ archivo_tipo: "obj" }))).toBe(false)
+    expect(esAnimable(pieza({ tipo: "imagen" }))).toBe(false)
+    expect(esAnimable(animada())).toBe(false)
+  })
+  it("marcar y desmarcar un movimiento, sin pasar del máximo", () => {
+    expect(alternarMovimiento([], 0, 2)).toEqual([0])
+    expect(alternarMovimiento([0, 28], 0, 2)).toEqual([28])
+    expect(alternarMovimiento([0, 28], 30, 2)).toEqual([0, 28])
+    expect(alternarMovimiento([0], 28, 2)).toEqual([0, 28])
+  })
+  it("el buscador encuentra por nombre (guion bajo = espacio, sin mayúsculas ni tildes) o por grupo; menos de 2 letras no muestra nada", () => {
+    expect(buscarMovimientos(BIB, "wave hello").map((m) => m[0])).toEqual([28])
+    expect(buscarMovimientos(BIB, "HIP_HOP").map((m) => m[0])).toEqual([591])
+    expect(buscarMovimientos(BIB, "báile").map((m) => m[0])).toEqual([591])
+    expect(buscarMovimientos(BIB, " r ")).toEqual([])
+    expect(buscarMovimientos(BIB, "a", 40)).toEqual([])
+    expect(buscarMovimientos(BIB, "ca", 1)).toHaveLength(1)
+    expect(buscarMovimientos(BIB, "ca").map((m) => m[0])).toEqual([30, 14])
+  })
+  it("los nombres: los comunes en español, los demás como en la biblioteca", () => {
+    expect(nombreDelMovimiento(animar, 28)).toBe("Saludar")
+    expect(nombreDelMovimiento(animar, 22)).toBe("Jump Over")
+    expect(nombreDelMovimiento(animar, 999)).toBe("#999")
+    expect(nombreDelMovimiento(undefined, 0)).toBe("#0")
+  })
+  it("los movimientos guardados salen solo de una animación", () => {
+    expect(clipsDe(animada()).map((c) => c.action_id)).toEqual([30, 28])
+    expect(clipsDe(pieza({ parametros: { archivos: [{ action_id: 1 }] } }))).toEqual([])
+    expect(clipsDe(animada({ parametros: {} }))).toEqual([])
+    expect(clipsDe(animada({ parametros: { archivos: [null, "x", { action_id: 5, glb: "g", fbx: null, nombre: "n" }] } })).map((c) => c.action_id)).toEqual([5])
+  })
+  it("el pedido lleva cliente, modelo de origen, movimientos y una clave nueva por clic", () => {
+    const a = cuerpoDeAnimacion(CLIENTE, "p1", [0, 28])
+    const b = cuerpoDeAnimacion(CLIENTE, "p1", [0, 28])
+    expect(Object.keys(a).sort()).toEqual(["clave", "client_id", "movimientos", "origen_pieza_id"])
+    expect(a).toMatchObject({ client_id: CLIENTE, origen_pieza_id: "p1", movimientos: [0, 28] })
+    expect(a.clave).toMatch(/^[A-Za-z0-9_-]{8,80}$/)
+    expect(a.clave).not.toBe(b.clave)
+  })
+  it("un modelo 3D listo muestra «Animar»; sin la función en la plataforma, no", () => {
+    expect(pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1" })).toContain("data-animar=")
+    const sin = { ...catalogo, listos: { ...catalogo.listos, animar: false } }
+    expect(pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1" }, sin)).not.toContain("data-animar=")
+    const { animar: _x, ...viejo } = catalogo
+    void _x
+    expect(pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1" }, viejo as Catalogo)).not.toContain("data-animar=")
+    expect(pintar({ piezasIniciales: [pieza({ estado: "creando", archivo_url: null })], abiertaInicial: "p1" })).not.toContain("data-animar=")
+  })
+  it("el cajón: comunes primero, buscador, costo a la vista y el botón ámbar a la derecha", () => {
+    const h = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1", animarInicial: [0, 28] })
+    const comunes = [...h.matchAll(/data-movimiento="(\d+)"/g)].map((m) => m[1])
+    expect(comunes).toEqual(["0", "30", "14", "28", "591"])
+    expect(h).toMatch(/data-movimiento="0" class="es-chip" aria-pressed="true"/)
+    expect(h).toMatch(/data-movimiento="30" class="es-chip" aria-pressed="false"/)
+    expect(h).toContain("data-buscar")
+    expect(h).toContain("6 movimientos")
+    expect(h).toContain("Elegidos (2 de 10)")
+    expect(h).toContain("Quieto, Saludar")
+    expect(h).toMatch(/data-costo-animar="true"[^>]*>US\$ 0,44</)
+    expect(h).toContain("esqueleto US$ 0,20 + 2 movimientos US$ 0,24")
+    expect(h).toMatch(/class="flex items-center justify-end gap-3"><span data-desglose-animar/)
+    // sin cliente elegido todavía (lo fija el navegador) el botón espera; encendido es ámbar
+    expect(h).toMatch(/data-animar-crear="true" disabled=""/)
+    expect(readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")).toContain("style={{ background: listoParaAnimar ? AMBAR : \"#3a2a1a\"")
+    expect(h).toContain("no se cobra")
+  })
+  it("sin movimientos el botón está apagado y lo dice; al tope, los no elegidos se apagan", () => {
+    const h = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1", animarInicial: [] })
+    expect(h).toMatch(/data-animar-crear="true" disabled=""/)
+    expect(h).toContain("elige un movimiento")
+    const tope = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1", animarInicial: [0, 30, 14, 28, 1, 2, 3, 4, 5, 6] })
+    expect(tope).toMatch(/data-movimiento="0" class="es-chip" aria-pressed="true">/)
+    expect(tope).toMatch(/data-movimiento="591" class="es-chip" aria-pressed="false" disabled="">/)
+    const libre = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1", animarInicial: [0, 30, 14, 28, 1, 2, 3, 4, 5] })
+    expect(libre).toMatch(/data-movimiento="591" class="es-chip" aria-pressed="false">/)
+  })
+  it("una animación abierta: se dice animada, se elige el movimiento, se baja en GLB y FBX, y no se re-anima", () => {
+    const h = pintar({ piezasIniciales: [animada()], abiertaInicial: "p9" })
+    expect(h).toContain("3D · animado")
+    expect(h).toContain("data-clips")
+    expect(h).toMatch(/aria-pressed="true">Caminar</)
+    expect(h).toMatch(/aria-pressed="false">Saludar</)
+    expect(h).toMatch(/data-bajar="GLB" href="https:\/\/a\/w.glb"/)
+    expect(h).toMatch(/data-bajar="FBX" href="https:\/\/a\/w.fbx"/)
+    expect(h).not.toContain(">Descargar<")
+    expect(h).not.toContain("data-animar=")
+    expect(h).not.toContain("Crear otra versión")
+    expect(h).not.toContain("Arrastra con el mouse")
+    expect(h).toContain("US$ 0,44")
+  })
+  it("una animación de un solo movimiento no muestra el selector, pero sí las dos descargas", () => {
+    const uno = animada({ parametros: { archivos: [{ action_id: 0, nombre: "Idle", glb: "https://a/i.glb", fbx: "https://a/i.fbx" }] } })
+    const h = pintar({ piezasIniciales: [uno], abiertaInicial: "p9" })
+    expect(h).not.toContain("data-clips")
+    expect(h).toContain('data-bajar="GLB"')
+    expect(h).toContain('data-bajar="FBX"')
+  })
+  it("en la galería una animación se marca «Animado»", () => {
+    const h = pintar({ piezasIniciales: [animada(), pieza({})] })
+    expect(h).toContain(">Animado<")
+    expect(h).toContain(">3D<")
+  })
+  it("una animación en curso dice su paso, sin el de la imagen de partida", () => {
+    const h = pintar({ piezasIniciales: [animada({ estado: "creando", archivo_url: null, parametros: {} })], abiertaInicial: "p9" })
+    expect(h).toContain("Poniendo esqueleto y movimientos")
+    expect(h).toContain("≈ 1-3 min")
+    expect(h).not.toContain("Creando la imagen")
+    expect(h).not.toContain("Imagen de partida lista")
+  })
+  it("la animación que falla por no ser figura humana muestra el aviso claro y lo cobrado (0)", () => {
+    const h = pintar({ piezasIniciales: [animada({ estado: "fallida", archivo_url: null, parametros: {}, costo_usd: 0, error: "Este modelo no parece una figura humana con brazos y piernas definidos, así que no se puede animar. No se cobró." })], abiertaInicial: "p9" })
+    expect(h).toContain("no parece una figura humana")
+    expect(h).toContain("Costó <b class=\"text-zinc-200\">US$ 0</b>")
+  })
+  it("el botón Animar: se enciende solo con cliente, conectado y al menos un movimiento; sin tope", () => {
+    const cot = cotizarAnimacion(animar.precio, 2)
+    const listo = { clienteId: CLIENTE, conectado: true, cotizacion: cot, enviando: false }
+    expect(estadoDeAnimar(listo)).toEqual({ habilitado: true, costo: "US$ 0,44" })
+    expect(estadoDeAnimar({ ...listo, cotizacion: null })).toEqual({ habilitado: false, costo: "elige un movimiento" })
+    expect(estadoDeAnimar({ ...listo, clienteId: null }).habilitado).toBe(false)
+    expect(estadoDeAnimar({ ...listo, conectado: false }).habilitado).toBe(false)
+    expect(estadoDeAnimar({ ...listo, enviando: true }).habilitado).toBe(false)
+    expect(estadoDeAnimar({ ...listo, cotizacion: cotizarAnimacion(animar.precio, 10) })).toEqual({ habilitado: true, costo: "US$ 1,40" })
+    const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
+    expect(panel).toContain("estadoDeAnimar({ clienteId, conectado: puedeAnimar, cotizacion: cotizacionAnimar, enviando })")
+  })
+  it("sobre una animación abierta el cajón de animar nunca aparece", () => {
+    expect(pintar({ piezasIniciales: [animada()], abiertaInicial: "p9", animarInicial: [0] })).not.toContain("data-cajon-animar")
+    expect(pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1", animarInicial: [0] })).toContain("data-cajon-animar")
+  })
+  it("el movimiento elegido es el que se ve, se marca y se descarga", () => {
+    const h = pintar({ piezasIniciales: [animada()], abiertaInicial: "p9", clipInicial: 1 })
+    expect(h).toMatch(/aria-pressed="false">Caminar</)
+    expect(h).toMatch(/aria-pressed="true">Saludar</)
+    expect(h).toMatch(/data-bajar="GLB" href="https:\/\/a\/h.glb"/)
+    expect(h).toMatch(/data-bajar="FBX" href="https:\/\/a\/h.fbx"/)
+  })
+  it("un archivo guardado sin número de movimiento no cuenta como movimiento", () => {
+    expect(clipsDe(animada({ parametros: { archivos: [{ glb: "g", fbx: "f", nombre: "n" }, { action_id: "3", glb: "g" }] } }))).toEqual([])
+  })
+  it("la respuesta de animar: la pieza de otro cliente no entra a la galería a la vista (CC6 #292)", () => {
+    const suya = animada()
+    expect(respuestaDeAnimar({ ok: true, pieza: suya }, 201, CLIENTE)).toEqual({ pieza: suya })
+    expect(respuestaDeAnimar({ ok: true, pieza: { ...suya, client_id: "b0000000-0000-4000-8000-0000000000e2" } }, 201, CLIENTE)).toEqual({ otroCliente: true })
+    expect(respuestaDeAnimar({ ok: true, pieza: suya }, 201, null)).toEqual({ otroCliente: true })
+    const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
+    expect(panel).toContain("const x = respuestaDeAnimar(await leerJson<{ pieza: Pieza }>(r), r.status, clienteVisto.current)")
+    expect(panel).toContain('if ("otroCliente" in x) return')
+  })
+  it("si la plataforma rechaza la animación, el motivo se ve (CC6 #292)", () => {
+    expect(respuestaDeAnimar({ ok: false, error: "modelo_no_animable", detalle: "solo se anima un modelo 3D listo, en GLB" }, 400, CLIENTE)).toEqual({ error: "solo se anima un modelo 3D listo, en GLB" })
+    expect(respuestaDeAnimar({ ok: false, error: "pedido_invalido" }, 400, CLIENTE)).toEqual({ error: "pedido_invalido" })
+    expect(respuestaDeAnimar({ ok: false }, 502, CLIENTE)).toEqual({ error: "No se pudo animar (502)." })
+    expect(respuestaDeAnimar({ ok: true }, 200, CLIENTE)).toEqual({ error: "No se pudo animar (200)." })
+    // una respuesta con pieza pero sin ok es un error: la pieza no entra a la galería (CC6 #292 fd3e3d6)
+    expect(respuestaDeAnimar({ ok: false, pieza: animada(), error: "base_fallida" }, 500, CLIENTE)).toEqual({ error: "base_fallida" })
+    expect(respuestaDeAnimar({ pieza: animada() }, 200, CLIENTE)).toEqual({ error: "No se pudo animar (200)." })
+    const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
+    expect(panel).toContain('if ("error" in x) { setErrorAnimar(x.error); return }')
+    expect(panel).toContain('{errorAnimar && <p role="alert" className="text-[12.5px] text-red-300">{errorAnimar}</p>}')
+    expect(panel).toContain('catch { setErrorAnimar("La plataforma no responde.") }')
+  })
+  it("con el cajón abierto, el único botón ámbar es «Animar»: «Descargar» pasa a borde (nota CC6 #292)", () => {
+    const abierto = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1", animarInicial: [0] })
+    expect(abierto).toMatch(/data-descargar="true" href="https:\/\/a\/m.glb" download="" target="_blank" rel="noreferrer" class="rounded-lg border/)
+    const cerrado = pintar({ piezasIniciales: [pieza({})], abiertaInicial: "p1" })
+    expect(cerrado).toMatch(/data-descargar="true"[^>]*style="background:#e8731a/)
+  })
+  it("el pedido va por la puerta del tablero a /api/estudio/animar", () => {
+    const panel = readFileSync("components/nuevo/PanelEstudio.tsx", "utf8")
+    expect(panel).toContain('fetchImpl("/api/estudio/animar", { method: "POST"')
+    expect(panel).toContain("JSON.stringify(cuerpoDeAnimacion(clienteId, origen.id, movimientos))")
   })
 })
