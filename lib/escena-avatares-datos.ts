@@ -212,8 +212,6 @@ export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, c
     const plan = await planDeLaEscena(supa, ahora, clientePedido)
     const cliente = plan.cliente?.id ?? null
     const iso = (h: number) => new Date(ahora.getTime() - h * 3_600_000).toISOString()
-    // 10-nov · lo que espera tu aprobación: la misma lista de la plataforma que lee Tu oficina › Decisiones. Si no llega, es error de lectura (nunca «sin decisiones»)
-    const decisionesDeLaPlataforma = lectorDeDecisiones().then((r) => { if (!r.ok) throw new Error(`decisiones: ${r.error}`); return r.datos.decisiones })
     const [pc, cd, ca, dp, inv, dec] = await Promise.all([
       filas(supa.from("plan_corridas").select("id, client_id, estado, creado_en, actualizado_en, vence_en, motivo, dry_run").gte("creado_en", iso(DIAS_DE_UNA_FALLA * 24 + 24)).order("creado_en", { ascending: false }).limit(100), "plan_corridas"),
       filas(supa.from("cerebro_diario_corridas").select("client_id, dia, estado, prueba").order("dia", { ascending: false }).limit(30), "cerebro_diario_corridas"),
@@ -221,7 +219,9 @@ export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, c
       filas(supa.from("dueno_preguntas").select("id, client_id, pregunta, estado, creado_en, oficina").eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(50), "dueno_preguntas"), // la tabla de la plataforma (#939)
       // apagado el gasto raro, no se lee: son hasta 2000 filas para nada
       GASTO_RARO_EN_LA_ANTENA ? filas(supa.from("agent_invocations").select("workflow_execution_id, workflow_id, client_id, cost_usd, started_at").gte("started_at", iso(72)).gt("cost_usd", 0).limit(2000), "agent_invocations") : Promise.resolve([] as Record<string, unknown>[]),
-      decisionesDeLaPlataforma,
+      // 10-nov · lo que espera tu aprobación: la misma lista de la plataforma que lee Tu oficina › Decisiones. Si no llega, es error de lectura (nunca «sin decisiones»).
+      // Se pide AQUÍ, al final del arreglo: si una consulta de arriba revienta antes de armarlo, no queda una promesa suelta sin atender
+      lectorDeDecisiones().then((r) => { if (!r.ok) throw new Error(`decisiones: ${r.error}`); return r.datos.decisiones }),
     ])
     const porCorrida = new Map<string, CorridaConGasto>()
     for (const i of inv) {
