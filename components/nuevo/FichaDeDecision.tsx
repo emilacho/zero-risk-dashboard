@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, Rotulo } from "@/components/nuevo/EstiloBase"
-import { NOMBRE_DEL_VERBO, NOMBRE_DE_LA_PANTALLA, conNombresPropios, nombrePropioO, revisarFicha, type FichaDeDecision as Ficha, type Pantalla, type Verbo } from "@/lib/ficha-de-decision"
+import { NOMBRE_DEL_VERBO, NOMBRE_MIENTRAS_SALE, NOMBRE_DE_LA_PANTALLA, conNombresPropios, nombrePropioO, revisarFicha, type FichaDeDecision as Ficha, type Pantalla, type Verbo } from "@/lib/ficha-de-decision"
 import { TOPE_MOTIVO, TOPE_RESPUESTA, cifraEnRecuadro, haceCuanto } from "@/lib/direccion-decisiones"
 
 /**
@@ -136,9 +136,11 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, estado, ahora,
       <footer data-pie>
         {acciones.length > 0 ? (
           <Acciones>
-            {acciones.map((a) => (
+            {/* CC6 #310 menor 2: mientras descartas solo quedan «Volver» y «Descartar» (como la tarjeta vieja); «Volver» cancela sin descartar */}
+            {descartando && <button type="button" data-volver disabled={!!enviando} onClick={() => { setDescartando(false); setMotivo("") }} className={`${BOTON_SECUNDARIO} whitespace-nowrap`}>Volver</button>}
+            {acciones.filter((a) => !descartando || a.verbo === "descartar").map((a) => (
               <button key={a.verbo} type="button" data-verbo={a.verbo} disabled={!!enviando || falta(a.verbo) || (descartando && a.verbo === "descartar" && !!a.pide?.obligatorio && !motivo.trim())} aria-busy={enviando === a.verbo || undefined}
-                onClick={() => verbo(a.verbo)} className={`${a.principal ? BOTON_PRINCIPAL : BOTON_SECUNDARIO} whitespace-nowrap`}>{NOMBRE_DEL_VERBO[a.verbo]}</button>
+                onClick={() => verbo(a.verbo)} className={`${a.principal ? BOTON_PRINCIPAL : BOTON_SECUNDARIO} whitespace-nowrap`}>{enviando === a.verbo ? NOMBRE_MIENTRAS_SALE[a.verbo] : NOMBRE_DEL_VERBO[a.verbo]}</button>
             ))}
           </Acciones>
         ) : (

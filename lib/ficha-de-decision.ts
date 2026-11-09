@@ -10,6 +10,8 @@ import { decisivoCorto, type AccionDeDecision, type CifraDeFirma, type Decision 
 /** el vocabulario FIJO: las únicas 5 palabras que puede tener un botón de decisión */
 export type Verbo = "aprobar" | "pedir_cambios" | "responder" | "asumir" | "descartar"
 export const NOMBRE_DEL_VERBO: Record<Verbo, string> = { aprobar: "Aprobar", pedir_cambios: "Pedir cambios", responder: "Responder", asumir: "Asumir", descartar: "Descartar" }
+/** el nombre del botón MIENTRAS SALE (CC6 #310 menor 2: la tarjeta vieja decía «Descartando…»/«Enviando…»; no basta `aria-busy`) */
+export const NOMBRE_MIENTRAS_SALE: Record<Verbo, string> = { aprobar: "Aprobando…", pedir_cambios: "Enviando…", responder: "Enviando…", asumir: "Asumiendo…", descartar: "Descartando…" }
 /** orden de los botones, siempre igual: Descartar a la izquierda, luego Asumir, luego Pedir cambios; la principal (ámbar) siempre a la derecha */
 const ORDEN: Record<Verbo, number> = { descartar: 0, asumir: 1, pedir_cambios: 2, responder: 3, aprobar: 3 }
 /** cómo se contesta hoy cada verbo (la puerta del servidor del tablero: `/api/direccion/decisiones/contestar`). Sin puerta, no hay botón */
