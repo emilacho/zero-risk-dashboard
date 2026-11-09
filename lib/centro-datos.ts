@@ -7,7 +7,7 @@ import { detalleDelBrief } from "@/lib/brief"
 import { leerBrief } from "@/lib/brief-datos"
 import { detalleDeGranIdea, leerGranIdea } from "@/lib/gran-idea-datos"
 import { analisisDesdeFila, detalleDeInformes, informeDesdeFila } from "@/lib/informes"
-import { MINUTOS_TRABAJANDO } from "@/lib/organigrama"
+import { MINUTOS_TRABAJANDO, nombreCanonico } from "@/lib/organigrama"
 import { quienValido } from "@/lib/manual-lector"
 import { versionDelTag } from "@/lib/plan"
 import { briefVigente } from "@/lib/brief"
@@ -57,7 +57,7 @@ export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | n
     // 10-nov (Lenovo, aprobado por Emilio con ajustes): «Equipo» cuenta SOLO los empleados del Departamento de Marketing que cuentan hoy (la misma regla del
     // organigrama: activos, sin los «por activar» de segunda etapa ni los apagados). Antes contaba los 70 activos de TODO el sistema. Los empleados no se
     // asignan por cliente: el Departamento de Marketing entero trabaja para cada cliente.
-    oNulo(async () => new Set(empleadosActivosDe(await leerOrganizacion(supa, { ahora, conInvocaciones: false }), "marketing"))),
+    oNulo(async () => new Set(empleadosActivosDe(await leerOrganizacion(supa, { ahora, conInvocaciones: false }), "marketing").map(nombreCanonico))),
     dineroDelCliente(cli, o.riesgos ?? leerRiesgos),
   ])
   const [brief, gran, informes, analisisFilas, abiertas] = await Promise.all([
@@ -74,8 +74,9 @@ export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | n
   if (abiertas.error) throw new Error(`agent_invocations: ${abiertas.error.message}`)
   const xs = ((informes.data ?? []) as Fila[]).map(informeDesdeFila)
   const analisis = ((analisisFilas.data ?? []) as Fila[]).map((f) => analisisDesdeFila(f))
-  // solo cuentan los del Departamento de Marketing (si el organigrama no se pudo leer, no se filtra por departamento)
-  const trabajando = new Set(((abiertas.data ?? []) as Fila[]).map((x) => String(x.agent_name)).filter((n) => !marketing || marketing.has(n))).size
+  // solo cuentan los del Departamento de Marketing (si el organigrama no se pudo leer, no se filtra por departamento). Se compara por el nombre canónico, como el
+  // organigrama: en `agents` va `editor_en_jefe` y en las corridas `editor-en-jefe` (CC6 · 10-nov)
+  const trabajando = new Set(((abiertas.data ?? []) as Fila[]).map((x) => nombreCanonico(x.agent_name)).filter((n) => !marketing || marketing.has(n))).size
   const fechas = [...xs.map((x) => x.creado_en), ...analisis.map((a) => a.creado_en)].filter((x): x is string => !!x).sort()
   const bv = briefVigente(brief.briefs)
   const gi = gran.tarjetas[0] ?? null

@@ -88,6 +88,24 @@ describe("Centro de campaña · ajustes de Emilio del 10-nov", () => {
     expect(db.pedidos).toContain(`agent_invocations.client_id=${NAUFRAGO}`)
   })
 
+  it("🔴 un empleado guardado con guion bajo cuenta como trabajando aunque su corrida venga con guion (`editor_en_jefe` ↔ `editor-en-jefe`), y al revés", async () => {
+    const ahora = new Date("2026-11-10T05:00:00Z")
+    const abierta = (agent_name: string): Fila => ({ agent_name, client_id: NAUFRAGO, ended_at: null, started_at: "2026-11-10T04:59:00Z", created_at: "2026-11-10T04:59:00Z" })
+    const t = sistema([abierta("editor-en-jefe"), abierta("Brand_Strategist")])
+    t.agents = [...(t.agents as Fila[]), ag("editor_en_jefe", "marketing"), ag("brand-strategist", "marketing")]
+    t.oficina_directorio = [...(t.oficina_directorio as Fila[]), { agente: "editor_en_jefe", equipo: "estrategia", especialidad: null, sabe_hacer: [], activo: true }, { agente: "brand-strategist", equipo: "estrategia", especialidad: null, sabe_hacer: [], activo: true }]
+    const c = await leerCentro(base(t), { cliente: NAUFRAGO, ahora, riesgos })
+    expect(c.equipo.agentes).toBe(5)
+    expect(c.equipo.trabajando).toBe(2)
+  })
+
+  it("una tarjeta del directorio sin empleado instalado no suma al número de «Equipo»", async () => {
+    const t = sistema()
+    t.oficina_directorio = [...(t.oficina_directorio as Fila[]), { agente: "fantasma", equipo: "estrategia", especialidad: null, sabe_hacer: [], activo: true }]
+    const c = await leerCentro(base(t), { cliente: NAUFRAGO, riesgos })
+    expect(c.equipo.agentes).toBe(3)
+  })
+
   it("si el organigrama no se puede leer, el número queda «no se pudo leer» (null), nunca el total del sistema", async () => {
     const c = await leerCentro(base({ ...sistema(), departments: new Error("caída") }), { cliente: NAUFRAGO, riesgos })
     expect(c.equipo.agentes).toBeNull()
