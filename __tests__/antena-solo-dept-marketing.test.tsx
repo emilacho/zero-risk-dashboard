@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
-import { DEPARTAMENTO_DE_LA_ANTENA, armarAlertas, cerebroNoCorrio, delDepartamento, fallidas, preguntasSinResponder, sinDepartamento, type AlertaDeLaAntena, type EntradaDeAlertas } from "@/lib/escena-alertas"
+import { DEPARTAMENTO_DE_LA_ANTENA, MAXIMO_DE_ALERTAS, armarAlertas, cerebroNoCorrio, delDepartamento, fallidas, preguntasSinResponder, sinDepartamento, type AlertaDeLaAntena, type EntradaDeAlertas } from "@/lib/escena-alertas"
 import { AntenaDeAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
 
 const AHORA = new Date("2026-11-09T22:00:00Z")
@@ -61,6 +61,11 @@ describe("2 · lo del Dept. Marketing sí la prende", () => {
   it("el número cuenta solo lo del departamento: 2 de marketing + 3 de afuera = 2", () => {
     const a = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)], preguntas: [pregunta("m", "marketing"), pregunta("f", "financiera")], alarmasDelCerebro: [ALARMA_DE_HOY, { clave: "otra", ultima_en: hace(1) }] })
     expect(a).toHaveLength(2); expect(dibujar(a)).toContain('data-alertas="2"')
+  })
+  it("CC6 #309 menor 1 · el filtro va ANTES del tope: 7 alarmas de afuera más nuevas no empujan fuera al aviso de marketing", () => {
+    const afuera = Array.from({ length: MAXIMO_DE_ALERTAS + 1 }, (_, i) => ({ clave: `a${i}`, ultima_en: hace(0.1 + i * 0.01) }))
+    const a = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)], alarmasDelCerebro: afuera })
+    expect(a.map((x) => x.clave)).toEqual(["fallida:a"]); expect(dibujar(a)).toContain('data-alertas="1"')
   })
 })
 
