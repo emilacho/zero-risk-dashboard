@@ -34,6 +34,9 @@ export interface Decision {
   para_que?: string | null
   /** qué se destraba al contestar */
   destraba?: string | null
+  /** 09-nov (#957 plataforma) · «Uso» y «Desbloquea» en 1-3 palabras, escritos por la oficina; solo vienen con su largo. Si faltan, el frente muestra la primera frase */
+  para_que_corto?: string | null
+  destraba_corto?: string | null
   /** un trabajo está detenido esperando esto */
   detiene?: boolean
   /** 05-nov · firma: lo que debes saber antes de cambiar una cifra, en palabras de la oficina */
@@ -377,6 +380,9 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (oficina) o.pregunta_de = { oficina, agente: txt(pp!.agente) }
   if (txt(d.para_que)) o.para_que = txt(d.para_que)
   if (txt(d.destraba)) o.destraba = txt(d.destraba)
+  // el corto solo vale con su largo (sin largo no hay corto: así lo manda la plataforma y así se lee)
+  if (o.para_que && txt(d.para_que_corto)) o.para_que_corto = txt(d.para_que_corto)
+  if (o.destraba && txt(d.destraba_corto)) o.destraba_corto = txt(d.destraba_corto)
   if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
   if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
   if (txt(d.supuesto)) o.supuesto = txt(d.supuesto)
