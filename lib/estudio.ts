@@ -26,10 +26,14 @@ export interface Pieza {
   error: string | null
   creado_en: string
   terminado_en: string | null
+  /** en la papelera desde (GO 09-nov 22:45Z) · null o ausente = en la galería */
+  en_papelera_desde?: string | null
 }
 
 export interface Catalogo {
-  listos: { imagen: boolean; video: boolean; "3d": boolean; almacen: boolean; animar?: boolean }
+  listos: { imagen: boolean; video: boolean; "3d": boolean; almacen: boolean; animar?: boolean; varias?: boolean }
+  /** imagen con 2 o más referencias (GO 09-nov 22:45Z) · falta mientras la plataforma no lo tenga */
+  varias?: { modelo: string; nombre: string; minimo: number; maximo: number; resolucion: string; precio_usd: number }
   imagen: { modelo: string; formatos: string[]; precio: Record<string, { sin_foto: number; con_foto: number }> }
   video: { modelos: Array<{ id: string; nombre: string }>; formatos: string[]; resoluciones: string[]; segundos: { min: number; max: number } }
   "3d": { modelos: Array<{ id: string; nombre: string; nota: string; precio: { normal: number; alta: number } }>; imagen_previa_usd: number }
@@ -40,7 +44,7 @@ export interface Catalogo {
 export interface Cotizacion { total_usd: number; partes: Array<{ que: string; usd: number }> }
 
 /** lo que la puerta deja pasar a la plataforma: nada más */
-export const RUTAS_DEL_ESTUDIO: Readonly<Record<string, "GET" | "POST">> = { catalogo: "GET", piezas: "GET", pieza: "GET", cotizar: "POST", crear: "POST", animar: "POST" }
+export const RUTAS_DEL_ESTUDIO: Readonly<Record<string, "GET" | "POST">> = { catalogo: "GET", piezas: "GET", pieza: "GET", cotizar: "POST", crear: "POST", animar: "POST", papelera: "GET", "mover-a-papelera": "POST", recuperar: "POST" }
 
 const sinBarra = (s: string) => s.replace(/\/+$/, "")
 
@@ -134,22 +138,100 @@ export function estadoDelBoton(x: { clienteId: string | null; textoListo: boolea
 
 export interface Opciones { formato: string; modelo3d: string; calidad: "normal" | "alta"; modeloVideo: string; segundos: number; resolucion: string }
 
-/** el cuerpo que va a la plataforma: solo los campos de ese tipo; la foto, subida o de la galería */
-export function cuerpoDelPedido(clienteId: string | null, tipo: TipoDePieza, texto: string, o: Opciones, foto: { b64: string } | { pieza_id: string } | null): Record<string, unknown> {
+// ── varias imágenes (GO 09-nov 22:45Z · boceto aprobado por Emilio + los 4 puntos de CC6) ────────────
+
+/** el máximo de imágenes adjuntas (la primera prueba pagada confirma el real del proveedor) */
+export const MAXIMO_DE_IMAGENES = 6
+export const FORMATOS_DE_SUBIDA = ["image/png", "image/jpeg", "image/webp"] as const
+export type ImagenAdjunta = { numero: number } & ({ b64: string } | { pieza_id: string })
+
+/** las imágenes en el orden de sus números: el mismo con que salen hacia el modelo */
+export const enOrden = <T extends { numero: number }>(lista: readonly T[]): T[] => [...lista].sort((a, b) => a.numero - b.numero)
+
+/**
+ * agregar imágenes: cada una toma el número libre más bajo (del 1 al máximo). Las que ya estaban NO cambian de número (punto 1 de CC6).
+ * Las que no caben quedan afuera y se cuentan (punto 3).
+ */
+export function agregarImagenes<T extends { numero: number }>(actuales: readonly T[], nuevas: ReadonlyArray<Omit<T, "numero">>, maximo = MAXIMO_DE_IMAGENES): { lista: T[]; fuera: number } {
+  const lista = [...actuales]
+  let fuera = 0
+  for (const n of nuevas) {
+    const libre = Array.from({ length: maximo }, (_, i) => i + 1).find((k) => !lista.some((x) => x.numero === k))
+    if (libre === undefined) { fuera++; continue }
+    lista.push({ ...n, numero: libre } as T)
+  }
+  return { lista, fuera }
+}
+
+/** quitar una imagen: las demás conservan su número */
+export const quitarImagen = <T extends { numero: number }>(lista: readonly T[], numero: number): T[] => lista.filter((x) => x.numero !== numero)
+
+/** de los archivos elegidos, cuáles se suben y cuáles no (formato que no sirve · no caben), para decirlo en una línea; nunca un fallo mudo */
+export function revisarArchivos<T extends { name: string; type: string }>(archivos: readonly T[], libres: number): { suben: T[]; formato: string[]; sinCupo: string[] } {
+  const buenos = archivos.filter((a) => (FORMATOS_DE_SUBIDA as readonly string[]).includes(a.type))
+  const cupo = Math.max(0, libres)
+  return { suben: buenos.slice(0, cupo), formato: archivos.filter((a) => !buenos.includes(a)).map((a) => a.name), sinCupo: buenos.slice(cupo).map((a) => a.name) }
+}
+
+/** la línea que explica qué quedó afuera al subir */
+export function lineaDeLoQueNoSubio(x: { formato: string[]; sinCupo: string[]; fallidas?: string[] }, maximo = MAXIMO_DE_IMAGENES): string | null {
+  const partes: string[] = []
+  if (x.sinCupo.length) partes.push(`No cupieron (máximo ${maximo}): ${x.sinCupo.join(", ")}`)
+  if (x.formato.length) partes.push(`No son png, jpg ni webp: ${x.formato.join(", ")}`)
+  if (x.fallidas?.length) partes.push(`No se pudieron leer: ${x.fallidas.join(", ")}`)
+  return partes.length ? `${partes.join(". ")}.` : null
+}
+
+/** Video y 3D aceptan una sola imagen: se conservan todas y se usa la de número más bajo, con una línea que lo dice (punto 2 de CC6) */
+export function avisoDeUnaSola(tipo: TipoDePieza, lista: ReadonlyArray<{ numero: number }>): string | null {
+  if (tipo === "imagen" || lista.length < 2) return null
+  return `${NOMBRE_DEL_TIPO[tipo]} usa solo la imagen ${enOrden(lista)[0].numero}; las demás quedan guardadas para Imagen.`
+}
+
+/** el texto bajo «Crear» con varias referencias: «Imagen con 3 referencias · US$ 0,15» (boceto aprobado) */
+export function lineaDeReferencias(c: Cotizacion | null): string | null {
+  if (!c || c.partes.length !== 1 || !/referencias/.test(c.partes[0].que)) return null
+  const que = c.partes[0].que
+  return `${que.charAt(0).toUpperCase()}${que.slice(1)} · ${dolares(c.partes[0].usd)}`
+}
+
+/** el cuerpo que va a la plataforma: solo los campos de ese tipo. Imagen con 2 o más → `fotos` en el orden de sus números; si no, la de número más bajo */
+export function cuerpoDelPedido(clienteId: string | null, tipo: TipoDePieza, texto: string, o: Opciones, adjuntas: { b64: string } | { pieza_id: string } | readonly ImagenAdjunta[] | null): Record<string, unknown> {
+  const lista: ImagenAdjunta[] = !adjuntas ? [] : Array.isArray(adjuntas) ? enOrden(adjuntas as readonly ImagenAdjunta[]) : [{ ...(adjuntas as { b64: string } | { pieza_id: string }), numero: 1 }]
+  const foto = lista[0] ?? null
   const base: Record<string, unknown> = { client_id: clienteId, tipo, prompt: texto }
   if (tipo === "imagen") base.formato = o.formato
   if (tipo === "3d") Object.assign(base, { modelo: o.modelo3d, calidad: o.calidad })
   if (tipo === "video") Object.assign(base, { modelo: o.modeloVideo, formato: ["9:16", "16:9", "1:1"].includes(o.formato) ? o.formato : "9:16", segundos: o.segundos, resolucion: o.resolucion })
+  if (tipo === "imagen" && lista.length >= 2) {
+    base.fotos = lista.map((x) => ("b64" in x ? { numero: x.numero, b64: x.b64 } : { numero: x.numero, pieza_id: x.pieza_id }))
+    return base
+  }
   if (foto && "b64" in foto) base.foto_b64 = foto.b64
   if (foto && "pieza_id" in foto) base.foto_pieza_id = foto.pieza_id
   return base
 }
 
-/** lo que se manda a cotizar: sin la foto (el precio solo depende de si la hay) */
+/** lo que se manda a cotizar: sin las fotos (el precio solo depende de si las hay y de cuántas) */
 export function cuerpoDeCotizacion(cuerpo: Record<string, unknown>): Record<string, unknown> {
-  const sinFoto = Object.fromEntries(Object.entries(cuerpo).filter(([k]) => k !== "foto_b64" && k !== "foto_pieza_id"))
-  return { ...sinFoto, prompt: (typeof sinFoto.prompt === "string" && sinFoto.prompt) || "cotización", con_foto: "foto_b64" in cuerpo || "foto_pieza_id" in cuerpo }
+  const sinFoto = Object.fromEntries(Object.entries(cuerpo).filter(([k]) => k !== "foto_b64" && k !== "foto_pieza_id" && k !== "fotos"))
+  const n = Array.isArray(cuerpo.fotos) ? cuerpo.fotos.length : 0
+  return { ...sinFoto, prompt: (typeof sinFoto.prompt === "string" && sinFoto.prompt) || "cotización", con_foto: "foto_b64" in cuerpo || "foto_pieza_id" in cuerpo || n > 0, ...(n ? { n_fotos: n } : {}) }
 }
+
+// ── la ✕ y la papelera (decisión B de Emilio · GO 09-nov 22:45Z) ─────────────
+
+export const DIAS_EN_LA_PAPELERA = 30
+/** una pieza que se está creando no se manda a la papelera (su cobro se anota al terminar) */
+export const sePuedeQuitar = (p: Pick<Pieza, "estado">) => p.estado !== "creando"
+/** días que le quedan en la papelera (misma cuenta que la plataforma) */
+export function diasQueQuedan(desde: string | null | undefined, ahoraMs: number): number {
+  const t = Date.parse(desde ?? "")
+  if (!Number.isFinite(t)) return DIAS_EN_LA_PAPELERA
+  return Math.max(0, Math.ceil((t + DIAS_EN_LA_PAPELERA * 86_400_000 - ahoraMs) / 86_400_000))
+}
+export const textoDeDias = (n: number) => (n === 0 ? "se borra hoy" : n === 1 ? "se borra mañana" : `se borra en ${n} días`)
+export const rutaDePapelera = (clienteId: string) => `/api/estudio/papelera?client_id=${encodeURIComponent(clienteId)}`
 
 // ── animar un modelo 3D (GO de Lenovo 06-nov) ─────────────────────────────────
 
