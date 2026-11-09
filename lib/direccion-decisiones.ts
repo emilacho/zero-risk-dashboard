@@ -49,6 +49,8 @@ export interface Decision {
   supuesto?: string | null
   /** el texto como lo guardó la fuente (la puerta del cerebro recibe la pregunta tal cual) */
   titulo_interno?: string | null
+  /** 10-nov · la oficina que la ficha de la plataforma nombra como departamento (`ficha.departamento.oficina`); la antena la usa para saber si es de marketing */
+  departamento_oficina?: string | null
 }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
 export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null; /** 05-nov · la oficina deja cambiarla antes de firmar (hoy: la meta y el presupuesto) */ editable?: boolean }
@@ -72,6 +74,14 @@ export interface Decisiones {
 const txt = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null)
 
+/** 10-nov · `ficha.departamento.oficina` de la plataforma (#959), si viene; sin él no se agrega nada */
+function departamentoDeLaFicha(d: Record<string, unknown>): { departamento_oficina?: string } {
+  const f = (d.ficha && typeof d.ficha === "object" ? d.ficha : {}) as Record<string, unknown>
+  const dep = (f.departamento && typeof f.departamento === "object" ? f.departamento : {}) as Record<string, unknown>
+  const o = txt(dep.oficina)
+  return o ? { departamento_oficina: o } : {}
+}
+
 /** lo que llega de la plataforma, revisado campo por campo: lo que no cuadra con el contrato se descarta (y la lista queda marcada incompleta) */
 export function normalizarDecisiones(raw: unknown): Decisiones {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>
@@ -93,6 +103,7 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
       decidir: { ruta: txt(dec.ruta), accion: txt(dec.accion) },
       ...contextoDeLaPlataforma(d),
       costo_usd: num(d.costo_usd), costo_nota: txt(d.costo_nota),
+      ...departamentoDeLaFicha(d),
     })
   }
   const fuentes = (Array.isArray(r.fuentes) ? r.fuentes : []).flatMap((f) => {
