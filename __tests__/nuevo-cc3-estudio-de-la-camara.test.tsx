@@ -210,6 +210,27 @@ describe("la cámara en la escena", () => {
     expect(escena).toMatch(/data-zona=\{CAMARA\.clave\}[^>]*\n\s*onClick=\{\(e\) => \{ e\.stopPropagation\(\); setEstudio\(true\) \}\}/)
     expect(escena).toMatch(/estudio && montado && fase !== "cerrado" && depto === "marketing" && createPortal\(<PanelEstudio/)
   })
+  it("GO 09-nov (boceto aprobado por Emilio): sin el óvalo naranja alrededor de la cámara, en ningún estado; quedan la luz suave y el rótulo ESTUDIO", () => {
+    const escena = readFileSync("components/nuevo/EscenaViva.tsx", "utf8")
+    // el grupo de la cámara, de su <g> a su </g>
+    const inicio = escena.indexOf("data-zona={CAMARA.clave}")
+    const grupo = escena.slice(inicio, escena.indexOf("</g>", inicio))
+    expect(inicio).toBeGreaterThan(0)
+    // la luz sigue (relleno suave) pero sin contorno
+    const luz = /<ellipse className="nv-camara-halo"[^>]*\/>/.exec(grupo)?.[0] ?? ""
+    expect(luz).toContain('fill="url(#nv-camara-luz)"')
+    expect(luz).toContain('stroke="none"')
+    expect(luz).not.toMatch(/strokeWidth|strokeOpacity|stroke="#/)
+    // ninguna otra figura con trazo dentro del grupo: solo el rótulo lleva trazo
+    const conTrazo = grupo.match(/<(ellipse|circle|rect|path|polygon|line)\b[^>]*stroke="(?!none)[^"]*"/g) ?? []
+    expect(conTrazo).toEqual([])
+    expect(grupo).toMatch(/<text className="nv-rotulo" x=\{CAMARA\.rotulo\.x\}[\s\S]*\{CAMARA\.rotulo\.texto\}/)
+    expect(CAMARA.rotulo.texto).toBe("ESTUDIO")
+    // tampoco al pasar el ratón o con el foco: la regla de la luz no tiene trazo y el grupo no tiene contorno de foco
+    expect(escena).toMatch(/\.nv-camara-halo\{[^}]*stroke:none/)
+    expect(escena).not.toMatch(/\.nv-tablero:(hover|focus-visible)[^{]*\.nv-camara-halo\{[^}]*stroke:(?!none)/)
+    expect(escena).toMatch(/\.nv-tablero\{cursor:pointer;outline:none\}/)
+  })
 })
 
 describe("animar un modelo 3D (GO 06-nov)", () => {
