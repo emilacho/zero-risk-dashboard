@@ -79,7 +79,7 @@ describe("6.12 · el monolito es TU OFICINA", () => {
     expect(v).toContain("const ruta = departamentoDeLaRuta(window.location.pathname)")
     expect(v).toContain("if (ruta && (!abierta || ruta !== depto)) abrir(ruta, false)")
     expect(v).not.toContain("PANTALLAS"); expect(v).not.toContain("cerebroConUrl") // 6.12b: nada del Cerebro dentro de tu oficina
-    expect(v).toContain('createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} elegirCliente />, document.body)') // el explorador sigue para /nuevo/cerebro
+    expect(v).toContain('createPortal(<PanelCerebro onCerrar={() => cerrarCerebro()} />, document.body)') // 06-nov: sin selector propio // el explorador sigue para /nuevo/cerebro
     const e = leer("components/nuevo/EscenaNuevo.tsx")
     expect(e).toContain('z.clave === "oficina" ? alAbrirOficina'); expect(e).not.toContain("alAbrirCerebro")
     const p = leer("app/nuevo/oficina/page.tsx")

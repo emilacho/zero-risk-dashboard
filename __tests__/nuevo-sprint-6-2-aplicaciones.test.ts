@@ -59,7 +59,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     expect(html).toMatch(/<button type="button" data-aplicacion="piezas" data-aviso="true"[^>]*aria-haspopup="dialog"/) // 6.6: abre encima, con el punto de aviso
     expect(html).toMatch(/<button type="button" data-aplicacion="calendario" data-aviso="false"[^>]*aria-haspopup="dialog"/)
     expect(html).toContain("1 pieza espera tu aprobación"); expect(html).toContain("Campaña en pausa"); expect(html).toContain("2 publicaciones"); expect(html).not.toContain("calendario v1")
-    expect(html).toMatch(/aria-label="Elegir el cliente"/); expect(html).toContain(`<option value="${CLIENTE}"`); expect(html).toContain("Otro · sin campaña")
+    expect(html).not.toContain("<select"); expect(html).toContain("data-cliente-como-texto") // 06-nov selector único: el cliente se elige arriba
     expect(html).not.toContain('data-seccion="pizarron"') // el calendario no está abierto de entrada
     expect(html).not.toMatch(/decidir|aprobar\b/i)
     const c = readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")

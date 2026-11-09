@@ -1,6 +1,6 @@
 /**
  * 04-nov · TU OFICINA › DECISIONES SE CONTESTAN AHÍ (encargo `2026-11-04-ENCARGO-LENOVO-a-CC5-decisiones-se-contestan-en-tu-oficina.md` + adendas · boceto aprobado por Emilio 18:08Z).
- * Contratos: Cerebro (`POST /api/brain/alimentar/dueno` · respuesta / descartar) · CC1 #897 (`POST /api/finanzas/responder`, primero) · `firmar-tablero`.
+ * Contratos: CC1 #939 (`POST /api/dueno/preguntas` · responder / descartar · `GET` las pendientes; condición A de CC7 06-nov, antes la puerta del cerebro) · CC1 #897 (`POST /api/finanzas/responder`, primero) · `firmar-tablero`.
  * US$ 0, sin red: la plataforma es un fetch falso que anota cada llamada.
  */
 import { describe, expect, it, vi } from "vitest"
@@ -27,15 +27,16 @@ const D = normalizarDecisiones(CRUDO)
 const sin = (...ids: string[]): Decisiones => ({ ...D, decisiones: D.decisiones.filter((x) => !ids.includes(x.id)) })
 
 /** la plataforma de mentira: responde según ruta y método, y anota todo */
-function plataforma(r: { pausa?: [number, Record<string, unknown>]; dueno?: [number, Record<string, unknown>]; pendientes?: unknown[] } = {}) {
+function plataforma(r: { pausa?: [number, Record<string, unknown>]; dueno?: [number, Record<string, unknown>]; pendientes?: unknown[]; puerta?: [number, Record<string, unknown>] } = {}) {
   const llamadas: Array<{ url: string; metodo: string; cuerpo: Record<string, unknown> | null; llave: string | null }> = []
   const f = vi.fn(async (url: string, init: RequestInit) => {
     const cuerpo = init.body ? JSON.parse(String(init.body)) : null
     llamadas.push({ url, metodo: String(init.method), cuerpo, llave: (init.headers as Record<string, string>)["x-api-key"] ?? null })
     const res = (s: number, j: unknown) => new Response(JSON.stringify(j), { status: s })
-    if (url.includes("/api/brain/alimentar/dueno?")) return res(200, { ok: true, pendientes: r.pendientes ?? [{ pregunta_id: P1, tema: "ticket promedio", oficina: "financiera", agente: "jefe-financiero" }] })
+    if (url.includes("/api/brain/alimentar/dueno")) { const [s, j] = r.puerta ?? [410, { ok: false, error: "evento_retirado" }]; return res(s, j) } // la puerta del cerebro ya no es para preguntas (solo datos sueltos)
+    if (url.includes("/api/dueno/preguntas?")) return res(200, { ok: true, pendientes: r.pendientes ?? [{ pregunta_id: P1, tema: "ticket promedio", oficina: "financiera", agente: "jefe-financiero" }] })
     if (url.endsWith("/api/finanzas/responder")) { const [s, j] = r.pausa ?? [200, { en_pausa: false }]; return res(s, j) }
-    if (url.endsWith("/api/brain/alimentar/dueno")) { const [s, j] = r.dueno ?? [200, { ok: true, guardada: true }]; return res(s, j) }
+    if (url.endsWith("/api/dueno/preguntas")) { const [s, j] = r.dueno ?? [200, cuerpo?.accion === "descartar" ? { ok: true, descartada: true, estado: "descartada" } : { ok: true, guardada: true, ficha_ref: "f1", preguntas_cerradas: 1 }]; return res(s, j) }
     return res(404, {})
   })
   return { f: f as unknown as typeof fetch, llamadas }
@@ -66,19 +67,19 @@ describe("las acciones que muestra cada tarjeta (ADENDA 2 · solo las que su ofi
   })
 })
 
-describe("responder · primero la pausa de finanzas, después la puerta del dueño (nunca las dos)", () => {
-  it("no es de la pausa → la puerta del dueño recibe la forma exacta de Cerebro; sale porque la fila dejó de estar pendiente", async () => {
+describe("responder · primero la pausa de finanzas, después la ruta de las preguntas (nunca las dos)", () => {
+  it("no es de la pausa → la ruta de la plataforma recibe la forma exacta de #939; sale porque la fila dejó de estar pendiente", async () => {
     const p = plataforma()
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "Unos 28 dólares por mesa" }, deps(p))
     expect(r.status).toBe(200); expect(r.cuerpo).toMatchObject({ ok: true, sale: true, texto: "Contestada." })
     const [pausa, dueno] = p.llamadas.filter((x) => x.metodo === "POST")
     expect(pausa.url).toBe("https://plataforma.test/api/finanzas/responder"); expect(pausa.cuerpo).toEqual({ client_id: NAUFRAGO, tema: "ticket promedio", respuesta: "Unos 28 dólares por mesa", quien: "emilacho@hotmail.com" })
-    expect(dueno.url).toBe("https://plataforma.test/api/brain/alimentar/dueno")
+    expect(dueno.url).toBe("https://plataforma.test/api/dueno/preguntas")
     expect(dueno.cuerpo).toEqual({
-      evento: "respuesta", client_id: NAUFRAGO, pregunta_id: P1, tema: "ticket promedio", pregunta: "¿Cuánto gasta en promedio una mesa, en un día normal?", respuesta: "Unos 28 dólares por mesa",
-      canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${P1}`, respondido_en: "2026-11-04T16:52:00.000Z", preguntado_por: { oficina: "financiera", agente: "jefe-financiero" },
-      dry_run: false, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: "tablero:fijo",
+      accion: "responder", client_id: NAUFRAGO, pregunta_id: P1, respuesta: "Unos 28 dólares por mesa", decidido_por: "emilacho@hotmail.com",
+      canal: CANAL_DE_TU_OFICINA, mensaje_ref: `oficina:${P1}`, respondido_en: "2026-11-04T16:52:00.000Z", workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: "tablero:fijo",
     })
+    expect(p.llamadas.some((x) => x.url.includes("/api/brain/alimentar/dueno"))).toBe(false) // nunca la puerta del cerebro
     expect(CANAL_DE_TU_OFICINA).toBe("dashboard · Tu oficina")
     expect(p.llamadas.every((x) => x.llave === "secreta")).toBe(true); expect(JSON.stringify(r)).not.toContain("secreta")
     const reg = (r.cuerpo as { registro: Array<{ estado: string; cita?: string }> }).registro
@@ -88,7 +89,7 @@ describe("responder · primero la pausa de finanzas, después la puerta del due�
     const p = plataforma({ pausa: [200, { en_pausa: true, es_de_la_pausa: true, aplicada: true, en_el_cerebro: true, faltan: ["mesas"] }] })
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))
     expect(r.cuerpo).toMatchObject({ ok: true, sale: true })
-    expect(p.llamadas.filter((x) => x.url.endsWith("/api/brain/alimentar/dueno"))).toHaveLength(0)
+    expect(p.llamadas.filter((x) => x.url.endsWith("/api/dueno/preguntas"))).toHaveLength(0)
     expect(JSON.stringify(r.cuerpo)).toContain("15 minutos"); expect(JSON.stringify(r.cuerpo)).toContain("la pregunta que falta")
     const soltada = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ pausa: [200, { en_pausa: true, es_de_la_pausa: true, en_el_cerebro: true, faltan: [], soltada: true }] })))
     expect((soltada.cuerpo as { registro: Array<{ estado: string }> }).registro.at(-1)!.estado).toBe("retomado")
@@ -100,24 +101,42 @@ describe("responder · primero la pausa de finanzas, después la puerta del due�
   it("si la ruta de la pausa falla, no se guarda en ningún lado (no se arriesga a guardar dos veces)", async () => {
     const p = plataforma({ pausa: [500, { error: "responder_error" }] })
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))
-    expect(r.cuerpo).toMatchObject({ ok: false, sale: false }); expect(p.llamadas.filter((x) => x.url.endsWith("/api/brain/alimentar/dueno"))).toHaveLength(0)
+    expect(r.cuerpo).toMatchObject({ ok: false, sale: false }); expect(p.llamadas.filter((x) => x.url.endsWith("/api/dueno/preguntas"))).toHaveLength(0)
   })
-  it("si la ruta de la pausa todavía no existe (404), sigue por la puerta del dueño", async () => {
+  it("si la ruta de la pausa todavía no existe (404), sigue por la ruta de las preguntas", async () => {
     const p = plataforma({ pausa: [404, {}] })
     expect((await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))).cuerpo).toMatchObject({ ok: true, sale: true })
-    expect(p.llamadas.filter((x) => x.url.endsWith("/api/brain/alimentar/dueno"))).toHaveLength(1)
+    expect(p.llamadas.filter((x) => x.url.endsWith("/api/dueno/preguntas"))).toHaveLength(1)
   })
-  it("sin saber qué oficina preguntó no se guarda (el cerebro lo exige): falla visible, ninguna escritura", async () => {
+  it("sin saber qué oficina preguntó igual se guarda: la ruta lo saca de la fila (la de 72 h no trae las viejas)", async () => {
     const p = plataforma({ pendientes: [] })
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))
-    expect(r.cuerpo).toMatchObject({ ok: false, sale: false }); expect((r.cuerpo as { motivo: string }).motivo).toMatch(/qué oficina/)
-    expect(p.llamadas.filter((x) => x.url.endsWith("/api/brain/alimentar/dueno"))).toHaveLength(0)
+    expect(r.cuerpo).toMatchObject({ ok: true, sale: true })
+    expect((r.cuerpo as { registro: Array<{ texto: string }> }).registro[0].texto).toBe("La pregunta llegó a Tu oficina")
+  })
+  it("🔴 409 con la respuesta ya en el cerebro (otro cerró la fila entre medio) → contestada, sin repetirla", async () => {
+    const p = plataforma({ dueno: [409, { ok: false, error: "ya_cerrada", detalle: "la respuesta quedó en el cerebro, pero otro cerró la pregunta antes" }] })
+    const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))
+    expect(r.cuerpo).toMatchObject({ ok: true, sale: true }); expect(JSON.stringify(r.cuerpo)).toContain("ya había quedado en el cerebro")
+    expect(p.llamadas.some((x) => x.url.includes("/api/brain/alimentar/dueno"))).toBe(false)
+  })
+  it("🔴 CC7 · 409 antes de guardar (la pregunta ya estaba cerrada) → tu palabra va como dato suelto por la puerta del cerebro; si falla, se dice", async () => {
+    const p = plataforma({ dueno: [409, { ok: false, error: "ya_cerrada", detalle: "la pregunta ya está «respondida»" }], puerta: [200, { ok: true, guardada: true, ficha_id: "fs" }] })
+    const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(p))
+    expect(r.cuerpo).toMatchObject({ ok: true, sale: true }); expect(JSON.stringify(r.cuerpo)).toContain("La pregunta ya la había cerrado otro")
+    const suelto = p.llamadas.find((x) => x.url.endsWith("/api/brain/alimentar/dueno"))!
+    expect(suelto.cuerpo).toMatchObject({ evento: "respuesta", client_id: NAUFRAGO, tema: "ticket promedio", respuesta: "28", preguntado_por: { oficina: "financiera", agente: "jefe-financiero" }, dry_run: false })
+    expect(suelto.cuerpo).not.toHaveProperty("pregunta_id")
+    const falla = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ dueno: [409, { ok: false, error: "ya_cerrada", detalle: "la pregunta ya está «respondida»" }], puerta: [502, { ok: false, error: "x" }] })))
+    expect(falla.cuerpo).toMatchObject({ ok: false, sale: false }); expect((falla.cuerpo as { motivo: string }).motivo).toMatch(/tampoco se pudo guardar como dato suelto/)
   })
   it("si la puerta rechaza, la tarjeta se queda con el motivo", async () => {
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ dueno: [400, { error: "entrada_invalida", detalle: "`tema` va hasta 80" }] })))
     expect(r.cuerpo).toMatchObject({ ok: false, sale: false }); expect((r.cuerpo as { motivo: string }).motivo).toContain("`tema` va hasta 80")
-    const apagada = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ dueno: [200, { apagado: true }] })))
-    expect(apagada.cuerpo).toMatchObject({ ok: false, sale: false })
+    const sinGuardar = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ dueno: [200, { ok: true, guardada: false }] })))
+    expect(sinGuardar.cuerpo).toMatchObject({ ok: false, sale: false })
+    const cerebroCaido = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma({ dueno: [502, { ok: false, error: "cerebro_no_guardo", detalle: "la pregunta sigue pendiente" }] })))
+    expect(cerebroCaido.cuerpo).toMatchObject({ ok: false, sale: false }); expect((cerebroCaido.cuerpo as { motivo: string }).motivo).toContain("la pregunta sigue pendiente")
   })
   it("se guardó pero la fila sigue pendiente → no se dice «salió» (una sola fuente de verdad)", async () => {
     const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28" }, deps(plataforma(), lecturas(D, D)))
@@ -126,23 +145,24 @@ describe("responder · primero la pausa de finanzas, después la puerta del due�
 })
 
 describe("descartar y firmar", () => {
-  it("responder manda exactamente la forma del cerebro, y la pregunta nunca pasa de su tope de 600 (LISTO de Cerebro · 4-nov)", async () => {
-    const larga = { ...D, decisiones: D.decisiones.map((x) => (x.id === P1 ? { ...x, titulo_interno: "¿".repeat(700) } : x)) }
-    const p = plataforma(); const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28 dólares" }, deps(p, lecturas(larga, sin(P1))))
+  it("responder manda exactamente la forma de #939: sin texto de pregunta ni tema (la ruta los saca de la fila)", async () => {
+    const p = plataforma(); const r = await contestarDecision({ id: P1, accion: "responder", respuesta: "28 dólares" }, deps(p))
     expect(r.status).toBe(200)
-    const post = p.llamadas.find((x) => x.metodo === "POST" && x.url.endsWith("/api/brain/alimentar/dueno"))!
-    expect(Object.keys(post.cuerpo!).sort()).toEqual(["canal", "client_id", "dry_run", "evento", "mensaje_ref", "pregunta", "pregunta_id", "preguntado_por", "respondido_en", "respuesta", "tema", "workflow_execution_id", "workflow_id"])
-    expect(String(post.cuerpo!.pregunta)).toHaveLength(600)
+    const post = p.llamadas.find((x) => x.metodo === "POST" && x.url.endsWith("/api/dueno/preguntas"))!
+    expect(Object.keys(post.cuerpo!).sort()).toEqual(["accion", "canal", "client_id", "decidido_por", "mensaje_ref", "pregunta_id", "respondido_en", "respuesta", "workflow_execution_id", "workflow_id"])
   })
-  it("descartar → evento «descartar» con motivo (queda obsoleta; nada se borra)", async () => {
-    const p = plataforma({ dueno: [200, { ok: true, descartadas: 1 }] })
+  it("descartar → «descartar» con motivo y quién (queda descartada; nada se borra)", async () => {
+    const p = plataforma()
     const r = await contestarDecision({ id: P1, accion: "descartar", motivo: "ya no aplica" }, deps(p))
     expect(r.cuerpo).toMatchObject({ ok: true, sale: true, texto: "Descartada." })
     const post = p.llamadas.find((x) => x.metodo === "POST")!
-    expect(post.cuerpo).toEqual({ evento: "descartar", client_id: NAUFRAGO, pregunta_id: P1, motivo: "Emilio la descartó en Tu oficina: ya no aplica", dry_run: false, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: "tablero:fijo" })
+    expect(post.url).toBe("https://plataforma.test/api/dueno/preguntas")
+    expect(post.cuerpo).toEqual({ accion: "descartar", client_id: NAUFRAGO, pregunta_id: P1, motivo: "Emilio la descartó en Tu oficina: ya no aplica", decidido_por: "emilacho@hotmail.com", workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: "tablero:fijo" })
     expect(p.llamadas.some((x) => x.url.endsWith("/api/finanzas/responder"))).toBe(false)
-    const nada = await contestarDecision({ id: P1, accion: "descartar" }, deps(plataforma({ dueno: [200, { ok: true, descartadas: 0 }] })))
-    expect(nada.cuerpo).toMatchObject({ ok: false, sale: false })
+    const ya = await contestarDecision({ id: P1, accion: "descartar" }, deps(plataforma({ dueno: [409, { ok: false, error: "ya_cerrada" }] })))
+    expect(ya.cuerpo).toMatchObject({ ok: false, sale: false }); expect((ya.cuerpo as { motivo: string }).motivo).toMatch(/alguien la cerró antes/)
+    const raro = await contestarDecision({ id: P1, accion: "descartar" }, deps(plataforma({ dueno: [200, { ok: true }] })))
+    expect(raro.cuerpo).toMatchObject({ ok: false, sale: false })
   })
   it("firmar → la acción firmar-tablero con el tablero; si la plataforma no la acepta, se queda", async () => {
     const firmar = vi.fn(async () => ({ status: 200, cuerpo: { ok: true } }))
@@ -171,11 +191,15 @@ describe("descartar y firmar", () => {
     }
     expect(p.llamadas.filter((x) => x.metodo === "POST")).toHaveLength(0); expect(firmar).not.toHaveBeenCalled()
   })
-  it("quién preguntó: lo lee de la puerta del dueño; apagada o caída = no se sabe (null)", async () => {
-    const m = await quienPregunto({ plataformaUrl: "https://plataforma.test", llave: "k", fetchImpl: plataforma().f }, NAUFRAGO)
+  it("quién preguntó: lo lee del GET de la ruta de las preguntas; caída o sin «ok» = no se sabe (null)", async () => {
+    const p = plataforma()
+    const m = await quienPregunto({ plataformaUrl: "https://plataforma.test", llave: "k", fetchImpl: p.f }, NAUFRAGO)
     expect(m?.get(P1)).toEqual({ oficina: "financiera", agente: "jefe-financiero" })
-    const apagada = vi.fn(async () => new Response(JSON.stringify({ apagado: true }), { status: 200 })) as unknown as typeof fetch
-    expect(await quienPregunto({ plataformaUrl: "https://p.test", llave: "k", fetchImpl: apagada }, NAUFRAGO)).toBeNull()
+    expect(p.llamadas[0].url).toBe(`https://plataforma.test/api/dueno/preguntas?client_id=${NAUFRAGO}`); expect(p.llamadas[0].metodo).toBe("GET")
+    const sinOk = vi.fn(async () => new Response(JSON.stringify({ pendientes: [] }), { status: 200 })) as unknown as typeof fetch
+    expect(await quienPregunto({ plataformaUrl: "https://p.test", llave: "k", fetchImpl: sinOk }, NAUFRAGO)).toBeNull()
+    const caida = vi.fn(async () => new Response("x", { status: 502 })) as unknown as typeof fetch
+    expect(await quienPregunto({ plataformaUrl: "https://p.test", llave: "k", fetchImpl: caida }, NAUFRAGO)).toBeNull()
   })
 })
 
@@ -226,7 +250,9 @@ describe("la pantalla (boceto aprobado)", () => {
     expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
     expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-chip="detiene"') // estilo base: el recuadro es el filtro
     expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Financiero<\/span>/) // estilo base: DEPARTAMENTO / Financiero, no una frase
-    expect(html).toContain("El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.")
+    // 09-nov · Lenovo: «Desbloquea» muestra la primera frase entera (aquí es una sola, así que no se repite en el detalle)
+    expect(html).toContain('<span data-destraba="true">El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.</span>')
+    expect(renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: conQuien, detalleInicial: true }))).not.toContain("data-destraba-entero")
     expect(html).toContain("data-respuesta"); expect(html).toContain("Enviar respuesta"); expect(html).toContain("data-descartar-abrir")
     expect(html).not.toContain("data-firmar"); expect(html).not.toContain("buzón de preguntas") // la tarjeta vieja de la pausa (Slack) no se repite
   })

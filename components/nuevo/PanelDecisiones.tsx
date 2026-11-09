@@ -1,14 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { BajaParaFirmar, EditorDeCifra, type VerCambio } from "@/components/nuevo/EditorDeCifra"
+import { EditorDeCifra, type VerCambio } from "@/components/nuevo/EditorDeCifra"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
   NOMBRE_DEL_TIPO, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
-  type AccionDeDecision, type Decision, type Decisiones, cifraEnRecuadro, partirLoDecisivo } from "@/lib/direccion-decisiones"
+  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, primeraFrase } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
 
@@ -29,7 +29,7 @@ type Respuesta = ({ ok: true } & Decisiones) | { ok: false; error: string }
 /** de qué parte de la empresa viene cada decisión (la tabla de origen, en palabras de negocio) */
 const ORIGEN: Record<string, string> = {
   hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina financiera", finanzas_preguntas: "Oficina financiera",
-  cerebro_dueno_preguntas: "El cerebro del cliente", plan_aprobaciones: "Oficina de planeación",
+  cerebro_dueno_preguntas: "El cerebro del cliente", dueno_preguntas: "Preguntas de las oficinas", plan_aprobaciones: "Oficina de planeación",
 }
 /** el departamento en una o dos palabras (rótulo fijo DEPARTAMENTO / valor) */
 const DEPARTAMENTO: Record<string, string> = {
@@ -79,12 +79,20 @@ function Registro({ c, onCerrar }: { c: Contestada; onCerrar: () => void }) {
 }
 
 /** la tarjeta del frente: todo lo que hace falta para decidir, en palabras de negocio; lo que se contesta aquí, se contesta en la misma tarjeta */
-export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa }: {
+/** el número solo, grande; la moneda en el rótulo (Lenovo 06-nov) */
+function CuerpoDeCifra({ c }: { c: CifraDeFirma }) {
+  const r = cifraEnRecuadro(c)
+  return <><span data-numero-de-cifra className="block whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums] text-hueso">{r.numero}</span><span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{r.rotulo}</span>{c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}</>
+}
+
+export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa, detalleInicial = false }: {
   d: Decision; alDecidir: (d: Decision) => void; enPausa: string | null; detiene: boolean
   contestar: (d: Decision, accion: AccionDeDecision, texto: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => Promise<ResultadoDeContestar | null>
   verCambio: (d: Decision, clave: string, firmado: number) => ReturnType<VerCambio>
   /** lo que pasó la última vez que se contestó esta decisión (si no salió, se muestra el motivo) */
   previa: Contestada | null
+  /** para pruebas e imágenes: el detalle ya abierto */
+  detalleInicial?: boolean
 }) {
   const pr = prioridadLegible(d.prioridad), donde = dondeSeDecide(d), acciones = accionesDe(d)
   const [respuesta, setRespuesta] = useState(previa?.accion === "responder" ? (previa.resultado.registro.find((p) => p.cita)?.cita ?? "") : "")
@@ -93,12 +101,24 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const [enviando, setEnviando] = useState<AccionDeDecision | null>(null)
   const [cambiando, setCambiando] = useState<string | null>(null) // la cifra que Emilio está cambiando: una a la vez, porque la meta y el presupuesto están atados
   const cifraEnCambio = d.cifras?.find((c) => c.clave === cambiando && c.editable) ?? null
+  const [verDetalle, setVerDetalle] = useState(detalleInicial) // 09-nov: el texto entero, al tocar «Decisivo» o «Uso» (sin botón nuevo)
+  const { frente, detalle: cifrasDelDetalle } = cifrasDelFrente(d.cifras ?? [])
+  const corto = d.criticos?.length ? decisivoCorto(d.criticos[0]) : null
   const fallo = previa && !previa.resultado.sale ? previa.resultado.motivo ?? previa.resultado.texto : null
   const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.` : null)
   const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { return await contestar(d, a, t) } finally { setEnviando(null) } }
   const contestable = acciones.length > 0
   const falta = faltaQueLeer(d)
   const editables = acciones.includes("editar") ? (d.cifras ?? []).filter((c) => c.editable) : []
+  // CC6 #290: si la firma no trae «Decisivo», «Uso» ni «Desbloquea», no hay bloque que abra el detalle; entonces las demás cifras se ven sin tocar nada (ninguna información se pierde)
+  const sinPuerta = !corto && !d.para_que && !destraba
+  // CC6 #290 (e145a7c): el detalle solo existe si tiene algo que mostrar; si no, «Uso / Desbloquea» es texto, no un botón que abre una caja vacía
+  const usoDeMas = !!d.para_que && primeraFrase(d.para_que) !== d.para_que.trim()
+  const destrabaDeMas = !!destraba && primeraFrase(destraba) !== destraba.trim()
+  const hayDetalle = !!d.criticos?.length || usoDeMas || destrabaDeMas || cifrasDelDetalle.length > 0
+  const recuadro = (c: CifraDeFirma, marca: Record<string, string>) => editables.some((x) => x.clave === c.clave)
+    ? <div key={c.clave} {...marca}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><CuerpoDeCifra c={c} /></button></div>
+    : <div key={c.clave} {...marca} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center"><CuerpoDeCifra c={c} /></div>
   // lo que no salió se lee sin bajar (CC6 · #283)
   const porQue = useRef<HTMLDivElement>(null)
   const pie = useRef<HTMLElement>(null) // Firmar no va fijo: se llega a él pasando por las cifras y por lo que sigue abierto (CC6 · #283)
@@ -121,23 +141,34 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
       {cifraEnCambio ? <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} criticos={d.criticos ?? []} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} /> : d.cifras?.length ? (
         <div data-cifras className="mt-5">
           <Rotulo tono="gris">Propuesta</Rotulo>
-          <div className={`mt-3 grid gap-3 ${d.cifras.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-            {d.cifras.map((c) => {
-              const enRecuadro = cifraEnRecuadro(c) // como en la imagen aprobada: el número solo, grande; la moneda en el rótulo (Lenovo 06-nov)
-              const cuerpo = <><span data-numero-de-cifra className="block whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums] text-hueso">{enRecuadro.numero}</span><span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{enRecuadro.rotulo}</span>{c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}</>
-              return editables.some((x) => x.clave === c.clave)
-                ? <div key={c.clave} data-cifra={c.clave}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">{cuerpo}</button></div>
-                : <div key={c.clave} data-cifra={c.clave} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4">{cuerpo}</div>
-            })}
+          {/* 09-nov · solo las dos cifras que decide el dueño; las demás, en el detalle */}
+          <div className={`mt-3 grid gap-3 ${frente.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {frente.map((c) => recuadro(c, { "data-cifra": c.clave }))}
           </div>
         </div>
       ) : null}
-      {!cifraEnCambio && d.criticos?.length ? <div data-criticos><Aviso rotulo="Decisivo"><ul className="space-y-2">{d.criticos.map((c) => { const p = partirLoDecisivo(c); return <li key={c}>{p.frase}{p.porque && <span data-porque className="block text-cuerpo font-normal text-gris">{p.porque}</span>}</li> })}</ul></Aviso></div> : null}
-      {!cifraEnCambio && (d.para_que || destraba) && (
-        <div data-contexto className="mt-4"><Pares valor="text-dato" pares={[
-          ...(d.para_que ? [{ rotulo: "Uso", valor: d.para_que }] : []),
-          ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{destraba}</span> }] : []),
-        ]} /></div>
+      {!cifraEnCambio && corto && (
+        // 09-nov · «Decisivo»: una frase y su porqué en dos líneas; tocar el bloque abre el texto entero
+        <button type="button" data-criticos aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="block w-full rounded-control text-center focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">
+          <Aviso rotulo="Decisivo"><span data-frase className="block">{corto.frase}</span>{corto.porque && <span data-porque className="block text-cuerpo font-normal text-gris">{corto.porque}</span>}</Aviso>
+        </button>
+      )}
+      {!cifraEnCambio && (d.para_que || destraba) && (() => {
+        const pares = <Pares valor="text-dato" pares={[
+          ...(d.para_que ? [{ rotulo: "Uso", valor: <span data-uso>{primeraFrase(d.para_que)}</span> }] : []),
+          ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{primeraFrase(destraba)}</span> }] : []),
+        ]} />
+        return hayDetalle
+          ? <button type="button" data-contexto aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="mt-4 block w-full rounded-control focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">{pares}</button>
+          : <div data-contexto-solo className="mt-4">{pares}</div>
+      })()}
+      {!cifraEnCambio && hayDetalle && (verDetalle || (sinPuerta && cifrasDelDetalle.length > 0)) && (
+        <div data-detalle className="mt-4 space-y-4 border-t border-linea pt-4 text-left">
+          {d.criticos?.length ? <div><Rotulo tono="alarma">Decisivo</Rotulo><ul className="mt-1.5 space-y-2 text-dato text-hueso">{d.criticos.map((c) => <li key={c} data-critico-entero>{c}</li>)}</ul></div> : null}
+          {usoDeMas && <div><Rotulo tono="gris">Uso</Rotulo><p data-uso-entero className="mt-1.5 text-dato text-hueso">{d.para_que}</p></div>}
+          {destrabaDeMas && <div><Rotulo tono="gris">Desbloquea</Rotulo><p data-destraba-entero className="mt-1.5 text-dato text-hueso">{destraba}</p></div>}
+          {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div></div>}
+        </div>
       )}
       {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina financiera debe mandar las cifras que propone.</Aviso></div>}
       {!contestable && !falta && (
@@ -168,7 +199,6 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           </Acciones>
         </div>
       )}
-      {!cifraEnCambio && acciones.includes("aceptar") && <BajaParaFirmar hasta={pie} />}
       {!cifraEnCambio && <footer ref={pie} data-pie>
         {(contestable && !descartando) && (
           <Acciones>
@@ -187,7 +217,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   )
 }
 
-export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = fetch }: { onCerrar: () => void; datosIniciales?: Decisiones | null; fetchImpl?: typeof fetch }) {
+export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = fetch, detalleInicial = false }: { onCerrar: () => void; datosIniciales?: Decisiones | null; fetchImpl?: typeof fetch; /** para pruebas e imágenes */ detalleInicial?: boolean }) {
   const [datos, setDatos] = useState<Decisiones | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -278,7 +308,6 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     ...(fuera ? [{ clave: "fuera", numero: fuera, rotulo: "Fuera", activo: grupo === "fuera" }] : []),
     ...g.pausa.map((p) => ({ clave: `pausa:${p.cliente}`, numero: p.decisiones.length, rotulo: g.pausa.length > 1 ? `Pausa ${clienteCorto(p.cliente)}` : "En pausa", activo: grupo === `pausa:${p.cliente}` })),
   ]
-  const faltan = (datos?.fuentes ?? []).filter((f) => f.estado === "error" || f.estado === "sin_credencial")
 
   return (
     <PanelBase titulo="Decisiones" id="decisiones-titulo" seccion="decisiones" onCerrar={onCerrar} etiquetaCerrar="Cerrar las decisiones" ancho="max-w-[520px]">
@@ -290,7 +319,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
       {registro ? <Registro c={registro} onCerrar={() => setRegistro(null)} />
         : actual ? (
           <>
-            <TarjetaDelFrente key={actual.id} d={actual} alDecidir={setAbierta} enPausa={enPausa} detiene={g.detienen.some((x) => x.id === actual.id)} contestar={contestar} verCambio={verCambio} previa={contestadas.find((c) => c.d.id === actual.id) ?? null} />
+            <TarjetaDelFrente key={actual.id} d={actual} alDecidir={setAbierta} enPausa={enPausa} detiene={g.detienen.some((x) => x.id === actual.id)} contestar={contestar} verCambio={verCambio} previa={contestadas.find((c) => c.d.id === actual.id) ?? null} detalleInicial={detalleInicial} />
             <Paginas actual={Math.min(i, n - 1) + 1} total={n} alMover={mover} etiqueta="Pasar de una decisión a otra" />
           </>
         ) : (
@@ -308,13 +337,6 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
           {contestadas.slice(0, 5).map((c) => <button key={c.d.id} type="button" onClick={() => setRegistro(c)} className="mt-1 block min-h-11 w-full truncate text-dato text-hueso hover:text-oro">{c.resultado.sale ? "✓" : "!"} {tituloDeDecision(c.d)}</button>)}
         </div>
       )}
-      {(datos?.sin_fuente.length || faltan.length) ? (
-        <div data-sin-dato className="mt-6 border-t border-linea pt-4 text-center">
-          <Rotulo>Sin dato</Rotulo>
-          {faltan.map((f) => <p key={f.fuente} className="mt-1 text-dato text-gris">{f.fuente}: no se pudo leer</p>)}
-          {datos?.sin_fuente.map((s) => <p key={s.que} title={s.motivo} className="mt-1 text-dato text-gris">{s.que}</p>)}
-        </div>
-      ) : null}
     </PanelBase>
   )
 }

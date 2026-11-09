@@ -181,3 +181,19 @@ export function clientesDelSelector(nombres: string[]): Array<{ nombre: string; 
   for (const n of nombres) { if (NO_ES_CLIENTE(n)) continue; const s = slugDeCliente(n); if (s && !vistos.has(s)) vistos.set(s, n) }
   return [...vistos.entries()].sort((a, b) => a[1].localeCompare(b[1], "es")).map(([, n]) => ({ nombre: n, ruta: rutaDelCliente(n) }))
 }
+
+/** 06-nov · SELECTOR ÚNICO: cada cliente de la lista de arriba con su id (el mismo que usan los paneles) y el estado de su última campaña, como lo dice el panel */
+export interface ClienteDelSelector { nombre: string; ruta: string; id: string | null; con_campana?: boolean; estado_campana?: string | null }
+export function conIdYCampana(
+  lista: Array<{ nombre: string; ruta: string }>, filas: Array<{ id: string }>, nombres: string[],
+  campanas: Array<{ client_id: unknown; estado: unknown }> | null, vivos: readonly string[],
+): ClienteDelSelector[] {
+  const idDe = new Map<string, string>(); filas.forEach((f, i) => { if (!idDe.has(nombres[i])) idDe.set(nombres[i], f.id) })
+  const ultima = new Map<string, string>(), conCampana = new Set<string>()
+  for (const c of campanas ?? []) { const k = String(c.client_id ?? ""); if (!ultima.has(k)) ultima.set(k, String(c.estado ?? "")); if (vivos.includes(String(c.estado))) conCampana.add(k) }
+  return lista.map((c) => {
+    const id = idDe.get(c.nombre) ?? null
+    // sin lectura de campañas no se inventa estado: el selector muestra solo el nombre
+    return campanas && id ? { ...c, id, con_campana: conCampana.has(id), estado_campana: ultima.get(id) ?? null } : { ...c, id }
+  })
+}
