@@ -6,6 +6,7 @@
  * Luces pequeñas y realistas sobre la foto: nada de formas planas.
  */
 import { useEffect } from "react"
+import { createPortal } from "react-dom"
 import { ANTENA, BORDE_DE_LA_ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
 import type { PanelDelMarco } from "@/lib/buscador"
 import { haceCuanto } from "@/lib/direccion-decisiones"
@@ -107,7 +108,16 @@ export function escucharEsc(w: Pick<Window, "addEventListener" | "removeEventLis
 export function PanelDeLasAlertas(p: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: (a: AlertaDeLaAntena) => void; onCerrar: () => void; ahora?: number }) {
   const { onCerrar } = p
   useEffect(() => escucharEsc(window, onCerrar), [onCerrar])
-  return ListaDeLasAlertas(p)
+  return enElCuerpo(ListaDeLasAlertas(p))
+}
+
+/**
+ * 09-nov (CORRECCIÓN de Lenovo, Emilio en producción): la lista va al <body>, como los demás paneles. Dentro de la escena heredaba
+ * `.nv-av{pointer-events:none}`: la ✕ no cerraba y el clic en un aviso caía en la mesa de abajo (abría el plantel de Estrategia).
+ * Sin documento (servidor y pruebas sin navegador) se dibuja en el lugar.
+ */
+export function enElCuerpo(lista: ReturnType<typeof ListaDeLasAlertas>) {
+  return typeof document === "undefined" ? lista : createPortal(lista, document.body)
 }
 
 /** lo que se dibuja (sin ganchos de React: se puede probar el clic llamándola) */
