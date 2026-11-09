@@ -111,7 +111,7 @@ describe("el panel", () => {
     for (const t of ["imagen", "video", "3d"]) expect(h).toContain(`data-tab="${t}"`)
     expect(h).toContain("data-texto")
     expect(h).toMatch(/data-subir="true"[^>]*>\+ Subir</)
-    expect(h).toContain("Opcional · hasta 6 imágenes · png, jpg o webp")
+    expect(h).toContain("Hasta 6 imágenes · png, jpg o webp")
     expect(h).toMatch(/data-crear="true" disabled=""/)
     expect(h).toContain("Todavía no hay nada creado")
   })

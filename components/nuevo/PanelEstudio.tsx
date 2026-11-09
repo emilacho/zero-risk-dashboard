@@ -129,7 +129,7 @@ function Miniatura({ p, alAbrir, alQuitar, enPapelera }: { p: Pieza; alAbrir: ()
 function Tarjeta({ p, alAbrir, pie }: { p: Pieza; alAbrir: () => void; pie?: string }) {
   const img = p.miniatura_url ?? (p.tipo === "imagen" ? p.archivo_url : null) ?? p.foto_partida_url
   return (
-    <button type="button" onClick={alAbrir} data-pieza={p.id} data-estado={p.estado} className={`es-pieza text-left ${p.estado === "creando" ? "es-cargando" : ""}`} aria-label={`${NOMBRE_DEL_TIPO[p.tipo]}: ${p.prompt || "sin texto"}`}>
+    <button type="button" onClick={alAbrir} data-pieza={p.id} data-estado={p.estado} className={`es-pieza block w-full text-left ${p.estado === "creando" ? "es-cargando" : ""}`} aria-label={`${NOMBRE_DEL_TIPO[p.tipo]}: ${p.prompt || "sin texto"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {img && p.estado !== "creando" && <img src={img} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
       {p.tipo === "video" && p.estado === "lista" && <span aria-hidden className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white">▶</span>}
@@ -426,10 +426,11 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                   className="w-full resize-none bg-transparent p-3 text-cuerpo leading-relaxed text-hueso placeholder:text-apagado focus:outline-none" />
                 <div className="mx-3 flex items-center gap-3 border-t border-linea py-2.5 text-dato text-gris">
                   <button type="button" data-subir className="es-chip" disabled={adjuntas.length >= MAXIMO_DE_IMAGENES} onClick={() => archivo.current?.click()}>+ Subir</button>
-                  <span data-cupo>{adjuntas.length ? `${adjuntas.length} de ${MAXIMO_DE_IMAGENES} imágenes` : tipo === "3d" ? "Sin imagen: primero se crea una y luego se convierte en 3D" : "Opcional · hasta 6 imágenes"} · png, jpg o webp</span>
+                  <span data-cupo>{adjuntas.length ? `${adjuntas.length} de ${MAXIMO_DE_IMAGENES} imágenes` : `Hasta ${MAXIMO_DE_IMAGENES} imágenes`} · png, jpg o webp</span>
                   <input ref={archivo} type="file" multiple accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { void alSubir(e.target.files); e.target.value = "" }} />
                 </div>
               </div>
+              {tipo === "3d" && !adjuntas.length && <p data-sin-imagen-3d className="mt-1 text-rotulo text-apagado">Sin imagen, primero se crea una y luego se convierte en 3D.</p>}
               {noSubio && <p data-no-subio role="status" className="mt-1 text-rotulo text-oro">{noSubio}</p>}
               {unaSola && <p data-una-sola className="mt-1 text-rotulo text-oro">{unaSola}</p>}
               {tipo === "3d" && !foto && /\b(logo|logotipo|marca)\b/i.test(texto) && <p className="mt-1 text-[11.5px] text-amber-300/90">Sin imagen de partida, el modelo inventa el logo. Para la marca real, sube una foto del producto.</p>}{/* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */}
