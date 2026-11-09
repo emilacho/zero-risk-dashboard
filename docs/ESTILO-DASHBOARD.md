@@ -17,11 +17,12 @@
 | Ámbar | `#e8731a` | **un solo** botón principal por tarjeta, siempre a la derecha |
 | Alarma | `#d9534a` | solo un punto, una línea fina o un número; **nunca un recuadro** |
 
-## 3 · Letra (4 tamaños + el número)
+## 3 · Letra (4 tamaños + el número + los botones)
 - **Título del panel:** 20, oro, MAYÚSCULAS espaciadas. Uno por panel, centrado.
 - **Rótulo:** 11, oro, MAYÚSCULAS espaciadas. Va sobre cada bloque y **siempre destaca más que el texto** de abajo.
 - **Texto:** 15, hueso. **Dato:** 13, gris.
 - **Número:** 36 en recuadro (contadores del panel) y 24 dentro de una tarjeta (cifras). Nunca más grande que eso.
+- **Botones: 18, peso medio, siempre** (09-nov, Emilio · imagen `APROBADO-botones-letra-18.png`). Vale para todos: el ámbar principal y los de borde oro. La caja, la forma y los colores no cambian. El costo que va junto al botón («≈ US$ 0,014») sigue en dato 13. Token `text-boton`; la revisión automática rechaza un botón ámbar o de borde oro sin él.
 - Dos pesos: normal y medio.
 
 ## 4 · Reglas de composición (lo que Emilio fue corrigiendo)

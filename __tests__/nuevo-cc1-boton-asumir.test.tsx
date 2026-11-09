@@ -227,6 +227,16 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
     expect(tarjeta()).toBe(CON)
     expect($("[data-asumir]")).toBeNull(); expect($("[data-supuesto]")).toBeNull()
   })
+  it("CC6 #303 · el «supuesto retirado» es solo de Asumir: un 409 accion_no_permitida al responder no quita el supuesto ni cambia el mensaje", async () => {
+    const t = tablero(() => [409, { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." }])
+    pintar(t)
+    fireEvent.change($("[data-respuesta]")!, { target: { value: "Unos 1.300" } })
+    fireEvent.click($("[data-enviar]")!)
+    await pasar(0)
+    expect(tarjeta()).toBe(CON)
+    expect($("[data-supuesto]")?.textContent).toBe("US$ 1.200"); expect($("[data-asumir]")).not.toBeNull()
+    expect(document.body.textContent).not.toContain("La oficina ya no propone un supuesto")
+  })
   it("CC6 #303 menor 2 · si no se pudo, la pregunta queda al frente aunque el dueño estuviera en otra página", async () => {
     const OTRA2 = "44444444-4444-4444-8444-444444444444"
     const cuatro = { ...D, decisiones: [...D.decisiones, { ...por(OTRA), id: OTRA2, subtipo: "ticket", titulo: "¿Cuál es el ticket promedio?", supuesto: "US$ 9" }] }

@@ -99,8 +99,8 @@ export function Aviso({ rotulo, children, dato }: { rotulo: string; children: Re
   )
 }
 
-export const BOTON_SECUNDARIO = `zr-apagable rounded-control border border-linea-oro px-3 text-cuerpo font-medio text-oro hover:border-oro ${TOCABLE}`
-export const BOTON_PRINCIPAL = `zr-apagable rounded-control border border-ambar bg-ambar px-3 text-cuerpo font-medio text-sobre-ambar ${TOCABLE}`
+export const BOTON_SECUNDARIO = `zr-apagable rounded-control border border-linea-oro px-3 text-boton font-medio text-oro hover:border-oro ${TOCABLE}`
+export const BOTON_PRINCIPAL = `zr-apagable rounded-control border border-ambar bg-ambar px-3 text-boton font-medio text-sobre-ambar ${TOCABLE}`
 /** los botones de la tarjeta: mismo ancho, a pares; el principal va último (a la derecha). Uno solo ocupa todo el ancho */
 export function Acciones({ children }: { children: ReactNode }) {
   const n = (Array.isArray(children) ? children.flat().filter(Boolean) : [children].filter(Boolean)).length

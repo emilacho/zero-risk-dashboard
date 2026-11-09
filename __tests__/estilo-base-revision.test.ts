@@ -17,9 +17,9 @@ describe("estilo base · los tokens", () => {
     expect(tokens.match(/--color-[\w-]+:/g)).toHaveLength(15) // 9 de la guía + letra sobre el ámbar + 3 líneas + el velo + la tarjeta sobre la escena (09-nov): ningún otro
     expect(tokens).toContain("--color-tarjeta-escena: #151515;")
   })
-  it("4 tamaños + los 2 de número, 2 pesos y los radios de la guía", () => {
-    for (const [k, v] of Object.entries({ titulo: 20, cuerpo: 15, dato: 13, rotulo: 11, cifra: 24, numero: 36 })) expect(tokens, k).toContain(`--text-${k}: ${v}px;`)
-    expect(tokens.match(/--text-[\w]+:/g)).toHaveLength(6)
+  it("4 tamaños + los 2 de número + el de los botones (18, 09-nov), 2 pesos y los radios de la guía", () => {
+    for (const [k, v] of Object.entries({ titulo: 20, cuerpo: 15, dato: 13, rotulo: 11, cifra: 24, numero: 36, boton: 18 })) expect(tokens, k).toContain(`--text-${k}: ${v}px;`)
+    expect(tokens.match(/--text-[\w]+:/g)).toHaveLength(7)
     expect(tokens).toContain("--font-weight-medio: 500;")
     for (const [k, v] of Object.entries({ panel: 20, tarjeta: 14, control: 12 })) expect(tokens, k).toContain(`--radius-${k}: ${v}px;`)
   })
@@ -30,7 +30,7 @@ describe("estilo base · los tokens", () => {
 
 describe("estilo base · la revisión automática", () => {
   it("cada regla frena su caso, deja pasar los tokens y no acepta permisos sin razón", () => {
-    expect(execFileSync(process.execPath, ["scripts/revisar-estilo.mjs", "probar"], { encoding: "utf8" })).toMatch(/^ok · \d+ frenan, \d+ pasan, 2 permisos sin razón no valen/)
+    expect(execFileSync(process.execPath, ["scripts/revisar-estilo.mjs", "probar"], { encoding: "utf8" })).toMatch(/^ok · \d+ frenan, \d+ pasan, 2 permisos sin razón no valen · botones: 5 frenan, 7 pasan, 3 constantes/)
   })
   it("la lista de migrados es exactamente la de esta entrega (campana incluida)", () => {
     const lista = readFileSync("scripts/revisar-estilo.mjs", "utf8").match(/export const MIGRADOS = \[([^\]]*)\]/)?.[1] ?? ""
@@ -71,6 +71,36 @@ describe("estilo base · la revisión frena la entrega", () => {
     escribir(dir, "components/nuevo/Otra.tsx", 'export const a = "text-cuerpo"\n'); git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "limpia")
     const r = correr(dir, "main")
     expect(r.status).toBe(1); expect(r.stderr).toContain("components/nuevo/PanelRiesgos.tsx:2")
+  }, 60_000)
+  // 09-nov · GO de Lenovo (botones a 18): CC6 certifica con un sabotaje; estas son las mismas formas de romperlo
+  it("un botón ámbar o de borde oro con letra 15 hace FALLAR la entrega, aunque la etiqueta ocupe varias líneas", () => {
+    const dir = repo(); dirs.push(dir)
+    const decisiones = (t: string) => `export const x = "text-hueso bg-grafito"\nconst B = () => <button type="button" className="rounded-control bg-ambar px-3 ${t} font-medio text-sobre-ambar">Firmar</button>\n`
+    const suelta = (t: string) => `const C = () => (\n  <button type="button"\n    className="rounded-control px-4 py-3 ${t}font-medio"\n    style={{ background: ok ? AMBAR : APAGADO }}>\n    Crear\n  </button>\n)\n`
+    escribir(dir, "components/nuevo/PanelDecisiones.tsx", decisiones("text-cuerpo")); escribir(dir, "components/nuevo/Suelta.tsx", suelta(""))
+    git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "botones a 15")
+    const r = correr(dir, "main")
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain("components/nuevo/PanelDecisiones.tsx:2 · botón con letra distinta de 18")
+    expect(r.stderr).toContain("components/nuevo/Suelta.tsx:2 · botón con letra distinta de 18")
+    escribir(dir, "components/nuevo/PanelDecisiones.tsx", decisiones("text-boton")); escribir(dir, "components/nuevo/Suelta.tsx", suelta("text-boton "))
+    git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "botones a 18")
+    expect(correr(dir, "main").status).toBe(0)
+  }, 60_000)
+  it("si la entrega toca solo una línea de en medio de un botón ya existente, se revisa el botón entero", () => {
+    const dir = repo(); dirs.push(dir)
+    const suelta = (t: string) => `const C = () => (\n  <button type="button"\n    className="rounded-control px-4 py-3 ${t}font-medio"\n    style={{ background: ok ? AMBAR : APAGADO }}>\n    Crear\n  </button>\n)\n`
+    git(dir, "checkout", "-q", "main"); escribir(dir, "components/nuevo/Suelta.tsx", suelta("text-boton ")); git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "botón a 18 en la base")
+    git(dir, "checkout", "-q", "-b", "trabajo-2"); escribir(dir, "components/nuevo/Suelta.tsx", suelta("")); git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "le saca el 18")
+    const r = correr(dir, "main")
+    expect(r.status).toBe(1); expect(r.stderr).toContain("components/nuevo/Suelta.tsx:2 · botón con letra distinta de 18")
+  }, 60_000)
+  it("la constante del botón también: BOTON_PRINCIPAL de vuelta a 15 frena", () => {
+    const dir = repo(); dirs.push(dir)
+    escribir(dir, "components/nuevo/EstiloBase.tsx", 'export const x = "text-hueso bg-grafito"\nexport const BOTON_PRINCIPAL = `zr-apagable rounded-control border border-ambar bg-ambar px-3 text-cuerpo font-medio text-sobre-ambar`\n')
+    git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "constante a 15")
+    const r = correr(dir, "main")
+    expect(r.status).toBe(1); expect(r.stderr).toContain("components/nuevo/EstiloBase.tsx:2 · botón con letra distinta de 18")
   }, 60_000)
   it("sin la base para comparar FALLA con el motivo (nunca pasa a ciegas)", () => {
     const dir = repo(); dirs.push(dir)
