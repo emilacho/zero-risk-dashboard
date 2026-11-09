@@ -37,12 +37,12 @@ describe("1 · cada aviso abre la pantalla de donde salió (tabla tipo → desti
     expect(mal[0].clave).toBe("cerebro:fallo"); expect(mal[0].abre).toBeNull()
   })
   it("pregunta sin responder → Decisiones", () => {
-    expect(preguntasSinResponder({ ...vacia(), preguntas: [{ id: "p", client_id: "c1", pregunta: "¿Cuántas sedes?", estado: "pendiente", creado_en: hace(3) }] })[0].abre).toBe("decisiones")
+    expect(preguntasSinResponder({ ...vacia(), preguntas: [{ id: "p", client_id: "c1", pregunta: "¿Cuántas sedes?", estado: "pendiente", creado_en: hace(3), oficina: "marketing" }] })[0].abre).toBe("decisiones")
   })
 })
 
 describe("2 · al tocar: un aviso sin destino no abre nada; con destino cierra la lista y abre SU pantalla", () => {
-  const aviso = (abre: AlertaDeLaAntena["abre"]): AlertaDeLaAntena => ({ clave: "k", tipo: "cerebro", texto: "x", cuando: hace(1), abre })
+  const aviso = (abre: AlertaDeLaAntena["abre"]): AlertaDeLaAntena => ({ clave: "k", tipo: "cerebro", texto: "x", cuando: hace(1), abre, departamento: null })
   it("sin destino: no cierra ni abre", () => {
     const cerrar = vi.fn(), abrir = vi.fn()
     expect(alTocarElAviso(aviso(null), { cerrar, abrir })).toBe(false); expect(cerrar).not.toHaveBeenCalled(); expect(abrir).not.toHaveBeenCalled()
