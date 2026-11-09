@@ -227,7 +227,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
             {acciones.includes("aceptar") && <button type="button" data-firmar disabled={!!enviando} onClick={() => void hacer("aceptar", {})} className={BOTON_PRINCIPAL}>{enviando === "aceptar" ? "Firmando…" : fallo ? "Firmar de nuevo" : "Firmar"}</button>}
           </Acciones>
         )}
-        {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo.</p></div>}
+        {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">{previa?.resultado.ya_no_se_asume ? previa.resultado.motivo : "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo."}</p></div>}
         {!contestable && !falta && (donde.panel
           ? <Acciones><button type="button" data-decidir={donde.panel} onClick={() => alDecidir(d)} className={BOTON_PRINCIPAL}>{donde.boton}</button></Acciones>
           : <p data-sin-panel className="mt-5 text-dato text-gris">{donde.nota}</p>)}
@@ -290,7 +290,9 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     try {
       const r = await fetchImpl("/api/direccion/decisiones/contestar", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: d.id, accion, ...t }) })
       const j = (await r.json().catch(() => ({}))) as Partial<ResultadoDeContestar> & { error?: string; detalle?: string }
-      if (r.status === 409 && j.error === "ya_no_esta") resultado = { ok: true, sale: true, texto: "Ya estaba resuelta en otro lugar.", registro: [{ cuando: new Date().toISOString(), quien: "sistema", estado: "guardado", texto: String(j.detalle ?? "Ya no estaba pendiente") }] }
+      // CC6 #303: la decisión ya no estaba cuando salió la llamada (otro la cerró, también durante los 5 s de «Asumir»): es «ya estaba cerrada», no «asumida»
+      if (r.status === 409 && j.error === "ya_no_esta") resultado = { ok: true, sale: true, cerrada_antes: true, texto: "Ya estaba resuelta en otro lugar.", registro: [{ cuando: new Date().toISOString(), quien: "sistema", estado: "guardado", texto: String(j.detalle ?? "Ya no estaba pendiente") }] }
+      else if (r.status === 409 && j.error === "accion_no_permitida" && accion === "asumir") resultado = { ok: false, sale: false, ya_no_se_asume: true, texto: "No salió.", motivo: "La oficina ya no propone un supuesto: respóndela o descártala.", registro: [] }
       else if (Array.isArray(j.registro)) resultado = j as ResultadoDeContestar
       else resultado = { ok: false, sale: false, texto: "No salió.", motivo: r.status === 401 ? "Tu sesión venció: entra de nuevo." : String(j.detalle ?? j.error ?? `No se pudo (${r.status}).`), registro: [] }
     } catch (e) { resultado = { ok: false, sale: false, texto: "No salió.", motivo: `No se pudo contactar al tablero: ${e instanceof Error ? e.message : String(e)}`, registro: [] } }
@@ -311,8 +313,11 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     }
     // no se pudo: vuelve al frente con la línea «Sin guardar»
     setConstancia((c) => (c && c.id === d.id ? null : c))
-    setDatos((x) => (x && !x.decisiones.some((y) => y.id === d.id) ? { ...x, decisiones: [d, ...x.decisiones] } : x))
+    // si la oficina retiró el supuesto, vuelve SIN él (sin «Asumir» que fallaría siempre) y la lista se relee
+    const vuelve = resultado.ya_no_se_asume ? { ...d, supuesto: null, permite: d.permite?.filter((a) => a !== "asumir") ?? null } : d
+    setDatos((x) => (x && !x.decisiones.some((y) => y.id === d.id) ? { ...x, decisiones: [vuelve, ...x.decisiones] } : x))
     setFoco(d.id)
+    if (resultado.ya_no_se_asume) void leer()
   }, [pedir, leer])
   const soltarLaEspera = useCallback(() => { const p = enEspera.current; if (p) void enviarAsumida(p.d) }, [enviarAsumida])
   const asumir = useCallback((d: Decision) => {

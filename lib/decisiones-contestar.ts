@@ -41,6 +41,8 @@ export interface ResultadoDeContestar {
   alcanzable?: number
   /** 09-nov · al asumir: otro la cerró antes (409 de la ruta). No es un error: la pantalla dice «Ya estaba cerrada» y vuelve a leer la lista */
   cerrada_antes?: boolean
+  /** 09-nov · CC6 #303: al asumir, la oficina ya no propone un supuesto (la decisión releída no lo trae). Reintentar no sirve: la pantalla relee la lista y lo dice */
+  ya_no_se_asume?: boolean
 }
 type Fila = Record<string, unknown>
 export interface DepsDeContestar { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch; ahora?: () => Date; revisor: string; leer?: typeof leerDecisiones; firmar?: typeof ejecutarAccion; id?: () => string }

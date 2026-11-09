@@ -196,6 +196,49 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
     expect($('[data-constancia="cerrada"]')?.textContent).toContain("Ya estaba cerrada")
     expect(t.lecturas()).toBeGreaterThanOrEqual(1)
   })
+  it("CC6 #303 · si otro la cerró durante los 5 s (el servidor del tablero ya no la encuentra: 409 ya_no_esta), dice «Ya estaba cerrada», no «Asumida», y relee", async () => {
+    const t = tablero(() => [409, { ok: false, error: "ya_no_esta", detalle: "Esta decisión ya no está pendiente: se resolvió en otro lugar." }])
+    pintar(t)
+    fireEvent.click($("[data-asumir]")!)
+    await pasar(ESPERA_PARA_DESHACER_MS)
+    expect($('[data-constancia="cerrada"]')?.textContent).toContain("Ya estaba cerrada")
+    expect($('[data-constancia="asumida"]')).toBeNull()
+    expect(t.lecturas()).toBeGreaterThanOrEqual(1)
+  })
+  it("CC6 #303 menor 1 · si la oficina retiró el supuesto, vuelve sin «Asumir», lo dice y relee la lista (reintentar fallaría siempre)", async () => {
+    const t = tablero(() => [409, { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." }], { ...D, decisiones: D.decisiones.map((x) => (x.id === CON ? { ...x, supuesto: null, permite: ["responder", "descartar"] } : x)) })
+    pintar(t)
+    fireEvent.click($("[data-asumir]")!)
+    await pasar(ESPERA_PARA_DESHACER_MS)
+    await pasar(0)
+    expect(tarjeta()).toBe(CON)
+    expect($("[data-sin-guardar]")?.textContent).toContain("La oficina ya no propone un supuesto")
+    expect($("[data-asumir]")).toBeNull(); expect($("[data-si-asumes]")).toBeNull()
+    expect(t.lecturas()).toBeGreaterThanOrEqual(1)
+  })
+  it("CC6 #303 menor 1 · aunque la relectura falle, la tarjeta ya vuelve sin el supuesto viejo ni «Asumir»", async () => {
+    const f = vi.fn(async (_url: string, init?: RequestInit) => (init?.method === "POST"
+      ? new Response(JSON.stringify({ ok: false, error: "accion_no_permitida", detalle: "x" }), { status: 409 })
+      : new Response(JSON.stringify({ ok: false, error: "caida" }), { status: 500 }))) as unknown as typeof fetch
+    render(<PanelDecisiones onCerrar={() => undefined} datosIniciales={D} fetchImpl={f} />)
+    fireEvent.click($("[data-asumir]")!)
+    await pasar(ESPERA_PARA_DESHACER_MS)
+    await pasar(0)
+    expect(tarjeta()).toBe(CON)
+    expect($("[data-asumir]")).toBeNull(); expect($("[data-supuesto]")).toBeNull()
+  })
+  it("CC6 #303 menor 2 · si no se pudo, la pregunta queda al frente aunque el dueño estuviera en otra página", async () => {
+    const OTRA2 = "44444444-4444-4444-8444-444444444444"
+    const cuatro = { ...D, decisiones: [...D.decisiones, { ...por(OTRA), id: OTRA2, subtipo: "ticket", titulo: "¿Cuál es el ticket promedio?", supuesto: "US$ 9" }] }
+    const t = tablero(() => [200, { ok: false, sale: false, texto: "No salió.", motivo: "x", registro: [] }])
+    pintar(t, cuatro)
+    for (let k = 0; k < 3; k++) fireEvent.keyDown(window, { key: "ArrowRight" })
+    expect(tarjeta()).toBe(OTRA2)
+    fireEvent.click($("[data-asumir]")!)
+    await pasar(ESPERA_PARA_DESHACER_MS)
+    expect(tarjeta()).toBe(OTRA2)
+    expect($("[data-sin-guardar]")).not.toBeNull()
+  })
   it("al asumir con éxito también se vuelve a leer la lista", async () => {
     const t = tablero()
     pintar(t)
