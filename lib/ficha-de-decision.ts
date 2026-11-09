@@ -33,7 +33,21 @@ export const NOMBRE_DE_LA_PANTALLA: Record<Pantalla, { ir: string; nombre: strin
 }
 /** NOMBRES PROPIOS DEL SISTEMA (Emilio, 09-nov · regla del estilo base): mayúscula en cada palabra principal; dentro del texto, una línea dorada sutil debajo.
  *  Uno nuevo se agrega aquí solo con el nombre que dio Emilio (si no está definido, se pregunta por Lenovo; no se inventa) */
-export const NOMBRES_PROPIOS: readonly string[] = ["Plan de Marketing", "Campaña de Marketing", "Tablero Financiero", "Oficina Financiera"]
+export const NOMBRES_PROPIOS: readonly string[] = ["Plan de Marketing", "Campaña de Marketing", "Tablero Financiero", "Oficina Financiera", "Departamento de Marketing", "Departamento de Finanzas"]
+
+/** LOS DEPARTAMENTOS (Emilio, 09-nov 23:29Z): sus únicos nombres son estos, completos. Si no caben, «Marketing» o «Finanzas»; nunca «Financiero» ni «Plan de 90 días».
+ *  T2: el nombre llega en la ficha de la plataforma (CC1, de una tabla única); esto es lo del tablero mientras tanto */
+export type ClaveDeDepartamento = "marketing" | "finanzas"
+export const NOMBRE_DEL_DEPARTAMENTO: Record<ClaveDeDepartamento, string> = { marketing: "Departamento de Marketing", finanzas: "Departamento de Finanzas" }
+export const NOMBRE_CORTO_DEL_DEPARTAMENTO: Record<ClaveDeDepartamento, string> = { marketing: "Marketing", finanzas: "Finanzas" }
+/** de qué departamento es cada oficina que pregunta (\`dueno_preguntas.oficina\`). Planeación, la Oficina Creativa y Revisión trabajan dentro de Marketing (Lenovo 09-nov) */
+const DEPARTAMENTO_DE_LA_OFICINA: Record<string, ClaveDeDepartamento> = {
+  financiera: "finanzas", finanzas: "finanzas", marketing: "marketing", planeacion: "marketing", creativa: "marketing", revision: "marketing",
+}
+export function departamentoDeLaOficina(oficina: string | null | undefined): ClaveDeDepartamento | null {
+  const k = String(oficina ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/^oficina[\s_-]+(de[\s_-]+)?/, "").replace(/[\s_-]+oficina$/, "").trim()
+  return DEPARTAMENTO_DE_LA_OFICINA[k] ?? DEPARTAMENTO_DE_LA_OFICINA[k.split(/[\s_-]+/)[0] ?? ""] ?? null
+}
 
 export interface Accion {
   verbo: Verbo

@@ -13,7 +13,7 @@ import { NOMBRE_MIENTRAS_SALE, revisarFicha, type FichaDeDecision as Ficha, type
 
 afterEach(cleanup)
 const A = (verbo: string, extra = {}) => ({ verbo, destino: "dueno-preguntas", ...extra }) as Ficha["acciones"][number]
-const base: Ficha = { version: 1, id: "x", cuenta: null, departamento: { oficina: "financiera", nombre: "Financiero" }, que_se_decide: "¿Cuándo arrancan las entregas?", espera: { desde: null }, origen: { fuente: "f", ref: "x" }, acciones: [] }
+const base: Ficha = { version: 1, id: "x", cuenta: null, departamento: { oficina: "financiera", nombre: "Departamento de Finanzas" }, que_se_decide: "¿Cuándo arrancan las entregas?", espera: { desde: null }, origen: { fuente: "f", ref: "x" }, acciones: [] }
 const pregunta: Ficha = { ...base, acciones: [A("descartar", { pide: { que: "motivo", obligatorio: false } }), A("responder", { principal: true, pide: { que: "texto", obligatorio: true } })] }
 const pintar = (f: Ficha, enviando: Verbo | null = null) => {
   const alVerbo = vi.fn()

@@ -249,7 +249,7 @@ describe("la pantalla (boceto aprobado)", () => {
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe(P1)
     expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
     expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-detiene="true"') // estilo base: el recuadro es el filtro · 09-nov ficha única (v7): «Detiene el plan» en alarma
-    expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Financiero<\/span>/) // estilo base: DEPARTAMENTO / Financiero, no una frase
+    expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Departamento de Finanzas<\/span>/) // estilo base: DEPARTAMENTO / su nombre oficial (Emilio 09-nov 23:29Z), nunca «Financiero»
     // 09-nov · ficha única (v7): sin corto de la oficina, «Desbloquea» se ve entero (nunca se recorta)
     expect(html).toContain('<span data-desbloquea="true"><span>El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.</span></span>')
     expect(html).toContain("data-respuesta"); expect(html).toMatch(/data-verbo="responder"[^>]*>Responder</); expect(html).toContain('data-verbo="descartar"')

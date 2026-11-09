@@ -21,7 +21,7 @@ const datos = (filas: unknown[]) => normalizarDecisiones({ ok: true, decisiones:
 const pintar = (filas: unknown[]) => renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: datos(filas) })).replace(/<!-- -->/g, "")
 const dibujar = (f: Ficha) => renderToStaticMarkup(createElement(FichaDeDecision, { ficha: f, enviando: null, alVerbo: () => {}, alIr: () => {} })).replace(/<!-- -->/g, "")
 const decision = (extra: Record<string, unknown> = {}): Decision => datos([{ ...REAL, ...extra }]).decisiones[0]
-const traducir = (d: Decision, x: Partial<Parameters<typeof fichaDeLaPregunta>[1]> = {}) => fichaDeLaPregunta(d, { departamento: "Financiero", detiene: false, destraba: null, conAsumir: false, responder: true, descartar: true, ...x })
+const traducir = (d: Decision, x: Partial<Parameters<typeof fichaDeLaPregunta>[1]> = {}) => fichaDeLaPregunta(d, { departamento: "Departamento de Finanzas", detiene: false, destraba: null, conAsumir: false, responder: true, descartar: true, ...x })
 const ORDEN = ["quien", "que", "propuesta", "decisivo", "uso", "espera"]
 const bloques = (h: string) => [...h.matchAll(/data-bloque="([a-z]+)"/g)].map((m) => m[1])
 
@@ -42,7 +42,7 @@ describe("1 · igualdad con la decisión de origen, CAMPO POR CAMPO (cuidado 2 d
   })
   it("y la pantalla muestra cada texto de la oficina carácter por carácter (sin guion rojo donde hay dato)", () => {
     const h = dibujar(f).replace(/<\/?span[^>]*>/g, "")
-    for (const t of [d.titulo, d.para_que_corto!, d.destraba_corto!, d.supuesto!, decisivoFrase(d.criticos![0]), "Náufrago", "Financiero"]) expect(h, t).toContain(t)
+    for (const t of [d.titulo, d.para_que_corto!, d.destraba_corto!, d.supuesto!, decisivoFrase(d.criticos![0]), "Náufrago", "Departamento de Finanzas"]) expect(h, t).toContain(t)
     expect(dibujar(f)).not.toContain("data-sin-dato")
   })
   it("sin la fila, sin los datos: la misma pregunta sin supuesto ni plazo muestra el guion rojo justo ahí", () => {
@@ -77,7 +77,7 @@ describe("2 · los mismos bloques, en el mismo orden, siempre; lo que no tiene d
 })
 
 describe("3 · los botones: solo el vocabulario fijo, en su orden, una sola principal (ámbar) a la derecha", () => {
-  const base: Ficha = { version: 1, id: "x", cuenta: null, departamento: { oficina: "", nombre: "Financiero" }, que_se_decide: "Algo", espera: { desde: null }, origen: { fuente: "f", ref: "x" }, acciones: [] }
+  const base: Ficha = { version: 1, id: "x", cuenta: null, departamento: { oficina: "", nombre: "Departamento de Finanzas" }, que_se_decide: "Algo", espera: { desde: null }, origen: { fuente: "f", ref: "x" }, acciones: [] }
   const A = (verbo: string, extra = {}) => ({ verbo, destino: "dueno-preguntas", ...extra }) as Ficha["acciones"][number]
   it("orden fijo aunque la oficina los mande desordenados", () => {
     const h = dibujar({ ...base, acciones: [A("responder", { principal: true }), A("asumir"), A("descartar")] })

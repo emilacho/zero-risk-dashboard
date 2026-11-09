@@ -116,7 +116,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
     const marca = renderToStaticMarkup(createElement(BarraSuperior))
     const logo = marca.match(/<text[^>]*>ZERO RISK<\/text>/)![0]
-    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>DEPT\. MARKETING<\/text>/)![0]
+    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>DEPARTAMENTO DE MARKETING<\/text>/)![0] // 10-nov · nombre oficial (Emilio 09-nov 23:29Z)
     for (const s of [logo, rotulo]) { expect(s).toContain('fill="none"'); expect(s).toContain('stroke="#e8731a"'); expect(s).toContain('font-weight="500"'); expect(s).toContain('font-family="system-ui, Arial, sans-serif"') }
     const num = (s: string, a: string) => Number(s.match(new RegExp(`${a}="([0-9.]+)"`))![1])
     expect(num(rotulo, "letter-spacing") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "letter-spacing") / num(logo, "font-size"), 3)

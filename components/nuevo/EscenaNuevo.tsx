@@ -33,10 +33,10 @@ export const ZONAS: Zona[] = [
     rotulo: { x: 1010, y: 284, texto: "TU OFICINA" },
   },
   {
-    clave: "marketing", nombre: "Dept. Marketing", href: "/nuevo/marketing",
+    clave: "marketing", nombre: "Departamento de Marketing", href: "/nuevo/marketing",
     formas: ["1160,358 1226,250 1316,214 1404,240 1468,338 1470,374 1310,462"], // la plataforma de arriba a la derecha con el proyector y su pantalla (zona del ratón)
     // sin `superficie` pintada: su versión encendida es una imagen real (ENCENDIDOS · 5.4)
-    rotulo: { x: 1316, y: 188, texto: "DEPT. MARKETING" },
+    rotulo: { x: 1316, y: 188, texto: "DEPARTAMENTO DE MARKETING" },
   },
 ]
 

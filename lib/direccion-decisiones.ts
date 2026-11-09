@@ -408,7 +408,7 @@ export function ordenarParaTi(lista: Decision[], detenidas: Set<string> = idsQue
 /** la oficina que pregunta, con su nombre real */
 const OFICINAS: Record<string, string> = {
   financiera: "Oficina financiera", finanzas: "Oficina financiera", planeacion: "Oficina de planeación", creativa: "Oficina creativa", jefatura: "Jefatura",
-  marketing: "Dpto. Marketing", cerebro: "El cerebro del cliente", portero: "El cerebro del cliente", alta: "Oficina de altas", onboarding: "Oficina de altas",
+  marketing: "Departamento de Marketing", cerebro: "El cerebro del cliente", portero: "El cerebro del cliente", alta: "Oficina de altas", onboarding: "Oficina de altas",
 }
 export function nombreDeOficina(o: string): string {
   const k = o.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/^oficina[\s_-]+(de[\s_-]+)?/, "").trim()

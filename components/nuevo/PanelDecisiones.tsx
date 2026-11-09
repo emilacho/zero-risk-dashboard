@@ -7,12 +7,12 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
-  NOMBRE_DEL_TIPO, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
+  TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
   type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, primeraFrase } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
 import { FichaDeDecision } from "@/components/nuevo/FichaDeDecision"
-import { ACCION_DEL_VERBO, VERBO_DE_LA_ACCION, esPregunta, fichaDeLaPregunta } from "@/lib/ficha-de-decision"
+import { ACCION_DEL_VERBO, VERBO_DE_LA_ACCION, esPregunta, fichaDeLaPregunta, NOMBRE_DEL_DEPARTAMENTO, departamentoDeLaOficina, type ClaveDeDepartamento } from "@/lib/ficha-de-decision"
 
 /**
  * TU OFICINA · DECISIONES (6.20 · la mesa del director): todo lo que espera la firma de Emilio, de cualquier departamento.
@@ -33,14 +33,20 @@ const ORIGEN: Record<string, string> = {
   hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina Financiera", finanzas_preguntas: "Oficina Financiera",
   cerebro_dueno_preguntas: "El cerebro del cliente", dueno_preguntas: "Preguntas de las oficinas", plan_aprobaciones: "Oficina de planeación",
 }
-/** el departamento en una o dos palabras (rótulo fijo DEPARTAMENTO / valor) */
-const DEPARTAMENTO: Record<string, string> = {
-  hitl_queue: "Revisión", finanzas_tableros: "Financiero", finanzas_preguntas: "Financiero", cerebro_dueno_preguntas: "Cerebro", plan_aprobaciones: "Planeación",
+/** el departamento (rótulo fijo DEPARTAMENTO / valor): solo los nombres oficiales (Emilio 09-nov 23:29Z), nunca «Financiero» ni el nombre de un documento.
+ *  La bandeja (gran idea, piezas), el plan y las preguntas de Planeación, la Oficina Creativa o Revisión son del Departamento de Marketing */
+const DEPARTAMENTO_DE_LA_FUENTE: Record<string, ClaveDeDepartamento> = {
+  hitl_queue: "marketing", plan_aprobaciones: "marketing", finanzas_tableros: "finanzas", finanzas_preguntas: "finanzas",
+}
+const DEPARTAMENTO_DEL_TIPO: Partial<Record<Decision["tipo"], ClaveDeDepartamento>> = {
+  plan: "marketing", gran_idea: "marketing", pieza: "marketing", revision: "marketing", firma_de_finanzas: "finanzas", pregunta_de_finanzas: "finanzas",
 }
 export function departamentoDe(d: Pick<Decision, "tipo" | "fuente" | "pregunta_de">): string {
-  if (d.tipo === "firma_de_finanzas" || d.tipo === "pregunta_de_finanzas") return "Financiero"
-  if (d.pregunta_de) { const o = nombreDeOficina(d.pregunta_de.oficina).replace(/^Oficina (de |del )?/i, ""); return o === "financiera" ? "Financiero" : o.charAt(0).toLocaleUpperCase("es") + o.slice(1) }
-  return DEPARTAMENTO[d.fuente ?? ""] ?? NOMBRE_DEL_TIPO[d.tipo].nombre
+  const clave = DEPARTAMENTO_DEL_TIPO[d.tipo] ?? (d.pregunta_de ? departamentoDeLaOficina(d.pregunta_de.oficina) : null) ?? DEPARTAMENTO_DE_LA_FUENTE[d.fuente ?? ""] ?? null
+  if (clave) return NOMBRE_DEL_DEPARTAMENTO[clave]
+  // lo que no es de un departamento (el cerebro del cliente, una oficina sin departamento): su oficina tal cual, sin inventar un departamento
+  if (d.pregunta_de) { const o = nombreDeOficina(d.pregunta_de.oficina).replace(/^Oficina (de |del )?/i, ""); return o.charAt(0).toLocaleUpperCase("es") + o.slice(1) }
+  return d.fuente === "cerebro_dueno_preguntas" ? "Cerebro" : ""
 }
 const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`

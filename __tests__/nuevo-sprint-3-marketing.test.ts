@@ -17,7 +17,8 @@ describe("dashboard nuevo · sprint 3 · Dept. Marketing proyectado", () => {
   it("la plataforma de marketing es la zona que lleva a /nuevo/marketing, con rótulo «Dept. Marketing»; la pantalla de pie no es suya", () => {
     const z = ZONAS.find((x) => x.clave === "marketing")!
     expect(z.href).toBe("/nuevo/marketing")
-    expect(z.rotulo?.texto).toBe("DEPT. MARKETING")
+    expect(z.rotulo?.texto).toBe("DEPARTAMENTO DE MARKETING") // 10-nov · nombre oficial (Emilio 09-nov 23:29Z); cabe en la escena (imagen en raw/evidencia/2026-11-10-nombres-de-departamentos/)
+    expect(z.nombre).toBe("Departamento de Marketing")
     for (const par of z.formas.join(" ").split(" ")) {
       const [x, y] = par.split(",").map(Number)
       expect(x).toBeGreaterThanOrEqual(VISTA.x); expect(x).toBeLessThanOrEqual(VISTA.x + VISTA.w)
