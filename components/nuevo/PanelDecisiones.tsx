@@ -46,12 +46,14 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
 export const clienteCorto = (c: string): string => { const w = c.trim().split(/\s+/); return w.length > 3 ? `${w.slice(0, 2).join(" ")} ${w.slice(2).map((x) => x[0]?.toLocaleUpperCase("es") ?? "").join("")}` : c }
 /** el grupo que se mira: lo que espera tu firma, lo que tiene un trabajo detenido, lo que se atiende fuera, o lo de un cliente en pausa */
 type Grupo = "firma" | "detienen" | "fuera" | `pausa:${string}`
+/** 09-nov · ajuste 4 de CC6: al tocar «Asumir», la llamada sale recién pasado este tiempo; «Deshacer» en ese lapso no manda nada */
+export const ESPERA_PARA_DESHACER_MS = 5000
 
 /** 04-nov · lo que pasó con una decisión que contestaste (el registro de su detalle) */
 export interface Contestada { d: Decision; resultado: ResultadoDeContestar; accion: AccionDeDecision; en: string }
 const hora = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleTimeString("es-EC", { ...HORA_24 }) }
 /** el punto de cada paso del registro: alarma solo si falló; oro lo que hiciste tú; lo demás, apagado */
-const PUNTO_DEL_PASO: Record<PasoDelRegistro["estado"], string> = { pregunto: "bg-apagado", respondiste: "bg-oro", firmaste: "bg-oro", descartaste: "bg-oro", guardado: "bg-hueso", retomado: "bg-hueso", espera: "bg-apagado", fallo: "bg-alarma" }
+const PUNTO_DEL_PASO: Record<PasoDelRegistro["estado"], string> = { pregunto: "bg-apagado", respondiste: "bg-oro", asumiste: "bg-oro", firmaste: "bg-oro", descartaste: "bg-oro", guardado: "bg-hueso", retomado: "bg-hueso", espera: "bg-apagado", fallo: "bg-alarma" }
 
 /** el registro de una decisión: qué preguntó la oficina, qué hiciste tú y qué hizo el sistema después */
 function Registro({ c, onCerrar }: { c: Contestada; onCerrar: () => void }) {
@@ -85,7 +87,7 @@ function CuerpoDeCifra({ c }: { c: CifraDeFirma }) {
   return <><span data-numero-de-cifra className="block whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums] text-hueso">{r.numero}</span><span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{r.rotulo}</span>{c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}</>
 }
 
-export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa, detalleInicial = false }: {
+export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa, detalleInicial = false, asumir }: {
   d: Decision; alDecidir: (d: Decision) => void; enPausa: string | null; detiene: boolean
   contestar: (d: Decision, accion: AccionDeDecision, texto: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => Promise<ResultadoDeContestar | null>
   verCambio: (d: Decision, clave: string, firmado: number) => ReturnType<VerCambio>
@@ -93,6 +95,8 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   previa: Contestada | null
   /** para pruebas e imágenes: el detalle ya abierto */
   detalleInicial?: boolean
+  /** 09-nov · asumir el supuesto: lo maneja el panel (la llamada sale 5 s después, con «Deshacer»). Sin esta función no hay botón */
+  asumir?: (d: Decision) => void
 }) {
   const pr = prioridadLegible(d.prioridad), donde = dondeSeDecide(d), acciones = accionesDe(d)
   const [respuesta, setRespuesta] = useState(previa?.accion === "responder" ? (previa.resultado.registro.find((p) => p.cita)?.cita ?? "") : "")
@@ -104,7 +108,12 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const [verDetalle, setVerDetalle] = useState(detalleInicial) // 09-nov: el texto entero, al tocar «Decisivo» o «Uso» (sin botón nuevo)
   const { frente, detalle: cifrasDelDetalle } = cifrasDelFrente(d.cifras ?? [])
   const corto = d.criticos?.length ? decisivoCorto(d.criticos[0]) : null
-  const fallo = previa && !previa.resultado.sale ? previa.resultado.motivo ?? previa.resultado.texto : null
+  // 09-nov · si no se pudo asumir, el aviso es la línea roja fina bajo los botones (boceto 4), no el aviso de arriba
+  const sinGuardar = !!previa && !previa.resultado.sale && previa.accion === "asumir"
+  const fallo = previa && !previa.resultado.sale && !sinGuardar ? previa.resultado.motivo ?? previa.resultado.texto : null
+  const conAsumir = acciones.includes("asumir") && !!asumir && !!d.supuesto
+  // las preguntas de las oficinas (la ruta de la plataforma): si la oficina no propuso supuesto, se dice por qué no hay «Asumir»
+  const esDeLasOficinas = d.tipo === "pregunta_al_dueno" && d.fuente === "dueno_preguntas"
   const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.` : null)
   const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { return await contestar(d, a, t) } finally { setEnviando(null) } }
   const contestable = acciones.length > 0
@@ -136,7 +145,16 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
         { rotulo: "Departamento", valor: <span data-departamento>{departamentoDe(d)}</span> },
       ]} /></div>
       {enPausa && <p data-en-pausa className="mt-3 text-dato text-gris">{enPausa} está en pausa por tu decisión: esto no cuenta en «esperan».</p>}
-      {!d.cifras?.length && <h3 data-titulo className="mt-5 text-cuerpo font-medio text-hueso">{tituloDeDecision(d)}</h3>}
+      {esDeLasOficinas && <Rotulo className="mt-5">Pregunta</Rotulo>}
+      {!d.cifras?.length && <h3 data-titulo className={`${esDeLasOficinas ? "mt-1.5" : "mt-5"} text-cuerpo font-medio text-hueso`}>{tituloDeDecision(d)}</h3>}
+      {esDeLasOficinas && !cifraEnCambio && (d.supuesto
+        // 09-nov · lo que se acepta al asumir, tal cual lo propuso la oficina (boceto 1)
+        ? <div data-si-asumes className="mt-5"><Rotulo tono="gris">Si asumes</Rotulo>
+          <div className="mt-3 rounded-tarjeta border border-linea bg-grafito px-3 py-4 text-center">
+            <span data-supuesto className={`block ${d.supuesto.length <= 24 ? "whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums]" : "text-cuerpo"} text-hueso`}>{d.supuesto}</span>
+            <span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">Supuesto</span>
+          </div></div>
+        : <div data-sin-supuesto className="mt-5 border-t border-linea pt-4"><Rotulo tono="gris">Sin supuesto</Rotulo><p className="mt-1.5 text-dato text-gris">La oficina no propuso un supuesto: respóndela o descártala.</p></div>)}
       {fallo && !cifraEnCambio && <div ref={porQue} data-por-que-volvio role="status"><Aviso rotulo="No salió">{fallo}</Aviso></div>}
       {cifraEnCambio ? <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} criticos={d.criticos ?? []} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} /> : d.cifras?.length ? (
         <div data-cifras className="mt-5">
@@ -202,12 +220,14 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
       {!cifraEnCambio && <footer ref={pie} data-pie>
         {(contestable && !descartando) && (
           <Acciones>
-            {acciones.includes("descartar") && <button type="button" data-descartar-abrir disabled={!!enviando} onClick={() => setDescartando(true)} className={BOTON_SECUNDARIO}>Descartar</button>}
+            {acciones.includes("descartar") && <button type="button" data-descartar-abrir disabled={!!enviando} onClick={() => setDescartando(true)} className={`${BOTON_SECUNDARIO} whitespace-nowrap`}>Descartar</button>}
+            {conAsumir && <button type="button" data-asumir disabled={!!enviando} onClick={() => asumir!(d)} className={`${BOTON_SECUNDARIO} whitespace-nowrap`}>Asumir</button>}
             {editables.length > 0 && <button type="button" data-cambiar-cifra disabled={!!enviando} onClick={() => setCambiando(editables[0].clave)} className={BOTON_SECUNDARIO}>Cambiar cifra</button>}
-            {acciones.includes("responder") && <button type="button" data-enviar disabled={!!enviando || !respuesta.trim()} onClick={() => void hacer("responder", { respuesta })} className={BOTON_PRINCIPAL}>{enviando === "responder" ? "Enviando…" : fallo ? "Enviar de nuevo" : "Enviar respuesta"}</button>}
+            {acciones.includes("responder") && <button type="button" data-enviar disabled={!!enviando || !respuesta.trim()} onClick={() => void hacer("responder", { respuesta })} className={`${BOTON_PRINCIPAL} whitespace-nowrap`}>{enviando === "responder" ? "Enviando…" : conAsumir ? "Responder" : fallo ? "Enviar de nuevo" : "Enviar respuesta"}</button>}
             {acciones.includes("aceptar") && <button type="button" data-firmar disabled={!!enviando} onClick={() => void hacer("aceptar", {})} className={BOTON_PRINCIPAL}>{enviando === "aceptar" ? "Firmando…" : fallo ? "Firmar de nuevo" : "Firmar"}</button>}
           </Acciones>
         )}
+        {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">{previa?.resultado.ya_no_se_asume ? previa.resultado.motivo : "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo."}</p></div>}
         {!contestable && !falta && (donde.panel
           ? <Acciones><button type="button" data-decidir={donde.panel} onClick={() => alDecidir(d)} className={BOTON_PRINCIPAL}>{donde.boton}</button></Acciones>
           : <p data-sin-panel className="mt-5 text-dato text-gris">{donde.nota}</p>)}
@@ -227,6 +247,11 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   const [contestadas, setContestadas] = useState<Contestada[]>([]) // lo que contestaste en esta visita (con su registro)
   const [registro, setRegistro] = useState<Contestada | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  // 09-nov · ASUMIR (boceto aprobado + ajustes de CC6): una sola constancia a la vez, arriba de la tarjeta; se va con tu próxima acción o al cerrar el panel
+  const [constancia, setConstancia] = useState<{ tipo: "asumida" | "cerrada"; id: string; texto: string; enEspera: boolean } | null>(null)
+  const [foco, setFoco] = useState<string | null>(null) // la que vuelve a la lista (deshacer · no se pudo asumir): se muestra al frente
+  // la llamada sale 5 s después de tocar «Asumir»; «Deshacer» en ese tiempo no manda nada
+  const enEspera = useRef<{ d: Decision; reloj: ReturnType<typeof setTimeout> } | null>(null)
 
   const leer = useCallback(async () => {
     setCargando(true); setError(null)
@@ -245,6 +270,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   const enPausa = grupo.startsWith("pausa:") ? clienteCorto(grupo.slice(6)) : null
   const n = lista.length, actual = n ? lista[Math.min(i, n - 1)] : null
   const mover = useCallback((paso: number) => setI((k) => (n ? (Math.min(k, n - 1) + paso + n) % n : 0)), [n])
+  useEffect(() => { if (!foco) return; const k = lista.findIndex((x) => x.id === foco); if (k >= 0) { setI(k); setFoco(null) } }, [lista, foco])
 
   useEffect(() => {
     if (abierta) return // el panel abierto maneja sus propias teclas
@@ -259,15 +285,64 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   }, [onCerrar, mover, abierta])
 
   // 04-nov · contestar en el lugar: el servidor del tablero lo manda a la puerta de la plataforma de esa fuente y confirma que salió
-  const contestar = useCallback(async (d: Decision, accion: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }): Promise<ResultadoDeContestar | null> => {
+  const pedir = useCallback(async (d: Decision, accion: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }): Promise<ResultadoDeContestar> => {
     let resultado: ResultadoDeContestar
     try {
       const r = await fetchImpl("/api/direccion/decisiones/contestar", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: d.id, accion, ...t }) })
       const j = (await r.json().catch(() => ({}))) as Partial<ResultadoDeContestar> & { error?: string; detalle?: string }
-      if (r.status === 409 && j.error === "ya_no_esta") resultado = { ok: true, sale: true, texto: "Ya estaba resuelta en otro lugar.", registro: [{ cuando: new Date().toISOString(), quien: "sistema", estado: "guardado", texto: String(j.detalle ?? "Ya no estaba pendiente") }] }
+      // CC6 #303: la decisión ya no estaba cuando salió la llamada (otro la cerró, también durante los 5 s de «Asumir»): es «ya estaba cerrada», no «asumida»
+      if (r.status === 409 && j.error === "ya_no_esta") resultado = { ok: true, sale: true, cerrada_antes: true, texto: "Ya estaba resuelta en otro lugar.", registro: [{ cuando: new Date().toISOString(), quien: "sistema", estado: "guardado", texto: String(j.detalle ?? "Ya no estaba pendiente") }] }
+      else if (r.status === 409 && j.error === "accion_no_permitida" && accion === "asumir") resultado = { ok: false, sale: false, ya_no_se_asume: true, texto: "No salió.", motivo: "La oficina ya no propone un supuesto: respóndela o descártala.", registro: [] }
       else if (Array.isArray(j.registro)) resultado = j as ResultadoDeContestar
       else resultado = { ok: false, sale: false, texto: "No salió.", motivo: r.status === 401 ? "Tu sesión venció: entra de nuevo." : String(j.detalle ?? j.error ?? `No se pudo (${r.status}).`), registro: [] }
     } catch (e) { resultado = { ok: false, sale: false, texto: "No salió.", motivo: `No se pudo contactar al tablero: ${e instanceof Error ? e.message : String(e)}`, registro: [] } }
+    return resultado
+  }, [fetchImpl])
+
+  // asumir, ya pasados los 5 s (o antes, si haces otra cosa o cierras el panel): recién aquí sale la llamada
+  const enviarAsumida = useCallback(async (d: Decision) => {
+    if (enEspera.current?.d.id === d.id) { clearTimeout(enEspera.current.reloj); enEspera.current = null }
+    setConstancia((c) => (c && c.id === d.id ? { ...c, enEspera: false } : c))
+    const resultado = await pedir(d, "asumir", {})
+    setContestadas((xs) => [{ d, resultado, accion: "asumir" as const, en: new Date().toISOString() }, ...xs.filter((x) => x.d.id !== d.id)])
+    if (resultado.sale) {
+      // 409: otra persona la cerró. No es un error; la lista se vuelve a leer entera (el número pudo cambiar por otras razones)
+      if (resultado.cerrada_antes) setConstancia((c) => (c && c.id === d.id ? { tipo: "cerrada", id: d.id, texto: "Otra persona la cerró antes que tú.", enEspera: false } : c))
+      void leer()
+      return
+    }
+    // no se pudo: vuelve al frente con la línea «Sin guardar»
+    setConstancia((c) => (c && c.id === d.id ? null : c))
+    // si la oficina retiró el supuesto, vuelve SIN él (sin «Asumir» que fallaría siempre) y la lista se relee
+    const vuelve = resultado.ya_no_se_asume ? { ...d, supuesto: null, permite: d.permite?.filter((a) => a !== "asumir") ?? null } : d
+    setDatos((x) => (x && !x.decisiones.some((y) => y.id === d.id) ? { ...x, decisiones: [vuelve, ...x.decisiones] } : x))
+    setFoco(d.id)
+    if (resultado.ya_no_se_asume) void leer()
+  }, [pedir, leer])
+  const soltarLaEspera = useCallback(() => { const p = enEspera.current; if (p) void enviarAsumida(p.d) }, [enviarAsumida])
+  const asumir = useCallback((d: Decision) => {
+    soltarLaEspera() // la que esperaba sale ya: tocar otra es tu próxima acción
+    setRegistro(null); setAviso(null)
+    setDatos((x) => (x ? { ...x, decisiones: x.decisiones.filter((y) => y.id !== d.id) } : x)) // el contador baja y se ve la siguiente
+    setConstancia({ tipo: "asumida", id: d.id, texto: `${d.supuesto ?? ""}, como supuesto tuyo`, enEspera: true })
+    enEspera.current = { d, reloj: setTimeout(() => { void enviarAsumida(d) }, ESPERA_PARA_DESHACER_MS) }
+  }, [soltarLaEspera, enviarAsumida])
+  const deshacer = useCallback(() => {
+    const p = enEspera.current
+    if (!p) return
+    clearTimeout(p.reloj); enEspera.current = null
+    setConstancia(null)
+    setDatos((x) => (x && !x.decisiones.some((y) => y.id === p.d.id) ? { ...x, decisiones: [p.d, ...x.decisiones] } : x))
+    setFoco(p.d.id)
+  }, [])
+  // al cerrar el panel con una asumida esperando, sale ya: tu toque fue «Asumir», y solo «Deshacer» la anula
+  const soltarAlCerrar = useRef(soltarLaEspera)
+  soltarAlCerrar.current = soltarLaEspera
+  useEffect(() => () => soltarAlCerrar.current(), [])
+
+  const contestar = useCallback(async (d: Decision, accion: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }): Promise<ResultadoDeContestar | null> => {
+    soltarLaEspera(); setConstancia(null) // tu próxima acción: la asumida que esperaba sale ya, y su constancia se va
+    const resultado = await pedir(d, accion, t)
     const c: Contestada = { d, resultado, accion, en: new Date().toISOString() }
     setContestadas((xs) => [c, ...xs.filter((x) => x.d.id !== d.id)])
     if (resultado.sale) {
@@ -277,7 +352,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
       void leer()
     } else setAviso(null)
     return resultado
-  }, [fetchImpl, leer])
+  }, [pedir, leer, soltarLaEspera])
   // 05-nov · ver cómo quedaría una cifra cambiada: no firma, no mueve la lista y no queda como «contestada»
   const verCambio = useCallback(async (d: Decision, clave: string, firmado: number): Promise<ResultadoDeContestar> => {
     try {
@@ -314,12 +389,22 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
       <p data-resumen className="sr-only">{cargando && !datos ? "Leyendo…" : resumen}</p>
       <Recuadros etiqueta="Filtrar las decisiones" alElegir={elegir} items={recuadros} />
       {error && <p role="alert" className="mb-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{error}</p>}
+      {constancia && (
+        // 09-nov · la constancia, entre líneas y fuera de la tarjeta (boceto 2); «Deshacer» solo mientras la llamada no salió
+        <div data-constancia={constancia.tipo} role="status" className="mb-4 border-y border-linea py-3 text-center">
+          <Rotulo>{constancia.tipo === "asumida" ? "Asumida" : "Ya estaba cerrada"}</Rotulo>
+          <p data-constancia-texto className="mt-1 text-dato text-gris">{constancia.texto}</p>
+          {constancia.enEspera && <button type="button" data-deshacer onClick={deshacer} className="mt-1 min-h-11 px-3 text-dato font-medio text-oro hover:text-hueso focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">Deshacer</button>}
+        </div>
+      )}
+      {/* ajuste 1 de CC6: solo si la pregunta del frente de verdad detiene el plan (señal de la plataforma), nunca texto fijo */}
+      {!registro && actual?.tipo === "pregunta_al_dueno" && g.detienen.some((x) => x.id === actual.id) && <p data-linea-plan className="-mt-1 mb-4 text-center text-dato text-gris">El plan espera hasta que cierres todas las preguntas</p>}
       {aviso && <p data-aviso role="status" className="mb-4 rounded-full border border-linea-oro px-4 py-2 text-center text-dato text-hueso">{aviso}</p>}
 
       {registro ? <Registro c={registro} onCerrar={() => setRegistro(null)} />
         : actual ? (
           <>
-            <TarjetaDelFrente key={actual.id} d={actual} alDecidir={setAbierta} enPausa={enPausa} detiene={g.detienen.some((x) => x.id === actual.id)} contestar={contestar} verCambio={verCambio} previa={contestadas.find((c) => c.d.id === actual.id) ?? null} detalleInicial={detalleInicial} />
+            <TarjetaDelFrente key={actual.id} d={actual} alDecidir={setAbierta} enPausa={enPausa} detiene={g.detienen.some((x) => x.id === actual.id)} contestar={contestar} verCambio={verCambio} previa={contestadas.find((c) => c.d.id === actual.id) ?? null} detalleInicial={detalleInicial} asumir={asumir} />
             <Paginas actual={Math.min(i, n - 1) + 1} total={n} alMover={mover} etiqueta="Pasar de una decisión a otra" />
           </>
         ) : (
