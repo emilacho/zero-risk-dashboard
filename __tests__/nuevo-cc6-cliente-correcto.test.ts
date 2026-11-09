@@ -65,7 +65,7 @@ describe("el cliente recordado (este navegador)", () => {
     const mem = new Map<string, string>()
     g.window = { localStorage: { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) } }
     expect(leerClienteDeTrabajo()).toBeNull()
-    guardarClienteDeTrabajo({ id: NAUFRAGO, nombre: "Náufrago" }); expect(leerClienteDeTrabajo()).toEqual({ id: NAUFRAGO, nombre: "Náufrago" })
+    guardarClienteDeTrabajo({ id: NAUFRAGO, nombre: "Náufrago" }); expect(leerClienteDeTrabajo()).toEqual({ id: NAUFRAGO, nombre: "Náufrago", todos: false })
     g.window = { localStorage: { getItem: () => { throw new Error("bloqueado") }, setItem: () => { throw new Error("bloqueado") } } }
     expect(leerClienteDeTrabajo()).toBeNull(); expect(() => guardarClienteDeTrabajo({ id: ZR })).not.toThrow()
   })

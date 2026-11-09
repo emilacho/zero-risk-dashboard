@@ -114,7 +114,7 @@ describe("sprint 6.3 · el manual de marca en el estilo nuevo", () => {
     expect(html).toMatch(/Frescura sin duda<\/span>[\s\S]*Sabor costeño<\/span>/) // las listas se leen como viñetas, una por elemento
     expect(html).toContain("encebollado"); expect(html).toContain("gourmet"); expect(html).toContain("Nunca se nombra a la competencia")
     expect(html).toContain('data-color="#1a0828"'); expect(html).not.toContain("hoja de estilo del sitio"); expect(html).toContain("#51d4b4"); expect(html).toContain("acento"); expect(html).toContain("Inter"); expect(html).toContain("cuerpo de texto")
-    expect(html).toContain("Aurora · sin manual"); expect(html).toMatch(/aria-label="Elegir el cliente"/)
+    expect(html).not.toContain("Aurora · sin manual"); expect(html).not.toMatch(/aria-label="Elegir el cliente"/) // 06-nov selector único
     expect(html).not.toMatch(/\/clientes\//) // nada manda al dashboard viejo
     const c = readFileSync("components/nuevo/PanelManual.tsx", "utf8")
     expect(c).toContain('window.addEventListener("keydown", tecla, true)')

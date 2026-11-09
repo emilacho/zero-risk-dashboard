@@ -109,13 +109,14 @@ describe("6.42 · a un clic", () => {
     expect(h).toContain('data-ver-cliente="Náufrago"'); expect(h).toContain('href="/nuevo/cliente/naufrago"')
     expect(h).not.toContain(`data-ver-cliente="${TRABAJO_INTERNO}"`)
   })
-  it("cambio 1 de Emilio: el selector de arriba abre la vista del cliente; la lista sin pruebas ni repetidos", async () => {
+  it("cambio 1 de Emilio (06-nov: el selector de arriba ELIGE el cliente; la vista financiera se abre desde Dinero); la lista sin pruebas ni repetidos", async () => {
     expect(clientesDelSelector(["Náufrago", "Náufrago", PRUEBAS_Y_FICHAS_VIEJAS, TRABAJO_INTERNO, "Zero Risk Seguridad Industrial"])).toEqual([
       { nombre: "Náufrago", ruta: "/nuevo/cliente/naufrago" }, { nombre: "Zero Risk Seguridad Industrial", ruta: "/nuevo/cliente/zero-risk-seguridad-industrial" }])
     const { BarraSuperior } = await import("@/components/nuevo/MarcoNuevo")
     const h = renderToStaticMarkup(createElement(BarraSuperior))
-    expect(h).toContain("data-selector-de-cliente"); expect(h).toContain("Seleccionar cliente"); expect(h).toContain('aria-haspopup="menu"')
-    expect(readFileSync("components/nuevo/SelectorDeCliente.tsx", "utf8")).toContain('href={c.ruta}')
+    expect(h).toContain("data-selector-de-cliente"); expect(h).toContain("Elige un cliente"); expect(h).toContain('aria-haspopup="menu"')
+    expect(readFileSync("components/nuevo/SelectorDeCliente.tsx", "utf8")).not.toContain('href={c.ruta}')
+    expect(readFileSync("components/nuevo/DineroDesglose.tsx", "utf8")).toContain("href={rutaDelCliente(f.nombre)}")
    }, 60000)
   it("página propia con la puerta de administrador; la lista también exige administrador y solo lee", () => {
     const pagina = readFileSync("app/nuevo/cliente/[cliente]/page.tsx", "utf8"), ruta = readFileSync("app/api/direccion/clientes/route.ts", "utf8")

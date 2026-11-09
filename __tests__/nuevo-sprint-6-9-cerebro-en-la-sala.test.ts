@@ -50,7 +50,7 @@ describe("6.9 · el Cerebro es una estructura de la sala principal (el monolito)
     const datos: CerebroDelCliente = { clientes: [{ id: NAUFRAGO, nombre: "Náufrago" }, { id: OTRO, nombre: "Otro" }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, fichas: [], perfiles: [], preguntas: [], sedes: [], trozos: 0, retiradas: 0, descartadas: 0, leido_en: "x" }
     const h = renderToStaticMarkup(createElement(PanelCerebro, { onCerrar: () => {}, datosIniciales: datos }))
     expect(h).not.toContain("data-elegir-cliente"); expect(h).not.toContain("<select"); expect(h).not.toContain(">Otro</option>")
-    expect(h).toMatch(/data-cliente-como-texto[^>]*>Cliente · <span data-cliente-nombre[^>]*>Náufrago</span>/)
+    expect(h).toMatch(/data-cliente-como-texto[^>]*>Cliente · <span data-cliente-nombre[^>]*>Náufrago<\/span>/)
   })
 })
 
@@ -71,7 +71,7 @@ describe("6.9 · «Centro de campaña» (ya no «Pizarrón de piezas») e «Info
     expect(APLICACIONES.some((a) => (a.clave as string) === "cerebro")).toBe(false)
     expect(APLICACIONES.find((a) => a.clave === "informes")!.enlace(NAUFRAGO)).toBeNull()
     const c = leer("components/nuevo/PanelAplicaciones.tsx")
-    expect(c).toContain('if (vista === "informes") return <PanelInformes onCerrar={volverAlInicio} clienteInicial={cliente} />')
+    expect(c).toContain('if (vista === "informes") return <PanelInformes key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />')
     expect(c).not.toContain("PanelCerebro")
   })
 })
