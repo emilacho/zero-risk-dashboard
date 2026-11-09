@@ -121,3 +121,40 @@ describe("CC6 #290 · ninguna información se pierde aunque la firma no traiga t
     expect(h).not.toMatch(/data-cifra-del-detalle="cpv_pauta"><button/)
   })
 })
+
+describe("CC6 #290 (e145a7c) · el detalle nunca se abre vacío", () => {
+  const SOLA = "El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas."
+  it("una sola frase en «Uso» y «Desbloquea», sin «Decisivo» ni cifras de más: los pares son texto, no un botón, y no hay detalle", () => {
+    for (const det of [false, true]) {
+      const h = pinta(firma({ criticos: [], cifras: [META, TOTAL], para_que: SOLA, destraba: SOLA }), det)
+      expect(h).toContain(`<span data-uso="true">${SOLA}</span>`); expect(h).toContain("data-contexto-solo")
+      expect(h).not.toContain("data-contexto="); expect(h).not.toContain("data-detalle"); expect(h).not.toContain("Leer el detalle completo")
+    }
+  })
+  it("basta una cosa de más (Decisivo, una frase de más o una cifra) para que sea botón y el detalle la muestre", () => {
+    const casos = [
+      firma({ cifras: [META, TOTAL], para_que: SOLA, destraba: SOLA }),
+      firma({ criticos: [], cifras: [META, TOTAL], para_que: SOLA + " Y algo más.", destraba: SOLA }),
+      firma({ criticos: [], cifras: [META, TOTAL], para_que: SOLA, destraba: SOLA + " Y algo más." }),
+      firma({ criticos: [], para_que: SOLA, destraba: SOLA }),
+    ]
+    for (const f of casos) {
+      expect(pinta(f)).toContain('data-contexto="true"')
+      expect(pinta(f, true)).toMatch(/data-detalle="true"[^>]*><div>/)
+    }
+  })
+  it("una sola frase con un espacio al final no se repite en el detalle", () => {
+    const a = pinta(firma({ para_que: "Una frase. ", destraba: "Otra frase.  " }), true)
+    expect(a).toContain('<span data-uso="true">Una frase.</span>'); expect(a).not.toContain("data-uso-entero"); expect(a).not.toContain("data-destraba-entero")
+  })
+})
+
+describe("CC6 #290 · la tarjeta sola, con texto sin normalizar, tampoco repite la frase", () => {
+  it("«Una frase. » con espacio al final: al frente entera, sin repetirse en el detalle", async () => {
+    const { TarjetaDelFrente } = await import("@/components/nuevo/PanelDecisiones")
+    const d = { ...firma().decisiones[0], para_que: "Una frase. ", destraba: "Otra frase.  " }
+    const h = renderToStaticMarkup(createElement(TarjetaDelFrente, { d, alDecidir: () => {}, enPausa: null, detiene: false, contestar: async () => ({ sale: true }) as never, verCambio: async () => null as never, previa: null, detalleInicial: true })).replace(/<!-- -->/g, "")
+    expect(h).toContain('<span data-uso="true">Una frase.</span>'); expect(h).toContain('<span data-destraba="true">Otra frase.</span>')
+    expect(h).not.toContain("data-uso-entero"); expect(h).not.toContain("data-destraba-entero")
+  })
+})

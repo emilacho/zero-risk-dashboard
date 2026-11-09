@@ -112,6 +112,10 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const editables = acciones.includes("editar") ? (d.cifras ?? []).filter((c) => c.editable) : []
   // CC6 #290: si la firma no trae «Decisivo», «Uso» ni «Desbloquea», no hay bloque que abra el detalle; entonces las demás cifras se ven sin tocar nada (ninguna información se pierde)
   const sinPuerta = !corto && !d.para_que && !destraba
+  // CC6 #290 (e145a7c): el detalle solo existe si tiene algo que mostrar; si no, «Uso / Desbloquea» es texto, no un botón que abre una caja vacía
+  const usoDeMas = !!d.para_que && primeraFrase(d.para_que) !== d.para_que.trim()
+  const destrabaDeMas = !!destraba && primeraFrase(destraba) !== destraba.trim()
+  const hayDetalle = !!d.criticos?.length || usoDeMas || destrabaDeMas || cifrasDelDetalle.length > 0
   const recuadro = (c: CifraDeFirma, marca: Record<string, string>) => editables.some((x) => x.clave === c.clave)
     ? <div key={c.clave} {...marca}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><CuerpoDeCifra c={c} /></button></div>
     : <div key={c.clave} {...marca} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center"><CuerpoDeCifra c={c} /></div>
@@ -149,17 +153,20 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           <Aviso rotulo="Decisivo"><span data-frase className="block">{corto.frase}</span>{corto.porque && <span data-porque className="block text-cuerpo font-normal text-gris">{corto.porque}</span>}</Aviso>
         </button>
       )}
-      {!cifraEnCambio && (d.para_que || destraba) && (
-        <button type="button" data-contexto aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="mt-4 block w-full rounded-control focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><Pares valor="text-dato" pares={[
+      {!cifraEnCambio && (d.para_que || destraba) && (() => {
+        const pares = <Pares valor="text-dato" pares={[
           ...(d.para_que ? [{ rotulo: "Uso", valor: <span data-uso>{primeraFrase(d.para_que)}</span> }] : []),
           ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{primeraFrase(destraba)}</span> }] : []),
-        ]} /></button>
-      )}
-      {!cifraEnCambio && (verDetalle || (sinPuerta && cifrasDelDetalle.length > 0)) && (
+        ]} />
+        return hayDetalle
+          ? <button type="button" data-contexto aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="mt-4 block w-full rounded-control focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">{pares}</button>
+          : <div data-contexto-solo className="mt-4">{pares}</div>
+      })()}
+      {!cifraEnCambio && hayDetalle && (verDetalle || (sinPuerta && cifrasDelDetalle.length > 0)) && (
         <div data-detalle className="mt-4 space-y-4 border-t border-linea pt-4 text-left">
           {d.criticos?.length ? <div><Rotulo tono="alarma">Decisivo</Rotulo><ul className="mt-1.5 space-y-2 text-dato text-hueso">{d.criticos.map((c) => <li key={c} data-critico-entero>{c}</li>)}</ul></div> : null}
-          {d.para_que && primeraFrase(d.para_que) !== d.para_que.trim() && <div><Rotulo tono="gris">Uso</Rotulo><p data-uso-entero className="mt-1.5 text-dato text-hueso">{d.para_que}</p></div>}
-          {destraba && primeraFrase(destraba) !== destraba.trim() && <div><Rotulo tono="gris">Desbloquea</Rotulo><p data-destraba-entero className="mt-1.5 text-dato text-hueso">{destraba}</p></div>}
+          {usoDeMas && <div><Rotulo tono="gris">Uso</Rotulo><p data-uso-entero className="mt-1.5 text-dato text-hueso">{d.para_que}</p></div>}
+          {destrabaDeMas && <div><Rotulo tono="gris">Desbloquea</Rotulo><p data-destraba-entero className="mt-1.5 text-dato text-hueso">{destraba}</p></div>}
           {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div></div>}
         </div>
       )}
