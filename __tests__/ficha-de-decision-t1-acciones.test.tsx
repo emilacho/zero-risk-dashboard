@@ -69,6 +69,15 @@ describe("menor 2 · lo que hace el dueño en la ficha", () => {
     fireEvent.click($("[data-verbo=descartar]")!) // vuelve a pedir los dos toques, con el motivo vacío
     expect(alVerbo).not.toHaveBeenCalled(); expect(($("[data-motivo]") as HTMLInputElement).value).toBe("")
   })
+  it("CC6 #310 cuidado · mientras sale el descarte, «Volver» también queda quieto (no se cancela a medio camino)", () => {
+    const alVerbo = vi.fn()
+    const r = render(createElement(FichaDeDecision, { ficha: pregunta, enviando: null, alVerbo, alIr: () => {} }))
+    fireEvent.click(r.container.querySelector("[data-verbo=descartar]")!)
+    r.rerender(createElement(FichaDeDecision, { ficha: pregunta, enviando: "descartar", alVerbo, alIr: () => {} }))
+    const volver = r.container.querySelector<HTMLButtonElement>("[data-volver]")!
+    expect(volver.disabled).toBe(true); expect(r.container.querySelector("[data-verbo=descartar]")!.textContent).toBe("Descartando…")
+    fireEvent.click(volver); expect(r.container.querySelector("[data-motivo]")).not.toBeNull() // sigue abierto: el toque no hizo nada
+  })
   it("mientras sale, el botón dice qué está saliendo (no solo aria-busy) y todo queda quieto", () => {
     const { $ } = pintar(pregunta, "responder")
     expect($("[data-verbo=responder]")!.textContent).toBe("Enviando…"); expect($("[data-verbo=responder]")!.getAttribute("aria-busy")).toBe("true")
@@ -79,6 +88,7 @@ describe("menor 2 · lo que hace el dueño en la ficha", () => {
   })
   it("sin acciones dice que solo avisa; con acciones, no", () => {
     expect(pintar(base).$("[data-solo-avisa]")?.textContent).toBe("Esta ficha solo avisa: no hay nada que decidir aquí.")
+    const aviso = pintar(base).$("[data-solo-avisa]")!; expect(aviso.hidden).toBe(false); expect(aviso.closest("[hidden],[aria-hidden=true]")).toBeNull(); expect(aviso.className).not.toMatch(/(^|\s)(hidden|sr-only|invisible|opacity-0)(\s|$)/) // se VE (cuidado de CC6)
     expect(pintar(pregunta).$("[data-solo-avisa]")).toBeNull()
   })
 })
