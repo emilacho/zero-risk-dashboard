@@ -4,6 +4,8 @@
  *   · responder una pregunta  → primero `POST /api/finanzas/responder` (la pausa de la oficina financiera, contrato de CC1 #897); si la pregunta no es de la pausa,
  *                               `POST /api/dueno/preguntas` con `accion:"responder"` (la ruta de la plataforma, #939: guarda la ficha en el cerebro y cierra la fila). Nunca las dos.
  *   · descartar una pregunta  → `POST /api/dueno/preguntas` con `accion:"descartar"` (queda «descartada» con motivo; nada se borra).
+ *   · asumir una pregunta     → `POST /api/dueno/preguntas` con `accion:"asumir"` (09-nov · GO `2026-11-09-GO-LENOVO-a-CC4-CC6-construir-boton-asumir.md`): el dueño acepta TAL CUAL
+ *                               el supuesto que propuso la oficina; la plataforma lo guarda en el cerebro y cierra la fila «asumida». El tablero no manda el supuesto: lo lee la ruta de la fila.
  *   (06-nov · condición A de CC7 para #939/#940: el tablero deja la puerta del cerebro para las preguntas; la puerta ya no acepta «descartar»)
  *   · firmar (aceptar)         → la acción `firmar-tablero` de la plataforma.
  *   · cambiar una cifra        → `recalcular-tablero` para verla (no firma) y `firmar-tablero` con `cambios`. Lo propuesto sale de la lectura del servidor, nunca de la pantalla.
@@ -23,7 +25,7 @@ export { TOPE_MOTIVO, TOPE_RESPUESTA }
 export const TOPE_PREGUNTA = 600
 
 /** un paso del registro de la decisión (lo que se muestra en su detalle) */
-export interface PasoDelRegistro { cuando: string | null; quien: "oficina" | "tu" | "sistema"; estado: "pregunto" | "respondiste" | "firmaste" | "descartaste" | "guardado" | "retomado" | "espera" | "fallo"; texto: string; cita?: string }
+export interface PasoDelRegistro { cuando: string | null; quien: "oficina" | "tu" | "sistema"; estado: "pregunto" | "respondiste" | "asumiste" | "firmaste" | "descartaste" | "guardado" | "retomado" | "espera" | "fallo"; texto: string; cita?: string }
 export interface ResultadoDeContestar {
   ok: boolean
   /** true = la fila de origen cambió de estado: sale de todas partes */
@@ -37,6 +39,10 @@ export interface ResultadoDeContestar {
   recalculo?: { cifras: CifraDeFirma[]; alertas: string[] }
   /** al cambiar una cifra que no cuadra: la más cercana que sí */
   alcanzable?: number
+  /** 09-nov · al asumir: otro la cerró antes (409 de la ruta). No es un error: la pantalla dice «Ya estaba cerrada» y vuelve a leer la lista */
+  cerrada_antes?: boolean
+  /** 09-nov · CC6 #303: al asumir, la oficina ya no propone un supuesto (la decisión releída no lo trae). Reintentar no sirve: la pantalla relee la lista y lo dice */
+  ya_no_se_asume?: boolean
 }
 type Fila = Record<string, unknown>
 export interface DepsDeContestar { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch; ahora?: () => Date; revisor: string; leer?: typeof leerDecisiones; firmar?: typeof ejecutarAccion; id?: () => string }
@@ -72,7 +78,7 @@ export function validarContestar(raw: unknown): { ok: true; id: string; accion: 
   const b = (raw && typeof raw === "object" ? raw : {}) as Fila
   const id = txt(b.id), accion = txt(b.accion) as AccionDeContestar, respuesta = txt(b.respuesta), motivo = txt(b.motivo)
   if (!id || id.length > 200) return { ok: false, detalle: "Falta la decisión que contestas." }
-  if (!["aceptar", "editar", "recalcular", "responder", "descartar"].includes(accion)) return { ok: false, detalle: "Esa acción no existe." }
+  if (!["aceptar", "editar", "recalcular", "responder", "asumir", "descartar"].includes(accion)) return { ok: false, detalle: "Esa acción no existe." }
   if (accion === "responder" && !respuesta) return { ok: false, detalle: "Escribe tu respuesta." }
   if (respuesta.length > TOPE_RESPUESTA) return { ok: false, detalle: `La respuesta va hasta ${TOPE_RESPUESTA.toLocaleString("es-EC")} letras.` }
   if (motivo.length > TOPE_MOTIVO) return { ok: false, detalle: `El motivo va hasta ${TOPE_MOTIVO} letras.` }
@@ -161,6 +167,16 @@ async function contestarSinConfirmar(raw: unknown, d: DepsDeContestar): Promise<
       if (status === 409) return { status: 200, cuerpo: fallo(base, "La pregunta ya no estaba pendiente: alguien la cerró antes.", ahora) }
       if (status !== 200 || j.ok !== true || j.descartada !== true) return { status: 200, cuerpo: fallo(base, `No se pudo descartar: ${txt(j.detalle) || txt(j.error) || `la plataforma respondió ${status}`}.`, ahora) }
       return { status: 200, cuerpo: { ok: true, sale: true, texto: "Descartada.", registro: [...base, { cuando: ahora, quien: "tu", estado: "descartaste", texto: v.motivo ? `La descartaste: ${v.motivo}` : "La descartaste" }, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Quedó archivada con tu motivo; nada se borró" }] } }
+    }
+
+    if (v.accion === "asumir") {
+      const supuesto = txt(dec.supuesto)
+      // la ruta de la plataforma lee el supuesto de la fila y lo guarda tal cual: el tablero solo dice cuál pregunta y quién la asume
+      const { status, j } = await llamar(d, "/api/dueno/preguntas", "POST", { accion: "asumir", client_id: dec.client_id, pregunta_id: dec.id, decidido_por: d.revisor || "emilio", canal: CANAL_DE_TU_OFICINA, workflow_id: FLUJO_DE_TU_OFICINA, workflow_execution_id: ejecucion })
+      const tu: PasoDelRegistro = { cuando: ahora, quien: "tu", estado: "asumiste", texto: "Aceptaste el supuesto de la oficina", ...(supuesto ? { cita: supuesto } : {}) }
+      if (status === 409) return { status: 200, cuerpo: { ok: true, sale: true, cerrada_antes: true, texto: "Ya estaba cerrada.", registro: [...base, { cuando: ahora, quien: "sistema", estado: "guardado", texto: j.guardada_en_cerebro === true ? "Otro la cerró antes; el supuesto quedó en el cerebro" : "Otro la cerró antes" }] } }
+      if (status !== 200 || j.ok !== true || j.asumida !== true) return { status: 200, cuerpo: fallo([...base, tu], "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo.", ahora) }
+      return { status: 200, cuerpo: { ok: true, sale: true, texto: "Asumida.", registro: [...base, tu, { cuando: ahora, quien: "sistema", estado: "guardado", texto: "Guardó el supuesto en el cerebro como aceptado por ti; todas las oficinas lo leen así" }] } }
     }
 
     // responder: 1) la pausa de la oficina financiera; 2) si no es suya, la puerta del dueño

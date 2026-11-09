@@ -45,16 +45,18 @@ export interface Decision {
   cifras?: CifraDeFirma[]
   /** 05-nov · firma: los críticos que siguen abiertos, en palabras de la oficina */
   criticos?: string[]
+  /** 09-nov · el supuesto que propuso la oficina que pregunta: con él (y solo con él) el dueño puede «asumir». Nunca lo inventa el tablero */
+  supuesto?: string | null
   /** el texto como lo guardó la fuente (la puerta del cerebro recibe la pregunta tal cual) */
   titulo_interno?: string | null
 }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
 export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null; /** 05-nov · la oficina deja cambiarla antes de firmar (hoy: la meta y el presupuesto) */ editable?: boolean }
-export type AccionDeDecision = "aceptar" | "editar" | "responder" | "descartar"
+export type AccionDeDecision = "aceptar" | "editar" | "responder" | "asumir" | "descartar"
 /** lo que aceptan las puertas al contestar (la del dueño: respuesta ≤ 2.000 · motivo de descarte ≤ 300) */
 export const TOPE_RESPUESTA = 2000
 export const TOPE_MOTIVO = 300
-export const ACCIONES_DE_DECISION: readonly AccionDeDecision[] = ["aceptar", "editar", "responder", "descartar"]
+export const ACCIONES_DE_DECISION: readonly AccionDeDecision[] = ["aceptar", "editar", "responder", "asumir", "descartar"]
 export interface FuenteDeDecisiones { fuente: string; estado: "ok" | "no_existe" | "error" | "sin_credencial" | string; filas: number; truncado?: boolean; detalle?: string }
 export interface Decisiones {
   generado_en: string | null
@@ -245,7 +247,7 @@ export const esLaTarjetaDeLaPausa = (d: Pick<Decision, "fuente" | "subtipo">): b
 
 /** lo que el tablero sabe hacer hoy, por tipo (cada una con su ruta real en la plataforma) */
 const LO_QUE_SE_HACE_AQUI: Partial<Record<TipoDeDecision, AccionDeDecision[]>> = {
-  pregunta_al_dueno: ["responder", "descartar"], // puerta del dueño del cerebro (+ la ruta de la pausa de finanzas)
+  pregunta_al_dueno: ["responder", "asumir", "descartar"], // la ruta de la plataforma `/api/dueno/preguntas` (+ la ruta de la pausa de finanzas para responder)
   firma_de_finanzas: ["aceptar", "editar"], // firmar-tablero, con o sin `cambios`
 }
 /** 05-nov · nunca se firma a ciegas: una firma que no trae las cifras que se firman no tiene nada que leer */
@@ -329,11 +331,12 @@ export function primeraFrase(texto: string): string {
  * Las acciones que muestra la tarjeta. Si la oficina de origen declaró cuáles permite (`permite`), mandan esas, siempre que el tablero tenga con qué hacerlas;
  * si no declaró nada, las de su tipo. Una acción sin ruta real nunca se muestra (nada de botones falsos).
  */
-export function accionesDe(d: Pick<Decision, "tipo" | "permite" | "fuente" | "subtipo" | "cifras">): AccionDeDecision[] {
+export function accionesDe(d: Pick<Decision, "tipo" | "permite" | "fuente" | "subtipo" | "cifras"> & { supuesto?: string | null }): AccionDeDecision[] {
   if (esLaTarjetaDeLaPausa(d) || faltaQueLeer(d)) return []
   const posibles = LO_QUE_SE_HACE_AQUI[d.tipo] ?? []
   // cambiar una cifra lo tiene que ofrecer la oficina, y tiene que haber una cifra que se pueda cambiar
-  const sePuede = (a: AccionDeDecision) => a !== "editar" || (!!d.permite?.includes("editar") && !!d.cifras?.some((c) => c.editable))
+  // 09-nov · asumir: la oficina tiene que haberlo ofrecido Y haber propuesto un supuesto (sin supuesto no hay nada que asumir)
+  const sePuede = (a: AccionDeDecision) => a === "asumir" ? (!!d.permite?.includes("asumir") && !!d.supuesto?.trim()) : a !== "editar" || (!!d.permite?.includes("editar") && !!d.cifras?.some((c) => c.editable))
   return (d.permite ? posibles.filter((a) => d.permite!.includes(a)) : posibles).filter(sePuede)
 }
 
@@ -370,7 +373,7 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (Array.isArray(per)) o.permite = ACCIONES_DE_DECISION.filter((a) => per.includes(a))
   else if (per && typeof per === "object") {
     const p = per as Record<string, unknown>
-    o.permite = ACCIONES_DE_DECISION.filter((a) => p[a] === true || p[{ aceptar: "allow_accept", editar: "allow_edit", responder: "allow_respond", descartar: "allow_ignore" }[a]] === true)
+    o.permite = ACCIONES_DE_DECISION.filter((a) => p[a] === true || p[{ aceptar: "allow_accept", editar: "allow_edit", responder: "allow_respond", asumir: "allow_assume", descartar: "allow_ignore" }[a]] === true)
   }
   const pp = (d.pregunta_de ?? d.preguntado_por) as Record<string, unknown> | undefined
   const oficina = pp && typeof pp === "object" ? txt(pp.oficina) : null
@@ -382,6 +385,7 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (o.destraba && txt(d.destraba_corto)) o.destraba_corto = txt(d.destraba_corto)
   if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
   if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
+  if (txt(d.supuesto)) o.supuesto = txt(d.supuesto)
   const cifras = leerCifras(d.cifras)
   if (cifras.length) o.cifras = cifras
   if (txt(d.al_editar)) o.al_editar = txt(d.al_editar)!

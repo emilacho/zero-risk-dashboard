@@ -104,7 +104,8 @@ export const BOTON_PRINCIPAL = `zr-apagable rounded-control border border-ambar 
 /** los botones de la tarjeta: mismo ancho, a pares; el principal va último (a la derecha). Uno solo ocupa todo el ancho */
 export function Acciones({ children }: { children: ReactNode }) {
   const n = (Array.isArray(children) ? children.flat().filter(Boolean) : [children].filter(Boolean)).length
-  return <div data-acciones className={`mt-6 grid gap-3 ${n > 1 ? "grid-cols-2" : "grid-cols-1"}`}>{children}</div>
+  // 09-nov · tres (Descartar · Asumir · Responder, boceto aprobado): una fila de tres del mismo ancho
+  return <div data-acciones className={`mt-6 grid gap-3 ${n === 3 ? "grid-cols-3" : n > 1 ? "grid-cols-2" : "grid-cols-1"}`}>{children}</div>
 }
 
 export function Paginas({ actual, total, alMover, etiqueta }: { actual: number; total: number; alMover: (paso: number) => void; etiqueta: string }) {
