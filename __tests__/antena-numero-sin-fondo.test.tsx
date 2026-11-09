@@ -36,8 +36,10 @@ describe("la lista al tocarla, en estilo base", () => {
     expect(h).toMatch(/<span class="block text-titulo text-hueso">[^<]+<\/span><span data-cuando="true" class="mt-1 block text-cuerpo text-gris">/) // el aviso es lo principal: 20 hueso y debajo 15 gris
     expect(h).toMatch(/grid-cols-\[20px_1fr_auto\] items-center gap-3 py-5/); expect(h).toContain('class="text-titulo text-gris">›</span>') // con aire
     expect(h).toMatch(/<h2 [^>]*text-cuerpo[^>]*>Alertas<\/h2>/) // el título queda más chico que el aviso
-    expect(h).toContain(">hace una hora · abre En vivo<"); expect(h).toContain(">hace 2 días · abre Observabilidad<")
-    expect(h).toContain(">hace 5 horas<") // sin lugar: no dice «abre» y el botón queda quieto
+    expect(h).toContain(">Hace una hora · abre En vivo<"); expect(h).toContain(">Hace 2 días · abre Observabilidad<")
+    expect(h).toContain(">Hace 5 horas<") // sin lugar: no dice «abre» y el botón queda quieto
+    expect(h).toContain('class="inline-flex h-6 min-w-9 items-center justify-center rounded-control border px-2 text-cuerpo leading-none font-medio tabular-nums border-linea-alarma text-alarma">3</span>') // CC6: el número en un recuadro más ancho que alto, de buen tamaño, como el aprobado
+    expect(h).toContain('<span aria-hidden="true" class="h-2 w-2 rounded-full bg-alarma"></span>') // el punto de 8 px (CC6: vivía en 7)
     expect((h.match(/rounded-full bg-alarma/g) ?? []).length).toBe(3)
     expect((h.match(/<button type="button" disabled=""/g) ?? []).length).toBe(1)
   })

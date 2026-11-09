@@ -9,6 +9,8 @@ import { useEffect } from "react"
 import { ANTENA, BORDE_DE_LA_ANTENA, type AlertaDeLaAntena } from "@/lib/escena-alertas"
 import type { PanelDelMarco } from "@/lib/buscador"
 import { haceCuanto } from "@/lib/direccion-decisiones"
+/** «Hace 9 horas», como en la imagen aprobada (CC6 #296) */
+const conMayuscula = (s: string) => s.charAt(0).toLocaleUpperCase("es") + s.slice(1)
 import { PanelBase } from "@/components/nuevo/EstiloBase"
 
 export const CSS_DE_LA_ANTENA = `
@@ -82,9 +84,9 @@ export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alert
   const lista = alertas ?? []
   return (
     // 09-nov · boceto aprobado: cabecera de una línea (ALERTAS + el número en un recuadro chico), sin «Dept. Marketing» ni el recuadro grande;
-    // el aviso es lo principal y el panel se ensancha lo justo para que su texto quepa en una línea (hasta 640 px)
+    // el aviso es lo principal y el panel se ensancha lo justo para que su texto quepa en una línea (hasta 720 px)
     <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[min(720px,100%)] sm:w-auto sm:min-w-[540px]"
-      junto={<span data-numero aria-label={lista.length === 1 ? "1 aviso abierto" : `${lista.length} avisos abiertos`} className={`inline-flex h-6 min-w-6 items-center justify-center rounded-control border px-1.5 text-dato font-medio tabular-nums ${lista.length ? "border-linea-alarma text-alarma" : "border-linea text-gris"}`}>{lista.length}</span>}>
+      junto={<span data-numero aria-label={lista.length === 1 ? "1 aviso abierto" : `${lista.length} avisos abiertos`} className={`inline-flex h-6 min-w-9 items-center justify-center rounded-control border px-2 text-cuerpo leading-none font-medio tabular-nums ${lista.length ? "border-linea-alarma text-alarma" : "border-linea text-gris"}`}>{lista.length}</span>}>
       <div data-panel-alertas className="mt-2 flex flex-col">
         {lista.length === 0 && <p data-todo-en-orden className="border-t border-linea py-4 text-center text-cuerpo text-gris">Todo en orden</p>}
         <ul>
@@ -96,7 +98,7 @@ export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alert
                   <span aria-hidden className="h-2 w-2 rounded-full bg-alarma" />
                   <span className="min-w-0">
                     <span className="block text-titulo text-hueso">{a.texto}</span>
-                    <span data-cuando className="mt-1 block text-cuerpo text-gris">{haceCuanto(a.cuando, ahora)}{lugar ? ` · abre ${lugar}` : ""}</span>
+                    <span data-cuando className="mt-1 block text-cuerpo text-gris">{conMayuscula(haceCuanto(a.cuando, ahora))}{lugar ? ` · abre ${lugar}` : ""}</span>
                   </span>
                   {a.abre && <span aria-hidden className="text-titulo text-gris">›</span>}
                 </button>
