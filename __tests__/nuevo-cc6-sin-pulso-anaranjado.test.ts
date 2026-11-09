@@ -37,7 +37,7 @@ describe("la escena: sin aura ámbar que late", () => {
     expect(foto).toContain("animation:nvAvisoFirma 2.4s") // el aviso de #266 SÍ titila (lo pidió Emilio)
   })
   it("los paneles: los puntos y casillas naranjas ya no laten", () => {
-    expect(leer("components/nuevo/PanelAplicaciones.tsx")).toContain('.ap-cuadro[data-aviso="true"] .ap-punto{animation:none}')
+    expect(leer("components/nuevo/PanelAplicaciones.tsx")).not.toMatch(/@keyframes|animation:/) // 06-nov · estilo base: el Centro de campaña ya no anima nada
     expect(leer("components/nuevo/PanelDecisiones.tsx")).not.toMatch(/@keyframes|animation:|animate-/) // estilo base (05-nov): Decisiones no tiene ninguna animación
     expect(leer("components/nuevo/PanelGranIdea.tsx")).toContain(".gi-punto{animation:none}")
     expect(leer("components/nuevo/PanelOrganizacion.tsx")).toContain(".or-late{animation:none}")

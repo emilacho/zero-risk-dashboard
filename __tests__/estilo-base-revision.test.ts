@@ -14,7 +14,8 @@ const ci = readFileSync(".github/workflows/ci.yml", "utf8")
 describe("estilo base · los tokens", () => {
   it("los colores son exactamente los de la guía", () => {
     for (const [k, v] of Object.entries({ carbon: "#0d0e10", grafito: "#141519", "grafito-2": "#18191e", hueso: "#e9e7e2", gris: "#a3a2a8", apagado: "#818189", oro: "#d6aa64", ambar: "#e8731a", alarma: "#d9534a" })) expect(tokens, k).toContain(`--color-${k}: ${v};`)
-    expect(tokens.match(/--color-[\w-]+:/g)).toHaveLength(14) // 9 de la guía + letra sobre el ámbar + 3 líneas + el velo: ningún otro
+    expect(tokens.match(/--color-[\w-]+:/g)).toHaveLength(15) // 9 de la guía + letra sobre el ámbar + 3 líneas + el velo + la tarjeta sobre la escena (09-nov): ningún otro
+    expect(tokens).toContain("--color-tarjeta-escena: #151515;")
   })
   it("4 tamaños + los 2 de número, 2 pesos y los radios de la guía", () => {
     for (const [k, v] of Object.entries({ titulo: 20, cuerpo: 15, dato: 13, rotulo: 11, cifra: 24, numero: 36 })) expect(tokens, k).toContain(`--text-${k}: ${v}px;`)
@@ -33,14 +34,14 @@ describe("estilo base · la revisión automática", () => {
   })
   it("la lista de migrados es exactamente la de esta entrega (campana incluida)", () => {
     const lista = readFileSync("scripts/revisar-estilo.mjs", "utf8").match(/export const MIGRADOS = \[([^\]]*)\]/)?.[1] ?? ""
-    expect([...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1])).toEqual(["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx"])
+    expect([...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1])).toEqual(["components/nuevo/EstiloBase.tsx", "components/nuevo/PanelRiesgos.tsx", "components/nuevo/PanelDecisiones.tsx", "components/nuevo/EditorDeCifra.tsx", "components/nuevo/BotonesDelMarco.tsx", "components/nuevo/PanelAplicaciones.tsx"]) // 06-nov · el Centro de campaña pasa al estilo base
   })
 })
 
 // CC6 (certificación de #290): que la revisión FRENE la entrega se prueba de verdad, en un repositorio de juguete con su propia historia
 describe("estilo base · la revisión frena la entrega", () => {
   const SCRIPT = path.resolve("scripts/revisar-estilo.mjs")
-  const MIGRADOS = ["EstiloBase", "PanelRiesgos", "PanelDecisiones", "EditorDeCifra", "BotonesDelMarco"].map((x) => `components/nuevo/${x}.tsx`)
+  const MIGRADOS = ["EstiloBase", "PanelRiesgos", "PanelDecisiones", "EditorDeCifra", "BotonesDelMarco", "PanelAplicaciones"].map((x) => `components/nuevo/${x}.tsx`)
   const git = (dir: string, ...a: string[]) => execFileSync("git", ["-c", "user.name=prueba", "-c", "user.email=prueba@x", "-c", "core.hooksPath=/dev/null", ...a], { cwd: dir, stdio: "pipe" })
   const escribir = (dir: string, f: string, t: string) => { mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); writeFileSync(path.join(dir, f), t) }
   /** repositorio con la rama principal (los migrados, limpios o no) y una rama de trabajo encima */

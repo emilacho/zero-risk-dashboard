@@ -20,11 +20,12 @@ export function Rotulo({ children, tono = "oro", className = "" }: { children: R
 }
 
 /** `lado`: una columna a la izquierda (en escritorio), fuera de la columna con el título; p. ej. el radar de Riesgos (Lenovo 06-nov) */
-export function PanelBase({ titulo, id, seccion, onCerrar, etiquetaCerrar, ancho = "max-w-[480px]", lado, junto, children }: {
+/** `fondo={false}` (09-nov · Centro de campaña): sin el panel grafito ni su hilo; el título, la ✕ y el contenido van directo sobre la escena (el velo se queda) */
+export function PanelBase({ titulo, id, seccion, onCerrar, etiquetaCerrar, ancho = "max-w-[480px]", lado, junto, fondo = true, children }: {
   titulo: string; id: string; seccion: string; onCerrar: () => void; etiquetaCerrar: string; ancho?: string; lado?: ReactNode
   /** 09-nov (alertas de la antena): algo chico en la misma línea del título, centrado con él (p. ej. el número) */
   junto?: ReactNode
-  children: ReactNode
+  fondo?: boolean; children: ReactNode
 }) {
   const cerrar = useRef<HTMLButtonElement>(null)
   useEffect(() => { cerrar.current?.focus() }, [])
@@ -41,7 +42,8 @@ export function PanelBase({ titulo, id, seccion, onCerrar, etiquetaCerrar, ancho
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-velo p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
       <section role="dialog" aria-modal="true" aria-labelledby={id} data-seccion={seccion} data-estilo="base"
-        className={`zr-hilo-oro flex max-h-full w-full ${ancho} flex-col overflow-y-auto rounded-panel border border-linea bg-grafito p-6 text-cuerpo text-hueso`}>
+        data-fondo={fondo ? "panel" : "escena"}
+        className={`flex max-h-full w-full ${ancho} flex-col overflow-y-auto p-6 text-cuerpo text-hueso ${fondo ? "zr-hilo-oro rounded-panel border border-linea bg-grafito" : ""}`}>
         {lado ? (
           <div className="grid gap-12 lg:grid-cols-2">
             <div data-columna="lado" className="flex min-w-0 flex-col">{lado}</div>
