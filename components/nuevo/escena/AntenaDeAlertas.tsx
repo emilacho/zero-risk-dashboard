@@ -1,7 +1,7 @@
 "use client"
 /**
  * LA ANTENA (CC4 · 04-nov · Emilio eligió la opción 3 con animación sutil, 15:19Z): la parabólica de la plataforma de arriba a la izquierda avisa las alertas del departamento.
- * Sin alertas: no se dibuja nada (la antena de la foto queda quieta como está). Con alguna: la luz de la punta mayor respira en rojo con un aura suave, CENTRADA en la lucecita de la foto (505,257 medido en la foto de 2560 px),
+ * Sin alertas: las dos lucecitas de la foto se APAGAN (regla de Emilio 09-nov, ver `LucesApagadas`) y no hay número. Con alguna: la luz de la punta mayor respira en rojo con un aura suave, CENTRADA en la lucecita de la foto (505,257 medido en la foto de 2560 px),
  * y el borde de la plataforma queda COMO EN LA FOTO (su línea naranja de siempre): solo un tramo corto de luz roja viaja por dentro de esa línea, en sentido del reloj. Al tocarla se abre un panel con la lista (mismo marco que los demás).
  * Luces pequeñas y realistas sobre la foto: nada de formas planas.
  */
@@ -21,12 +21,43 @@ export const CSS_DE_LA_ANTENA = `
 @media (prefers-reduced-motion:reduce){.nv-antena .nv-antena-pulso,.nv-antena .nv-antena-corre{animation:none}}`
 // la animación vive en la hoja (NO inline): un estilo inline le ganaría a «reducir movimiento» (CC3 04-nov)
 
+/**
+ * 09-nov (regla de Emilio): la luz de la antena SOLO se prende cuando hay una alerta. La foto trae encendidas sus dos lucecitas
+ * (las puntas, medidas en marketing-2560: 505,257 y 369,342, con brillo de ~18 px) y un brillo cálido en el centro del plato (446,338); se apagan SIEMPRE dibujando encima una bombilla
+ * apagada (gris oscuro) con un velo oscuro que se desvanece. Con alertas, solo la punta mayor se prende, en rojo, encima.
+ */
+export const LUCES_DE_LA_FOTO = [
+  { clave: "mayor", ...ANTENA.punta2, r: 20, fondo: "#070605" },
+  { clave: "menor", ...ANTENA.punta1, r: 15, fondo: "#070605" },
+  { clave: "plato", x: 446, y: 338, r: 9, fondo: "#423f3c" }, // dentro del plato el fondo es gris, no negro
+] as const
+export function LucesApagadas() {
+  return (
+    <g data-luces-apagadas aria-hidden style={{ pointerEvents: "none" }}>
+      <defs>
+        {LUCES_DE_LA_FOTO.map((l) => (
+          <radialGradient key={l.clave} id={`nvAntApaga-${l.clave}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0" stopColor={l.fondo} /><stop offset=".55" stopColor={l.fondo} stopOpacity=".92" /><stop offset="1" stopColor={l.fondo} stopOpacity="0" />
+          </radialGradient>
+        ))}
+      </defs>
+      {LUCES_DE_LA_FOTO.map((l) => (
+        <g key={l.clave} data-luz-apagada={l.clave}>
+          <circle cx={l.x} cy={l.y} r={l.r} fill={`url(#nvAntApaga-${l.clave})`} />
+          <circle cx={l.x} cy={l.y} r={3.2} fill="#24221f" />
+        </g>
+      ))}
+    </g>
+  )
+}
+
 export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: () => void }) {
-  if (!alertas?.length) return null
+  if (!alertas?.length) return <LucesApagadas />
   const { punta2 } = ANTENA
   const abrir = (e: { stopPropagation: () => void }) => { e.stopPropagation(); onAbrir() }
   return (
     <g className="nv-antena" data-alertas={alertas.length}>
+      <LucesApagadas />
       <style>{CSS_DE_LA_ANTENA}</style>
       <defs>
         <radialGradient id="nvAntRojo" cx="50%" cy="50%" r="50%">

@@ -23,7 +23,7 @@ describe("el número de la antena", () => {
     expect(cerca).not.toMatch(/<circle|<rect|<ellipse|paint-order|stroke=/) // nada detrás ni alrededor del número
   })
   it("🔴 sin avisos: ni número ni luz", () => {
-    expect(antena([])).toBe("<svg></svg>"); expect(antena(undefined)).toBe("<svg></svg>")
+    for (const h of [antena([]), antena(undefined)]) { expect(h).not.toContain("data-numero-antena"); expect(h).not.toContain("nvAntRojo"); expect(h).toContain("data-luces-apagadas") } // 09-nov: ya no es un svg vacío; tapa las luces de la foto
   })
 })
 
@@ -98,5 +98,26 @@ describe("09-nov · el título con algo al lado es solo para quien lo pide", () 
   it("sin «junto», la cabecera de los demás paneles no cambia", () => {
     const e = readFileSync("components/nuevo/EstiloBase.tsx", "utf8")
     expect(e).toContain('        : <h2 id={id} className="col-start-2 text-center text-titulo font-medio uppercase tracking-titulo text-oro">{titulo}</h2>}')
+  })
+})
+
+describe("09-nov · regla de Emilio: la luz de la antena solo se prende cuando hay una alerta", () => {
+  const pinta = (alertas: AlertaDeLaAntena[] | undefined) => renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas, onAbrir: () => {} })))
+  it("sin avisos: las tres luces de la foto (las dos puntas y el centro del plato) quedan tapadas por una bombilla apagada; sin rojo y sin número", () => {
+    for (const h of [pinta([]), pinta(undefined)]) {
+      expect(h).toContain("data-luces-apagadas")
+      expect([...h.matchAll(/data-luz-apagada="([^"]+)"/g)].map((m) => m[1])).toEqual(["mayor", "menor", "plato"])
+      expect(h).toContain('<circle cx="505" cy="257" r="20" fill="url(#nvAntApaga-mayor)"></circle><circle cx="505" cy="257" r="3.2" fill="#24221f"></circle>')
+      expect(h).toContain('<circle cx="369" cy="342" r="15" fill="url(#nvAntApaga-menor)"></circle><circle cx="369" cy="342" r="3.2" fill="#24221f"></circle>')
+      expect(h).toContain('<circle cx="446" cy="338" r="9" fill="url(#nvAntApaga-plato)"></circle><circle cx="446" cy="338" r="3.2" fill="#24221f"></circle>')
+      expect(h).toMatch(/id="nvAntApaga-mayor"[^>]*><stop offset="0" stop-color="#070605"><\/stop><stop offset="\.55" stop-color="#070605" stop-opacity="\.92"><\/stop><stop offset="1" stop-color="#070605" stop-opacity="0">/)
+      expect(h).toContain('id="nvAntApaga-plato" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#423f3c">')
+      expect(h).not.toContain("nvAntRojo"); expect(h).not.toContain("nv-antena-pulso"); expect(h).not.toContain("data-numero-antena"); expect(h).not.toContain("#ff3b2a")
+    }
+  })
+  it("con un aviso: las luces de la foto siguen apagadas debajo y solo la punta mayor se prende en rojo, con su número", () => {
+    const h = pinta([A("a", "envivo", 1)])
+    expect(h).toMatch(/<g class="nv-antena" data-alertas="1">[\s\S]*?<g data-luces-apagadas[\s\S]*data-luz-apagada="plato"[\s\S]*nv-antena-pulso/)
+    expect(h).toContain("data-numero-antena")
   })
 })
