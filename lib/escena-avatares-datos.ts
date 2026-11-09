@@ -5,7 +5,7 @@
  */
 import { leerAvisosDeFirma, type AvisoDeFirma } from "@/lib/escena-avisos"
 import { armarAlertas, DIAS_DE_UNA_FALLA, GASTO_RARO_EN_LA_ANTENA, type AlertaDeLaAntena, type CorridaConGasto } from "@/lib/escena-alertas"
-import { leerDecisiones } from "@/lib/direccion-decisiones"
+import { leerDecisiones, type Decision } from "@/lib/direccion-decisiones"
 import { esperaLaFirma, manualAprobadoPorCliente } from "@/lib/manual-primero"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
@@ -95,6 +95,8 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
   try { escena = { ...escena, avisos: await leerAvisosDeLaEscena(supa, ahora, cliente) } } catch { /* sin aviso esta vez: no titila por un error */ }
   // 04-nov · la antena: las alertas del departamento (solo lectura; si una lectura falla, no se inventa ninguna)
   try { escena = { ...escena, alertas: await leerAlertasDeLaAntena(supa, ahora, cliente) } } catch { /* sin alertas esta vez */ }
+  // 10-nov (CC6 #313) · si la plataforma no entregó las decisiones, la escena lo dice (la misma lectura, en caché): cómo se ve lo deciden Lenovo y Emilio
+  try { if ((await leerLaAntena(supa, ahora, cliente)).decisiones === "sin_leer") escena = { ...escena, alertas_sin_decisiones: true } } catch { /* ya sin alertas */ }
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
@@ -208,6 +210,24 @@ export async function leerAvisosDeLaEscena(supa: SupabaseClient, ahora: Date, cl
 
 /** las alertas que avisa la antena del cliente de la escena. Solo lectura, en caché 30 s; un error de lectura es excepción, nunca «sin alertas» */
 export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null, lectorDeDecisiones: typeof leerDecisiones = leerDecisiones): Promise<AlertaDeLaAntena[]> {
+  return (await leerLaAntena(supa, ahora, clientePedido, lectorDeDecisiones)).alertas
+}
+
+/** 10-nov (CC6 #313) · cuánto espera la antena a la lista de decisiones de la plataforma; pasado esto sigue sin ella */
+export const ESPERA_DE_LAS_DECISIONES_MS = 4000
+/**
+ * 10-nov (CC6 #313) · la lista de decisiones viene de OTRO servidor: su falla o su lentitud nunca se llevan los demás avisos.
+ * Si no llega (error o pasado ESPERA_DE_LAS_DECISIONES_MS), la antena sigue con lo de su base y lo dice: `decisiones: "sin_leer"`.
+ */
+export async function decisionesParaLaAntena(lector: typeof leerDecisiones, espera = ESPERA_DE_LAS_DECISIONES_MS): Promise<Decision[] | null> {
+  let reloj: ReturnType<typeof setTimeout> | undefined
+  const tope = new Promise<null>((r) => { reloj = setTimeout(() => r(null), espera) })
+  const lectura = Promise.resolve().then(() => lector()).then((r) => (r.ok ? r.datos.decisiones : null), () => null)
+  try { return await Promise.race([lectura, tope]) } finally { clearTimeout(reloj) }
+}
+
+export interface LecturaDeLaAntena { alertas: AlertaDeLaAntena[]; /** «sin_leer»: la plataforma no entregó las decisiones a tiempo; los demás avisos sí están */ decisiones: "leidas" | "sin_leer" }
+export async function leerLaAntena(supa: SupabaseClient, ahora: Date, clientePedido: string | null = null, lectorDeDecisiones: typeof leerDecisiones = leerDecisiones): Promise<LecturaDeLaAntena> {
   return conCache(`escena-viva-alertas:${clientePedido ?? "omision"}`, 30_000, async () => {
     const plan = await planDeLaEscena(supa, ahora, clientePedido)
     const cliente = plan.cliente?.id ?? null
@@ -219,9 +239,9 @@ export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, c
       filas(supa.from("dueno_preguntas").select("id, client_id, pregunta, estado, creado_en, oficina").eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(50), "dueno_preguntas"), // la tabla de la plataforma (#939)
       // apagado el gasto raro, no se lee: son hasta 2000 filas para nada
       GASTO_RARO_EN_LA_ANTENA ? filas(supa.from("agent_invocations").select("workflow_execution_id, workflow_id, client_id, cost_usd, started_at").gte("started_at", iso(72)).gt("cost_usd", 0).limit(2000), "agent_invocations") : Promise.resolve([] as Record<string, unknown>[]),
-      // 10-nov · lo que espera tu aprobación: la misma lista de la plataforma que lee Tu oficina › Decisiones. Si no llega, es error de lectura (nunca «sin decisiones»).
-      // Se pide AQUÍ, al final del arreglo: si una consulta de arriba revienta antes de armarlo, no queda una promesa suelta sin atender
-      lectorDeDecisiones().then((r) => { if (!r.ok) throw new Error(`decisiones: ${r.error}`); return r.datos.decisiones }),
+      // 10-nov · lo que espera tu aprobación: la misma lista de la plataforma que lee Tu oficina › Decisiones. Nunca rechaza (null = no llegó a tiempo)
+      // y se pide AQUÍ, al final del arreglo: si una consulta de arriba revienta antes de armarlo, nunca se llama
+      decisionesParaLaAntena(lectorDeDecisiones),
     ])
     const porCorrida = new Map<string, CorridaConGasto>()
     for (const i of inv) {
@@ -232,15 +252,16 @@ export async function leerAlertasDeLaAntena(supa: SupabaseClient, ahora: Date, c
       if (ini > c.inicio) c.inicio = ini
       porCorrida.set(e, c)
     }
-    return armarAlertas({
+    const alertas = armarAlertas({
       cliente, ahora,
       plan: pc.map((p) => ({ id: String(p.id), client_id: s(p.client_id), estado: s(p.estado), creado_en: s(p.creado_en), actualizado_en: s(p.actualizado_en), vence_en: s(p.vence_en), motivo: s(p.motivo), dry_run: p.dry_run === true })),
       cerebroDiario: cd.map((c) => ({ client_id: s(c.client_id), dia: s(c.dia), estado: s(c.estado), prueba: c.prueba === true })),
       alarmasDelCerebro: ca.map((a) => ({ clave: String(a.clave), ultima_en: s(a.ultima_en) })),
       preguntas: dp.map((p) => ({ id: String(p.id), client_id: s(p.client_id), pregunta: s(p.pregunta), estado: s(p.estado), creado_en: s(p.creado_en), oficina: s(p.oficina) })),
       corridas: [...porCorrida.values()],
-      decisiones: dec.map((d) => ({ id: d.id, tipo: d.tipo, fuente: d.fuente, client_id: d.client_id, desde: d.desde, oficina: d.departamento_oficina ?? null })),
+      decisiones: (dec ?? []).map((d) => ({ id: d.id, tipo: d.tipo, fuente: d.fuente, client_id: d.client_id, desde: d.desde, oficina: d.departamento_oficina ?? null })),
     })
+    return { alertas, decisiones: dec ? "leidas" : "sin_leer" }
   })
 }
 

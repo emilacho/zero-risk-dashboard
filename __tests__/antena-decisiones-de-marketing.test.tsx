@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs"
 import { armarAlertas, decisionesPendientes, departamentoDeLaDecision, DESTINO_DEL_AVISO, type AlertaDeLaAntena, type DecisionPendiente, type EntradaDeAlertas } from "@/lib/escena-alertas"
 import { normalizarDecisiones } from "@/lib/direccion-decisiones"
 import { AntenaDeAlertas, ListaDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
-import { leerAlertasDeLaAntena } from "@/lib/escena-avatares-datos"
+import { decisionesParaLaAntena, ESPERA_DE_LAS_DECISIONES_MS, leerAlertasDeLaAntena, leerLaAntena } from "@/lib/escena-avatares-datos"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 const NAUFRAGO = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312"
@@ -93,11 +93,22 @@ describe("3 · el departamento sale del dato, no del tipo", () => {
   })
 })
 
+describe("3b · el orden usa la fecha de la decisión (CC6 #313 · 3)", () => {
+  it("un plan fallido más reciente va arriba de la gran idea más vieja; y al revés", () => {
+    const fallido = (h: string) => ({ id: "p", client_id: NAUFRAGO, estado: "fallida", creado_en: h, actualizado_en: h, vence_en: null, motivo: null, dry_run: false })
+    const vieja = armarAlertas({ ...vacia(), plan: [fallido("2026-11-09T23:00:00Z")], decisiones: [dec({ id: "g", desde: "2026-11-09T22:02:15Z" })] })
+    expect(vieja.map((x) => x.clave)).toEqual(["fallida:p", "decision:g"])
+    expect(vieja[1].cuando).toBe("2026-11-09T22:02:15Z")
+    const nueva = armarAlertas({ ...vacia(), plan: [fallido("2026-11-09T20:00:00Z")], decisiones: [dec({ id: "g", desde: "2026-11-09T22:02:15Z" })] })
+    expect(nueva.map((x) => x.clave)).toEqual(["decision:g", "fallida:p"])
+  })
+})
+
 describe("4 · la lectura del servidor", () => {
-  it("lee la lista de la plataforma y la pasa a la antena; si la plataforma falla, es error de lectura (nunca «sin decisiones»)", () => {
+  it("la lista se pide dentro del arreglo de lecturas y su falla nunca rechaza (CC6 #313 · 1)", () => {
     const datos = readFileSync("lib/escena-avatares-datos.ts", "utf8")
-    expect(datos).toContain("lectorDeDecisiones()")
-    expect(datos).toMatch(/if \(!r\.ok\) throw/)
+    const lector = datos.split("export async function leerLaAntena")[1].split("/** la vitrina")[0]
+    expect(lector).toMatch(/Promise\.all\(\[[\s\S]*decisionesParaLaAntena\(lectorDeDecisiones\),\s*\]\)/)
     expect(datos).toContain("oficina: d.departamento_oficina ?? null")
   })
   // una base falsa que a toda consulta responde «sin dato» (data: null): sin cliente en la escena: el camino real del servidor, sin red
@@ -110,8 +121,33 @@ describe("4 · la lectura del servidor", () => {
     const a = await leerAlertasDeLaAntena(baseVacia(), AHORA, "c5-camino-real-1", lector)
     expect(a.map((x) => [x.tipo, x.texto, x.abre])).toEqual([["decision", "Gran idea de la Campaña de Marketing espera tu aprobación", "decisiones"]])
   })
-  it("CAMINO REAL · si la plataforma no entrega la lista, la lectura falla (la escena no inventa «todo en orden»)", async () => {
+  it("CAMINO REAL · plataforma caída + plan fallido → la antena sigue prendida con el plan y dice «sin_leer» (CC6 #313 · 2)", async () => {
     const lector = async () => ({ ok: false as const, status: 502, error: "La plataforma no entregó las decisiones (500)." })
-    await expect(leerAlertasDeLaAntena(baseVacia(), AHORA, "c5-camino-real-2", lector)).rejects.toThrow(/decisiones/)
+    const planFallido = { id: "p1", client_id: null, estado: "fallida", creado_en: "2026-11-09T21:00:00Z", actualizado_en: "2026-11-09T21:30:00Z", vence_en: null, motivo: null, dry_run: false }
+    const q: unknown = new Proxy(function () {}, { get: (_t, k) => (k === "then" ? (ok: (v: unknown) => void) => ok({ data: null, error: null }) : () => q), apply: () => q })
+    const conPlan: unknown = new Proxy(function () {}, { get: (_t, k) => (k === "then" ? (ok: (v: unknown) => void) => ok({ data: [planFallido], error: null }) : () => conPlan), apply: () => conPlan })
+    const base = { from: (t: string) => (t === "plan_corridas" ? conPlan : q) } as unknown as SupabaseClient
+    const r = await leerLaAntena(base, AHORA, "c5-camino-real-2", lector)
+    expect(r.decisiones).toBe("sin_leer")
+    expect(r.alertas.map((x) => x.clave)).toEqual(["fallida:p1"])
+    expect(dibujar(r.alertas)).toContain('data-alertas="1"')
+  })
+  it("CAMINO REAL · un lector que tira error tampoco se lleva los demás avisos", async () => {
+    const r = await leerLaAntena(baseVacia(), AHORA, "c5-camino-real-3", async () => { throw new Error("red caída") })
+    expect(r).toEqual({ alertas: [], decisiones: "sin_leer" })
+  })
+  it("una plataforma colgada no cuelga la antena: pasado el tope sigue sin la lista (CC6 #313 · 2)", async () => {
+    const colgado = () => new Promise<never>(() => undefined)
+    const t0 = Date.now()
+    expect(await decisionesParaLaAntena(colgado, 50)).toBeNull()
+    expect(Date.now() - t0).toBeLessThan(1000)
+    expect(ESPERA_DE_LAS_DECISIONES_MS).toBeLessThanOrEqual(5000)
+  })
+  it("con la lista a tiempo dice «leidas»", async () => {
+    const r = await leerLaAntena(baseVacia(), AHORA, "c5-camino-real-4", async () => ({ ok: true as const, datos: normalizarDecisiones(RESPUESTA_REAL) }))
+    expect(r.decisiones).toBe("leidas"); expect(r.alertas).toHaveLength(1)
+  })
+  it("la escena marca alertas_sin_decisiones cuando la lista no llegó", () => {
+    expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toMatch(/decisiones === "sin_leer"\) escena = \{ \.\.\.escena, alertas_sin_decisiones: true \}/)
   })
 })
