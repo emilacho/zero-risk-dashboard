@@ -83,7 +83,7 @@ export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alert
   return (
     // 09-nov · boceto aprobado: cabecera de una línea (ALERTAS + el número en un recuadro chico), sin «Dept. Marketing» ni el recuadro grande;
     // el aviso es lo principal y el panel se ensancha lo justo para que su texto quepa en una línea (hasta 640 px)
-    <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[min(640px,100%)] sm:w-auto sm:min-w-[420px]"
+    <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[min(720px,100%)] sm:w-auto sm:min-w-[540px]"
       junto={<span data-numero aria-label={lista.length === 1 ? "1 aviso abierto" : `${lista.length} avisos abiertos`} className={`inline-flex h-6 min-w-6 items-center justify-center rounded-control border px-1.5 text-dato font-medio tabular-nums ${lista.length ? "border-linea-alarma text-alarma" : "border-linea text-gris"}`}>{lista.length}</span>}>
       <div data-panel-alertas className="mt-2 flex flex-col">
         {lista.length === 0 && <p data-todo-en-orden className="border-t border-linea py-4 text-center text-cuerpo text-gris">Todo en orden</p>}
@@ -92,13 +92,13 @@ export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora }: { alert
             const lugar = a.abre ? NOMBRE_DEL_LUGAR[a.abre] ?? null : null
             return (
               <li key={a.clave} data-alerta={a.tipo} className="border-t border-linea">
-                <button type="button" disabled={!a.abre} onClick={() => onAbrir(a)} className="grid min-h-11 w-full grid-cols-[16px_1fr_auto] items-center gap-2 py-4 text-left hover:text-hueso disabled:cursor-default">
-                  <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />
+                <button type="button" disabled={!a.abre} onClick={() => onAbrir(a)} className="grid min-h-11 w-full grid-cols-[20px_1fr_auto] items-center gap-3 py-5 text-left hover:text-hueso disabled:cursor-default">
+                  <span aria-hidden className="h-2 w-2 rounded-full bg-alarma" />
                   <span className="min-w-0">
-                    <span className="block text-cuerpo text-hueso">{a.texto}</span>
-                    <span data-cuando className="mt-0.5 block text-dato text-gris">{haceCuanto(a.cuando, ahora)}{lugar ? ` · abre ${lugar}` : ""}</span>
+                    <span className="block text-titulo text-hueso">{a.texto}</span>
+                    <span data-cuando className="mt-1 block text-cuerpo text-gris">{haceCuanto(a.cuando, ahora)}{lugar ? ` · abre ${lugar}` : ""}</span>
                   </span>
-                  {a.abre && <span aria-hidden className="text-gris">›</span>}
+                  {a.abre && <span aria-hidden className="text-titulo text-gris">›</span>}
                 </button>
               </li>
             )
