@@ -59,13 +59,21 @@ export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string |
   const tarjetas = hitl.map(tarjetaDesdeFila)
   const elegida = (o.tarjeta && tarjetas.find((t) => t.hitl_id === o.tarjeta)) || tarjetas[0] || null
   const detalle = elegida ? await cargarConcepto(supa, elegida.hitl_id) : null
-  const quienes_propusieron = detalle?.concepto_id ? await quienesPropusieron(supa, detalle.concepto_id) : []
+  const quienes_propusieron = detalle?.campana_id && detalle.version != null ? await quienesPropusieron(supa, detalle.campana_id, detalle.version) : []
   return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle, quienes_propusieron }
 }
 
-/** los empleados de la sala que aportaron al encargo de ese concepto, sin repetir y en el orden en que hablaron */
-async function quienesPropusieron(supa: SupabaseClient, conceptoId: string): Promise<string[]> {
-  const c = await una(supa.from("cadena_conceptos").select("encargo_id").eq("id", conceptoId).maybeSingle(), "cadena_conceptos")
+/**
+ * los empleados de la sala que aportaron al encargo de ese concepto, sin repetir y en el orden en que hablaron.
+ * 10-nov (URGENTE de Lenovo): el concepto se busca por (campaña, versión), como lo guarda la cadena. Antes se buscaba por `id` con el `concepto_id` de la tarjeta
+ * («con-28de888eb3f2-v2», un texto) contra una columna numérica: la base contestaba «invalid input syntax for type bigint» y se caían el panel de la gran idea y el Centro de campaña
+ * la primera vez que hubo una gran idea real en la mesa de Emilio. Es un dato de apoyo: si su lectura falla, se muestra sin nombres, nunca se cae la pantalla.
+ */
+async function quienesPropusieron(supa: SupabaseClient, campanaId: string, version: number): Promise<string[]> {
+  try { return await quienesPropusieronSinRed(supa, campanaId, version) } catch { return [] }
+}
+async function quienesPropusieronSinRed(supa: SupabaseClient, campanaId: string, version: number): Promise<string[]> {
+  const c = await una(supa.from("cadena_conceptos").select("encargo_id").eq("campana_id", campanaId).eq("version", version).maybeSingle(), "cadena_conceptos")
   const encargo = c && typeof c.encargo_id === "string" ? c.encargo_id : null
   if (!encargo) return []
   const aportes = await filas(supa.from("oficina_mesa_aportes").select("de, n").eq("encargo_id", encargo).order("n", { ascending: true }).limit(200), "oficina_mesa_aportes")
