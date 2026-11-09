@@ -116,11 +116,11 @@ function Miniatura({ p, alAbrir, alQuitar, enPapelera }: { p: Pieza; alAbrir: ()
       {/* decisión B de Emilio (09-nov): la ✕ pequeña arriba a la derecha manda la pieza a la papelera por 30 días; nunca borra en el acto */}
       {alQuitar && sePuedeQuitar(p) && (
         <button type="button" data-quitar={p.id} onClick={alQuitar} title="Quitar de la galería (queda 30 días en la papelera)" aria-label={`Quitar de la galería: ${p.prompt || NOMBRE_DEL_TIPO[p.tipo]}. Queda 30 días en la papelera`}
-          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-black/70 text-[13px] leading-none text-zinc-100 hover:bg-black/90 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">✕</button>
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-linea bg-velo text-dato leading-none text-hueso hover:bg-carbon focus-visible:outline focus-visible:outline-1 focus-visible:outline-ambar">✕</button>
       )}
       {enPapelera && (
         <button type="button" data-recuperar={p.id} onClick={enPapelera.alRecuperar} disabled={enPapelera.recuperando}
-          className="absolute right-1.5 top-1.5 rounded-full border border-white/20 bg-black/75 px-2.5 py-1 text-[12px] text-zinc-100 hover:bg-black/90 disabled:opacity-50">{enPapelera.recuperando ? "Recuperando…" : "Recuperar"}</button>
+          className="absolute right-1.5 top-1.5 rounded-full border border-linea bg-velo px-2.5 py-1 text-rotulo text-hueso hover:bg-carbon disabled:opacity-50">{enPapelera.recuperando ? "Recuperando…" : "Recuperar"}</button>
       )}
     </div>
   )
@@ -136,7 +136,7 @@ function Tarjeta({ p, alAbrir, pie }: { p: Pieza; alAbrir: () => void; pie?: str
       <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[10.5px]" style={{ color: "#f0a04b" }}>{p.modelo === MODELO_DE_ANIMACION ? "Animado" : NOMBRE_DEL_TIPO[p.tipo]}</span>
       <span className="absolute inset-x-0 bottom-0 flex justify-between gap-2 bg-gradient-to-t from-black/90 to-transparent px-2 pb-1.5 pt-5 text-[11.5px] text-zinc-200">
         <span className="truncate">{p.prompt || "desde una foto"}</span>
-        <span className="shrink-0 text-zinc-400">{pie ?? (p.estado === "creando" ? (tardaMasDeLoNormal(p, Date.now()) ? "tarda más" : "creando") : p.estado === "fallida" ? "falló" : dolares(p.costo_usd))}</span>
+        <span className="shrink-0 text-gris">{pie ?? (p.estado === "creando" ? (tardaMasDeLoNormal(p, Date.now()) ? "tarda más" : "creando") : p.estado === "fallida" ? "falló" : dolares(p.costo_usd))}</span>
       </span>
     </button>
   )
@@ -407,32 +407,32 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
             <div>
               <div className="es-eti">{tipo === "3d" && foto ? "Qué quieres (opcional)" : "Qué quieres crear"}</div>
               {/* boceto aprobado 09-nov: las imágenes van sobre la caja, numeradas y cada una con su ✕; el mismo «Subir» acepta varias */}
-              <div data-caja-pedido className="es-caja flex flex-col focus-within:border-[#e8731a]/60">
+              <div data-caja-pedido className="es-caja flex flex-col focus-within:border-linea-oro">
                 {adjuntas.length > 0 && (
                   <div data-adjuntas className="flex flex-wrap gap-2 px-3 pt-3">
                     {enOrden(adjuntas).map((a) => (
-                      <div key={a.numero} data-adjunta={a.numero} className="relative h-[72px] w-[72px] overflow-hidden rounded-lg border border-white/10 bg-[#222]">
+                      <div key={a.numero} data-adjunta={a.numero} className="relative h-[72px] w-[72px] overflow-hidden rounded-control border border-linea bg-grafito-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         {vistaDe(a) && <img src={vistaDe(a)!} alt={`Imagen ${a.numero}`} className="h-full w-full object-cover" />}
-                        <span aria-hidden className="absolute bottom-1 left-1 rounded bg-black/75 px-1 text-[10.5px] leading-[15px] text-zinc-100">{a.numero}</span>
+                        <span aria-hidden className="absolute bottom-1 left-1 rounded-control bg-velo px-1 text-rotulo leading-[15px] text-hueso">{a.numero}</span>
                         <button type="button" data-quitar-adjunta={a.numero} aria-label={`Quitar la imagen ${a.numero}`} onClick={() => { setAdjuntas((x) => quitarImagen(x, a.numero)); setNoSubio(null) }}
-                          className="absolute right-0.5 top-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-black/70 text-[12px] leading-none text-zinc-100 hover:bg-black/90">✕</button>
+                          className="absolute right-0.5 top-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-linea bg-velo text-rotulo leading-none text-hueso hover:bg-carbon">✕</button>
                       </div>
                     ))}
                   </div>
                 )}
                 <textarea data-texto value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} maxLength={4000}
                   placeholder={tipo === "video" ? "Describe la toma: qué pasa, la cámara, la luz…" : tipo === "3d" ? "Describe un objeto: forma, material, color…" : adjuntas.length >= 2 ? "Nombra las imágenes por su número: «el personaje de la imagen 2…»" : "Describe la escena: qué se ve, la luz, el ambiente…"}
-                  className="w-full resize-none bg-transparent p-3 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:outline-none" />
-                <div className="mx-3 flex items-center gap-3 border-t border-white/10 py-2.5 text-[12.5px] text-zinc-400">
+                  className="w-full resize-none bg-transparent p-3 text-cuerpo leading-relaxed text-hueso placeholder:text-apagado focus:outline-none" />
+                <div className="mx-3 flex items-center gap-3 border-t border-linea py-2.5 text-dato text-gris">
                   <button type="button" data-subir className="es-chip" disabled={adjuntas.length >= MAXIMO_DE_IMAGENES} onClick={() => archivo.current?.click()}>+ Subir</button>
                   <span data-cupo>{adjuntas.length ? `${adjuntas.length} de ${MAXIMO_DE_IMAGENES} imágenes` : tipo === "3d" ? "Sin imagen: primero se crea una y luego se convierte en 3D" : "Opcional · hasta 6 imágenes"} · png, jpg o webp</span>
                   <input ref={archivo} type="file" multiple accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { void alSubir(e.target.files); e.target.value = "" }} />
                 </div>
               </div>
-              {noSubio && <p data-no-subio role="status" className="mt-1 text-[11.5px] text-amber-300/90">{noSubio}</p>}
-              {unaSola && <p data-una-sola className="mt-1 text-[11.5px] text-amber-300/90">{unaSola}</p>}
-              {tipo === "3d" && !foto && /\b(logo|logotipo|marca)\b/i.test(texto) && <p className="mt-1 text-[11.5px] text-amber-300/90">Sin imagen de partida, el modelo inventa el logo. Para la marca real, sube una foto del producto.</p>}
+              {noSubio && <p data-no-subio role="status" className="mt-1 text-rotulo text-oro">{noSubio}</p>}
+              {unaSola && <p data-una-sola className="mt-1 text-rotulo text-oro">{unaSola}</p>}
+              {tipo === "3d" && !foto && /\b(logo|logotipo|marca)\b/i.test(texto) && <p className="mt-1 text-[11.5px] text-amber-300/90">Sin imagen de partida, el modelo inventa el logo. Para la marca real, sube una foto del producto.</p>}{/* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */}
             </div>
             {tipo === "3d" && (
               <div>
@@ -476,7 +476,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                 {boton.costo}
               </span>
             </button>
-            {referencias && <p data-referencias className="-mt-2 text-right text-[11.5px] text-zinc-500">{referencias}</p>}
+            {referencias && <p data-referencias className="-mt-2 text-right text-rotulo text-apagado">{referencias}</p>}
             {cotizacion && cotizacion.partes.length > 1 && <p data-desglose className="-mt-2 text-right text-[11.5px] text-zinc-500">{cotizacion.partes.map((x) => `${x.que} ${dolares(x.usd)}`).join(" + ")}</p>}
             {error && <p role="alert" className="text-[12.5px] text-red-300">{error}</p>}
             <p className="text-[11.5px] leading-snug text-zinc-500">El costo se ve antes de crear y el real se anota en el libro de costos de {cliente?.nombre ?? "este cliente"}.</p>
@@ -510,7 +510,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                 <div className="flex flex-wrap items-center gap-2">
                   {pieza.estado === "lista" && clipsDe(pieza).length > 0 && [["GLB", clipsDe(pieza)[clip]?.glb], ["FBX", clipsDe(pieza)[clip]?.fbx]].map(([que, url]) => url && <a key={que} data-bajar={que} href={url} download target="_blank" rel="noreferrer" className={que === "GLB" ? "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold" : "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]"} style={que === "GLB" ? { background: AMBAR, color: "#1a0d02" } : undefined}>Descargar {que}</a>)}
                   {pieza.archivo_url && pieza.estado === "lista" && clipsDe(pieza).length === 0 && <a data-descargar href={pieza.archivo_url} download target="_blank" rel="noreferrer" className={animando ? "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" : "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold"} style={animando ? undefined : { background: AMBAR, color: "#1a0d02" }}>Descargar</a>}
-                  {pieza.tipo === "imagen" && pieza.estado === "lista" && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => usarDeLaGaleria(pieza)}>Usar como imagen de partida</button>}
+                  {pieza.tipo === "imagen" && pieza.estado === "lista" && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => usarDeLaGaleria(pieza)}>Usar como imagen de partida</button>}{/* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */}
                   {esAnimable(pieza) && puedeAnimar && <button type="button" data-animar aria-expanded={animando} className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => setAnimando(!animando)}>Animar</button>}
                   {pieza.modelo !== MODELO_DE_ANIMACION && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setTipo(pieza.tipo); setTexto(pieza.prompt); setAbierta(null) }}>Crear otra versión</button>}
                   <span className="ml-auto text-[12.5px] text-zinc-500">{pieza.estado === "creando" ? `Costará ≈ ${dolares(pieza.costo_estimado_usd)}` : <>Costó <b className="text-zinc-200">{dolares(pieza.costo_usd)}</b> · anotado en el libro</>}</span>
@@ -559,10 +559,10 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                   </div>
                 </div>
                 {movida && filtro !== "papelera" && (
-                  <p data-movida role="status" className="-mt-1 text-[12.5px] text-zinc-400">Se movió a la papelera por 30 días. <button type="button" data-deshacer className="text-[#f0a04b] underline-offset-2 hover:underline" onClick={() => void devolver(movida)}>Deshacer</button></p>
+                  <p data-movida role="status" className="-mt-1 text-dato text-gris">Se movió a la papelera por 30 días. <button type="button" data-deshacer className="text-ambar underline-offset-2 hover:underline" onClick={() => void devolver(movida)}>Deshacer</button></p>
                 )}
-                {filtro === "papelera" && <p className="-mt-1 text-[12.5px] text-zinc-500">Lo que quitaste de la galería. Se recupera durante 30 días; después se borra solo, con sus archivos.</p>}
-                {errorGaleria && <p role="alert" className="-mt-1 text-[12.5px] text-red-300">{errorGaleria}</p>}
+                {filtro === "papelera" && <p className="-mt-1 text-dato text-apagado">Lo que quitaste de la galería. Se recupera durante 30 días; después se borra solo, con sus archivos.</p>}
+                {errorGaleria && <p role="alert" className="-mt-1 text-dato text-alarma">{errorGaleria}</p>}
                 {visibles.length ? (
                   <div data-galeria className="grid grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-3 sm:gap-3 xl:grid-cols-4">
                     {visibles.map((p) => filtro === "papelera"
@@ -570,7 +570,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                       : <Miniatura key={p.id} p={p} alAbrir={() => setAbierta(p.id)} alQuitar={() => void quitar(p)} />)}
                   </div>
                 ) : (
-                  <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-white/10 p-8 text-center text-[13px] text-zinc-500">{filtro === "papelera" ? (papelera ? "La papelera está vacía." : "Leyendo la papelera…") : `Todavía no hay nada creado para ${cliente?.nombre ?? "este cliente"}. Lo que crees aparece aquí.`}</div>
+                  <div /* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */ className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-white/10 p-8 text-center text-[13px] text-zinc-500">{filtro === "papelera" ? (papelera ? "La papelera está vacía." : "Leyendo la papelera…") : `Todavía no hay nada creado para ${cliente?.nombre ?? "este cliente"}. Lo que crees aparece aquí.`}</div>
                 )}
               </>
             )}
