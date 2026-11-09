@@ -99,10 +99,12 @@ export function tarjetaDelCentro(clave: ClaveDeAplicacion, datos: Pizarron | nul
       if (centro.plan === undefined) return sinDato()
       if (centro.plan === null) return { estado: "Sin plan", tono: "gris", cantidad: "0", linea: "Todavía no hay plan" }
       // el plan no se firma antes del manual (firma de Emilio 03-nov)
-      if (datos?.manual_aprobado === false) return { estado: "En espera", tono: "gris", cantidad: `v${centro.plan.version}`, linea: "Espera el manual" }
+      // 09-nov 18:10Z (Emilio): el recuadro dice la CANTIDAD (el plan vigente = 1), nunca la versión · la versión va a la derecha de la fecha: «Act. 06-nov · v2»
+      const v = ` · v${centro.plan.version}`
+      if (datos?.manual_aprobado === false) return { estado: "En espera", tono: "gris", cantidad: "1", linea: `Espera el manual${v}` }
       return centro.plan.estado === "approved"
-        ? { estado: "Aprobado", tono: "oro", cantidad: `v${centro.plan.version}`, linea: act(centro.plan.fecha) }
-        : { estado: "Por aprobar", tono: "gris", cantidad: `v${centro.plan.version}`, linea: act(centro.plan.fecha) }
+        ? { estado: "Aprobado", tono: "oro", cantidad: "1", linea: `${act(centro.plan.fecha)}${v}` }
+        : { estado: "Por aprobar", tono: "gris", cantidad: "1", linea: `${act(centro.plan.fecha)}${v}` }
     }
     case "brief": case "gran_idea": case "calendario":
       return datos ? tarjetaDelPaso(clave, datos, centro) : sinDato()

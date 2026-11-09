@@ -81,11 +81,16 @@ describe("las demás tarjetas", () => {
     expect(t("manual", piz(), cen({ manual: null }))).toMatchObject({ estado: SIN_DATO, cantidad: SIN_DATO })
   })
   it("plan: APROBADO con su versión y fecha · espera el manual si el manual no está aprobado · «—» si no se pudo leer", () => {
-    expect(t("plan", piz(), cen())).toEqual({ estado: "Aprobado", tono: "oro", cantidad: "v2", linea: "Act. 06-nov" })
-    expect(t("plan", piz({ manual_aprobado: false }), cen())).toMatchObject({ estado: "En espera", linea: "Espera el manual" })
-    expect(t("plan", piz(), cen({ plan: { estado: "draft", version: 3, fecha: null } }))).toMatchObject({ estado: "Por aprobar", tono: "gris", cantidad: "v3" })
+    expect(t("plan", piz(), cen())).toEqual({ estado: "Aprobado", tono: "oro", cantidad: "1", linea: "Act. 06-nov · v2" })
+    expect(t("plan", piz({ manual_aprobado: false }), cen())).toEqual({ estado: "En espera", tono: "gris", cantidad: "1", linea: "Espera el manual · v2" })
+    expect(t("plan", piz(), cen({ plan: { estado: "draft", version: 3, fecha: null } }))).toEqual({ estado: "Por aprobar", tono: "gris", cantidad: "1", linea: "Sin fecha · v3" })
     expect(t("plan", piz(), cen({ plan: null }))).toMatchObject({ estado: "Sin plan", cantidad: "0" })
     expect(t("plan", piz(), cen({ plan: undefined }))).toMatchObject({ estado: SIN_DATO })
+  })
+  it("09-nov 18:10Z (Emilio): ningún recuadro muestra una versión · la cantidad va en el recuadro, la versión en la línea gris", () => {
+    for (const k of ["piezas", "manual", "informes", "plan", "brief", "gran_idea", "calendario", "equipo", "gasto"] as const) {
+      for (const d of [piz(), piz({ manual_aprobado: false })]) expect(t(k, d, cen()).cantidad, k).not.toMatch(/^v\d/)
+    }
   })
   it("informes: al día con el total y la fecha del último · por revisar si alguno espera", () => {
     expect(t("informes", piz(), cen())).toEqual({ estado: "Al día", tono: "oro", cantidad: "4", linea: "Act. 06-nov" })
