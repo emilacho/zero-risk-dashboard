@@ -232,10 +232,10 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
     const t = tablero(() => [409, { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." }])
     pintar(t)
     fireEvent.change($("[data-respuesta]")!, { target: { value: "Unos 1.300" } })
-    fireEvent.click($("[data-enviar]")!)
+    fireEvent.click($("[data-verbo=responder]")!)
     await pasar(0)
     expect(tarjeta()).toBe(CON)
-    expect($("[data-supuesto]")?.textContent).toBe("US$ 1.200"); expect($("[data-asumir]")).not.toBeNull()
+    expect($("[data-supuesto]")?.textContent).toBe("US$ 1.200"); expect($("[data-verbo=asumir]")).not.toBeNull()
     expect(document.body.textContent).not.toContain("La oficina ya no propone un supuesto")
   })
   it("CC6 #303 menor 2 · si no se pudo, la pregunta queda al frente aunque el dueño estuviera en otra página", async () => {
