@@ -358,7 +358,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
               </div>
             )}
             <button type="button" data-crear onClick={() => void crear()} disabled={!puedeCrear}
-              className={`mt-auto flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-bold transition-opacity disabled:cursor-not-allowed ${claseDelCentrado(boton.costo)}`} /* estilo-ok: el pedido de Emilio dice que no cambian color ni tamaño del botón, solo se centra */
+              className={`mt-auto flex items-center justify-between rounded-control px-4 py-3.5 text-boton font-medio transition-opacity disabled:cursor-not-allowed ${claseDelCentrado(boton.costo)}`}
               style={{ background: puedeCrear ? AMBAR : "#3a2a1a", color: puedeCrear ? "#1a0d02" : "#f0a04b" }}>
               <span>{creando ? "Creando…" : "Crear"}</span>
               {/* en escritorio «Crear» va centrado: el costo o el aviso queda a la derecha sin empujarlo, y la pista «escribe qué quieres» no se muestra */}
@@ -428,10 +428,10 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                     <div className="flex items-center justify-end gap-3">
                       {cotizacionAnimar && <span data-desglose-animar className="text-[11.5px] text-zinc-500">{cotizacionAnimar.partes.map((x) => `${x.que} ${dolares(x.usd)}`).join(" + ")}</span>}
                       <button type="button" data-animar-crear onClick={() => void animar(pieza)} disabled={!listoParaAnimar}
-                        className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-[14px] font-bold disabled:cursor-not-allowed"
+                        className="flex items-center gap-3 rounded-control px-4 py-2.5 text-boton font-medio disabled:cursor-not-allowed"
                         style={{ background: listoParaAnimar ? AMBAR : "#3a2a1a", color: listoParaAnimar ? "#1a0d02" : "#f0a04b" }}>
                         <span>{enviando ? "Animando…" : "Animar"}</span>
-                        <span data-costo-animar className="text-[12.5px] font-medium opacity-90">{botonAnimar.costo}</span>
+                        <span data-costo-animar className="text-dato font-medio opacity-90">{botonAnimar.costo}</span>
                       </button>
                     </div>
                   </div>

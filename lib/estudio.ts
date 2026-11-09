@@ -120,7 +120,7 @@ export const crearCentrado = (costo: string) => costo === PISTA_DE_TEXTO || cost
 /** clases del botón que cambian con el costo: centrado en escritorio (el costo queda a la derecha sin empujarlo) o como antes */
 export const claseDelCentrado = (costo: string) => (crearCentrado(costo) ? "relative md:justify-center" : "")
 /** clases del costo dentro del botón: centrado, va a la derecha sin empujar «Crear»; la pista se oculta en escritorio */
-export const claseDelCosto = (costo: string) => `text-[12.5px] font-medium opacity-90${crearCentrado(costo) ? " md:absolute md:right-4" : ""}${costo === PISTA_DE_TEXTO ? " md:hidden" : ""}`
+export const claseDelCosto = (costo: string) => `text-dato font-medio opacity-90${crearCentrado(costo) ? " md:absolute md:right-4" : ""}${costo === PISTA_DE_TEXTO ? " md:hidden" : ""}`
 
 /**
  * El botón Crear: solo se enciende con cliente, texto, proveedor conectado y una COTIZACIÓN en la mano (el dueño ve el costo antes, siempre).

@@ -1,5 +1,5 @@
 // REVISIÓN AUTOMÁTICA DEL ESTILO BASE (aprobado por Emilio 2026-11-05 · guía: zr-vault 00-meta/ESTILO-DASHBOARD.md · tokens: app/estilo-base.css).
-// Rechaza colores, tamaños de letra, pesos, radios y sombras fuera de los tokens.
+// Rechaza colores, tamaños de letra, pesos, radios y sombras fuera de los tokens, y botones con letra distinta de 18 (token «boton», 09-nov).
 //  · modo «diff» (CI): las líneas AGREGADAS en /nuevo frente a la base, y ENTERO cada archivo ya migrado (MIGRADOS: no puede volver atrás).
 //  · modo «todo»: cuenta lo que hoy queda fuera de los tokens en /nuevo (lo que falta migrar).
 //  · modo «probar»: cada regla debe frenar su caso y dejar pasar los tokens (lo corre la prueba `estilo-base-revision`).
@@ -21,15 +21,39 @@ const enComentario = (l, i) => { const t = l.trimStart(); if (t.startsWith("*") 
 const REGLAS = [
   ["color suelto (usa un token: carbon, grafito, grafito-2, hueso, gris, apagado, oro, ambar, sobre-ambar, alarma, linea, linea-oro, linea-alarma, velo)", (l) => [...l.matchAll(/(.?)#([0-9a-fA-F]{3,8})\b/g)].some((m) => !(/^\d+$/.test(m[2]) && /^[\s(]$/.test(m[1]) && enComentario(l, m.index))) || /\b(?:rgba?|hsla?|oklch|oklab|color-mix)\(/.test(l)], // «ver #283» SOLO en un comentario (número de una entrega) no es color; en código, «#222» sí
   ["color de Tailwind fuera de los tokens", (l) => new RegExp(`\\b(?:${PROPIEDAD})-(?:(?:${PALETA})-\\d{2,3}|white|black|transparent\\/[\\d.\\[\\]]+|current\\/[\\d.\\[\\]]+|\\[[^\\]]*\\])`).test(l)],
-  ["tamaño de letra fuera de los tokens (titulo 20 · cuerpo 15 · dato 13 · rotulo 11 · cifra 24 · numero 36)", (l) => /\btext-(?:\[[\d.]+(?:px|rem|em)\]|xs|sm|base|lg|xl|[2-9]xl)(?![\w-])|fontSize[=:]/.test(l)],
+  ["tamaño de letra fuera de los tokens (titulo 20 · cuerpo 15 · dato 13 · rotulo 11 · cifra 24 · numero 36 · boton 18)", (l) => /\btext-(?:\[[\d.]+(?:px|rem|em)\]|xs|sm|base|lg|xl|[2-9]xl)(?![\w-])|fontSize[=:]/.test(l)],
   ["peso fuera de los 2 (normal · medio)", (l) => /\bfont-(?:thin|extralight|light|medium|semibold|bold|extrabold|black|\[\d+\])(?![\w-])|fontWeight[=:]/.test(l)],
   ["radio fuera de los tokens (panel · tarjeta · control · píldora)", (l) => [...l.matchAll(/(?<![\w-])rounded(?:-[\w[\].]+)*(?![\w-])/g)].some((m) => !RADIOS_OK.has(m[0])) || /border-?[rR]adius[=:]/.test(l)],
   ["sombra (el estilo base no usa sombras)", (l) => [...l.matchAll(/(?<![\w-])shadow(?:-[\w[\].,()/]+)*(?![\w-])/g)].some((m) => !SOMBRAS_OK.has(m[0])) || /box-?[sS]hadow[=:]/.test(l)],
 ]
 const PERMISO = /estilo-ok:\s*\p{L}[\p{L} ,.]{8,}/u
 const hallazgos = []
-const revisar = (f, n, linea) => { if (PERMISO.test(linea)) return; for (const [que, falla] of REGLAS) if (falla(linea)) hallazgos.push({ f, n, que }) }
-const revisarEntero = (f) => readFileSync(f, "utf8").split("\n").forEach((l, i) => revisar(f, i + 1, l))
+// BOTONES (09-nov, Emilio · imagen APROBADO-botones-letra-18.png): todo botón ámbar o de borde oro lleva letra 18 («text-boton»), peso medio.
+// Se mira la etiqueta <button …> ENTERA (puede ocupar varias líneas). Las tarjetas que se tocan (rounded-tarjeta/panel) no son botones.
+const QUE_BOTON = "botón con letra distinta de 18 (todo botón ámbar o de borde oro usa text-boton)"
+const TAMANOS = /(?<![\w:-])text-(?:titulo|cuerpo|dato|rotulo|cifra|numero|\[[\d.]+(?:px|rem|em)\]|xs|sm|base|lg|xl|[2-9]xl)(?![\w-])/
+const CON_CONSTANTE = /\b(?:BOTON_PRINCIPAL|BOTON_SECUNDARIO|PRINCIPAL|SECUNDARIO)\b/
+const LETRA_18 = /(?<![\w:-])text-boton(?![\w-])/
+const esCaja = (t) => (/(?<![\w:-])(?:bg-ambar|border-linea-oro|border-oro)(?![\w-])|\bbackground:\s*[^,}]*\bAMBAR\b/.test(t) || CON_CONSTANTE.test(t)) && !/(?<![\w:-])rounded-(?:tarjeta|panel)(?![\w-])/.test(t)
+/** ¿esta etiqueta de botón está mal? (caja ámbar u oro sin text-boton, o con otro tamaño encima). Un <button … /> sin letra (barra de un gráfico) no cuenta */
+export const botonMal = (t) => !t.endsWith("/>") && esCaja(t) && !PERMISO.test(t) && (!(LETRA_18.test(t) || CON_CONSTANTE.test(t)) || TAMANOS.test(t))
+/** la constante que arma un botón (const BOTON_X = "… bg-ambar …") también debe llevar text-boton */
+const constanteMal = (l) => /\bconst\s+BOTON_\w+\s*=/.test(l) && esCaja(l.replace(/\bconst\s+BOTON_\w+/, "")) && (!LETRA_18.test(l) || TAMANOS.test(l))
+/** las etiquetas <button …> de un archivo, con la línea donde empiezan y terminan */
+export function etiquetasDeBoton(src) {
+  const out = []; let i = 0
+  while ((i = src.indexOf("<button", i)) >= 0) {
+    let j = i + 7, d = 0, q = null
+    for (; j < src.length; j++) { const c = src[j]; if (q) { if (c === q) q = null; continue } if (c === '"' || c === "'" || c === "`") { q = c; continue } if (c === "{") d++; else if (c === "}") d--; else if (c === ">" && d === 0) break }
+    const tag = src.slice(i, j + 1), desde = src.slice(0, i).split("\n").length
+    out.push({ tag, desde, hasta: desde + tag.split("\n").length - 1 }); i = j
+  }
+  return out
+}
+/** botones del archivo; con «tocadas» (números de línea), solo los que la entrega toca */
+const revisarBotones = (f, src, tocadas = null) => { for (const e of etiquetasDeBoton(src)) { if (tocadas && ![...Array(e.hasta - e.desde + 1).keys()].some((k) => tocadas.has(e.desde + k))) continue; if (botonMal(e.tag)) hallazgos.push({ f, n: e.desde, que: QUE_BOTON }) } }
+const revisar = (f, n, linea) => { if (PERMISO.test(linea)) return; for (const [que, falla] of REGLAS) if (falla(linea)) hallazgos.push({ f, n, que }); if (constanteMal(linea)) hallazgos.push({ f, n, que: QUE_BOTON }) }
+const revisarEntero = (f) => { const src = readFileSync(f, "utf8"); src.split("\n").forEach((l, i) => revisar(f, i + 1, l)); revisarBotones(f, src) }
 
 if (modo === "probar") {
   const deben = [
@@ -41,10 +65,16 @@ if (modo === "probar") {
   const pasan = ["bg-grafito text-gris text-cuerpo font-medio rounded-tarjeta border-linea", "rounded-full rounded-control rounded-panel", "className=\"text-rotulo text-oro tracking-rotulo\"", "bg-ambar text-sobre-ambar text-numero text-cifra", "x // estilo-ok: el logo exige su contorno exacto #e8731a", "bg-transparent", "shadow-none", "// lo pidió CC6 (#283) · ver #289.", " * corrección de la entrega #290", "{/* entrega #291 */}"]
   const noPasan = ["x // estilo-ok:", "x // estilo-ok: ok"]
   let fallos = 0
+  const botonesMal = ['<button className="rounded-control bg-ambar px-3 text-cuerpo font-medio text-sobre-ambar">', '<button className="rounded-control border border-linea-oro text-dato text-oro">', '<button className={`${BOTON_PRINCIPAL} text-cuerpo`}>', '<button\n  className="rounded-control px-4 font-medio"\n  style={{ background: listo ? AMBAR : "#3a2a1a" }}>', '<button className="rounded-full border border-linea-oro px-4 text-oro">']
+  const botonesBien = ['<button className="rounded-control bg-ambar text-boton font-medio">', '<button className={BOTON_SECUNDARIO}>', '<button className={`w-full ${SECUNDARIO}`}>', '<button className="rounded-tarjeta border border-linea-oro text-cuerpo">', '<button className="text-dato text-gris hover:border-linea-oro">', '<button className="absolute h-[18px]" style={{ background: f.fallo ? ROJO : AMBAR }} />', '<button\n  className="rounded-control px-4 text-boton font-medio"\n  style={{ background: listo ? AMBAR : "#3a2a1a" }}>']
+  for (const t of botonesMal) { const [e] = etiquetasDeBoton(t.endsWith("/>") ? t : t + "x</button>"); if (!e || !botonMal(e.tag)) { fallos++; console.error(`NO frena el botón «${t}»`) } }
+  for (const t of botonesBien) { const [e] = etiquetasDeBoton(t.endsWith("/>") ? t : t + "x</button>"); if (!e || botonMal(e.tag)) { fallos++; console.error(`frena de más el botón «${t}»`) } }
+  const constantes = [["export const BOTON_PRINCIPAL = 'rounded-control bg-ambar px-3 text-cuerpo font-medio'", true], ["export const BOTON_SECUNDARIO = 'border border-linea-oro text-oro'", true], ["export const BOTON_PRINCIPAL = 'rounded-control bg-ambar px-3 text-boton font-medio'", false]]
+  for (const [l, mal] of constantes) { hallazgos.length = 0; revisar("x", 1, l); if (hallazgos.some((h) => h.que === QUE_BOTON) !== mal) { fallos++; console.error(`la constante «${l}» ${mal ? "no frena" : "frena de más"}`) } }
   for (const [linea, i] of deben) { const ok = REGLAS[i][1](linea) && !PERMISO.test(linea); if (!ok) { fallos++; console.error(`NO frena «${linea}» (regla ${i})`) } }
   for (const linea of pasan) { hallazgos.length = 0; revisar("x", 1, linea); if (hallazgos.length) { fallos++; console.error(`frena de más «${linea}»: ${hallazgos.map((h) => h.que).join(" | ")}`) } }
   for (const linea of noPasan) { hallazgos.length = 0; revisar("x", 1, "text-[13px] " + linea); if (!hallazgos.length) { fallos++; console.error(`el permiso sin razón dejó pasar «${linea}»`) } }
-  console.log(fallos ? `${fallos} casos fallan` : `ok · ${deben.length} frenan, ${pasan.length} pasan, ${noPasan.length} permisos sin razón no valen`)
+  console.log(fallos ? `${fallos} casos fallan` : `ok · ${deben.length} frenan, ${pasan.length} pasan, ${noPasan.length} permisos sin razón no valen · botones: ${botonesMal.length} frenan, ${botonesBien.length} pasan, ${constantes.length} constantes`)
   process.exit(fallos ? 1 : 0)
 }
 if (modo === "todo") {
@@ -57,13 +87,14 @@ if (modo === "todo") {
   }
   for (const f of MIGRADOS) revisarEntero(f)
   const diff = execSync(`git diff --unified=0 ${base}...HEAD -- components/nuevo app/nuevo`, { encoding: "utf8" })
-  let f = null, n = 0
+  let f = null, n = 0; const tocadas = {}
   for (const l of diff.split("\n")) {
     if (l.startsWith("+++ ")) { f = l.slice(6); continue }
     const h = l.match(/^@@ -\d+(?:,\d+)? \+(\d+)/); if (h) { n = Number(h[1]); continue }
     if (!f || !CARPETAS.test(f) || EXENTOS.test(f) || MIGRADOS.includes(f)) continue
-    if (l.startsWith("+") && !l.startsWith("+++")) { revisar(f, n, l.slice(1)); n++ }
+    if (l.startsWith("+") && !l.startsWith("+++")) { revisar(f, n, l.slice(1)); (tocadas[f] ??= new Set()).add(n); n++ }
   }
+  for (const [g, ns] of Object.entries(tocadas)) revisarBotones(g, readFileSync(g, "utf8"), ns) // el botón ENTERO si la entrega toca alguna de sus líneas
 }
 const porRegla = {}; for (const h of hallazgos) porRegla[h.que] = (porRegla[h.que] ?? 0) + 1
 const porArchivo = {}; for (const h of hallazgos) porArchivo[h.f] = (porArchivo[h.f] ?? 0) + 1
