@@ -65,10 +65,11 @@ describe("2 · Centro de campaña: el selector y el paso 3 dicen lo mismo", () =
     expect(paso3).toBe("Campaña archivada")
     expect(estadoDelClienteEnElSelector({ con_campana: false, estado_campana: "reemplazada" })).toContain("campaña archivada")
   })
-  it("los tres selectores (Centro, Calendario, Plan) usan la misma etiqueta, y las dos lecturas guardan el estado de la última campaña", () => {
+  it("06-nov · selector único: la etiqueta del estado vive solo en el selector de arriba (Centro, Calendario y Plan sin selector propio), y las dos lecturas guardan el estado de la última campaña", () => {
+    expect(readFileSync("components/nuevo/SelectorDeCliente.tsx", "utf8")).toContain("estadoDeCampanaLegible(c.estado_campana)") // 09-nov: siempre el estado real de la última
     for (const f of ["components/nuevo/PanelAplicaciones.tsx", "components/nuevo/PanelPizarron.tsx", "components/nuevo/PanelPlan.tsx"]) {
       const s = readFileSync(f, "utf8")
-      expect(s, f).toMatch(/estadoDelClienteEnElSelector\([cx]\)/); expect(s, f).not.toContain('" · sin campaña"')
+      expect(s, f).not.toContain("<select"); expect(s, f).not.toContain('" · sin campaña"'); expect(s, f).toContain("useAlCambiarElCliente(")
     }
     for (const f of ["lib/pizarron-datos.ts", "lib/plan-datos.ts"]) expect(readFileSync(f, "utf8"), f).toContain("estado_campana: ultima.get(c.id) ?? null")
   })

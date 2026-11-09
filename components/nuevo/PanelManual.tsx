@@ -2,7 +2,8 @@
 
 import { faltantesDeLasSecciones } from "@/lib/manual-secciones"
 import { TarjetaDeRevisionDelEditor } from "@/components/nuevo/manual/RevisionDelEditor"
-import { guardarClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
+import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PalabrasDelManual } from "@/components/nuevo/PalabrasDelManual"
 import { PedirCambiosAlManual, type PedidoEnSeccion } from "@/components/nuevo/manual/PedirCambiosAlManual"
@@ -245,6 +246,16 @@ const BORRADOR_REAL: ApiDelBorrador = { leer: leerBorrador, guardar: guardarBorr
 /** cuánto espera para guardar después del último toque (un guardado por ráfaga, no uno por tecla) */
 export const PAUSA_DEL_BORRADOR_MS = 1200
 
+/** 02-nov (corrección urgente) + 06-nov selector único: el manual abre en el cliente que le pasan; si no, en el de arriba; sin recuerdo, decide el servidor */
+export function clienteConElQueAbre(clienteInicial: string | null | undefined, arriba: { id: string | null } | null): string | null {
+  return clienteInicial ?? arriba?.id ?? null
+}
+
+/** con cambios sin guardar, salir (cerrar, Esc, fuera del panel, elegir otro cliente arriba) pide el aviso; sin cambios, sigue */
+export function salirOAvisar(nCambios: number, seguir: () => void, avisar: (seguir: () => void) => void): void {
+  if (nCambios > 0) avisar(seguir); else seguir()
+}
+
 export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorInicial = null, borradorViejoInicial = null, salirInicial = false, noSePudoGuardarInicial = false, onCerrar, datosIniciales = null, clienteInicial = null, accion = llamarAccion, cambiosIniciales = {}, notasIniciales = {}, libreInicial = "", confirmarAprobarInicial = false, reintentarPlanInicial = false }: { borrador?: ApiDelBorrador; /** pruebas: el borrador ya guardado / el de una versión anterior / el aviso de salir a la vista */ borradorInicial?: { revision: number | null; actualizado_en: string | null } | null; borradorViejoInicial?: BorradorDelDueno | null; salirInicial?: boolean; noSePudoGuardarInicial?: boolean; /** pruebas: observaciones y texto libre pendientes */ notasIniciales?: Record<string, string>; libreInicial?: string; /** pruebas: aprobado pero sin plan pedido */ reintentarPlanInicial?: boolean; onCerrar: () => void; datosIniciales?: ManualDelCliente | null; /** pruebas: abrir con cambios en espera (Editar/Retirar sin guardar) */ cambiosIniciales?: Record<string, string>; /** pruebas: abrir con la confirmación de aprobar a la vista */ confirmarAprobarInicial?: boolean; /** abrir con este cliente (el harness local lo usa) */ clienteInicial?: string | null; /** cómo se envían las acciones (pruebas) */ accion?: typeof llamarAccion }) {
   const [datos, setDatos] = useState<ManualDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
@@ -301,7 +312,8 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
       setDatos(j); setCliente(j.cliente?.id ?? null)
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
-  useEffect(() => { if (!datosIniciales) void leer(clienteInicial) }, [leer, datosIniciales, clienteInicial])
+  // abre en el cliente que le pasan; si no, en el cliente de trabajo (el de arriba); sin recuerdo, decide el servidor
+  useEffect(() => { if (!datosIniciales) void leer(clienteConElQueAbre(clienteInicial, leerClienteDeTrabajo())) }, [leer, datosIniciales, clienteInicial])
 
   // después de guardar: se dice qué pasó y se vuelve a leer (la versión nueva es la que verá el siguiente empleado)
   const guardado = (r: ResultadoDeGuardado) => { setEditando(null); setAviso(r.ok ? { ok: true, texto: resumenDelGuardado(r.detalle) } : { ok: false, texto: r.texto }); if (r.ok) void leer(cliente) }
@@ -397,7 +409,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
   // clic fuera: solo si el clic EMPIEZA y TERMINA fuera (arrastrar para seleccionar texto y soltar afuera no pide salir · 04-nov)
   const abajoAfuera = useRef(false)
   const salirConAviso = useRef<(seguir: () => void) => void>(() => {})
-  salirConAviso.current = (seguir) => { if (nCambios > 0) setSalir(() => seguir); else seguir() }
+  salirConAviso.current = (seguir) => salirOAvisar(nCambios, seguir, (s) => setSalir(() => s))
   useEffect(() => {
     if (nCambios === 0) return
     const antes = (e: BeforeUnloadEvent) => { void guardarYa.current(); e.preventDefault(); e.returnValue = "" }
@@ -473,6 +485,9 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
       className="mt-3 text-[12px] text-amber-200 underline decoration-dotted underline-offset-4 hover:text-amber-100">Pedir cambios en esta sección</button>
   ) : null
 
+  // 06-nov · selector único: si se elige otro cliente arriba con el manual abierto, pasa por el mismo aviso de salir con cambios
+  // («Seguir aquí» = el manual se queda con su cliente y su cabecera lo dice)
+  useAlCambiarElCliente(datos?.cliente?.id ?? cliente, (id) => salirConAviso.current(() => { borradorDe.current = null; ultimoGuardado.current = ""; descartarTodo(); setBorradorViejo(null); setGuardadoDelBorrador(null); setGuardadoOk(false); void leer(id) }))
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { abajoAfuera.current = e.target === e.currentTarget }} onMouseUp={(e) => { if (abajoAfuera.current && e.target === e.currentTarget) salirConAviso.current(onCerrar); abajoAfuera.current = false }}>
       <style>{ESTILO}</style>
@@ -481,15 +496,10 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
           <h2 id="manual-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Manual de marca</h2>
           {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
           <p className="hidden text-[12px] text-zinc-500 md:block">Lo que la marca es, cómo habla y cómo se ve · se edita aquí</p>
-          <label className="ml-auto flex items-center gap-2 text-[12px] text-zinc-400">
-            <span>Cliente</span>
-            <select value={cliente ?? ""} onChange={(e) => { const id = e.target.value || null; salirConAviso.current(() => { borradorDe.current = null; ultimoGuardado.current = ""; descartarTodo(); setBorradorViejo(null); setGuardadoDelBorrador(null); setGuardadoOk(false); if (id) guardarClienteDeTrabajo({ id, nombre: datos?.clientes.find((c) => c.id === id)?.nombre ?? null }); void leer(id) })}} disabled={!datos || cargando} aria-label="Elegir el cliente"
-              className="rounded-md border border-white/10 bg-[#111] px-2 py-1 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-              {(datos?.clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.con_manual ? "" : " · sin manual"}</option>)}
-              {!datos && <option value="">Leyendo…</option>}
-            </select>
-          </label>
-          <button ref={cerrar} type="button" onClick={() => salirConAviso.current(onCerrar)} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
+          {/* 06-nov · selector único: el cliente se elige arriba; la cabecera ya lo dice */}
+          <NotaDeTodos />
+          {cargando && <span data-leyendo className="text-[11.5px] text-zinc-500">Leyendo…</span>}
+          <button ref={cerrar} type="button" onClick={() => salirConAviso.current(onCerrar)} aria-label="Cerrar" className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
           </button>
         </header>
