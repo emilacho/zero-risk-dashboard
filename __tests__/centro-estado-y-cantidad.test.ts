@@ -154,7 +154,7 @@ describe("leerCentro · las lecturas nuevas", () => {
     const db = baseFalsa({
       client_brand_books: [{ version: 5, human_validated: true, provenance_tag: {}, created_at: "2026-11-04T12:07:41Z" }, { version: 4, human_validated: false, provenance_tag: {}, created_at: "2026-11-04T11:55:36Z" }],
       client_historical_outputs: [{ status: "rejected", provenance_tag: { version: 3 }, created_at: "2026-11-07T00:00:00Z" }, { status: "approved", provenance_tag: { version: 2 }, created_at: "2026-11-06T11:17:01Z", updated_at: "2026-11-06T11:20:56Z" }],
-      agents: [{ name: "a" }, { name: "b" }, { name: "c" }],
+      agents: [{ name: "a", department: "marketing", is_active: true }, { name: "b", department: "marketing", is_active: true }, { name: "c", department: "marketing", is_active: true }, { name: "v", department: "sales", is_active: true }],
     })
     const c = await leerCentro(db, { cliente: NAUFRAGO, riesgos: riesgosCon([{ client_id: "otro", gastado_24h_usd: 1, techo_usd: 5 }, { client_id: NAUFRAGO, gastado_24h_usd: 9.12, techo_usd: 60 }]) })
     expect(c.manual).toEqual({ total: 2, aprobado: true, fecha: "2026-11-04T12:07:41Z" })

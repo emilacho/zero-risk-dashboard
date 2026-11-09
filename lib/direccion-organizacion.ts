@@ -220,7 +220,12 @@ async function filas(q: R, que: string): Promise<Fila[]> { const r = await q; if
 const txt = (v: unknown) => (v == null || v === "" ? null : String(v))
 const lst = (v: unknown) => (Array.isArray(v) ? v.map(String) : [])
 
-export async function leerOrganizacion(db: SupabaseClient, o: { ahora?: Date } = {}): Promise<Organizacion> {
+/** 10-nov (Lenovo · Centro «Equipo»): los empleados que hoy cuentan en un departamento (activos o trabajando · instalados). Los «por activar» (equipos de segunda etapa) y los apagados no cuentan. */
+export const empleadosActivosDe = (org: Organizacion, depto: string): string[] =>
+  Object.values(org.personas).filter((p) => p.departamento === depto && p.instalado && (p.estado === "activo" || p.estado === "trabajando")).map((p) => p.id)
+
+/** `conInvocaciones: false` salta la lectura de 24 h de corridas (el Centro solo necesita quién cuenta en el departamento, no qué hizo) */
+export async function leerOrganizacion(db: SupabaseClient, o: { ahora?: Date; conInvocaciones?: boolean } = {}): Promise<Organizacion> {
   const ahora = o.ahora ?? new Date()
   const desde = new Date(ahora.getTime() - 24 * 3600_000).toISOString()
   const [deptos, agentes, equipos, directorio, inv] = await Promise.all([
@@ -228,7 +233,7 @@ export async function leerOrganizacion(db: SupabaseClient, o: { ahora?: Date } =
     filas(db.from("agents").select("id, name, display_name, role, department, department_id, reports_to, is_active, status").limit(500), "agents"),
     filas(db.from("oficina_equipos").select("clave, nombre, descripcion, etapa, bloqueo, orden").limit(50), "oficina_equipos"),
     filas(db.from("oficina_directorio").select("agente, equipo, especialidad, sabe_hacer, activo").limit(500), "oficina_directorio"),
-    filas(db.from("agent_invocations").select("agent_name, command, started_at, ended_at, status, client_id, cost_usd").gte("created_at", desde).limit(5000), "agent_invocations"),
+    o.conInvocaciones === false ? Promise.resolve([] as Record<string, unknown>[]) : filas(db.from("agent_invocations").select("agent_name, command, started_at, ended_at, status, client_id, cost_usd").gte("created_at", desde).limit(5000), "agent_invocations"),
   ])
   return armarOrganizacion({
     deptos: deptos.map((x) => ({ id: String(x.id), name: String(x.name), display_name: txt(x.display_name), description: txt(x.description), status: txt(x.status) })),
