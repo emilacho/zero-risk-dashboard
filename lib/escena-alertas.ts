@@ -5,6 +5,9 @@
  * Las cuatro que se ven: corrida fallida · algo colgado · el cerebro no corrió · pregunta sin responder.
  * Gasto raro está apagado (Emilio 05-nov 00:13Z): las alertas de dinero no van en el Dpto. Marketing. La lógica queda lista para moverla a Tu oficina › Dinero si la pide.
  * Alta / manual / pedido fallidos: se suman cuando CC1/CC2 digan dónde guardan su estado (hoy solo el plan tiene estado de corrida leíble).
+ * 09-nov 21:44Z (CORRECCIÓN de Lenovo · Emilio: «La antena es para los mensajes que corresponden a Dept. Marketing»): cada aviso lleva el
+ * DEPARTAMENTO que sale de su dato y la antena muestra y cuenta solo los de marketing. Lo del cerebro, el portero, Apify, finanzas o toda la
+ * empresa va solo a Riesgos. Un aviso sin departamento no entra (se anota para Lenovo).
  */
 import { usdES } from "@/lib/lenguaje"
 import type { PanelDelMarco } from "@/lib/buscador"
@@ -19,7 +22,23 @@ export const DESTINO_DEL_AVISO = {
   fallida: "envivo", colgada: "envivo", gasto: "dinero", cerebro_alarma: "riesgos", cerebro_diario: null, pregunta: "decisiones",
 } as const satisfies Record<string, PanelDelMarco | null>
 
-export interface AlertaDeLaAntena { clave: string; tipo: TipoDeAlerta; /** la frase, en palabras simples */ texto: string; /** cuándo pasó (ISO), para poner la más reciente arriba */ cuando: string; /** el lugar donde se resuelve, si existe */ abre: PanelDelMarco | null }
+export interface AlertaDeLaAntena { clave: string; tipo: TipoDeAlerta; /** la frase, en palabras simples */ texto: string; /** cuándo pasó (ISO), para poner la más reciente arriba */ cuando: string; /** el lugar donde se resuelve, si existe */ abre: PanelDelMarco | null; /** de qué departamento sale (`departments.name`), según su dato; null = el dato no lo dice */ departamento: string | null }
+
+/** la antena es del Dept. Marketing: solo entran los avisos cuyo dato dice este departamento (`departments.name`) */
+export const DEPARTAMENTO_DE_LA_ANTENA = "marketing"
+/**
+ * El departamento de cada fuente, SEGÚN SU DATO:
+ * · `plan_corridas` ES el Plan de Marketing (la tabla entera es del departamento; no tiene columna propia) → marketing.
+ * · `dueno_preguntas` trae su `oficina` (hoy todas «financiera») → ese valor.
+ * · `cerebro_alertas` y `cerebro_diario_corridas` (cerebro, portero, Apify) no traen departamento → null: no entran (van a Riesgos).
+ * · el gasto (`agent_invocations`) es dinero de toda la empresa → null.
+ */
+export const DEPARTAMENTO_DEL_PLAN = "marketing"
+const departamentoDe = (v: string | null | undefined): string | null => { const d = String(v ?? "").trim().toLowerCase(); return d || null }
+/** el filtro de la antena: solo lo del departamento (nunca por tipo de aviso) */
+export const delDepartamento = (a: AlertaDeLaAntena): boolean => a.departamento === DEPARTAMENTO_DE_LA_ANTENA
+/** tipos de aviso que hoy llegan sin departamento (para la nota a Lenovo); no entran a la antena */
+export const sinDepartamento = (alertas: AlertaDeLaAntena[]): TipoDeAlerta[] => [...new Set(alertas.filter((a) => a.departamento == null).map((a) => a.tipo))]
 
 /** las preguntas más viejas que esto no avisan (decisión C) */
 export const DIAS_DE_UNA_PREGUNTA = 7
@@ -38,7 +57,7 @@ const HORAS_SIN_AVANZAR = 3
 export interface FilaDePlan { id: string; client_id: string | null; estado: string | null; creado_en: string | null; actualizado_en: string | null; vence_en: string | null; motivo: string | null; dry_run: boolean | null }
 export interface FilaDeCerebroDiario { client_id: string | null; dia: string | null; estado: string | null; prueba: boolean | null }
 export interface FilaDeAlarmaDelCerebro { clave: string; ultima_en: string | null }
-export interface FilaDePregunta { id: string; client_id: string | null; pregunta: string | null; estado: string | null; creado_en: string | null }
+export interface FilaDePregunta { id: string; client_id: string | null; pregunta: string | null; estado: string | null; creado_en: string | null; /** la oficina que pregunta (`dueno_preguntas.oficina`): su departamento */ oficina: string | null }
 export interface CorridaConGasto { ejecucion: string; flujo: string | null; client_id: string | null; costo: number; inicio: string }
 export interface EntradaDeAlertas { cliente: string | null; ahora: Date; plan: FilaDePlan[]; cerebroDiario: FilaDeCerebroDiario[]; alarmasDelCerebro: FilaDeAlarmaDelCerebro[]; preguntas: FilaDePregunta[]; corridas: CorridaConGasto[] }
 
@@ -61,7 +80,7 @@ export function fallidas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     const cuando = p.actualizado_en ?? p.creado_en, tc = ms(cuando), ini = ms(p.creado_en)
     if (tc == null || ini == null || t - tc > DIAS_DE_UNA_FALLA * DIA) return []
     if (reales.some((q) => q.estado === "hecha" && q.client_id === p.client_id && (ms(q.creado_en) ?? 0) > ini)) return []
-    return [{ clave: `fallida:${p.id}`, tipo: "fallida", texto: `El plan falló a las ${horaEC(cuando!)}${porQue(p.motivo)}`, cuando: cuando!, abre: DESTINO_DEL_AVISO.fallida }]
+    return [{ clave: `fallida:${p.id}`, tipo: "fallida", texto: `El plan falló a las ${horaEC(cuando!)}${porQue(p.motivo)}`, cuando: cuando!, abre: DESTINO_DEL_AVISO.fallida, departamento: DEPARTAMENTO_DEL_PLAN }]
   })
 }
 
@@ -73,7 +92,7 @@ export function colgadas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     const pasado = vence != null ? vence < t : mov != null && t - mov > HORAS_SIN_AVANZAR * 3_600_000
     if (!pasado) return []
     const cuando = (vence != null ? p.vence_en : p.actualizado_en ?? p.creado_en)!
-    return [{ clave: `colgada:${p.id}`, tipo: "colgada", texto: `El plan sigue en marcha desde las ${horaEC(p.creado_en ?? cuando)} y ya pasó su tiempo normal`, cuando, abre: DESTINO_DEL_AVISO.colgada }]
+    return [{ clave: `colgada:${p.id}`, tipo: "colgada", texto: `El plan sigue en marcha desde las ${horaEC(p.creado_en ?? cuando)} y ya pasó su tiempo normal`, cuando, abre: DESTINO_DEL_AVISO.colgada, departamento: DEPARTAMENTO_DEL_PLAN }]
   })
 }
 
@@ -88,7 +107,7 @@ export function gastosRaros(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     if (hermanas.length < MUESTRA_MINIMA_DE_GASTO) return []
     const normal = mediana(hermanas)
     if (!(c.costo > VECES_LA_MEDIANA * normal && c.costo > PISO_DE_GASTO_USD)) return []
-    return [{ clave: `gasto:${c.ejecucion}`, tipo: "gasto", texto: `Una corrida costó ${usdES(c.costo)}, más de ${VECES_LA_MEDIANA} veces lo normal de su tipo (${usdES(normal)})`, cuando: c.inicio, abre: DESTINO_DEL_AVISO.gasto }]
+    return [{ clave: `gasto:${c.ejecucion}`, tipo: "gasto", texto: `Una corrida costó ${usdES(c.costo)}, más de ${VECES_LA_MEDIANA} veces lo normal de su tipo (${usdES(normal)})`, cuando: c.inicio, abre: DESTINO_DEL_AVISO.gasto, departamento: null }]
   })
 }
 
@@ -99,10 +118,10 @@ export function cerebroNoCorrio(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   if (reales.length) {
     const ultimo = reales.map((c) => c.dia!).sort().at(-1)!, filaUltima = reales.filter((c) => c.dia === ultimo)
     const ayer = diaEC(t - DIA)
-    if (ultimo < ayer) out.push({ clave: "cerebro:sin-corrida", tipo: "cerebro", texto: `El cerebro no hizo su corrida diaria desde el ${ultimo.split("-").reverse().slice(0, 2).join("/")}`, cuando: `${ultimo}T12:00:00Z`, abre: DESTINO_DEL_AVISO.cerebro_diario })
-    else if (filaUltima.every((c) => /fall|error|cort/i.test(c.estado ?? ""))) out.push({ clave: "cerebro:fallo", tipo: "cerebro", texto: "La última corrida diaria del cerebro salió mal", cuando: `${ultimo}T12:00:00Z`, abre: DESTINO_DEL_AVISO.cerebro_diario })
+    if (ultimo < ayer) out.push({ clave: "cerebro:sin-corrida", tipo: "cerebro", texto: `El cerebro no hizo su corrida diaria desde el ${ultimo.split("-").reverse().slice(0, 2).join("/")}`, cuando: `${ultimo}T12:00:00Z`, abre: DESTINO_DEL_AVISO.cerebro_diario, departamento: null })
+    else if (filaUltima.every((c) => /fall|error|cort/i.test(c.estado ?? ""))) out.push({ clave: "cerebro:fallo", tipo: "cerebro", texto: "La última corrida diaria del cerebro salió mal", cuando: `${ultimo}T12:00:00Z`, abre: DESTINO_DEL_AVISO.cerebro_diario, departamento: null })
   }
-  for (const a of e.alarmasDelCerebro) out.push({ clave: `cerebro:alarma:${a.clave}`, tipo: "cerebro", texto: "El cerebro tiene una alarma abierta", cuando: a.ultima_en ?? e.ahora.toISOString(), abre: DESTINO_DEL_AVISO.cerebro_alarma })
+  for (const a of e.alarmasDelCerebro) out.push({ clave: `cerebro:alarma:${a.clave}`, tipo: "cerebro", texto: "El cerebro tiene una alarma abierta", cuando: a.ultima_en ?? e.ahora.toISOString(), abre: DESTINO_DEL_AVISO.cerebro_alarma, departamento: null })
   return out
 }
 
@@ -113,14 +132,14 @@ export function preguntasSinResponder(e: EntradaDeAlertas): AlertaDeLaAntena[] {
     const c = ms(p.creado_en)
     if (c == null || t - c > DIAS_DE_UNA_PREGUNTA * DIA) return []
     const q = String(p.pregunta ?? "").replace(/\s+/g, " ").trim()
-    return [{ clave: `pregunta:${p.id}`, tipo: "pregunta", texto: q ? `Te preguntaron algo y sigue sin respuesta: ${q.length > 90 ? `${q.slice(0, 89).replace(/\s+\S*$/, "")}…` : q}` : "Te preguntaron algo y sigue sin respuesta", cuando: p.creado_en!, abre: DESTINO_DEL_AVISO.pregunta }]
+    return [{ clave: `pregunta:${p.id}`, tipo: "pregunta", texto: q ? `Te preguntaron algo y sigue sin respuesta: ${q.length > 90 ? `${q.slice(0, 89).replace(/\s+\S*$/, "")}…` : q}` : "Te preguntaron algo y sigue sin respuesta", cuando: p.creado_en!, abre: DESTINO_DEL_AVISO.pregunta, departamento: departamentoDe(p.oficina) }]
   })
 }
 
-/** todas las alertas de hoy, la más reciente arriba; sin ninguna, la antena queda apagada */
+/** las alertas de hoy DEL DEPARTAMENTO, la más reciente arriba; sin ninguna, la antena queda apagada y sin número */
 export function armarAlertas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   return [...fallidas(e), ...colgadas(e), ...(GASTO_RARO_EN_LA_ANTENA ? gastosRaros(e) : []), ...cerebroNoCorrio(e), ...preguntasSinResponder(e)]
-    .sort((a, b) => (ms(b.cuando) ?? 0) - (ms(a.cuando) ?? 0)).slice(0, MAXIMO_DE_ALERTAS)
+    .filter(delDepartamento).sort((a, b) => (ms(b.cuando) ?? 0) - (ms(a.cuando) ?? 0)).slice(0, MAXIMO_DE_ALERTAS)
 }
 
 /** dónde está la antena en la foto de 2560 px (la parabólica de la plataforma de arriba a la izquierda) */
