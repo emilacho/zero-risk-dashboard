@@ -87,6 +87,14 @@ describe("estilo base · la revisión frena la entrega", () => {
     git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "botones a 18")
     expect(correr(dir, "main").status).toBe(0)
   }, 60_000)
+  it("si la entrega toca solo una línea de en medio de un botón ya existente, se revisa el botón entero", () => {
+    const dir = repo(); dirs.push(dir)
+    const suelta = (t: string) => `const C = () => (\n  <button type="button"\n    className="rounded-control px-4 py-3 ${t}font-medio"\n    style={{ background: ok ? AMBAR : APAGADO }}>\n    Crear\n  </button>\n)\n`
+    git(dir, "checkout", "-q", "main"); escribir(dir, "components/nuevo/Suelta.tsx", suelta("text-boton ")); git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "botón a 18 en la base")
+    git(dir, "checkout", "-q", "-b", "trabajo-2"); escribir(dir, "components/nuevo/Suelta.tsx", suelta("")); git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "le saca el 18")
+    const r = correr(dir, "main")
+    expect(r.status).toBe(1); expect(r.stderr).toContain("components/nuevo/Suelta.tsx:2 · botón con letra distinta de 18")
+  }, 60_000)
   it("la constante del botón también: BOTON_PRINCIPAL de vuelta a 15 frena", () => {
     const dir = repo(); dirs.push(dir)
     escribir(dir, "components/nuevo/EstiloBase.tsx", 'export const x = "text-hueso bg-grafito"\nexport const BOTON_PRINCIPAL = `zr-apagable rounded-control border border-ambar bg-ambar px-3 text-cuerpo font-medio text-sobre-ambar`\n')
