@@ -59,17 +59,27 @@ export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string |
   const tarjetas = hitl.map(tarjetaDesdeFila)
   const elegida = (o.tarjeta && tarjetas.find((t) => t.hitl_id === o.tarjeta)) || tarjetas[0] || null
   const detalle = elegida ? await cargarConcepto(supa, elegida.hitl_id) : null
-  const quienes_propusieron = detalle?.concepto_id ? await quienesPropusieron(supa, detalle.concepto_id) : []
+  const quienes_propusieron = detalle ? await quienesPropusieron(supa, detalle) : []
   return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle, quienes_propusieron }
 }
 
-/** los empleados de la sala que aportaron al encargo de ese concepto, sin repetir y en el orden en que hablaron */
-async function quienesPropusieron(supa: SupabaseClient, conceptoId: string): Promise<string[]> {
-  const c = await una(supa.from("cadena_conceptos").select("encargo_id").eq("id", conceptoId).maybeSingle(), "cadena_conceptos")
-  const encargo = c && typeof c.encargo_id === "string" ? c.encargo_id : null
-  if (!encargo) return []
-  const aportes = await filas(supa.from("oficina_mesa_aportes").select("de, n").eq("encargo_id", encargo).order("n", { ascending: true }).limit(200), "oficina_mesa_aportes")
-  return quienesPropusieronDe(aportes)
+/**
+ * los empleados de la sala que aportaron al encargo de ese concepto, sin repetir y en el orden en que hablaron.
+ * 09-nov (URGENTE Lenovo · el Centro de campaña no cargaba): la v2 trae `concepto_id` en texto («con-28de888eb3f2-v2») y `cadena_conceptos.id` es un número:
+ * la base rechazaba la consulta y se caía TODO el Centro. Ahora el concepto se busca por campaña y versión (lo mismo que `cargarConcepto`), y por `id` solo
+ * si es un número. Es un dato de adorno: si su lectura falla, la lista queda vacía y el Centro sigue en pie (nunca lo tumba).
+ */
+export async function quienesPropusieron(supa: SupabaseClient, d: Pick<DetalleDelConcepto, "concepto_id" | "campana_id" | "version">): Promise<string[]> {
+  try {
+    const q = supa.from("cadena_conceptos").select("encargo_id")
+    const c = d.campana_id && d.version != null ? await una(q.eq("campana_id", d.campana_id).eq("version", d.version).maybeSingle(), "cadena_conceptos")
+      : d.concepto_id && /^[0-9]+$/.test(d.concepto_id) ? await una(q.eq("id", d.concepto_id).maybeSingle(), "cadena_conceptos")
+      : null
+    const encargo = c && typeof c.encargo_id === "string" ? c.encargo_id : null
+    if (!encargo) return []
+    const aportes = await filas(supa.from("oficina_mesa_aportes").select("de, n").eq("encargo_id", encargo).order("n", { ascending: true }).limit(200), "oficina_mesa_aportes")
+    return quienesPropusieronDe(aportes)
+  } catch { return [] }
 }
 
 /** los nombres de quien habló en la sala, sin repetir, en orden, sin «sistema» (no es un empleado) */
