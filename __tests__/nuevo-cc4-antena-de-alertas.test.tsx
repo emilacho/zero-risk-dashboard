@@ -59,15 +59,15 @@ describe("CC4 · antena · sin alertas de dinero (Emilio 05-nov 00:13Z)", () => 
     expect(gastosRaros({ ...vacia(), corridas: caras })).toHaveLength(1)
     expect(armarAlertas({ ...vacia(), corridas: caras })).toEqual([])
   })
-  it("las otras cuatro siguen avisando", () => {
+  it("las del Dept. Marketing siguen avisando (corrección 09-nov: el cerebro ya no entra a la antena)", () => {
     const a = armarAlertas({
       ...vacia(),
       corridas: caras,
       plan: [plan("f", "fallida", 3), plan("g", "corriendo", 5, { vence_en: hace(1) })],
       alarmasDelCerebro: [{ clave: "k", ultima_en: hace(2) }],
-      preguntas: [{ id: "1", client_id: "c1", pregunta: "x", estado: "pendiente", creado_en: hace(1) }],
+      preguntas: [{ id: "1", client_id: "c1", pregunta: "x", estado: "pendiente", creado_en: hace(1), oficina: "marketing" }],
     })
-    expect(a.map((x) => x.tipo).sort()).toEqual(["cerebro", "colgada", "fallida", "pregunta"])
+    expect(a.map((x) => x.tipo).sort()).toEqual(["colgada", "fallida", "pregunta"])
   })
   it("apagado, no se pide el gasto a la base", () => {
     const fuente = readFileSync("lib/escena-avatares-datos.ts", "utf8")
@@ -89,7 +89,7 @@ describe("CC4 · antena · 4 el cerebro no corrió (decisión B)", () => {
 
 describe("CC4 · antena · 5 pregunta sin responder (decisión C)", () => {
   it("solo las pendientes de los últimos 7 días; las viejas y las respondidas no", () => {
-    const p = (id: string, estado: string, h: number) => ({ id, client_id: "c1", pregunta: "¿Qué sede abre el domingo?", estado, creado_en: hace(h) })
+    const p = (id: string, estado: string, h: number) => ({ id, client_id: "c1", pregunta: "¿Qué sede abre el domingo?", estado, creado_en: hace(h), oficina: "marketing" })
     const a = preguntasSinResponder({ ...vacia(), preguntas: [p("1", "pendiente", 2), p("2", "pendiente", 24 * 15), p("3", "respondida", 2)] })
     expect(a).toHaveLength(1); expect(a[0].texto).toContain("¿Qué sede abre el domingo?")
   })
@@ -98,9 +98,9 @@ describe("CC4 · antena · 5 pregunta sin responder (decisión C)", () => {
 describe("CC4 · antena · el conjunto y lo que se ve", () => {
   it("la más reciente arriba; sin alertas, lista vacía", () => {
     expect(armarAlertas(vacia())).toEqual([])
-    const a = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)], preguntas: [{ id: "1", client_id: "c1", pregunta: "x", estado: "pendiente", creado_en: hace(1) }] })
+    const a = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)], preguntas: [{ id: "1", client_id: "c1", pregunta: "x", estado: "pendiente", creado_en: hace(1), oficina: "marketing" }] })
     expect(a.map((x) => x.tipo)).toEqual(["pregunta", "fallida"])
-    const muchas = Array.from({ length: 9 }, (_, i) => ({ id: String(i), client_id: "c1", pregunta: `p${i}`, estado: "pendiente", creado_en: hace(i + 1) }))
+    const muchas = Array.from({ length: 9 }, (_, i) => ({ id: String(i), client_id: "c1", pregunta: `p${i}`, estado: "pendiente", creado_en: hace(i + 1), oficina: "marketing" }))
     expect(armarAlertas({ ...vacia(), preguntas: muchas })).toHaveLength(MAXIMO_DE_ALERTAS) // el tope (reserva (b))
   })
   it("sin alertas no se dibuja nada; con alertas: aura roja en la punta mayor y luz que corre por el borde, sin formas planas; la lista queda en un panel", () => {
