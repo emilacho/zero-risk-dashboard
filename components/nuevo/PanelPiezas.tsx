@@ -6,6 +6,7 @@ import { diaConNombre } from "@/lib/calendario"
 import { formatoLegible, redDelTablero } from "@/lib/pizarron"
 import { nombreDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { NotaDeTodos, useAlCambiarElCliente, useClienteDeTrabajo } from "@/components/nuevo/ClienteComoTexto"
 import type { Bandeja } from "@/lib/bandeja-datos"
 import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
 import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, alcanceDeLosCambios, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuentaDeLaCarpeta, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono } from "@/lib/bandeja"
@@ -206,16 +207,20 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const filaElegida = elegida ? todas.find((f) => f.id === elegida) ?? null : null
   // la pieza que llega de afuera (calendario) ubica el explorador en su carpeta
   useEffect(() => { if (filaElegida && carpeta !== filaElegida.carpeta) setCarpeta(filaElegida.carpeta) }, [filaElegida, carpeta])
-  // el cliente lo decide la oficina (ventana de selección); aquí no se cambia
-  const clienteId = clienteInicial ?? filaElegida?.cliente_id ?? arbol[0]?.id ?? null
+  // el cliente lo decide el selector de arriba (06-nov · selector único); aquí no se cambia. Una pieza abierta desde afuera manda su propio cliente.
+  // Antes, sin cliente pasado, tomaba el primero de la lista (informe del mapa, punto 3)
+  const trabajo = useClienteDeTrabajo()
+  const clienteId = clienteInicial ?? filaElegida?.cliente_id ?? trabajo?.id ?? arbol[0]?.id ?? null
   const clienteActual: ClienteDeLaBandeja | null = arbol.find((c) => (c.id ?? "") === (clienteId ?? "")) ?? null
   const carpetaActual = clienteActual && carpeta ? clienteActual.carpetas.find((k) => k.nombre === carpeta) ?? null : null
-  const nombreDelCliente = bandeja?.clientes.find((c) => c.id === clienteId)?.nombre ?? clienteActual?.nombre ?? filaElegida?.cliente ?? pieza?.cliente ?? "Cliente"
+  const nombreDelCliente = bandeja?.clientes.find((c) => c.id === clienteId)?.nombre ?? clienteActual?.nombre ?? filaElegida?.cliente ?? pieza?.cliente ?? (trabajo?.id === clienteId ? trabajo?.nombre : null) ?? "este cliente"
   const filasDelCliente = clienteActual ? clienteActual.carpetas.flatMap((k) => k.filas) : []
   const porAprobarDelCliente = filasDelCliente.filter((f) => f.estado === "pendiente" && f.es_pieza).length
   const otrasPendientes = filasDelCliente.filter((f) => f.estado === "pendiente" && !f.es_pieza).length
 
   const irA = (k: string | null) => { setCarpeta(k); setElegida(null); setPieza(null); setErrorPieza(null) }
+  // si se elige otro cliente arriba con Piezas abierto, se vuelve a la raíz (la carpeta y la pieza eran del otro)
+  useAlCambiarElCliente(clienteId, () => irA(null))
   const verTodas = () => { setFiltro("todas"); if (!bandejaInicial) void leerLaBandeja("todas") }
   // el Kanban muestra TODAS las piezas del cliente (decididas incluidas): entrar a él pasa el filtro a «todas»
   const verComo = (v: VistaDePiezas) => { setVista(v); if (v === "kanban") { setElegida(null); setPieza(null); if (filtro !== "todas") verTodas() } }
@@ -321,6 +326,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
           {nombreDelCliente && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{nombreDelCliente}</span>}
+          <NotaDeTodos />
           {bandeja && <Chip tono={porAprobarDelCliente > 0 ? "ambar" : "neutro"}>{resumenDeLaBandeja({ por_aprobar: porAprobarDelCliente, otras_pendientes: otrasPendientes })}</Chip>}
           <p className="hidden text-[12px] text-zinc-500 xl:block">Lo que la oficina creativa entregó para {nombreDelCliente}, por tipo de pieza · aquí se aprueba, se piden cambios o se rechaza</p>
           <div role="group" aria-label="Cómo ver las piezas" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">

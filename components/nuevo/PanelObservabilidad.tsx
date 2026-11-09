@@ -5,6 +5,7 @@ import { BotonVolver } from "@/components/nuevo/BotonVolver"
 import { FichaDeRendimiento } from "@/components/nuevo/escena/FichaDeRendimiento"
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { createPortal } from "react-dom"
+import { escucharClienteDeTrabajo, leerClienteDeTrabajo, type ClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import {
   COLOR_DEL_ESTADO, ESTADOS, NOMBRE_DEL_ESTADO, TOPE_DEL_TEXTO, arbolDeNodos, clienteVisible, costoComoDato, cuando, duracion, lineaDeTiempo, mayuscula, miles, nombreDeLaRama, palabras,
   type Corrida, type DetalleDeCorrida, type EstadoCorrida, type ListaDeCorridas, type Nodo, type ResumenAgregado,
@@ -67,8 +68,11 @@ async function leerJson<T>(f: typeof fetch, url: string, que: string): Promise<T
 }
 
 /** ─── 1 · LA LISTA DE CORRIDAS (la tabla «Runs» de LangSmith) · 6.47: segundo nivel, ya filtrada por período, interno y búsqueda ─── */
-function Lista({ corridas, titulo, total, cliente, setCliente, clientes, estado, setEstado, abrir, cargando, pie, costoDe }: {
-  corridas: Corrida[]; titulo: string; total: number; cliente: string; setCliente: (c: string) => void; clientes: { id: string; nombre: string }[]
+/** 06-nov · selector único: con «Todos» (o sin cliente elegido) se ven todos; con un cliente arriba, solo ese */
+export function clienteDeObservabilidad(c: ClienteDeTrabajo | null): string { return c && !c.todos && c.id ? c.id : "" }
+
+function Lista({ corridas, titulo, total, estado, setEstado, abrir, cargando, pie, costoDe }: {
+  corridas: Corrida[]; titulo: string; total: number
   estado: EstadoCorrida | "todas"; setEstado: (e: EstadoCorrida | "todas") => void; abrir: (c: Corrida) => void; cargando: boolean; pie: ReactNode; costoDe: (c: Corrida) => number
 }) {
   const visibles = estado === "todas" ? corridas : corridas.filter((c) => c.estado === estado)
@@ -77,10 +81,6 @@ function Lista({ corridas, titulo, total, cliente, setCliente, clientes, estado,
     <div data-vista="lista" className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2 sm:px-6">
         <h3 className="mr-2 text-[14px] text-white">{titulo}</h3>
-        <select data-filtro-cliente value={cliente} onChange={(e) => setCliente(e.target.value)} aria-label="Cliente" className="h-8 rounded-md border border-white/10 bg-black/30 px-2 text-[12.5px] text-zinc-200 focus:border-amber-500/60 focus:outline-none">
-          <option value="">Todos los clientes</option>
-          {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
         <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Estado">
           <Chip data-filtro-estado="todas" activo={estado === "todas"} onClick={() => setEstado("todas")}>Todas <span style={NUM}>{corridas.length}</span></Chip>
           {ESTADOS.map((e) => <Chip key={e} data-filtro-estado={e} activo={estado === e} onClick={() => setEstado(e)}><span style={{ color: COLOR_DEL_ESTADO[e] }}>●</span> {NOMBRE_DEL_ESTADO[e]} <span style={NUM}>{cuenta(e)}</span></Chip>)}
@@ -493,7 +493,10 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const [por, setPor] = useState<AgruparPor>("proceso")
   const [abierto, setAbierto] = useState<string | null>(null)
   const [conInterno, setConInterno] = useState(internoInicial)
-  const [cliente, setCliente] = useState("")
+  // 06-nov · selector único: el cliente sale de arriba («Todos los clientes» o uno); aquí ya no hay filtro propio
+  const [arriba, setArriba] = useState<ClienteDeTrabajo | null>(() => leerClienteDeTrabajo())
+  useEffect(() => escucharClienteDeTrabajo(window, setArriba), [])
+  const cliente = clienteDeObservabilidad(arriba)
   const [estado, setEstado] = useState<EstadoCorrida | "todas">("todas")
   const [busca, setBusca] = useState("")
   const [lista, setLista] = useState<ListaDeCorridas | null>(listaInicial)
@@ -515,7 +518,6 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
   const [cargando, setCargando] = useState(!listaInicial)
   const [cargaMs, setCargaMs] = useState<number | null>(null)
   const [partes, setPartes] = useState<{ corridas?: number; costo?: number }>({})
-  const [conocidos, setConocidos] = useState<Map<string, string>>(new Map())
   const cerrar = useRef<HTMLButtonElement>(null)
   const primera = useRef(!!listaInicial)
 
@@ -553,8 +555,6 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
     leerJson<{ empleados: Record<string, Rendimiento> }>(fetchImpl, "/api/rendimiento", "las fichas").then((j) => { if (vivo) setRendimiento(j.empleados) }, () => { if (vivo) setRendimiento({}) })
     return () => { vivo = false }
   }, [fetchImpl, listaInicial])
-  useEffect(() => { if (!lista) return; setConocidos((m) => { const n = new Map(m); for (const c of lista.corridas) if (c.client_id && c.cliente) n.set(c.client_id, c.cliente); return n.size === m.size ? m : n }) }, [lista])
-  const clientes = useMemo(() => [...conocidos.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre)), [conocidos])
 
   // ─── las cifras ───
   const b = busca.trim().toLowerCase()
@@ -662,6 +662,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
         <header className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-white/10 px-4 py-2.5 sm:px-5">
           {alVolver && <BotonVolver alVolver={alVolver} a="Dinero" />}
           <h2 id="observabilidad-titulo" className="mr-1.5 font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Observabilidad</h2>
+          <p data-filtro-cliente={cliente || "todos"} className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Cliente · <span className="font-medium text-zinc-100">{cliente ? arriba?.nombre ?? "el elegido arriba" : "Todos los clientes"}</span></p>
           {!detalle && (
             <div data-controles className="order-last flex w-full min-w-0 flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:flex-1">
               <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
@@ -684,7 +685,7 @@ export function PanelObservabilidad({ onCerrar, listaInicial = null, detalleInic
         {detalle
           ? <Traza key={detalle.corrida.workflow_execution_id} detalle={detalle} volver={volver} claveInicial={claveInicial} volverA={vista === "todas" ? "Corridas" : "Resumen"} />
           : lista && vista === "todas"
-            ? <Lista corridas={delPeriodo} titulo={`Corridas · ${enPalabras}${conInterno ? " · con interno" : " · sin interno"}`} total={delPeriodo.length} cliente={cliente} setCliente={setCliente} clientes={clientes} estado={estado} setEstado={setEstado} abrir={(c) => void abrir(c)} cargando={cargando} costoDe={costoDe}
+            ? <Lista corridas={delPeriodo} titulo={`Corridas · ${enPalabras}${conInterno ? " · con interno" : " · sin interno"}`} total={delPeriodo.length} estado={estado} setEstado={setEstado} abrir={(c) => void abrir(c)} cargando={cargando} costoDe={costoDe}
               pie={<>{sobre && <> · {sobre}: la plataforma entrega 200 por lectura</>}{!lista.completo && <> · lectura incompleta: alguna fuente no respondió entera</>}{lista.agrupado && <> · una fila por pedido</>}</>} />
             : lista && (
               <div data-vista="resumen" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-1.5 sm:px-5">
