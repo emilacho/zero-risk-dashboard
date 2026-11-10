@@ -35,6 +35,13 @@ export interface AlertaRevisable { clave: string; estado: "nueva" | "revisada" |
  */
 export const esNuevaEnLaAntena = (a: Pick<AlertaDeLaAntena, "revisar">, aqui: Record<string, string> = {}): boolean =>
   !a.revisar || (a.revisar.estado !== "revisada" && !aqui[a.revisar.clave])
+/**
+ * 10-nov (Lenovo 00:30Z, decisión de Emilio): si alguna decisión que cuenta viene SIN estado (la libreta no se leyó), el número es «—»
+ * (el guion estándar de «sin dato», como en la ficha), no un conteo; la antena igual se prende. Sin texto «sin dato».
+ */
+export const SIN_DATO = "—"
+export const numeroDeLaAntena = (nuevas: AlertaDeLaAntena[]): number | typeof SIN_DATO =>
+  nuevas.some((a) => a.revisar && a.revisar.estado === null) ? SIN_DATO : nuevas.length
 export const nuevasDeLaAntena = (alertas: AlertaDeLaAntena[] | undefined, aqui: Record<string, string> = {}): AlertaDeLaAntena[] => (alertas ?? []).filter((a) => esNuevaEnLaAntena(a, aqui))
 
 /** la antena es del Dept. Marketing: solo entran los avisos cuyo dato dice este departamento (`departments.name`) */

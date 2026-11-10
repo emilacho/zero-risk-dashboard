@@ -7,7 +7,7 @@
  */
 import { useEffect } from "react"
 import { createPortal } from "react-dom"
-import { ANTENA, BORDE_DE_LA_ANTENA, esNuevaEnLaAntena, nuevasDeLaAntena, type AlertaDeLaAntena } from "@/lib/escena-alertas"
+import { ANTENA, BORDE_DE_LA_ANTENA, esNuevaEnLaAntena, nuevasDeLaAntena, numeroDeLaAntena, type AlertaDeLaAntena } from "@/lib/escena-alertas"
 import { BotonRevisar } from "@/components/nuevo/BotonRevisar"
 import { ConNombres } from "@/components/nuevo/FichaDeDecision"
 import type { PanelDelMarco } from "@/lib/buscador"
@@ -57,9 +57,10 @@ export function LucesApagadas() {
 export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAntena[] | undefined; onAbrir: () => void }) {
   if (!alertas?.length) return <LucesApagadas />
   const { punta2 } = ANTENA
+  const n = numeroDeLaAntena(alertas)
   const abrir = (e: { stopPropagation: () => void }) => { e.stopPropagation(); onAbrir() }
   return (
-    <g className="nv-antena" data-alertas={alertas.length}>
+    <g className="nv-antena" data-alertas={n}>
       <LucesApagadas />
       <style>{CSS_DE_LA_ANTENA}</style>
       <defs>
@@ -73,14 +74,14 @@ export function AntenaDeAlertas({ alertas, onAbrir }: { alertas: AlertaDeLaAnten
         <path className="nv-antena-corre" d={BORDE_DE_LA_ANTENA} pathLength={100} stroke="#ff3b2a" strokeWidth={2.6} strokeDasharray="5 95" />
       </g>
       {/* 06-nov (Emilio 01:51 local): el número de avisos va SOLO, en rojo, sin círculo ni fondo (el fondo de la foto ya es negro), arriba a la derecha de la luz */}
-      <text data-numero-antena x={punta2.x + 30} y={punta2.y - 26} className="fill-alarma font-medio" fontSize={40} aria-hidden style={{ fontVariantNumeric: "tabular-nums" }}>{alertas.length}</text>
+      <text data-numero-antena x={punta2.x + 30} y={punta2.y - 26} className="fill-alarma font-medio" fontSize={40} aria-hidden style={{ fontVariantNumeric: "tabular-nums" }}>{n}</text>
       {/* la luz de la punta mayor: aura suave que respira, sin círculo plano */}
       <g className="nv-antena-pulso">
         <circle cx={punta2.x} cy={punta2.y} r={28} fill="url(#nvAntRojo)" />
         <circle cx={punta2.x} cy={punta2.y} r={4} fill="#fff4f0" />
       </g>
       <ellipse cx={ANTENA.plato.x} cy={ANTENA.plato.y} rx={ANTENA.plato.rx + 14} ry={ANTENA.plato.ry + 14} fill="rgba(0,0,0,0)" role="button" tabIndex={0}
-        aria-label={`${alertas.length === 1 ? "1 alerta" : `${alertas.length} alertas`} del departamento. Ver la lista`} style={{ cursor: "pointer", pointerEvents: "auto", outline: "none" }}
+        aria-label={`${typeof n === "string" ? "Alertas sin dato de revisión" : n === 1 ? "1 alerta" : `${n} alertas`} del departamento. Ver la lista`} style={{ cursor: "pointer", pointerEvents: "auto", outline: "none" }}
         onClick={abrir} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(e) } }} />
     </g>
   )
@@ -134,12 +135,12 @@ interface PropsDeLaLista {
 export function ListaDeLasAlertas({ alertas, onAbrir, onCerrar, ahora, revisadasAqui = {}, alRevisar, fetchImpl }: PropsDeLaLista) {
   const lista = alertas ?? []
   // 10-nov (Lenovo 23:46Z): el número cuenta solo las Nuevas; las revisadas siguen en la lista con su sello hasta que se resuelven
-  const nuevas = nuevasDeLaAntena(lista, revisadasAqui).length
+  const nuevas = numeroDeLaAntena(nuevasDeLaAntena(lista, revisadasAqui))
   return (
     // 09-nov · boceto aprobado: cabecera de una línea (ALERTAS + el número en un recuadro chico), sin «Dept. Marketing» ni el recuadro grande;
     // el aviso es lo principal y el panel se ensancha lo justo para que su texto quepa en una línea (hasta 720 px)
     <PanelBase titulo="Alertas" id="alertas-antena-titulo" seccion="alertas-antena" onCerrar={onCerrar} etiquetaCerrar="Cerrar las alertas" ancho="max-w-[min(720px,100%)] sm:w-auto sm:min-w-[540px]"
-      junto={<span data-numero aria-label={nuevas === 1 ? "1 aviso nuevo" : `${nuevas} avisos nuevos`} className={`inline-flex h-6 min-w-9 items-center justify-center rounded-control border px-2 text-cuerpo leading-none font-medio tabular-nums ${nuevas ? "border-linea-alarma text-alarma" : "border-linea text-gris"}`}>{nuevas}</span>}>
+      junto={<span data-numero aria-label={typeof nuevas === "string" ? "Avisos nuevos: sin dato de revisión" : nuevas === 1 ? "1 aviso nuevo" : `${nuevas} avisos nuevos`} className={`inline-flex h-6 min-w-9 items-center justify-center rounded-control border px-2 text-cuerpo leading-none font-medio tabular-nums ${nuevas ? "border-linea-alarma text-alarma" : "border-linea text-gris"}`}>{nuevas}</span>}>
       <div data-panel-alertas className="mt-2 flex flex-col">
         {lista.length === 0 && <p data-todo-en-orden className="border-t border-linea py-4 text-center text-cuerpo text-gris">Todo en orden</p>}
         <ul>

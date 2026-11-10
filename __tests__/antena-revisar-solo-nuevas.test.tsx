@@ -10,7 +10,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync } from "node:fs"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { armarAlertas, esNuevaEnLaAntena, nuevasDeLaAntena, MAXIMO_DE_ALERTAS, type AlertaDeLaAntena, type DecisionPendiente, type EntradaDeAlertas, type FilaDePlan } from "@/lib/escena-alertas"
+import { armarAlertas, esNuevaEnLaAntena, nuevasDeLaAntena, numeroDeLaAntena, MAXIMO_DE_ALERTAS, type AlertaDeLaAntena, type DecisionPendiente, type EntradaDeAlertas, type FilaDePlan } from "@/lib/escena-alertas"
 import { normalizarDecisiones, type leerDecisiones } from "@/lib/direccion-decisiones"
 import { AntenaDeAlertas, ListaDeLasAlertas } from "@/components/nuevo/escena/AntenaDeAlertas"
 import { leerAlertasDeLaAntena } from "@/lib/escena-avatares-datos"
@@ -24,7 +24,7 @@ const dec = (p: Partial<DecisionPendiente>): DecisionPendiente => ({ id: "2d3c4d
 const planFallido = (id: string, fin: string): FilaDePlan => ({ id, client_id: NAUFRAGO, estado: "fallida", creado_en: fin, actualizado_en: fin, vence_en: null, motivo: null, dry_run: false })
 const lista = (alertas: AlertaDeLaAntena[], extra: Record<string, unknown> = {}) =>
   renderToStaticMarkup(createElement(ListaDeLasAlertas, { alertas, onAbrir: () => undefined, onCerrar: () => undefined, ahora: AHORA.getTime(), ...extra }))
-const numero = (h: string) => Number(/data-numero="true"[^>]*>(\d+)</.exec(h)?.[1])
+const numero = (h: string) => { const t = /data-numero="true"[^>]*>([^<]+)</.exec(h)?.[1]; return t === "—" ? t : Number(t) }
 
 describe("1 · el dato: la decisión trae su alerta y la antena sabe si es Nueva", () => {
   it("la decisión lleva `revisar` con la clave y el estado de la plataforma, y el nombre del cliente", () => {
@@ -67,6 +67,27 @@ describe("2 · la antena se prende y cuenta solo con las Nuevas", () => {
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
     expect(av).toContain("<AntenaDeAlertas alertas={nuevasDeLaAntena(datos?.alertas, revisadasAqui)}")
     expect(av).toContain("<PanelDeLasAlertas alertas={datos?.alertas} revisadasAqui={revisadasAqui} alRevisar={(c, en) => setRevisadasAqui((m) => ({ ...m, [c]: en }))}")
+  })
+})
+
+describe("2b · sin dato de la libreta (Lenovo 00:30Z): la antena se prende y el número es «—»", () => {
+  const svg = (al: AlertaDeLaAntena[]) => renderToStaticMarkup(createElement("svg", null, createElement(AntenaDeAlertas, { alertas: al, onAbrir: () => undefined })))
+  const conNull = armarAlertas({ ...vacia(), decisiones: [dec({ alerta: { clave: CLAVE, estado: null } })], plan: [planFallido("p1", "2026-11-09T20:00:00Z")] })
+  it("una decisión sin estado: la antena prendida con «—» (no un conteo), y la lista con «—» en su recuadro rojo", () => {
+    expect(numeroDeLaAntena(nuevasDeLaAntena(conNull))).toBe("—")
+    const s = svg(nuevasDeLaAntena(conNull)); expect(s).toMatch(/data-numero-antena[^>]*>—</); expect(s).not.toContain(">2<")
+    const h = lista(conNull); expect(numero(h)).toBe("—"); expect(h).toMatch(/border-linea-alarma text-alarma"[^>]*>—</)
+    expect(h.replace(/<[^>]+>/g, "")).not.toMatch(/sin dato/i) // solo el guion, sin texto a la vista (el lector de pantalla sí lo dice)
+  })
+  it("sola, sin estado, igual prende; marcada aquí deja de contar y vuelve el número", () => {
+    const sola = armarAlertas({ ...vacia(), decisiones: [dec({ alerta: { clave: CLAVE, estado: null } })] })
+    expect(svg(nuevasDeLaAntena(sola))).toMatch(/data-numero-antena[^>]*>—</)
+    const aqui = { [CLAVE]: "2026-11-09T23:09:00Z" }
+    expect(numeroDeLaAntena(nuevasDeLaAntena(conNull, aqui))).toBe(1); expect(numero(lista(conNull, { revisadasAqui: aqui }))).toBe(1)
+  })
+  it("con todas con estado, el número es el conteo de Nuevas", () => {
+    const ok = armarAlertas({ ...vacia(), decisiones: [dec({ alerta: { clave: CLAVE, estado: "nueva" } })], plan: [planFallido("p1", "2026-11-09T20:00:00Z")] })
+    expect(numeroDeLaAntena(nuevasDeLaAntena(ok))).toBe(2); expect(svg(nuevasDeLaAntena(ok))).toMatch(/data-numero-antena[^>]*>2</)
   })
 })
 
