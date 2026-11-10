@@ -102,6 +102,8 @@ export interface EntradaDeLaSala {
   nombreDelFlujo: (id: string | null | undefined) => string
   mesaDelAgente: (agente: string, directorio: TarjetaDelDirectorio[]) => { mesa: ClaveDeMesa; origen: "directorio" | "mapa" } | null
   nombreDeLaMesa: (clave: ClaveDeMesa) => string
+  /** GO Lenovo 10-nov · los aportes de las mesas de la oficina (`oficina_mesa_aportes`): juntan las corridas de un encargo y dicen cuál integra */
+  mesas?: AporteDeMesa[]
   ahora: Date
 }
 
@@ -110,6 +112,35 @@ const raizDe = (exec: string | null | undefined): string | null => { const s = (
 const pasoCrudo = (exec: string | null | undefined): string | null => { const s = exec ?? ""; return s.includes(":") ? s.slice(s.indexOf(":") + 1) : null }
 const esFallo = (status: unknown) => /error|fail|timeout|cancel/i.test(String(status ?? ""))
 const cuando = (i: InvocacionViva) => i.ended_at ?? i.started_at
+
+/** GO Lenovo 10-nov 20:30Z (punto 3) · las MESAS de la oficina (brief, gran idea, carrusel…) corren a cada empleado en su propia corrida y sin paso: su
+ *  conversación vive en `oficina_mesa_aportes` (encargo · tipo · corrida). Con eso, todas las corridas de un mismo encargo son UNA sesión (raíz «mesa:<encargo>»)
+ *  y la corrida de un aporte `integra` (quien dirige junta lo de los demás) ES el paso que consolida: la regla C no cambia, solo se lee de donde la mesa lo deja */
+export interface AporteDeMesa { workflow_execution_id: string | null; encargo_id: string | null; tipo: string | null; /** la familia del encargo (`oficina_encargos.familia`): da el nombre de la reunión */ familia?: string | null }
+/** el nombre de la reunión de una mesa por la familia de su encargo; una familia nueva se dice genérica, nunca con su clave */
+export function tituloDeLaMesa(familia: string | null | undefined): string {
+  const f = String(familia ?? "")
+  if (/^brief/.test(f)) return "Mesa del brief"
+  if (/^concepto/.test(f)) return "Mesa de la gran idea"
+  if (/^carrusel/.test(f)) return "Mesa del carrusel"
+  return "Mesa de la oficina creativa"
+}
+export const RAIZ_DE_MESA = "mesa:"
+interface LecturaDeMesas { raiz: Map<string, string>; tipo: Map<string, string>; titulo: Map<string, string> }
+export function lecturaDeMesas(aportes: AporteDeMesa[] | undefined): LecturaDeMesas {
+  const raiz = new Map<string, string>(), tipo = new Map<string, string>(), titulo = new Map<string, string>()
+  for (const a of aportes ?? []) {
+    const x = (a.workflow_execution_id ?? "").trim()
+    if (!x || !a.encargo_id) continue
+    raiz.set(x, `${RAIZ_DE_MESA}${a.encargo_id}`)
+    if (a.familia) titulo.set(`${RAIZ_DE_MESA}${a.encargo_id}`, tituloDeLaMesa(a.familia))
+    // una corrida que integra cuenta como integración aunque además haya dejado otro aporte
+    if (tipo.get(x) !== "integra") tipo.set(x, String(a.tipo ?? ""))
+  }
+  return { raiz, tipo, titulo }
+}
+const raizEn = (m: LecturaDeMesas, exec: string | null | undefined): string | null => m.raiz.get((exec ?? "").trim()) ?? raizDe(exec)
+const consolidaEn = (m: LecturaDeMesas, exec: string | null | undefined, step: string | null | undefined): boolean => esPasoDeConsolidacion(exec, step) || m.tipo.get((exec ?? "").trim()) === "integra"
 /** REGLA C (Emilio 04-nov 10:54Z; mapa de pasos de CC2 + nombres reales de `step_name`): SOLO los pasos que CONSOLIDAN abren la sala: la re-síntesis del estratega (`bba-resintesis-cN`), la integración del creador (`bb-equipo-integracion`), el ajuste y el cierre del plan, y la consolidación de la mesa de estrategia (`mesa-estrategia-consolida`, diseño de CC2 04-nov). El paso puede venir solo en la columna `paso` (#878).
  *  Todo lo demás (lentes, investigación, redacción de una sección, jueces) es trabajo en el escritorio. Sin paso de consolidación con agente, no hay reunión */
 export const esPasoDeConsolidacion = (exec: string | null | undefined, step: string | null | undefined): boolean => /(^|[-_:\s])(resintesis|integracion|ajuste|cierre|consolida|consolidacion)(?![a-z])/i.test(`${pasoCrudo(exec) ?? ""} ${step ?? ""}`)
@@ -125,9 +156,12 @@ function seSienta(agente: string, e: EntradaDeLaSala): boolean {
   return eq !== "proveedores" && eq !== "otros"
 }
 /** el nombre de la fase de una fila: «analisis-mercado» → mesa de análisis; la raíz sin paso → lo escribe quien dirige; la jefatura aparte */
-function faseDe(i: InvocacionViva, dirige: string, esJefatura: boolean): string {
+function faseDe(i: InvocacionViva, dirige: string, esJefatura: boolean, m: LecturaDeMesas): string {
   if (esJefatura) return "revisión de la jefatura"
-  if (esPasoDeConsolidacion(i.workflow_execution_id, i.step_name)) return "redacción" // el paso que consolida se nombra en palabras simples, nunca con su clave interna
+  if (consolidaEn(m, i.workflow_execution_id, i.step_name)) return "redacción" // el paso que consolida se nombra en palabras simples, nunca con su clave interna
+  const deMesa = m.tipo.get((i.workflow_execution_id ?? "").trim())
+  if (deMesa === "dirige") return "apertura de la mesa"
+  if (deMesa) return "aporte a la mesa"
   const p = pasoCrudo(i.workflow_execution_id) ?? i.step_name ?? ""
   if (/^an[aá]lisis/i.test(p)) return "mesa de análisis"
   if (p) return p.replace(/[-_]+/g, " ").trim()
@@ -138,7 +172,8 @@ interface Grupo { raiz: string; filas: InvocacionViva[]; flujo: string | null; c
 
 export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   const t = e.ahora.getTime()
-  const fuente = `agent_invocations + agent_dispatches (corridas por raíz de workflow_execution_id) · leído ${e.ahora.toISOString().slice(11, 16)}Z`
+  const mesas = lecturaDeMesas(e.mesas)
+  const fuente = `agent_invocations + agent_dispatches (corridas por raíz de workflow_execution_id; las mesas, por su encargo) · leído ${e.ahora.toISOString().slice(11, 16)}Z`
   const nombres = new Map(e.agentes.map((a) => [nombreCanonico(a.name), a.display_name || nombreLegible(a.name)]))
   const nombre = (a: string) => nombres.get(nombreCanonico(a)) ?? nombreLegible(a)
   const clientes = new Map(e.clientes.map((c) => [c.id, c.nombre]))
@@ -146,7 +181,7 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   // 1 · agrupar por raíz de corrida
   const grupos = new Map<string, Grupo>()
   for (const i of e.invocaciones) {
-    const r = raizDe(i.workflow_execution_id), c = ms(cuando(i))
+    const r = raizEn(mesas, i.workflow_execution_id), c = ms(cuando(i))
     if (!r || !Number.isFinite(c)) continue
     const g = grupos.get(r) ?? { raiz: r, filas: [], flujo: i.workflow_id, cliente: i.client_id, desde: c, hasta: c }
     g.filas.push(i); g.desde = Math.min(g.desde, ms(i.started_at ?? cuando(i)) || c); g.hasta = Math.max(g.hasta, c)
@@ -157,22 +192,23 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   const abiertos = e.despachos.filter((d) => String(d.status ?? "").toLowerCase() === "running" && t - ms(d.running_at ?? d.created_at) <= MINUTOS_TOPE_DESPACHO * 60_000
     && !e.invocaciones.some((i) => nombreCanonico(i.agent_name) === nombreCanonico(d.agent_name) && i.workflow_execution_id && d.workflow_execution_id && (i.workflow_execution_id === d.workflow_execution_id || i.workflow_execution_id.startsWith(d.workflow_execution_id + ":")) && ms(cuando(i)) >= ms(d.running_at ?? d.created_at) - 1000))
   for (const d of abiertos) {
-    const r = raizDe(d.workflow_execution_id), c = ms(d.running_at ?? d.created_at)
+    const r = raizEn(mesas, d.workflow_execution_id), c = ms(d.running_at ?? d.created_at)
     if (!r || !Number.isFinite(c)) continue
     const g = grupos.get(r) ?? { raiz: r, filas: [], flujo: d.workflow_id, cliente: d.client_id, desde: c, hasta: c }
     g.desde = Math.min(g.desde, c); g.hasta = Math.max(g.hasta, t)
     if (!g.cliente && d.client_id) g.cliente = d.client_id
     grupos.set(r, g)
   }
-  const sentables = (g: Grupo) => [...new Set([...g.filas.map((i) => i.agent_name), ...abiertos.filter((d) => raizDe(d.workflow_execution_id) === g.raiz).map((d) => d.agent_name)].filter((a) => seSienta(a, e)).map(nombreCanonico))]
+  const sentables = (g: Grupo) => [...new Set([...g.filas.map((i) => i.agent_name), ...abiertos.filter((d) => raizEn(mesas, d.workflow_execution_id) === g.raiz).map((d) => d.agent_name)].filter((a) => seSienta(a, e)).map(nombreCanonico))]
 
   // 2 · las reuniones (≥ 2 que se sientan) y la jefatura que las sigue
   const todas = [...grupos.values()].sort((a, b) => a.desde - b.desde)
   // regla C: una corrida solo abre sala si tiene un paso que consolida con alguien que se sienta (quien dirige basta; sin dato de quién aportó, se sienta solo él)
-  const consolida = (g: Grupo) => g.filas.some((i) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name) && seSienta(i.agent_name, e)) || abiertos.some((d) => raizDe(d.workflow_execution_id) === g.raiz && esPasoDeConsolidacion(d.workflow_execution_id, d.paso ?? null) && seSienta(d.agent_name, e))
+  const consolida = (g: Grupo) => g.filas.some((i) => consolidaEn(mesas, i.workflow_execution_id, i.step_name) && seSienta(i.agent_name, e)) || abiertos.some((d) => raizEn(mesas, d.workflow_execution_id) === g.raiz && consolidaEn(mesas, d.workflow_execution_id, d.paso ?? null) && seSienta(d.agent_name, e))
   // «los que aportaron» (regla C): un trabajo puede cruzar varias corridas de n8n (la reescritura del manual: el flujo principal + el sub-flujo de la re-síntesis). Mientras la plataforma no marque de qué trabajo es cada llamada
   // en todas las corridas, las hermanas son las corridas del MISMO cliente que se traslapan o están pegadas (≤ MINUTOS_ENLACE) con la que consolida
-  const hermanasDe = (g: Grupo) => todas.filter((h) => h !== g && g.cliente && h.cliente === g.cliente && h.hasta >= g.desde - MINUTOS_ENLACE * 60_000 && h.desde <= g.hasta + MINUTOS_ENLACE * 60_000)
+  // una mesa ya trae a todos los de su encargo: ni junta hermanas ni es hermana de otra corrida
+  const hermanasDe = (g: Grupo) => g.raiz.startsWith(RAIZ_DE_MESA) ? [] : todas.filter((h) => h !== g && !h.raiz.startsWith(RAIZ_DE_MESA) && g.cliente && h.cliente === g.cliente && h.hasta >= g.desde - MINUTOS_ENLACE * 60_000 && h.desde <= g.hasta + MINUTOS_ENLACE * 60_000)
   const reuniones = todas.filter(consolida).map((g) => ({ principal: g, jefatura: [] as Grupo[] }))
   for (const g of todas) {
     const ags = sentables(g)
@@ -180,7 +216,7 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
     const madre = reuniones.filter((r) => r.principal !== g && r.principal.cliente && r.principal.cliente === g.cliente && g.desde >= r.principal.desde && g.desde - r.principal.hasta <= MINUTOS_ENLACE * 60_000).at(-1)
     if (madre) madre.jefatura.push(g)
   }
-  const armadas = reuniones.map((r) => armarReunion(r.principal, r.jefatura, e, abiertos, nombre, clientes, hermanasDe(r.principal).filter((h) => !r.jefatura.includes(h))))
+  const armadas = reuniones.map((r) => armarReunion(r.principal, r.jefatura, e, abiertos, nombre, clientes, hermanasDe(r.principal).filter((h) => !r.jefatura.includes(h)), mesas))
   const enCurso = armadas.filter((r) => r.estado === "en_curso").sort((a, b) => ms(b.hasta) - ms(a.hasta))
   const recientes = armadas.filter((r) => r.estado === "terminada" && t - ms(r.hasta) <= MINUTOS_CIERRE * 60_000).sort((a, b) => ms(b.hasta) - ms(a.hasta))
   const reunion = enCurso[0] ?? recientes[0] ?? null
@@ -194,14 +230,14 @@ export function armarSala(e: EntradaDeLaSala): SalaDeReuniones {
   }
 }
 
-function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos: Despacho[], nombre: (a: string) => string, clientes: Map<string, string>, hermanas: Grupo[] = []): ReunionDeLaSala {
+function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos: Despacho[], nombre: (a: string) => string, clientes: Map<string, string>, hermanas: Grupo[] = [], mesas: LecturaDeMesas = lecturaDeMesas([])): ReunionDeLaSala {
   const t = e.ahora.getTime()
   const raices = new Set([g.raiz, ...jefatura.map((j) => j.raiz)])
   const filasTodas = [...g.filas, ...jefatura.flatMap((j) => j.filas), ...hermanas.flatMap((h) => h.filas)].filter((i) => seSienta(i.agent_name, e)).sort((a, b) => ms(cuando(a)) - ms(cuando(b)))
-  const abiertosTodos = abiertos.filter((d) => raices.has(raizDe(d.workflow_execution_id) ?? "") && seSienta(d.agent_name, e))
+  const abiertosTodos = abiertos.filter((d) => raices.has(raizEn(mesas, d.workflow_execution_id) ?? "") && seSienta(d.agent_name, e))
   // regla C: la reunión es la ÚLTIMA consolidación de la corrida. Se sientan quien la dirige y los que aportaron (llamadas ya terminadas ANTES de que ella empezara); las demás llamadas siguen en su escritorio
-  const esC = (i: InvocacionViva) => esPasoDeConsolidacion(i.workflow_execution_id, i.step_name)
-  const consolAbiertas = abiertosTodos.filter((d) => esPasoDeConsolidacion(d.workflow_execution_id, d.paso ?? null))
+  const esC = (i: InvocacionViva) => consolidaEn(mesas, i.workflow_execution_id, i.step_name)
+  const consolAbiertas = abiertosTodos.filter((d) => consolidaEn(mesas, d.workflow_execution_id, d.paso ?? null))
   const inicioDe = (i: InvocacionViva) => ms(i.started_at ?? cuando(i))
   const ultimaC = filasTodas.filter(esC).sort((a, b) => inicioDe(b) - inicioDe(a))[0]
   const inicioAbierta = Math.max(-Infinity, ...consolAbiertas.map((d) => ms(d.running_at ?? d.created_at)).filter(Number.isFinite))
@@ -209,7 +245,7 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
   const inicioC = abiertaMasNueva ? inicioAbierta : ultimaC ? inicioDe(ultimaC) : Infinity
   const filas = filasTodas.filter((i) => (esC(i) ? !abiertaMasNueva && ultimaC != null && inicioDe(i) === inicioDe(ultimaC) : i.ended_at != null && ms(cuando(i)) <= inicioC)) // aportó = su llamada YA terminó antes de que empezara la consolidación
   const abiertosAqui = abiertaMasNueva ? consolAbiertas.filter((d) => ms(d.running_at ?? d.created_at) === inicioAbierta) : []
-  const esDeJefatura = (exec: string | null) => jefatura.some((j) => j.raiz === raizDe(exec))
+  const esDeJefatura = (exec: string | null) => jefatura.some((j) => j.raiz === raizEn(mesas, exec))
 
   // quién dirige: rol del directorio → el que corre la raíz → el primero
   const presentes = [...new Map([...filas.map((i) => [nombreCanonico(i.agent_name), i.agent_name] as const), ...abiertosAqui.map((d) => [nombreCanonico(d.agent_name), d.agent_name] as const)]).values()]
@@ -232,10 +268,10 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
     else if (estado === "fallo" && x.estado !== "en_curso") x.estado = "fallo"
     faseDelAgente.set(nombreCanonico(agente), f)
   }
-  for (const i of filas) agregar(faseDe(i, dirige, esDeJefatura(i.workflow_execution_id)), i.agent_name, i.started_at ?? cuando(i), cuando(i), esFallo(i.status) ? "fallo" : "hecha")
+  for (const i of filas) agregar(faseDe(i, dirige, esDeJefatura(i.workflow_execution_id), mesas), i.agent_name, i.started_at ?? cuando(i), cuando(i), esFallo(i.status) ? "fallo" : "hecha")
   for (const d of abiertosAqui) {
     const falsa: InvocacionViva = { agent_name: d.agent_name, client_id: d.client_id, workflow_id: d.workflow_id, workflow_execution_id: d.workflow_execution_id, status: "running", started_at: d.running_at ?? d.created_at, ended_at: null, cost_usd: null, step_name: null, task_text: null }
-    agregar(faseDe(falsa, dirige, esDeJefatura(d.workflow_execution_id)), d.agent_name, d.running_at ?? d.created_at, null, "en_curso")
+    agregar(faseDe(falsa, dirige, esDeJefatura(d.workflow_execution_id), mesas), d.agent_name, d.running_at ?? d.created_at, null, "en_curso")
   }
 
   // cada participante: la cabecera primero, luego en el orden en que hablaron
@@ -255,7 +291,7 @@ function armarReunion(g: Grupo, jefatura: Grupo[], e: EntradaDeLaSala, abiertos:
   // regla C: la reunión dura lo que dura el paso que consolida; al terminar, vuelven a sus escritorios (sin pausa de espera)
   const hasta = Math.max(...filas.map((i) => ms(cuando(i))), ...abiertosAqui.map(() => t))
   const enCurso = abiertosAqui.length > 0 || (ultimaC != null && !abiertaMasNueva && !ultimaC.ended_at)
-  const flujo0 = e.nombreDelFlujo(g.flujo)
+  const flujo0 = mesas.titulo.get(g.raiz) ?? (g.raiz.startsWith(RAIZ_DE_MESA) ? tituloDeLaMesa(null) : e.nombreDelFlujo(g.flujo))
   // 04-nov · si el flujo no trae nombre, el título sale del pedido en curso («Reescritura del manual»), no de «un trabajo sin nombre registrado»
   const flujo = /^un trabajo en curso$/i.test(flujo0) ? tituloPorElPedido(filas.map((f) => f.task_text)) : flujo0
   const cliente = g.cliente ? clientes.get(g.cliente) ?? "cliente sin nombre" : null
