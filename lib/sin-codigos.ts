@@ -31,15 +31,15 @@ const UNA_FOTO = new RegExp(FOTO, "gi")
 const GRUPO_DE_FOTOS = new RegExp(String.raw`\(\s*${FOTO}(?:\s*(?:,|y)\s*${FOTO})*\s*\)|${FOTO}(?:\s*(?:,|y)\s*${FOTO})*`, "gi")
 /** el id de un documento de la cadena (brief, concepto, plan, manual, pieza, revisión, campaña) con su versión y «(revisión)» pegados */
 const DOCUMENTO = new RegExp(String.raw`\`?\b(?:brf|con|pln|man|pie|rev|cam)-${HEX}{6,}(?:-v\d+)?\`?(?:\s*[·,]?\s*v\d+\b)?(?:\s*\(revisi[oó]n\))?`, "gi")
-/** una versión suelta pegada al nombre de un documento DEL SISTEMA («el brief v3»). 10-nov (2º cliente, CORRECCIÓN Lenovo «sistema agnóstico»): una versión
- *  suelta de otra cosa es dato del cliente («el kit v2 del cliente») y se queda. La lista es del vocabulario del sistema, nunca de un cliente */
-const VERSION_SUELTA = /\b(brief|plan|manual|gran\s+idea|concepto|propuesta|pieza|documento|ficha|desde|hasta|en|de|del|la|el|una|un|que|a|y|o)(\s+)v(\d+)(?![\p{L}\p{N}_-])|^v(\d+)(?![\p{L}\p{N}_-])/gimu
-/** «el brief v3» → «el brief»; «desde v2» → «desde la versión 2»; «la v2» → «la versión 2»; «v2» al empezar la línea → «Versión 2» */
-const versionEnPalabras = (_m: string, antes: string | undefined, esp: string | undefined, n: string | undefined, nInicio: string | undefined): string => {
-  if (nInicio) return `Versión ${Number(nInicio)}`
-  if (/^(?:brief|plan|manual|gran\s+idea|concepto|propuesta|pieza|documento|ficha)$/i.test(antes!)) return antes!
-  return /^(?:la|el|una|un)$/i.test(antes!) ? `${antes}${esp}versión ${Number(n)}` : `${antes}${esp}la versión ${Number(n)}`
-}
+/** una versión suelta, SOLO en la forma exacta que escribe el sistema (10-nov · CC6 #323 🟡): «vN» en minúscula pegado a un documento que solo existe en
+ *  la cadena (brief, gran idea, concepto), o al empezar una línea. Cualquier otra «vN» es del cliente y se queda («el kit v2», «Motor de v8», «plan v2 de
+ *  financiamiento»). Límite declarado: «desde v2» escrito por un agente se queda a la vista */
+const VERSION_SUELTA = /\b([Bb]rief|[Gg]ran\s+idea|[Cc]oncepto)\s+v\d+(?![\p{L}\p{N}_-])|^v(\d+)(?![\p{L}\p{N}_-])/gmu
+/** «el brief v3» → «el brief»; «v2» al empezar la línea → «Versión 2» */
+const versionEnPalabras = (_m: string, doc: string | undefined, nInicio: string | undefined): string => (nInicio ? `Versión ${Number(nInicio)}` : doc!)
+/** la forma exacta de un identificador del sistema entre comillas: hex en MINÚSCULAS, con al menos una letra y un número (10-nov · CC6 #323 🟡).
+ *  «AB12CD34» o una referencia solo de números es del cliente. Límite declarado: un lote del cliente en hex minúsculo («a1b2c3d4») también se iría */
+const esIdDelSistema = (h: string) => /^[0-9a-f]+$/.test(h) && /\d/.test(h) && /[a-f]/.test(h)
 /** un código de foto conocido suelto, sin comillas (los resúmenes de sección pierden las comillas) */
 const CODIGO_SUELTO = /(?<![\p{L}\p{N}_-])[0-9a-f]{8}(?![\p{L}\p{N}_-])/giu
 const UUID = new RegExp(String.raw`\`?\b${HEX}{8}-${HEX}{4}-${HEX}{4}-${HEX}{4}-${HEX}{12}\b\`?`, "gi")
@@ -79,7 +79,7 @@ function limpiarTexto(t: string, ctx: ContextoSinCodigos, fotos: ReadonlySet<str
     .replace(UUID, "")
     // un código entre comillas: si es una foto conocida, su miniatura; si mezcla letras y números (forma de identificador del sistema), se va;
     // si es solo números o solo letras, es dato del cliente (una referencia de producto, un lote) y se queda (10-nov · 2º cliente)
-    .replace(HASH, (m, h: string) => { if (fotos.has(h.toLowerCase().slice(0, 8))) { alFoto?.(h); return "" } return /\d/.test(h) && /[a-f]/i.test(h) ? "" : m })
+    .replace(HASH, (m, h: string) => { if (fotos.has(h.toLowerCase().slice(0, 8))) { alFoto?.(h); return "" } return esIdDelSistema(h) ? "" : m })
     .replace(IDEA, (_m, _la: string | undefined, cap: string, num: string) => nombreDeLaIdea(cap, num, ctx))
     .replace(VERSION_SUELTA, versionEnPalabras)
     .replace(CODIGO_SUELTO, (m) => (fotos.has(m.toLowerCase()) ? "" : m))

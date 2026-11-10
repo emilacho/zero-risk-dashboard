@@ -21,7 +21,7 @@ import type { Decision } from "@/lib/direccion-decisiones"
 afterEach(cleanup)
 const leer = (n: string) => JSON.parse(readFileSync(`__tests__/fixtures/${n}.json`, "utf8"))
 /** ningún código del sistema queda a la vista */
-const CODIGO = /\b(?:brf|con|pln|man|pie|rev|cam)-[0-9a-f]{6,}|\bC\d+-I\d+\b|foto:|(?<![\p{L}\p{N}_-])v\d+(?![\p{L}\p{N}_-])|\(revisi[oó]n\)|`[0-9a-f]{7,12}`|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/u
+const CODIGO = /\b(?:brf|con|pln|man|pie|rev|cam)-[0-9a-f]{6,}|\bC\d+-I\d+\b|foto:|\b(?:[Bb]rief|[Gg]ran idea|[Cc]oncepto)\s+v\d+\b|^v\d+\b|\(revisi[oó]n\)|`[0-9a-f]{7,12}`|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/u
 const SUCIO = " (con-28de888eb3f2-v3 · v2 (revisión)) la idea C1-I08 `pie-5a1b2c3d4e`"
 const nofetch = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch
 const abrirTodo = (c: HTMLElement) => { for (let k = 0; k < 3; k++) for (const b of c.querySelectorAll<HTMLButtonElement>("[data-bloque][data-abierta='false'] > button, [data-seccion][data-abierta='false'] > button")) fireEvent.click(b) }
@@ -71,7 +71,7 @@ describe("el brief real de Náufrago, como lo ve Emilio", () => {
   const briefSucio = () => {
     const b = leer("naufrago-brief-10-nov")
     b.briefs[0].motivo = "cambios_de_emilio" + SUCIO
-    b.briefs[0].devolucion_texto = `${SUCIO.trim()}\n${b.briefs[0].devolucion_texto}`
+    b.briefs[0].devolucion_texto = `${SUCIO.trim()} usa la foto \`19671014\`\n${b.briefs[0].devolucion_texto}` // una foto conocida del cliente en la devolución (sabotaje pb2 de CC6)
     return b
   }
   it("cerrado y abierto, sin códigos (incluidos la devolución y el motivo)", async () => {
@@ -86,7 +86,7 @@ describe("el brief real de Náufrago, como lo ve Emilio", () => {
     expect(r.container.querySelectorAll("[data-seccion][data-abierta='false']")).toHaveLength(0)
     expect(r.container.textContent).toContain("Brief creativo de campaña")
     for (const c of b.fotos as string[]) expect(r.container.textContent).not.toContain(c) // las fotos del cliente que cita, tampoco en los resúmenes (sin comillas)
-    expect(r.container.textContent).toContain("desde la versión 2") // la versión del sistema, en palabras
+    expect(r.container.textContent).toContain("se trasladó intacto desde v2") // límite declarado (CC6 #323 🟡): una «vN» fuera de la forma exacta del sistema se queda, nunca se reescribe
     expect(r.container.textContent).not.toMatch(CODIGO)
   })
 })

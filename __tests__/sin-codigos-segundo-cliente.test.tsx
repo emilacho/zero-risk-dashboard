@@ -42,8 +42,17 @@ describe("segundo cliente (industrial B2B): los datos del cliente se quedan", ()
 describe("segundo cliente (industrial B2B): los códigos del sistema se van igual", () => {
   it("documento, versión del sistema, idea e identificadores", () => {
     expect(sinCodigos("El brief (brf-7c1d22aa90ef v2) pide hablarle al jefe de seguridad de planta.")).toBe("El brief pide hablarle al jefe de seguridad de planta.")
-    expect(sinCodigos("Se trasladó intacto desde v3 del brief; el plan v2 manda.")).toBe("Se trasladó intacto desde la versión 3 del brief; el plan manda.")
-    expect(sinCodigos("Testimonio en video (propuesto en v1) — descartado; la v2 lo cambió.\nv4 es la que manda")).toBe("Testimonio en video (propuesto en la versión 1) — descartado; la versión 2 lo cambió.\nVersión 4 es la que manda")
+    expect(sinCodigos("El brief v3 manda; la gran idea v2 y el concepto v4 siguen.")).toBe("El brief manda; la gran idea y el concepto siguen.")
+    expect(sinCodigos("v4 es la que manda\nY otra línea")).toBe("Versión 4 es la que manda\nY otra línea")
+  })
+  it("una «vN» fuera de la forma exacta del sistema es del cliente y no se toca (CC6 #323 🟡)", () => {
+    for (const t of ["Motor de v8 a gasolina.", "El plan v2 de financiamiento del cliente.", "Se trasladó intacto desde v3 del brief.", "propuesto en v1 — descartado; la v2 lo cambió", "El Brief V3 del cliente"]) expect(sinCodigos(t)).toBe(t)
+  })
+  it("solo la forma exacta de un identificador del sistema entre comillas se va: hex en minúsculas con letras y números (CC6 #323 🟡)", () => {
+    expect(sinCodigos("referencia `AB12CD34`.")).toBe("referencia `AB12CD34`.")
+    expect(sinCodigos("referencia `4005678`.")).toBe("referencia `4005678`.")
+    expect(sinCodigos("palabra `deadbeef`.")).toBe("palabra `deadbeef`.")
+    expect(sinCodigos("Lote `a1b2c3d4` del casco.")).toBe("Lote del casco.") // límite declarado: un lote del cliente en hex minúsculo se iría
     expect(sinCodigos("la idea C2-I05 trae «0 accidentes en 2025», que no está en el brief")).toBe("la idea 5 del capítulo 2 trae «0 accidentes en 2025», que no está en el brief")
     expect(sinCodigos("Concepto con-7c1d22aa90ef-v4 listo; revisión `b7e2f9a1`.")).toBe("Concepto listo; revisión.")
   })
@@ -73,7 +82,7 @@ describe("segundo cliente (industrial B2B): los códigos del sistema se van igua
     expect(r.container.querySelectorAll("[data-bloque='como_se_ve'] [data-miniatura]")).toHaveLength(1)
   })
   it("el documento en secciones de este cliente: sin códigos, sus datos enteros, y la foto conocida fuera también del resumen", () => {
-    const prosa = `## Brief creativo · Proveedor industrial · brf-7c1d22aa90ef · v2 (revisión)\n\nPara jefes de seguridad de planta.\n\n## Citas\n\nFotos de planta: \`40056781\`. ${DATOS[1]}`
+    const prosa = `## Brief creativo · Proveedor industrial · brf-7c1d22aa90ef · v2 (revisión)\n\nPara jefes de seguridad de planta.\n\n## Citas de la foto \`40056781\`\n\nFotos de planta: \`40056781\`. ${DATOS[1]}`
     const r = render(createElement(PlanEnSecciones, { prosa, sinDatosClave: true, fotosConocidas: ["40056781"] }))
     const visto = r.container.textContent ?? ""
     expect(visto).not.toMatch(CODIGO)
