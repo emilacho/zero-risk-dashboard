@@ -135,7 +135,7 @@ export function fichaDeLaPregunta(d: Decision, x: { departamento: string; detien
 }
 
 /** 10-nov · T2 (SEÑAL Lenovo 01:10Z · DISENO §9): las demás decisiones también por la ficha. La pantalla dueña, traducida a la lista cerrada */
-export const PANTALLA_DEL_PANEL: Record<string, Pantalla> = { plan: "plan", gran_idea: "gran_idea", piezas: "piezas" }
+export const PANTALLA_DEL_PANEL: Record<string, Pantalla> = { plan: "plan", gran_idea: "gran_idea", piezas: "piezas", manual: "manual" }
 /** las fuentes que declaran que no vencen (como la plataforma, `NO_VENCEN`): el Tablero Financiero se reemplaza solo con una versión nueva (v7 «Sin fecha límite») */
 const NO_VENCEN = new Set(["finanzas_tableros"])
 

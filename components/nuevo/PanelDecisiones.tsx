@@ -5,6 +5,7 @@ import { EditorDeCifra, type VerCambio } from "@/components/nuevo/EditorDeCifra"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
+import { PanelManual } from "@/components/nuevo/PanelManual"
 import { Acciones, Aviso, BOTON_SECUNDARIO, PanelBase, Paginas, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
   accionesDe, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, tituloDeDecision,
@@ -293,6 +294,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     const donde = dondeSeDecide(abierta)
     if (donde.panel === "plan") return <PanelPlan onCerrar={volver} clienteInicial={abierta.client_id} />
     if (donde.panel === "gran_idea") return <PanelGranIdea onCerrar={volver} clienteInicial={abierta.client_id} />
+    if (donde.panel === "manual") return <PanelManual onCerrar={volver} clienteInicial={abierta.client_id} />
     if (donde.panel === "piezas") return <PanelPiezas onCerrar={volver} clienteInicial={abierta.client_id} piezaInicial={abierta.id} />
   }
 

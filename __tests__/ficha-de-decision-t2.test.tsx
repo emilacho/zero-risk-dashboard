@@ -12,7 +12,7 @@ import { cleanup, fireEvent, render } from "@testing-library/react"
 import { createElement } from "react"
 import { readFileSync } from "node:fs"
 import { PanelDecisiones, TarjetaDelFrente } from "@/components/nuevo/PanelDecisiones"
-import { normalizarDecisiones, type Decision } from "@/lib/direccion-decisiones"
+import { dondeSeDecide, normalizarDecisiones, tituloDeDecision, type Decision } from "@/lib/direccion-decisiones"
 import { fichaDeLaDecision, revisarFicha } from "@/lib/ficha-de-decision"
 
 afterEach(cleanup)
@@ -150,5 +150,28 @@ describe("5 · la versión va a la derecha de la fecha (Lenovo 01:23Z · CC1 #96
       expect(espera(d)).toMatch(/2026/)
       cleanup()
     }
+  })
+})
+
+describe("6 · cada revisión va a la pantalla de su documento (CC1 #973) y el título sin la versión queda limpio", () => {
+  const REV = { ...GRAN_IDEA, id: "ae000000-0000-4000-8000-000000000005", tipo: "revision", subtipo: "manual_review", titulo: "Revisión del manual de marca" }
+  it("manual → «Ir al Manual de marca»; plan → «Ir al Plan de Marketing»; pieza o sin documento → Piezas", () => {
+    expect(una({ ...REV, documento: "manual" }).documento).toBe("manual")
+    expect(dondeSeDecide(una({ ...REV, documento: "manual" })).panel).toBe("manual")
+    expect(dondeSeDecide(una({ ...REV, documento: "plan" })).panel).toBe("plan")
+    expect(dondeSeDecide(una({ ...REV, documento: "pieza" })).panel).toBe("piezas")
+    expect(dondeSeDecide(una(REV)).panel).toBe("piezas")
+    expect(una({ ...REV, documento: "  " }).documento).toBeUndefined()
+    const x = { departamento: "Departamento Creativo", cuenta: "Náufrago", titulo: "T", detiene: false, destraba: null, acciones: [] as never[], panel: null }
+    expect(fichaDeLaDecision(una(REV), { ...x, panel: "manual" }).donde_se_hace).toEqual({ pantalla: "manual" })
+  })
+  it("el panel de decisiones abre el Manual para una revisión del manual", () => {
+    const panel = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")
+    expect(panel).toContain("if (donde.panel === \"manual\") return <PanelManual onCerrar={volver} clienteInicial={abierta.client_id} />")
+  })
+  it("«Tablero Financiero, versión 2: espera tu firma» → «Tablero Financiero: espera tu firma» (sin coma suelta)", () => {
+    expect(tituloDeDecision({ titulo: "Tablero Financiero, versión 2: espera tu firma", subtipo: "x" })).toBe("Tablero Financiero: espera tu firma")
+    expect(tituloDeDecision({ titulo: "Plan de Marketing, versión 3: espera tu decisión", subtipo: "x" })).toBe("Plan de Marketing: espera tu decisión")
+    expect(tituloDeDecision({ titulo: "Hola, mundo: algo", subtipo: "x" })).toBe("Hola, mundo: algo")
   })
 })
