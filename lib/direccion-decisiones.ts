@@ -55,6 +55,8 @@ export interface Decision {
   alerta?: AlertaDeDecision
   /** 10-nov · la oficina que la ficha de la plataforma nombra como departamento (`ficha.departamento.oficina`); la antena la usa para saber si es de marketing */
   departamento_oficina?: string | null
+  /** 10-nov (CC1 #969 · #971 · Lenovo 00:30Z y 01:23Z) · la versión de lo que se decide (plan, Tablero Financiero): va a la derecha de la fecha, nunca en el título. Solo un entero positivo */
+  version_del_documento?: number
 }
 export interface AlertaDeDecision { clave: string; estado: "nueva" | "revisada" | null; revisada_en?: string }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
@@ -422,6 +424,7 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (o.destraba && txt(d.destraba_corto)) o.destraba_corto = txt(d.destraba_corto)
   if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
   if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
+  if (typeof d.version_del_documento === "number" && Number.isInteger(d.version_del_documento) && d.version_del_documento > 0) o.version_del_documento = d.version_del_documento
   if (txt(d.supuesto)) o.supuesto = txt(d.supuesto)
   const cifras = leerCifras(d.cifras)
   if (cifras.length) o.cifras = cifras

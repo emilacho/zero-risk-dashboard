@@ -133,3 +133,22 @@ describe("4 · el traductor del tablero: nada se inventa", () => {
     expect(fichaDeLaDecision(una(GRAN_IDEA), { ...x, cuenta: null }).cuenta).toBeNull()
   })
 })
+
+describe("5 · la versión va a la derecha de la fecha (Lenovo 01:23Z · CC1 #969/#971)", () => {
+  const espera = (d: Decision) => tarjeta(d).$("[data-bloque='espera']")!.textContent ?? ""
+  it("con versión entera: «fecha · versión 2», y nunca en el título", () => {
+    const d = una({ ...FIRMA, version_del_documento: 2 })
+    expect(d.version_del_documento).toBe(2)
+    expect(espera(d)).toMatch(/2026 · versión 2/)
+    expect(tarjeta(d).$("[data-bloque='que']")!.textContent).not.toMatch(/versión/)
+  })
+  it("sin versión, o con una que no es entero positivo: solo la fecha", () => {
+    for (const v of [undefined, 0, -1, 1.5, "2", null]) {
+      const d = una({ ...FIRMA, version_del_documento: v })
+      expect(d.version_del_documento).toBeUndefined()
+      expect(espera(d)).not.toMatch(/versión/)
+      expect(espera(d)).toMatch(/2026/)
+      cleanup()
+    }
+  })
+})

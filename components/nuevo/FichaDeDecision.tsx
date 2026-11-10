@@ -19,6 +19,8 @@ export function ConNombres({ texto }: { texto: string }) {
 }
 const fecha = (iso: string | null | undefined) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
 /** v7: «Decisivo» con contenido va entre dos líneas rojas finas (sin dato, la línea de siempre) */
+/** Lenovo 00:30Z / 01:23Z: la versión va a la derecha de la fecha («9 nov 2026 · versión 2»), en la misma letra gris; sin versión entera, solo la fecha */
+export const conVersion = (f: string | null, v: number | undefined): string | undefined => (f ? (v && Number.isInteger(v) && v > 0 ? `${f} · versión ${v}` : f) : undefined)
 const Bloque = ({ nombre, children, linea = true, alarma = false }: { nombre: string; children: ReactNode; linea?: boolean; alarma?: boolean }) => <div data-bloque={nombre} data-alarma={alarma || undefined} className={`${alarma ? "border-y border-linea-alarma" : linea ? "border-t border-linea" : ""} py-5`}>{children}</div>
 
 export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, alCifra, estado, ahora, textoInicial = "", nota, abiertoInicial = false }: {
@@ -133,7 +135,7 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, alCifra, estad
       </Bloque>
       <Bloque nombre="espera">
         <Pares valor="text-cuerpo" pares={[
-          { rotulo: "Espera", valor: ficha.espera.desde ? <span data-espera>{haceCuanto(ficha.espera.desde, ahora)}</span> : <SinDato />, dato: fecha(ficha.espera.desde) ?? undefined },
+          { rotulo: "Espera", valor: ficha.espera.desde ? <span data-espera>{haceCuanto(ficha.espera.desde, ahora)}</span> : <SinDato />, dato: conVersion(fecha(ficha.espera.desde), ficha.espera.version_del_documento) },
           { rotulo: "Vence", valor: <span data-vence>{ficha.espera.vence && fecha(ficha.espera.vence) ? fecha(ficha.espera.vence) : ficha.espera.sin_limite ? "Sin fecha límite" : <SinDato />}</span> },
         ]} />
       </Bloque>

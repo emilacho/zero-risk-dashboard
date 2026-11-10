@@ -72,7 +72,7 @@ export interface FichaDeDecision {
   detiene?: { que: string }
   propuesta?: { cifras?: CifraDeFirma[]; supuesto?: string; al_cambiar?: string }
   /** v7 + CC6: «no vence» es EXPLÍCITO (`sin_limite: true`, «Sin fecha límite»). `vence` null o ausente sin `sin_limite` = no se sabe (guion rojo) */
-  espera: { desde: string | null; vence?: string | null; sin_limite?: true; al_vencer?: string }
+  espera: { desde: string | null; vence?: string | null; sin_limite?: true; al_vencer?: string; /** la versión de lo que se decide: a la derecha de la fecha (CC1 #969) */ version_del_documento?: number }
   costo?: { usd?: number; nota: string }
   origen: { fuente: string; ref: string }
   acciones: Accion[]
@@ -157,7 +157,7 @@ export function fichaDeLaDecision(d: Decision, x: { departamento: string; cuenta
     ...(x.destraba ? { desbloquea: { largo: x.destraba, ...(x.destrabaCorto ? { corto: x.destrabaCorto } : {}) } } : {}),
     ...(x.detiene ? { detiene: { que: "el plan" } } : {}),
     ...(cifras.length || d.supuesto ? { propuesta: { ...(cifras.length ? { cifras } : {}), ...(d.supuesto ? { supuesto: d.supuesto } : {}), ...(editar && d.al_editar ? { al_cambiar: d.al_editar } : {}) } } : {}),
-    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : NO_VENCEN.has(d.fuente ?? "") ? { sin_limite: true as const } : {}) },
+    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : NO_VENCEN.has(d.fuente ?? "") ? { sin_limite: true as const } : {}), ...(d.version_del_documento ? { version_del_documento: d.version_del_documento } : {}) },
     origen: { fuente: d.fuente ?? "", ref: d.id },
     acciones,
     ...(pantalla ? { donde_se_hace: { pantalla } } : {}),
