@@ -149,6 +149,7 @@ describe("3 · segundo cliente (industrial B2B): sus «A4», «A1» y «S» se q
   it("un paréntesis que nunca se cierra no es una lista: «Ver (A3» se queda", () => {
     expect(sinCodigos("Ver (A3\nen la tabla", { aportes: mesa })).toBe("Ver (A3\nen la tabla")
     expect(sinCodigos("Ver (A3", { aportes: mesa })).toBe("Ver (A3")
+    expect(sinCodigos("Ver (A3.", { aportes: mesa })).toBe("Ver (A3.") // CC6 #324 🟢 condicionado: sin cierre, el corte no puede comerse el último carácter
   })
   it("límite declarado (Lenovo firma): un «(A4)», «(A4/A5)» o «(A4, …)» exactos del cliente se cambian", () => {
     const cinco = { "4": "video-editor", "5": "design-x" }
