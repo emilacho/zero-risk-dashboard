@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { TITULO_1, TITULO_2, TITULO_3 } from "@/components/nuevo/manual/niveles"
 import { bloquesDelMarkdown, datosClave, seccionesDelPlan, trozosDelTexto, type Bloque } from "@/lib/plan-documento"
+import { sinCodigos } from "@/lib/sin-codigos"
 
 /**
  * EL PLAN EN SECCIONES (CC6 · 02-nov · Emilio: «que esté bien segmentado para que el lector no se pierda entre párrafos gigantes»).
@@ -13,7 +14,8 @@ import { bloquesDelMarkdown, datosClave, seccionesDelPlan, trozosDelTexto, type 
 function Texto({ texto }: { texto: string }) {
   return (
     <>
-      {trozosDelTexto(texto).map((x, i) => (
+      {/* GO Lenovo 10-nov: lo que lee Emilio sin códigos del sistema (ids de documento, versiones, ideas, fotos); lo guardado no cambia */}
+      {trozosDelTexto(sinCodigos(texto)).map((x, i) => (
         <span key={i} className={`${x.negrita ? "font-semibold text-zinc-50" : ""} ${x.cifra ? "rounded bg-amber-400/[0.12] px-0.5 text-amber-100" : ""}`}>{x.t}</span>
       ))}
     </>
@@ -85,7 +87,7 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
             {doc.secciones.map((s, i) => (
               <li key={s.id} className="shrink-0 md:shrink">
                 <button type="button" data-ir={s.id} onClick={() => ir(s.id)} className={`w-full whitespace-nowrap rounded-md px-2 py-1 text-left text-[12px] transition md:whitespace-normal ${abiertas.has(s.id) ? "bg-amber-400/10 text-amber-100" : "text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-100"}`}>
-                  <span className="mr-1.5 text-zinc-600">{i + 1}.</span>{s.titulo}
+                  <span className="mr-1.5 text-zinc-600">{i + 1}.</span>{sinCodigos(s.titulo)}
                 </button>
               </li>
             ))}
@@ -105,7 +107,7 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
                 <button type="button" aria-expanded={abierta} onClick={() => alternar(s.id)} className="flex w-full items-start gap-3 px-3.5 py-3 text-left">
                   <span className="mt-0.5 text-[11px] text-zinc-600">{i + 1}</span>
                   <span className="min-w-0 flex-1">
-                    <span data-titulo="1" className={`block ${TITULO_1}`}>{s.titulo}</span>
+                    <span data-titulo="1" className={`block ${TITULO_1}`}>{sinCodigos(s.titulo)}</span>
                     {!abierta && s.resumen.length > 0 && (
                       <span className="mt-1 block space-y-0.5 text-[12.5px] leading-snug text-zinc-400">{s.resumen.map((r, k) => <span key={k} className="block"><Texto texto={r} /></span>)}</span>
                     )}

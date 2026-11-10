@@ -8,6 +8,7 @@
  */
 
 import { claveValida } from "@/lib/alertas"
+import { sinCodigos as sinCodigosDelSistema } from "@/lib/sin-codigos"
 
 export type TipoDeDecision = "plan" | "gran_idea" | "pieza" | "revision" | "pregunta_al_dueno" | "pregunta_de_finanzas" | "firma_de_finanzas"
 export const TIPOS_DE_DECISION: readonly TipoDeDecision[] = ["plan", "gran_idea", "pieza", "revision", "pregunta_al_dueno", "pregunta_de_finanzas", "firma_de_finanzas"]
@@ -225,7 +226,7 @@ export function resumenDeDecisiones(d: Decisiones): ResumenDeDecisiones {
 
 /** el título limpio para mostrar (la base trae marcas como «⚠️» al inicio) */
 export const tituloLimpio = (t: string): string => {
-  const sinCodigos = t.replace(/\*\*/g, "").replace(/^[\s⚠️❗‼️]+/u, "") // «Gran idea · **El oro…**»: la negrita de formato no se ve como asteriscos (aviso CC1 #969)
+  const sinCodigos = sinCodigosDelSistema(t).replace(/\*\*/g, "").replace(/^[\s⚠️❗‼️]+/u, "") // «Gran idea · **El oro…**»: la negrita de formato no se ve como asteriscos (aviso CC1 #969)
     .replace(/\(\s*(?:P\d+[a-z]?|v(?:ersi[oó]n)?\s?\d+|[A-Z]{2,5}-\d{2,})\s*\)/giu, " ") // «(P3)», «(versión 2)», «(BRF-0001)»
     .replace(/(?<![\p{L}\p{N}])(?:versi[oó]n|v)\s?\d+(?![\p{L}\p{N}])/giu, " ")
     .replace(/(?<![\p{L}\p{N}])[A-Z]{2,5}-\d{2,}(?![\p{L}\p{N}])/gu, " ") // BRF-0001

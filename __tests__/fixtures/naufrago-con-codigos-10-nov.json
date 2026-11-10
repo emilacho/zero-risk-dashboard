@@ -1,0 +1,34 @@
+{
+ "avisos": [
+  "la idea C1-I08 trae un dato con valor (precio, hora, cifra): el estratega lo pone con su referencia",
+  "la idea C3-I03 trae un dato con valor (precio, hora, cifra): el estratega lo pone con su referencia",
+  "la idea C1-I08 trae «80 %», que no está en el brief: dato sin fuente",
+  "la idea C3-I03 trae «4.9», que no está en el brief: dato sin fuente"
+ ],
+ "por_que_funciona": "El brief (brf-28de888eb3f2 v2) nombra el insight: «el guayaquileño que quiere encebollado de verdad sabe que el bueno viene de la costa — y ese viaje no lo hace entre semana.» La gran idea hace ese viaje por él sin prometérselo: lo cuenta como leyenda ya ocurrida. El náufrago salió a buscar algo valioso y encontró algo mejor; el cliente no tiene que salir. La leyenda hace el trabajo que un claim n",
+ "como_se_ve": "Paleta del manual como ley de la campaña: fondo púrpura oscuro (#1a0828) en piezas de texto y transiciones; turquesa (#51d4b4) para acentos tipográficos en Caveat; blanco Inter para cuerpo. El personaje del náufrago (`foto:4f09cef2` — el esqueleto surfer con pergamino de la web 3D) actúa como firma silenciosa de cierre, nunca como vocero de producto. Las fotos de producto anclan la realidad: caldo hirviendo (`foto:6275c0ba`), bowl cenital (`foto:19671014`, `foto:c0355f3d`, `foto:e8da814f`), pescado crudo (`foto:f5d887ec`). Fachada de Olón (`foto:fe452b8f`, `foto:9f71b0e9`, `foto:4c41cd56`) como prueba de origen. Las imágenes generadas se reservan exclusivamente para el momento de entrega en Guayaquil (puerta urbana, bolsa, mano recibiendo) donde no hay foto propia. Nunca texto, sellos ni instrumentos en imágenes generadas. Sin interiores de restaurante formal. Sin manteles blancos ni dec",
+ "fotos_citadas": [
+  "4f09cef2",
+  "6275c0ba",
+  "19671014",
+  "c0355f3d",
+  "e8da814f",
+  "f5d887ec",
+  "fe452b8f",
+  "9f71b0e9",
+  "4c41cd56",
+  "45084b4b",
+  "a7bd788f",
+  "8eb78d2f",
+  "31ee2ae3",
+  "af4c91fa",
+  "92059dcb",
+  "2e4f9d17",
+  "3ac1e146",
+  "8df587e0"
+ ],
+ "brief_v2_cabeza": "## Brief creativo de campaña · Náufrago · brf-28de888eb3f2 · v2 (revisión)\n\n---\n\n## De qué parte del plan sale\n\n> «Prime",
+ "brief_v3_inicio": "Analizo el tablero antes de escribir. El aporte A3 ya contiene el brief v3 completo con los cambios pedidos aplicados correctamente. Mi turno es integrar como dirección creativa y entregar la pieza fi",
+ "brief_citas": "**A1 usé:** material del portero confirmó 87 fotos propias etiquetadas; se identificaron fotos de producto (encebollado cenital: `19671014`, `c0355f3d`, `e8da814f`), fachada del local (`fe452b8f`, `9f71b0e9`, `4f09cef2` con el personaje del náufrago), y foto del caldo en cocina (`6275c0ba`) — todas ",
+ "idea_c107": "réplica del feed de producto de instagram (C1-I03) con llamado «Pide en naufrago.ec» ajustado al canal."
+}
