@@ -49,8 +49,8 @@ describe("6.52 · Decisiones · un solo número", () => {
   it("en pantalla: el resumen, el recuadro «Esperan» y el «1 de N» dicen lo mismo; la pausa va en su propio recuadro", async () => {
     const { PanelDecisiones } = await import("@/components/nuevo/PanelDecisiones")
     const h = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: D })).replace(/<!-- -->/g, "")
-    expect(h).toContain("3 esperan por ti · 7 en pausa (Zero Risk SI)"); expect(h).not.toContain("fuera de este tablero")
-    expect(h).toMatch(/data-recuadro="firma"[^>]*>.*?>3<\/span>/)
+    expect(h).toContain("3 nuevas · 0 revisadas · 7 en pausa (Zero Risk SI)"); expect(h).not.toContain("fuera de este tablero")
+    expect(h).toMatch(/data-recuadro="nuevas"[^>]*>.*?>3<\/span>/)
     expect(h).toContain("1 de 3")
     expect(h).toMatch(/data-recuadro="pausa:Zero Risk Seguridad Industrial" aria-pressed="false"[^>]*>.*?>7<\/span>.*?>En pausa</)
   }, 30_000) // dibuja el panel entero: con la máquina cargada pasa de 5 s
