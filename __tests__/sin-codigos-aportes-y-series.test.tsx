@@ -139,8 +139,22 @@ describe("3 · segundo cliente (industrial B2B): sus «A4», «A1» y «S» se q
     const t = "Ver anexo (sin cerrar\nhojas de A4 en la caja."
     expect(sinCodigos(t, { aportes: mesa })).toBe(t)
   })
-  it("en una lista de citas tras una coma también dice de quién: «(ver material, A3)»", () => {
-    expect(sinCodigos("(ver material, A3)", { aportes: mesa })).toBe("(ver material, market-research-analyst)")
+  it("la sonda 2 de CC6 (#324 🟡): dentro de un paréntesis que no es una lista de códigos, lo pegado a «(», «,» o «/» se queda", () => {
+    const cinco = { "1": "portero", "2": "", "3": "campaign-brief-agent", "4": "video-editor", "5": "design-x" }
+    for (const t of ["Tamaño (A4 o carta).", "Folleto (A4 o carta) a color.", "(tamaños A4, A5)", "Ver (A4 en la tabla/A5).", "(ver material, A3)", "(A4 y carta)"]) expect(sinCodigos(t, { aportes: cinco })).toBe(t)
+  })
+  it("un paréntesis que es SOLO una lista de códigos sí dice de quién: «(A3)», «(A3, A5)», «(A3 y A5)»", () => {
+    expect(sinCodigos("(A3) (A3, A5) (A3 y A5)", { aportes: mesa })).toBe("(market-research-analyst) (market-research-analyst, market-research-analyst) (market-research-analyst y market-research-analyst)")
+  })
+  it("un paréntesis que nunca se cierra no es una lista: «Ver (A3» se queda", () => {
+    expect(sinCodigos("Ver (A3\nen la tabla", { aportes: mesa })).toBe("Ver (A3\nen la tabla")
+    expect(sinCodigos("Ver (A3", { aportes: mesa })).toBe("Ver (A3")
+  })
+  it("límite declarado (Lenovo firma): un «(A4)», «(A4/A5)» o «(A4, …)» exactos del cliente se cambian", () => {
+    const cinco = { "4": "video-editor", "5": "design-x" }
+    expect(sinCodigos("Tamaño (A4).", { aportes: cinco })).toBe("Tamaño (video-editor).")
+    expect(sinCodigos("Ver (A4/A5) en la tabla.", { aportes: cinco })).toBe("Ver (video-editor/design-x) en la tabla.")
+    expect(sinCodigos("(A4, a color)", { aportes: cinco })).toBe("(video-editor, a color)")
   })
   it("la cita a media frase va en minúscula, también tras dos puntos y en un documento de varias líneas", () => {
     expect(sinCodigos("Primera línea.\nLo tomé; A2 usé: la lista", { aportes: mesa })).toBe("Primera línea.\nLo tomé; usé el aporte de content-creator: la lista")

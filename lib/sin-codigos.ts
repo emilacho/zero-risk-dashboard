@@ -108,11 +108,17 @@ function aportesEnPalabras(t: string, aportes: Readonly<Record<string, string>> 
       const antes = s.slice(0, i)
       // SOLO DENTRO DE UN PARÉNTESIS, que es donde el sistema cita (10-nov · CC6 #324 🟡: al empezar una frase o tras cualquier preposición cambiaba
       // texto del cliente: «Folleto impreso en A4», «A4 es el formato», «Llega por A2 express»). Y dentro del paréntesis, solo pegado a «(», a «/» o a
-      // «,» de una lista de citas, o tras «de»/«en»: «(A3, …)», «(A16/A22)», «(prompt de A12)», «(propuesto en A17 …)». «(formato A4)» se queda.
-      // Límite declarado: un «(… de A4)» o «(… en A4)» del cliente, en un documento cuyo encargo tuvo un aporte 4, se cambiaría
+      // «,» SOLO si el paréntesis entero es una lista de códigos (10-nov · CC6 #324 🟡 2: «Tamaño (A4).», «(A4 o carta)», «(tamaños A4, A5)» son del
+      // cliente), o tras «de»/«en»: «(A3)», «(A3, A5)», «(A16/A22)», «(prompt de A12)», «(propuesto en A17 …)». «(formato A4)» se queda.
+      // Límite declarado: un «(A4)», «(A4/A5)», «(A4, …)», «(… de A4)» o «(… en A4)» del cliente, en un documento cuyo encargo tuvo esos aportes, se cambiaría
       const parentesis = /\([^()\n]*$/.exec(antes)
       if (!parentesis) return m
-      const pegado = /(?:\(|\/|,)[ \t]*$/.test(antes)
+      const cierre = s.indexOf(")", i)
+      const dentro = cierre < 0 ? "" : s.slice(parentesis.index + 1, cierre)
+      const soloCodigos = !dentro.includes("\n") && /^[ \t]*A\d+(?:[ \t]*(?:[,/]|y)[ \t]*A\d+)*[ \t]*$/.test(dentro)
+      // la otra forma de cita del sistema (brief real de Náufrago): el código PRIMERO y su descripción tras la coma, «(A3, el brief v3 propio)»
+      const codigoYDescripcion = /^\([ \t]*$/.test(antes.slice(parentesis.index)) && /^A\d+[ \t]*,/.test(s.slice(i))
+      const pegado = (soloCodigos && /(?:\(|\/|,|\by)[ \t]*$/.test(antes)) || codigoYDescripcion
       const preposicion = /(?:^|[^\p{L}])(de|en)[ \t]+$/iu.exec(antes)?.[1]?.toLowerCase()
       if (!pegado && !preposicion) return m
       // «(prompt de A12)» → «(prompt de design-image-prompt-engineer)»; «(A3, …)» → «(campaign-brief-agent, …)»; «(propuesto en A17» → «(propuesto en el aporte de …»
