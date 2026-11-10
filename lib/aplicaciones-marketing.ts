@@ -26,7 +26,7 @@ export interface Aplicacion {
 export const APLICACIONES: readonly Aplicacion[] = [
   { clave: "manual", paso: 1, nombre: "Manual de marca", descripcion: "Lo que la marca es, cómo habla y cómo se ve", enlace: () => null },
   { clave: "informes", paso: 2, nombre: "Informes", descripcion: "Lo que la oficina le reporta al cliente: semanal, mensual, trimestral", enlace: () => null },
-  { clave: "plan", paso: 3, nombre: "Plan de 90 días", descripcion: "La meta, las fases, las redes y lo que la campaña espera", enlace: () => null },
+  { clave: "plan", paso: 3, nombre: "Plan de Marketing", descripcion: "La meta, las fases, las redes y lo que la campaña espera", enlace: () => null },
   { clave: "brief", paso: 4, nombre: "Brief de campaña", descripcion: "Insight, un mensaje, objetivo, tono y obligatorios: lo que la mesa del brief le entrega a los creativos", enlace: () => null },
   { clave: "gran_idea", paso: 5, nombre: "Gran idea", descripcion: "El concepto de la campaña que la sala creativa propone y tú apruebas", enlace: () => null },
   { clave: "calendario", paso: 6, nombre: "Calendario", descripcion: "Las publicaciones de la campaña, coloreadas por dónde están", enlace: () => null },

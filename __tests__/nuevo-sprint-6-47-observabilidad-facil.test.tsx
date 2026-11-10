@@ -21,7 +21,7 @@ const LISTA = normalizarLista({
   total: 7, ejecuciones_total: 7, ejecuciones_leidas: 7,
   corridas: [
     c("plan-1", { workflow_id: "X9F0zp6LQ2xGEYVS", estado: "fallida", fallos: 1 }),
-    c("pedido:abc", { nombre: "Cambios al plan de 90 días · pedido del dueño", inicio: "2026-10-31T15:00:00.000Z", fin: "2026-10-31T15:16:00.000Z", duracion_ms: 960000 }),
+    c("pedido:abc", { nombre: "Cambios al Plan de Marketing · pedido del dueño", inicio: "2026-10-31T15:00:00.000Z", fin: "2026-10-31T15:16:00.000Z", duracion_ms: 960000 }),
     c("cer-1", { workflow_id: "ogfq56oIEoHufFPM", duracion_ms: 3000, inicio: "2026-11-02T13:00:00.000Z" }),
     c("cer-2", { workflow_id: "ogfq56oIEoHufFPM", duracion_ms: 3000, inicio: "2026-11-02T14:00:00.000Z" }),
     c("alta-1", { workflow_id: "LyVoKcrypS5uLyuu", duracion_ms: 240000, inicio: "2026-10-29T15:00:00.000Z" }),
@@ -29,7 +29,7 @@ const LISTA = normalizarLista({
     c("vieja-1", { workflow_id: "X9F0zp6LQ2xGEYVS", inicio: "2026-10-22T15:00:00.000Z", duracion_ms: 600000 }),
   ],
 })
-const m = (corrida: string, d: string, usd: number, x: Partial<Movimiento> = {}): Movimiento => ({ t: `${d}T15:00:00.000Z`, d, proveedor: "Anthropic", modelo: "claude-sonnet-4-6", empleado: "Jefe de Marketing", cliente: "Náufrago", client_id: NAU, corrida, usd, ok: true, cota: false, proceso: "Planeación del plan de 90 días", ...x })
+const m = (corrida: string, d: string, usd: number, x: Partial<Movimiento> = {}): Movimiento => ({ t: `${d}T15:00:00.000Z`, d, proveedor: "Anthropic", modelo: "claude-sonnet-4-6", empleado: "Jefe de Marketing", cliente: "Náufrago", client_id: NAU, corrida, usd, ok: true, cota: false, proceso: "Planeación del Plan de Marketing", ...x })
 const DINERO: Dinero = {
   movimientos: [
     m("plan-1", "2026-11-01", 1.86), m("abc", "2026-10-31", 1.34, { proceso: null }), m("alta-1", "2026-10-29", 2.3, { proceso: "Alta de un cliente nuevo" }),
@@ -65,7 +65,7 @@ describe("6.47 · definiciones", () => {
   })
   it("el proceso en palabras de oficina", () => {
     expect(procesoDe({ nombre: "Ejecución 205994" })).toBe("Otros procesos internos"); expect(procesoDe({ nombre: "Otros procesos internos" })).toBe("Otros procesos internos"); expect(procesoDe({ nombre: "Encargo de oficina · un turno" })).toBe("Oficina")
-    expect(LISTA.corridas.map(procesoDe)).toEqual(["Plan de 90 días", "Cambios al plan", "Mantenimiento del cerebro", "Mantenimiento del cerebro", "Manual de marca y alta", "Plan de 90 días", "Plan de 90 días"])
+    expect(LISTA.corridas.map(procesoDe)).toEqual(["Plan de Marketing", "Cambios al plan", "Mantenimiento del cerebro", "Mantenimiento del cerebro", "Manual de marca y alta", "Plan de Marketing", "Plan de Marketing"])
   })
 })
 
@@ -78,9 +78,9 @@ describe("6.47 · el costo es la misma cuenta que Dinero", () => {
   })
   it("el costo de un grupo sale de Dinero por sus ejecuciones (un pedido junta las suyas)", () => {
     const g = agrupar(LISTA.corridas.filter((x) => x.inicio! >= "2026-10-27"), "proceso", costoPorEjecucion(DINERO), v.r)
-    const plan = g.find((x) => x.clave === "Plan de 90 días")!
+    const plan = g.find((x) => x.clave === "Plan de Marketing")!
     expect(plan.costo).toBe(1.86); expect(plan.numeros.con_error).toBe(1)
-    expect(g[0].clave).toBe("Plan de 90 días") // los grupos con errores van primero
+    expect(g[0].clave).toBe("Plan de Marketing") // los grupos con errores van primero
   })
 })
 
@@ -105,7 +105,7 @@ describe("6.47 · empleados", () => {
     { agent_name: "portero-cerebro", status: "timeout", duration_ms: 5000, cost_usd: 0, workflow_id: "ogfq56oIEoHufFPM", workflow_execution_id: "cer-2" },
   ]
   const nombre = (s: string) => ({ "jefe-marketing": "Jefe de Marketing", "portero-cerebro": "Portero del cerebro" }[s] ?? s)
-  const proc = (w: string | null) => (w === "ogfq56oIEoHufFPM" ? "Cerebro · mantenimiento del portero" : "Planeación del plan de 90 días")
+  const proc = (w: string | null) => (w === "ogfq56oIEoHufFPM" ? "Cerebro · mantenimiento del portero" : "Planeación del Plan de Marketing")
   const e = empleadosDe(filas, nombre, proc)
   it("el libro completo del período, con y sin interno; nombres reales", () => {
     expect(e.todo.map((x) => [x.nombre, x.llamadas, x.errores, x.mediana_ms])).toEqual([["Jefe de Marketing", 2, 1, 90000], ["Portero del cerebro", 2, 1, 4000]])
@@ -136,7 +136,7 @@ describe("6.47 · dónde falló", () => {
 })
 
 describe("6.47 · en pantalla", () => {
-  const empleados = empleadosDe([{ agent_name: "jefe-marketing", status: "error", duration_ms: 60000, cost_usd: 0.5, workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: "plan-1" }], () => "Jefe de Marketing", () => "Planeación del plan de 90 días")
+  const empleados = empleadosDe([{ agent_name: "jefe-marketing", status: "error", duration_ms: 60000, cost_usd: 0.5, workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: "plan-1" }], () => "Jefe de Marketing", () => "Planeación del Plan de Marketing")
   const render = async (x: Record<string, unknown> = {}) => {
     const { PanelObservabilidad } = await import("@/components/nuevo/PanelObservabilidad")
     return renderToStaticMarkup(createElement(PanelObservabilidad, { onCerrar: () => {}, listaInicial: LISTA, dineroInicial: DINERO, empleadosInicial: empleados, hoy, ...x })).replace(/<!-- -->/g, "")

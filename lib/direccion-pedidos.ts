@@ -73,9 +73,9 @@ export function nombreDelGrupo(clave: string, a: Pick<Agrupacion, "revisiones" |
   const [tipo, id] = clave.split(":")
   if (tipo === "encargo") { const e = a.encargos.get(id); return `Encargo de oficina · ${e?.tipo_de_grupo ? TIPO_DE_ENCARGO[e.tipo_de_grupo] ?? palabras(e.tipo_de_grupo) : "pieza"}` }
   const r = a.revisiones.get(id)
-  if (a.cambioDe.has(id)) return "Cambios al plan de 90 días · pedido del dueño"
-  if (r?.artifact_type === "plan" && a.planeacionDe?.has(id)) return "Plan de 90 días · investigación, redacción y revisión"
-  if (r?.artifact_type === "plan") return "Revisión del plan de 90 días"
+  if (a.cambioDe.has(id)) return "Cambios al Plan de Marketing · pedido del dueño"
+  if (r?.artifact_type === "plan" && a.planeacionDe?.has(id)) return "Plan de Marketing · investigación, redacción y revisión"
+  if (r?.artifact_type === "plan") return "Revisión del Plan de Marketing"
   if (r?.artifact_type === "pieza") return "Revisión de una pieza"
   return `Revisión de la jefatura${r?.artifact_type ? ` · ${palabras(r.artifact_type)}` : ""}`
 }

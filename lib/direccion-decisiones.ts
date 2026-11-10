@@ -163,7 +163,7 @@ export async function leerDecisiones(d: { plataformaUrl?: string; llave?: string
 
 /** cómo se llama cada tipo, en palabras de negocio, y su marca corta para la pantalla */
 export const NOMBRE_DEL_TIPO: Record<TipoDeDecision, { nombre: string; plural: string }> = {
-  plan: { nombre: "Plan de 90 días", plural: "Planes" },
+  plan: { nombre: "Plan de Marketing", plural: "Planes" },
   gran_idea: { nombre: "Gran idea", plural: "Grandes ideas" },
   pieza: { nombre: "Pieza para publicar", plural: "Piezas" },
   revision: { nombre: "Revisión", plural: "Revisiones" },
@@ -220,7 +220,7 @@ export function resumenDeDecisiones(d: Decisiones): ResumenDeDecisiones {
 
 /** el título limpio para mostrar (la base trae marcas como «⚠️» al inicio) */
 export const tituloLimpio = (t: string): string => {
-  const sinCodigos = t.replace(/^[\s⚠️❗‼️]+/u, "")
+  const sinCodigos = t.replace(/\*\*/g, "").replace(/^[\s⚠️❗‼️]+/u, "") // «Gran idea · **El oro…**»: la negrita de formato no se ve como asteriscos (aviso CC1 #969)
     .replace(/\(\s*(?:P\d+[a-z]?|v(?:ersi[oó]n)?\s?\d+|[A-Z]{2,5}-\d{2,})\s*\)/giu, " ") // «(P3)», «(versión 2)», «(BRF-0001)»
     .replace(/(?<![\p{L}\p{N}])(?:versi[oó]n|v)\s?\d+(?![\p{L}\p{N}])/giu, " ")
     .replace(/(?<![\p{L}\p{N}])[A-Z]{2,5}-\d{2,}(?![\p{L}\p{N}])/gu, " ") // BRF-0001

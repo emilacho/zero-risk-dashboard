@@ -29,7 +29,7 @@ const datos: Pizarron = {
 describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
   it("la lista es la que cerró Emilio y el encargo 01-nov: nueve cuadros en el orden de la cadena, sin oficinas/en vivo ni alertas, y cada uno lleva a algo que ya existe", () => {
     // 6.9: Informes en lugar de Cerebro (el Cerebro es estructura de la sala) · 6.10: Brief · Gran idea · Equipo, en el orden de la cadena (encargo 01-nov §2)
-    expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Informes", "Plan de 90 días", "Brief de campaña", "Gran idea", "Calendario", "Piezas", "Equipo", "Dinero del cliente"])
+    expect(APLICACIONES.map((a) => a.nombre)).toEqual(["Manual de marca", "Informes", "Plan de Marketing", "Brief de campaña", "Gran idea", "Calendario", "Piezas", "Equipo", "Dinero del cliente"])
     expect(APLICACIONES.map((a) => a.enlace(CLIENTE, "Náufrago"))).toEqual([null, null, null, null, null, null, null, null, "/nuevo/cliente/naufrago"]) // todo abre encima salvo el dinero: lleva a la vista del cliente en Dinero (CC6 · 02-nov · corrección 5)
     // sin cliente elegido, los cuadros de la ficha llevan a la lista de clientes (no a una ficha rota)
     expect(APLICACIONES.find((a) => a.clave === "gasto")!.enlace(null)).toBe("/nuevo/oficina") // sin cliente: Tu oficina (ahí está Dinero)

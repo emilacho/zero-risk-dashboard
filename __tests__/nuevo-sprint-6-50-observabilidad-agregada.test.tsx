@@ -70,7 +70,7 @@ describe("6.50 · la lectura agregada", () => {
     const f = (async (u: string, i: RequestInit) => { urls.push(String(u)); heads.push(String((i.headers as Record<string, string>)["x-api-key"])); return new Response(JSON.stringify({ ok: true, desde: "2026-10-27", hasta: "2026-11-02", completo: true, filas_sin_ejecucion: 0, grupos: [g("X9F0zp6LQ2xGEYVS", [["2026-10-27", 3, 1]])] }), { status: 200 }) }) as unknown as typeof fetch
     const r = await leerResumenDeCorridas({ desde: "2026-10-27", hasta: "2026-11-02", client_id: NAU }, { plataformaUrl: "https://p/", llave: "secreta", fetchImpl: f, procesosImpl: f })
     expect(urls[0]).toBe(`https://p/api/direccion/corridas/resumen?desde=2026-10-27&hasta=2026-11-02&client_id=${NAU}`); expect(heads[0]).toBe("secreta")
-    expect(r.ok && r.datos.grupos[0]).toMatchObject({ nombre: "Planeación del plan de 90 días", ejecuciones: 3, con_error: 1, interno: false })
+    expect(r.ok && r.datos.grupos[0]).toMatchObject({ nombre: "Planeación del Plan de Marketing", ejecuciones: 3, con_error: 1, interno: false })
     const malo = (async () => new Response("{}", { status: 400 })) as unknown as typeof fetch
     expect(await leerResumenDeCorridas({ desde: "2026-01-01", hasta: "2026-11-02" }, { plataformaUrl: "https://p", llave: "k", fetchImpl: malo })).toMatchObject({ ok: false, status: 400 })
     expect(await leerResumenDeCorridas({ desde: "2026-10-27", hasta: "2026-11-02" }, { plataformaUrl: "https://p", llave: "" })).toMatchObject({ ok: false, status: 503 })

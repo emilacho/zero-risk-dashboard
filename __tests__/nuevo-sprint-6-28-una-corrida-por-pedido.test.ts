@@ -66,7 +66,7 @@ describe("6.28 · 1 · una corrida por pedido", () => {
     expect(l.corridas).toHaveLength(3)
     const p = l.corridas[0]
     expect(p.workflow_execution_id).toBe(`pedido:${REV}`)
-    expect(p.nombre).toBe("Cambios al plan de 90 días · pedido del dueño")
+    expect(p.nombre).toBe("Cambios al Plan de Marketing · pedido del dueño")
     expect(p.miembros?.sort()).toEqual(["210596", "210597", "210600", "210611", GPT].sort())
     expect(p.inicio).toBe(CAMBIO.creado_en); expect(p.pasos).toBe(6)
     expect(l.total).toBe(3)
@@ -84,7 +84,7 @@ describe("6.28 · 1 · una corrida por pedido", () => {
     const l = normalizarLista({ corridas: [corrida("210300", "o8qaF7bI0PKv2XGZ", "2026-11-01T16:47:57Z", "2026-11-01T16:49:09Z"), corrida("210273", "X9F0zp6LQ2xGEYVS", "2026-11-01T16:32:14Z", "2026-11-01T16:47:51Z")] })
     const a = await leerAgrupacion(base(t), ["210300", "210273"])
     const g = agruparLista(l, a!)
-    expect(g.corridas).toHaveLength(1); expect(g.corridas[0].nombre).toBe("Plan de 90 días · investigación, redacción y revisión")
+    expect(g.corridas).toHaveLength(1); expect(g.corridas[0].nombre).toBe("Plan de Marketing · investigación, redacción y revisión")
   })
   it("si no se puede leer cómo se encadenan, la lista queda suelta (y la ruta lo dice con «agrupado: false»)", async () => {
     const rota: BaseDeLectura = { from: () => ({ select: () => { const q = { in: () => q, eq: () => q, gte: () => q, like: () => q, order: () => q, limit: () => q, then: (ok: (x: unknown) => unknown) => Promise.resolve({ data: null, error: { message: "caída" } }).then(ok) }; return q as never } }) }
@@ -102,7 +102,7 @@ describe("6.28 · 2 · cada paso dice quién y qué hizo", () => {
     const traza = trazaDelPedido(datos!)
     const nombres = arbolDeNodos(normalizarDetalle(JSON.parse(JSON.stringify(traza)))!).map((n) => n.nombre)
     expect(nombres).toEqual([
-      "Cambios al plan de 90 días · pedido del dueño",
+      "Cambios al Plan de Marketing · pedido del dueño",
       "Dueño · pide cambios al plan",
       "Editor en jefe · revisa el fondo del plan",
       "Jefe marketing · corrige el plan con lo que marcó la jefatura",

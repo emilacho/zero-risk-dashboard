@@ -14,8 +14,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, refresh:
 
 const m = (d: string, usd: number, x: Partial<Movimiento> = {}): Movimiento => ({ t: `${d}T15:00:00.000Z`, d, proveedor: "Anthropic", modelo: "claude-sonnet-4-6", empleado: "Jefe marketing", cliente: "Náufrago", client_id: "c1", corrida: `r-${d}`, usd, ok: true, cota: false, ...x })
 const movs: Movimiento[] = [
-  m("2026-10-20", 0.6, { proceso: "Planeación del plan de 90 días", corrida: "p1" }), m("2026-10-20", 0.4, { proceso: "Planeación del plan de 90 días", corrida: "p1:rama" }),
-  m("2026-10-25", 1.2, { proceso: "Planeación del plan de 90 días", corrida: "p2" }),
+  m("2026-10-20", 0.6, { proceso: "Planeación del Plan de Marketing", corrida: "p1" }), m("2026-10-20", 0.4, { proceso: "Planeación del Plan de Marketing", corrida: "p1:rama" }),
+  m("2026-10-25", 1.2, { proceso: "Planeación del Plan de Marketing", corrida: "p2" }),
   m("2026-10-28", 2, { proceso: "Alta de un cliente nuevo", corrida: "a1" }),
   m("2026-11-01", 0.5, { ok: false }),
   m("2026-11-01", 3, { cliente: "Otro cliente", client_id: "c2" }),
