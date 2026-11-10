@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
-import { alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelCentrado, claseDelCosto, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { agregarImagenes, avisoDeUnaSola, diasQueQuedan, enOrden, lineaDeLoQueNoSubio, lineaDeReferencias, quitarImagen, revisarArchivos, rutaDePapelera, sePuedeQuitar, textoDeDias, MAXIMO_DE_IMAGENES, type ImagenAdjunta, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelAviso, claseDelCentrado, claseDelCosto, esAvisoDelBoton, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -20,6 +20,10 @@ const LADO_MAXIMO = 1536
 
 type Cliente = { id: string; nombre: string }
 type Foto = { b64: string; vista: string } | { pieza: Pieza }
+/** una imagen adjunta con su número fijo (quitar una no renumera las otras) */
+type Adjunta = Foto & { numero: number }
+/** con 2 o más imágenes viajan juntas en el pedido: cada una se vuelve a achicar (lado 1024) para que el pedido no pase del límite */
+const LADO_EN_VARIAS = 1024
 
 const ESTILO = `
 .es-chip{border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 12px;font-size:12.5px;color:#d4d4d8;white-space:nowrap}
@@ -51,6 +55,20 @@ async function fotoAchicada(archivo: File): Promise<{ b64: string; vista: string
     return { b64: vista.split(",")[1] ?? "", vista }
   } finally { URL.revokeObjectURL(url) }
 }
+
+/** vuelve a achicar una imagen ya leída (de su vista) para mandarla junto a otras */
+async function reachicar(vista: string, lado: number): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error("No pude leer una de las imágenes.")); i.src = vista })
+  const k = Math.min(1, lado / Math.max(img.naturalWidth, img.naturalHeight))
+  const c = document.createElement("canvas")
+  c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k)
+  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height)
+  return c.toDataURL("image/jpeg", 0.85).split(",")[1] ?? ""
+}
+
+/** lo que va al pedido de cada imagen adjunta */
+const comoAdjunta = (a: Adjunta): ImagenAdjunta => ("pieza" in a ? { numero: a.numero, pieza_id: a.pieza.id } : { numero: a.numero, b64: a.b64 })
+const vistaDe = (a: Adjunta) => ("vista" in a ? a.vista : a.pieza.archivo_url)
 
 type VisorAnimable = HTMLElement & { play?: () => void; pause?: () => void }
 
@@ -91,17 +109,34 @@ function Vista({ pieza, glb }: { pieza: Pieza; glb?: string | null }) {
   return <img src={pieza.archivo_url} alt={pieza.prompt} className="h-full w-full object-contain" />
 }
 
-function Miniatura({ p, alAbrir }: { p: Pieza; alAbrir: () => void }) {
+function Miniatura({ p, alAbrir, alQuitar, enPapelera }: { p: Pieza; alAbrir: () => void; alQuitar?: () => void; enPapelera?: { dias: number; alRecuperar: () => void; recuperando: boolean } }) {
+  return (
+    <div className="relative" data-tarjeta={p.id}>
+      <Tarjeta p={p} alAbrir={alAbrir} pie={enPapelera ? textoDeDias(enPapelera.dias) : undefined} />
+      {/* decisión B de Emilio (09-nov): la ✕ pequeña arriba a la derecha manda la pieza a la papelera por 30 días; nunca borra en el acto */}
+      {alQuitar && sePuedeQuitar(p) && (
+        <button type="button" data-quitar={p.id} onClick={alQuitar} title="Quitar de la galería (queda 30 días en la papelera)" aria-label={`Quitar de la galería: ${p.prompt || NOMBRE_DEL_TIPO[p.tipo]}. Queda 30 días en la papelera`}
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-linea bg-velo text-dato leading-none text-hueso hover:bg-carbon focus-visible:outline focus-visible:outline-1 focus-visible:outline-ambar">✕</button>
+      )}
+      {enPapelera && (
+        <button type="button" data-recuperar={p.id} onClick={enPapelera.alRecuperar} disabled={enPapelera.recuperando}
+          className="absolute right-1.5 top-1.5 rounded-full border border-linea bg-velo px-2.5 py-1 text-rotulo text-hueso hover:bg-carbon disabled:opacity-50">{enPapelera.recuperando ? "Recuperando…" : "Recuperar"}</button>
+      )}
+    </div>
+  )
+}
+
+function Tarjeta({ p, alAbrir, pie }: { p: Pieza; alAbrir: () => void; pie?: string }) {
   const img = p.miniatura_url ?? (p.tipo === "imagen" ? p.archivo_url : null) ?? p.foto_partida_url
   return (
-    <button type="button" onClick={alAbrir} data-pieza={p.id} data-estado={p.estado} className={`es-pieza text-left ${p.estado === "creando" ? "es-cargando" : ""}`} aria-label={`${NOMBRE_DEL_TIPO[p.tipo]}: ${p.prompt || "sin texto"}`}>
+    <button type="button" onClick={alAbrir} data-pieza={p.id} data-estado={p.estado} className={`es-pieza block w-full text-left ${p.estado === "creando" ? "es-cargando" : ""}`} aria-label={`${NOMBRE_DEL_TIPO[p.tipo]}: ${p.prompt || "sin texto"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {img && p.estado !== "creando" && <img src={img} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
       {p.tipo === "video" && p.estado === "lista" && <span aria-hidden className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white">▶</span>}
       <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[10.5px]" style={{ color: "#f0a04b" }}>{p.modelo === MODELO_DE_ANIMACION ? "Animado" : NOMBRE_DEL_TIPO[p.tipo]}</span>
       <span className="absolute inset-x-0 bottom-0 flex justify-between gap-2 bg-gradient-to-t from-black/90 to-transparent px-2 pb-1.5 pt-5 text-[11.5px] text-zinc-200">
         <span className="truncate">{p.prompt || "desde una foto"}</span>
-        <span className="shrink-0 text-zinc-400">{p.estado === "creando" ? (tardaMasDeLoNormal(p, Date.now()) ? "tarda más" : "creando") : p.estado === "fallida" ? "falló" : dolares(p.costo_usd)}</span>
+        <span className="shrink-0 text-gris">{pie ?? (p.estado === "creando" ? (tardaMasDeLoNormal(p, Date.now()) ? "tarda más" : "creando") : p.estado === "fallida" ? "falló" : dolares(p.costo_usd))}</span>
       </span>
     </button>
   )
@@ -111,7 +146,7 @@ function Chips<T extends string>({ valores, valor, alElegir, nombre }: { valores
   return <div className="flex flex-wrap gap-1.5">{valores.map((v) => <button key={v} type="button" className="es-chip" aria-pressed={v === valor} onClick={() => alElegir(v)}>{nombre ? nombre(v) : v}</button>)}</div>
 }
 
-export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = null, piezasIniciales = null, clientesIniciales = null, abiertaInicial = null, animarInicial = null, clipInicial = 0 }: {
+export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = null, piezasIniciales = null, clientesIniciales = null, abiertaInicial = null, animarInicial = null, clipInicial = 0, adjuntasIniciales = null, textoInicial = "", papeleraInicial = null }: {
   onCerrar: () => void
   fetchImpl?: typeof fetch
   /** solo pruebas y el arnés de imágenes */
@@ -123,22 +158,32 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
   animarInicial?: number[] | null
   /** solo pruebas y el arnés: qué movimiento de una animación se ve */
   clipInicial?: number
+  /** solo pruebas y el arnés de imágenes: imágenes ya adjuntas y el texto escrito */
+  adjuntasIniciales?: Adjunta[] | null
+  textoInicial?: string
+  /** solo pruebas y el arnés: la papelera abierta con estas piezas */
+  papeleraInicial?: Pieza[] | null
 }) {
   const [catalogo, setCatalogo] = useState<Catalogo | null>(catalogoInicial)
   const [clientes, setClientes] = useState<Cliente[] | null>(clientesIniciales)
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [piezas, setPiezas] = useState<Pieza[]>(piezasIniciales ?? [])
-  const [filtro, setFiltro] = useState<TipoDePieza | "todo">("todo")
+  const [filtro, setFiltro] = useState<TipoDePieza | "todo" | "papelera">(papeleraInicial ? "papelera" : "todo")
+  const [papelera, setPapelera] = useState<Pieza[] | null>(papeleraInicial)
+  const [movida, setMovida] = useState<Pieza | null>(null)
+  const [recuperando, setRecuperando] = useState<string | null>(null)
+  const [errorGaleria, setErrorGaleria] = useState<string | null>(null)
   const [abierta, setAbierta] = useState<string | null>(abiertaInicial)
   const [tipo, setTipo] = useState<TipoDePieza>("imagen")
-  const [texto, setTexto] = useState("")
+  const [texto, setTexto] = useState(textoInicial)
   const [formato, setFormato] = useState("1:1")
   const [modelo3d, setModelo3d] = useState("tripo-h3.1")
   const [calidad, setCalidad] = useState<"normal" | "alta">("normal")
   const [modeloVideo, setModeloVideo] = useState("bytedance/seedance-2.5")
   const [segundos, setSegundos] = useState(5)
   const [resolucion, setResolucion] = useState("720p")
-  const [foto, setFoto] = useState<Foto | null>(null)
+  const [adjuntas, setAdjuntas] = useState<Adjunta[]>(adjuntasIniciales ?? [])
+  const [noSubio, setNoSubio] = useState<string | null>(null)
   const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null)
   const [cotizando, setCotizando] = useState(false)
   const [sinPrecio, setSinPrecio] = useState<string | null>(null)
@@ -185,7 +230,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
   }, [clientes, clienteId])
   const cliente = clientes?.find((c) => c.id === clienteId) ?? null
   // 06-nov · selector único: si se elige otro cliente arriba con el estudio abierto, se pasa a ese (lo que estaba abierto o adjunto era del otro)
-  useAlCambiarElCliente(clienteId, (id) => { if (!clientes?.some((c) => c.id === id)) return; setClienteId(id); setAbierta(null); setFoto(null) })
+  useAlCambiarElCliente(clienteId, (id) => { if (!clientes?.some((c) => c.id === id)) return; setClienteId(id); setAbierta(null); setAdjuntas([]); setNoSubio(null); setPapelera(null); setMovida(null); setFiltro((f) => (f === "papelera" ? "todo" : f)) })
 
   // el cliente que está a la vista: lo que llega tarde de otro cliente no entra a su galería
   const clienteVisto = useRef<string | null>(clienteId)
@@ -213,8 +258,11 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     return () => clearInterval(t)
   }, [enCurso, fetchImpl])
 
-  const pedido = useMemo(() => cuerpoDelPedido(clienteId, tipo, texto, { formato, modelo3d, calidad, modeloVideo, segundos, resolucion }, foto ? ("b64" in foto ? { b64: foto.b64 } : { pieza_id: foto.pieza.id }) : null),
-    [clienteId, tipo, texto, formato, modelo3d, calidad, modeloVideo, segundos, resolucion, foto])
+  const pedido = useMemo(() => cuerpoDelPedido(clienteId, tipo, texto, { formato, modelo3d, calidad, modeloVideo, segundos, resolucion }, adjuntas.map(comoAdjunta)),
+    [clienteId, tipo, texto, formato, modelo3d, calidad, modeloVideo, segundos, resolucion, adjuntas])
+  const foto = adjuntas.length ? enOrden(adjuntas)[0] : null
+  // con 2 o más imágenes la cotización cambia de modelo; solo en Imagen (Video y 3D usan la 1)
+  const nParaElPrecio = tipo === "imagen" && adjuntas.length >= 2 ? adjuntas.length : adjuntas.length ? 1 : 0
 
   // la cotización: cada vez que cambia algo que mueve el precio (no el texto, salvo que esté vacío)
   const textoListo = hayTexto(tipo, texto, !!foto)
@@ -232,7 +280,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     return () => { vivo = false; clearTimeout(t) }
     // el texto no cambia el precio: solo importa si ya hay texto suficiente
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clienteId, tipo, formato, modelo3d, calidad, modeloVideo, segundos, resolucion, !!foto, textoListo, fetchImpl])
+  }, [clienteId, tipo, formato, modelo3d, calidad, modeloVideo, segundos, resolucion, nParaElPrecio, textoListo, fetchImpl])
 
   const boton = estadoDelBoton({ clienteId, textoListo, listo: catalogo ? catalogo.listos[tipo] : null, cotizacion, cotizando, sinPrecio, creando })
   const puedeCrear = boton.habilitado
@@ -241,14 +289,49 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     if (!puedeCrear) return
     setCreando(true); setError(null)
     try {
-      const r = await fetchImpl("/api/estudio/crear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCreacion(pedido)) })
+      let cuerpo = pedido
+      if (Array.isArray(pedido.fotos)) {
+        // varias imágenes viajan juntas: cada subida se achica otra vez para que el pedido no pase del límite
+        const fotos = await Promise.all(enOrden(adjuntas).map(async (a) => ("pieza" in a ? comoAdjunta(a) : { numero: a.numero, b64: await reachicar(a.vista, LADO_EN_VARIAS) })))
+        cuerpo = { ...pedido, fotos }
+      }
+      const r = await fetchImpl("/api/estudio/crear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCreacion(cuerpo)) })
       const j = await leerJson<{ pieza: Pieza }>(r)
       if (!j.ok || !j.pieza) { setError(j.detalle ?? j.error ?? `No se pudo crear (${r.status}).`); return }
       // si Emilio cambió de cliente mientras se creaba, la pieza no entra en la galería del otro
       if (j.pieza.client_id !== clienteVisto.current) return
       setPiezas((ps) => piezasDelCliente(clienteVisto.current, ps, [j.pieza], false))
       setAbierta(j.pieza.id)
-    } catch { setError("La plataforma no responde.") } finally { setCreando(false) }
+    } catch (e) { setError(e instanceof Error && e.message.startsWith("No pude") ? e.message : "La plataforma no responde.") } finally { setCreando(false) }
+  }
+
+  // ── la ✕ y la papelera ──
+  const leerPapelera = useCallback(async (id: string) => {
+    const j = await fetchImpl(rutaDePapelera(id), { cache: "no-store" }).then(leerJson<{ piezas: Pieza[] }>).catch(() => null)
+    if (clienteVisto.current !== id) return
+    if (j?.ok) setPapelera(j.piezas.filter((p) => p.client_id === id)); else setErrorGaleria("No pude leer la papelera.")
+  }, [fetchImpl])
+  useEffect(() => { if (filtro === "papelera" && clienteId && !papeleraInicial) void leerPapelera(clienteId) }, [filtro, clienteId, leerPapelera, papeleraInicial])
+  async function quitar(p: Pieza) {
+    if (!clienteId || !sePuedeQuitar(p)) return
+    setErrorGaleria(null)
+    const r = await fetchImpl("/api/estudio/mover-a-papelera", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: clienteId, id: p.id }) }).then(leerJson<{ pieza: Pieza }>).catch(() => null)
+    if (!r?.ok || !r.pieza) { setErrorGaleria(r?.detalle ?? "No se pudo quitar: la plataforma no responde."); return }
+    setPiezas((ps) => ps.filter((x) => x.id !== p.id))
+    setPapelera((ps) => (ps ? [r.pieza, ...ps.filter((x) => x.id !== p.id)] : ps))
+    setMovida(r.pieza)
+  }
+  async function devolver(p: Pieza) {
+    if (!clienteId) return
+    setRecuperando(p.id); setErrorGaleria(null)
+    try {
+      const r = await fetchImpl("/api/estudio/recuperar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: clienteId, id: p.id }) }).then(leerJson<{ pieza: Pieza }>).catch(() => null)
+      if (!r?.ok || !r.pieza) { setErrorGaleria(r?.detalle ?? "No se pudo recuperar: la plataforma no responde."); return }
+      if (r.pieza.client_id !== clienteVisto.current) return
+      setPapelera((ps) => (ps ? ps.filter((x) => x.id !== p.id) : ps))
+      setPiezas((ps) => piezasDelCliente(clienteVisto.current, ps, [r.pieza], false).sort((a, b) => b.creado_en.localeCompare(a.creado_en)))
+      setMovida((m) => (m?.id === p.id ? null : m))
+    } finally { setRecuperando(null) }
   }
 
   const catAnimar = catalogo?.animar
@@ -270,16 +353,30 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     } catch { setErrorAnimar("La plataforma no responde.") } finally { setEnviando(false) }
   }
 
-  async function alSubir(f: File | undefined) {
-    if (!f) return
-    try { setFoto(await fotoAchicada(f)) } catch (e) { setError(e instanceof Error ? e.message : "No pude leer esa imagen.") }
+  async function alSubir(lista: FileList | null) {
+    const archivos = lista ? Array.from(lista) : []
+    if (!archivos.length) return
+    const rev = revisarArchivos(archivos, MAXIMO_DE_IMAGENES - adjuntas.length)
+    const leidas: Foto[] = []
+    const fallidas: string[] = []
+    for (const f of rev.suben) { try { leidas.push(await fotoAchicada(f)) } catch { fallidas.push(f.name) } }
+    // el cupo ya se revisó arriba: todas las leídas caben
+    setAdjuntas(agregarImagenes<Adjunta>(adjuntas, leidas).lista)
+    setNoSubio(lineaDeLoQueNoSubio({ formato: rev.formato, sinCupo: rev.sinCupo, fallidas }))
+  }
+  function usarDeLaGaleria(p: Pieza) {
+    if (adjuntas.length >= MAXIMO_DE_IMAGENES) { setNoSubio(`Ya hay ${MAXIMO_DE_IMAGENES} imágenes: quita una para sumar esta.`); return }
+    if (adjuntas.some((a) => "pieza" in a && a.pieza.id === p.id)) { setAbierta(null); return }
+    setAdjuntas((actuales) => agregarImagenes<Adjunta>(actuales, [{ pieza: p }]).lista)
+    setNoSubio(null); setTipo("imagen"); setAbierta(null)
   }
 
   const pieza = abierta ? piezas.find((p) => p.id === abierta) ?? null : null
-  const visibles = filtro === "todo" ? piezas : piezas.filter((p) => p.tipo === filtro)
+  const visibles = filtro === "todo" ? piezas : filtro === "papelera" ? papelera ?? [] : piezas.filter((p) => p.tipo === filtro)
   const formatos = tipo === "imagen" ? catalogo?.imagen.formatos ?? ["1:1", "9:16", "16:9"] : catalogo?.video.formatos ?? ["9:16", "16:9", "1:1"]
   const nombreFormato = (f: string) => ({ "1:1": "Cuadrado 1:1", "9:16": "Vertical 9:16", "16:9": "Horizontal 16:9" }[f] ?? f)
-  const vistaFoto = foto ? ("vista" in foto ? foto.vista : foto.pieza.archivo_url) : null
+  const unaSola = avisoDeUnaSola(tipo, adjuntas)
+  const referencias = tipo === "imagen" && adjuntas.length >= 2 ? lineaDeReferencias(cotizacion) : null
   const enProceso = pieza?.estado === "creando" ? pieza : null
 
   return (
@@ -309,20 +406,34 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
             </div>
             <div>
               <div className="es-eti">{tipo === "3d" && foto ? "Qué quieres (opcional)" : "Qué quieres crear"}</div>
-              <textarea data-texto value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} maxLength={4000}
-                placeholder={tipo === "video" ? "Describe la toma: qué pasa, la cámara, la luz…" : tipo === "3d" ? "Describe un objeto: forma, material, color…" : "Describe la escena: qué se ve, la luz, el ambiente…"}
-                className="es-caja w-full resize-none p-3 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 focus:border-[#e8731a]/60 focus:outline-none" />
-              {tipo === "3d" && !foto && /\b(logo|logotipo|marca)\b/i.test(texto) && <p className="mt-1 text-[11.5px] text-amber-300/90">Sin imagen de partida, el modelo inventa el logo. Para la marca real, sube una foto del producto.</p>}
-            </div>
-            <div>
-              <div className="es-eti">Imagen de partida (opcional)</div>
-              <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/20 p-2.5 text-[13px] text-zinc-400">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {vistaFoto ? <img src={vistaFoto} alt="" className="h-12 w-12 rounded-lg object-cover" /> : <span className="h-12 w-12 rounded-lg border border-white/10 bg-[#222]" />}
-                <div className="min-w-0 flex-1">{foto ? "Se parte de esta imagen" : tipo === "3d" ? "Ninguna: primero se crea la imagen y luego se convierte en 3D" : "Sube una foto o elige una imagen de la galería"}</div>
-                {foto ? <button type="button" className="es-chip" onClick={() => setFoto(null)}>Quitar</button> : <button type="button" className="es-chip" onClick={() => archivo.current?.click()}>Subir</button>}
-                <input ref={archivo} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { void alSubir(e.target.files?.[0]); e.target.value = "" }} />
+              {/* boceto aprobado 09-nov: las imágenes van sobre la caja, numeradas y cada una con su ✕; el mismo «Subir» acepta varias */}
+              <div data-caja-pedido className="es-caja flex flex-col focus-within:border-linea-oro">
+                {adjuntas.length > 0 && (
+                  <div data-adjuntas className="flex flex-wrap gap-2 px-3 pt-3">
+                    {enOrden(adjuntas).map((a) => (
+                      <div key={a.numero} data-adjunta={a.numero} className="relative h-[72px] w-[72px] overflow-hidden rounded-control border border-linea bg-grafito-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {vistaDe(a) && <img src={vistaDe(a)!} alt={`Imagen ${a.numero}`} className="h-full w-full object-cover" />}
+                        <span aria-hidden className="absolute bottom-1 left-1 rounded-control bg-velo px-1 text-rotulo leading-[15px] text-hueso">{a.numero}</span>
+                        <button type="button" data-quitar-adjunta={a.numero} aria-label={`Quitar la imagen ${a.numero}`} onClick={() => { setAdjuntas((x) => quitarImagen(x, a.numero)); setNoSubio(null) }}
+                          className="absolute right-0.5 top-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-linea bg-velo text-rotulo leading-none text-hueso hover:bg-carbon">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <textarea data-texto value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} maxLength={4000}
+                  placeholder={tipo === "video" ? "Describe la toma: qué pasa, la cámara, la luz…" : tipo === "3d" ? "Describe un objeto: forma, material, color…" : adjuntas.length >= 2 ? "Nombra las imágenes por su número: «el personaje de la imagen 2…»" : "Describe la escena: qué se ve, la luz, el ambiente…"}
+                  className="w-full resize-none bg-transparent p-3 text-cuerpo leading-relaxed text-hueso placeholder:text-apagado focus:outline-none" />
+                <div className="mx-3 flex items-center gap-3 border-t border-linea py-2.5 text-dato text-gris">
+                  <button type="button" data-subir className="es-chip" disabled={adjuntas.length >= MAXIMO_DE_IMAGENES} onClick={() => archivo.current?.click()}>+ Subir</button>
+                  <span data-cupo>{adjuntas.length ? `${adjuntas.length} de ${MAXIMO_DE_IMAGENES} imágenes` : `Hasta ${MAXIMO_DE_IMAGENES} imágenes`} · png, jpg o webp</span>
+                  <input ref={archivo} type="file" multiple accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { void alSubir(e.target.files); e.target.value = "" }} />
+                </div>
               </div>
+              {tipo === "3d" && !adjuntas.length && <p data-sin-imagen-3d className="mt-1 text-rotulo text-apagado">Sin imagen, primero se crea una y luego se convierte en 3D.</p>}
+              {noSubio && <p data-no-subio role="status" className="mt-1 text-rotulo text-oro">{noSubio}</p>}
+              {unaSola && <p data-una-sola className="mt-1 text-rotulo text-oro">{unaSola}</p>}
+              {tipo === "3d" && !foto && /\b(logo|logotipo|marca)\b/i.test(texto) && <p className="mt-1 text-[11.5px] text-amber-300/90">Sin imagen de partida, el modelo inventa el logo. Para la marca real, sube una foto del producto.</p>}{/* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */}
             </div>
             {tipo === "3d" && (
               <div>
@@ -358,14 +469,15 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
               </div>
             )}
             <button type="button" data-crear onClick={() => void crear()} disabled={!puedeCrear}
-              className={`mt-auto flex items-center justify-between rounded-control px-4 py-3.5 text-boton font-medio transition-opacity disabled:cursor-not-allowed ${claseDelCentrado(boton.costo)}`}
+              className={`mt-auto flex items-center rounded-control px-4 py-3.5 text-boton font-medio transition-opacity disabled:cursor-not-allowed ${claseDelCentrado(boton.costo)}`}
               style={{ background: puedeCrear ? AMBAR : "#3a2a1a", color: puedeCrear ? "#1a0d02" : "#f0a04b" }}>
               <span>{creando ? "Creando…" : "Crear"}</span>
-              {/* en escritorio «Crear» va centrado: el costo o el aviso queda a la derecha sin empujarlo, y la pista «escribe qué quieres» no se muestra */}
-              <span data-costo className={claseDelCosto(boton.costo)}>
-                {boton.costo}
-              </span>
+              {/* decisión B (09-nov 23:50Z): «Crear» siempre centrado; dentro solo el precio, a la derecha sin empujarlo */}
+              {!esAvisoDelBoton(boton.costo) && <span data-costo className={claseDelCosto(boton.costo)}>{boton.costo}</span>}
             </button>
+            {/* el aviso va en una línea debajo, en 13, donde va el desglose del costo; nunca dentro del botón */}
+            {esAvisoDelBoton(boton.costo) && <p data-aviso-crear className={claseDelAviso(boton.costo)}>{boton.costo}</p>}
+            {referencias && <p data-referencias className="-mt-2 text-right text-rotulo text-apagado">{referencias}</p>}
             {cotizacion && cotizacion.partes.length > 1 && <p data-desglose className="-mt-2 text-right text-[11.5px] text-zinc-500">{cotizacion.partes.map((x) => `${x.que} ${dolares(x.usd)}`).join(" + ")}</p>}
             {error && <p role="alert" className="text-[12.5px] text-red-300">{error}</p>}
             <p className="text-[11.5px] leading-snug text-zinc-500">El costo se ve antes de crear y el real se anota en el libro de costos de {cliente?.nombre ?? "este cliente"}.</p>
@@ -399,7 +511,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                 <div className="flex flex-wrap items-center gap-2">
                   {pieza.estado === "lista" && clipsDe(pieza).length > 0 && [["GLB", clipsDe(pieza)[clip]?.glb], ["FBX", clipsDe(pieza)[clip]?.fbx]].map(([que, url]) => url && <a key={que} data-bajar={que} href={url} download target="_blank" rel="noreferrer" className={que === "GLB" ? "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold" : "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]"} style={que === "GLB" ? { background: AMBAR, color: "#1a0d02" } : undefined}>Descargar {que}</a>)}
                   {pieza.archivo_url && pieza.estado === "lista" && clipsDe(pieza).length === 0 && <a data-descargar href={pieza.archivo_url} download target="_blank" rel="noreferrer" className={animando ? "rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" : "rounded-lg px-3.5 py-2 text-[13.5px] font-semibold"} style={animando ? undefined : { background: AMBAR, color: "#1a0d02" }}>Descargar</a>}
-                  {pieza.tipo === "imagen" && pieza.estado === "lista" && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setFoto({ pieza }); setAbierta(null) }}>Usar como imagen de partida</button>}
+                  {pieza.tipo === "imagen" && pieza.estado === "lista" && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => usarDeLaGaleria(pieza)}>Usar como imagen de partida</button>}{/* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */}
                   {esAnimable(pieza) && puedeAnimar && <button type="button" data-animar aria-expanded={animando} className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => setAnimando(!animando)}>Animar</button>}
                   {pieza.modelo !== MODELO_DE_ANIMACION && <button type="button" className="rounded-lg border border-white/15 px-3.5 py-2 text-[13.5px]" onClick={() => { setTipo(pieza.tipo); setTexto(pieza.prompt); setAbierta(null) }}>Crear otra versión</button>}
                   <span className="ml-auto text-[12.5px] text-zinc-500">{pieza.estado === "creando" ? `Costará ≈ ${dolares(pieza.costo_estimado_usd)}` : <>Costó <b className="text-zinc-200">{dolares(pieza.costo_usd)}</b> · anotado en el libro</>}</span>
@@ -444,14 +556,22 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                   <span className="text-[12.5px] text-zinc-500">Lo creado para {cliente?.nombre ?? "este cliente"}</span>
                   <div className="ml-auto flex gap-1.5">
                     {(["todo", ...TIPOS] as const).map((f) => <button key={f} type="button" className="es-chip" aria-pressed={filtro === f} onClick={() => setFiltro(f)}>{f === "todo" ? "Todo" : NOMBRE_DEL_TIPO[f]}</button>)}
+                    <button type="button" data-ver-papelera className="es-chip" aria-pressed={filtro === "papelera"} onClick={() => setFiltro("papelera")}>Papelera</button>
                   </div>
                 </div>
+                {movida && filtro !== "papelera" && (
+                  <p data-movida role="status" className="-mt-1 text-dato text-gris">Se movió a la papelera por 30 días. <button type="button" data-deshacer className="text-ambar underline-offset-2 hover:underline" onClick={() => void devolver(movida)}>Deshacer</button></p>
+                )}
+                {filtro === "papelera" && <p className="-mt-1 text-dato text-apagado">Lo que quitaste de la galería. Se recupera durante 30 días; después se borra solo, con sus archivos.</p>}
+                {errorGaleria && <p role="alert" className="-mt-1 text-dato text-alarma">{errorGaleria}</p>}
                 {visibles.length ? (
                   <div data-galeria className="grid grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-3 sm:gap-3 xl:grid-cols-4">
-                    {visibles.map((p) => <Miniatura key={p.id} p={p} alAbrir={() => setAbierta(p.id)} />)}
+                    {visibles.map((p) => filtro === "papelera"
+                      ? <Miniatura key={p.id} p={p} alAbrir={() => undefined} enPapelera={{ dias: diasQueQuedan(p.en_papelera_desde, Date.now()), alRecuperar: () => void devolver(p), recuperando: recuperando === p.id }} />
+                      : <Miniatura key={p.id} p={p} alAbrir={() => setAbierta(p.id)} alQuitar={() => void quitar(p)} />)}
                   </div>
                 ) : (
-                  <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-white/10 p-8 text-center text-[13px] text-zinc-500">Todavía no hay nada creado para {cliente?.nombre ?? "este cliente"}. Lo que crees aparece aquí.</div>
+                  <div /* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */ className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-white/10 p-8 text-center text-[13px] text-zinc-500">{filtro === "papelera" ? (papelera ? "La papelera está vacía." : "Leyendo la papelera…") : `Todavía no hay nada creado para ${cliente?.nombre ?? "este cliente"}. Lo que crees aparece aquí.`}</div>
                 )}
               </>
             )}
