@@ -126,7 +126,7 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                     <Titulito>De dónde sale</Titulito>
                     <p className="text-[12.5px] text-zinc-200">La mesa del brief{brief.quienes_escribieron?.length ? <> · {brief.quienes_escribieron.map((q, i) => <span key={q} data-escribio={q} className="font-mono text-[11.5px] text-amber-100">{i ? " · " : ""}{q}</span>)}</> : <span className="text-zinc-500"> · sin registro de qué empleado lo escribió</span>}</p>
                     <p className="text-[11.5px] text-zinc-500">a partir del plan, el manual y lo que trajo el portero{brief.creada_en ? ` · ${diaYHora(brief.creada_en)}` : ""}</p>
-                    {brief.motivo && <p className="mt-1 text-[11.5px] text-zinc-400">Por qué esta versión: {sinCodigos(brief.motivo)}</p>}
+                    {brief.motivo && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[11.5px] text-zinc-400">Por qué esta versión: {sinCodigos(brief.motivo)}</p>}
                   </section>
                   <section data-barra="sigue" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
                     <Titulito>Lo que sigue</Titulito>

@@ -18,7 +18,7 @@ export function TextoSinCodigos({ texto, fotos = {}, contexto = {}, className }:
         return (
           <span key={i} data-fotos-citadas className="mx-1 inline-flex gap-1 align-middle">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {conDireccion.map((u) => <img key={u} data-miniatura src={miniaturaDe(u, 120)} alt="foto propia del cliente" loading="lazy" className="h-9 w-9 rounded object-cover ring-1 ring-white/15" />)}
+            {conDireccion.map((u) => <img key={u} data-miniatura src={miniaturaDe(u, 120)} alt="foto propia del cliente" loading="lazy" className="h-9 w-9 rounded-control border border-linea object-cover" />)}
           </span>
         )
       })}

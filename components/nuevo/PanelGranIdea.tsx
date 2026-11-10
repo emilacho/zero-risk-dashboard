@@ -171,8 +171,8 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                 <article className="min-w-0 space-y-3">
                   <div className={`rounded-xl border p-4 ${pendiente ? "border-amber-400/40 bg-amber-400/[0.07]" : "border-white/10 bg-white/[0.02]"}`}>
                     <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">La gran idea</p>
-                    <h3 className="mt-1 text-[20px] font-semibold leading-snug text-zinc-50">{sinCodigos(d.gran_idea?.nombre ?? d.titulo)}</h3>
-                    {d.gran_idea?.frase && <p className="mt-1 text-[14px] italic text-amber-100/90">«{sinCodigos(d.gran_idea.frase)}»</p>}
+                    <h3 /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[20px] font-semibold leading-snug text-zinc-50">{sinCodigos(d.gran_idea?.nombre ?? d.titulo)}</h3>
+                    {d.gran_idea?.frase && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[14px] italic text-amber-100/90">«{sinCodigos(d.gran_idea.frase)}»</p>}
                     {pendiente && (
                       <div data-bloque="decision" className="mt-3">
                         {d.sin_concepto && <p className="mb-2 text-[12px] text-rose-200">No se puede decidir hasta que la cadena complete la tarjeta: {d.sin_concepto}.</p>}
@@ -196,7 +196,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                         {d.capitulos.map((c) => (
                           <li key={c.clave} className="rounded-lg border border-white/10 bg-black/20 p-2.5">
                             <p className="font-medium text-zinc-100">{c.nombre}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
-                            {c.que_cuenta && <p className="mt-0.5 text-zinc-300">{sinCodigos(c.que_cuenta)}</p>}
+                            {c.que_cuenta && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-0.5 text-zinc-300">{sinCodigos(c.que_cuenta)}</p>}
                             {c.series.length > 0 && <ul className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{x.nombre}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
                           </li>
                         ))}

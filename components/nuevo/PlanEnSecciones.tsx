@@ -87,7 +87,7 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
             {doc.secciones.map((s, i) => (
               <li key={s.id} className="shrink-0 md:shrink">
                 <button type="button" data-ir={s.id} onClick={() => ir(s.id)} className={`w-full whitespace-nowrap rounded-md px-2 py-1 text-left text-[12px] transition md:whitespace-normal ${abiertas.has(s.id) ? "bg-amber-400/10 text-amber-100" : "text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-100"}`}>
-                  <span className="mr-1.5 text-zinc-600">{i + 1}.</span>{sinCodigos(s.titulo)}
+                  <span /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mr-1.5 text-zinc-600">{i + 1}.</span>{sinCodigos(s.titulo)}
                 </button>
               </li>
             ))}
