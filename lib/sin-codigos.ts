@@ -8,8 +8,9 @@
  *  - «El brief (brf-28de888eb3f2 v2) nombra el insight»                              → «El brief nombra el insight»
  *  - «El aporte A3 ya contiene el brief v3 completo»                                 → «El aporte de campaign-brief-agent ya contiene el brief completo»
  *  - «**A1 usé:** material del portero»                                              → «**Usé el aporte de portero:** material del portero»
- *  - «(prompt de A12)» · «propuesto en A17» · «A1–A3»                                → «(prompt de <quien>)» · «propuesto en el aporte de <quien>» · «los aportes de <quienes>»
+ *  - «(prompt de A12)» · «(propuesto en A17 …)» · «A1–A3»                           → «(prompt de <quien>)» · «(propuesto en el aporte de <quien> …)» · «los aportes de <quienes>»
  *    (SOLO los aportes de la mesa de ese encargo: otro «A4» es del cliente y se queda · GO Lenovo 10-nov 14:10Z: «A1», «S1» también se ocultan)
+ *    (un «A<n>» suelto SOLO dentro de un paréntesis: «Folleto en A4», «A4 es el formato», «Llega por A2» se quedan · CC6 #324 🟡)
  *  - «la serie S1»                                                                   → «la serie «La leyenda se confirma»» (solo las series del concepto)
  *  - «la idea C1-I08 trae «80 %»»                                                    → «la idea 8 del capítulo 1 trae «80 %»» (o su título, si se sabe)
  *  - «caldo hirviendo (`foto:6275c0ba`)»                                             → «caldo hirviendo» + la miniatura de esa foto (o nada)
@@ -105,20 +106,21 @@ function aportesEnPalabras(t: string, aportes: Readonly<Record<string, string>> 
     .replace(APORTE_SUELTO, (m, n: string, i: number, s: string) => {
       if (!conocido(n)) return m
       const antes = s.slice(0, i)
-      // SOLO donde lo escribe el sistema: al empezar una frase, tras «(» o tras una preposición. «papel A4», «modelo A1» (un sustantivo delante) son del
-      // cliente y se quedan. Límite declarado: un «de A4» del cliente en un documento cuyo encargo tuvo un aporte 4 se cambiaría
-      // tras «(» o tras «/» dentro de una cita entre paréntesis («(A16/A22)»)
-      const empieza = alEmpezar(antes) || /\([ \t]*$/.test(antes) || /\([^()\n]*\/[ \t]*$/.test(antes)
-      const preposicion = /(?:^|[^\p{L}])(de|en|con|sin|según|por|desde|a)[ \t]+$/iu.exec(antes)?.[1]?.toLowerCase()
-      if (!empieza && !preposicion) return m
-      // «prompt de A12» → «prompt de design-image-prompt-engineer»; «A5 miró» → «competitive-intelligence-agent miró»; «propuesto en A17» → «propuesto en el aporte de …»
-      if (de(n) && (preposicion === "de" || !preposicion)) return de(n)!
-      const frase = elAporte(n, de(n)!)
-      return alEmpezar(antes) ? conMayuscula(frase) : frase
+      // SOLO DENTRO DE UN PARÉNTESIS, que es donde el sistema cita (10-nov · CC6 #324 🟡: al empezar una frase o tras cualquier preposición cambiaba
+      // texto del cliente: «Folleto impreso en A4», «A4 es el formato», «Llega por A2 express»). Y dentro del paréntesis, solo pegado a «(», a «/» o a
+      // «,» de una lista de citas, o tras «de»/«en»: «(A3, …)», «(A16/A22)», «(prompt de A12)», «(propuesto en A17 …)». «(formato A4)» se queda.
+      // Límite declarado: un «(… de A4)» o «(… en A4)» del cliente, en un documento cuyo encargo tuvo un aporte 4, se cambiaría
+      const parentesis = /\([^()\n]*$/.exec(antes)
+      if (!parentesis) return m
+      const pegado = /(?:\(|\/|,)[ \t]*$/.test(antes)
+      const preposicion = /(?:^|[^\p{L}])(de|en)[ \t]+$/iu.exec(antes)?.[1]?.toLowerCase()
+      if (!pegado && !preposicion) return m
+      // «(prompt de A12)» → «(prompt de design-image-prompt-engineer)»; «(A3, …)» → «(campaign-brief-agent, …)»; «(propuesto en A17» → «(propuesto en el aporte de …»
+      if (de(n) && preposicion !== "en") return de(n)!
+      return elAporte(n, de(n)!)
     })
-    // «de el aporte 4» → «del aporte 4»; «a el aporte» → «al aporte» (lo que deja el reemplazo tras una preposición)
+    // «(… de el aporte 4)» → «(… del aporte 4)» (lo que deja el reemplazo de un aporte del sistema tras «de»)
     .replace(/\b([Dd])e el aporte\b/g, "$1el aporte")
-    .replace(/(^|[^\p{L}])([Aa]) el aporte\b/gu, "$1$2l aporte")
     // «(tiktok-strategist/tiktok-strategist)» → «(tiktok-strategist)»; y si el nombre ya va justo antes, el paréntesis sobra:
     // «El aporte de tiktok-strategist (tiktok-strategist)» → «El aporte de tiktok-strategist»
     .replace(/\(([\p{L}\p{N}_-]+)(?:\/\1)+\)/gu, "($1)")

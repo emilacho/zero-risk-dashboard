@@ -24,6 +24,8 @@ const encargos = APORTES.encargos as Record<string, Array<{ n: number; de: strin
 const aportesDe = (encargo: string) => aportesPorNumero(encargos[encargo] ?? [])
 /** un «A<n>» que el sistema escribe: como palabra entera */
 const codigoDeAporte = /(?<![\p{L}\p{N}_-])A\d+(?![\p{L}\p{N}_-])/u
+/** las formas en que el SISTEMA cita un aporte: dentro de un paréntesis, la cita «A1 usé:», «aporte A3» */
+const citaConCodigo = /\([^()\n]*(?<![\p{L}\p{N}_-])A\d+(?![\p{L}\p{N}_-])[^()\n]*\)|(?<![\p{L}\p{N}_-])A\d+\s+(?:no\s+)?(?:usé|descarté)|\baportes?\s+(?:de\s+)?A\d+\b/u
 
 describe("1 · el brief real de Náufrago: los aportes de su mesa en palabras", () => {
   const v3 = BRIEF.briefs.find((b) => b.version === 3)!
@@ -56,21 +58,21 @@ describe("1 · el brief real de Náufrago: los aportes de su mesa en palabras", 
   it("el panel del brief entero (secciones, devolución y motivo, cerrado y abierto) usa los aportes de cada versión", async () => {
     const datos = JSON.parse(JSON.stringify(BRIEF)) as typeof BRIEF & { briefs: Array<Record<string, unknown>> }
     for (const b of datos.briefs) b.aportes = aportesDe(String(b.encargo_id))
-    datos.briefs[0].devolucion_texto = "Lo devuelvo. Falta la fuente de A3."
+    datos.briefs[0].devolucion_texto = "Lo devuelvo (falta la fuente de A3)."
     datos.briefs[0].motivo = "rehecho con el aporte A2"
     const r = render(createElement(PanelBrief, { onCerrar: () => {}, datosIniciales: datos as never, fetchImpl: (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch }))
     await new Promise((x) => setTimeout(x, 30))
     const abrir = () => { for (let k = 0; k < 3; k++) for (const b of r.container.querySelectorAll<HTMLButtonElement>("[data-bloque][data-abierta='false'] > button, [data-seccion][data-abierta='false'] > button")) fireEvent.click(b) }
     expect(r.container.textContent).toContain("rehecho con el aporte de portero")
-    expect(r.container.textContent).toContain("Falta la fuente de campaign-brief-agent.")
+    expect(r.container.textContent).toContain("(falta la fuente de campaign-brief-agent)")
     abrir()
     expect(r.container.querySelectorAll("[data-seccion][data-abierta='true']").length).toBeGreaterThan(3)
     expect(r.container.textContent).toContain("Usé el aporte de oficina-creativa: material del portero")
-    expect(r.container.textContent).not.toMatch(codigoDeAporte)
+    expect(r.container.textContent).not.toMatch(citaConCodigo)
   })
-  it("un aporte del sistema (sin nombre) tras «de» o «a» se contrae: «del aporte 4», «al aporte 4»", () => {
+  it("un aporte del sistema (sin nombre) tras «de» dentro de un paréntesis se contrae: «del aporte 4»", () => {
     const a = { "4": "" }
-    expect(sinCodigos("el resumen de A4 y lo sumé a A4", { aportes: a })).toBe("el resumen del aporte 4 y lo sumé al aporte 4")
+    expect(sinCodigos("(el resumen de A4)", { aportes: a })).toBe("(el resumen del aporte 4)")
   })
   it("sin la lista de la mesa no se toca nada (no se adivina)", () => {
     expect(sinCodigos("El aporte A3 ya contiene", {})).toBe("El aporte A3 ya contiene")
@@ -79,18 +81,19 @@ describe("1 · el brief real de Náufrago: los aportes de su mesa en palabras", 
 
 describe("2 · la gran idea real: los aportes de la sala y las series", () => {
   const sala = aportesDe(APORTES.concepto)
-  it("«(prompt de A12)», «propuesto en A17», «curaduría de A21», «(A16/A22)» dicen de quién", () => {
+  it("dentro de un paréntesis dicen de quién: «(prompt de A12)», «(propuesto en A17 …)», «(A16/A22)»; fuera, «curaduría de A21», se queda", () => {
     const d = GRAN_IDEA.detalle as unknown as Record<string, string> & { capitulos: Array<{ como_se_ve: string }> }
     expect(sinCodigos(d.capitulos[0].como_se_ve, { aportes: sala })).toContain("(prompt de design-image-prompt-engineer)")
     const c = sinCodigos(d.caminos_descartados, { aportes: sala })
     expect(c).toContain("propuesto en el aporte de video-editor como Camino 2")
-    expect(c).not.toMatch(codigoDeAporte)
+    expect(c).not.toMatch(citaConCodigo)
+    expect(c).toContain("curaduría de A21") // fuera de un paréntesis la forma no es del sistema: se queda (CC6 #324 🟡)
     expect(c).toContain("El aporte de tiktok-strategist se trasladó") // «(A16/A22)», los dos de tiktok-strategist: el nombre ya está, no se repite
   })
   it("en pantalla, con los aportes que trae el lector, ningún «A<n>» de la sala queda a la vista", () => {
     const { container } = render(createElement(PanelGranIdea, { onCerrar: () => {}, datosIniciales: { ...GRAN_IDEA, aportes: sala } as never, fetchImpl: (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch }))
     for (const b of container.querySelectorAll<HTMLButtonElement>("[data-bloque][data-abierta='false'] > button")) b.click()
-    expect(container.textContent ?? "").not.toMatch(/(?:prompt de|propuesto en|curaduría de) A\d+/)
+    expect(container.textContent ?? "").not.toMatch(/(?:prompt de|propuesto en) A\d+/)
   })
   it("las series: en Náufrago «S1» nombra una serie distinta en cada capítulo → es ambiguo y NO se traduce", () => {
     const series = seriesSinRepetir((GRAN_IDEA.detalle as unknown as { capitulos: Array<{ series: Array<{ id: string; nombre: string }> }> }).capitulos)
@@ -129,8 +132,22 @@ describe("3 · segundo cliente (industrial B2B): sus «A4», «A1» y «S» se q
   it("un «A12» que la mesa no tuvo se queda aunque esté en posición de cita", () => {
     expect(sinCodigos("(A12, la ficha técnica)", { aportes: mesa })).toBe("(A12, la ficha técnica)")
   })
-  it("límite declarado: un «de A4» del cliente en un documento cuyo encargo tuvo un aporte 4 se cambia", () => {
-    expect(sinCodigos("hojas de A4", { aportes: mesa })).toBe("hojas de content-creator")
+  it("la sonda de CC6 (#324 🟡): con la mesa llena, un «A<n>» fuera de paréntesis (al empezar, tras una preposición) se queda", () => {
+    for (const t of ["Folleto impreso en A4 a color.", "Disponible con A3 y A4.", "A4 es el formato del catálogo.", "Llega por A2 express.", "Tamaño: A4.", "Catálogo (formato A4) y guía (tamaño A5).", "(guía con A4)", "(enviado por A2)", "(a A3 y A4)"]) expect(sinCodigos(t, { aportes: mesa })).toBe(t)
+  })
+  it("un paréntesis que quedó abierto en una línea anterior no cuenta: «de A4» en la línea siguiente se queda", () => {
+    const t = "Ver anexo (sin cerrar\nhojas de A4 en la caja."
+    expect(sinCodigos(t, { aportes: mesa })).toBe(t)
+  })
+  it("en una lista de citas tras una coma también dice de quién: «(ver material, A3)»", () => {
+    expect(sinCodigos("(ver material, A3)", { aportes: mesa })).toBe("(ver material, market-research-analyst)")
+  })
+  it("la cita a media frase va en minúscula, también tras dos puntos y en un documento de varias líneas", () => {
+    expect(sinCodigos("Primera línea.\nLo tomé; A2 usé: la lista", { aportes: mesa })).toBe("Primera línea.\nLo tomé; usé el aporte de content-creator: la lista")
+    expect(sinCodigos("Nota: A2 usé: la lista", { aportes: mesa })).toBe("Nota: usé el aporte de content-creator: la lista")
+  })
+  it("límite declarado: un «(… de A4)» o «(… en A4)» del cliente, en un documento cuyo encargo tuvo un aporte 4, se cambia", () => {
+    expect(sinCodigos("(hojas de A4)", { aportes: mesa })).toBe("(hojas de content-creator)")
   })
 })
 
