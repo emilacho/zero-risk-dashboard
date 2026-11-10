@@ -30,10 +30,10 @@ describe("el número de la antena", () => {
 describe("la lista al tocarla, en estilo base", () => {
   it("🔴 09-nov · boceto aprobado: ALERTAS y el número en una sola línea (recuadro chico de borde rojo), la ✕ a la derecha; sin «Dept. Marketing» ni el recuadro grande; cada aviso con su punto, cuándo y qué abre", () => {
     const h = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [A("a", "envivo", 1), A("b", "observabilidad", 48), A("c", null, 5)], onAbrir: () => {}, onCerrar: () => {}, ahora: AHORA }))
-    expect(h).toMatch(/data-estilo="base"[\s\S]*<header[^>]*><div class="col-start-2 flex items-center justify-center gap-3"><h2 [^>]*text-oro">Alertas<\/h2><span data-numero="true" aria-label="3 avisos abiertos" class="[^"]*border-linea-alarma text-alarma"[^>]*>3<\/span><\/div><button[^>]*data-cerrar/)
+    expect(h).toMatch(/data-estilo="base"[\s\S]*<header[^>]*><div class="col-start-2 flex items-center justify-center gap-3"><h2 [^>]*text-oro">Alertas<\/h2><span data-numero="true" aria-label="3 avisos nuevos" class="[^"]*border-linea-alarma text-alarma"[^>]*>3<\/span><\/div><button[^>]*data-cerrar/)
     expect(h).not.toContain("Dept."); expect(h).not.toContain("Marketing"); expect(h).not.toContain("data-recuadro-alertas"); expect(h).not.toContain("Avisos abiertos<")
     expect(h).toMatch(/max-w-\[min\(720px,100%\)\] sm:w-auto sm:min-w-\[540px\]/) // CC6 🟡 525aaa1: el panel del tamaño de la imagen aprobada
-    expect(h).toMatch(/<span class="block text-titulo text-hueso">[^<]+<\/span><span data-cuando="true" class="mt-1 block text-cuerpo text-gris">/) // el aviso es lo principal: 20 hueso y debajo 15 gris
+    expect(h).toMatch(/<span class="block text-titulo text-hueso">(?:<span[^>]*>[^<]+<\/span>)+<\/span><span data-cuando="true" class="mt-1 block text-cuerpo text-gris">/) // el aviso es lo principal: 20 hueso y debajo 15 gris
     expect(h).toMatch(/grid-cols-\[20px_1fr_auto\] items-center gap-3 py-5/); expect(h).toContain('class="text-titulo text-gris">›</span>') // con aire
     expect(h).toMatch(/<h2 [^>]*text-cuerpo[^>]*>Alertas<\/h2>/) // el título queda más chico que el aviso
     expect(h).toContain(">Hace una hora · abre En vivo<"); expect(h).toContain(">Hace 2 días · abre Observabilidad<")
@@ -45,12 +45,12 @@ describe("la lista al tocarla, en estilo base", () => {
   })
   it("🔴 sin avisos: «Todo en orden», número sin rojo", () => {
     const h = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [], onAbrir: () => {}, onCerrar: () => {} }))
-    expect(h).toContain(">Todo en orden<"); expect(h).not.toContain("text-alarma"); expect(h).not.toContain("border-linea-alarma"); expect(h).toMatch(/data-numero="true" aria-label="0 avisos abiertos"[^>]*>0</)
+    expect(h).toContain(">Todo en orden<"); expect(h).not.toContain("text-alarma"); expect(h).not.toContain("border-linea-alarma"); expect(h).toMatch(/data-numero="true" aria-label="0 avisos nuevos"[^>]*>0</)
     expect(renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [A("a", "envivo", 1)], onAbrir: () => {}, onCerrar: () => {}, ahora: AHORA }))).not.toContain("Todo en orden")
   })
   it("🔴 se abre encima con su propio panel y sigues en Dept. Marketing (no en el marco viejo del pizarrón); Esc lo cierra", () => {
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
-    expect(av).toContain('{panelTablero?.tipo === "antena" && <PanelDeLasAlertas alertas={datos?.alertas} onCerrar={() => setPanelTablero(null)} ') // menor CC6 #296: la ✕ y Esc cierran de verdad
+    expect(av).toContain('{panelTablero?.tipo === "antena" && <PanelDeLasAlertas alertas={datos?.alertas} revisadasAqui={revisadasAqui} alRevisar={(c, en) => setRevisadasAqui((m) => ({ ...m, [c]: en }))} onCerrar={() => setPanelTablero(null)} ') // menor CC6 #296: la ✕ y Esc cierran de verdad
     expect(av).toContain('{panelTablero && panelTablero.tipo !== "antena" && (')
     const c = readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8")
     expect(c).toContain('if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); onCerrar()') // en escucharEsc

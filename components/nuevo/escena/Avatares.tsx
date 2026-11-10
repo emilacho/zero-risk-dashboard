@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ESTILO_SILUETAS, Siluetas } from "@/components/nuevo/escena/Siluetas"
 import { PanelDeLaVitrina, PanelDelPizarron } from "@/components/nuevo/escena/PanelesDelPizarron"
 import { AntenaDeAlertas, PanelDeLasAlertas, alTocarElAviso } from "@/components/nuevo/escena/AntenaDeAlertas"
+import { nuevasDeLaAntena } from "@/lib/escena-alertas"
 import { FranjaDeLasRedes, MOSTRAR_LA_FRANJA_DE_REDES, botonesDeLaFranja } from "@/components/nuevo/escena/FranjaDeLasRedes"
 import { EVENTO_ABRIR_PANEL, type PedidoDePanel } from "@/lib/buscador"
 import { CuadrosDeMetricas, ESTILO_ENTREGAS, TarjetaDeLaEntrega, VitrinaVertical } from "@/components/nuevo/escena/EntregasEnLaFoto"
@@ -84,6 +85,8 @@ export function mesaParaAbrir(mesas: MesaViva[], pedida: string | null = null): 
 
 export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arnés: arrancar con estos datos */ datosIniciales?: EscenaDatos | null }) {
   const [datos, setDatos] = useState<EscenaDatos | null>(datosIniciales)
+  // 10-nov · lo que marcaste «✓ Revisar» en la antena durante esta visita: la luz y el número bajan en el acto (la próxima lectura ya lo trae de la plataforma)
+  const [revisadasAqui, setRevisadasAqui] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [mesaAbierta, setMesaAbierta] = useState<ClaveDeMesa | null>(null)
   const [agenteDelPlantel, setAgenteDelPlantel] = useState<string | null>(null) // el empleado que el plantel muestra en su detalle al abrirse (si vino de tocar su flecha)
@@ -197,14 +200,14 @@ export function Avatares({ datosIniciales = null }: { /** solo pruebas y el arn�
         <VitrinaVertical vitrina={datos?.vitrina} onAbrir={() => setPanelTablero({ tipo: "vitrina" })} />
         {/* 04-nov (Emilio 14:08Z): sin lámpara en Dirección; el aviso de firma vive solo en el pizarrón (`firma.pendientes` sigue en el dato) */}
         {/* 04-nov (Emilio 15:19Z): la antena en su opción 3, con luz sutil; la lista abre un panel como los demás */}
-        <AntenaDeAlertas alertas={datos?.alertas} onAbrir={() => setPanelTablero({ tipo: "antena" })} />
+        <AntenaDeAlertas alertas={nuevasDeLaAntena(datos?.alertas, revisadasAqui)} onAbrir={() => setPanelTablero({ tipo: "antena" })} />
         <GloboEnLaFoto g={globoActual} />
       </svg>
       {/* 03-nov · las redes del pizarrón como botones de ≥44 px, en la zona vacía de arriba del pizarrón: la franja ocupa el 76 % izquierdo del ancho y se centra ahí, o sea sobre el pizarrón (los cuadros de la foto son de 8×12 px a este ancho) */}
       {MOSTRAR_LA_FRANJA_DE_REDES && <FranjaDeLasRedes botones={botonesDeLaFranja(datos?.metricas)} className="absolute left-0 z-[3]" style={{ width: "76%", top: pct(70, FOTO.h) }}
         onAbrir={(k) => setPanelTablero(k === "vitrina" ? { tipo: "vitrina" } : { tipo: "pizarron", clave: k })} />}
       {/* 06-nov · la lista de la antena se abre encima en estilo base (su propio panel); sigues en Dept. Marketing */}
-      {panelTablero?.tipo === "antena" && <PanelDeLasAlertas alertas={datos?.alertas} onCerrar={() => setPanelTablero(null)} onAbrir={(a) => alTocarElAviso(a, { cerrar: () => setPanelTablero(null), abrir: (panel) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel } })) })} />}
+      {panelTablero?.tipo === "antena" && <PanelDeLasAlertas alertas={datos?.alertas} revisadasAqui={revisadasAqui} alRevisar={(c, en) => setRevisadasAqui((m) => ({ ...m, [c]: en }))} onCerrar={() => setPanelTablero(null)} onAbrir={(a) => alTocarElAviso(a, { cerrar: () => setPanelTablero(null), abrir: (panel) => window.dispatchEvent(new CustomEvent<PedidoDePanel>(EVENTO_ABRIR_PANEL, { detail: { panel } })) })} />}
       {panelTablero && panelTablero.tipo !== "antena" && (
         <div role="dialog" aria-label={panelTablero.tipo === "vitrina" ? "La vitrina" : "El pizarrón de métricas"} className="nv-av-lista absolute left-1/2 top-1/2 z-[5] max-h-[80%] w-[min(26rem,92%)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border border-white/15 bg-[#121110]/95 p-4 text-zinc-200 shadow-[0_8px_30px_rgba(0,0,0,.6)]" onClick={(e) => e.stopPropagation()}>
           {panelTablero.tipo === "vitrina" ? <PanelDeLaVitrina vitrina={datos?.vitrina} onCerrar={() => setPanelTablero(null)} /> : <PanelDelPizarron metricas={datos?.metricas} inicial={panelTablero.clave} onCerrar={() => setPanelTablero(null)} />}
