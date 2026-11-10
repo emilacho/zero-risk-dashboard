@@ -131,6 +131,29 @@ describe("el panel: Nuevas · Revisadas · Resueltas", () => {
     expect(c.querySelector("[data-resueltas]")?.textContent).toContain("Lo que se decidió en los últimos 7 días.")
     expect(c.querySelector("[data-verbo]")).toBeNull(); expect(c.querySelector("[data-revisar]")).toBeNull()
   })
+  it("CC6 #316 menor 1 · lo que contestas en esta visita se suma a «Resueltas» en el acto (sin esperar la próxima lectura)", async () => {
+    // la relectura (después de contestar) ya no trae la contestada, y el registro de la plataforma todavía no la tiene
+    const despues = { ok: true, ...datos(), decisiones: datos().decisiones.filter((d) => d.id !== "a") }
+    const f = vi.fn(async (url: string) => (String(url).includes("/api/alertas/visto") ? respuesta(true)
+      : String(url) === "/api/direccion/decisiones" ? new Response(JSON.stringify(despues), { status: 200, headers: { "Content-Type": "application/json" } })
+      : new Response(JSON.stringify({ ok: true, sale: true, texto: "Contestada.", registro: [{ cuando: "2026-11-10T01:00:00Z", quien: "tu", estado: "respondiste", texto: "Respondiste" }] }), { status: 200, headers: { "Content-Type": "application/json" } })))
+    const { container: c } = pinta(f as unknown as typeof fetch)
+    expect(numero(c, "resueltas")).toBe("1")
+    fireEvent.change(c.querySelector("[data-respuesta]")!, { target: { value: "En dos meses" } })
+    fireEvent.click(c.querySelector("[data-verbo=responder]")!)
+    await waitFor(() => expect(numero(c, "resueltas")).toBe("2"))
+    fireEvent.click(c.querySelector('[data-recuadro="resueltas"]')!)
+    expect(c.querySelector("[data-resuelta=a]")?.textContent).toContain("¿Pregunta a?")
+  })
+  it("CC6 #316 menor 2 · si el registro de lo resuelto vino incompleto, lo dice (no se oculta)", () => {
+    const inc = normalizarDecisiones({ completo: true, decisiones: [], contestadas: [{ id: "r1", titulo: "¿Ya?" }], registro_completo: false })
+    const { container: c } = render(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: inc }))
+    fireEvent.click(c.querySelector('[data-recuadro="resueltas"]')!)
+    expect(c.querySelector("[data-resueltas]")?.textContent).toContain("Puede faltar alguna: el registro vino incompleto.")
+    cleanup()
+    const { container: e } = pinta(); fireEvent.click(e.querySelector('[data-recuadro="resueltas"]')!)
+    expect(e.querySelector("[data-resueltas]")?.textContent).not.toContain("Puede faltar")
+  })
   it("sin registro de lo resuelto: «—» en el recuadro y «sin dato» en la lista (nunca 0)", () => {
     const sin = normalizarDecisiones({ completo: true, decisiones: [pregunta("a", { clave: CLAVE("a"), estado: "nueva" })] })
     const { container: c } = render(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: sin }))
