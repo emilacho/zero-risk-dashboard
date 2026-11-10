@@ -9,7 +9,7 @@ import { join } from "node:path"
 import { sinPrefijoDelPlan } from "@/lib/plan-barra"
 import { procesoDe } from "@/lib/observabilidad"
 import { tituloPorElPedido } from "@/lib/escena-sala"
-import { NOMBRE_DEL_TIPO } from "@/lib/direccion-decisiones"
+import { NOMBRE_DEL_TIPO, tituloLimpio } from "@/lib/direccion-decisiones"
 import { APLICACIONES } from "@/lib/aplicaciones-marketing"
 import { PROCESO_DEL_PLAN } from "@/lib/dinero-completo"
 import { nombreDelGrupo } from "@/lib/direccion-pedidos"
@@ -44,16 +44,22 @@ describe("Plan de Marketing · el nombre que ve Emilio", () => {
     expect(tituloPorElPedido(["Escribe el plan de marketing de Náufrago"])).toBe("Plan de Marketing")
   })
 
+  it("el título de una decisión no muestra los asteriscos de formato (gran idea v3)", () => {
+    expect(tituloLimpio("Gran idea · **El oro que nunca buscaste** · campaña Náufrago")).toBe("Gran idea · El oro que nunca buscaste · campaña Náufrago")
+    expect(tituloLimpio("**Plan de Marketing**: revisa estos avisos")).toBe("Plan de Marketing: revisa estos avisos")
+  })
+
   it("ningún texto que se muestra en el tablero dice «Plan de 90 días» (comentarios y patrones de lectura aparte)", () => {
     const archivos: string[] = []
     const recorrer = (d: string) => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) recorrer(p); else if (/\.tsx?$/.test(n)) archivos.push(p) } }
     for (const d of ["lib", "components", "app"]) recorrer(d)
     const malos: string[] = []
     for (const f of archivos) {
-      readFileSync(f, "utf8").split("\n").forEach((linea, i) => {
-        const sinComentario = linea.replace(/\/\*\*.*?\*\//g, "").replace(/\/\/.*$/, "").replace(/^\s*\*.*$/, "")
-        // solo cuenta el nombre dentro de un texto entre comillas, no un patrón /…/ que lee lo viejo
-        if (/["'`][^"'`]*plan de 90 d[ií]as[^"'`]*["'`]/i.test(sinComentario)) malos.push(`${f}:${i + 1}`)
+      readFileSync(f, "utf8").split(/\r?\n/).forEach((linea, i) => {
+        if (/^\s*(?:\/\*|\*|\/\/)/.test(linea)) return // línea de comentario
+        const sinComentario = linea.replace(/\/\*.*?\*\//g, "").replace(/\/\/.*$/, "")
+        // el nombre escrito tal cual (entre comillas o suelto en la pantalla); un patrón que lee lo viejo lo escribe «d[ií]as» y no cuenta
+        if (/plan de 90 d(?:í|i)as/i.test(sinComentario)) malos.push(`${f}:${i + 1}`)
       })
     }
     expect(malos).toEqual([])
