@@ -1,0 +1,1663 @@
+{
+ "ok": true,
+ "clientes": [
+  {
+   "id": "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312",
+   "nombre": "Náufrago"
+  },
+  {
+   "id": "df7e47cc-bec4-4fa2-bc24-ff97ba5213a5",
+   "nombre": "Zero Risk Seguridad Industrial"
+  }
+ ],
+ "leido_en": "2026-11-10T10:38:38.841Z",
+ "cliente": {
+  "id": "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312",
+  "nombre": "Náufrago"
+ },
+ "campana": {
+  "id": "28de888e-b3f2-4aca-86b3-2c7f7bf6685a",
+  "estado": "necesita_humano"
+ },
+ "publicado": true,
+ "tarjetas": [
+  {
+   "hitl_id": "a6deb0db-0948-40a5-93e6-86f9086bcbc4",
+   "status": "rejected",
+   "estado": "con_cambios",
+   "titulo": "Gran idea · El oro que nunca buscaste · campaña Náufrago",
+   "creada": "2026-11-10T03:25:02.477982+00:00",
+   "version": 3
+  },
+  {
+   "hitl_id": "2d3c4da1-d3d5-40e0-b18e-d90e8652e001",
+   "status": "rejected",
+   "estado": "con_cambios",
+   "titulo": "Gran idea · **El oro que nunca buscaste** · campaña Náufrago",
+   "creada": "2026-11-09T22:02:15.407521+00:00",
+   "version": 2
+  }
+ ],
+ "detalle": {
+  "hitl_id": "a6deb0db-0948-40a5-93e6-86f9086bcbc4",
+  "status": "rejected",
+  "estado": "con_cambios",
+  "titulo": "Gran idea · El oro que nunca buscaste · campaña Náufrago",
+  "cliente": "Náufrago",
+  "cliente_id": "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312",
+  "creada": "2026-11-10T03:25:02.477982+00:00",
+  "campana_id": "28de888e-b3f2-4aca-86b3-2c7f7bf6685a",
+  "version": 3,
+  "concepto_id": "con-28de888eb3f2-v3",
+  "seco": false,
+  "costo_usd": 5.3038,
+  "vueltas_restantes": 1,
+  "avisos": [
+   "la idea C1-I08 trae un dato con valor (precio, hora, cifra): el estratega lo pone con su referencia",
+   "la idea C3-I03 trae un dato con valor (precio, hora, cifra): el estratega lo pone con su referencia",
+   "la idea C1-I08 trae «80 %», que no está en el brief: dato sin fuente",
+   "la idea C3-I03 trae «4.9», que no está en el brief: dato sin fuente"
+  ],
+  "gran_idea": {
+   "nombre": "El oro que nunca buscaste",
+   "frase": "Salió buscando oro. Encontró el encebollado. Ahora llega a tu barrio."
+  },
+  "por_que_funciona": "El brief (brf-28de888eb3f2 v2) nombra el insight: «el guayaquileño que quiere encebollado de verdad sabe que el bueno viene de la costa — y ese viaje no lo hace entre semana.» La gran idea hace ese viaje por él sin prometérselo: lo cuenta como leyenda ya ocurrida. El náufrago salió a buscar algo valioso y encontró algo mejor; el cliente no tiene que salir. La leyenda hace el trabajo que un claim nunca haría — le da al producto un origen que se recuerda y se cuenta. No hay superlativos: hay un personaje, un hallazgo y una dirección de entrega.\n\n---",
+  "como_se_ve": "Paleta del manual como ley de la campaña: fondo púrpura oscuro (#1a0828) en piezas de texto y transiciones; turquesa (#51d4b4) para acentos tipográficos en Caveat; blanco Inter para cuerpo. El personaje del náufrago (`foto:4f09cef2` — el esqueleto surfer con pergamino de la web 3D) actúa como firma silenciosa de cierre, nunca como vocero de producto. Las fotos de producto anclan la realidad: caldo hirviendo (`foto:6275c0ba`), bowl cenital (`foto:19671014`, `foto:c0355f3d`, `foto:e8da814f`), pescado crudo (`foto:f5d887ec`). Fachada de Olón (`foto:fe452b8f`, `foto:9f71b0e9`, `foto:4c41cd56`) como prueba de origen. Las imágenes generadas se reservan exclusivamente para el momento de entrega en Guayaquil (puerta urbana, bolsa, mano recibiendo) donde no hay foto propia. Nunca texto, sellos ni instrumentos en imágenes generadas. Sin interiores de restaurante formal. Sin manteles blancos ni decoración que no corresponda a un local costero.\n\n**El pergamino como hilo conductor visual de campaña:** en cada capítulo el pergamino lleva una frase distinta escrita en Caveat turquesa, como si el náufrago lo fuera completando. Esta decisión es de identidad de campaña, no de lámina: aparece al cierre de cada reel (últimos 2 s) y en las piezas de texto de historias.\n\n---",
+  "como_suena": "Voz directa y costera. Tuteo siempre en todo imperativo: «pide», «entra», «recibe». Frases de máximo 12 palabras por idea. El «...» abre expectativa antes del plato; el «!» cierra la acción. El náufrago habla en primera persona cuando usa el pergamino — seco, sin grandilocuencia: «vine buscando oro. encontré encebollado.» El canal de pedido (naufrago.ec en Guayaquil, WhatsApp en Olón) aparece visible en cada llamado. Sin «premium», «gourmet», «artesanal» ni superlativos sin respaldo de reseña atribuida. Sin voseo en ninguna pieza, incluidas historias y reel de cierre.\n\n---",
+  "fotos_citadas": [
+   "4f09cef2",
+   "6275c0ba",
+   "19671014",
+   "c0355f3d",
+   "e8da814f",
+   "f5d887ec",
+   "fe452b8f",
+   "9f71b0e9",
+   "4c41cd56",
+   "45084b4b",
+   "a7bd788f",
+   "8eb78d2f",
+   "31ee2ae3",
+   "af4c91fa",
+   "92059dcb",
+   "2e4f9d17",
+   "3ac1e146",
+   "8df587e0"
+  ],
+  "capitulos": [
+   {
+    "clave": "desbloquear",
+    "fase": "desbloquear",
+    "nombre": "El náufrago desembarca",
+    "que_cuenta": "La apertura ya ocurrió. Ahora se cuenta como hecho: el encebollado de Olón llegó a zona norte de Guayaquil. El personaje del náufrago introduce la leyenda sin venderla — el pergamino aparece incompleto para que el ojo lo complete. Las piezas de Olón anclan el origen; las de Guayaquil muestran la entrega como promesa cumplida.",
+    "objetivo_cita": "«Pre-apertura y apertura de Guayaquil, setup de medición, WhatsApp Business, Fan Page y primera pauta. Fase 1 · Desbloquear — Semanas 1-2 (Nov 6-19).» La apertura ya pasó (2026-11-09): todo lo que anunciaba la llegada se cuenta como hecho.",
+    "como_se_ve": "Fondo púrpura oscuro dominante. El pergamino aparece con el texto incompleto en la primera semana — solo se lee «vine buscando…» — y se despliega en el último frame. Bowl cenital como primer plato que aparece. La entrega en puerta es imagen generada (prompt de A12). Sin precio visible. Sin horario en piezas de Guayaquil.",
+    "series": [
+     {
+      "id": "S1",
+      "nombre": "La leyenda llega al barrio",
+      "que_cuenta": "El náufrago desembarca en Guayaquil con el encebollado que encontró en su viaje",
+      "redes": [
+       "instagram",
+       "facebook",
+       "whatsapp"
+      ]
+     }
+    ]
+   },
+   {
+    "clave": "cimientos",
+    "fase": "cimientos",
+    "nombre": "La leyenda se asienta",
+    "que_cuenta": "Ya hay pedidos. La prueba social empieza a construirse. El encebollado de Guayaquil ya no es una novedad — es una opción real que funciona. Las piezas de Olón refuerzan el origen mientras Guayaquil consolida la entrega. La reseña atribuida (si el portero la trae) entra aquí.",
+    "objetivo_cita": "«Evaluar hipótesis A vs. B por pedidos entregados y ajustar creativo y segmentación. Fase 2 · Cimientos — Semanas 3-4 (Nov 20-Dic 3).»",
+    "como_se_ve": "El pergamino empieza a llenarse — ahora se lee completo: «vine buscando oro. encontré encebollado. ya llegó a tu barrio.» Las fotos de producto aparecen con más contexto: la mano sosteniendo el bowl, el plano frontal bajo del ceviche. Las imágenes de entrega en Guayaquil siguen siendo generadas. Olón entra con la fachada en luz de mañana.",
+    "series": [
+     {
+      "id": "S1",
+      "nombre": "La leyenda se confirma",
+      "que_cuenta": "Los primeros pedidos en Guayaquil son el oro que el náufrago repartió",
+      "redes": [
+       "instagram",
+       "facebook",
+       "whatsapp"
+      ]
+     }
+    ]
+   },
+   {
+    "clave": "velocidad",
+    "fase": "velocidad",
+    "nombre": "El encebollado en temporada",
+    "que_cuenta": "Diciembre. Temporada alta en Olón y reactivación en Guayaquil. Las reseñas empiezan a construir evidencia. El hábito en Guayaquil se instala: el encebollado de Náufrago ya no es un descubrimiento, es la opción del mediodía. El náufrago reparte el oro por ambas sedes.",
+    "objetivo_cita": "«Temporada alta de diciembre: subir Olón, reactivación en Guayaquil, reseñas. Fase 3 · Velocidad — Semanas 5-8 (Dic 4-31).»",
+    "como_se_ve": "El pergamino cierra su arco — aparece ya lleno, con todas las frases de la campaña escritas. Las fotos de Olón dominan (fachada en temporada, terraza con clientes, playa desenfocada al fondo). Las piezas de Guayaquil muestran el hábito: la misma mano, el mismo gesto, el mismo bowl. Las reseñas entran como extracto atribuido (si el portero trae el texto exacto).",
+    "series": [
+     {
+      "id": "S1",
+      "nombre": "El náufrago en temporada",
+      "que_cuenta": "En diciembre el encebollado está en su mejor momento — en Olón y en tu barrio",
+      "redes": [
+       "instagram",
+       "facebook",
+       "whatsapp"
+      ]
+     }
+    ]
+   },
+   {
+    "clave": "acumular",
+    "fase": "acumular",
+    "nombre": "El oro ya es de todos",
+    "que_cuenta": "Enero. Temporada alta en Olón y Guayaquil en ritmo sostenido. El encebollado de Náufrago ya no necesita presentarse — ahora se sostiene en el hábito. Las vacaciones escolares de la Costa empiezan el 1 de febrero: las últimas piezas de esta fase anticipan la temporada vacacional. El náufrago completó su viaje.",
+    "objetivo_cita": "«Enero en temporada alta en Olón, Guayaquil en ritmo, cierre y reporte. Fase 4 · Acumular — Semanas 9-12 (Ene 1-28).»",
+    "como_se_ve": "El pergamino ya no aparece — ya cumplió su arco. El bowl cenital en su mejor momento. Fotos de producto limpias, sin elementos narrativos adicionales. La comunicación es más directa que en las fases anteriores: el hábito está instalado, el texto puede ser más breve.",
+    "series": [
+     {
+      "id": "S1",
+      "nombre": "El hábito del encebollado",
+      "que_cuenta": "En enero el encebollado de Náufrago es parte de la semana — no es un descubrimiento",
+      "redes": [
+       "instagram",
+       "facebook",
+       "whatsapp"
+      ]
+     }
+    ]
+   }
+  ],
+  "banco": [
+   {
+    "id": "C1-I00",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "Primera historia de campaña: pergamino en fondo púrpura oscuro, Caveat turquesa, sin plato, sin URL: «vine buscando oro. encontré encebollado.»",
+    "mensaje": "la leyenda abre la campaña antes que el producto",
+    "gancho": "texto solo, sin plato — el pergamino incompleto detiene el scroll",
+    "protagonista": "el náufrago en primera persona",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C1-I01",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "El pergamino del náufrago aparece antes que el plato. Fondo púrpura oscuro, el personaje en silueta recortada.",
+    "mensaje": "el personaje existe antes de que el producto aparezca",
+    "gancho": "silueta sin contexto — el ojo busca dónde está el plato",
+    "protagonista": "el náufrago",
+    "serie": "S1",
+    "foto": "4f09cef2"
+   },
+   {
+    "id": "C1-I02",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 10 nov: apertura en negro 1 s + sonido de caldo → cenital del bowl → texto «de Olón a tu barrio» en Caveat turquesa → frontal bajo del caldo → entrega en puerta (generada) → cierre «naufrago.ec» blanco sobre púrpura → pergamino como firma",
+    "mensaje": "el encebollado que conoces de la costa ya no pide que viajes",
+    "gancho": "negro + sonido de caldo — el ojo espera, el oído reconoce antes que la imagen llega",
+    "protagonista": "el caldo como primer estímulo sensorial",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C1-I03",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon: cenital del bowl con caldo dorado y cebolla encurtida. Caption: origen y canal, sin precio.",
+    "mensaje": "el plato habla por sí solo — el origen está en la foto, no en el texto",
+    "gancho": "cenital limpio que detiene el scroll del feed sin competir con texto",
+    "protagonista": "el encebollado cenital",
+    "serie": "S1",
+    "foto": "c0355f3d"
+   },
+   {
+    "id": "C1-I05",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye: versión texto-pergamino en Caveat sobre fondo neutro, con tachadura visible sobre la palabra «oro» — como si el náufrago la hubiera corregido a mano. «vine buscando [tachado: oro] encebollado»",
+    "mensaje": "el hallazgo fue mejor que lo que buscaba",
+    "gancho": "la tachadura es el único momento en la campaña donde la tipografía actúa como gesto humano",
+    "protagonista": "el náufrago corrigiendo su propio pergamino",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C1-I06",
+    "capitulo": "desbloquear",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon: «saliendo de Olón. llevo encebollado.» Sin más. Tres palabras que suenan a aviso de ruta.",
+    "mensaje": "la sede de Olón existe y el producto viaja desde allí",
+    "gancho": "brevedad absoluta — un estado de WhatsApp que parece un mensaje real, no un anuncio",
+    "protagonista": "el encebollado en tránsito",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C1-I07",
+    "capitulo": "desbloquear",
+    "red": "facebook",
+    "formato": "foto",
+    "idea": "réplica del feed de producto de instagram (C1-I03) con llamado «Pide en naufrago.ec» ajustado al canal.",
+    "mensaje": "el mismo plato llega a quien no sigue el instagram",
+    "gancho": "plato cenital en feed de Facebook donde la competencia publica texto plano",
+    "protagonista": "el bowl de encebollado",
+    "serie": "S1",
+    "foto": "c0355f3d"
+   },
+   {
+    "id": "C1-I08",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 10 nov: historia de texto sobre fondo púrpura oscuro. Caveat turquesa: «ya llegó.» Swipe: foto de fachada de Olón como prueba de origen.",
+    "mensaje": "la apertura ya ocurrió — se cuenta como hecho, no como promesa",
+    "gancho": "«ya llegó.» en Caveat ocupa el 80 % del frame — dos palabras que no explican nada y lo dicen todo",
+    "protagonista": "el hecho consumado",
+    "serie": "S1",
+    "foto": "fe452b8f"
+   },
+   {
+    "id": "C1-I09",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon: amanecer en fachada de Olón → manos con guantes preparando el caldo → cenital del bowl recién servido → pergamino cierre con «producto del día» en Caveat. Sin voz. Música: beat bajo.",
+    "mensaje": "aquí empieza el encebollado — en Olón, con producto del día",
+    "gancho": "el amanecer antes del servicio — ver la cocina encendida antes de que llegue el cliente",
+    "protagonista": "la cocina de Olón como origen",
+    "serie": "S1",
+    "foto": "6275c0ba"
+   },
+   {
+    "id": "C1-I10",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon: plano frontal bajo del ceviche mixto con jugo al fondo. Caption mínimo. Sin precio.",
+    "mensaje": "el ceviche también existe — no todo es encebollado",
+    "gancho": "el jugo rosado en el fondo es el detalle que el ojo encuentra después del plato principal",
+    "protagonista": "el ceviche mixto",
+    "serie": "S1",
+    "foto": "45084b4b"
+   },
+   {
+    "id": "C2-I01",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 24 nov: «ya llegó el encebollado a zona norte.» Sin precio, sin horario. Solo confirmación. Swipe: foto de bowl cenital como prueba de producto.",
+    "mensaje": "la llegada ya no es noticia — es un hecho que se confirma",
+    "gancho": "frase declarativa sin adjetivos — lo que ya pasó no necesita venderlo",
+    "protagonista": "el hecho consumado de la entrega",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C2-I02",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 24 nov: secuencia puerta → mano recibe bolsa → bowl ya servido en mesa urbana. Sin voz. Texto en pantalla: «de la cocina a tu puerta» en Caveat turquesa sobre fondo del video. Cierre: «naufrago.ec» en blanco.",
+    "mensaje": "el trayecto completo en 20 s — de la cocina al bowl en la mesa",
+    "gancho": "la puerta abriéndose en el primer frame — el ojo reconoce el gesto antes de leer el texto",
+    "protagonista": "el trayecto de la entrega",
+    "serie": "S1",
+    "foto": "ninguna (imagen generada prompt A12)"
+   },
+   {
+    "id": "C2-I03",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 26 nov: plano frontal bajo del ceviche mixto, el jugo visible al fondo. Caption: lo que trae el plato, sin precio.",
+    "mensaje": "el ceviche tiene la misma frescura de origen que el encebollado",
+    "gancho": "el ángulo de 30° muestra el volumen del jugo — el plato parece más generoso que en cenital",
+    "protagonista": "el ceviche mixto en su mejor plano",
+    "serie": "S1",
+    "foto": "a7bd788f"
+   },
+   {
+    "id": "C2-I04",
+    "capitulo": "cimientos",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 28 nov: «el encebollado ya encontró su barrio.» Referencia a la leyenda, confirmación de la entrega.",
+    "mensaje": "la leyenda ya tiene destino — el barrio de quien pide",
+    "gancho": "una frase que suena a final de cuento, no a publicidad",
+    "protagonista": "el barrio como destino",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C2-I05",
+    "capitulo": "cimientos",
+    "red": "facebook",
+    "formato": "foto",
+    "idea": "sab: réplica del reel de entrega como imagen estática. Frame de la mano recibiendo la bolsa, con texto superpuesto «pide en naufrago.ec» en Bebas Neue blanco.",
+    "mensaje": "el delivery existe y funciona — la mano lo confirma",
+    "gancho": "la mano recibiendo la bolsa es el frame más reconocible del trayecto",
+    "protagonista": "el acto de recibir",
+    "serie": "S1",
+    "foto": "ninguna (imagen generada prompt A12)"
+   },
+   {
+    "id": "C2-I06",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 27 nov: historia de texto sobre fondo púrpura oscuro. Caveat turquesa: «¿ya pediste?» Sin más. Swipe lleva a naufrago.ec.",
+    "mensaje": "la pregunta directa asume que ya sabes — solo falta el primer pedido",
+    "gancho": "una pregunta de dos palabras que hace sentir que ya deberías haber pedido",
+    "protagonista": "la pregunta como llamado",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C2-I07",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 29 nov: fachada de Olón en luz de mañana — mesas turquesa, pizarra de menú, clientes sentados. Corte a cenital del bowl. Corte a pergamino con frase completa. Sin voz. Música: beat bajo.",
+    "mensaje": "Olón es el origen real — la fachada lo prueba",
+    "gancho": "la fachada al amanecer antes de que lleguen los clientes — la cocina encendida es el primer frame",
+    "protagonista": "la fachada de Olón como evidencia",
+    "serie": "S1",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C2-I08",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 30 nov: plano close-up de manos sosteniendo el bowl. Sin texto en la imagen. Caption mínimo.",
+    "mensaje": "alguien sostiene el encebollado — no hay distancia entre el plato y quien lo come",
+    "gancho": "las manos sin modelo ni escenografía — el gesto más honesto que puede tener una foto de comida",
+    "protagonista": "las manos como conexión",
+    "serie": "S1",
+    "foto": "8eb78d2f"
+   },
+   {
+    "id": "C3-I01",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 7 dic: amanecer en la fachada de Olón con clientes sentados → corte a cenital del bowl → corte a plano de la puerta de entrega en Guayaquil → pergamino cierre: «de Olón a tu barrio.» Sin voz. Música: beat más vivo que fases anteriores.",
+    "mensaje": "en temporada alta el encebollado existe en dos lugares al mismo tiempo",
+    "gancho": "el amanecer de Olón en diciembre — la luz cálida de las 8 am es el frame que detiene el scroll",
+    "protagonista": "las dos sedes al mismo tiempo",
+    "serie": "S1",
+    "foto": "4c41cd56"
+   },
+   {
+    "id": "C3-I02",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 10 dic: fachada con letrero Náufrago, mesas turquesa, luz de mañana. Caption evoca el origen. Sin horario en la imagen.",
+    "mensaje": "Olón en temporada alta — la fachada habla sin que el texto tenga que explicarla",
+    "gancho": "la fachada en luz cálida de mañana es el encuadre que mejor resume quién es la marca",
+    "protagonista": "la fachada de Olón en temporada",
+    "serie": "S1",
+    "foto": "31ee2ae3"
+   },
+   {
+    "id": "C3-I03",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 7 dic: historia de reseña. Frame con extracto de reseña atribuida en Caveat sobre fondo púrpura oscuro. Sin texto inventado — solo si el portero trae el texto exacto.",
+    "mensaje": "4.9 en Maps no es un número — es lo que dijo alguien que probó el encebollado",
+    "gancho": "la letra manuscrita de Caveat hace que la reseña parezca escrita a mano en el pergamino",
+    "protagonista": "quien dejó la reseña",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C3-I04",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 13 dic: secuencia de un mismo gesto repetido — la mano abre naufrago.ec, el cursor va al menú, el bowl llega. Tres veces el mismo ciclo con cortes rápidos. Cierre: «el hábito ya tiene dirección.» En Caveat sobre púrpura.",
+    "mensaje": "pedir en naufrago.ec ya es un gesto conocido — el hábito se instala",
+    "gancho": "la repetición del mismo gesto tres veces — el cerebro reconoce el patrón y lo quiere completar",
+    "protagonista": "el gesto de pedir como hábito",
+    "serie": "S1",
+    "foto": "ninguna (imagen generada)"
+   },
+   {
+    "id": "C3-I05",
+    "capitulo": "velocidad",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 13 dic: «temporada alta en Olón. en Guayaquil también.» Sin más explicación.",
+    "mensaje": "diciembre es el mes de ambas sedes — la temporada no distingue entre playa y ciudad",
+    "gancho": "la frase más corta de toda la campaña — dos puntos cardinales, ningún verbo",
+    "protagonista": "la temporada como contexto",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C3-I06",
+    "capitulo": "velocidad",
+    "red": "facebook",
+    "formato": "foto",
+    "idea": "dom: réplica del feed de Olón para Facebook. Fachada en luz de mañana, llamado «Pide en naufrago.ec» en Bebas Neue blanco.",
+    "mensaje": "la fachada de Olón llega a quien no sigue instagram",
+    "gancho": "la fachada en temporada alta es el frame más compartible de la fase",
+    "protagonista": "la fachada de Olón",
+    "serie": "S1",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C3-I07",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 11 dic: «¿cuándo fue la última vez que pediste?» Sin respuesta en la historia. Swipe lleva a naufrago.ec.",
+    "mensaje": "la pregunta de hábito — si ya pediste, vuelve; si no, es la primera vez",
+    "gancho": "la pregunta que asume que ya eres cliente — se siente como un recordatorio, no como un anuncio",
+    "protagonista": "el cliente recurrente que ya existe",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C3-I08",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 14 dic: playa de Olón desenfocada al fondo, mesas turquesa en primer plano. Sin personas en primer plano. Caption mínimo.",
+    "mensaje": "la terraza de Olón en temporada alta es el lugar donde nació el encebollado",
+    "gancho": "la playa desenfocada que aporta contexto sin competir con las mesas",
+    "protagonista": "la terraza de Olón",
+    "serie": "S1",
+    "foto": "4c41cd56"
+   },
+   {
+    "id": "C4-I01",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 8 ene: cenital del bowl con caldo dorado en su mejor punto. Sin texto en la imagen. Caption: el producto del día, sin precio.",
+    "mensaje": "el encebollado de enero es el mismo de siempre — la constancia es el mensaje",
+    "gancho": "el cenital más limpio de toda la campaña — sin elementos de narrativa, solo el plato",
+    "protagonista": "el bowl en su mejor encuadre",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C4-I02",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 10 ene: playa de Olón al amanecer → cocina encendida → bowl servido. Sin voz. Texto: «temporada alta. producto del día.» en Caveat sobre el frame de la playa.",
+    "mensaje": "en temporada alta el encebollado empieza antes de que llegue el primer cliente",
+    "gancho": "el amanecer de Olón en enero — la playa vacía antes del servicio es el frame más silencioso de la campaña",
+    "protagonista": "el amanecer como ritual de apertura",
+    "serie": "S1",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C4-I03",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 9 ene: «¿cuándo pediste por última vez?» Sin respuesta en la historia — el swipe lleva a naufrago.ec.",
+    "mensaje": "el cliente recurrente ya existe — solo necesita el recordatorio",
+    "gancho": "la pregunta que no se puede responder sin entrar al sitio",
+    "protagonista": "el hábito de pedir",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C4-I04",
+    "capitulo": "acumular",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 10 ene: «encebollado con chifle. producto del día. ya listo.» Tres líneas, como si alguien avisara desde la cocina.",
+    "mensaje": "el encebollado está listo — no hay nada más que decir",
+    "gancho": "tres líneas que suenan a mensaje real de alguien en la cocina, no a publicidad",
+    "protagonista": "el encebollado recién listo",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C4-I05",
+    "capitulo": "acumular",
+    "red": "facebook",
+    "formato": "foto",
+    "idea": "dom: frame del caldo con vapor, texto «encebollado con chifle — pide en naufrago.ec» en Bebas Neue blanco.",
+    "mensaje": "el delivery existe, el plato está listo, el canal es uno solo",
+    "gancho": "el vapor sobre el caldo es el único elemento de movimiento que una imagen estática puede sugerir",
+    "protagonista": "el vapor como prueba de frescura",
+    "serie": "S1",
+    "foto": "6275c0ba"
+   },
+   {
+    "id": "C4-I06",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 5 ene: texto en fondo púrpura oscuro. Caveat turquesa: «enero arranca.» Una línea. Swipe a naufrago.ec.",
+    "mensaje": "el año nuevo no cambia el encebollado — la temporada sigue",
+    "gancho": "la frase más corta del capítulo — dos palabras que no explican nada y ubican el momento",
+    "protagonista": "el inicio del año como continuidad",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C4-I07",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 5 ene: secuencia de hábito: la mano abre naufrago.ec → el cursor va al menú → el bowl llega. Música más viva. Texto: «ya lo conoces.» Cierre: «naufrago.ec» en blanco.",
+    "mensaje": "en enero ya no se descubre el encebollado — se pide porque ya se sabe",
+    "gancho": "«ya lo conoces» en el último frame — el reel habla al cliente que ya probó, no al que no sabe",
+    "protagonista": "el cliente que ya es habitual",
+    "serie": "S1",
+    "foto": "ninguna (imagen generada)"
+   },
+   {
+    "id": "C4-I08",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 11 ene: fachada de Olón en luz de mañana de enero. Sin personas en primer plano. Caption mínimo.",
+    "mensaje": "la sede de Olón sigue ahí — temporada alta y sin pausa",
+    "gancho": "la fachada en la mejor luz del verano costero ecuatoriano",
+    "protagonista": "la fachada de Olón en temporada vacacional",
+    "serie": "S1",
+    "foto": "af4c91fa"
+   },
+   {
+    "id": "C1-I11",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 14 nov · amanecer en fachada de Olón (foto:9f71b0e9), corte a caldo en cocina (foto:6275c0ba), corte a cenital bowl (foto:c0355f3d). Sin voz. Texto en pantalla frame 2: «de acá sale el encebollado». Frame 3: «y llega a zona norte». Cierre: logo sobre púrpura + naufrago.ec",
+    "mensaje": "Olón como origen real del producto que llega a Guayaquil",
+    "gancho": "historia (tres planos que cuentan un viaje sin palabras hasta el tercer frame)",
+    "protagonista": "el origen — la fachada y la cocina de Olón",
+    "serie": "S1",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C1-I12",
+    "capitulo": "desbloquear",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 14 nov · «el encebollado salió de Olón. ya está en zona norte. pide en naufrago.ec»",
+    "mensaje": "aviso de hecho — tono de alguien que informa desde la ruta, no que anuncia",
+    "gancho": "historia (tres frases que trazan el viaje del plato)",
+    "protagonista": "el plato en movimiento",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C1-I13",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 15 nov · foto de la fachada con clientes sentados en terraza (foto:4c41cd56). Texto encima: «de aquí.» Sin más texto. Siguiente frame: foto del bowl (foto:e8da814f) + «a tu barrio.»",
+    "mensaje": "origen y destino sin explicación — la imagen hace el trabajo",
+    "gancho": "brecha de curiosidad (el primer frame no dice adónde va; el segundo lo cierra)",
+    "protagonista": "el local de Olón como prueba de origen",
+    "serie": "S1",
+    "foto": "4c41cd56"
+   },
+   {
+    "id": "C1-I14",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 16 nov · segundo reel de apertura Guayaquil. Negro 0–2 s, sonido de caldo. Corte a cenital bowl (foto:19671014). Texto: «ya llegó». Corte a imagen generada de puerta urbana + mano recibiendo bolsa. Texto: «zona norte». Cierre púrpura + naufrago.ec",
+    "mensaje": "la entrega es el hecho central de la semana — sin origen ni setup",
+    "gancho": "a contracorriente (empieza en negro y silencio; rompe la norma del reel de producto que abre con la foto del plato)",
+    "protagonista": "la entrega — la mano, la bolsa, la puerta",
+    "serie": "S1",
+    "foto": "19671014"
+   },
+   {
+    "id": "C1-I15",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 16 nov · texto sobre fondo púrpura: «buscaba oro. encontró encebollado. ahora llega a tu barrio.» Tres líneas, una por frame. Sin imagen de plato en la historia — solo la leyenda",
+    "mensaje": "presenta la leyenda sin el plato — el texto hace todo el trabajo",
+    "gancho": "historia (tres frames que cuentan el arco completo en once palabras)",
+    "protagonista": "el náufrago — la voz del pergamino",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C1-I16",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 19 nov · plano frontal bajo del ceviche mixto (foto:45084b4b). Caption: el ceviche que empezó en Olón. en Guayaquil lo pides en naufrago.ec; en Olón por WhatsApp. Sin precio",
+    "mensaje": "el segundo producto ancla tiene el mismo origen que el encebollado",
+    "gancho": "punto de vista (nombra el origen del plato antes de nombrarlo a él — el origen es el sujeto)",
+    "protagonista": "el ceviche mixto",
+    "serie": "S1",
+    "foto": "45084b4b"
+   },
+   {
+    "id": "C1-I17",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 20 nov · foto del personaje náufrago de la web (foto:4f09cef2). Texto encima: «vine buscando oro.» · siguiente frame: foto del bowl (foto:c0355f3d) + «encontré esto.» Sin claims",
+    "mensaje": "presenta el personaje anclado al producto — sin vocería de afirmaciones comerciales",
+    "gancho": "historia (el personaje como narrador mudo — la foto habla, el texto completa)",
+    "protagonista": "el náufrago y el bowl",
+    "serie": "S1",
+    "foto": "4f09cef2"
+   },
+   {
+    "id": "C1-I18",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 21 nov · sábado en Olón: fachada con clientes en terraza (foto:fe452b8f), corte a manos preparando (foto:f5d887ec), corte a bowl servido (foto:e8da814f). Texto frame 3: «producto del día». Sin voz. Cierre: «en Olón, WhatsApp. en Guayaquil, naufrago.ec»",
+    "mensaje": "el sábado en Olón y el sábado en Guayaquil son el mismo encebollado — el canal cambia, el producto no",
+    "gancho": "prueba (las manos preparando son el argumento — no hay claim, hay proceso)",
+    "protagonista": "las manos en la cocina",
+    "serie": "S1",
+    "foto": "fe452b8f"
+   },
+   {
+    "id": "C1-I19",
+    "capitulo": "desbloquear",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 21 nov · «listo para hoy. encebollado con chifle, producto del día. en Olón: por acá. en Guayaquil: naufrago.ec»",
+    "mensaje": "aviso de disponibilidad, dos canales, sin formalidad",
+    "gancho": "afirmación directa (empieza con el hecho — el encebollado ya está listo)",
+    "protagonista": "el plato del día",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C1-I20",
+    "capitulo": "desbloquear",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 22 nov · domingo en Olón: foto de terraza con clientes (foto:9f71b0e9). Texto: «domingo en Olón.» · siguiente frame: fondo oscuro + «¿y en tu barrio?» + naufrago.ec",
+    "mensaje": "contrasta el contexto de playa con el de la ciudad — la pregunta conecta los dos",
+    "gancho": "brecha de curiosidad (el primer frame cierra el contexto de Olón; el segundo lo abre hacia Guayaquil)",
+    "protagonista": "la terraza de Olón como origen",
+    "serie": "S1",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C1-I21",
+    "capitulo": "desbloquear",
+    "red": "facebook",
+    "formato": "foto",
+    "idea": "réplica de C1-I09 para Facebook · cenital del bowl. Texto adaptado: «el encebollado de Olón, con pedido directo a zona norte. pide en naufrago.ec»",
+    "mensaje": "mismo origen, llamado explícito al canal web",
+    "gancho": "historia (el plato tiene un origen antes de llegar)",
+    "protagonista": "el encebollado con chifle",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C2-I09",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 27 nov · foto del caldo en cocina (foto:6275c0ba) con texto encima: «esto se preparó hoy en la mañana.» · siguiente frame: foto del bowl (foto:e8da814f) + «y llega a tu puerta.»",
+    "mensaje": "el proceso visible es la garantía de frescura — sin claims ni certificaciones",
+    "gancho": "historia (dos frames que muestran el antes y el después del mismo producto)",
+    "protagonista": "la cocina como prueba — el caldo antes de ser bowl",
+    "serie": "S2",
+    "foto": "6275c0ba"
+   },
+   {
+    "id": "C2-I10",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 28 nov · Olón un sábado: fachada con clientes (foto:4c41cd56), corte a detalle del ceviche mixto (foto:45084b4b), corte a primer plano de mano con cuchara sobre bowl (foto:8eb78d2f). Sin voz. Texto frame 3: «también en Guayaquil». Cierre: «pide en naufrago.ec»",
+    "mensaje": "el ceviche como segundo producto — el sábado en Olón amplía la carta que ya conocen en Guayaquil",
+    "gancho": "historia (el sábado en Olón como contexto que da peso al delivery)",
+    "protagonista": "el ceviche mixto",
+    "serie": "S2",
+    "foto": "4c41cd56"
+   },
+   {
+    "id": "C2-I11",
+    "capitulo": "cimientos",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 28 nov · «sábado de ceviche mixto. producto del día. en Olón por acá. en Guayaquil: naufrago.ec»",
+    "mensaje": "el segundo producto ancla tiene su propio aviso de disponibilidad",
+    "gancho": "afirmación directa (empieza por el nombre del plato)",
+    "protagonista": "el ceviche mixto",
+    "serie": "S2",
+    "foto": null
+   },
+   {
+    "id": "C2-I12",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 29 nov · foto de fachada con terraza llena (foto:fe452b8f). Texto encima: «domingo en Olón.» · siguiente frame: fondo oscuro + «cuando tengas esa hambre... Náufrago te espera.»",
+    "mensaje": "el tagline del dueño como cierre del domingo — no es un claim, es la voz del local",
+    "gancho": "historia (el primer frame da contexto; el segundo cierra con la voz de la marca)",
+    "protagonista": "la terraza de Olón",
+    "serie": "S2",
+    "foto": "fe452b8f"
+   },
+   {
+    "id": "C2-I13",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 30 nov · reel de consolidación Guayaquil: imagen generada de puerta urbana al abrir, corte a bowl ya en mesa, corte a logo sobre fondo oscuro. Sin voz. Texto frame 2: «ya encontró tu barrio». Cierre: «naufrago.ec»",
+    "mensaje": "la entrega ya no es novedad — el producto encontró su lugar",
+    "gancho": "a contracorriente (el reel más corto de la fase — 12 s — señala que la historia ya no necesita explicarse)",
+    "protagonista": "el bowl en mesa urbana",
+    "serie": "S2",
+    "foto": null
+   },
+   {
+    "id": "C2-I14",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 30 nov · fondo oscuro + texto: «el náufrago salió buscando oro.» · siguiente frame: «encontró el encebollado.» · siguiente frame: «y lo trajo a tu barrio.»",
+    "mensaje": "la leyenda completa en tres frames — recapitula el arco para quien llega nuevo",
+    "gancho": "historia (tres frames que cuentan el arco; el tercero conecta con el cliente, no con el personaje)",
+    "protagonista": "el náufrago — la voz del pergamino",
+    "serie": "S2",
+    "foto": null
+   },
+   {
+    "id": "C2-I15",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 3 dic · plano bajo del ceviche (foto:a7bd788f). Caption: el ceviche mixto de pescado. con chifle de plátano, encebollado al lado. nacido en Olón. disponible en Guayaquil por naufrago.ec",
+    "mensaje": "nombrar el plato con sus componentes concretos — sin «exquisito» ni «auténtico»",
+    "gancho": "punto de vista (el plato como sujeto desde el primer palabra)",
+    "protagonista": "el ceviche mixto",
+    "serie": "S2",
+    "foto": "a7bd788f"
+   },
+   {
+    "id": "C2-I16",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 4 dic · foto del personaje náufrago (foto:4f09cef2). Texto: «no encontré oro.» · siguiente frame: foto del bowl (foto:c0355f3d) + «encontré esto. y lo traje.»",
+    "mensaje": "la leyenda como cierre de semana — el personaje habla sin vocear claims",
+    "gancho": "historia (el personaje como hilo que conecta el origen con el presente)",
+    "protagonista": "el náufrago y el bowl",
+    "serie": "S2",
+    "foto": "4f09cef2"
+   },
+   {
+    "id": "C2-I17",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 5 dic · último sábado de cimientos — Olón completo: fachada (foto:31ee2ae3), detalle de caldo en olla (foto:6275c0ba), cenital del bowl (foto:c0355f3d). Texto frame 3: «de acá.» Cierre dual: «Olón: WhatsApp / Guayaquil: naufrago.ec»",
+    "mensaje": "cierra la fase con el origen — las dos sedes comparten el mismo producto",
+    "gancho": "prueba (el proceso visible — la olla antes del bowl — es el argumento sin palabras)",
+    "protagonista": "la cocina de Olón",
+    "serie": "S2",
+    "foto": "31ee2ae3"
+   },
+   {
+    "id": "C2-I18",
+    "capitulo": "cimientos",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 5 dic · «encebollado con chifle. producto del día. ya listo. — en Olón por acá / en Guayaquil: naufrago.ec»",
+    "mensaje": "el aviso más corto de la fase — la marca ya no necesita explicar nada",
+    "gancho": "afirmación directa (empieza con el nombre del plato y el hecho)",
+    "protagonista": "el plato del día",
+    "serie": "S2",
+    "foto": null
+   },
+   {
+    "id": "C2-I19",
+    "capitulo": "cimientos",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 6 dic · foto de terraza en Olón (foto:2e4f9d17). Texto: «fin de la semana en Olón.» · siguiente frame: fondo turquesa oscuro + «¿y en tu barrio? naufrago.ec»",
+    "mensaje": "cierra la fase 2 con la misma pregunta que abrió la fase 1 — el arco se cierra",
+    "gancho": "brecha de curiosidad (el primer frame da el contexto playero; el segundo lo lleva al cliente de Guayaquil)",
+    "protagonista": "la terraza de Olón",
+    "serie": "S2",
+    "foto": "2e4f9d17"
+   },
+   {
+    "id": "C3-I09",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 10 dic · foto de fachada con temporada (foto:af4c91fa). Caption: diciembre en Olón. la misma cocina de siempre, con más gente mirando al mar. en Guayaquil, el encebollado llega a tu barrio por naufrago.ec",
+    "mensaje": "la temporada en Olón es el contexto del producto — no es publicidad de turismo",
+    "gancho": "historia (el contexto de temporada da peso al origen del encebollado)",
+    "protagonista": "la fachada de Olón en diciembre",
+    "serie": "S3a",
+    "foto": "af4c91fa"
+   },
+   {
+    "id": "C3-I10",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 11 dic · foto de fachada con clientes (foto:4c41cd56). Texto: «temporada alta en Olón.» · siguiente frame: fondo oscuro + «el encebollado no descansa.» + naufrago.ec",
+    "mensaje": "la temporada como prueba de demanda — sin claims de volumen",
+    "gancho": "brecha de curiosidad (el primer frame abre la escena de playa; el segundo conecta con el cliente de Guayaquil)",
+    "protagonista": "el local en temporada",
+    "serie": "S3a",
+    "foto": "4c41cd56"
+   },
+   {
+    "id": "C3-I11",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 12 dic · sábado de temporada en Olón: fachada llena (foto:9f71b0e9), corte a caldo en cocina (foto:6275c0ba), corte a bowl servido (foto:c0355f3d). Texto frame 3: «diciembre en Olón.» Cierre: «en Guayaquil también. naufrago.ec»",
+    "mensaje": "la temporada en Olón y la entrega en Guayaquil son el mismo encebollado",
+    "gancho": "historia (tres planos que trazan el origen en temporada)",
+    "protagonista": "Olón en diciembre",
+    "serie": "S3a",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C3-I12",
+    "capitulo": "velocidad",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 12 dic · «diciembre en Olón. encebollado con chifle, producto del día. en Guayaquil: naufrago.ec»",
+    "mensaje": "el aviso de temporada en un estado de WhatsApp — sin descripción, solo el hecho",
+    "gancho": "afirmación directa (empieza con el mes y el lugar)",
+    "protagonista": "el plato en temporada",
+    "serie": "S3a",
+    "foto": null
+   },
+   {
+    "id": "C3-I13",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 13 dic · foto de playa (foto:3ac1e146, si el encuadre permite texto encima sin invadir a la persona). Texto: «domingo de playa en Olón.» · siguiente frame: foto del bowl (foto:e8da814f) + «cuando tengas esa hambre... Náufrago te espera.»",
+    "mensaje": "el tagline del dueño como cierre del domingo de temporada",
+    "gancho": "historia (el primer frame pone al cliente en la escena de playa; el segundo cierra con la voz de la marca)",
+    "protagonista": "la playa de Olón",
+    "serie": "S3a",
+    "foto": "3ac1e146"
+   },
+   {
+    "id": "C3-I14",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 14 dic · reel de hábito Guayaquil: negro, caldo, mano. Corte a bowl (foto:19671014). Texto: «ya es lunes.» Cierre: naufrago.ec. 12 s. Montaje por sustracción — el reel más corto de la campaña hasta ahora",
+    "mensaje": "el lunes ya no necesita explicación — es el día del encebollado",
+    "gancho": "a contracorriente (el reel más corto de la fase — el hábito no necesita narrativa)",
+    "protagonista": "el bowl",
+    "serie": "S3b",
+    "foto": "19671014"
+   },
+   {
+    "id": "C3-I15",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 14 dic · texto solo: «diciembre. pero el encebollado no espera.» + naufrago.ec",
+    "mensaje": "la temporada navideña no interrumpe el hábito — el producto sigue igual",
+    "gancho": "a contracorriente (nombra diciembre sin ninguna referencia navideña — la marca no hace descuentos de temporada)",
+    "protagonista": "el encebollado como constante",
+    "serie": "S3b",
+    "foto": null
+   },
+   {
+    "id": "C3-I16",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 17 dic · cenital del bowl (foto:c0355f3d). Caption: el encebollado que salió de Olón esta mañana. el mismo de siempre, en temporada alta. en Guayaquil por naufrago.ec",
+    "mensaje": "la constancia del producto es el argumento — en temporada alta no cambia nada",
+    "gancho": "punto de vista (el plato como el sujeto inmóvil de una temporada que se mueve)",
+    "protagonista": "el encebollado con chifle",
+    "serie": "S3b",
+    "foto": "c0355f3d"
+   },
+   {
+    "id": "C3-I17",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 18 dic · foto del personaje náufrago (foto:4f09cef2). Texto: «en diciembre tampoco encontré oro.» · siguiente frame: bowl (foto:e8da814f) + «pero esto sí.»",
+    "mensaje": "la leyenda en contexto de temporada — el personaje no hace publicidad de diciembre, sigue fiel a su historia",
+    "gancho": "historia (el personaje como hilo que continúa sin doblegarse a la estética navideña)",
+    "protagonista": "el náufrago",
+    "serie": "S3b",
+    "foto": "4f09cef2"
+   },
+   {
+    "id": "C3-I18",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 19 dic · fachada en tarde de diciembre (foto:fe452b8f), corte a detalle del ceviche (foto:a7bd788f), corte al bowl de encebollado (foto:e8da814f). Texto frame 3: «diciembre sabe a esto.» Sin referencia a Navidad. Cierre: «Olón: WhatsApp / Guayaquil: naufrago.ec»",
+    "mensaje": "diciembre tiene sabor propio — no es la fecha, es el producto",
+    "gancho": "punto de vista (el sabor de diciembre no es pavo ni champagne — es encebollado)",
+    "protagonista": "los dos platos ancla",
+    "serie": "S3a",
+    "foto": "fe452b8f"
+   },
+   {
+    "id": "C3-I19",
+    "capitulo": "velocidad",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 19 dic · «diciembre en Olón. lleno. encebollado y ceviche, producto del día. en Guayaquil: naufrago.ec»",
+    "mensaje": "el aviso de temporada alta con la información de disponibilidad en dos palabras",
+    "gancho": "afirmación directa (empieza con el lugar y el hecho)",
+    "protagonista": "los dos platos",
+    "serie": "S3a",
+    "foto": null
+   },
+   {
+    "id": "C3-I20",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 20 dic · foto de terraza con clientes (foto:2e4f9d17). Texto: «temprano en Olón.» · siguiente frame: fondo oscuro + «también temprano en Guayaquil.» + naufrago.ec",
+    "mensaje": "las dos sedes comparten el mismo ritmo de mañana — el origen y el delivery no son mundos separados",
+    "gancho": "brecha de curiosidad (el primer frame ancla en Olón; el segundo lleva a Guayaquil sin explicar el viaje)",
+    "protagonista": "la mañana en Olón",
+    "serie": "S3a",
+    "foto": "2e4f9d17"
+   },
+   {
+    "id": "C3-I21",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 21 dic · negro, caldo, mano. Corte a bowl (foto:c0355f3d). Texto: «lunes antes de Navidad.» Corte a logo sobre púrpura. Texto turquesa: «el encebollado no descansa.» Cierre: naufrago.ec. 10 s",
+    "mensaje": "el encebollado no hace pausa navideña — el hábito se mantiene en semana de fiesta",
+    "gancho": "a contracorriente (nombra Navidad para decir que no cambia nada — no hay felicitación, hay constancia)",
+    "protagonista": "el bowl",
+    "serie": "S3b",
+    "foto": "c0355f3d"
+   },
+   {
+    "id": "C3-I22",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 21 dic · texto: «¿qué desayunás el lunes antes de Navidad?» · siguiente frame: bowl (foto:19671014) + naufrago.ec",
+    "mensaje": "la pregunta conecta el hábito con la fecha sin forzar la estética navideña",
+    "gancho": "pregunta (abre con la decisión de la mañana antes de que el cliente la haya tomado)",
+    "protagonista": "el encebollado como respuesta natural",
+    "serie": "S3b",
+    "foto": "19671014"
+   },
+   {
+    "id": "C3-I23",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 24 dic · bowl cenital (foto:e8da814f). Caption: 24 de diciembre. el encebollado de Olón ya está listo. en Guayaquil por naufrago.ec",
+    "mensaje": "la Nochebuena sin estética navideña — el producto como la constante",
+    "gancho": "afirmación directa (la fecha como único contexto; el plato como protagonista)",
+    "protagonista": "el encebollado",
+    "serie": "S3b",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C3-I24",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 25 dic · fondo púrpura oscuro. Texto turquesa: «25 de diciembre.» · siguiente frame: texto blanco: «Olón está abierto.» + «pide en naufrago.ec»",
+    "mensaje": "aclarar disponibilidad en Navidad sin festejo ni cierre de año",
+    "gancho": "afirmación directa (la fecha y el hecho — sin más)",
+    "protagonista": "la disponibilidad del producto",
+    "serie": "S3b",
+    "foto": null
+   },
+   {
+    "id": "C3-I25",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 26 dic · post-Navidad en Olón: fachada (foto:31ee2ae3), corte a caldo en cocina (foto:6275c0ba), corte a bowl (foto:c0355f3d). Texto: «ya pasó la Navidad. el encebollado sigue.» Cierre: «Olón: WhatsApp / Guayaquil: naufrago.ec»",
+    "mensaje": "la constancia del producto después de la fecha — sin dramatismo",
+    "gancho": "a contracorriente (el encebollado no se detiene por las fiestas — el reel del post-Navidad sin mencionar el año nuevo)",
+    "protagonista": "la cocina de Olón",
+    "serie": "S3a",
+    "foto": "31ee2ae3"
+   },
+   {
+    "id": "C3-I26",
+    "capitulo": "velocidad",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 26 dic · «26. encebollado con chifle. producto del día. en Guayaquil: naufrago.ec»",
+    "mensaje": "el aviso más austero de la temporada — sin mención a las fiestas",
+    "gancho": "afirmación directa (empieza con la fecha como único contexto)",
+    "protagonista": "el plato",
+    "serie": "S3a",
+    "foto": null
+   },
+   {
+    "id": "C3-I27",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 27 dic · foto de fachada (foto:4c41cd56). Texto: «domingo después de Navidad.» · siguiente frame: fondo oscuro + «cuando tengas esa hambre... Náufrago te espera.»",
+    "mensaje": "el tagline del dueño como cierre de la semana navideña",
+    "gancho": "historia (el primer frame da el contexto post-fiesta; el segundo cierra con la voz de la marca)",
+    "protagonista": "la fachada de Olón",
+    "serie": "S3a",
+    "foto": "4c41cd56"
+   },
+   {
+    "id": "C3-I28",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 28 dic · negro, caldo, mano. Corte a bowl (foto:19671014). Texto: «última semana del año.» Corte a naufrago.ec. 10 s",
+    "mensaje": "el encebollado como constante en la semana entre Navidad y Año Nuevo",
+    "gancho": "a contracorriente (nombra «última semana del año» sin festejo ni balance)",
+    "protagonista": "el bowl",
+    "serie": "S3b",
+    "foto": "19671014"
+   },
+   {
+    "id": "C3-I29",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 28 dic · texto: «el náufrago tampoco hace balance de fin de año.» · siguiente frame: bowl (foto:e8da814f) + «solo encebollado.» + naufrago.ec",
+    "mensaje": "el personaje como contracorriente de los contenidos de «lo mejor del año»",
+    "gancho": "a contracorriente (el personaje que no hace review de año — solo sigue sirviendo el encebollado)",
+    "protagonista": "el náufrago",
+    "serie": "S3b",
+    "foto": null
+   },
+   {
+    "id": "C3-I30",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 31 dic · bowl cenital (foto:c0355f3d). Caption: 31 de diciembre. mismo encebollado de siempre. en Guayaquil por naufrago.ec",
+    "mensaje": "el 31 sin estética de Año Nuevo — el plato es el mismo",
+    "gancho": "punto de vista (el 31 como cualquier otro día del encebollado)",
+    "protagonista": "el encebollado",
+    "serie": "S3b",
+    "foto": "c0355f3d"
+   },
+   {
+    "id": "C3-I31",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 1 ene · fondo púrpura oscuro. Texto turquesa: «2027.» · siguiente frame: texto blanco: «mismo encebollado. mismo producto del día.» + naufrago.ec",
+    "mensaje": "el año nuevo sin fórmulas de felicitación — la constancia del producto como la única novedad",
+    "gancho": "a contracorriente (empieza con el año sin «feliz» ni «que el nuevo año...»)",
+    "protagonista": "el encebollado como constante",
+    "serie": "S3b",
+    "foto": null
+   },
+   {
+    "id": "C3-I32",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 2 ene · primer sábado de enero en Olón: fachada (foto:9f71b0e9), corte a caldo (foto:6275c0ba), corte a bowl (foto:e8da814f). Texto: «enero en Olón.» Cierre: «Olón: WhatsApp / Guayaquil: naufrago.ec»",
+    "mensaje": "el inicio del año es el inicio de la temporada alta en Olón — sin fanfarria",
+    "gancho": "historia (tres planos que inauguran enero como inauguraron la campaña)",
+    "protagonista": "Olón en enero",
+    "serie": "S3a",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C3-I33",
+    "capitulo": "velocidad",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 2 ene · «enero en Olón. encebollado con chifle, producto del día. en Guayaquil: naufrago.ec»",
+    "mensaje": "el aviso del primer sábado de enero — sin celebración, sin balance",
+    "gancho": "afirmación directa (mes, producto, hecho)",
+    "protagonista": "el plato",
+    "serie": "S3a",
+    "foto": null
+   },
+   {
+    "id": "C3-I34",
+    "capitulo": "velocidad",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 3 ene · foto de terraza en Olón (foto:fe452b8f). Texto: «domingo de enero.» · siguiente frame: fondo oscuro + «Náufrago sigue.» + naufrago.ec",
+    "mensaje": "la continuidad de la marca en el inicio de año — sin resoluciones ni promesas nuevas",
+    "gancho": "afirmación directa (dos palabras que dicen todo lo que la fase 3 demostró)",
+    "protagonista": "la terraza de Olón",
+    "serie": "S3a",
+    "foto": "fe452b8f"
+   },
+   {
+    "id": "C4-I09",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 8 ene · foto de fachada en mañana de enero (foto:af4c91fa). Texto: «Olón en temporada.» · siguiente frame: bowl (foto:19671014) + «y en tu barrio también.» + naufrago.ec",
+    "mensaje": "la temporada en Olón amplifica el origen del producto que llega a Guayaquil",
+    "gancho": "brecha de curiosidad (el primer frame ancla en la playa; el segundo lo lleva al barrio del cliente)",
+    "protagonista": "Olón en temporada alta",
+    "serie": "S4a",
+    "foto": "af4c91fa"
+   },
+   {
+    "id": "C4-I10",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 9 ene · sábado de temporada alta: fachada con clientes (foto:4c41cd56), corte a manos preparando (foto:f5d887ec), corte a bowl servido (foto:c0355f3d). Texto frame 3: «temporada alta en Olón.» Cierre: «en Guayaquil también. naufrago.ec»",
+    "mensaje": "la temporada alta en Olón como el contexto más poderoso del origen",
+    "gancho": "historia (tres planos de temporada — es el reel más «lleno» de la fase 4)",
+    "protagonista": "Olón en su mejor momento",
+    "serie": "S4a",
+    "foto": "4c41cd56"
+   },
+   {
+    "id": "C4-I11",
+    "capitulo": "acumular",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 9 ene · «temporada alta en Olón. encebollado con chifle, producto del día. en Guayaquil: naufrago.ec»",
+    "mensaje": "el aviso de temporada alta sin descripción — el hecho como el mensaje",
+    "gancho": "afirmación directa (empieza con el contexto de temporada)",
+    "protagonista": "el plato",
+    "serie": "S4a",
+    "foto": null
+   },
+   {
+    "id": "C4-I12",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 10 ene · foto de playa (foto:3ac1e146, si el encuadre permite texto). Texto: «domingo en Olón.» · siguiente frame: fondo oscuro + «cuando tengas esa hambre... Náufrago te espera.»",
+    "mensaje": "el tagline del dueño como cierre del primer domingo de la fase 4",
+    "gancho": "historia (el contexto de playa + la voz de la marca)",
+    "protagonista": "la playa de Olón",
+    "serie": "S4a",
+    "foto": "3ac1e146"
+   },
+   {
+    "id": "C4-I13",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 11 ene · negro, caldo, mano. Corte a bowl (foto:19671014). 8 s. Sin texto hasta el cierre: naufrago.ec",
+    "mensaje": "el reel más austero de la campaña — el hábito instalado no necesita texto",
+    "gancho": "a contracorriente (un reel sin texto en el cuerpo — solo imagen y URL al cierre)",
+    "protagonista": "el bowl",
+    "serie": "S4b",
+    "foto": "19671014"
+   },
+   {
+    "id": "C4-I14",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 11 ene · texto: «ya es lunes.» + naufrago.ec",
+    "mensaje": "el aviso de disponibilidad más corto de toda la campaña",
+    "gancho": "afirmación directa (tres palabras)",
+    "protagonista": "el hábito",
+    "serie": "S4b",
+    "foto": null
+   },
+   {
+    "id": "C4-I15",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 14 ene · plano frontal bajo del ceviche (foto:45084b4b). Caption: ceviche mixto. temporada alta en Olón. en Guayaquil por naufrago.ec",
+    "mensaje": "el ceviche como segundo plato en temporada alta",
+    "gancho": "punto de vista (el plato como sujeto de la temporada)",
+    "protagonista": "el ceviche mixto",
+    "serie": "S4a",
+    "foto": "45084b4b"
+   },
+   {
+    "id": "C4-I16",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 15 ene · foto del personaje náufrago (foto:4f09cef2). Texto: «el pergamino dice:» · siguiente frame: fondo oscuro + texto: «\"vine buscando oro. encontré el encebollado. lo traje a tu barrio.\"»",
+    "mensaje": "el pergamino completo — cierre narrativo de la leyenda en la semana central de la fase",
+    "gancho": "historia (el personaje entrega su relato en primera persona — es el único momento en que el pergamino aparece completo)",
+    "protagonista": "el náufrago y el pergamino",
+    "serie": "S4b",
+    "foto": "4f09cef2"
+   },
+   {
+    "id": "C4-I17",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 16 ene · fachada de temporada (foto:fe452b8f), corte a caldo (foto:6275c0ba), corte a bowl (foto:e8da814f). Sin texto hasta frame 3: «sábado en Olón.» Cierre dual. 14 s",
+    "mensaje": "el sábado de temporada media en la fase 4 — mismo ritmo, sin añadir",
+    "gancho": "historia (tres planos de Olón en sábado de temporada)",
+    "protagonista": "Olón",
+    "serie": "S4a",
+    "foto": "fe452b8f"
+   },
+   {
+    "id": "C4-I18",
+    "capitulo": "acumular",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 16 ene · «sábado de encebollado. producto del día. en Guayaquil: naufrago.ec»",
+    "mensaje": "el aviso más limpio — sin mención de temporada",
+    "gancho": "afirmación directa",
+    "protagonista": "el plato",
+    "serie": "S4b",
+    "foto": null
+   },
+   {
+    "id": "C4-I19",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 17 ene · foto de terraza (foto:9f71b0e9). Texto: «domingo en Olón.» · siguiente frame: fondo oscuro + «cuando tengas esa hambre... Náufrago te espera.»",
+    "mensaje": "el tagline como cierre del domingo — se repite porque ya es reconocible",
+    "gancho": "historia",
+    "protagonista": "la terraza",
+    "serie": "S4a",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C4-I20",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 18 ene · negro, caldo, mano. 8 s. Cierre: naufrago.ec",
+    "mensaje": "el hábito no necesita narrativa — el público ya completa la historia",
+    "gancho": "a contracorriente",
+    "protagonista": "el bowl",
+    "serie": "S4b",
+    "foto": null
+   },
+   {
+    "id": "C4-I21",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 18 ene · texto: «lunes.» + naufrago.ec",
+    "mensaje": "el aviso más corto posible — una sola palabra y el canal",
+    "gancho": "afirmación directa (una sola palabra)",
+    "protagonista": "el hábito",
+    "serie": "S4b",
+    "foto": null
+   },
+   {
+    "id": "C4-I22",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 21 ene · cenital bowl (foto:c0355f3d). Caption: el encebollado de siempre. en Olón por WhatsApp. en Guayaquil por naufrago.ec",
+    "mensaje": "el plato sin ningún contexto de temporada — es suficiente por sí solo",
+    "gancho": "punto de vista (el plato como el único protagonista)",
+    "protagonista": "el encebollado",
+    "serie": "S4b",
+    "foto": "c0355f3d"
+   },
+   {
+    "id": "C4-I23",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 22 ene · fondo oscuro. Texto: «¿cuándo pediste por última vez?» + naufrago.ec (retoma C4-I03 sin repetirla — mismo gancho, nuevo contexto: semana 11, el hábito ya debería estar instalado)",
+    "mensaje": "la pregunta de retención en el contexto en que ya tiene más peso — el cliente recurrente existe",
+    "gancho": "pregunta (igual que C4-I03 pero en contexto de hábito instalado)",
+    "protagonista": "el cliente recurrente",
+    "serie": "S4b",
+    "foto": null
+   },
+   {
+    "id": "C4-I29",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "foto",
+    "idea": "jue_foto_olon 28 ene · cenital bowl (foto:e8da814f). Caption: encebollado con chifle. el oro que nunca buscaste. naufrago.ec",
+    "mensaje": "el único momento en que el nombre de la campaña aparece en el caption de feed — como cierre del trimestre",
+    "gancho": "punto de vista (nombra la campaña como si fuera el título del pergamino)",
+    "protagonista": "el encebollado",
+    "serie": "S4b",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C4-I30",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "vie_historia_gye 29 ene · foto del personaje náufrago (foto:4f09cef2). Texto: «el pergamino ya está escrito.» · siguiente frame: fondo oscuro + texto turquesa: «vine buscando oro. encontré el encebollado. lo traje a tu barrio.»",
+    "mensaje": "cierre narrativo de la leyenda — el pergamino se completó",
+    "gancho": "historia (el personaje como narrador del cierre de la campaña)",
+    "protagonista": "el náufrago",
+    "serie": "S4b",
+    "foto": "4f09cef2"
+   },
+   {
+    "id": "C1-I22",
+    "capitulo": "desbloquear",
+    "red": "facebook",
+    "formato": "réplica",
+    "idea": "réplica de C1-I14 (reel de entrega semana 2) como imagen estática: frame de la mano recibiendo bolsa, texto «de Olón a tu puerta — pide en naufrago.ec».",
+    "mensaje": "el delivery es real",
+    "gancho": "el momento de la entrega congelado",
+    "protagonista": "la mano que recibe",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C2-I20",
+    "capitulo": "cimientos",
+    "red": "facebook",
+    "formato": "réplica",
+    "idea": "réplica de C2-I06 como imagen estática: frame del bowl en mesa urbana con texto «el encebollado de Olón ya tiene barrio — pide en naufrago.ec».",
+    "mensaje": "el delivery es rutina",
+    "gancho": "el mejor frame del reel",
+    "protagonista": "el bowl en contexto urbano",
+    "serie": "S1",
+    "foto": null
+   },
+   {
+    "id": "C2-I21",
+    "capitulo": "cimientos",
+    "red": "facebook",
+    "formato": "réplica",
+    "idea": "réplica de C2-I13 como imagen estática: cenital del ceviche con texto «el ceviche de Olón también viaja — pide en naufrago.ec».",
+    "mensaje": "la carta se amplía",
+    "gancho": "plato nuevo en formato conocido",
+    "protagonista": "el ceviche",
+    "serie": "S1",
+    "foto": "a7bd788f"
+   },
+   {
+    "id": "C3-I35",
+    "capitulo": "velocidad",
+    "red": "facebook",
+    "formato": "réplica",
+    "idea": "réplica del mejor reel de la fase (C3-I07 o C3-I21) como imagen estática con texto «encebollado de Olón — pide en naufrago.ec». Una réplica por quincena.",
+    "mensaje": "el delivery sigue",
+    "gancho": "el frame más fuerte",
+    "protagonista": "el bowl",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C3-I36",
+    "capitulo": "velocidad",
+    "red": "facebook",
+    "formato": "réplica",
+    "idea": "réplica de C3-I24 (Navidad) como imagen estática: bowl con texto «feliz Navidad — pide en naufrago.ec».",
+    "mensaje": "Navidad + encebollado",
+    "gancho": "la felicitación más corta",
+    "protagonista": "el bowl navideño",
+    "serie": "S1",
+    "foto": "c0355f3d"
+   },
+   {
+    "id": "C4-I24",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 23 ene · **Beat: último sábado de arco narrativo.** Reel con la cocina de Olón (foto:6275c0ba) y la terraza. Ritmo pausado, planos largos. La campaña se va como empezó — desde la cocina hacia afuera. Emoción: vuelta al origen.",
+    "mensaje": "la cocina de Olón sigue encendida",
+    "gancho": "el cierre vuelve al inicio",
+    "protagonista": "la cocina",
+    "serie": "S1",
+    "foto": "6275c0ba"
+   },
+   {
+    "id": "C4-I25",
+    "capitulo": "acumular",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 23 ene · **Beat: penúltimo aviso.** «Encebollado con chifle.» Una línea. Foto (foto:e8da814f). El aviso llegó a su forma mínima absoluta. Emoción: lo que no necesita explicación.",
+    "mensaje": "una línea basta",
+    "gancho": "la brevedad máxima",
+    "protagonista": "el nombre del plato",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C4-I26",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 24 ene · **Beat: domingo once.** Terraza (foto:9f71b0e9). Onceavo cierre dominical. Sin variación. Emoción: la marca como constante.",
+    "mensaje": "once domingos",
+    "gancho": "la acumulación como identidad",
+    "protagonista": "la terraza",
+    "serie": "S1",
+    "foto": "9f71b0e9"
+   },
+   {
+    "id": "C4-I27",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "lun_reel_gye 26 ene · **Beat: el último reel de Guayaquil.** 8 s. Bowl → logo. Dos planos, como C4-I06. La campaña cierra en Guayaquil con el formato más corto posible. Si el público reconoce el bowl y el logo en 8 segundos, la campaña funcionó. Emoción: la prueba final de la sustracción.",
+    "mensaje": "la marca se dice en dos planos",
+    "gancho": "reconocimiento instantáneo",
+    "protagonista": "el bowl y el logo",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C4-I28",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "lun_historia_gye 26 ene · **Beat: cierre de la leyenda.** Frame: el pergamino completo del náufrago — todas las líneas de la leyenda juntas, en Caveat sobre púrpura oscuro. Frame 2: «naufrago.ec». El último acto del personaje no es una venta — es el pergamino colgado en la pared, como un mapa de tesoro que ya se encontró. Emoción: historia completada.",
+    "mensaje": "la leyenda quedó escrita",
+    "gancho": "el pergamino completo como punto final",
+    "protagonista": "la leyenda terminada",
+    "serie": "S1",
+    "foto": "4f09cef2"
+   },
+   {
+    "id": "C4-I31",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "reel",
+    "idea": "sab_reel_olon 30 ene · **Beat: Olón cierra el arco.** Reel final: amanecer en la fachada (foto:fe452b8f), paneo a la terraza, corte al bowl, corte al mar (si hay foto) o a la calle de Olón. Planos largos, ritmo de despedida. La campaña empezó con el sonido del caldo; cierra con la imagen del lugar donde todo empezó. Emoción: origen como destino.",
+    "mensaje": "Olón sigue ahí",
+    "gancho": "volver al principio para cerrar",
+    "protagonista": "Olón",
+    "serie": "S1",
+    "foto": "fe452b8f"
+   },
+   {
+    "id": "C4-I32",
+    "capitulo": "acumular",
+    "red": "whatsapp",
+    "formato": "estado",
+    "idea": "sab_estado_olon 30 ene · **Beat: último aviso.** «Encebollado.» Una palabra. Foto (foto:19671014). El aviso más corto de todos. Si una palabra basta, la marca se instaló. Emoción: la marca en su forma más destilada.",
+    "mensaje": "una palabra",
+    "gancho": "el mínimo absoluto",
+    "protagonista": "el nombre del plato",
+    "serie": "S1",
+    "foto": "19671014"
+   },
+   {
+    "id": "C4-I33",
+    "capitulo": "acumular",
+    "red": "instagram",
+    "formato": "historia",
+    "idea": "dom_historia_olon 31 ene · **Beat: último domingo.** Terraza (foto:af4c91fa). Doceavo y último cierre dominical. La misma terraza, el mismo encuadre, el mismo formato. La campaña termina como cada domingo terminó: con Olón abierto. Emoción: la permanencia como acto final.",
+    "mensaje": "último domingo de la campaña, no del encebollado",
+    "gancho": "el cierre ritual por última vez",
+    "protagonista": "la terraza que sigue",
+    "serie": "S1",
+    "foto": "af4c91fa"
+   },
+   {
+    "id": "C4-I34",
+    "capitulo": "acumular",
+    "red": "facebook",
+    "formato": "réplica",
+    "idea": "réplica de C4-I27 como imagen estática: bowl con texto «encebollado de Olón — pide en naufrago.ec». Cierre de Facebook con la misma brevedad que Instagram.",
+    "mensaje": "el delivery sigue después de la campaña",
+    "gancho": "el frame más fuerte del último reel",
+    "protagonista": "el bowl",
+    "serie": "S1",
+    "foto": "e8da814f"
+   },
+   {
+    "id": "C4-I35",
+    "capitulo": "acumular",
+    "red": "facebook",
+    "formato": "réplica",
+    "idea": "réplica de C4-I14 (pergamino completo) como imagen estática: silueta del náufrago con el pergamino, texto «naufrago.ec».",
+    "mensaje": "la leyenda completa en Facebook",
+    "gancho": "el personaje como firma de cierre",
+    "protagonista": "el náufrago",
+    "serie": "S1",
+    "foto": "4f09cef2"
+   }
+  ],
+  "resumen": {
+   "total": 114,
+   "por_red": {
+    "instagram": 86,
+    "whatsapp": 16,
+    "facebook": 12
+   },
+   "por_capitulo": {
+    "desbloquear": 22,
+    "cimientos": 21,
+    "velocidad": 36,
+    "acumular": 35
+   },
+   "ejemplos": {
+    "desbloquear": [
+     {
+      "id": "C1-I00",
+      "idea": "Primera historia de campaña: pergamino en fondo púrpura oscuro, Caveat turquesa, sin plato, sin URL: «vine buscando oro. encontré encebollado.»",
+      "mensaje": "la leyenda abre la campaña antes que el producto",
+      "gancho": "texto solo, sin plato — el pergamino incompleto detiene el scroll"
+     },
+     {
+      "id": "C1-I01",
+      "idea": "El pergamino del náufrago aparece antes que el plato. Fondo púrpura oscuro, el personaje en silueta recortada.",
+      "mensaje": "el personaje existe antes de que el producto aparezca",
+      "gancho": "silueta sin contexto — el ojo busca dónde está el plato"
+     },
+     {
+      "id": "C1-I02",
+      "idea": "lun_reel_gye 10 nov: apertura en negro 1 s + sonido de caldo → cenital del bowl → texto «de Olón a tu barrio» en Caveat turquesa → frontal bajo del caldo → entrega en puerta (generada) → cierre «naufrago.ec» blanco sobre púrpura → pergamino como firma",
+      "mensaje": "el encebollado que conoces de la costa ya no pide que viajes",
+      "gancho": "negro + sonido de caldo — el ojo espera, el oído reconoce antes que la imagen llega"
+     }
+    ],
+    "cimientos": [
+     {
+      "id": "C2-I01",
+      "idea": "lun_historia_gye 24 nov: «ya llegó el encebollado a zona norte.» Sin precio, sin horario. Solo confirmación. Swipe: foto de bowl cenital como prueba de producto.",
+      "mensaje": "la llegada ya no es noticia — es un hecho que se confirma",
+      "gancho": "frase declarativa sin adjetivos — lo que ya pasó no necesita venderlo"
+     },
+     {
+      "id": "C2-I02",
+      "idea": "lun_reel_gye 24 nov: secuencia puerta → mano recibe bolsa → bowl ya servido en mesa urbana. Sin voz. Texto en pantalla: «de la cocina a tu puerta» en Caveat turquesa sobre fondo del video. Cierre: «naufrago.ec» en blanco.",
+      "mensaje": "el trayecto completo en 20 s — de la cocina al bowl en la mesa",
+      "gancho": "la puerta abriéndose en el primer frame — el ojo reconoce el gesto antes de leer el texto"
+     },
+     {
+      "id": "C2-I03",
+      "idea": "jue_foto_olon 26 nov: plano frontal bajo del ceviche mixto, el jugo visible al fondo. Caption: lo que trae el plato, sin precio.",
+      "mensaje": "el ceviche tiene la misma frescura de origen que el encebollado",
+      "gancho": "el ángulo de 30° muestra el volumen del jugo — el plato parece más generoso que en cenital"
+     }
+    ],
+    "velocidad": [
+     {
+      "id": "C3-I01",
+      "idea": "lun_reel_gye 7 dic: amanecer en la fachada de Olón con clientes sentados → corte a cenital del bowl → corte a plano de la puerta de entrega en Guayaquil → pergamino cierre: «de Olón a tu barrio.» Sin voz. Música: beat más vivo que fases anteriores.",
+      "mensaje": "en temporada alta el encebollado existe en dos lugares al mismo tiempo",
+      "gancho": "el amanecer de Olón en diciembre — la luz cálida de las 8 am es el frame que detiene el scroll"
+     },
+     {
+      "id": "C3-I02",
+      "idea": "jue_foto_olon 10 dic: fachada con letrero Náufrago, mesas turquesa, luz de mañana. Caption evoca el origen. Sin horario en la imagen.",
+      "mensaje": "Olón en temporada alta — la fachada habla sin que el texto tenga que explicarla",
+      "gancho": "la fachada en luz cálida de mañana es el encuadre que mejor resume quién es la marca"
+     },
+     {
+      "id": "C3-I03",
+      "idea": "lun_historia_gye 7 dic: historia de reseña. Frame con extracto de reseña atribuida en Caveat sobre fondo púrpura oscuro. Sin texto inventado — solo si el portero trae el texto exacto.",
+      "mensaje": "4.9 en Maps no es un número — es lo que dijo alguien que probó el encebollado",
+      "gancho": "la letra manuscrita de Caveat hace que la reseña parezca escrita a mano en el pergamino"
+     }
+    ],
+    "acumular": [
+     {
+      "id": "C4-I01",
+      "idea": "jue_foto_olon 8 ene: cenital del bowl con caldo dorado en su mejor punto. Sin texto en la imagen. Caption: el producto del día, sin precio.",
+      "mensaje": "el encebollado de enero es el mismo de siempre — la constancia es el mensaje",
+      "gancho": "el cenital más limpio de toda la campaña — sin elementos de narrativa, solo el plato"
+     },
+     {
+      "id": "C4-I02",
+      "idea": "sab_reel_olon 10 ene: playa de Olón al amanecer → cocina encendida → bowl servido. Sin voz. Texto: «temporada alta. producto del día.» en Caveat sobre el frame de la playa.",
+      "mensaje": "en temporada alta el encebollado empieza antes de que llegue el primer cliente",
+      "gancho": "el amanecer de Olón en enero — la playa vacía antes del servicio es el frame más silencioso de la campaña"
+     },
+     {
+      "id": "C4-I03",
+      "idea": "vie_historia_gye 9 ene: «¿cuándo pediste por última vez?» Sin respuesta en la historia — el swipe lleva a naufrago.ec.",
+      "mensaje": "el cliente recurrente ya existe — solo necesita el recordatorio",
+      "gancho": "la pregunta que no se puede responder sin entrar al sitio"
+     }
+    ]
+   },
+   "parcial": []
+  },
+  "caminos_descartados": "- **Reel con voz en off narrando la leyenda** (propuesto en A17 como Camino 2) — descartado. La voz en off obliga al audio para entender el mensaje. La campaña necesita funcionar sin sonido (el teléfono en silencio es el caso más común en Reels). El montaje por sustracción con texto en pantalla resuelve mejor.\n- **Apertura con plano de mapa de Guayaquil marcando «zona norte»** (explorado en A14 como variante de narrativa de territorio) — descartado. El mapa introduce un elemento gráfico que no está en el manual de marca y requeriría diseño sin respaldo tipográfico. La frase «de Olón a tu barrio» en Caveat cumple la misma función territorial sin el riesgo visual.\n- **Usar la foto `foto:92059dcb`** (montaje tipo meme con hombre agotado en playa) — descartado por la curaduría de A21. La imagen tiene un recuadro de comentario con texto que no es de la marca y no puede editarse sin alterar el archivo. No sirve como pieza limpia.\n- **Historia de cliente recurrente con cara visible** — descartado. No hay foto propia que muestre un cliente comiendo con confianza alta y sin elementos ajenos a la marca en el encuadre. La foto `foto:8eb78d2f` tiene confianza baja según el catálogo. Se reemplaza por planos de manos o bowl sin modelo.\n- **TikTok como canal activo en esta campaña** — confirmado descartado por la estrategia («tiktok: no»). El aporte de tiktok-strategist (A16/A22) se trasladó al formato de reels de Instagram, que es el canal equivalente en esta campaña.\n\n---",
+  "devolucion_del_brief": null,
+  "brief": {
+   "version": 2,
+   "estado": "devuelta",
+   "texto_md": "## Brief creativo de campaña · Náufrago · brf-28de888eb3f2 · v2 (revisión)\n\n---\n\n## De qué parte del plan sale\n\n> «Primero, dar a conocer el delivery de Guayaquil antes de abrir y desbloquear la operación antes de pautar. La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.ec publica el anuncio: quienes viven en zona norte de Guayaquil pueden pedir encebollado y ceviche desde el lunes por naufrago.ec.»\n\nFase 1 · Desbloquear — Semanas 1-2 (Nov 6-19). Objetivo: pre-apertura y apertura de Guayaquil, contenido orgánico antes de pauta.\n\n---\n\n## Insight\n\nEl guayaquileño que quiere encebollado de verdad sabe que el bueno viene de la costa — y ese viaje no lo hace entre semana. La distancia al mar era el problema. Náufrago resuelve eso sin que tenga que moverse.\n\n---\n\n## Mensaje\n\n**El encebollado de Olón llega a tu barrio. Pídelo en naufrago.ec — pagas en efectivo al recibir.**\n\n*(Origen real + conveniencia real + fricción resuelta de frente: tres pilares en una sola frase.)*\n\n---\n\n## Objetivo\n\nGenerar los primeros pedidos desde naufrago.ec en zona norte de Guayaquil en las primeras 72 horas de apertura, con contenido orgánico, antes de activar pauta.\n\n- **ig:** stories + feed de pre-apertura y apertura · llamado: «Entra a naufrago.ec»\n- **facebook:** replica de las piezas de ig una vez que la Fan Page esté activa · llamado: «Pide en naufrago.ec»\n- **whatsapp:** mensaje de bienvenida automático con instrucción de cómo pedir · llamado: link directo a naufrago.ec\n\n---\n\n## Tono\n\nDirecto y costero: tutea siempre, nombra el plato y el canal, no describe la comida — anticipa la sensación de tenerla sin salir de casa. Nada de formalidades ni narrativa de menú. Ritmo de alguien que avisa que el encebollado ya está listo.\n\nEl personaje del náufrago (calavera surfer con pergamino) aparece como firma visual, no como vocero de afirmaciones comerciales.\n\n---\n\n## Obligatorios\n\n- **vocabulario:** encebollado, producto del día, naufrago.ec, zona norte, pagas en efectivo al recibir, Náufrago, Olón\n- **prohibido:** «premium», «gourmet», «artesanal», «exclusivo»; «el mejor encebollado del Ecuador» sin citar reseña atribuida; prometer pago con tarjeta (no disponible); afirmar que hay local físico en Guayaquil; publicar horarios de martes ni miércoles (cerrado)\n- **lo que no se dice:** que la cobertura llega a toda Guayaquil (solo zona norte confirmada); que el tiempo de entrega es 20-35 min (no confirmado en pedidos piloto); que el pago digital está disponible\n\n---\n\n## Faltantes\n\n- **precio del encebollado en Olón:** no está confirmado en el material — no se comunica en piezas hasta que el dueño lo confirme\n- **hueco competitivo verificado en Guayaquil:** solo Club Marisco tiene ficha en el cerebro; los demás vigilados (Ceviexpress, La Proa Brava, El Encocao de Mitya) no tienen ficha disponible — el pilar diferencial «ningún competidor reivindica origen costero» es inferencia del plan, no dato raspado\n- **capacidad máxima de pedidos simultáneos en la cocina de Guayaquil:** no hay dato — el plan declara que «no hay dato del volumen máximo de pedidos por hora»\n- **costo de logística por pedido en Guayaquil:** sin este dato no se puede calcular el margen real por pedido ni el CPA máximo sostenible\n\n---\n\n## Contradicciones plan vs manual\n\n- **canal de pedido en Guayaquil** · plan dice: «el pedido en Guayaquil entra por el sitio; mezclar objetivos dificulta medir qué funciona» · manual dice: «el canal de pedido (WhatsApp) aparece siempre visible en la llamada a acción» · qué se hizo: en Guayaquil el canal oficial es naufrago.ec (dark kitchen sin atención al público); el llamado dirige al sitio, no a WhatsApp — se sigue el plan porque la sede lo requiere; el manual aplica en Olón donde WhatsApp es el canal de pedido activo\n- **forma de trato** · plan dice: tuteo directo («pagas», «pide», «entra») · manual dice: «tutear en todo imperativo» · sin contradicción — se usa tuteo en todas las piezas\n\n---\n\n## Citas\n\n**A1 usé:** material del portero confirmó 87 fotos propias etiquetadas; se identificaron fotos de producto (encebollado cenital: `19671014`, `c0355f3d`, `e8da814f`), fachada del local (`fe452b8f`, `9f71b0e9`, `4f09cef2` con el personaje del náufrago), y foto del caldo en cocina (`6275c0ba`) — todas disponibles para las piezas de pre-apertura y apertura.\n\n**A5 usé parcialmente:** el informe de competitive-intelligence-agent confirmó que el hueco «ningún competidor reivindica origen costero en digital» es inferencia del plan, no dato raspado — se trasladó a «Faltantes» en lugar de usarlo como pilar verificado. Se citó Club Marisco como único competidor con ficha confirmada en Guayaquil. El resto del análisis no pudo completarse por falta de fichas en el cerebro — declarado sin rellenar."
+  },
+  "aprobacion": "cambios",
+  "nota_de_emilio": "Me gusta «El oro que nunca buscaste» y su banco de ideas: consérvalos. Cambios:\n1. Guayaquil es ciudad de la Costa, a una hora del mar. Lo que el guayaquileño no tiene entre semana es la playa, no la costa. Cambia «costa» por «playa» en el insight y en todo lo que dependa de él (por ejemplo: «el bueno se come frente al mar, en la playa — y ese viaje a la playa no lo hace entre semana»). «Vacaciones escolares de la Costa» se queda igual.\n2. Tuteo en todo, sin voseo.\n3. Lo que no se vea afectado por estos cambios, déjalo igual.",
+  "apunta_a": "brief",
+  "decidido_en": "2026-11-10T10:12:05.498+00:00",
+  "sin_concepto": null
+ },
+ "quienes_propusieron": [
+  "oficina-creativa",
+  "creative-director-mesa",
+  "content-creator",
+  "carousel-designer",
+  "whimsy-injector",
+  "design-image-prompt-engineer",
+  "feedback-synthesizer",
+  "design-visual-storyteller",
+  "marketing_instagram_curator",
+  "tiktok-strategist",
+  "video-editor"
+ ]
+}

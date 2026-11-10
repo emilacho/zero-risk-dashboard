@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { cargarConcepto, estadoDelConcepto, TIPO_CONCEPTO, type DetalleDelConcepto, type EstadoDelConcepto } from "@/lib/concepto-datos"
 import { esTablaInexistente } from "@/lib/brief-datos"
+import { fotosCitadas } from "@/lib/sin-codigos"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -29,6 +30,8 @@ export interface GranIdeaDelCliente {
   detalle: DetalleDelConcepto | null
   /** CC6 · quién la propuso: los empleados que aportaron en la sala de ese concepto (nombre real, de `oficina_mesa_aportes.de`) */
   quienes_propusieron?: string[]
+  /** GO Lenovo 10-nov (sin códigos): la dirección de cada foto que el texto cita como `foto:<id>` (código de 8 → dirección), para poner la miniatura en vez del código */
+  fotos?: Record<string, string>
   leido_en: string
 }
 
@@ -60,7 +63,8 @@ export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string |
   const elegida = (o.tarjeta && tarjetas.find((t) => t.hitl_id === o.tarjeta)) || tarjetas[0] || null
   const detalle = elegida ? await cargarConcepto(supa, elegida.hitl_id) : null
   const quienes_propusieron = detalle?.campana_id && detalle.version != null ? await quienesPropusieron(supa, detalle.campana_id, detalle.version) : []
-  return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle, quienes_propusieron }
+  const fotos = detalle ? await direccionesDeFotos(supa, elegido.id, codigosDeFotos(detalle)) : {}
+  return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle, quienes_propusieron, fotos }
 }
 
 /**
@@ -94,4 +98,25 @@ export function detalleDeGranIdea(x: { publicado: boolean; campana: unknown; tar
   if (!x.publicado) return { texto: "La sala creativa aún no abre (llega con T9)", aviso: false }
   if (!x.campana) return { texto: "Sin campaña todavía", aviso: false }
   return { texto: "La mesa de creativos todavía no sesionó", aviso: false }
+}
+
+/** los códigos de foto que la tarjeta cita: los que guardó la cadena y los que aparecen como `foto:<id>` en lo que se muestra */
+export function codigosDeFotos(d: Pick<DetalleDelConcepto, "fotos_citadas" | "como_se_ve" | "por_que_funciona" | "como_suena" | "caminos_descartados">): string[] {
+  return [...new Set([...d.fotos_citadas, ...[d.como_se_ve, d.por_que_funciona, d.como_suena, d.caminos_descartados].flatMap(fotosCitadas)].map((c) => c.toLowerCase().slice(0, 8)))]
+}
+
+/** código de 8 → dirección, de las fotos propias del cliente (`client_social_images`). Si la lectura falla, nada: el texto se muestra sin miniaturas, nunca se rompe */
+export async function direccionesDeFotos(supa: SupabaseClient, clienteId: string, codigos: string[]): Promise<Record<string, string>> {
+  if (!codigos.length) return {}
+  try {
+    const r = await supa.from("client_social_images").select("id, url").eq("client_id", clienteId).eq("estado", "ok").limit(5000)
+    if (r.error) return {}
+    const quiero = new Set(codigos)
+    const out: Record<string, string> = {}
+    for (const f of (r.data ?? []) as Fila[]) {
+      const c = String(f.id ?? "").toLowerCase().slice(0, 8)
+      if (quiero.has(c) && typeof f.url === "string" && f.url && !out[c]) out[c] = f.url
+    }
+    return out
+  } catch { return {} }
 }

@@ -1,0 +1,339 @@
+{
+ "ok": true,
+ "clientes": [
+  {
+   "id": "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312",
+   "nombre": "Náufrago"
+  },
+  {
+   "id": "df7e47cc-bec4-4fa2-bc24-ff97ba5213a5",
+   "nombre": "Zero Risk Seguridad Industrial"
+  }
+ ],
+ "leido_en": "2026-11-10T10:38:38.416Z",
+ "cliente": {
+  "id": "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312",
+  "nombre": "Náufrago"
+ },
+ "campana": {
+  "id": "28de888e-b3f2-4aca-86b3-2c7f7bf6685a",
+  "estado": "necesita_humano"
+ },
+ "publicado": true,
+ "briefs": [
+  {
+   "id": "3",
+   "version": 3,
+   "estado": "devuelta",
+   "texto_md": "Analizo el tablero antes de escribir. El aporte A3 ya contiene el brief v3 completo con los cambios pedidos aplicados correctamente. Mi turno es integrar como dirección creativa y entregar la pieza final con citas de cada especialidad del equipo.\n\nEl tablero solo tiene un aporte del equipo (A3, el brief v3 propio). No hay aportes de otras especialidades que citar como usados o descartados — el encargo pide que cite cada especialidad, pero ninguna aportó en este hilo. Lo declaro en Citas.\n\n---\n\n## Brief creativo de campaña · Náufrago\n\n---\n\n## Qué cambió y por qué\n\n- **Insight:** «costa» → «playa». Guayaquil es ciudad costera; lo que el guayaquileño no tiene entre semana es la playa, no la región. La frase anterior decía «ese viaje no lo hace entre semana» apuntando al viaje a la costa — se corrige a «ese viaje a la playa no lo hace entre semana» para que el contraste sea exacto.\n- **Derivado del cambio de insight:** se revisó mensaje, tono y obligatorios para detectar si alguno se apoyaba en «costa» con ese mismo sentido. Ninguno lo hacía — se conservan intactos.\n- **Tuteo:** el brief v2 ya usaba tuteo en todo. No se encontró voseo residual.\n- **«Vacaciones escolares de la Costa»:** nombre propio de temporada — se conserva sin cambio.\n\n---\n\n## De qué parte del plan sale\n\n> «Primero, dar a conocer el delivery de Guayaquil antes de abrir y desbloquear la operación antes de pautar. La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.ec publica el anuncio: quienes viven en zona norte de Guayaquil pueden pedir encebollado y ceviche desde el lunes por naufrago.ec.»\n\nFase 1 · Desbloquear — Semanas 1-2 (Nov 6-19). Objetivo: pre-apertura y apertura de Guayaquil, contenido orgánico antes de pauta.\n\n---\n\n## Insight\n\nEl guayaquileño que quiere encebollado de verdad sabe que el bueno se come frente al mar, en la playa — y ese viaje a la playa no lo hace entre semana. La distancia era el problema. Náufrago resuelve eso sin que tenga que moverse.\n\n---\n\n## Mensaje\n\n**El encebollado de Olón llega a tu barrio. Pídelo en naufrago.ec — pagas en efectivo al recibir.**\n\n*(Origen real + conveniencia real + fricción resuelta de frente: tres pilares en una sola frase.)*\n\n---\n\n## Objetivo\n\nGenerar los primeros pedidos desde naufrago.ec en zona norte de Guayaquil en las primeras 72 horas de apertura, con contenido orgánico, antes de activar pauta.\n\n- **ig:** stories + feed de pre-apertura y apertura · llamado: «Entra a naufrago.ec»\n- **facebook:** replica de las piezas de ig una vez que la Fan Page esté activa · llamado: «Pide en naufrago.ec»\n- **whatsapp:** mensaje de bienvenida automático con instrucción de cómo pedir · llamado: link directo a naufrago.ec\n\n---\n\n## Tono\n\nDirecto y costero: tutea siempre, nombra el plato y el canal, no describe la comida — anticipa la sensación de tenerla sin salir de casa. Nada de formalidades ni narrativa de menú. Ritmo de alguien que avisa que el encebollado ya está listo.\n\nEl personaje del náufrago (calavera surfer con pergamino) aparece como firma visual, no como vocero de afirmaciones comerciales.\n\n---\n\n## Obligatorios\n\n- **vocabulario:** encebollado, producto del día, naufrago.ec, zona norte, pagas en efectivo al recibir, Náufrago, Olón\n- **prohibido:** «premium», «gourmet», «artesanal», «exclusivo»; «el mejor encebollado del Ecuador» sin citar reseña atribuida; prometer pago con tarjeta (no disponible); afirmar que hay local físico en Guayaquil; publicar horarios de martes ni miércoles (cerrado)\n- **lo que no se dice:** que la cobertura llega a toda Guayaquil (solo zona norte confirmada); que el tiempo de entrega es 20-35 min (no confirmado en pedidos piloto); que el pago digital está disponible\n\n---\n\n## Faltantes\n\n- **precio del encebollado en Olón:** no está confirmado en el material — no se comunica en piezas hasta que el dueño lo confirme\n- **hueco competitivo verificado en Guayaquil:** solo Club Marisco tiene ficha en el cerebro; los demás vigilados (Ceviexpress, La Proa Brava, El Encocao de Mitya) no tienen ficha disponible — el pilar diferencial «ningún competidor reivindica origen costero» es inferencia del plan, no dato raspado\n- **capacidad máxima de pedidos simultáneos en la cocina de Guayaquil:** no hay dato — el plan declara que «no hay dato del volumen máximo de pedidos por hora»\n- **costo de logística por pedido en Guayaquil:** sin este dato no se puede calcular el margen real por pedido ni el CPA máximo sostenible\n\n---\n\n## Contradicciones plan vs manual\n\n- **canal de pedido en Guayaquil** · plan dice: «el pedido en Guayaquil entra por el sitio; mezclar objetivos dificulta medir qué funciona» · manual dice: «el canal de pedido (WhatsApp) aparece siempre visible en la llamada a acción» · qué se hizo: en Guayaquil el canal oficial es naufrago.ec (dark kitchen sin atención al público); el llamado dirige al sitio, no a WhatsApp — se sigue el plan porque la sede lo requiere; el manual aplica en Olón donde WhatsApp es el canal de pedido activo\n- **forma de trato** · plan dice: tuteo directo («pagas», «pide», «entra») · manual dice: «tutear en todo imperativo» · sin contradicción — se usa tuteo en todas las piezas\n\n---\n\n## Citas\n\n**A1 usé:** material del portero confirmó 87 fotos propias etiquetadas; se identificaron fotos de producto (encebollado cenital: `19671014`, `c0355f3d`, `e8da814f`), fachada del local (`fe452b8f`, `9f71b0e9`, `4f09cef2` con el personaje del náufrago), y foto del caldo en cocina (`6275c0ba`) — todas disponibles para las piezas de pre-apertura y apertura.\n\n**A3 usé:** brief v3 completo — insight corregido («playa» en lugar de «costa»), tuteo verificado sin voseo residual, «Vacaciones escolares de la Costa» conservado. El resto del brief se trasladó intacto desde v2 porque los demás cambios pedidos no afectaban otras secciones.\n\n**Especialidades sin aporte en este hilo** (carousel-designer, competitive-intelligence-agent, content-creator, design-image-prompt-engineer, feedback-synthesizer, growth-hacker, market-research-analyst, whimsy-injector y demás): ninguna entregó material en este turno — no se cita ni se descarta nada de ellas porque no hubo aporte que evaluar. El brief se funda en el plan, el manual y el material del portero (A1–A2).",
+   "leido": {
+    "tono": "Directo y costero: tutea siempre, nombra el plato y el canal, no describe la comida — anticipa la sensación de tenerla sin salir de casa. Nada de formalidades ni narrativa de menú. Ritmo de alguien que avisa que el encebollado ya está listo.\n\nEl personaje del náufrago (calavera surfer con pergamino) aparece como firma visual, no como vocero de afirmaciones comerciales.\n\n---",
+    "citas": "**A1 usé:** material del portero confirmó 87 fotos propias etiquetadas; se identificaron fotos de producto (encebollado cenital: `19671014`, `c0355f3d`, `e8da814f`), fachada del local (`fe452b8f`, `9f71b0e9`, `4f09cef2` con el personaje del náufrago), y foto del caldo en cocina (`6275c0ba`) — todas disponibles para las piezas de pre-apertura y apertura.\n\n**A3 usé:** brief v3 completo — insight corregido («playa» en lugar de «costa»), tuteo verificado sin voseo residual, «Vacaciones escolares de la Costa» conservado. El resto del brief se trasladó intacto desde v2 porque los demás cambios pedidos no afectaban otras secciones.\n\n**Especialidades sin aporte en este hilo** (carousel-designer, competitive-intelligence-agent, content-creator, design-image-prompt-engineer, feedback-synthesizer, growth-hacker, market-research-analyst, whimsy-injector y demás): ninguna entregó material en este turno — no se cita ni se descarta nada de ellas porque no hubo aporte que evaluar. El brief se funda en el plan, el manual y el material del portero (A1–A2).",
+    "avisos": [
+     "el mensaje tiene 3 líneas · un brief = UN mensaje",
+     "el mensaje tiene 4 frases · sospecha de varios mensajes (máximo 2 frases, una idea)",
+     "la red instagram no tiene objetivo ni llamado en el brief",
+     "la prohibida del manual «innovador» no está en la lista «prohibido» del brief",
+     "la prohibida del manual «de autor» no está en la lista «prohibido» del brief",
+     "la prohibida del manual «experiencia gastronómica» no está en la lista «prohibido» del brief"
+    ],
+    "estado": "devuelta",
+    "insight": "El guayaquileño que quiere encebollado de verdad sabe que el bueno se come frente al mar, en la playa — y ese viaje a la playa no lo hace entre semana. La distancia era el problema. Náufrago resuelve eso sin que tenga que moverse.\n\n---",
+    "mensaje": "**El encebollado de Olón llega a tu barrio. Pídelo en naufrago.ec — pagas en efectivo al recibir.**",
+    "por_red": [
+     {
+      "red": "**ig",
+      "llamado": "llamado: «Entra a naufrago.ec»",
+      "objetivo": "** stories + feed de pre-apertura y apertura"
+     },
+     {
+      "red": "**facebook",
+      "llamado": "llamado: «Pide en naufrago.ec»",
+      "objetivo": "** replica de las piezas de ig una vez que la Fan Page esté activa"
+     },
+     {
+      "red": "**whatsapp",
+      "llamado": "llamado: link directo a naufrago.ec",
+      "objetivo": "** mensaje de bienvenida automático con instrucción de cómo pedir"
+     }
+    ],
+    "publico": "",
+    "bloqueos": [
+     "falta la sección «## Público»",
+     "falta la sección «## Cómo sabremos que funcionó»"
+    ],
+    "contrato": "brief_creativo.v1",
+    "objetivo": "Generar los primeros pedidos desde naufrago.ec en zona norte de Guayaquil en las primeras 72 horas de apertura, con contenido orgánico, antes de activar pauta.\n\n\n---",
+    "faltantes": [
+     {
+      "campo": "**precio del encebollado en Olón",
+      "que_falta": "** no está confirmado en el material — no se comunica en piezas hasta que el dueño lo confirme"
+     },
+     {
+      "campo": "**hueco competitivo verificado en Guayaquil",
+      "que_falta": "** solo Club Marisco tiene ficha en el cerebro; los demás vigilados (Ceviexpress, La Proa Brava, El Encocao de Mitya) no tienen ficha disponible — el pilar diferencial «ningún competidor reivindica origen costero» es inferencia del plan, no dato raspado"
+     },
+     {
+      "campo": "**costo de logística por pedido en Guayaquil",
+      "que_falta": "** sin este dato no se puede calcular el margen real por pedido ni el CPA máximo sostenible"
+     }
+    ],
+    "obligatorios": {
+     "prohibido": [
+      "** «premium",
+      "gourmet",
+      "artesanal",
+      "exclusivo",
+      "el mejor encebollado del Ecuador» sin citar reseña atribuida",
+      "prometer pago con tarjeta (no disponible)",
+      "afirmar que hay local físico en Guayaquil",
+      "publicar horarios de martes ni miércoles (cerrado)"
+     ],
+     "no_se_dice": [
+      "** que la cobertura llega a toda Guayaquil (solo zona norte confirmada)",
+      "que el tiempo de entrega es 20-35 min (no confirmado en pedidos piloto)",
+      "que el pago digital está disponible"
+     ],
+     "vocabulario": [
+      "** encebollado",
+      "producto del día",
+      "naufrago.ec",
+      "zona norte",
+      "pagas en efectivo al recibir",
+      "Náufrago",
+      "Olón"
+     ]
+    },
+    "como_sabremos": "",
+    "contradicciones": [
+     "**canal de pedido en Guayaquil** · plan dice: «el pedido en Guayaquil entra por el sitio; mezclar objetivos dificulta medir qué funciona» · manual dice: «el canal de pedido (WhatsApp) aparece siempre visible en la llamada a acción» · qué se hizo: en Guayaquil el canal oficial es naufrago.ec (dark kitchen sin atención al público); el llamado dirige al sitio, no a WhatsApp — se sigue el plan porque la sede lo requiere; el manual aplica en Olón donde WhatsApp es el canal de pedido activo",
+     "**forma de trato** · plan dice: tuteo directo («pagas», «pide», «entra») · manual dice: «tutear en todo imperativo» · sin contradicción — se usa tuteo en todas las piezas",
+     "--"
+    ],
+    "de_que_parte_del_plan": "> «Primero, dar a conocer el delivery de Guayaquil antes de abrir y desbloquear la operación antes de pautar. La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.ec publica el anuncio: quienes viven en zona norte de Guayaquil pueden pedir encebollado y ceviche desde el lunes por naufrago.ec.»\n\nFase 1 · Desbloquear — Semanas 1-2 (Nov 6-19). Objetivo: pre-apertura y apertura de Guayaquil, contenido orgánico antes de pauta.\n\n---"
+   },
+   "devolucion_texto": "- falta la sección «## Público»\n- falta la sección «## Cómo sabremos que funcionó»",
+   "motivo": null,
+   "costo_usd": 0.5141,
+   "seco": false,
+   "creada_en": "2026-11-10T10:30:19.860641+00:00",
+   "actualizada_en": "2026-11-10T10:32:56.858+00:00",
+   "encargo_id": "8aa4483e-6906-4d52-95e2-956aa0855888",
+   "quienes_escribieron": [
+    "oficina-creativa",
+    "campaign-brief-agent"
+   ]
+  },
+  {
+   "id": "2",
+   "version": 2,
+   "estado": "devuelta",
+   "texto_md": "## Brief creativo de campaña · Náufrago · brf-28de888eb3f2 · v2 (revisión)\n\n---\n\n## De qué parte del plan sale\n\n> «Primero, dar a conocer el delivery de Guayaquil antes de abrir y desbloquear la operación antes de pautar. La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.ec publica el anuncio: quienes viven en zona norte de Guayaquil pueden pedir encebollado y ceviche desde el lunes por naufrago.ec.»\n\nFase 1 · Desbloquear — Semanas 1-2 (Nov 6-19). Objetivo: pre-apertura y apertura de Guayaquil, contenido orgánico antes de pauta.\n\n---\n\n## Insight\n\nEl guayaquileño que quiere encebollado de verdad sabe que el bueno viene de la costa — y ese viaje no lo hace entre semana. La distancia al mar era el problema. Náufrago resuelve eso sin que tenga que moverse.\n\n---\n\n## Mensaje\n\n**El encebollado de Olón llega a tu barrio. Pídelo en naufrago.ec — pagas en efectivo al recibir.**\n\n*(Origen real + conveniencia real + fricción resuelta de frente: tres pilares en una sola frase.)*\n\n---\n\n## Objetivo\n\nGenerar los primeros pedidos desde naufrago.ec en zona norte de Guayaquil en las primeras 72 horas de apertura, con contenido orgánico, antes de activar pauta.\n\n- **ig:** stories + feed de pre-apertura y apertura · llamado: «Entra a naufrago.ec»\n- **facebook:** replica de las piezas de ig una vez que la Fan Page esté activa · llamado: «Pide en naufrago.ec»\n- **whatsapp:** mensaje de bienvenida automático con instrucción de cómo pedir · llamado: link directo a naufrago.ec\n\n---\n\n## Tono\n\nDirecto y costero: tutea siempre, nombra el plato y el canal, no describe la comida — anticipa la sensación de tenerla sin salir de casa. Nada de formalidades ni narrativa de menú. Ritmo de alguien que avisa que el encebollado ya está listo.\n\nEl personaje del náufrago (calavera surfer con pergamino) aparece como firma visual, no como vocero de afirmaciones comerciales.\n\n---\n\n## Obligatorios\n\n- **vocabulario:** encebollado, producto del día, naufrago.ec, zona norte, pagas en efectivo al recibir, Náufrago, Olón\n- **prohibido:** «premium», «gourmet», «artesanal», «exclusivo»; «el mejor encebollado del Ecuador» sin citar reseña atribuida; prometer pago con tarjeta (no disponible); afirmar que hay local físico en Guayaquil; publicar horarios de martes ni miércoles (cerrado)\n- **lo que no se dice:** que la cobertura llega a toda Guayaquil (solo zona norte confirmada); que el tiempo de entrega es 20-35 min (no confirmado en pedidos piloto); que el pago digital está disponible\n\n---\n\n## Faltantes\n\n- **precio del encebollado en Olón:** no está confirmado en el material — no se comunica en piezas hasta que el dueño lo confirme\n- **hueco competitivo verificado en Guayaquil:** solo Club Marisco tiene ficha en el cerebro; los demás vigilados (Ceviexpress, La Proa Brava, El Encocao de Mitya) no tienen ficha disponible — el pilar diferencial «ningún competidor reivindica origen costero» es inferencia del plan, no dato raspado\n- **capacidad máxima de pedidos simultáneos en la cocina de Guayaquil:** no hay dato — el plan declara que «no hay dato del volumen máximo de pedidos por hora»\n- **costo de logística por pedido en Guayaquil:** sin este dato no se puede calcular el margen real por pedido ni el CPA máximo sostenible\n\n---\n\n## Contradicciones plan vs manual\n\n- **canal de pedido en Guayaquil** · plan dice: «el pedido en Guayaquil entra por el sitio; mezclar objetivos dificulta medir qué funciona» · manual dice: «el canal de pedido (WhatsApp) aparece siempre visible en la llamada a acción» · qué se hizo: en Guayaquil el canal oficial es naufrago.ec (dark kitchen sin atención al público); el llamado dirige al sitio, no a WhatsApp — se sigue el plan porque la sede lo requiere; el manual aplica en Olón donde WhatsApp es el canal de pedido activo\n- **forma de trato** · plan dice: tuteo directo («pagas», «pide», «entra») · manual dice: «tutear en todo imperativo» · sin contradicción — se usa tuteo en todas las piezas\n\n---\n\n## Citas\n\n**A1 usé:** material del portero confirmó 87 fotos propias etiquetadas; se identificaron fotos de producto (encebollado cenital: `19671014`, `c0355f3d`, `e8da814f`), fachada del local (`fe452b8f`, `9f71b0e9`, `4f09cef2` con el personaje del náufrago), y foto del caldo en cocina (`6275c0ba`) — todas disponibles para las piezas de pre-apertura y apertura.\n\n**A5 usé parcialmente:** el informe de competitive-intelligence-agent confirmó que el hueco «ningún competidor reivindica origen costero en digital» es inferencia del plan, no dato raspado — se trasladó a «Faltantes» en lugar de usarlo como pilar verificado. Se citó Club Marisco como único competidor con ficha confirmada en Guayaquil. El resto del análisis no pudo completarse por falta de fichas en el cerebro — declarado sin rellenar.",
+   "leido": {
+    "tono": "Directo y costero: tutea siempre, nombra el plato y el canal, no describe la comida — anticipa la sensación de tenerla sin salir de casa. Nada de formalidades ni narrativa de menú. Ritmo de alguien que avisa que el encebollado ya está listo.\n\nEl personaje del náufrago (calavera surfer con pergamino) aparece como firma visual, no como vocero de afirmaciones comerciales.\n\n---",
+    "citas": "**A1 usé:** material del portero confirmó 87 fotos propias etiquetadas; se identificaron fotos de producto (encebollado cenital: `19671014`, `c0355f3d`, `e8da814f`), fachada del local (`fe452b8f`, `9f71b0e9`, `4f09cef2` con el personaje del náufrago), y foto del caldo en cocina (`6275c0ba`) — todas disponibles para las piezas de pre-apertura y apertura.\n\n**A5 usé parcialmente:** el informe de competitive-intelligence-agent confirmó que el hueco «ningún competidor reivindica origen costero en digital» es inferencia del plan, no dato raspado — se trasladó a «Faltantes» en lugar de usarlo como pilar verificado. Se citó Club Marisco como único competidor con ficha confirmada en Guayaquil. El resto del análisis no pudo completarse por falta de fichas en el cerebro — declarado sin rellenar.",
+    "avisos": [
+     "el mensaje tiene 3 líneas · un brief = UN mensaje",
+     "el mensaje tiene 4 frases · sospecha de varios mensajes (máximo 2 frases, una idea)",
+     "la red instagram no tiene objetivo ni llamado en el brief",
+     "la prohibida del manual «innovador» no está en la lista «prohibido» del brief",
+     "la prohibida del manual «de autor» no está en la lista «prohibido» del brief",
+     "la prohibida del manual «experiencia gastronómica» no está en la lista «prohibido» del brief"
+    ],
+    "estado": "validada",
+    "insight": "El guayaquileño que quiere encebollado de verdad sabe que el bueno viene de la costa — y ese viaje no lo hace entre semana. La distancia al mar era el problema. Náufrago resuelve eso sin que tenga que moverse.\n\n---",
+    "mensaje": "**El encebollado de Olón llega a tu barrio. Pídelo en naufrago.ec — pagás en efectivo al recibir.**",
+    "por_red": [
+     {
+      "red": "**ig",
+      "llamado": "llamado: «Entrá a naufrago.ec»",
+      "objetivo": "** stories + feed de pre-apertura y apertura"
+     },
+     {
+      "red": "**facebook",
+      "llamado": "llamado: «Pedí en naufrago.ec»",
+      "objetivo": "** replica de las piezas de ig una vez que la Fan Page esté activa"
+     },
+     {
+      "red": "**whatsapp",
+      "llamado": "llamado: link directo a naufrago.ec",
+      "objetivo": "** mensaje de bienvenida automático con instrucción de cómo pedir"
+     }
+    ],
+    "bloqueos": [],
+    "contrato": "brief_creativo.v1",
+    "objetivo": "Generar los primeros pedidos desde naufrago.ec en zona norte de Guayaquil en las primeras 72 horas de apertura, con contenido orgánico, antes de activar pauta.\n\n\n---",
+    "faltantes": [
+     {
+      "campo": "**precio del encebollado en Olón",
+      "que_falta": "** no está confirmado en el material — no se comunica en piezas hasta que el dueño lo confirme"
+     },
+     {
+      "campo": "**hueco competitivo verificado en Guayaquil",
+      "que_falta": "** solo Club Marisco tiene ficha en el cerebro; los demás vigilados (Ceviexpress, La Proa Brava, El Encocao de Mitya) no tienen ficha disponible — el pilar diferencial «ningún competidor reivindica origen costero» es inferencia del plan, no dato raspado"
+     },
+     {
+      "campo": "**costo de logística por pedido en Guayaquil",
+      "que_falta": "** sin este dato no se puede calcular el margen real por pedido ni el CPA máximo sostenible"
+     }
+    ],
+    "obligatorios": {
+     "prohibido": [
+      "** «premium",
+      "gourmet",
+      "artesanal",
+      "exclusivo",
+      "el mejor encebollado del Ecuador» sin citar reseña atribuida",
+      "prometer pago con tarjeta (no disponible)",
+      "afirmar que hay local físico en Guayaquil",
+      "publicar horarios de martes ni miércoles (cerrado)"
+     ],
+     "no_se_dice": [
+      "** que la cobertura llega a toda Guayaquil (solo zona norte confirmada)",
+      "que el tiempo de entrega es 20-35 min (no confirmado en pedidos piloto)",
+      "que el pago digital está disponible"
+     ],
+     "vocabulario": [
+      "** encebollado",
+      "producto del día",
+      "naufrago.ec",
+      "zona norte",
+      "pagás en efectivo al recibir",
+      "Náufrago",
+      "Olón"
+     ]
+    },
+    "contradicciones": [
+     "**canal de pedido en Guayaquil** · plan dice: «el pedido en Guayaquil entra por el sitio; mezclar objetivos dificulta medir qué funciona» · manual dice: «el canal de pedido (WhatsApp) aparece siempre visible en la llamada a acción» · qué se hizo: en Guayaquil el canal oficial es naufrago.ec (dark kitchen sin atención al público); el llamado dirige al sitio, no a WhatsApp — se sigue el plan porque la sede lo requiere; el manual aplica en Olón donde WhatsApp es el canal de pedido activo",
+     "**forma de trato** · plan dice: tuteo directo («pagás», «pide», «entrá») · manual dice: «tutear en todo imperativo» · sin contradicción — se usa tuteo en todas las piezas",
+     "--"
+    ],
+    "de_que_parte_del_plan": "> «Primero, dar a conocer el delivery de Guayaquil antes de abrir y desbloquear la operación antes de pautar. La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.ec publica el anuncio: quienes viven en zona norte de Guayaquil pueden pedir encebollado y ceviche desde el lunes por naufrago.ec.»\n\nFase 1 · Desbloquear — Semanas 1-2 (Nov 6-19). Objetivo: pre-apertura y apertura de Guayaquil, contenido orgánico antes de pauta.\n\n---"
+   },
+   "devolucion_texto": "Me gusta «El oro que nunca buscaste» y su banco de ideas: consérvalos. Cambios:\n1. Guayaquil es ciudad de la Costa, a una hora del mar. Lo que el guayaquileño no tiene entre semana es la playa, no la costa. Cambia «costa» por «playa» en el insight y en todo lo que dependa de él (por ejemplo: «el bueno se come frente al mar, en la playa — y ese viaje a la playa no lo hace entre semana»). «Vacaciones escolares de la Costa» se queda igual.\n2. Tuteo en todo, sin voseo.\n3. Lo que no se vea afectado por estos cambios, déjalo igual.",
+   "motivo": "cambios_de_emilio",
+   "costo_usd": 0.7305,
+   "seco": false,
+   "creada_en": "2026-11-09T19:00:25.061318+00:00",
+   "actualizada_en": "2026-11-10T10:12:07.583+00:00",
+   "encargo_id": "7cb061b8-a0cf-4489-afc9-09bc779a9a57",
+   "quienes_escribieron": [
+    "oficina-creativa",
+    "campaign-brief-agent",
+    "competitive-intelligence-agent"
+   ]
+  },
+  {
+   "id": "1",
+   "version": 1,
+   "estado": "devuelta",
+   "texto_md": "## De qué parte del plan sale\n\n> «La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.ec publica el anuncio: quienes viven en zona norte de Guayaquil pueden pedir encebollado y ceviche desde el lunes por naufrago.ec. […] La idea de marca que une todo el plan: \"Encebollados y ceviches con producto del día — sin esperar mesa, sin salir de casa.\"»\n\nFase activa: **Desbloquear — semanas 1-2 (nov 6-19)**. Objetivo de fase: pre-apertura y apertura de Guayaquil, primera pauta.\n\n---\n\n## Insight\n\nEl guayaquileño que quiere un encebollado de verdad sabe que el bueno viene de la costa — y resigna calidad porque no tiene cómo pedirlo desde su barrio sin entregar el pedido a una app que no conoce la receta.\n\nNáufrago nació en Olón, a metros del mar. Eso no lo puede copiar nadie en la zona norte.\n\n---\n\n## Mensaje\n\nEl encebollado de Olón llega a tu barrio en Guayaquil — sin salir de casa, pedilo en naufrago.ec.\n\n---\n\n## Objetivo\n\nGenerar los primeros pedidos reales en la sede Guayaquil y construir reconocimiento de que Náufrago es el encebollado costero con delivery directo en zona norte.\n\n- **ig:** awareness + conversión · llamado → «Pedí en naufrago.ec» (link en bio o sticker en story)\n- **facebook:** réplica del contenido de ig · misma llamada → naufrago.ec · canal para pauta Meta (no canal de contenido activo)\n- **whatsapp:** aviso de apertura + mensaje de bienvenida automático → flujo hacia naufrago.ec · respuesta en menos de 1 hora desde apertura del lunes 9\n\n---\n\n## Tono\n\nDirecto, costero, familiar — tutea siempre. Frases de máximo 12 palabras por idea. El «...» abre expectativa; el «!» cierra la acción. Nada de cadena ni de menú formal.\n\nVoz de referencia del dueño: *«Cuando tengas esa hambre.... Náufrago te espera!»*\n\n---\n\n## Obligatorios\n\n- **vocabulario:** encebollado · ceviche · chifle · producto del día · naufrago.ec · Náufrago · Olón · zona norte de Guayaquil\n- **prohibido:** premium · gourmet · artesanal · exclusivo · innovador · de autor · experiencia gastronómica\n- **lo que no se dice:** que la sede Guayaquil tiene local físico o atiende público · que hay pago con tarjeta disponible (no confirmado en el plan) · que el delivery tarda 20–35 min (no confirmado en pedidos piloto) · «el mejor encebollado del Ecuador» sin citar la reseña que lo dice y atribuirla · no se nombra a ningún competidor en pieza · no se anuncia el Tesoro de Náufrago como gancho de captación (el plan lo reserva para recompra)\n\n---\n\n## Faltantes\n\n- **precio del encebollado en Olón:** no está confirmado en el material disponible; el plan lo señala como decisión abierta — no se comunica en anuncios hasta que el dueño lo confirme\n- **canal de pedido confirmado en Olón:** el plan detecta discrepancia entre el número del sitio y el de la bio de Instagram; se necesita confirmar cuál es el activo antes de publicar\n- **capacidad máxima de pedidos simultáneos en Guayaquil:** sin dato — condiciona cuánto tráfico se puede enviar desde pauta sin romper la operación\n- **confirmación de pago con tarjeta en Guayaquil:** declarado «en camino» sin fecha — no se menciona hasta que esté activo\n- **informe de competencia en vivo:** A5 miró y no encontró registros indexados de Club Marisco ni El Camarón Rojo Mall Piazza Bella; el hueco de diferenciación se funda en el plan y el manual, no en observación directa de la competencia este período\n- **tamaño del equipo de operación:** no confirmado — condiciona la cantidad de contenido producible por semana\n\n---\n\n## Contradicciones plan vs manual\n\n- **canal de pedido en Guayaquil** · plan dice: el único canal de pedido en Guayaquil es naufrago.ec · manual dice: «el canal de pedido (WhatsApp) aparece siempre visible en la llamada a acción» · qué se hizo: se respeta el plan — en Guayaquil el llamado va a naufrago.ec; WhatsApp se usa como canal de seguimiento y bienvenida, no como canal de pedido en esta plaza\n- **tiempo de entrega** · plan dice: «ese número no se repite en anuncios ni en contenido hasta que los pedidos piloto lo confirmen» · manual dice: «Encebollado Náufrago (…) producto estrella» — no hay contradicción de fondo, pero el manual no prohíbe mencionar tiempos · qué se hizo: se omite el tiempo de entrega hasta confirmar con pilotos, siguiendo el plan\n\n---\n\n## Citas\n\n**A1 usé:** orientación de qué pedir al portero — fundó la solicitud de material de competencia y de reseñas del cliente. No trajo datos nuevos (87 fotos ya registradas, 0 materiales nuevos); el brief se fundó en el manual y el plan.\n\n**A2 usé:** inventario de fotos propias disponibles — sirvió para confirmar que existen imágenes de producto (encebollado en bowl, caldo, chifle) y de terraza del local para las piezas visuales. Las fotos con confianza media/alta de producto son las candidatas para la dirección visual: `c0355f3d`, `e8da814f`, `8df587e0`, `19671014`.\n\n**A3 usé:** el pedido al competitive-intelligence-agent fundó el pilar de diferenciación — origen costero como hueco no ocupado digitalmente en zona norte.\n\n**A4 usé:** borrador del brief propio (turno anterior) — se toma como base; se consolida y completa en este turno con los aportes de A5.\n\n**A5 usé:** informe de competitive-intelligence-agent — confirmó que los competidores vigilados en zona norte no tienen presencia digital verificable indexada (Club Marisco, El Camarón Rojo); el hueco de «encebollado con origen costero y delivery directo sin app de terceros» no está ocupado en los registros disponibles. Se declara en Faltantes que la verificación en vivo no fue posible en este período.",
+   "leido": {
+    "tono": "Directo, costero, familiar — tutea siempre. Frases de máximo 12 palabras por idea. El «...» abre expectativa; el «!» cierra la acción. Nada de cadena ni de menú formal.\n\nVoz de referencia del dueño: *«Cuando tengas esa hambre.... Náufrago te espera!»*\n\n---",
+    "citas": "**A1 usé:** orientación de qué pedir al portero — fundó la solicitud de material de competencia y de reseñas del cliente. No trajo datos nuevos (87 fotos ya registradas, 0 materiales nuevos); el brief se fundó en el manual y el plan.\n\n**A2 usé:** inventario de fotos propias disponibles — sirvió para confirmar que existen imágenes de producto (encebollado en bowl, caldo, chifle) y de terraza del local para las piezas visuales. Las fotos con confianza media/alta de producto son las candidatas para la dirección visual: `c0355f3d`, `e8da814f`, `8df587e0`, `19671014`.\n\n**A3 usé:** el pedido al competitive-intelligence-agent fundó el pilar de diferenciación — origen costero como hueco no ocupado digitalmente en zona norte.\n\n**A4 usé:** borrador del brief propio (turno anterior) — se toma como base; se consolida y completa en este turno con los aportes de A5.\n\n**A5 usé:** informe de competitive-intelligence-agent — confirmó que los competidores vigilados en zona norte no tienen presencia digital verificable indexada (Club Marisco, El Camarón Rojo); el hueco de «encebollado con origen costero y delivery directo sin app de terceros» no está ocupado en los registros disponibles. Se declara en Faltantes que la verificación en vivo no fue posible en este período.",
+    "avisos": [
+     "el mensaje tiene 2 líneas · un brief = UN mensaje",
+     "la red instagram no tiene objetivo ni llamado en el brief"
+    ],
+    "estado": "devuelta",
+    "insight": "El guayaquileño que quiere un encebollado de verdad sabe que el bueno viene de la costa — y resigna calidad porque no tiene cómo pedirlo desde su barrio sin entregar el pedido a una app que no conoce la receta.\n\nNáufrago nació en Olón, a metros del mar. Eso no lo puede copiar nadie en la zona norte.\n\n---",
+    "mensaje": "El encebollado de Olón llega a tu barrio en Guayaquil — sin salir de casa, pedilo en naufrago.ec.",
+    "por_red": [
+     {
+      "red": "**ig",
+      "llamado": "llamado → «Pedí en naufrago.ec» (link en bio o sticker en story)",
+      "objetivo": "** awareness + conversión"
+     },
+     {
+      "red": "**facebook",
+      "llamado": "misma llamada → naufrago.ec · canal para pauta Meta (no canal de contenido activo)",
+      "objetivo": "** réplica del contenido de ig"
+     },
+     {
+      "red": "**whatsapp",
+      "llamado": "respuesta en menos de 1 hora desde apertura del lunes 9",
+      "objetivo": "** aviso de apertura + mensaje de bienvenida automático → flujo hacia naufrago.ec"
+     }
+    ],
+    "bloqueos": [
+     "la cita «> «La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.e» no se encuentra literal en el plan · no se puede verificar de qué parte sale"
+    ],
+    "contrato": "brief_creativo.v1",
+    "objetivo": "Generar los primeros pedidos reales en la sede Guayaquil y construir reconocimiento de que Náufrago es el encebollado costero con delivery directo en zona norte.\n\n\n---",
+    "faltantes": [
+     {
+      "campo": "**precio del encebollado en Olón",
+      "que_falta": "** no está confirmado en el material disponible; el plan lo señala como decisión abierta — no se comunica en anuncios hasta que el dueño lo confirme"
+     },
+     {
+      "campo": "**canal de pedido confirmado en Olón",
+      "que_falta": "** el plan detecta discrepancia entre el número del sitio y el de la bio de Instagram; se necesita confirmar cuál es el activo antes de publicar"
+     },
+     {
+      "campo": "**capacidad máxima de pedidos simultáneos en Guayaquil",
+      "que_falta": "** sin dato — condiciona cuánto tráfico se puede enviar desde pauta sin romper la operación"
+     },
+     {
+      "campo": "**confirmación de pago con tarjeta en Guayaquil",
+      "que_falta": "** declarado «en camino» sin fecha — no se menciona hasta que esté activo"
+     },
+     {
+      "campo": "**informe de competencia en vivo",
+      "que_falta": "** A5 miró y no encontró registros indexados de Club Marisco ni El Camarón Rojo Mall Piazza Bella; el hueco de diferenciación se funda en el plan y el manual, no en observación directa de la competencia este período"
+     },
+     {
+      "campo": "**tamaño del equipo de operación",
+      "que_falta": "** no confirmado — condiciona la cantidad de contenido producible por semana"
+     }
+    ],
+    "obligatorios": {
+     "prohibido": [
+      "** premium",
+      "gourmet",
+      "artesanal",
+      "exclusivo",
+      "innovador",
+      "de autor",
+      "experiencia gastronómica"
+     ],
+     "no_se_dice": [
+      "** que la sede Guayaquil tiene local físico o atiende público",
+      "que hay pago con tarjeta disponible (no confirmado en el plan)",
+      "que el delivery tarda 20–35 min (no confirmado en pedidos piloto)",
+      "el mejor encebollado del Ecuador» sin citar la reseña que lo dice y atribuirla",
+      "no se nombra a ningún competidor en pieza",
+      "no se anuncia el Tesoro de Náufrago como gancho de captación (el plan lo reserva para recompra)"
+     ],
+     "vocabulario": [
+      "** encebollado",
+      "ceviche",
+      "chifle",
+      "producto del día",
+      "naufrago.ec",
+      "Náufrago",
+      "Olón",
+      "zona norte de Guayaquil"
+     ]
+    },
+    "contradicciones": [
+     "**canal de pedido en Guayaquil** · plan dice: el único canal de pedido en Guayaquil es naufrago.ec · manual dice: «el canal de pedido (WhatsApp) aparece siempre visible en la llamada a acción» · qué se hizo: se respeta el plan — en Guayaquil el llamado va a naufrago.ec; WhatsApp se usa como canal de seguimiento y bienvenida, no como canal de pedido en esta plaza",
+     "**tiempo de entrega** · plan dice: «ese número no se repite en anuncios ni en contenido hasta que los pedidos piloto lo confirmen» · manual dice: «Encebollado Náufrago (…) producto estrella» — no hay contradicción de fondo, pero el manual no prohíbe mencionar tiempos · qué se hizo: se omite el tiempo de entrega hasta confirmar con pilotos, siguiendo el plan",
+     "--"
+    ],
+    "de_que_parte_del_plan": "> «La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.ec publica el anuncio: quienes viven en zona norte de Guayaquil pueden pedir encebollado y ceviche desde el lunes por naufrago.ec. […] La idea de marca que une todo el plan: \"Encebollados y ceviches con producto del día — sin esperar mesa, sin salir de casa.\"»\n\nFase activa: **Desbloquear — semanas 1-2 (nov 6-19)**. Objetivo de fase: pre-apertura y apertura de Guayaquil, primera pauta.\n\n---"
+   },
+   "devolucion_texto": "- la cita «> «La ghost kitchen abre el lunes 9 de noviembre. Este fin de semana @naufrago.e» no se encuentra literal en el plan · no se puede verificar de qué parte sale",
+   "motivo": null,
+   "costo_usd": 0.7952,
+   "seco": false,
+   "creada_en": "2026-11-09T18:15:11.506561+00:00",
+   "actualizada_en": "2026-11-09T18:19:43.134+00:00",
+   "encargo_id": "ee269e7d-55f4-43df-80b9-7ceeb0d3d6d0",
+   "quienes_escribieron": [
+    "oficina-creativa",
+    "campaign-brief-agent",
+    "competitive-intelligence-agent"
+   ]
+  }
+ ]
+}
