@@ -14,7 +14,9 @@ import { tituloLimpio } from "@/lib/direccion-decisiones"
 import { codigosDeFotos, direccionesDeFotos } from "@/lib/gran-idea-datos"
 
 afterEach(cleanup)
-const R = JSON.parse(readFileSync("__tests__/fixtures/naufrago-con-codigos-10-nov.json", "utf8")) as { avisos: string[]; por_que_funciona: string; como_se_ve: string; fotos_citadas: string[]; brief_v2_cabeza: string; brief_v3_inicio: string; brief_citas: string; idea_c107: string }
+const R = JSON.parse(readFileSync("__tests__/fixtures/naufrago-con-codigos-10-nov.json", "utf8")) as { avisos: string[]; por_que_funciona: string; como_se_ve: string; fotos_citadas: string[]; brief_v2_cabeza: string; brief_v3_inicio: string; brief_citas: string; idea_c107: string; fotos_del_cliente: string[] }
+/** los códigos de las fotos propias de Náufrago que cita el brief (producción, 10-nov): solo esos se quitan cuando son solo números */
+const CTX = { fotos: R.fotos_del_cliente }
 /** ningún código del sistema queda a la vista */
 const CODIGO = /\b(?:brf|con|pln|man|pie|rev|cam)-[0-9a-f]{6,}|\bC\d+-I\d+\b|foto:|(?<![\p{L}\p{N}_-])v\d+(?![\p{L}\p{N}_-])|\(revisi[oó]n\)|`[0-9a-f]{7,12}`|\b[0-9a-f]{8}-[0-9a-f]{4}-/u
 
@@ -49,11 +51,11 @@ describe("1 · los textos reales de Náufrago salen sin códigos", () => {
     expect(t).not.toMatch(/\(\s*\)|\(\s*[—–-]/)
   })
   it("las citas del brief: los códigos de foto sueltos (`19671014`) no se ven", () => {
-    const t = sinCodigos(R.brief_citas)
+    const t = sinCodigos(R.brief_citas, CTX)
     expect(t).toContain("fotos de producto (encebollado cenital), fachada del local (con el personaje del náufrago), y foto del caldo en cocina —")
   })
   it("ningún texto real deja un código a la vista", () => {
-    for (const t of [...R.avisos, R.por_que_funciona, R.como_se_ve, R.brief_v2_cabeza, R.brief_v3_inicio, R.brief_citas, R.idea_c107]) expect(sinCodigos(t)).not.toMatch(CODIGO)
+    for (const t of [...R.avisos, R.por_que_funciona, R.como_se_ve, R.brief_v2_cabeza, R.brief_v3_inicio, R.brief_citas, R.idea_c107]) expect(sinCodigos(t, CTX)).not.toMatch(CODIGO)
   })
   it("un identificador largo (uuid) suelto no se ve", () => {
     expect(sinCodigos("Revisión de la pieza 2d3c4da1-d3d5-40e0-b18e-d90e8652e001 lista")).toBe("Revisión de la pieza lista")

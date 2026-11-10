@@ -1,9 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { createContext, useContext, useMemo, useState } from "react"
 import { TITULO_1, TITULO_2, TITULO_3 } from "@/components/nuevo/manual/niveles"
 import { bloquesDelMarkdown, datosClave, seccionesDelPlan, trozosDelTexto, type Bloque } from "@/lib/plan-documento"
 import { sinCodigos } from "@/lib/sin-codigos"
+
+/** los códigos de foto que de verdad son fotos del cliente (10-nov · 2º cliente): solo esos se quitan cuando vienen entre comillas y son solo números */
+const FotosConocidas = createContext<readonly string[]>([])
 
 /**
  * EL PLAN EN SECCIONES (CC6 · 02-nov · Emilio: «que esté bien segmentado para que el lector no se pierda entre párrafos gigantes»).
@@ -12,10 +15,11 @@ import { sinCodigos } from "@/lib/sin-codigos"
  * Solo lectura del documento: no cambia nada por sí mismo.
  */
 function Texto({ texto }: { texto: string }) {
+  const fotos = useContext(FotosConocidas)
   return (
     <>
       {/* GO Lenovo 10-nov: lo que lee Emilio sin códigos del sistema (ids de documento, versiones, ideas, fotos); lo guardado no cambia */}
-      {trozosDelTexto(sinCodigos(texto)).map((x, i) => (
+      {trozosDelTexto(sinCodigos(texto, { fotos })).map((x, i) => (
         <span key={i} className={`${x.negrita ? "font-semibold text-zinc-50" : ""} ${x.cifra ? "rounded bg-amber-400/[0.12] px-0.5 text-amber-100" : ""}`}>{x.t}</span>
       ))}
     </>
@@ -45,8 +49,10 @@ function Bloques({ bloques }: { bloques: Bloque[] }) {
   )
 }
 
-export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [], sinDatosClave = false }: {
+export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [], sinDatosClave = false, fotosConocidas = [] }: {
   prosa: string
+  /** los códigos de las fotos propias del cliente que cita el texto (no se muestran) */
+  fotosConocidas?: readonly string[]
   /** sin las tarjetas de fechas/lugar/presupuesto/meta (son del plan; el brief las reusa sin ellas) */
   sinDatosClave?: boolean
   /** pedir cambios sobre una sección (solo si el plan admite pedir cambios ahora) */
@@ -62,9 +68,11 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
     setAbiertas((s) => new Set(s).add(id))
     if (typeof document !== "undefined") requestAnimationFrame(() => document.getElementById(`plan-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }))
   }
-  if (!doc.secciones.length) return <p className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{prosa}</p>
+  const conFotos = { fotos: fotosConocidas }
+  if (!doc.secciones.length) return <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{sinCodigos(prosa, conFotos)}</p>
 
   return (
+    <FotosConocidas.Provider value={fotosConocidas}>
     <div data-plan-en-secciones className="space-y-4">
       {/* los datos clave: copiados del documento; lo que no está, se dice */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4" aria-label="Los datos clave del plan">
@@ -87,7 +95,7 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
             {doc.secciones.map((s, i) => (
               <li key={s.id} className="shrink-0 md:shrink">
                 <button type="button" data-ir={s.id} onClick={() => ir(s.id)} className={`w-full whitespace-nowrap rounded-md px-2 py-1 text-left text-[12px] transition md:whitespace-normal ${abiertas.has(s.id) ? "bg-amber-400/10 text-amber-100" : "text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-100"}`}>
-                  <span /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mr-1.5 text-zinc-600">{i + 1}.</span>{sinCodigos(s.titulo)}
+                  <span /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mr-1.5 text-zinc-600">{i + 1}.</span>{sinCodigos(s.titulo, conFotos)}
                 </button>
               </li>
             ))}
@@ -107,7 +115,7 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
                 <button type="button" aria-expanded={abierta} onClick={() => alternar(s.id)} className="flex w-full items-start gap-3 px-3.5 py-3 text-left">
                   <span className="mt-0.5 text-[11px] text-zinc-600">{i + 1}</span>
                   <span className="min-w-0 flex-1">
-                    <span data-titulo="1" className={`block ${TITULO_1}`}>{sinCodigos(s.titulo)}</span>
+                    <span data-titulo="1" className={`block ${TITULO_1}`}>{sinCodigos(s.titulo, conFotos)}</span>
                     {!abierta && s.resumen.length > 0 && (
                       <span className="mt-1 block space-y-0.5 text-[12.5px] leading-snug text-zinc-400">{s.resumen.map((r, k) => <span key={k} className="block"><Texto texto={r} /></span>)}</span>
                     )}
@@ -128,5 +136,6 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
         </div>
       </div>
     </div>
+    </FotosConocidas.Provider>
   )
 }

@@ -85,6 +85,8 @@ describe("el brief real de Náufrago, como lo ve Emilio", () => {
     expect(r.container.querySelectorAll("[data-seccion]").length).toBeGreaterThan(3)
     expect(r.container.querySelectorAll("[data-seccion][data-abierta='false']")).toHaveLength(0)
     expect(r.container.textContent).toContain("Brief creativo de campaña")
+    for (const c of b.fotos as string[]) expect(r.container.textContent).not.toContain(c) // las fotos del cliente que cita, tampoco en los resúmenes (sin comillas)
+    expect(r.container.textContent).toContain("desde la versión 2") // la versión del sistema, en palabras
     expect(r.container.textContent).not.toMatch(CODIGO)
   })
 })

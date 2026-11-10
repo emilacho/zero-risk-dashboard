@@ -112,10 +112,10 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                   {brief.devolucion_texto && (
                     <div data-bloque="devolucion" className="rounded-lg border border-rose-400/30 bg-rose-500/[0.06] p-2.5 text-[12.5px] leading-relaxed text-rose-100">
                       <Titulito>Devuelto por la dirección creativa</Titulito>
-                      <p className="whitespace-pre-wrap">{sinCodigos(brief.devolucion_texto)}</p>
+                      <p className="whitespace-pre-wrap">{sinCodigos(brief.devolucion_texto, { fotos: datos?.fotos ?? [] })}</p>
                     </div>
                   )}
-                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave /> : <p className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
+                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave fotosConocidas={datos?.fotos ?? []} /> : <p className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
                 </article>
                 <aside aria-label="Lo esencial del brief" data-barra-del-brief className="space-y-3 lg:sticky lg:top-0 lg:self-start">
                   <section data-barra="estado" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
