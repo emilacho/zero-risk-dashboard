@@ -427,11 +427,14 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   // «Resueltas»: lo del registro de la plataforma (7 días) más lo que salió en esta visita y el registro todavía no trae; sin registro, «sin dato» (nunca 0)
   const resueltas = datos?.resueltas ? [...datos.resueltas, ...contestadas.filter((c) => c.resultado.sale && !datos.resueltas!.some((r) => r.id === c.d.id)).map((c): Resuelta => ({ id: c.d.id, titulo: tituloDeDecision(c.d), tipo: c.d.tipo, cliente: c.d.cliente, resuelta_en: c.resultado.registro.at(-1)?.cuando ?? null, resultado: null }))] : null
   const aparte = [fuera ? `${plural(fuera, "se atiende", "se atienden")} fuera de este tablero` : null, ...g.pausa.map((p) => `${p.decisiones.length} en pausa (${clienteCorto(p.cliente)})`)].filter(Boolean).map((x) => ` · ${x}`).join("")
-  const resumen = !datos ? "" : `${total ? `${plural(nuevas.length, "nueva", "nuevas")} · ${plural(revisadas.length, "revisada", "revisadas")}` : "Nada espera por ti ahora"}${resueltas ? ` · ${plural(resueltas.length, "resuelta", "resueltas")} en ${DIAS_DE_RESUELTAS} días` : ""}${detienen ? ` · ${plural(detienen, "tiene un trabajo detenido", "tienen un trabajo detenido")}` : ""}${aparte}${datos.completo ? "" : " · la lista puede estar incompleta"}`
+  // 10-nov (CC7 · alerta sin estado): si la libreta de «ya lo vi» no se leyó, las tarjetas siguen en «Nuevas» (no se calla nada), pero el NÚMERO dice «—»
+  // (Lenovo 00:30Z: solo el guion estándar, sin texto): un número lleno contradiría a la plataforma (`contadores.nuevas = null`)
+  const sinLibreta = nuevas.some((d) => d.alerta && d.alerta.estado === null && !revisadasAqui[d.alerta.clave])
+  const resumen = !datos ? "" : `${total ? `${sinLibreta ? "nuevas sin dato" : plural(nuevas.length, "nueva", "nuevas")} · ${plural(revisadas.length, "revisada", "revisadas")}` : "Nada espera por ti ahora"}${resueltas ? ` · ${plural(resueltas.length, "resuelta", "resueltas")} en ${DIAS_DE_RESUELTAS} días` : ""}${detienen ? ` · ${plural(detienen, "tiene un trabajo detenido", "tienen un trabajo detenido")}` : ""}${aparte}${datos.completo ? "" : " · la lista puede estar incompleta"}`
   const elegir = (x: string) => { setGrupo(x as Grupo); setI(0); setRegistro(null) }
   const cifra = (k: number) => (datos ? k : "…")
   const recuadros = [
-    { clave: "nuevas", numero: cifra(nuevas.length), rotulo: "Nuevas", activo: grupo === "nuevas" },
+    { clave: "nuevas", numero: sinLibreta ? "—" : cifra(nuevas.length), rotulo: "Nuevas", activo: grupo === "nuevas" },
     { clave: "revisadas", numero: cifra(revisadas.length), rotulo: "Revisadas", activo: grupo === "revisadas" },
     { clave: "resueltas", numero: !datos ? "…" : resueltas ? resueltas.length : "—", rotulo: "Resueltas", activo: grupo === "resueltas" },
     ...(fuera ? [{ clave: "fuera", numero: fuera, rotulo: "Fuera", activo: grupo === "fuera" }] : []),
