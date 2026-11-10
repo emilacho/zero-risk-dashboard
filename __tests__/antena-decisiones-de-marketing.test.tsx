@@ -47,7 +47,7 @@ describe("1 · la gran idea de Náufrago (la respuesta real de hoy) prende la an
     expect(a.abre).toBe("decisiones"); expect(DESTINO_DEL_AVISO.decision).toBe("decisiones")
     expect(a.departamento).toBe("marketing")
     const lista = renderToStaticMarkup(ListaDeLasAlertas({ alertas: [a], onAbrir: () => undefined, onCerrar: () => undefined, ahora: AHORA.getTime() }))
-    expect(lista).toContain("Gran idea de la Campaña de Marketing espera tu aprobación"); expect(lista).toContain('data-alerta="decision"')
+    expect(lista.replace(/<[^>]+>/g, "")).toContain("Gran idea de la Campaña de Marketing espera tu aprobación"); expect(lista).toContain('data-alerta="decision"')
   })
   it("la lectura guarda la oficina de la ficha (sin ella no sabríamos si la plataforma ya dice marketing)", () => {
     expect(normalizarDecisiones(RESPUESTA_REAL).decisiones.map((d) => d.departamento_oficina)).toEqual(["financiera", "revision"])
