@@ -224,7 +224,7 @@ export interface EscenaDatos {
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */
 export const FLUJOS: Record<string, string> = {
-  X9F0zp6LQ2xGEYVS: "Plan de 90 días",
+  X9F0zp6LQ2xGEYVS: "Plan de Marketing",
 }
 /** el trabajo en palabras de oficina para la sala: los conocidos; si no, el nombre del proceso en n8n («Cambios al manual»); si no hay, «un trabajo sin nombre registrado» (nunca «flujo 2128…») */
 export function nombreDelFlujoEnPalabras(workflowId: string | null | undefined, nombres?: Record<string, string>): string {

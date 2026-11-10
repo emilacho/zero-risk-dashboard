@@ -66,7 +66,7 @@ describe("quién se sienta (solo el que trabaja ahora, dato real)", () => {
     const r = armarEscena(base({ despachos: [despacho("market_research_analyst", 4, { workflow_execution_id: "209744:analisis-mercado" })] }))
     const estrategia = r.mesas.find((m) => m.clave === "estrategia")!
     expect(estrategia.sentados).toHaveLength(1)
-    expect(estrategia.sentados[0]).toMatchObject({ agente: "market_research_analyst", nombre: "Analista de mercado", estado: "trabajando", cliente: "Náufrago", flujo: "Plan de 90 días", paso: "analisis mercado", gasto_usd: null, origen_de_la_mesa: "directorio", hace: "hace 4 min" })
+    expect(estrategia.sentados[0]).toMatchObject({ agente: "market_research_analyst", nombre: "Analista de mercado", estado: "trabajando", cliente: "Náufrago", flujo: "Plan de Marketing", paso: "analisis mercado", gasto_usd: null, origen_de_la_mesa: "directorio", hace: "hace 4 min" })
     expect(estrategia.trabajando).toBe(1)
     expect(r.mesas.filter((m) => m.clave !== "estrategia").every((m) => m.sentados.length === 0)).toBe(true)
     expect(r.sin_mesa).toEqual([])
@@ -124,7 +124,7 @@ describe("quién se sienta (solo el que trabaja ahora, dato real)", () => {
     const l = lineasDeLaFicha(m.sentados[0], m)
     expect(l[0]).toBe("Analista de mercado")
     expect(l[1]).toBe("Estrategia · trabajando")
-    expect(l[2]).toBe("Náufrago · Plan de 90 días · analisis mercado")
+    expect(l[2]).toBe("Náufrago · Plan de Marketing · analisis mercado")
     expect(l).toContain("desde hace 4 min")
     expect(l).toContain("gasto de esta tarea · en curso, sin registrar aún")
     expect(l.at(-1)).toBe("al día a las 07:00")
@@ -141,7 +141,7 @@ describe("quién se sienta (solo el que trabaja ahora, dato real)", () => {
     expect(r.mesas.find((m) => m.clave === "creativo")!.equipo.map((p) => p.agente).sort()).toEqual(["carousel-designer", "content-creator"])
   })
   it("los nombres de flujo y paso salen del dato; lo desconocido se abrevia, no se inventa", () => {
-    expect(nombreDelFlujo("X9F0zp6LQ2xGEYVS")).toBe("Plan de 90 días")
+    expect(nombreDelFlujo("X9F0zp6LQ2xGEYVS")).toBe("Plan de Marketing")
     expect(nombreDelFlujo("o8qaF7bI0PKv2XGZ")).toBe("flujo o8qa…")
     expect(nombreDelFlujo(null)).toBe("sin flujo registrado")
     expect(pasoDe("209744:analisis-mercado")).toBe("analisis mercado")

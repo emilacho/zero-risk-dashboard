@@ -268,7 +268,7 @@ function documentoLeido(d: Fila | null): PlanDelCliente["documento"] {
   const leido = planDelTexto(d.content_text ?? d.content)
   const texto = typeof d.content_text === "string" ? d.content_text : typeof d.content === "string" ? d.content : ""
   return {
-    id: String(d.id), titulo: String(d.title ?? "Plan de 90 días"), creado_en: t(d.created_at), actualizado_en: t(d.updated_at), status: t(d.status),
+    id: String(d.id), titulo: String(d.title ?? "Plan de Marketing"), creado_en: t(d.created_at), actualizado_en: t(d.updated_at), status: t(d.status),
     estado_del_plan: t(pt.estado_del_plan), marcas: marcasDelChequeo(pt.pendientes), aviso_del_chequeo: puntosDelAviso(reg.aviso_del_chequeo), no_se_busco: puntosDeLoNoBuscado(reg.no_se_busco_del_sistema),
     jefatura: Object.keys(jef).length ? { resultado: t(jef.resultado), marcado_en: t(jef.marcado_en) } : null,
     plan: leido.plan, prosa: leido.prosa, caracteres: texto.length, que_cambio: queCambioDelTexto(texto),

@@ -31,6 +31,9 @@ export interface BarraDelPlan {
 }
 
 /** la barra del plan con lo que ya leyó el panel (no lee la base) */
+/** «Plan de Marketing: revisa…» (o el nombre viejo «Plan de 90 días: …») → «revisa…»: dentro del plan, el título no repite el nombre */
+export const sinPrefijoDelPlan = (titulo: string): string => titulo.replace(/^Plan de (?:90 d[ií]as|Marketing):\s*/i, "")
+
 export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
   const c = p.campana, e = p.estrategia, d = p.documento
   const lectura = d && p.ciclo ? leerElCiclo(d.status, p.ciclo) : null
@@ -64,7 +67,7 @@ export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
   else if (lectura?.puede_aprobar) teToca.push("Aprobar el plan o pedir cambios")
   const bandeja = p.esperas.grupos.find((g) => g.tipo === "aprobacion_bandeja")?.n ?? 0
   if (bandeja) teToca.push(bandeja === 1 ? "1 aprobación en tu bandeja" : `${bandeja} aprobaciones en tu bandeja`)
-  for (const x of p.palabra_del_dueno ?? []) teToca.push(x.requiere_humano ? `Revisar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}` : `Mirar: ${x.titulo.replace(/^Plan de 90 días:\s*/i, "")}`)
+  for (const x of p.palabra_del_dueno ?? []) teToca.push(x.requiere_humano ? `Revisar: ${sinPrefijoDelPlan(x.titulo)}` : `Mirar: ${sinPrefijoDelPlan(x.titulo)}`)
   if (c?.estado === "pausada" || c?.estado === "necesita_humano") teToca.push(c.estado === "pausada" ? `La campaña está pausada${c.estado_motivo ? ` (${c.estado_motivo})` : ""}: reanudarla es decisión tuya` : "La campaña necesita una decisión tuya")
   const cerrado = !!p.ciclo?.cerrado
   return {

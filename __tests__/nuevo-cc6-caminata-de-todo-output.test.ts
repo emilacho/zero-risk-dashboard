@@ -15,7 +15,7 @@ const llamada = (agent_name: string, trabajo_tipo: string, trabajo_id: string, e
 describe("1 · «terminó un output» sale del estado final de su trabajo raíz", () => {
   it("plan hecho, pedido aplicado y alta completada → un output cada uno, con su nombre", () => {
     const w = trabajosTerminados({ planes: [PLAN], pedidos: [PEDIDO, { ...PEDIDO, id: "p2", documento: "plan" }], altas: [{ id: "j1", status: "completed", updated_at: "2026-11-04T12:00:00Z" }] })
-    expect(w.map((x) => [x.tipo, x.titulo])).toEqual([["plan", "Plan de 90 días terminado"], ["pedido", "Manual de marca reescrito"], ["pedido", "Plan corregido"], ["alta", "Alta del cliente terminada"]])
+    expect(w.map((x) => [x.tipo, x.titulo])).toEqual([["plan", "Plan de Marketing terminado"], ["pedido", "Manual de marca reescrito"], ["pedido", "Plan corregido"], ["alta", "Alta del cliente terminada"]])
   })
   it("lo que no terminó bien o es ensayo NO es un output", () => {
     expect(trabajosTerminados({ planes: [{ ...PLAN, estado: "fallida" }, { ...PLAN, dry_run: true }, { ...PLAN, estado: "en_curso" }], pedidos: [{ ...PEDIDO, estado: "fallido" }], altas: [{ id: "j", status: "active", updated_at: "2026-11-04T12:00:00Z" }, { id: "k", status: "abandoned", updated_at: "2026-11-04T12:00:00Z" }] })).toEqual([])
@@ -49,7 +49,7 @@ describe("3 · entran a la caminata junto a las piezas", () => {
   it("el plan y el manual de hoy salen como entregas (de la más nueva a la más vieja); quien camina, si hay dato", () => {
     const trabajos = trabajosTerminados({ planes: [PLAN], pedidos: [PEDIDO] })
     const e = armarEntregas({ ...base, trabajos, llamadasDeTrabajos: [llamada("jefe-marketing", "plan", PLAN.id, "2026-11-04T13:45:17Z")], directores: [] }).entregas
-    expect(e.map((x) => [x.id, x.agente, x.titulo])).toEqual([[`plan:${PLAN.id}`, "jefe-marketing", "Plan de 90 días terminado"], [`pedido:${PEDIDO.id}`, null, "Manual de marca reescrito"]])
+    expect(e.map((x) => [x.id, x.agente, x.titulo])).toEqual([[`plan:${PLAN.id}`, "jefe-marketing", "Plan de Marketing terminado"], [`pedido:${PEDIDO.id}`, null, "Manual de marca reescrito"]])
   })
   it("junto a una pieza cerrada, en orden; fuera de las 24 h o en el futuro no camina; nunca más de MAXIMO_DE_CUADROS", () => {
     const pieza = { id: "enc1", estado: "cerrado", cerrado_en: "2026-11-04T12:00:00Z", sala_ref: null }

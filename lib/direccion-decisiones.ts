@@ -163,7 +163,7 @@ export async function leerDecisiones(d: { plataformaUrl?: string; llave?: string
 
 /** cómo se llama cada tipo, en palabras de negocio, y su marca corta para la pantalla */
 export const NOMBRE_DEL_TIPO: Record<TipoDeDecision, { nombre: string; plural: string }> = {
-  plan: { nombre: "Plan de 90 días", plural: "Planes" },
+  plan: { nombre: "Plan de Marketing", plural: "Planes" },
   gran_idea: { nombre: "Gran idea", plural: "Grandes ideas" },
   pieza: { nombre: "Pieza para publicar", plural: "Piezas" },
   revision: { nombre: "Revisión", plural: "Revisiones" },

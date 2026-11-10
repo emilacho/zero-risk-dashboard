@@ -53,7 +53,7 @@ describe("el trabajo y los números", () => {
   })
   it("las últimas tareas con cliente, flujo y paso en palabras", () => {
     const r = tareasRecientes(invs, new Map([["c1", "Náufrago"]]))
-    expect(r[0]).toEqual({ fecha: "2026-10-31T10:00:00Z", cliente: "Náufrago", flujo: "Plan de 90 días", paso: "analisis mercado", estado: "fallida", costo_usd: 0.05, minutos: 2 })
+    expect(r[0]).toEqual({ fecha: "2026-10-31T10:00:00Z", cliente: "Náufrago", flujo: "Plan de Marketing", paso: "analisis mercado", estado: "fallida", costo_usd: 0.05, minutos: 2 })
   })
 })
 

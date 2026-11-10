@@ -350,7 +350,7 @@ export const masReuniones = (n: number): string => `y ${n} ${n === 1 ? "reunión
 export function tituloPorElPedido(pedidos: Array<string | null | undefined>): string {
   const t = pedidos.filter(Boolean).join(" ").toLowerCase()
   if (/manual/.test(t)) return "Reescritura del manual"
-  if (/plan de 90|plan a 90|plan de campa/.test(t)) return "Plan de 90 días"
+  if (/plan de 90|plan a 90|plan de campa|plan de marketing/.test(t)) return "Plan de Marketing"
   return "Un trabajo en curso"
 }
 /** 04-nov · el GLOBO de un participante: UNA línea en español claro de lo que hace (por su papel), sin nombres internos, números, inglés ni abreviaturas. El texto crudo de su aporte se lee en el panel, no aquí */

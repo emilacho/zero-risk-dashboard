@@ -90,7 +90,7 @@ export const FIN_DEL_TRABAJO = {
 /** las filas finales de cada tabla → trabajos terminados con su nombre legible (sin pruebas ni ensayos) */
 export function trabajosTerminados(f: { planes?: Fila[]; pedidos?: Fila[]; altas?: Fila[] }): TrabajoTerminado[] {
   const out: TrabajoTerminado[] = []
-  for (const p of f.planes ?? []) if (p.estado === FIN_DEL_TRABAJO.plan.estado && p.dry_run !== true && t(p.id) && t(p.actualizado_en)) out.push({ tipo: "plan", id: String(p.id), titulo: "Plan de 90 días terminado", cerrado_en: String(p.actualizado_en) })
+  for (const p of f.planes ?? []) if (p.estado === FIN_DEL_TRABAJO.plan.estado && p.dry_run !== true && t(p.id) && t(p.actualizado_en)) out.push({ tipo: "plan", id: String(p.id), titulo: "Plan de Marketing terminado", cerrado_en: String(p.actualizado_en) })
   for (const p of f.pedidos ?? []) if (p.estado === FIN_DEL_TRABAJO.pedido.estado && t(p.id) && t(p.actualizado_en)) out.push({ tipo: "pedido", id: String(p.id), titulo: p.documento === "plan" ? "Plan corregido" : "Manual de marca reescrito", cerrado_en: String(p.actualizado_en) })
   for (const a of f.altas ?? []) if (a.status === FIN_DEL_TRABAJO.alta.estado && t(a.id) && t(a.updated_at)) out.push({ tipo: "alta", id: String(a.id), titulo: "Alta del cliente terminada", cerrado_en: String(a.updated_at) })
   return out
