@@ -11,7 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { conCache } from "@/lib/cache-corta"
 import { esDePractica } from "@/lib/clientes"
 import { nombresDeFlujosEnCache } from "@/lib/nombres-de-flujos"
-import { conAportes, MINUTOS_ENLACE, type ReunionDeLaSala } from "@/lib/escena-sala"
+import { conAportes, MINUTOS_ENLACE, type AporteDeMesa, type ReunionDeLaSala } from "@/lib/escena-sala"
 import { armarEscena, HORAS_RECIENTE, momentoDeLaCampana, type Despacho, type EscenaDatos, type InvocacionViva, type NombreDeAgente, type TarjetaDelDirectorio } from "@/lib/escena-avatares"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
 import { leerLaVitrina, type VitrinaDeLaEscena } from "@/lib/escena-vitrina"
@@ -81,7 +81,9 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
   // 03-nov · el nombre del trabajo de las corridas recientes (n8n, solo lectura): sin él, la sala diría «flujo 2128…»
   const idsDeFlujos = [...new Set([...invocaciones.map((i) => i.workflow_id), ...despachos.map((d) => d.workflow_id)].filter((x): x is string => !!x))].slice(0, 12)
   const nombresDeFlujos = await nombresDeFlujosEnCache(idsDeFlujos, fetch) // en caché (5 min): el sondeo no va a n8n cada vez
-  let escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx, nombresDeFlujos })
+  // GO Lenovo 10-nov 20:30Z (punto 3) · las mesas de la oficina: sin esto la sala no ve sus reuniones; si la lectura falla, la sala sigue como antes (no se inventa)
+  const mesas = await leerMesasDeLaSala(supa, desde).catch(() => [] as AporteDeMesa[])
+  let escena = armarEscena({ despachos, invocaciones, directorio: dir.tarjetas, agentes: dir.agentes, clientes: dir.clientes, equipos: dir.equipos, ahora, contexto: ctx, nombresDeFlujos, mesas })
   // sprint 3 · entregas al pizarrón, revisiones de la jefatura y firmas pendientes: si la lectura falla, la escena sigue sin eso (no se inventa)
   try {
     const ent = await conCache("escena-viva-entregas", 15_000, () => leerEntregas(supa, ahora))
@@ -100,6 +102,16 @@ export async function leerEscenaViva(supa: SupabaseClient, o: { ahora?: Date; /*
   // S4 · los aportes de la reunión de la sala (3 lecturas chicas, solo si hay reunión; se guardan 20 s)
   if (escena.sala?.reunion) escena.sala = { ...escena.sala, reunion: await leerAportesDeLaReunion(supa, escena.sala.reunion) }
   return escena
+}
+
+/** los aportes de las mesas desde `desde` que tienen corrida, con la familia de su encargo; sin ensayos en seco ni encargos de prueba */
+export async function leerMesasDeLaSala(supa: SupabaseClient, desde: string): Promise<AporteDeMesa[]> {
+  const aportes = await filas(supa.from("oficina_mesa_aportes").select("workflow_execution_id, encargo_id, tipo").gte("creado_en", desde).not("workflow_execution_id", "is", null).limit(2000), "oficina_mesa_aportes")
+  const ids = [...new Set(aportes.map((a) => s(a.encargo_id)).filter((x): x is string => !!x))]
+  if (!ids.length) return []
+  const encargos = await filas(supa.from("oficina_encargos").select("id, familia, dry_run, prueba").in("id", ids).limit(ids.length), "oficina_encargos")
+  const familia = new Map(encargos.filter((x) => x.dry_run !== true && x.prueba !== true).map((x) => [String(x.id), s(x.familia)]))
+  return aportes.filter((a) => familia.has(String(a.encargo_id))).map((a) => ({ workflow_execution_id: s(a.workflow_execution_id), encargo_id: s(a.encargo_id), tipo: s(a.tipo), familia: familia.get(String(a.encargo_id)) ?? null }))
 }
 
 /** S4 · lo que hace falta para los globos: la salida guardada de cada participante, los informes que entraron al cerebro durante la reunión y la revisión

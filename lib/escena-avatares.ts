@@ -19,7 +19,7 @@ import { EQUIPOS, EQUIPOS_DE_MARKETING, equipoDelAgente, nombreCanonico, puestos
 import { haceCuanto } from "@/lib/oficinas"
 import type { PlanDelCliente } from "@/lib/plan-datos"
 import { nombreLegible } from "@/lib/trabajo-en-vivo"
-import { agentesEnLaSala, armarSala, type SalaDeReuniones } from "@/lib/escena-sala"
+import { agentesEnLaSala, armarSala, type AporteDeMesa, type SalaDeReuniones } from "@/lib/escena-sala"
 import type { EntregasDeLaEscena } from "@/lib/escena-entregas"
 import type { MetricasDelPizarron } from "@/lib/escena-metricas"
 import type { VitrinaDeLaEscena } from "@/lib/escena-vitrina"
@@ -268,6 +268,8 @@ export interface EntradaDeLaEscena {
   contexto?: EscenaDatos["contexto"]
   /** 03-nov · los nombres de los procesos de n8n (`workflow_id` → nombre) leídos en el servidor; sin dato, el trabajo se dice sin código */
   nombresDeFlujos?: Record<string, string>
+  /** GO Lenovo 10-nov · los aportes de las mesas de la oficina en la ventana: la sala junta sus corridas por encargo */
+  mesas?: AporteDeMesa[]
 }
 
 /** la mesa de un agente: el dato del directorio primero; si no tiene tarjeta, el mapa firmado; si no, ninguna */
@@ -315,7 +317,7 @@ export function armarEscena(e: EntradaDeLaEscena): EscenaDatos {
   const fuente = `al día a las ${horaDeEcuador(e.ahora)}`
   const etapas = new Map((e.equipos ?? []).map((q) => [nombreCanonico(q.clave).replace(/-/g, "_"), q]))
   // S3 · la sala de reuniones primero: quien está en una reunión en curso se sienta en la sala, no en su mesa
-  const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo: (id) => nombreDelFlujoEnPalabras(id, e.nombresDeFlujos), mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora })
+  const sala = armarSala({ invocaciones: e.invocaciones, despachos: e.despachos, directorio: e.directorio, agentes: e.agentes, clientes: e.clientes, nombreDelFlujo: (id) => nombreDelFlujoEnPalabras(id, e.nombresDeFlujos), mesaDelAgente, nombreDeLaMesa: (k) => etapas.get(k)?.nombre || mesaPorClave(k)?.nombre || k, ahora: e.ahora, mesas: e.mesas })
   const enLaSala = agentesEnLaSala(sala)
 
   const sentados: Sentado[] = []
