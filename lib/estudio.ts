@@ -140,7 +140,18 @@ export function estadoDelBoton(x: { clienteId: string | null; textoListo: boolea
   return { habilitado, costo }
 }
 
-export interface Opciones { formato: string; modelo3d: string; calidad: "normal" | "alta"; modeloVideo: string; segundos: number; resolucion: string }
+/**
+ * GO de Lenovo 10-nov (firma de Emilio) · la pregunta «Pose» del 3D, solo con Meshy 6 (el único que sabe pedir la pose A):
+ * «Como en la imagen» respeta la pose de la imagen (mano apoyada, sentado…); «Lista para animar» la pide parada en pose A, la que se anima limpio.
+ */
+export type Pose = "imagen" | "animar"
+export const MODELO_CON_POSE = "meshy-6"
+export const NOMBRE_DE_LA_POSE: Record<Pose, string> = { imagen: "Como en la imagen", animar: "Lista para animar" }
+export const preguntaLaPose = (tipo: TipoDePieza, modelo3d: string) => tipo === "3d" && modelo3d === MODELO_CON_POSE
+/** decisión de Lenovo por Emilio (10-nov 00:30Z, opción b): al abrir 3D viene marcado Meshy 6 (como el boceto); si el catálogo no lo trae, el primero */
+export const modeloInicialDe3D = (modelos: readonly { id: string }[] | null | undefined) =>
+  !modelos?.length || modelos.some((m) => m.id === MODELO_CON_POSE) ? MODELO_CON_POSE : modelos[0].id
+export interface Opciones { formato: string; modelo3d: string; calidad: "normal" | "alta"; modeloVideo: string; segundos: number; resolucion: string; pose?: Pose }
 
 // ── varias imágenes (GO 09-nov 22:45Z · boceto aprobado por Emilio + los 4 puntos de CC6) ────────────
 
@@ -206,6 +217,7 @@ export function cuerpoDelPedido(clienteId: string | null, tipo: TipoDePieza, tex
   const base: Record<string, unknown> = { client_id: clienteId, tipo, prompt: texto }
   if (tipo === "imagen") base.formato = o.formato
   if (tipo === "3d") Object.assign(base, { modelo: o.modelo3d, calidad: o.calidad })
+  if (preguntaLaPose(tipo, o.modelo3d)) base.pose = o.pose ?? "imagen"
   if (tipo === "video") Object.assign(base, { modelo: o.modeloVideo, formato: ["9:16", "16:9", "1:1"].includes(o.formato) ? o.formato : "9:16", segundos: o.segundos, resolucion: o.resolucion })
   if (tipo === "imagen" && lista.length >= 2) {
     base.fotos = lista.map((x) => ("b64" in x ? { numero: x.numero, b64: x.b64 } : { numero: x.numero, pieza_id: x.pieza_id }))

@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
-import { agregarImagenes, avisoDeUnaSola, diasQueQuedan, enOrden, lineaDeLoQueNoSubio, lineaDeReferencias, quitarImagen, revisarArchivos, rutaDePapelera, sePuedeQuitar, textoDeDias, MAXIMO_DE_IMAGENES, type ImagenAdjunta, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelAviso, claseDelCentrado, claseDelCosto, esAvisoDelBoton, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { agregarImagenes, avisoDeUnaSola, diasQueQuedan, enOrden, lineaDeLoQueNoSubio, lineaDeReferencias, quitarImagen, revisarArchivos, rutaDePapelera, sePuedeQuitar, textoDeDias, MAXIMO_DE_IMAGENES, type ImagenAdjunta, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelAviso, claseDelCentrado, claseDelCosto, esAvisoDelBoton, NOMBRE_DE_LA_POSE, modeloInicialDe3D, preguntaLaPose, type Pose, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -177,8 +177,11 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
   const [tipo, setTipo] = useState<TipoDePieza>("imagen")
   const [texto, setTexto] = useState(textoInicial)
   const [formato, setFormato] = useState("1:1")
-  const [modelo3d, setModelo3d] = useState("tripo-h3.1")
+  const [modelo3d, setModelo3d] = useState(() => modeloInicialDe3D(catalogoInicial?.["3d"].modelos))
+  // si el catálogo llega después y no trae el modelo marcado, se marca el que sí está
+  useEffect(() => { const ms = catalogo?.["3d"].modelos; if (ms?.length && !ms.some((m) => m.id === modelo3d)) setModelo3d(modeloInicialDe3D(ms)) }, [catalogo, modelo3d])
   const [calidad, setCalidad] = useState<"normal" | "alta">("normal")
+  const [pose, setPose] = useState<Pose>("imagen")
   const [modeloVideo, setModeloVideo] = useState("bytedance/seedance-2.5")
   const [segundos, setSegundos] = useState(5)
   const [resolucion, setResolucion] = useState("720p")
@@ -258,8 +261,8 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
     return () => clearInterval(t)
   }, [enCurso, fetchImpl])
 
-  const pedido = useMemo(() => cuerpoDelPedido(clienteId, tipo, texto, { formato, modelo3d, calidad, modeloVideo, segundos, resolucion }, adjuntas.map(comoAdjunta)),
-    [clienteId, tipo, texto, formato, modelo3d, calidad, modeloVideo, segundos, resolucion, adjuntas])
+  const pedido = useMemo(() => cuerpoDelPedido(clienteId, tipo, texto, { formato, modelo3d, calidad, modeloVideo, segundos, resolucion, pose }, adjuntas.map(comoAdjunta)),
+    [clienteId, tipo, texto, formato, modelo3d, calidad, modeloVideo, segundos, resolucion, pose, adjuntas])
   const foto = adjuntas.length ? enOrden(adjuntas)[0] : null
   // con 2 o más imágenes la cotización cambia de modelo; solo en Imagen (Video y 3D usan la 1)
   const nParaElPrecio = tipo === "imagen" && adjuntas.length >= 2 ? adjuntas.length : adjuntas.length ? 1 : 0
@@ -435,6 +438,8 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
               {unaSola && <p data-una-sola className="mt-1 text-rotulo text-oro">{unaSola}</p>}
               {tipo === "3d" && !foto && /\b(logo|logotipo|marca)\b/i.test(texto) && <p className="mt-1 text-[11.5px] text-amber-300/90">Sin imagen de partida, el modelo inventa el logo. Para la marca real, sube una foto del producto.</p>}{/* estilo-ok: línea vieja del Estudio, migra entera con su pantalla */}
             </div>
+            {/* GO 10-nov · la pregunta «Pose», mismo estilo que «Formato»; solo con Meshy 6 y mismo precio en las dos */}
+            {preguntaLaPose(tipo, modelo3d) && <div data-pose><div className="es-eti">Pose</div><Chips valores={["imagen", "animar"] as const} valor={pose} alElegir={setPose} nombre={(p) => NOMBRE_DE_LA_POSE[p]} /></div>}
             {tipo === "3d" && (
               <div>
                 <div className="es-eti">Modelo</div>
