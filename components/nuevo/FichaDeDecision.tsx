@@ -136,7 +136,7 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, alCifra, estad
       <Bloque nombre="espera">
         <Pares valor="text-cuerpo" pares={[
           { rotulo: "Espera", valor: ficha.espera.desde ? <span data-espera>{haceCuanto(ficha.espera.desde, ahora)}</span> : <SinDato />, dato: conVersion(fecha(ficha.espera.desde), ficha.espera.version_del_documento) },
-          { rotulo: "Vence", valor: <span data-vence>{ficha.espera.vence && fecha(ficha.espera.vence) ? fecha(ficha.espera.vence) : ficha.espera.sin_limite ? "Sin fecha límite" : <SinDato />}</span> },
+          { rotulo: "Vence", valor: <span data-vence>{ficha.espera.vence && fecha(ficha.espera.vence) ? <>{fecha(ficha.espera.vence)}{ficha.espera.vencida && <span data-vencida className="text-alarma"> · vencida</span>}</> : ficha.espera.sin_limite ? "Sin fecha límite" : <SinDato />}</span> },
         ]} />
       </Bloque>
       {pideTexto && (
@@ -160,6 +160,8 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, alCifra, estad
                 onClick={() => verbo(a.verbo)} className={`${a.principal ? BOTON_PRINCIPAL : BOTON_SECUNDARIO} whitespace-nowrap`}>{enviando === a.verbo ? NOMBRE_MIENTRAS_SALE[a.verbo] : NOMBRE_DEL_VERBO[a.verbo]}</button>
             ))}
           </Acciones>
+        ) : donde ? (
+          <p data-se-decide-en={ficha.donde_se_hace!.pantalla} className="mt-1 rounded-control border border-dashed border-linea px-4 py-3 text-dato text-gris">Se decide {donde.en} {donde.propio ? <span data-nombre-propio className="underline decoration-linea-oro decoration-1 underline-offset-4">{donde.nombre}</span> : donde.nombre}.</p>
         ) : (
           <p data-solo-avisa className="mt-1 rounded-control border border-dashed border-linea px-4 py-3 text-dato text-gris">Esta ficha solo avisa: no hay nada que decidir aquí.</p>
         )}

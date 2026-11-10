@@ -106,7 +106,8 @@ describe("3 · lo que se decide en otra pantalla: la ficha avisa y lleva a su pa
   it("gran idea → «Ir a la Gran idea →»; pieza → «Ir a Piezas →»; plan/campaña → «Ir al Plan de Marketing →»; ninguna con verbo", () => {
     for (const [fila, pantalla, texto] of [[GRAN_IDEA, "gran_idea", "Ir a la Gran idea →"], [PIEZA, "piezas", "Ir a Piezas →"], [CAMPANA, "plan", "Ir al Plan de Marketing →"]] as const) {
       const { $, $$, alDecidir } = tarjeta(una(fila))
-      expect($$("[data-verbo]")).toHaveLength(0); expect($("[data-solo-avisa]")).not.toBeNull()
+      expect($$("[data-verbo]")).toHaveLength(0); expect($("[data-solo-avisa]")).toBeNull() // CC6 #321: no dice «no hay nada que decidir»
+      expect($(`[data-se-decide-en='${pantalla}']`)).not.toBeNull()
       expect($(`[data-ir='${pantalla}']`)!.textContent).toBe(texto)
       fireEvent.click($(`[data-ir='${pantalla}']`)!); expect(alDecidir).toHaveBeenCalledTimes(1)
     }
@@ -166,6 +167,7 @@ describe("6 · cada revisión va a la pantalla de su documento (CC1 #973) y el t
     expect(fichaDeLaDecision(una(REV), { ...x, panel: "manual" }).donde_se_hace).toEqual({ pantalla: "manual" })
   })
   it("el panel de decisiones abre el Manual para una revisión del manual", () => {
+    expect(tarjeta(una({ ...REV, documento: "manual" })).$("[data-se-decide-en='manual']")!.textContent).toBe("Se decide en el Manual de marca.")
     const panel = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")
     expect(panel).toContain("if (donde.panel === \"manual\") return <PanelManual onCerrar={volver} clienteInicial={abierta.client_id} />")
   })
@@ -173,5 +175,27 @@ describe("6 · cada revisión va a la pantalla de su documento (CC1 #973) y el t
     expect(tituloDeDecision({ titulo: "Tablero Financiero, versión 2: espera tu firma", subtipo: "x" })).toBe("Tablero Financiero: espera tu firma")
     expect(tituloDeDecision({ titulo: "Plan de Marketing, versión 3: espera tu decisión", subtipo: "x" })).toBe("Plan de Marketing: espera tu decisión")
     expect(tituloDeDecision({ titulo: "Hola, mundo: algo", subtipo: "x" })).toBe("Hola, mundo: algo")
+  })
+})
+
+describe("7 · CC6 #321: el pie no miente, «vencida» vuelve y el Decisivo del frente es corto", () => {
+  it("lo que se decide en otra pantalla dice dónde; «solo avisa» queda para lo que no tiene ni verbo ni pantalla", () => {
+    expect(tarjeta(una(GRAN_IDEA)).$("[data-se-decide-en]")!.textContent).toBe("Se decide en la Gran idea.")
+    cleanup()
+    expect(tarjeta(una(PIEZA)).$("[data-se-decide-en]")!.textContent).toBe("Se decide en Piezas.")
+    cleanup()
+    expect(tarjeta(una(CAMPANA)).$("[data-se-decide-en='plan'] [data-nombre-propio]")!.textContent).toBe("Plan de Marketing")
+    cleanup()
+    const { $ } = tarjeta(una({ ...GRAN_IDEA, tipo: "pregunta_de_finanzas", subtipo: "x", decidir: { ruta: null, accion: null } }))
+    expect($("[data-se-decide-en]")).toBeNull(); expect($("[data-solo-avisa]")).not.toBeNull()
+  })
+  it("vencida: «fecha · vencida» en Vence; sin vencer, solo la fecha", () => {
+    expect(tarjeta(una({ ...CAMPANA, vencida: true })).$("[data-vence]")!.textContent).toMatch(/2026 · vencida$/)
+    cleanup()
+    expect(tarjeta(una(CAMPANA)).$("[data-vencida]")).toBeNull()
+  })
+  it("el Decisivo del frente muestra la frase corta y su porqué, nunca el texto entero", () => {
+    const li = tarjeta(una(FIRMA)).$("[data-decisivo]")!
+    expect(li.textContent).toBe("Precios reales sin datoD4 y D6 son nulos.")
   })
 })
