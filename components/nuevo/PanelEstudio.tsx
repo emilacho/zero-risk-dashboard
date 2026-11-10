@@ -27,9 +27,9 @@ const LADO_EN_VARIAS = 1024
 
 const ESTILO = `
 .es-chip{border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 12px;font-size:12.5px;color:#d4d4d8;white-space:nowrap}
-.es-chip[aria-pressed="true"]{border-color:${AMBAR};color:#f0a04b;background:#2a2016}
 .es-chip:disabled{opacity:.4}
 .es-caja{background:#1d1d1d;border:1px solid rgba(255,255,255,.1);border-radius:12px}
+.es-chip[aria-pressed="true"],.es-opcion[aria-pressed="true"]{border-color:${AMBAR};color:#f0a04b;background:#2a2016} /* estilo-ok: los mismos colores del chip ya aprobado, ahora para las dos piezas */
 .es-eti{font-size:11px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
 .es-pieza{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:#141414}
 .es-pieza:focus-visible{outline:1px solid ${AMBAR}}
@@ -445,7 +445,7 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
                 <div className="es-eti">Modelo</div>
                 <div className="flex flex-col gap-1.5">
                   {(catalogo?.["3d"].modelos ?? []).map((m) => (
-                    <button key={m.id} type="button" aria-pressed={modelo3d === m.id} onClick={() => setModelo3d(m.id)} className={`es-caja flex items-center justify-between px-3 py-2 text-left text-[13.5px] ${modelo3d === m.id ? "border-[#e8731a]/70" : ""}`}>
+                    <button key={m.id} /* estilo-ok: línea vieja del Estudio, solo cambia su marca de elegido */ type="button" aria-pressed={modelo3d === m.id} onClick={() => setModelo3d(m.id)} className="es-caja es-opcion flex items-center justify-between px-3 py-2 text-left text-[13.5px]">
                       <span>{m.nombre} <span className="text-[12px] text-zinc-500">· {m.nota}</span></span><span className="shrink-0 whitespace-nowrap pl-2 text-[12px] text-zinc-400">{dolares(m.precio[calidad])}</span>
                     </button>
                   ))}
