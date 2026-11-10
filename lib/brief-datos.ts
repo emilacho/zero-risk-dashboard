@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
 import { briefDesdeFila, ordenarBriefs, type Brief } from "@/lib/brief"
 import { esAutorDeLaMesa } from "@/lib/organigrama"
+import { direccionesDeFotos } from "@/lib/gran-idea-datos"
+import { codigosEntreComillas, fotosCitadas } from "@/lib/sin-codigos"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -21,6 +23,8 @@ export interface BriefDelCliente {
   publicado: boolean
   briefs: Brief[]
   leido_en: string
+  /** 10-nov · los códigos de foto que el brief cita y que SÍ son fotos del cliente: al mostrar se quitan (un número entre comillas que no es foto es dato del cliente y se queda) */
+  fotos?: string[]
 }
 
 export async function leerBrief(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date } = {}): Promise<BriefDelCliente> {
@@ -43,7 +47,9 @@ export async function leerBrief(supa: SupabaseClient, o: { cliente?: string | nu
     throw new Error(`cadena_brief_creativo: ${r.error.message}`)
   }
   const briefs = ordenarBriefs(((r.data ?? []) as Fila[]).map(briefDesdeFila))
-  return { ...base, cliente: elegido, campana, publicado: true, briefs: await conQuienesEscribieron(supa, briefs) }
+  const citados = [...new Set(briefs.flatMap((b) => [b.texto_md, b.devolucion_texto].flatMap((t) => [...codigosEntreComillas(t), ...fotosCitadas(t).map((c) => c.slice(0, 8))])))]
+  const fotos = Object.keys(await direccionesDeFotos(supa, elegido.id, citados))
+  return { ...base, cliente: elegido, campana, publicado: true, briefs: await conQuienesEscribieron(supa, briefs), fotos }
 }
 
 /** quién escribió cada versión: los empleados que aportaron en la mesa de su encargo (sin repetir, en el orden en que hablaron, sin «sistema»). Si la lectura falla, se queda sin nombres: no se inventa uno */

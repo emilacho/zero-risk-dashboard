@@ -31,8 +31,17 @@ const UNA_FOTO = new RegExp(FOTO, "gi")
 const GRUPO_DE_FOTOS = new RegExp(String.raw`\(\s*${FOTO}(?:\s*(?:,|y)\s*${FOTO})*\s*\)|${FOTO}(?:\s*(?:,|y)\s*${FOTO})*`, "gi")
 /** el id de un documento de la cadena (brief, concepto, plan, manual, pieza, revisión, campaña) con su versión y «(revisión)» pegados */
 const DOCUMENTO = new RegExp(String.raw`\`?\b(?:brf|con|pln|man|pie|rev|cam)-${HEX}{6,}(?:-v\d+)?\`?(?:\s*[·,]?\s*v\d+\b)?(?:\s*\(revisi[oó]n\))?`, "gi")
-/** una versión suelta en el texto («el brief v3») */
-const VERSION_SUELTA = /(?<![\p{L}\p{N}_-])v\d+(?![\p{L}\p{N}_-])/gu
+/** una versión suelta, SOLO en la forma exacta que escribe el sistema (10-nov · CC6 #323 🟡): «vN» en minúscula pegado a un documento que solo existe en
+ *  la cadena (brief, gran idea, concepto), o al empezar una línea. Cualquier otra «vN» es del cliente y se queda («el kit v2», «Motor de v8», «plan v2 de
+ *  financiamiento»). Límite declarado: «desde v2» escrito por un agente se queda a la vista */
+const VERSION_SUELTA = /\b([Bb]rief|[Gg]ran\s+idea|[Cc]oncepto)\s+v\d+(?![\p{L}\p{N}_-])|^v(\d+)(?![\p{L}\p{N}_-])/gmu
+/** «el brief v3» → «el brief»; «v2» al empezar la línea → «Versión 2» */
+const versionEnPalabras = (_m: string, doc: string | undefined, nInicio: string | undefined): string => (nInicio ? `Versión ${Number(nInicio)}` : doc!)
+/** la forma exacta de un identificador del sistema entre comillas: hex en MINÚSCULAS, con al menos una letra y un número (10-nov · CC6 #323 🟡).
+ *  «AB12CD34» o una referencia solo de números es del cliente. Límite declarado: un lote del cliente en hex minúsculo («a1b2c3d4») también se iría */
+const esIdDelSistema = (h: string) => /^[0-9a-f]+$/.test(h) && /\d/.test(h) && /[a-f]/.test(h)
+/** un código de foto conocido suelto, sin comillas (los resúmenes de sección pierden las comillas) */
+const CODIGO_SUELTO = /(?<![\p{L}\p{N}_-])[0-9a-f]{8}(?![\p{L}\p{N}_-])/giu
 const UUID = new RegExp(String.raw`\`?\b${HEX}{8}-${HEX}{4}-${HEX}{4}-${HEX}{4}-${HEX}{12}\b\`?`, "gi")
 /** un hash corto entre comillas invertidas (`19671014`) */
 const HASH = new RegExp(String.raw`\`(${HEX}{7,12})\``, "gi")
@@ -68,9 +77,12 @@ function limpiarTexto(t: string, ctx: ContextoSinCodigos, fotos: ReadonlySet<str
   return t
     .replace(DOCUMENTO, "")
     .replace(UUID, "")
-    .replace(HASH, (_m, h: string) => { if (fotos.has(h.toLowerCase().slice(0, 8))) alFoto?.(h); return "" })
+    // un código entre comillas: si es una foto conocida, su miniatura; si mezcla letras y números (forma de identificador del sistema), se va;
+    // si es solo números o solo letras, es dato del cliente (una referencia de producto, un lote) y se queda (10-nov · 2º cliente)
+    .replace(HASH, (m, h: string) => { if (fotos.has(h.toLowerCase().slice(0, 8))) { alFoto?.(h); return "" } return esIdDelSistema(h) ? "" : m })
     .replace(IDEA, (_m, _la: string | undefined, cap: string, num: string) => nombreDeLaIdea(cap, num, ctx))
-    .replace(VERSION_SUELTA, "")
+    .replace(VERSION_SUELTA, versionEnPalabras)
+    .replace(CODIGO_SUELTO, (m) => (fotos.has(m.toLowerCase()) ? "" : m))
 }
 
 /**
@@ -108,6 +120,11 @@ export function trozosSinCodigos(t: string | null | undefined, ctx: ContextoSinC
 /** el texto sin códigos y sin fotos (para lo que se muestra como texto plano: títulos, el brief en secciones, avisos) */
 export function sinCodigos(t: string | null | undefined, ctx: ContextoSinCodigos = {}): string {
   return ordenar(trozosSinCodigos(t, ctx).map((x) => ("texto" in x ? x.texto : "")).join(""))
+}
+
+/** los códigos entre comillas invertidas que podrían ser fotos (prefijos de 8, sin repetir): para preguntar a las fotos del cliente cuáles lo son */
+export function codigosEntreComillas(t: string | null | undefined): string[] {
+  return [...new Set([...String(t ?? "").matchAll(HASH)].map((m) => m[1].toLowerCase().slice(0, 8)))]
 }
 
 /** los códigos de foto citados en un texto, sin repetir (para pedir sus miniaturas) */
