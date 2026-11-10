@@ -90,7 +90,7 @@ describe("el botón Crear", () => {
 describe("el pedido", () => {
   const o = { formato: "4:5", modelo3d: "meshy-6", calidad: "alta" as const, modeloVideo: "bytedance/seedance-2.0", segundos: 8, resolucion: "1080p" }
   it("lleva solo los campos de su tipo", () => {
-    expect(cuerpoDelPedido(CLIENTE, "3d", "taza", o, null)).toEqual({ client_id: CLIENTE, tipo: "3d", prompt: "taza", modelo: "meshy-6", calidad: "alta" })
+    expect(cuerpoDelPedido(CLIENTE, "3d", "taza", o, null)).toEqual({ client_id: CLIENTE, tipo: "3d", prompt: "taza", modelo: "meshy-6", calidad: "alta", pose: "imagen" })
     expect(cuerpoDelPedido(CLIENTE, "video", "ola", o, null)).toEqual({ client_id: CLIENTE, tipo: "video", prompt: "ola", modelo: "bytedance/seedance-2.0", formato: "9:16", segundos: 8, resolucion: "1080p" })
     expect(cuerpoDelPedido(CLIENTE, "imagen", "x", { ...o, formato: "16:9" }, { pieza_id: CLIENTE })).toEqual({ client_id: CLIENTE, tipo: "imagen", prompt: "x", formato: "16:9", foto_pieza_id: CLIENTE })
   })
