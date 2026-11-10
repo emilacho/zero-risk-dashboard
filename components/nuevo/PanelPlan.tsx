@@ -140,7 +140,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       {palabraDelDueno.map((x) => (
         <div key={x.id} data-palabra-del-dueno={x.requiere_humano ? "no_cumplida" : "contradicha"} className={`mt-3 rounded-lg border p-3 ${x.requiere_humano ? "border-rose-400/50 bg-rose-500/[0.08]" : "border-amber-400/40 bg-black/30"}`}>
           <p className={`text-[11px] font-medium uppercase tracking-[0.14em] ${x.requiere_humano ? "text-rose-200" : "text-amber-300"}`}>{x.requiere_humano ? "Tu orden no quedó cumplida" : "Tu palabra manda"}</p>
-          <p className="mt-1 text-[13.5px] font-medium text-zinc-100">{sinPrefijoDelPlan(x.titulo)}</p>
+          <p /* estilo-ok: solo cambia el nombre del plan, la pantalla migra entera aparte */ className="mt-1 text-[13.5px] font-medium text-zinc-100">{sinPrefijoDelPlan(x.titulo)}</p>
           {x.detalle && <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-300">{x.detalle}</p>}
         </div>
       ))}

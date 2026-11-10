@@ -602,7 +602,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   {/* una revisión que no es pieza */}
                   {botones && pieza.status === "pending" && dialogo === null && (
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="basis-full text-[13px] text-zinc-400">{tipoDeRevisionLegible(pieza.tipo)}{botones.pista ? ` · ${botones.pista}` : ""}{pieza.tipo === "plan_con_pendientes" ? " También la ves en el Plan de Marketing." : ""}</span>
+                      <span /* estilo-ok: solo cambia el nombre del plan, la pantalla migra entera aparte */ className="basis-full text-[13px] text-zinc-400">{tipoDeRevisionLegible(pieza.tipo)}{botones.pista ? ` · ${botones.pista}` : ""}{pieza.tipo === "plan_con_pendientes" ? " También la ves en el Plan de Marketing." : ""}</span>
                       <button type="button" data-accion="revision-aprobar" onClick={() => abrir("aprobar")} className={B_AMBAR}>{botones.aprobar}</button>
                       <button type="button" data-accion="revision-rechazar" onClick={() => abrir("rechazar")} className={B_ROJO}>{botones.rechazar}…</button>
                     </div>
