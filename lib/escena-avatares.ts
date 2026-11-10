@@ -218,6 +218,8 @@ export interface EscenaDatos {
   con_fallo?: string[]
   /** 04-nov · las alertas del departamento que avisa la antena (`lib/escena-alertas.ts`); vacío o ausente = antena apagada */
   alertas?: AlertaDeLaAntena[]
+  /** 10-nov (CC6 #313) · la plataforma no entregó a tiempo la lista de decisiones: las alertas de arriba no incluyen lo que espera tu aprobación */
+  alertas_sin_decisiones?: true
 }
 
 /** nombres legibles de los flujos de n8n que se conocen (no hay tabla que traduzca `workflow_id` → nombre; pedido a Lenovo 01-nov). El resto sale como «flujo X9F0…» */

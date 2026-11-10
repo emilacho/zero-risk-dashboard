@@ -18,7 +18,7 @@ const plan = (id: string, estado: string, h: number, extra: Record<string, unkno
 
 describe("1 · cada aviso abre la pantalla de donde salió (tabla tipo → destino)", () => {
   it("la tabla", () => {
-    expect(DESTINO_DEL_AVISO).toEqual({ fallida: "envivo", colgada: "envivo", gasto: "dinero", cerebro_alarma: "riesgos", cerebro_diario: null, pregunta: "decisiones" })
+    expect(DESTINO_DEL_AVISO).toEqual({ fallida: "envivo", colgada: "envivo", gasto: "dinero", cerebro_alarma: "riesgos", cerebro_diario: null, pregunta: "decisiones", decision: "decisiones" })
   })
   it("plan fallido → En vivo", () => { expect(fallidas({ ...vacia(), plan: [plan("a", "fallida", 2)] })[0].abre).toBe("envivo") })
   it("plan colgado → En vivo", () => { expect(colgadas({ ...vacia(), plan: [plan("b", "corriendo", 5)] })[0].abre).toBe("envivo") })

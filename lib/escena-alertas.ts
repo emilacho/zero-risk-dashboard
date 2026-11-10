@@ -2,7 +2,7 @@
  * LA ANTENA AVISA LAS ALERTAS DEL DEPARTAMENTO (CC4 · 04-nov · encargo de Lenovo, Emilio 14:05Z «sí a todo»; decisiones A/B/C de Lenovo 14:20Z).
  * Lógica PURA y de solo lectura: de las filas que ya existen decide qué alertas hay HOY. Sin dato no se dibuja; ninguna alerta se cierra a mano:
  * cada una desaparece sola cuando su causa deja de ser verdad (una corrida posterior salió bien, llegó la respuesta, pasó la ventana).
- * Las cuatro que se ven: corrida fallida · algo colgado · el cerebro no corrió · pregunta sin responder.
+ * Las que se ven: corrida fallida · algo colgado · el cerebro no corrió · pregunta sin responder · decisión de la campaña que espera tu aprobación (10-nov).
  * Gasto raro está apagado (Emilio 05-nov 00:13Z): las alertas de dinero no van en el Dpto. Marketing. La lógica queda lista para moverla a Tu oficina › Dinero si la pide.
  * Alta / manual / pedido fallidos: se suman cuando CC1/CC2 digan dónde guardan su estado (hoy solo el plan tiene estado de corrida leíble).
  * 09-nov 21:44Z (CORRECCIÓN de Lenovo · Emilio: «La antena es para los mensajes que corresponden a Dept. Marketing»): cada aviso lleva el
@@ -12,14 +12,14 @@
 import { usdES } from "@/lib/lenguaje"
 import type { PanelDelMarco } from "@/lib/buscador"
 
-export type TipoDeAlerta = "fallida" | "colgada" | "gasto" | "cerebro" | "pregunta"
+export type TipoDeAlerta = "fallida" | "colgada" | "gasto" | "cerebro" | "pregunta" | "decision"
 /**
  * 09-nov (CORRECCIÓN de Lenovo): cada aviso abre LA PANTALLA DE DONDE SALIÓ, y si no tiene pantalla propia no lleva a ningún lado.
  * La alarma del cerebro (`cerebro_alertas`) vive en Riesgos (la plataforma la lee como «Portero del cerebro»). La corrida diaria del cerebro
  * (`cerebro_diario_corridas`) no se ve en ninguna pantalla: su aviso queda sin destino (anotado para Lenovo). Antes las tres iban a Observabilidad, que no las muestra.
  */
 export const DESTINO_DEL_AVISO = {
-  fallida: "envivo", colgada: "envivo", gasto: "dinero", cerebro_alarma: "riesgos", cerebro_diario: null, pregunta: "decisiones",
+  fallida: "envivo", colgada: "envivo", gasto: "dinero", cerebro_alarma: "riesgos", cerebro_diario: null, pregunta: "decisiones", decision: "decisiones",
 } as const satisfies Record<string, PanelDelMarco | null>
 
 export interface AlertaDeLaAntena { clave: string; tipo: TipoDeAlerta; /** la frase, en palabras simples */ texto: string; /** cuándo pasó (ISO), para poner la más reciente arriba */ cuando: string; /** el lugar donde se resuelve, si existe */ abre: PanelDelMarco | null; /** de qué departamento sale (`departments.name`), según su dato; null = el dato no lo dice */ departamento: string | null }
@@ -59,7 +59,7 @@ export interface FilaDeCerebroDiario { client_id: string | null; dia: string | n
 export interface FilaDeAlarmaDelCerebro { clave: string; ultima_en: string | null }
 export interface FilaDePregunta { id: string; client_id: string | null; pregunta: string | null; estado: string | null; creado_en: string | null; /** la oficina que pregunta (`dueno_preguntas.oficina`): su departamento */ oficina: string | null }
 export interface CorridaConGasto { ejecucion: string; flujo: string | null; client_id: string | null; costo: number; inicio: string }
-export interface EntradaDeAlertas { cliente: string | null; ahora: Date; plan: FilaDePlan[]; cerebroDiario: FilaDeCerebroDiario[]; alarmasDelCerebro: FilaDeAlarmaDelCerebro[]; preguntas: FilaDePregunta[]; corridas: CorridaConGasto[] }
+export interface EntradaDeAlertas { cliente: string | null; ahora: Date; plan: FilaDePlan[]; cerebroDiario: FilaDeCerebroDiario[]; alarmasDelCerebro: FilaDeAlarmaDelCerebro[]; preguntas: FilaDePregunta[]; corridas: CorridaConGasto[]; /** 10-nov · lo que espera tu aprobación (lista de la plataforma) */ decisiones?: DecisionPendiente[] }
 
 const ms = (iso: string | null | undefined) => { const t = iso ? Date.parse(iso) : NaN; return Number.isFinite(t) ? t : null }
 const DIA = 86_400_000
@@ -136,9 +136,34 @@ export function preguntasSinResponder(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   })
 }
 
+/**
+ * 6 · decisión que espera tu aprobación (CC5 · 10-nov · GO de Lenovo, Emilio: «Esa decisión debería salir en la antena y no la veo»).
+ * Sale de la lista de decisiones de la plataforma (`GET /api/direccion/decisiones`, la misma que lee Tu oficina › Decisiones).
+ * El departamento sale del dato de cada decisión, nunca de su tipo:
+ * · la ficha dice `departamento.oficina = marketing` → marketing (si la plataforma un día lo escribe así, manda);
+ * · si no, su FUENTE: la bandeja de revisión de la campaña (`hitl_queue`), las aprobaciones del plan (`plan_aprobaciones`) y la campaña
+ *   (`cadena_campanas`) son tablas enteras del Dept. Marketing, como `plan_corridas` → marketing;
+ * · lo demás lleva la oficina de su ficha (las firmas de finanzas: «financiera») o nada (lo del cerebro) → no entra.
+ * Las preguntas al dueño (`dueno_preguntas`) no se repiten aquí: ya avisan como «pregunta» (5).
+ */
+export const FUENTES_DEL_DEPARTAMENTO: readonly string[] = ["hitl_queue", "plan_aprobaciones", "cadena_campanas"]
+export interface DecisionPendiente { id: string; tipo: string; fuente: string | null; client_id: string | null; desde: string | null; /** `ficha.departamento.oficina`, si la plataforma lo manda */ oficina: string | null }
+export function departamentoDeLaDecision(d: Pick<DecisionPendiente, "fuente" | "oficina">): string | null {
+  if (d.fuente && FUENTES_DEL_DEPARTAMENTO.includes(d.fuente)) return DEPARTAMENTO_DE_LA_ANTENA
+  return departamentoDe(d.oficina)
+}
+/** la frase del aviso, en palabras de negocio */
+const QUE_ESPERA: Record<string, string> = { gran_idea: "Gran idea de la Campaña de Marketing", pieza: "Pieza de la Campaña de Marketing", revision: "Revisión de la Campaña de Marketing", plan: "Plan de Marketing" }
+export function decisionesPendientes(e: EntradaDeAlertas): AlertaDeLaAntena[] {
+  return (e.decisiones ?? []).filter((d) => d.fuente !== "dueno_preguntas" && delCliente(d.client_id, e.cliente)).map((d): AlertaDeLaAntena => ({
+    clave: `decision:${d.id}`, tipo: "decision", texto: `${QUE_ESPERA[d.tipo] ?? "Una decisión"} espera tu aprobación`,
+    cuando: d.desde ?? e.ahora.toISOString(), abre: DESTINO_DEL_AVISO.decision, departamento: departamentoDeLaDecision(d),
+  }))
+}
+
 /** las alertas de hoy DEL DEPARTAMENTO, la más reciente arriba; sin ninguna, la antena queda apagada y sin número */
 export function armarAlertas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
-  return [...fallidas(e), ...colgadas(e), ...(GASTO_RARO_EN_LA_ANTENA ? gastosRaros(e) : []), ...cerebroNoCorrio(e), ...preguntasSinResponder(e)]
+  return [...fallidas(e), ...colgadas(e), ...(GASTO_RARO_EN_LA_ANTENA ? gastosRaros(e) : []), ...cerebroNoCorrio(e), ...preguntasSinResponder(e), ...decisionesPendientes(e)]
     .filter(delDepartamento).sort((a, b) => (ms(b.cuando) ?? 0) - (ms(a.cuando) ?? 0)).slice(0, MAXIMO_DE_ALERTAS)
 }
 
