@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { detalleDelBrief } from "@/lib/brief"
 import { leerBrief } from "@/lib/brief-datos"
-import { clientesParaElegir } from "@/lib/clientes-datos"
+import { elegirCliente } from "@/lib/clientes-datos"
 import { detalleDeGranIdea, leerGranIdea } from "@/lib/gran-idea-datos"
 import { analisisDesdeFila, detalleDeInformes, informeDesdeFila } from "@/lib/informes"
 import { MINUTOS_TRABAJANDO, nombreCanonico } from "@/lib/organigrama"
@@ -51,10 +51,11 @@ async function oNulo<T>(f: () => PromiseLike<T>): Promise<T | undefined> { try {
 
 export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date; riesgos?: typeof leerRiesgos } = {}): Promise<Centro> {
   const ahora = o.ahora ?? new Date()
-  // GO Lenovo 10-nov 14:37Z (falla 2): el cliente se resuelve UNA vez, con la misma regla del brief (sin cliente pedido: el primero de la lista), y TODAS
+  // GO Lenovo 10-nov 14:37Z (falla 2): el cliente se resuelve UNA vez, con LA regla del brief (`elegirCliente`: el pedido si existe; si no, o si no
+  // existe, el primero de la lista · CC6 #325 🟡: un enlace a un cliente borrado también mezclaba), y TODAS
   // las lecturas usan ese. Antes el brief y la gran idea elegían solos el primero y el manual, el plan, los informes y el dinero leían «ningún cliente»:
   // el Centro mezclaba datos de un cliente con cuadros vacíos
-  const cli = o.cliente ?? (await clientesParaElegir(supa))[0]?.id ?? null
+  const cli = (await elegirCliente(supa, o.cliente)).elegido?.id ?? null
   const [manuales, planes, marketing, dinero] = await Promise.all([
     cli ? oNulo(async () => { const r = await supa.from("client_brand_books").select("version, human_validated, provenance_tag, created_at").eq("client_id", cli).order("version", { ascending: false }).limit(200); if (r.error) throw new Error(r.error.message); return (r.data ?? []) as Fila[] }) : Promise.resolve([] as Fila[]),
     cli ? oNulo(async () => { const r = await supa.from("client_historical_outputs").select("status, provenance_tag, created_at, updated_at").eq("client_id", cli).eq("output_type", "campaign_plan_90d").order("created_at", { ascending: false }).limit(40); if (r.error) throw new Error(r.error.message); return (r.data ?? []) as Fila[] }) : Promise.resolve([] as Fila[]),

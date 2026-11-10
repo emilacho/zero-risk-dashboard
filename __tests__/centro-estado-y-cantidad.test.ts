@@ -138,7 +138,8 @@ type Respuesta = { data: unknown; error: { message: string } | null }
 function baseFalsa(tablas: Record<string, unknown[] | Error>): SupabaseClient {
   const from = (tabla: string) => {
     let una = false
-    const resolver = (): Respuesta => { const x = tablas[tabla]; if (x instanceof Error) return { data: null, error: { message: x.message } }; const filas = x ?? []; return { data: una ? filas[0] ?? null : filas, error: null } }
+    // la ficha del cliente existe siempre (el Centro solo lee un cliente que existe · CC6 #325 🟡)
+    const resolver = (): Respuesta => { const x = tablas[tabla] ?? (tabla === "clients" ? [{ id: NAUFRAGO, name: "Náufrago", industry: "restaurante", status: "active", archived_at: null }] : undefined); if (x instanceof Error) return { data: null, error: { message: x.message } }; const filas = x ?? []; return { data: una ? filas[0] ?? null : filas, error: null } }
     const cadena: Record<string, unknown> = {}
     for (const m of ["select", "eq", "is", "gte", "in", "order", "limit", "not"]) cadena[m] = () => cadena
     cadena.maybeSingle = () => { una = true; return cadena }

@@ -37,6 +37,7 @@ const datos = () => ({
   clients: [
     { id: FERRETERIA, name: "Ferretería Andes", industry: "ferretería y construcción", status: "active", archived_at: null },
     { id: CAFETERIA, name: "Café Brisa", industry: "cafetería", status: "active", archived_at: null },
+    { id: PRACTICA, name: "Práctica Taller Mecánico", industry: "prueba", status: "active", archived_at: null },
   ],
   client_brand_books: [
     { client_id: CAFETERIA, version: 2, human_validated: true, provenance_tag: {}, created_at: "2026-11-02T10:00:00Z" },
@@ -64,9 +65,14 @@ const datos = () => ({
   ],
   client_reports: [
     { client_id: FERRETERIA, id: "r1", kind: "weekly", status: "awaiting_review", period_start: "2026-11-01", period_end: "2026-11-07", summary: "semana", created_at: "2026-11-08T00:00:00Z" },
+    { client_id: CAFETERIA, id: "r2", kind: "weekly", status: "approved", period_start: "2026-11-01", period_end: "2026-11-07", summary: "semana del café", created_at: "2026-11-08T00:00:00Z" },
   ],
 })
-const sinRiesgos = async () => ({ ok: true as const, datos: { topes: [] } as never })
+/** el freno de gasto de los DOS clientes: el Centro tiene que mostrar el del cliente que muestra */
+const sinRiesgos = async () => ({ ok: true as const, datos: { topes: [{ client_id: FERRETERIA, gastado_24h_usd: 7, techo_usd: 20 }, { client_id: CAFETERIA, gastado_24h_usd: 1.5, techo_usd: 10 }] } as never })
+const BORRADO = "00000000-0000-4000-8000-0000000dead0"
+/** un cliente de práctica: existe en `clients` pero no sale en la lista para elegir */
+const PRACTICA = "00000000-0000-4000-8000-0000000aa003"
 
 describe("el Centro sin cliente elegido usa UN cliente para todo", () => {
   it("sin ?cliente: el manual, el plan y los informes son del MISMO cliente que muestra el brief (el primero de la lista)", async () => {
@@ -75,7 +81,8 @@ describe("el Centro sin cliente elegido usa UN cliente para todo", () => {
     expect(c.cliente).toBe(CAFETERIA)
     expect(c.manual).toEqual({ total: 2, aprobado: true, fecha: "2026-11-02T10:00:00Z" })
     expect(c.plan).toMatchObject({ estado: "approved", version: 3 })
-    expect(c.informes.total).toBe(1) // su ficha de análisis; el informe semanal y las 2 fichas de la ferretería no se mezclan
+    expect(c.informes.total).toBe(2) // su informe semanal y su ficha de análisis; el informe y las 2 fichas de la ferretería no se mezclan
+    expect(c.dinero).toEqual({ gastado_24h_usd: 1.5, techo_usd: 10 })
     expect(c.equipo.trabajando).toBe(1) // solo quien trabaja para el café
     // todas las lecturas por cliente pidieron el mismo
     expect(leidas.length).toBeGreaterThan(3)
@@ -88,8 +95,26 @@ describe("el Centro sin cliente elegido usa UN cliente para todo", () => {
     expect(c.manual).toEqual({ total: 1, aprobado: false, fecha: "2026-11-09T10:00:00Z" })
     expect(c.plan).toMatchObject({ estado: "pending", version: 1 })
     expect(c.informes.total).toBe(3)
+    expect(c.dinero).toEqual({ gastado_24h_usd: 7, techo_usd: 20 })
     expect(c.equipo.trabajando).toBe(2)
     expect(new Set(leidas.map((l) => l.cliente))).toEqual(new Set([FERRETERIA]))
+  })
+  it("un enlace a un cliente que ya no existe (borrado, enlace viejo): todo es del primero de la lista, el brief y la gran idea incluidos (CC6 #325 🟡)", async () => {
+    const leidas: Array<{ tabla: string; cliente: unknown }> = []
+    const c = await leerCentro(baseQueFiltra(datos(), leidas), { cliente: BORRADO, riesgos: sinRiesgos })
+    expect(c.cliente).toBe(CAFETERIA)
+    expect(c.manual).toEqual({ total: 2, aprobado: true, fecha: "2026-11-02T10:00:00Z" })
+    expect(c.plan).toMatchObject({ estado: "approved", version: 3 })
+    expect(c.dinero).toEqual({ gastado_24h_usd: 1.5, techo_usd: 10 })
+    // ninguna lectura por cliente pidió el borrado (la ficha de `clients` se consulta por id, no por client_id)
+    expect(new Set(leidas.map((l) => l.cliente))).toEqual(new Set([CAFETERIA]))
+  })
+  it("un cliente de práctica pedido por enlace (fuera de la lista, pero existe): todo es de ese, no del primero", async () => {
+    const leidas: Array<{ tabla: string; cliente: unknown }> = []
+    const c = await leerCentro(baseQueFiltra(datos(), leidas), { cliente: PRACTICA, riesgos: sinRiesgos })
+    expect(c.cliente).toBe(PRACTICA)
+    expect(c.manual).toEqual({ total: 0, aprobado: null, fecha: null })
+    expect(new Set(leidas.map((l) => l.cliente))).toEqual(new Set([PRACTICA]))
   })
   it("sin ningún cliente en la lista: nada inventado (manual 0, plan null)", async () => {
     const c = await leerCentro(baseQueFiltra({}, []), { riesgos: sinRiesgos })

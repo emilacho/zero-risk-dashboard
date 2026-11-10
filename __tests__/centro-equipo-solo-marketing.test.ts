@@ -42,6 +42,8 @@ const riesgos = async () => ({ ok: true as const, datos: { topes: [] } as never 
 
 /** la forma de producción en miniatura: Marketing activo con un equipo de segunda etapa, Ventas, Éxito del cliente, servicios compartidos, Contabilidad planeada */
 const sistema = (invocaciones: Fila[] = []): Record<string, Fila[] | Error> => ({
+  // la ficha del cliente: el Centro solo lee un cliente que existe (CC6 #325 🟡)
+  clients: [{ id: NAUFRAGO, name: "Náufrago", industry: "restaurante", status: "active", archived_at: null }],
   departments: [
     { id: "d-mk", name: "marketing", display_name: null, description: null, status: "active" },
     { id: "d-v", name: "sales", display_name: null, description: null, status: "active" },

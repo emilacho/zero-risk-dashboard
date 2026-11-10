@@ -7,7 +7,7 @@
  */
 import { esAutorDeLaMesa } from "@/lib/organigrama"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { clientesParaElegir } from "@/lib/clientes-datos"
+import { elegirCliente } from "@/lib/clientes-datos"
 import { cargarConcepto, estadoDelConcepto, TIPO_CONCEPTO, type DetalleDelConcepto, type EstadoDelConcepto } from "@/lib/concepto-datos"
 import { esTablaInexistente } from "@/lib/brief-datos"
 import { fotosCitadas } from "@/lib/sin-codigos"
@@ -42,13 +42,7 @@ export function tarjetaDesdeFila(f: Fila): TarjetaDeConcepto {
 
 export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string | null; tarjeta?: string | null; ahora?: Date } = {}): Promise<GranIdeaDelCliente> {
   const ahora = o.ahora ?? new Date()
-  const clientes = await clientesParaElegir(supa)
-  let elegido: { id: string; nombre: string } | null = (o.cliente && clientes.find((c) => c.id === o.cliente)) || null
-  if (!elegido && o.cliente) {
-    const c = await una(supa.from("clients").select("id, name").eq("id", o.cliente).maybeSingle(), "clients")
-    if (c) elegido = { id: String(c.id), nombre: String(c.name) }
-  }
-  if (!elegido) elegido = clientes[0] ?? null
+  const { clientes, elegido } = await elegirCliente(supa, o.cliente)
   const base = { clientes, leido_en: ahora.toISOString() }
   if (!elegido) return { ...base, cliente: null, campana: null, publicado: true, tarjetas: [], detalle: null }
   const [camp, hitl, sonda] = await Promise.all([
