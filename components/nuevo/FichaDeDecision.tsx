@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, Rotulo } from "@/components/nuevo/EstiloBase"
 import { NOMBRE_DEL_VERBO, NOMBRE_MIENTRAS_SALE, NOMBRE_DE_LA_PANTALLA, conNombresPropios, nombrePropioO, revisarFicha, type FichaDeDecision as Ficha, type Pantalla, type Verbo } from "@/lib/ficha-de-decision"
+import { sinCodigos } from "@/lib/sin-codigos"
 import { TOPE_MOTIVO, TOPE_RESPUESTA, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, haceCuanto, type CifraDeFirma } from "@/lib/direccion-decisiones"
 
 /**
@@ -13,9 +14,10 @@ import { TOPE_MOTIVO, TOPE_RESPUESTA, cifraEnRecuadro, cifrasDelFrente, decisivo
 export const SIN_DATO = "—"
 /** el guion rojo: el dato no vino (no se inventa) */
 export const SinDato = () => <span data-sin-dato aria-label="Sin dato" className="text-alarma">{SIN_DATO}</span>
-/** un texto con los nombres propios del sistema en su mayúscula y con la línea dorada sutil (regla del estilo base, Emilio 09-nov) */
+/** un texto con los nombres propios del sistema en su mayúscula y con la línea dorada sutil (regla del estilo base, Emilio 09-nov).
+ *  10-nov (GO Lenovo «ocultar códigos»): todo texto de la ficha pasa por aquí, así que aquí se quitan los códigos del sistema (lo escriben los agentes) */
 export function ConNombres({ texto }: { texto: string }) {
-  return <>{conNombresPropios(texto).map((p, k) => (p.propio ? <span key={k} data-nombre-propio className="underline decoration-linea-oro decoration-1 underline-offset-4">{p.texto}</span> : <span key={k}>{p.texto}</span>))}</>
+  return <>{conNombresPropios(sinCodigos(texto)).map((p, k) => (p.propio ? <span key={k} data-nombre-propio className="underline decoration-linea-oro decoration-1 underline-offset-4">{p.texto}</span> : <span key={k}>{p.texto}</span>))}</>
 }
 const fecha = (iso: string | null | undefined) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
 /** v7: «Decisivo» con contenido va entre dos líneas rojas finas (sin dato, la línea de siempre) */

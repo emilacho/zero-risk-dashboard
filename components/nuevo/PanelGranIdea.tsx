@@ -142,7 +142,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
         </header>
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 px-4 py-2 sm:px-6">
           <span data-miga="cliente" className={`${MIGA} ${!d ? "text-white" : ""}`}>{nombre}</span>
-          {d && <><Sep /><span data-miga="gran-idea" className="truncate px-1.5 text-[12.5px] text-white">{d.gran_idea?.nombre ?? d.titulo}</span></>}
+          {d && <><Sep /><span data-miga="gran-idea" /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="truncate px-1.5 text-[12.5px] text-white">{sinCodigos(d.gran_idea?.nombre ?? d.titulo)}</span></>}
         </nav>
         {mensaje && !dialogo && <p role="status" data-aviso={mensaje.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${mensaje.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{mensaje.texto}</p>}
 
@@ -191,13 +191,13 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                   {d.como_se_ve && <Plegable id="como_se_ve" titulo="Cómo se ve" resumen={sinCodigos(d.como_se_ve)}><TextoSinCodigos texto={d.como_se_ve} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
                   {d.como_suena && <Plegable id="como_suena" titulo="Cómo suena" resumen={sinCodigos(d.como_suena)}><TextoSinCodigos texto={d.como_suena} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
                   {d.capitulos.length > 0 && (
-                    <Plegable id="capitulos" titulo={`Capítulos · ${d.capitulos.length}`} resumen={d.capitulos.map((c) => c.nombre).join(" · ")}>
+                    <Plegable id="capitulos" titulo={`Capítulos · ${d.capitulos.length}`} resumen={d.capitulos.map((c) => sinCodigos(c.nombre)).join(" · ")}>
                       <ul className="space-y-2">
                         {d.capitulos.map((c) => (
                           <li key={c.clave} className="rounded-lg border border-white/10 bg-black/20 p-2.5">
-                            <p className="font-medium text-zinc-100">{c.nombre}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
+                            <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="font-medium text-zinc-100">{sinCodigos(c.nombre)}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
                             {c.que_cuenta && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-0.5 text-zinc-300">{sinCodigos(c.que_cuenta)}</p>}
-                            {c.series.length > 0 && <ul className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{x.nombre}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
+                            {c.series.length > 0 && <ul /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{sinCodigos(x.nombre)}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
                           </li>
                         ))}
                       </ul>
