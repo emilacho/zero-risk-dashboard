@@ -112,10 +112,10 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                   {brief.devolucion_texto && (
                     <div data-bloque="devolucion" className="rounded-lg border border-rose-400/30 bg-rose-500/[0.06] p-2.5 text-[12.5px] leading-relaxed text-rose-100">
                       <Titulito>Devuelto por la dirección creativa</Titulito>
-                      <p className="whitespace-pre-wrap">{sinCodigos(brief.devolucion_texto, { fotos: datos?.fotos ?? [] })}</p>
+                      <p className="whitespace-pre-wrap">{sinCodigos(brief.devolucion_texto, { fotos: datos?.fotos ?? [], aportes: brief.aportes })}</p>
                     </div>
                   )}
-                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave fotosConocidas={datos?.fotos ?? []} /> : <p /* estilo-ok: solo se pasan las fotos conocidas, la pantalla migra entera aparte */ className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
+                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave fotosConocidas={datos?.fotos ?? []} aportes={brief.aportes} /> : <p /* estilo-ok: solo se pasan las fotos conocidas, la pantalla migra entera aparte */ className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
                 </article>
                 <aside aria-label="Lo esencial del brief" data-barra-del-brief className="space-y-3 lg:sticky lg:top-0 lg:self-start">
                   <section data-barra="estado" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
@@ -126,7 +126,7 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                     <Titulito>De dónde sale</Titulito>
                     <p className="text-[12.5px] text-zinc-200">La mesa del brief{brief.quienes_escribieron?.length ? <> · {brief.quienes_escribieron.map((q, i) => <span key={q} data-escribio={q} className="font-mono text-[11.5px] text-amber-100">{i ? " · " : ""}{q}</span>)}</> : <span className="text-zinc-500"> · sin registro de qué empleado lo escribió</span>}</p>
                     <p className="text-[11.5px] text-zinc-500">a partir del plan, el manual y lo que trajo el portero{brief.creada_en ? ` · ${diaYHora(brief.creada_en)}` : ""}</p>
-                    {brief.motivo && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[11.5px] text-zinc-400">Por qué esta versión: {sinCodigos(brief.motivo)}</p>}
+                    {brief.motivo && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[11.5px] text-zinc-400">Por qué esta versión: {sinCodigos(brief.motivo, { aportes: brief.aportes })}</p>}
                   </section>
                   <section data-barra="sigue" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
                     <Titulito>Lo que sigue</Titulito>

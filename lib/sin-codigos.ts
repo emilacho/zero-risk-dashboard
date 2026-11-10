@@ -6,7 +6,12 @@
  * Las formas reales que se limpian (Náufrago, 10-nov: brief v2, gran idea v3 y sus avisos):
  *  - «## Brief creativo de campaña · Náufrago · brf-28de888eb3f2 · v2 (revisión)»   → «## Brief creativo de campaña · Náufrago»
  *  - «El brief (brf-28de888eb3f2 v2) nombra el insight»                              → «El brief nombra el insight»
- *  - «El aporte A3 ya contiene el brief v3 completo»                                 → «El aporte A3 ya contiene el brief completo»
+ *  - «El aporte A3 ya contiene el brief v3 completo»                                 → «El aporte de campaign-brief-agent ya contiene el brief completo»
+ *  - «**A1 usé:** material del portero»                                              → «**Usé el aporte de portero:** material del portero»
+ *  - «(prompt de A12)» · «(propuesto en A17 …)» · «A1–A3»                           → «(prompt de <quien>)» · «(propuesto en el aporte de <quien> …)» · «los aportes de <quienes>»
+ *    (SOLO los aportes de la mesa de ese encargo: otro «A4» es del cliente y se queda · GO Lenovo 10-nov 14:10Z: «A1», «S1» también se ocultan)
+ *    (un «A<n>» suelto SOLO dentro de un paréntesis: «Folleto en A4», «A4 es el formato», «Llega por A2» se quedan · CC6 #324 🟡)
+ *  - «la serie S1»                                                                   → «la serie «La leyenda se confirma»» (solo las series del concepto)
  *  - «la idea C1-I08 trae «80 %»»                                                    → «la idea 8 del capítulo 1 trae «80 %»» (o su título, si se sabe)
  *  - «caldo hirviendo (`foto:6275c0ba`)»                                             → «caldo hirviendo» + la miniatura de esa foto (o nada)
  *  - «encebollado cenital: `19671014`, `c0355f3d`»                                   → la miniatura si es una foto conocida; si no, nada
@@ -21,6 +26,11 @@ export interface ContextoSinCodigos {
   nombreDeIdea?: (id: string) => string | null | undefined
   /** los códigos de foto conocidos (prefijos de 8): un código suelto entre comillas invertidas que esté aquí es una foto, no un hash */
   fotos?: ReadonlySet<string> | readonly string[]
+  /** los aportes de la mesa del encargo de ese documento: número («3» de «A3») → quién lo dio («portero», «campaign-brief-agent»; vacío si fue el sistema).
+   *  Solo un «A<n>» que esté aquí es un aporte; sin esta lista, «A4» se queda (puede ser del cliente: un papel A4, un modelo A1) */
+  aportes?: Readonly<Record<string, string>>
+  /** las series del concepto: código («S1») → su nombre. Solo un «S<n>» que esté aquí es una serie */
+  series?: Readonly<Record<string, string>>
 }
 
 const HEX = "[0-9a-f]"
@@ -54,6 +64,86 @@ const nombreDeLaIdea = (cap: string, num: string, ctx: ContextoSinCodigos): stri
   return `la idea ${Number(num)} del capítulo ${Number(cap)}`
 }
 
+/** «A3» y «S1», como palabra entera (no «A3B», no «C1-A3») */
+const BORDE_ANTES = String.raw`(?<![\p{L}\p{N}_-])`
+const BORDE_DESPUES = String.raw`(?![\p{L}\p{N}_-])`
+/** «A1–A3»: un rango de aportes */
+const RANGO_DE_APORTES = new RegExp(String.raw`${BORDE_ANTES}A(\d+)\s*[–-]\s*A(\d+)${BORDE_DESPUES}`, "gu")
+/** la forma de las citas del brief: «A1 usé:», «A5 usé parcialmente:», «A4 descarté:», «A2 no usé:» */
+const CITA_DE_APORTE = new RegExp(String.raw`${BORDE_ANTES}A(\d+)\s+((?:no\s+)?(?:usé|descarté)(?:\s+(?:parcialmente|en\s+parte))?)(?=\s*\**\s*:)`, "gu")
+/** «el aporte A3», «los aportes de A5»: la palabra ya está, solo falta de quién */
+const PALABRA_APORTE = new RegExp(String.raw`\b([Aa]portes?)\s+(?:de\s+)?A(\d+)${BORDE_DESPUES}`, "gu")
+const APORTE_SUELTO = new RegExp(String.raw`${BORDE_ANTES}A(\d+)${BORDE_DESPUES}`, "gu")
+const SERIE = new RegExp(String.raw`(\b[Ss]erie\s+)?${BORDE_ANTES}(S\d+)${BORDE_DESPUES}`, "gu")
+
+const conMayuscula = (s: string) => s.charAt(0).toLocaleUpperCase("es") + s.slice(1)
+/** ¿lo que viene va al empezar una frase? (inicio de línea, tras un punto, tras «**» o una viñeta) */
+// SIN la bandera «m»: con ella «$» cae al final de CUALQUIER línea y todo documento de varias líneas parecería «al empezar» (sabotaje 10-nov)
+const alEmpezar = (antes: string) => /(?:^|\n)[ \t]*(?:[-•*][ \t]+)?(?:\*\*[ \t]*)?$|[.!?][ \t]*(?:\*\*[ \t]*)?$|\*\*[ \t]*$/.test(antes)
+const elAporte = (n: string, de: string) => (de ? `el aporte de ${de}` : `el aporte ${Number(n)}`)
+
+/** los aportes CONOCIDOS de ese encargo en palabras; uno que no está en la lista se queda como vino */
+function aportesEnPalabras(t: string, aportes: Readonly<Record<string, string>> | undefined): string {
+  if (!aportes || !Object.keys(aportes).length) return t
+  const de = (n: string): string | undefined => aportes[String(Number(n))]
+  const conocido = (n: string) => de(n) !== undefined
+  return t
+    .replace(RANGO_DE_APORTES, (m, a: string, b: string) => {
+      if (!conocido(a) || !conocido(b)) return m
+      const quienes = [...new Set(Array.from({ length: Math.max(0, Number(b) - Number(a) + 1) }, (_, k) => de(String(Number(a) + k)) ?? "").filter(Boolean))]
+      if (!quienes.length) return `los aportes ${Number(a)} a ${Number(b)}`
+      return `los aportes de ${quienes.length > 1 ? `${quienes.slice(0, -1).join(", ")} y ${quienes.at(-1)}` : quienes[0]}`
+    })
+    .replace(CITA_DE_APORTE, (m, n: string, verbo: string, i: number, s: string) => {
+      if (!conocido(n)) return m
+      const frase = `${verbo.replace(/\s+/g, " ")} ${elAporte(n, de(n)!)}`
+      return alEmpezar(s.slice(0, i)) ? conMayuscula(frase) : frase
+    })
+    .replace(PALABRA_APORTE, (m, palabra: string, n: string) => {
+      if (!conocido(n)) return m
+      return de(n) ? `${palabra} de ${de(n)}` : `${palabra} ${Number(n)}`
+    })
+    .replace(APORTE_SUELTO, (m, n: string, i: number, s: string) => {
+      if (!conocido(n)) return m
+      const antes = s.slice(0, i)
+      // SOLO DENTRO DE UN PARÉNTESIS, que es donde el sistema cita (10-nov · CC6 #324 🟡: al empezar una frase o tras cualquier preposición cambiaba
+      // texto del cliente: «Folleto impreso en A4», «A4 es el formato», «Llega por A2 express»). Y dentro del paréntesis, solo pegado a «(», a «/» o a
+      // «,» SOLO si el paréntesis entero es una lista de códigos (10-nov · CC6 #324 🟡 2: «Tamaño (A4).», «(A4 o carta)», «(tamaños A4, A5)» son del
+      // cliente), o tras «de»/«en»: «(A3)», «(A3, A5)», «(A16/A22)», «(prompt de A12)», «(propuesto en A17 …)». «(formato A4)» se queda.
+      // Límite declarado: un «(A4)», «(A4/A5)», «(A4, …)», «(… de A4)» o «(… en A4)» del cliente, en un documento cuyo encargo tuvo esos aportes, se cambiaría
+      const parentesis = /\([^()\n]*$/.exec(antes)
+      if (!parentesis) return m
+      const cierre = s.indexOf(")", i)
+      const dentro = cierre < 0 ? "" : s.slice(parentesis.index + 1, cierre)
+      const soloCodigos = !dentro.includes("\n") && /^[ \t]*A\d+(?:[ \t]*(?:[,/]|y)[ \t]*A\d+)*[ \t]*$/.test(dentro)
+      // la otra forma de cita del sistema (brief real de Náufrago): el código PRIMERO y su descripción tras la coma, «(A3, el brief v3 propio)»
+      const codigoYDescripcion = /^\([ \t]*$/.test(antes.slice(parentesis.index)) && /^A\d+[ \t]*,/.test(s.slice(i))
+      const pegado = (soloCodigos && /(?:\(|\/|,|\by)[ \t]*$/.test(antes)) || codigoYDescripcion
+      const preposicion = /(?:^|[^\p{L}])(de|en)[ \t]+$/iu.exec(antes)?.[1]?.toLowerCase()
+      if (!pegado && !preposicion) return m
+      // «(prompt de A12)» → «(prompt de design-image-prompt-engineer)»; «(A3, …)» → «(campaign-brief-agent, …)»; «(propuesto en A17» → «(propuesto en el aporte de …»
+      if (de(n) && preposicion !== "en") return de(n)!
+      return elAporte(n, de(n)!)
+    })
+    // «(… de el aporte 4)» → «(… del aporte 4)» (lo que deja el reemplazo de un aporte del sistema tras «de»)
+    .replace(/\b([Dd])e el aporte\b/g, "$1el aporte")
+    // «(tiktok-strategist/tiktok-strategist)» → «(tiktok-strategist)»; y si el nombre ya va justo antes, el paréntesis sobra:
+    // «El aporte de tiktok-strategist (tiktok-strategist)» → «El aporte de tiktok-strategist»
+    .replace(/\(([\p{L}\p{N}_-]+)(?:\/\1)+\)/gu, "($1)")
+    .replace(/(?<![\p{L}\p{N}_-])([\p{L}\p{N}_-]+)[ \t]+\(\1\)/gu, "$1")
+}
+
+/** las series CONOCIDAS del concepto por su nombre: «S1» → «la serie «La leyenda se confirma»» */
+function seriesEnPalabras(t: string, series: Readonly<Record<string, string>> | undefined): string {
+  if (!series || !Object.keys(series).length) return t
+  return t.replace(SERIE, (m, palabra: string | undefined, id: string, i: number, s: string) => {
+    const nombre = series[id]?.trim()
+    if (!nombre) return m
+    if (palabra) return `${palabra}«${nombre}»`
+    return `${alEmpezar(s.slice(0, i)) ? "La" : "la"} serie «${nombre}»`
+  })
+}
+
 /** lo que queda suelto al sacar un código: paréntesis vacíos, separadores colgando, comas dobles, espacios de más (sin juntar líneas: el markdown sigue igual) */
 function ordenar(t: string): string {
   return t
@@ -74,7 +164,7 @@ function ordenar(t: string): string {
 
 /** quita los códigos de un pedazo de texto (sin fotos: esas ya se separaron) */
 function limpiarTexto(t: string, ctx: ContextoSinCodigos, fotos: ReadonlySet<string>, alFoto?: (id: string) => void): string {
-  return t
+  return seriesEnPalabras(aportesEnPalabras(t, ctx.aportes), ctx.series)
     .replace(DOCUMENTO, "")
     .replace(UUID, "")
     // un código entre comillas: si es una foto conocida, su miniatura; si mezcla letras y números (forma de identificador del sistema), se va;
@@ -120,6 +210,18 @@ export function trozosSinCodigos(t: string | null | undefined, ctx: ContextoSinC
 /** el texto sin códigos y sin fotos (para lo que se muestra como texto plano: títulos, el brief en secciones, avisos) */
 export function sinCodigos(t: string | null | undefined, ctx: ContextoSinCodigos = {}): string {
   return ordenar(trozosSinCodigos(t, ctx).map((x) => ("texto" in x ? x.texto : "")).join(""))
+}
+
+/** las series de los capítulos como código → nombre. Un código que en dos capítulos nombra series distintas («S1» en cada capítulo) es ambiguo y
+ *  NO se traduce: se queda como vino antes que poner el nombre equivocado */
+export function seriesSinRepetir(capitulos: ReadonlyArray<{ series?: ReadonlyArray<{ id?: string | null; nombre?: string | null }> }>): Record<string, string> {
+  const nombres = new Map<string, Set<string>>()
+  for (const c of capitulos) for (const s of c.series ?? []) {
+    const id = String(s.id ?? "").trim(), nombre = String(s.nombre ?? "").trim()
+    if (!id || !nombre) continue
+    nombres.set(id, (nombres.get(id) ?? new Set()).add(nombre))
+  }
+  return Object.fromEntries([...nombres].filter(([, n]) => n.size === 1).map(([id, n]) => [id, [...n][0]]))
 }
 
 /** los códigos entre comillas invertidas que podrían ser fotos (prefijos de 8, sin repetir): para preguntar a las fotos del cliente cuáles lo son */

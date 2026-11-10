@@ -49,7 +49,7 @@ export async function leerBrief(supa: SupabaseClient, o: { cliente?: string | nu
 /** quién escribió cada versión: los empleados que aportaron en la mesa de su encargo (sin repetir, en el orden en que hablaron, sin «sistema»). Si la lectura falla, se queda sin nombres: no se inventa uno */
 export async function conQuienesEscribieron(supa: SupabaseClient, briefs: Brief[]): Promise<Brief[]> {
   const encargos = [...new Set(briefs.map((b) => b.encargo_id).filter((x): x is string => !!x))]
-  if (!encargos.length) return briefs.map((b) => ({ ...b, quienes_escribieron: [] }))
+  if (!encargos.length) return briefs.map((b) => ({ ...b, quienes_escribieron: [], aportes: {} }))
   const r = await supa.from("oficina_mesa_aportes").select("encargo_id, de, n").in("encargo_id", encargos).order("n", { ascending: true }).limit(1000)
   const filas = r.error ? [] : ((r.data ?? []) as Fila[])
   const por = new Map<string, string[]>()
@@ -58,5 +58,14 @@ export async function conQuienesEscribieron(supa: SupabaseClient, briefs: Brief[
     if (!esAutorDeLaMesa(de)) continue
     const l = por.get(e) ?? []; if (!l.includes(de)) l.push(de); por.set(e, l)
   }
-  return briefs.map((b) => ({ ...b, quienes_escribieron: b.encargo_id ? por.get(b.encargo_id) ?? [] : [] }))
+  return briefs.map((b) => ({ ...b, quienes_escribieron: b.encargo_id ? por.get(b.encargo_id) ?? [] : [], aportes: b.encargo_id ? aportesPorNumero(filas.filter((f) => String(f.encargo_id ?? "") === b.encargo_id)) : {} }))
 }
+
+/** número de aporte → quién lo dio (vacío si fue «sistema»): el «A3» del texto en palabras (GO Lenovo 10-nov 14:10Z). El portero y los proveedores SÍ se
+ *  nombran: no son autores de la mesa, pero su nombre es del sistema y dice más que «el aporte 2» */
+export function aportesPorNumero(aportes: Array<{ de?: unknown; n?: unknown }>): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const a of aportes) if (a.n != null && a.n !== "" && Number.isFinite(Number(a.n))) out[String(Number(a.n))] = nombreDelAportante(a.de)
+  return out
+}
+const nombreDelAportante = (de: unknown): string => { const k = String(de ?? "").trim(); return k === "sistema" ? "" : k }

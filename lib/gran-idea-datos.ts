@@ -9,7 +9,7 @@ import { esAutorDeLaMesa } from "@/lib/organigrama"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { elegirCliente } from "@/lib/clientes-datos"
 import { cargarConcepto, estadoDelConcepto, TIPO_CONCEPTO, type DetalleDelConcepto, type EstadoDelConcepto } from "@/lib/concepto-datos"
-import { esTablaInexistente } from "@/lib/brief-datos"
+import { aportesPorNumero, esTablaInexistente } from "@/lib/brief-datos"
 import { fotosCitadas } from "@/lib/sin-codigos"
 
 type Fila = Record<string, unknown>
@@ -30,6 +30,8 @@ export interface GranIdeaDelCliente {
   detalle: DetalleDelConcepto | null
   /** CC6 · quién la propuso: los empleados que aportaron en la sala de ese concepto (nombre real, de `oficina_mesa_aportes.de`) */
   quienes_propusieron?: string[]
+  /** GO Lenovo 10-nov 14:10Z: los aportes de la sala de ese concepto, número → quién lo dio (vacío si fue el sistema), para mostrar «A12» en palabras */
+  aportes?: Record<string, string>
   /** GO Lenovo 10-nov (sin códigos): la dirección de cada foto que el texto cita como `foto:<id>` (código de 8 → dirección), para poner la miniatura en vez del código */
   fotos?: Record<string, string>
   leido_en: string
@@ -56,9 +58,9 @@ export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string |
   const tarjetas = hitl.map(tarjetaDesdeFila)
   const elegida = (o.tarjeta && tarjetas.find((t) => t.hitl_id === o.tarjeta)) || tarjetas[0] || null
   const detalle = elegida ? await cargarConcepto(supa, elegida.hitl_id) : null
-  const quienes_propusieron = detalle?.campana_id && detalle.version != null ? await quienesPropusieron(supa, detalle.campana_id, detalle.version) : []
+  const { quienes: quienes_propusieron, aportes } = detalle?.campana_id && detalle.version != null ? await quienesPropusieron(supa, detalle.campana_id, detalle.version) : { quienes: [], aportes: {} }
   const fotos = detalle ? await direccionesDeFotos(supa, elegido.id, codigosDeFotos(detalle)) : {}
-  return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle, quienes_propusieron, fotos }
+  return { ...base, cliente: elegido, campana: camp ? { id: String(camp.id), estado: String(camp.estado ?? "") } : null, publicado, tarjetas, detalle, quienes_propusieron, aportes, fotos }
 }
 
 /**
@@ -67,15 +69,16 @@ export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string |
  * («con-28de888eb3f2-v2», un texto) contra una columna numérica: la base contestaba «invalid input syntax for type bigint» y se caían el panel de la gran idea y el Centro de campaña
  * la primera vez que hubo una gran idea real en la mesa de Emilio. Es un dato de apoyo: si su lectura falla, se muestra sin nombres, nunca se cae la pantalla.
  */
-async function quienesPropusieron(supa: SupabaseClient, campanaId: string, version: number): Promise<string[]> {
-  try { return await quienesPropusieronSinRed(supa, campanaId, version) } catch { return [] }
+type LaSala = { quienes: string[]; aportes: Record<string, string> }
+export async function quienesPropusieron(supa: SupabaseClient, campanaId: string, version: number): Promise<LaSala> {
+  try { return await quienesPropusieronSinRed(supa, campanaId, version) } catch { return { quienes: [], aportes: {} } }
 }
-async function quienesPropusieronSinRed(supa: SupabaseClient, campanaId: string, version: number): Promise<string[]> {
+async function quienesPropusieronSinRed(supa: SupabaseClient, campanaId: string, version: number): Promise<LaSala> {
   const c = await una(supa.from("cadena_conceptos").select("encargo_id").eq("campana_id", campanaId).eq("version", version).maybeSingle(), "cadena_conceptos")
   const encargo = c && typeof c.encargo_id === "string" ? c.encargo_id : null
-  if (!encargo) return []
+  if (!encargo) return { quienes: [], aportes: {} }
   const aportes = await filas(supa.from("oficina_mesa_aportes").select("de, n").eq("encargo_id", encargo).order("n", { ascending: true }).limit(200), "oficina_mesa_aportes")
-  return quienesPropusieronDe(aportes)
+  return { quienes: quienesPropusieronDe(aportes), aportes: aportesPorNumero(aportes) }
 }
 
 /** los nombres de quien habló en la sala, sin repetir, en orden, sin «sistema» (no es un empleado) */
