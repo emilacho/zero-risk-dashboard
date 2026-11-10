@@ -3,7 +3,7 @@
  * Si la tabla no existe todavía en producción (T9 en curso) se devuelve `publicado: false`; cualquier OTRO error de la base lanza.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { clientesParaElegir } from "@/lib/clientes-datos"
+import { elegirCliente } from "@/lib/clientes-datos"
 import { briefDesdeFila, ordenarBriefs, type Brief } from "@/lib/brief"
 import { esAutorDeLaMesa } from "@/lib/organigrama"
 import { direccionesDeFotos } from "@/lib/gran-idea-datos"
@@ -29,13 +29,7 @@ export interface BriefDelCliente {
 
 export async function leerBrief(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date } = {}): Promise<BriefDelCliente> {
   const ahora = o.ahora ?? new Date()
-  const clientes = await clientesParaElegir(supa)
-  let elegido: { id: string; nombre: string } | null = (o.cliente && clientes.find((c) => c.id === o.cliente)) || null
-  if (!elegido && o.cliente) {
-    const c = await una(supa.from("clients").select("id, name").eq("id", o.cliente).maybeSingle(), "clients")
-    if (c) elegido = { id: String(c.id), nombre: String(c.name) }
-  }
-  if (!elegido) elegido = clientes[0] ?? null
+  const { clientes, elegido } = await elegirCliente(supa, o.cliente)
   const base = { clientes, leido_en: ahora.toISOString() }
   if (!elegido) return { ...base, cliente: null, campana: null, publicado: true, briefs: [] }
   const camp = await una(supa.from("cadena_campanas").select("id, estado").eq("client_id", elegido.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")

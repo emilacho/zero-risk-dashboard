@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { detalleDelBrief } from "@/lib/brief"
 import { leerBrief } from "@/lib/brief-datos"
+import { elegirCliente } from "@/lib/clientes-datos"
 import { detalleDeGranIdea, leerGranIdea } from "@/lib/gran-idea-datos"
 import { analisisDesdeFila, detalleDeInformes, informeDesdeFila } from "@/lib/informes"
 import { MINUTOS_TRABAJANDO, nombreCanonico } from "@/lib/organigrama"
@@ -50,7 +51,11 @@ async function oNulo<T>(f: () => PromiseLike<T>): Promise<T | undefined> { try {
 
 export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date; riesgos?: typeof leerRiesgos } = {}): Promise<Centro> {
   const ahora = o.ahora ?? new Date()
-  const cli = o.cliente ?? null
+  // GO Lenovo 10-nov 14:37Z (falla 2): el cliente se resuelve UNA vez, con LA regla del brief (`elegirCliente`: el pedido si existe; si no, o si no
+  // existe, el primero de la lista · CC6 #325 🟡: un enlace a un cliente borrado también mezclaba), y TODAS
+  // las lecturas usan ese. Antes el brief y la gran idea elegían solos el primero y el manual, el plan, los informes y el dinero leían «ningún cliente»:
+  // el Centro mezclaba datos de un cliente con cuadros vacíos
+  const cli = (await elegirCliente(supa, o.cliente)).elegido?.id ?? null
   const [manuales, planes, marketing, dinero] = await Promise.all([
     cli ? oNulo(async () => { const r = await supa.from("client_brand_books").select("version, human_validated, provenance_tag, created_at").eq("client_id", cli).order("version", { ascending: false }).limit(200); if (r.error) throw new Error(r.error.message); return (r.data ?? []) as Fila[] }) : Promise.resolve([] as Fila[]),
     cli ? oNulo(async () => { const r = await supa.from("client_historical_outputs").select("status, provenance_tag, created_at, updated_at").eq("client_id", cli).eq("output_type", "campaign_plan_90d").order("created_at", { ascending: false }).limit(40); if (r.error) throw new Error(r.error.message); return (r.data ?? []) as Fila[] }) : Promise.resolve([] as Fila[]),
@@ -61,13 +66,13 @@ export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | n
     dineroDelCliente(cli, o.riesgos ?? leerRiesgos),
   ])
   const [brief, gran, informes, analisisFilas, abiertas] = await Promise.all([
-    leerBrief(supa, { cliente: o.cliente, ahora }),
-    leerGranIdea(supa, { cliente: o.cliente, ahora }),
-    o.cliente ? supa.from("client_reports").select("id, kind, status, period_start, period_end, summary, created_at").eq("client_id", o.cliente).order("period_end", { ascending: false }).limit(200) : Promise.resolve({ data: [] as Fila[], error: null }),
+    leerBrief(supa, { cliente: cli, ahora }),
+    leerGranIdea(supa, { cliente: cli, ahora }),
+    cli ? supa.from("client_reports").select("id, kind, status, period_start, period_end, summary, created_at").eq("client_id", cli).order("period_end", { ascending: false }).limit(200) : Promise.resolve({ data: [] as Fila[], error: null }),
     // los informes de la mesa de análisis viven en el cerebro (fichas vigentes `informe_de_analisis`)
-    o.cliente ? supa.from("cerebro_fichas").select("id, titulo, contenido, observado_en, creado_en, provenance_tag").eq("client_id", o.cliente).eq("clase", "informe_de_analisis").is("retirada_en", null).eq("descartada", false).limit(50) : Promise.resolve({ data: [] as Fila[], error: null }),
-    // «trabajando»: corridas abiertas de ESTE cliente (sin cliente elegido: de todos)
-    (o.cliente ? supa.from("agent_invocations").select("agent_name, client_id").eq("client_id", o.cliente) : supa.from("agent_invocations").select("agent_name, client_id")).is("ended_at", null).gte("started_at", new Date(ahora.getTime() - MINUTOS_TRABAJANDO * 60_000).toISOString()).limit(200),
+    cli ? supa.from("cerebro_fichas").select("id, titulo, contenido, observado_en, creado_en, provenance_tag").eq("client_id", cli).eq("clase", "informe_de_analisis").is("retirada_en", null).eq("descartada", false).limit(50) : Promise.resolve({ data: [] as Fila[], error: null }),
+    // «trabajando»: corridas abiertas de ESTE cliente (solo si no hay ningún cliente: de todos)
+    (cli ? supa.from("agent_invocations").select("agent_name, client_id").eq("client_id", cli) : supa.from("agent_invocations").select("agent_name, client_id")).is("ended_at", null).gte("started_at", new Date(ahora.getTime() - MINUTOS_TRABAJANDO * 60_000).toISOString()).limit(200),
   ])
   if (informes.error) throw new Error(`client_reports: ${informes.error.message}`)
   if (analisisFilas.error) throw new Error(`cerebro_fichas: ${analisisFilas.error.message}`)

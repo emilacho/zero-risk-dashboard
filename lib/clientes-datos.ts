@@ -92,3 +92,18 @@ export async function clientesParaElegir(supa: SupabaseClient): Promise<Array<{ 
     .map((x) => ({ id: String(x.id), nombre: String(x.name) }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
 }
+
+/**
+ * EL CLIENTE QUE SE MUESTRA · UNA sola regla para el brief, la gran idea y el Centro (10-nov · CC6 #325 🟡): el pedido si está en la lista; si no está
+ * en la lista pero existe (un cliente de práctica), ese; si no existe (borrado, enlace viejo) o no se pidió ninguno, el primero de la lista. Así todas
+ * las lecturas de una pantalla leen el MISMO cliente y nunca uno que no existe.
+ */
+export async function elegirCliente(supa: SupabaseClient, pedido: string | null | undefined): Promise<{ clientes: Array<{ id: string; nombre: string }>; elegido: { id: string; nombre: string } | null }> {
+  const clientes = await clientesParaElegir(supa)
+  let elegido: { id: string; nombre: string } | null = (pedido && clientes.find((c) => c.id === pedido)) || null
+  if (!elegido && pedido) {
+    const c = await una(supa.from("clients").select("id, name").eq("id", pedido).maybeSingle(), "clients")
+    if (c) elegido = { id: String(c.id), nombre: String(c.name) }
+  }
+  return { clientes, elegido: elegido ?? clientes[0] ?? null }
+}
