@@ -154,15 +154,15 @@ describe("el panel: Nuevas · Revisadas · Resueltas", () => {
     const { container: e } = pinta(); fireEvent.click(e.querySelector('[data-recuadro="resueltas"]')!)
     expect(e.querySelector("[data-resueltas]")?.textContent).not.toContain("Puede faltar")
   })
-  it("CC7 · alerta sin estado (la libreta no se leyó): la tarjeta sigue en Nuevas con su «✓ Revisar», pero el número dice «—» y se dice por qué", () => {
+  it("CC7 · alerta sin estado (la libreta no se leyó): la tarjeta sigue en Nuevas con su «✓ Revisar», pero el número dice «—» (solo el guion, sin texto: Lenovo 00:30Z)", () => {
     const caida = normalizarDecisiones({ completo: true, decisiones: [pregunta("a", { clave: CLAVE("a"), estado: null }), pregunta("b", { clave: CLAVE("b"), estado: "nueva" })] })
     const { container: c } = render(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: caida }))
     expect(numero(c, "nuevas")).toBe("—"); expect(numero(c, "revisadas")).toBe("0")
-    expect(c.querySelector("[data-sin-libreta]")?.textContent).toBe("No pude leer cuáles ya revisaste: por eso «Nuevas» no dice un número.")
+    expect(c.querySelector("[data-sin-libreta]")).toBeNull(); expect(c.textContent).not.toMatch(/No pude leer/) // a la vista, solo el guion (el resumen para lectores de pantalla sí lo dice)
     expect(c.querySelector("[data-posicion]")?.textContent).toBe("1 de 2"); expect(c.querySelector(`[data-revisar="${CLAVE("a")}"]`)).not.toBeNull()
     expect(c.querySelector("[data-resumen]")?.textContent).toMatch(/^nuevas sin dato · 0 revisadas/)
     cleanup()
-    const { container: e } = pinta(); expect(e.querySelector("[data-sin-libreta]")).toBeNull(); expect(numero(e, "nuevas")).toBe("2")
+    const { container: e } = pinta(); expect(numero(e, "nuevas")).toBe("2")
   })
   it("sin registro de lo resuelto: «—» en el recuadro y «sin dato» en la lista (nunca 0)", () => {
     const sin = normalizarDecisiones({ completo: true, decisiones: [pregunta("a", { clave: CLAVE("a"), estado: "nueva" })] })
