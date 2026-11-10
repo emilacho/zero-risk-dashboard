@@ -1,6 +1,6 @@
 "use client"
 
-import { trozosSinCodigos, type ContextoSinCodigos } from "@/lib/sin-codigos"
+import { trozosDeFormato, trozosSinCodigos, type ContextoSinCodigos } from "@/lib/sin-codigos"
 import { miniaturaDe } from "@/lib/visor-de-fotos"
 
 /**
@@ -12,7 +12,7 @@ export function TextoSinCodigos({ texto, fotos = {}, contexto = {}, className }:
   return (
     <p data-sin-codigos className={className}>
       {trozos.map((t, i) => {
-        if ("texto" in t) return <span key={i}>{t.texto}</span>
+        if ("texto" in t) return <span key={i}><ConFormato texto={t.texto} /></span>
         const conDireccion = t.fotos.map((c) => fotos[c.toLowerCase().slice(0, 8)]).filter((u): u is string => !!u)
         if (!conDireccion.length) return null
         return (
@@ -24,4 +24,9 @@ export function TextoSinCodigos({ texto, fotos = {}, contexto = {}, className }:
       })}
     </p>
   )
+}
+
+/** GO Lenovo 10-nov 21:15Z · el formato del agente a la vista (negrita y cursiva de verdad), nunca sus asteriscos. Solo presentación */
+export function ConFormato({ texto }: { texto: string | null | undefined }) {
+  return <>{trozosDeFormato(texto).map((x, i) => (x.negrita ? <strong key={i} data-negrita className="font-medio">{x.t}</strong> : x.cursiva ? <em key={i} data-cursiva className="italic">{x.t}</em> : <span key={i}>{x.t}</span>))}</>
 }

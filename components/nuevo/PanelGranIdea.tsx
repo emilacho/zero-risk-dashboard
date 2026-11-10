@@ -7,8 +7,8 @@ import { diaYHora, plural } from "@/lib/lenguaje"
 import { NOTA_MINIMA, type ApuntaA } from "@/lib/concepto-decision"
 import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { estadoDelBriefLegible } from "@/lib/brief"
-import { seriesSinRepetir, sinCodigos, type ContextoSinCodigos } from "@/lib/sin-codigos"
-import { TextoSinCodigos } from "@/components/nuevo/TextoSinCodigos"
+import { seriesSinRepetir, sinCodigos, sinMarcasDeFormato, type ContextoSinCodigos } from "@/lib/sin-codigos"
+import { ConFormato, TextoSinCodigos } from "@/components/nuevo/TextoSinCodigos"
 import { AL_APROBAR_LA_GRAN_IDEA, avanceDeGranIdea, avisoTrasDecidirGranIdea, cuerpoDeDecisionDeGranIdea, errorTrasDecidirGranIdea, rutaDeDecisionDeGranIdea, type AccionDeGranIdea, type RespuestaDeDecisionDeGranIdea } from "@/lib/gran-idea"
 
 /**
@@ -43,7 +43,9 @@ const Sep = () => <span className="text-zinc-600" aria-hidden>›</span>
 /** una sección plegable con su resumen (como el plan): cerrada, la primera línea; abierta, todo */
 function Plegable({ id, titulo, resumen, children }: { id: string; titulo: string; resumen?: string | null; children: React.ReactNode }) {
   const [abierta, setAbierta] = useState(false)
-  const corto = resumen ? (resumen.length > 160 ? `${resumen.slice(0, 159).trimEnd()}…` : resumen) : null
+  // GO Lenovo 10-nov 21:15Z · el resumen de una línea sin las marcas de formato del agente
+  const limpio = resumen ? sinMarcasDeFormato(resumen) : null
+  const corto = limpio ? (limpio.length > 160 ? `${limpio.slice(0, 159).trimEnd()}…` : limpio) : null
   return (
     <section data-bloque={id} data-abierta={abierta} className={`rounded-lg border ${abierta ? "border-amber-400/30 bg-white/[0.03]" : "border-white/10 bg-white/[0.02]"}`}>
       <button type="button" aria-expanded={abierta} onClick={() => setAbierta((v) => !v)} className="flex w-full items-start gap-3 px-3.5 py-3 text-left">
@@ -144,7 +146,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
         </header>
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 px-4 py-2 sm:px-6">
           <span data-miga="cliente" className={`${MIGA} ${!d ? "text-white" : ""}`}>{nombre}</span>
-          {d && <><Sep /><span data-miga="gran-idea" /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="truncate px-1.5 text-[12.5px] text-white">{sinCodigos(d.gran_idea?.nombre ?? d.titulo, ctx)}</span></>}
+          {d && <><Sep /><span data-miga="gran-idea" /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="truncate px-1.5 text-[12.5px] text-white">{sinMarcasDeFormato(sinCodigos(d.gran_idea?.nombre ?? d.titulo, ctx))}</span></>}
         </nav>
         {mensaje && !dialogo && <p role="status" data-aviso={mensaje.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${mensaje.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{mensaje.texto}</p>}
 
@@ -173,8 +175,8 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                 <article className="min-w-0 space-y-3">
                   <div className={`rounded-xl border p-4 ${pendiente ? "border-amber-400/40 bg-amber-400/[0.07]" : "border-white/10 bg-white/[0.02]"}`}>
                     <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">La gran idea</p>
-                    <h3 /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[20px] font-semibold leading-snug text-zinc-50">{sinCodigos(d.gran_idea?.nombre ?? d.titulo, ctx)}</h3>
-                    {d.gran_idea?.frase && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[14px] italic text-amber-100/90">«{sinCodigos(d.gran_idea.frase, ctx)}»</p>}
+                    <h3 /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[20px] font-semibold leading-snug text-zinc-50">{sinMarcasDeFormato(sinCodigos(d.gran_idea?.nombre ?? d.titulo, ctx))}</h3>
+                    {d.gran_idea?.frase && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[14px] italic text-amber-100/90">«{sinMarcasDeFormato(sinCodigos(d.gran_idea.frase, ctx))}»</p>}
                     {pendiente && (
                       <div data-bloque="decision" className="mt-3">
                         {d.sin_concepto && <p className="mb-2 text-[12px] text-rose-200">No se puede decidir hasta que la cadena complete la tarjeta: {d.sin_concepto}.</p>}
@@ -188,7 +190,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                   </div>
                   {avance && <BarraDelPedido avance={avance} />}
                   {d.sin_concepto && !pendiente && <p className="rounded-md border border-white/10 bg-white/[0.03] p-2.5 text-[12px] text-zinc-400">Lo que la cadena guardó de esta propuesta está incompleto: {d.sin_concepto}.</p>}
-                  {d.avisos.length > 0 && <Plegable id="avisos" titulo="Avisos de la sala" resumen={sinCodigos(d.avisos[0], ctx)}><ul className="list-disc space-y-0.5 pl-4">{d.avisos.map((a, i) => <li key={i}>{sinCodigos(a, ctx)}</li>)}</ul></Plegable>}
+                  {d.avisos.length > 0 && <Plegable id="avisos" titulo="Avisos de la sala" resumen={sinCodigos(d.avisos[0], ctx)}><ul className="list-disc space-y-0.5 pl-4">{d.avisos.map((a, i) => <li key={i}><ConFormato texto={sinCodigos(a, ctx)} /></li>)}</ul></Plegable>}
                   {d.por_que_funciona && <Plegable id="por_que_funciona" titulo="Por qué funciona" resumen={sinCodigos(d.por_que_funciona, ctx)}><TextoSinCodigos contexto={ctx} texto={d.por_que_funciona} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
                   {d.como_se_ve && <Plegable id="como_se_ve" titulo="Cómo se ve" resumen={sinCodigos(d.como_se_ve, ctx)}><TextoSinCodigos contexto={ctx} texto={d.como_se_ve} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
                   {d.como_suena && <Plegable id="como_suena" titulo="Cómo suena" resumen={sinCodigos(d.como_suena, ctx)}><TextoSinCodigos contexto={ctx} texto={d.como_suena} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
@@ -197,9 +199,9 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                       <ul className="space-y-2">
                         {d.capitulos.map((c) => (
                           <li key={c.clave} className="rounded-lg border border-white/10 bg-black/20 p-2.5">
-                            <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="font-medium text-zinc-100">{sinCodigos(c.nombre, ctx)}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
-                            {c.que_cuenta && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-0.5 text-zinc-300">{sinCodigos(c.que_cuenta, ctx)}</p>}
-                            {c.series.length > 0 && <ul /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{sinCodigos(x.nombre, ctx)}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
+                            <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="font-medium text-zinc-100">{sinMarcasDeFormato(sinCodigos(c.nombre, ctx))}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
+                            {c.que_cuenta && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-0.5 text-zinc-300"><ConFormato texto={sinCodigos(c.que_cuenta, ctx)} /></p>}
+                            {c.series.length > 0 && <ul /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{sinMarcasDeFormato(sinCodigos(x.nombre, ctx))}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
                           </li>
                         ))}
                       </ul>
