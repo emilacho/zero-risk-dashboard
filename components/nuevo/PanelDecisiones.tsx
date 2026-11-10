@@ -5,14 +5,15 @@ import { EditorDeCifra, type VerCambio } from "@/components/nuevo/EditorDeCifra"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
-import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
+import { PanelManual } from "@/components/nuevo/PanelManual"
+import { Acciones, Aviso, BOTON_SECUNDARIO, PanelBase, Paginas, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
-  TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
-  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, desbloqueaElPlan, DESBLOQUEA_EL_PLAN_CORTO, DIAS_DE_RESUELTAS, esRevisada, primeraFrase, type Resuelta } from "@/lib/direccion-decisiones"
+  accionesDe, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, tituloDeDecision,
+  type AccionDeDecision, type Decision, type Decisiones, desbloqueaElPlan, DESBLOQUEA_EL_PLAN_CORTO, DIAS_DE_RESUELTAS, esRevisada, type Resuelta } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
 import { FichaDeDecision } from "@/components/nuevo/FichaDeDecision"
-import { ACCION_DEL_VERBO, VERBO_DE_LA_ACCION, esPregunta, fichaDeLaPregunta, NOMBRE_DEL_DEPARTAMENTO, departamentoDeLaOficina, type ClaveDeDepartamento } from "@/lib/ficha-de-decision"
+import { ACCION_DEL_VERBO, VERBO_DE_LA_ACCION, esPregunta, fichaDeLaDecision, fichaDeLaPregunta, NOMBRE_DEL_DEPARTAMENTO, departamentoDeLaOficina, type ClaveDeDepartamento } from "@/lib/ficha-de-decision"
 import { BotonRevisar } from "@/components/nuevo/BotonRevisar"
 
 /**
@@ -29,11 +30,6 @@ import { BotonRevisar } from "@/components/nuevo/BotonRevisar"
  */
 type Respuesta = ({ ok: true } & Decisiones) | { ok: false; error: string }
 
-/** de qué parte de la empresa viene cada decisión (la tabla de origen, en palabras de negocio) */
-const ORIGEN: Record<string, string> = {
-  hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina Financiera", finanzas_preguntas: "Oficina Financiera",
-  cerebro_dueno_preguntas: "El cerebro del cliente", dueno_preguntas: "Preguntas de las oficinas", plan_aprobaciones: "Oficina de planeación",
-}
 /** el departamento (rótulo fijo DEPARTAMENTO / valor): solo los nombres oficiales (Emilio 09-nov 23:29Z), nunca «Financiero» ni el nombre de un documento.
  *  La bandeja (gran idea, piezas), el plan y las preguntas de Planeación, la Oficina Creativa o Revisión son del Departamento de Marketing */
 const DEPARTAMENTO_DE_LA_FUENTE: Record<string, ClaveDeDepartamento> = {
@@ -49,7 +45,6 @@ export function departamentoDe(d: Pick<Decision, "tipo" | "fuente" | "pregunta_d
   if (d.pregunta_de) { const o = nombreDeOficina(d.pregunta_de.oficina).replace(/^Oficina (de |del )?/i, ""); return o.charAt(0).toLocaleUpperCase("es") + o.slice(1) }
   return d.fuente === "cerebro_dueno_preguntas" ? "Cerebro" : ""
 }
-const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 /** 6.52 · «Zero Risk Seguridad Industrial» → «Zero Risk SI» (nombres largos en un rótulo corto) */
 export const clienteCorto = (c: string): string => { const w = c.trim().split(/\s+/); return w.length > 3 ? `${w.slice(0, 2).join(" ")} ${w.slice(2).map((x) => x[0]?.toLocaleUpperCase("es") ?? "").join("")}` : c }
@@ -107,12 +102,6 @@ function Registro({ c, onCerrar }: { c: Contestada; onCerrar: () => void }) {
 }
 
 /** la tarjeta del frente: todo lo que hace falta para decidir, en palabras de negocio; lo que se contesta aquí, se contesta en la misma tarjeta */
-/** el número solo, grande; la moneda en el rótulo (Lenovo 06-nov) */
-function CuerpoDeCifra({ c }: { c: CifraDeFirma }) {
-  const r = cifraEnRecuadro(c)
-  return <><span data-numero-de-cifra className="block whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums] text-hueso">{r.numero}</span><span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{r.rotulo}</span>{c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}</>
-}
-
 export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, verCambio, previa, detalleInicial = false, asumir }: {
   d: Decision; alDecidir: (d: Decision) => void; enPausa: string | null; detiene: boolean
   contestar: (d: Decision, accion: AccionDeDecision, texto: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => Promise<ResultadoDeContestar | null>
@@ -124,164 +113,49 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   /** 09-nov · asumir el supuesto: lo maneja el panel (la llamada sale 5 s después, con «Deshacer»). Sin esta función no hay botón */
   asumir?: (d: Decision) => void
 }) {
-  const pr = prioridadLegible(d.prioridad), donde = dondeSeDecide(d), acciones = accionesDe(d)
-  const [respuesta, setRespuesta] = useState(previa?.accion === "responder" ? (previa.resultado.registro.find((p) => p.cita)?.cita ?? "") : "")
-  const [descartando, setDescartando] = useState(false)
-  const [motivo, setMotivo] = useState("")
+  const donde = dondeSeDecide(d), acciones = accionesDe(d)
+  const respuesta = previa?.accion === "responder" ? (previa.resultado.registro.find((p) => p.cita)?.cita ?? "") : ""
   const [enviando, setEnviando] = useState<AccionDeDecision | null>(null)
   const [cambiando, setCambiando] = useState<string | null>(null) // la cifra que Emilio está cambiando: una a la vez, porque la meta y el presupuesto están atados
   const cifraEnCambio = d.cifras?.find((c) => c.clave === cambiando && c.editable) ?? null
-  const [verDetalle, setVerDetalle] = useState(detalleInicial) // 09-nov: el texto entero, al tocar «Decisivo» o «Uso» (sin botón nuevo)
-  const { frente, detalle: cifrasDelDetalle } = cifrasDelFrente(d.cifras ?? [])
-  const corto = d.criticos?.length ? decisivoCorto(d.criticos[0]) : null
   // 09-nov · si no se pudo asumir, el aviso es la línea roja fina bajo los botones (boceto 4), no el aviso de arriba
   const sinGuardar = !!previa && !previa.resultado.sale && previa.accion === "asumir"
   const fallo = previa && !previa.resultado.sale && !sinGuardar ? previa.resultado.motivo ?? previa.resultado.texto : null
   const conAsumir = acciones.includes("asumir") && !!asumir && !!d.supuesto
-  // las preguntas de las oficinas (la ruta de la plataforma): si la oficina no propuso supuesto, se dice por qué no hay «Asumir»
-  const esDeLasOficinas = d.tipo === "pregunta_al_dueno" && d.fuente === "dueno_preguntas"
   const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? desbloqueaElPlan(d.cliente) : null)
   // 10-nov (#310 ajuste 1): el corto que manda la oficina; si el texto lo pone el tablero (el plan espera), «Sigue el Plan de Marketing»; si la oficina no mandó corto, la primera frase
   const destrabaCorto = d.destraba ? (d.destraba_corto ?? null) : destraba ? DESBLOQUEA_EL_PLAN_CORTO : null
   const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { return await contestar(d, a, t) } finally { setEnviando(null) } }
-  const contestable = acciones.length > 0
   const falta = faltaQueLeer(d)
-  const editables = acciones.includes("editar") ? (d.cifras ?? []).filter((c) => c.editable) : []
-  // CC6 #290: si la firma no trae «Decisivo», «Uso» ni «Desbloquea», no hay bloque que abra el detalle; entonces las demás cifras se ven sin tocar nada (ninguna información se pierde)
-  const sinPuerta = !corto && !d.para_que && !destraba
-  // CC6 #290 (e145a7c): el detalle solo existe si tiene algo que mostrar; si no, «Uso / Desbloquea» es texto, no un botón que abre una caja vacía
-  // 09-nov (#957): el frente lleva el corto de la oficina; si no vino, la primera frase entera (como hasta hoy)
-  const usoAlFrente = d.para_que ? (d.para_que_corto ?? primeraFrase(d.para_que)) : null
-  const destrabaAlFrente = destraba ? (destrabaCorto || primeraFrase(destraba)) : null
-  const usoDeMas = !!d.para_que && usoAlFrente !== d.para_que.trim()
-  const destrabaDeMas = !!destraba && destrabaAlFrente !== destraba.trim()
-  const hayDetalle = !!d.criticos?.length || usoDeMas || destrabaDeMas || cifrasDelDetalle.length > 0
-  const recuadro = (c: CifraDeFirma, marca: Record<string, string>) => editables.some((x) => x.clave === c.clave)
-    ? <div key={c.clave} {...marca}><button type="button" data-cambiar={c.clave} disabled={!!enviando} onClick={() => setCambiando(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable block min-h-11 w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center hover:border-linea-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><CuerpoDeCifra c={c} /></button></div>
-    : <div key={c.clave} {...marca} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center"><CuerpoDeCifra c={c} /></div>
   // lo que no salió se lee sin bajar (CC6 · #283)
   const porQue = useRef<HTMLDivElement>(null)
-  const pie = useRef<HTMLElement>(null) // Firmar no va fijo: se llega a él pasando por las cifras y por lo que sigue abierto (CC6 · #283)
   useEffect(() => { if (fallo) porQue.current?.scrollIntoView({ block: "center", behavior: "smooth" }) }, [fallo, previa?.en, cifraEnCambio])
-  // 09-nov · T1 de la ficha única (GO Lenovo, boceto v7 de Emilio): las preguntas se dibujan con la ficha; las demás siguen aquí hasta el T2
-  if (esPregunta(d)) {
-    const ficha = fichaDeLaPregunta(d, { departamento: departamentoDe(d), detiene, destraba, destrabaCorto, conAsumir, responder: acciones.includes("responder"), descartar: acciones.includes("descartar") })
-    return (
-      <FichaDeDecision ficha={ficha} enviando={enviando ? VERBO_DE_LA_ACCION[enviando] ?? null : null} textoInicial={respuesta}
-        nota={enPausa ? `${enPausa} está en pausa por tu decisión: esto no cuenta en «esperan».` : undefined}
-        alVerbo={(v, t) => { if (v === "asumir") { asumir?.(d); return } const a = ACCION_DEL_VERBO[v]; if (a) void hacer(a, v === "responder" ? { respuesta: t.texto ?? "" } : { motivo: t.motivo ?? "" }) }}
-        alIr={() => alDecidir(d)}
-        estado={{
-          arriba: fallo ? <span data-chip="volvio" className="inline-flex items-center gap-1.5"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />No salió</span> : null,
-          abajo: <>
-            {fallo && <div ref={porQue} data-por-que-volvio role="status"><Aviso rotulo="No salió">{fallo}</Aviso></div>}
-            {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">{previa?.resultado.ya_no_se_asume ? previa.resultado.motivo : "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo."}</p></div>}
-          </>,
-        }} />
-    )
-  }
-  const estado = falta ? <span data-chip="falta">Falta información</span>
-    : fallo ? <span data-chip="volvio" className="inline-flex items-center gap-1.5 text-alarma"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />No salió</span>
-    : detiene ? <span data-chip="detiene" className="inline-flex items-center gap-1.5 text-oro"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-oro" />Detiene el plan</span>
-    : pr.nivel === 3 ? <span data-prioridad={pr.nivel} className="text-oro">Prioridad {pr.texto.toLocaleLowerCase("es")}</span>
-    : null // como en la imagen aprobada: la línea de arriba solo aparece cuando hay algo que avisar
-  return (
-    <article data-decision={d.id} data-tipo={d.tipo} data-fallo={fallo ? "si" : undefined} className="flex flex-col rounded-tarjeta border border-linea bg-grafito-2 p-6 text-center">
-      {estado && <p data-estado className="mb-4 flex flex-wrap items-center justify-center gap-x-2 text-rotulo uppercase tracking-rotulo text-gris">{estado}</p>}
-      <div><Pares valor="text-cuerpo font-medio" pares={[
-        { rotulo: "Cuenta", valor: <span data-cliente>{d.cliente ? clienteCorto(d.cliente) : "Sin cliente"}</span> },
-        { rotulo: "Departamento", valor: <span data-departamento>{departamentoDe(d)}</span> },
-      ]} /></div>
-      {enPausa && <p data-en-pausa className="mt-3 text-dato text-gris">{enPausa} está en pausa por tu decisión: esto no cuenta en «esperan».</p>}
-      {esDeLasOficinas && <Rotulo className="mt-5">Pregunta</Rotulo>}
-      {!d.cifras?.length && <h3 data-titulo className={`${esDeLasOficinas ? "mt-1.5" : "mt-5"} text-cuerpo font-medio text-hueso`}>{tituloDeDecision(d)}</h3>}
-      {esDeLasOficinas && !cifraEnCambio && (d.supuesto
-        // 09-nov · lo que se acepta al asumir, tal cual lo propuso la oficina (boceto 1)
-        ? <div data-si-asumes className="mt-5"><Rotulo tono="gris">Si asumes</Rotulo>
-          <div className="mt-3 rounded-tarjeta border border-linea bg-grafito px-3 py-4 text-center">
-            <span data-supuesto className={`block ${d.supuesto.length <= 24 ? "whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums]" : "text-cuerpo"} text-hueso`}>{d.supuesto}</span>
-            <span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">Supuesto</span>
-          </div></div>
-        : <div data-sin-supuesto className="mt-5 border-t border-linea pt-4"><Rotulo tono="gris">Sin supuesto</Rotulo><p className="mt-1.5 text-dato text-gris">La oficina no propuso un supuesto: respóndela o descártala.</p></div>)}
-      {fallo && !cifraEnCambio && <div ref={porQue} data-por-que-volvio role="status"><Aviso rotulo="No salió">{fallo}</Aviso></div>}
-      {cifraEnCambio ? <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} criticos={d.criticos ?? []} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} /> : d.cifras?.length ? (
-        <div data-cifras className="mt-5">
-          <Rotulo tono="gris">Propuesta</Rotulo>
-          {/* 09-nov · solo las dos cifras que decide el dueño; las demás, en el detalle */}
-          <div className={`mt-3 grid gap-3 ${frente.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-            {frente.map((c) => recuadro(c, { "data-cifra": c.clave }))}
-          </div>
-        </div>
-      ) : null}
-      {!cifraEnCambio && corto && (
-        // 09-nov · «Decisivo»: una frase y su porqué en dos líneas; tocar el bloque abre el texto entero
-        <button type="button" data-criticos aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="block w-full rounded-control text-center focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">
-          <Aviso rotulo="Decisivo"><span data-frase className="block">{corto.frase}</span>{corto.porque && <span data-porque className="block text-cuerpo font-normal text-gris">{corto.porque}</span>}</Aviso>
-        </button>
-      )}
-      {!cifraEnCambio && (d.para_que || destraba) && (() => {
-        const pares = <Pares valor="text-dato" pares={[
-          ...(d.para_que ? [{ rotulo: "Uso", valor: <span data-uso>{usoAlFrente}</span> }] : []),
-          ...(destraba ? [{ rotulo: "Desbloquea", valor: <span data-destraba>{destrabaAlFrente}</span> }] : []),
-        ]} />
-        return hayDetalle
-          ? <button type="button" data-contexto aria-expanded={verDetalle} onClick={() => setVerDetalle((v) => !v)} aria-label={verDetalle ? "Cerrar el detalle" : "Leer el detalle completo"} className="mt-4 block w-full rounded-control focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">{pares}</button>
-          : <div data-contexto-solo className="mt-4">{pares}</div>
-      })()}
-      {!cifraEnCambio && hayDetalle && (verDetalle || (sinPuerta && cifrasDelDetalle.length > 0)) && (
-        <div data-detalle className="mt-4 space-y-4 border-t border-linea pt-4 text-left">
-          {d.criticos?.length ? <div><Rotulo tono="alarma">Decisivo</Rotulo><ul className="mt-1.5 space-y-2 text-dato text-hueso">{d.criticos.map((c) => <li key={c} data-critico-entero>{c}</li>)}</ul></div> : null}
-          {usoDeMas && <div><Rotulo tono="gris">Uso</Rotulo><p data-uso-entero className="mt-1.5 text-dato text-hueso">{d.para_que}</p></div>}
-          {destrabaDeMas && <div><Rotulo tono="gris">Desbloquea</Rotulo><p data-destraba-entero className="mt-1.5 text-dato text-hueso">{destraba}</p></div>}
-          {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div></div>}
-        </div>
-      )}
-      {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina Financiera debe mandar las cifras que propone.</Aviso></div>}
-      {!contestable && !falta && (
-        <div className="mt-5 space-y-4">
-          <Pares valor="text-dato" pares={[
-            { rotulo: "Espera", valor: <span data-espera>{haceCuanto(d.desde)}</span>, dato: fecha(d.desde) ?? undefined },
-            { rotulo: "Vence", valor: <span data-vence>{d.vence ? `${fecha(d.vence)}${d.vencida ? " · vencida" : ""}` : "Sin fecha límite"}</span> },
-          ]} />
-          <Pares valor="text-dato" pares={[
-            { rotulo: "Origen", valor: <span data-origen>{ORIGEN[d.fuente ?? ""] ?? "Sin dato"}</span> },
-            { rotulo: "Costó producirlo", valor: <span data-costo title={d.costo_nota ?? undefined}>{costoDeLaDecision(d)}</span> },
-          ]} />
-        </div>
-      )}
-      {acciones.includes("responder") && (
-        <label className="mt-5 block text-left">
-          <span className="sr-only">Tu respuesta</span>
-          <textarea data-respuesta value={respuesta} onChange={(e) => setRespuesta(e.target.value)} maxLength={TOPE_RESPUESTA} rows={3} placeholder="Escribe tu respuesta…" disabled={!!enviando}
-            className="block w-full resize-y rounded-control border border-linea bg-carbon px-4 py-3 text-cuerpo text-hueso placeholder:text-gris focus:border-linea-oro focus:outline-none" />
-        </label>
-      )}
-      {descartando && (
-        <div data-descartar className="mt-3 text-left">
-          <input data-motivo value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={TOPE_MOTIVO} placeholder="Por qué (opcional)" className="min-h-11 w-full rounded-control border border-linea bg-carbon px-4 text-cuerpo text-hueso placeholder:text-gris focus:border-linea-oro focus:outline-none" />
-          <Acciones>
-            <button type="button" onClick={() => setDescartando(false)} className={BOTON_SECUNDARIO}>Volver</button>
-            <button type="button" data-confirmar-descartar disabled={!!enviando} onClick={() => void hacer("descartar", { motivo })} className={BOTON_SECUNDARIO}>{enviando === "descartar" ? "Descartando…" : "Descartar"}</button>
-          </Acciones>
-        </div>
-      )}
-      {!cifraEnCambio && <footer ref={pie} data-pie>
-        {(contestable && !descartando) && (
-          <Acciones>
-            {acciones.includes("descartar") && <button type="button" data-descartar-abrir disabled={!!enviando} onClick={() => setDescartando(true)} className={`${BOTON_SECUNDARIO} whitespace-nowrap`}>Descartar</button>}
-            {conAsumir && <button type="button" data-asumir disabled={!!enviando} onClick={() => asumir!(d)} className={`${BOTON_SECUNDARIO} whitespace-nowrap`}>Asumir</button>}
-            {editables.length > 0 && <button type="button" data-cambiar-cifra disabled={!!enviando} onClick={() => setCambiando(editables[0].clave)} className={BOTON_SECUNDARIO}>Cambiar cifra</button>}
-            {acciones.includes("responder") && <button type="button" data-enviar disabled={!!enviando || !respuesta.trim()} onClick={() => void hacer("responder", { respuesta })} className={`${BOTON_PRINCIPAL} whitespace-nowrap`}>{enviando === "responder" ? "Enviando…" : conAsumir ? "Responder" : fallo ? "Enviar de nuevo" : "Enviar respuesta"}</button>}
-            {acciones.includes("aceptar") && <button type="button" data-firmar disabled={!!enviando} onClick={() => void hacer("aceptar", {})} className={BOTON_PRINCIPAL}>{enviando === "aceptar" ? "Firmando…" : fallo ? "Firmar de nuevo" : "Firmar"}</button>}
-          </Acciones>
-        )}
-        {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">{previa?.resultado.ya_no_se_asume ? previa.resultado.motivo : "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo."}</p></div>}
-        {!contestable && !falta && (donde.panel
-          ? <Acciones><button type="button" data-decidir={donde.panel} onClick={() => alDecidir(d)} className={BOTON_PRINCIPAL}>{donde.boton}</button></Acciones>
-          : <p data-sin-panel className="mt-5 text-dato text-gris">{donde.nota}</p>)}
-        {(contestable || falta) && <p data-espera className="mt-4 text-dato text-gris">Espera {haceCuanto(d.desde)}</p>}
-      </footer>}
+  // cambiar una cifra antes de firmar (05-nov): el editor de siempre, en el lugar de la ficha; «Volver» regresa a la ficha
+  if (cifraEnCambio) return (
+    <article data-decision={d.id} className="flex flex-col rounded-tarjeta border border-linea bg-grafito-2 p-6 text-center">
+      <EditorDeCifra cifra={cifraEnCambio} todas={d.cifras ?? []} alEditar={d.al_editar ?? null} criticos={d.criticos ?? []} ver={(firmado) => verCambio(d, cifraEnCambio.clave, firmado)} firmar={(firmado) => hacer("editar", { cambio: { clave: cifraEnCambio.clave, firmado } })} volver={() => setCambiando(null)} />
     </article>
+  )
+  // 09-nov · T1 (preguntas) y 10-nov · T2 (todas las demás · SEÑAL Lenovo 01:10Z): toda decisión se dibuja con la MISMA ficha del boceto v7
+  const ficha = esPregunta(d)
+    ? fichaDeLaPregunta(d, { departamento: departamentoDe(d), detiene, destraba, destrabaCorto, conAsumir, responder: acciones.includes("responder"), descartar: acciones.includes("descartar") })
+    : fichaDeLaDecision(d, { departamento: departamentoDe(d), cuenta: d.cliente ? clienteCorto(d.cliente) : null, titulo: tituloDeDecision(d), detiene, destraba, destrabaCorto, acciones, panel: donde.panel })
+  return (
+    <FichaDeDecision ficha={ficha} enviando={enviando ? VERBO_DE_LA_ACCION[enviando] ?? null : null} textoInicial={respuesta}
+      nota={enPausa ? `${enPausa} está en pausa por tu decisión: esto no cuenta en «esperan».` : undefined}
+      alVerbo={(v, t) => { if (v === "asumir") { asumir?.(d); return } const a = ACCION_DEL_VERBO[v]; if (a) void hacer(a, v === "responder" ? { respuesta: t.texto ?? "" } : v === "descartar" ? { motivo: t.motivo ?? "" } : {}) }}
+      alIr={() => alDecidir(d)}
+      alCifra={(clave) => setCambiando(clave)} abiertoInicial={detalleInicial}
+      estado={{
+        // CC6 #282: una firma sin cifras lleva su distintivo arriba; lo que no salió, también
+        arriba: falta ? <span data-chip="falta">Falta información</span> : fallo ? <span data-chip="volvio" className="inline-flex items-center gap-1.5"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />No salió</span> : null,
+        abajo: <>
+          {fallo && <div ref={porQue} data-por-que-volvio role="status"><Aviso rotulo="No salió">{fallo}</Aviso></div>}
+          {/* 05-nov · nunca se firma a ciegas: sin las cifras que se firman, no hay Aprobar y se dice por qué */}
+          {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina Financiera debe mandar las cifras que propone.</Aviso></div>}
+          {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">{previa?.resultado.ya_no_se_asume ? previa.resultado.motivo : "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo."}</p></div>}
+        </>,
+      }} />
   )
 }
 
@@ -420,6 +294,7 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     const donde = dondeSeDecide(abierta)
     if (donde.panel === "plan") return <PanelPlan onCerrar={volver} clienteInicial={abierta.client_id} />
     if (donde.panel === "gran_idea") return <PanelGranIdea onCerrar={volver} clienteInicial={abierta.client_id} />
+    if (donde.panel === "manual") return <PanelManual onCerrar={volver} clienteInicial={abierta.client_id} />
     if (donde.panel === "piezas") return <PanelPiezas onCerrar={volver} clienteInicial={abierta.client_id} piezaInicial={abierta.id} />
   }
 

@@ -28,8 +28,9 @@ export type Puerta = (typeof PUERTAS_DE_LA_FICHA)[number]
 /** las pantallas donde se hace lo que no cabe en la ficha (ADENDA 2 de Emilio). El texto del enlace sale de aquí, nunca de la oficina */
 export type Pantalla = "plan" | "piezas" | "gran_idea" | "manual"
 /** `propio`: nombre propio del sistema fijado por Emilio (mayúscula en cada palabra principal y línea dorada). Los demás, pendientes de su nombre */
-export const NOMBRE_DE_LA_PANTALLA: Record<Pantalla, { ir: string; nombre: string; propio: boolean }> = {
-  plan: { ir: "Ir al", nombre: "Plan de Marketing", propio: true }, piezas: { ir: "Ir a", nombre: "Piezas", propio: false }, gran_idea: { ir: "Ir a la", nombre: "Gran idea", propio: false }, manual: { ir: "Ir al", nombre: "Manual de marca", propio: false },
+/** `en`: cómo se dice «Se decide en …» (CC6 #321 opción a: lo que se decide en otra pantalla no «solo avisa») */
+export const NOMBRE_DE_LA_PANTALLA: Record<Pantalla, { ir: string; en: string; nombre: string; propio: boolean }> = {
+  plan: { ir: "Ir al", en: "en el", nombre: "Plan de Marketing", propio: true }, piezas: { ir: "Ir a", en: "en", nombre: "Piezas", propio: false }, gran_idea: { ir: "Ir a la", en: "en la", nombre: "Gran idea", propio: false }, manual: { ir: "Ir al", en: "en el", nombre: "Manual de marca", propio: false },
 }
 /** NOMBRES PROPIOS DEL SISTEMA (Emilio, 09-nov · regla del estilo base): mayúscula en cada palabra principal; dentro del texto, una línea dorada sutil debajo.
  *  Uno nuevo se agrega aquí solo con el nombre que dio Emilio (si no está definido, se pregunta por Lenovo; no se inventa) */
@@ -72,7 +73,7 @@ export interface FichaDeDecision {
   detiene?: { que: string }
   propuesta?: { cifras?: CifraDeFirma[]; supuesto?: string; al_cambiar?: string }
   /** v7 + CC6: «no vence» es EXPLÍCITO (`sin_limite: true`, «Sin fecha límite»). `vence` null o ausente sin `sin_limite` = no se sabe (guion rojo) */
-  espera: { desde: string | null; vence?: string | null; sin_limite?: true; al_vencer?: string }
+  espera: { desde: string | null; vence?: string | null; sin_limite?: true; al_vencer?: string; /** la versión de lo que se decide: a la derecha de la fecha (CC1 #969) */ version_del_documento?: number; /** ya pasó su fecha límite: «· vencida» junto a Vence (como la tarjeta de antes · CC6 #321) */ vencida?: true }
   costo?: { usd?: number; nota: string }
   origen: { fuente: string; ref: string }
   acciones: Accion[]
@@ -128,8 +129,38 @@ export function fichaDeLaPregunta(d: Decision, x: { departamento: string; detien
     ...(x.detiene ? { detiene: { que: "el plan" } } : {}),
     ...(d.supuesto ? { propuesta: { supuesto: d.supuesto } } : {}),
     // la pregunta no trae plazo: la fila no lo sabe (guion rojo), salvo que la plataforma mande uno
-    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : {}) },
+    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : {}), ...(d.vencida && d.vence ? { vencida: true as const } : {}) },
     origen: { fuente: d.fuente ?? "", ref: d.id },
     acciones,
+  }
+}
+
+/** 10-nov · T2 (SEÑAL Lenovo 01:10Z · DISENO §9): las demás decisiones también por la ficha. La pantalla dueña, traducida a la lista cerrada */
+export const PANTALLA_DEL_PANEL: Record<string, Pantalla> = { plan: "plan", gran_idea: "gran_idea", piezas: "piezas", manual: "manual" }
+/** las fuentes que declaran que no vencen (como la plataforma, `NO_VENCEN`): el Tablero Financiero se reemplaza solo con una versión nueva (v7 «Sin fecha límite») */
+const NO_VENCEN = new Set(["finanzas_tableros"])
+
+/** T2 · TRADUCTOR DEL TABLERO para todo lo que no es pregunta: firma, plan, gran idea, piezas, revisiones, campaña y avisos.
+ *  Refleja lo que hoy se ofrece y nada más: «Firmar» pasa a Aprobar; «Cambiar cifra» deja de ser botón (se toca la cifra); lo que se decide en otra
+ *  pantalla queda sin verbo y con su enlace «Ir al …». Lo que la fila no trae, la ficha no lo trae (guion rojo) */
+export function fichaDeLaDecision(d: Decision, x: { departamento: string; cuenta: string | null; titulo: string; detiene: boolean; destraba: string | null; destrabaCorto?: string | null; acciones: AccionDeDecision[]; panel: string | null }): FichaDeDecision {
+  const editar = x.acciones.includes("editar")
+  const cifras = (d.cifras ?? []).map((c) => ({ ...c, editable: editar && !!c.editable }))
+  const acciones: Accion[] = x.acciones.includes("aceptar") ? [{ verbo: "aprobar", principal: true, destino: "firmar-tablero" }] : []
+  const pantalla = x.panel ? PANTALLA_DEL_PANEL[x.panel] : undefined
+  return {
+    version: 1, id: d.id,
+    cuenta: x.cuenta ? { client_id: d.client_id, nombre: x.cuenta } : null,
+    departamento: { oficina: d.pregunta_de?.oficina ?? d.fuente ?? "", nombre: x.departamento },
+    que_se_decide: x.titulo,
+    ...(d.criticos?.length ? { decisivo: d.criticos.map((c) => ({ corto: decisivoCorto(c).frase, largo: c })) } : {}),
+    ...(d.para_que ? { uso: { largo: d.para_que, ...(d.para_que_corto ? { corto: d.para_que_corto } : {}) } } : {}),
+    ...(x.destraba ? { desbloquea: { largo: x.destraba, ...(x.destrabaCorto ? { corto: x.destrabaCorto } : {}) } } : {}),
+    ...(x.detiene ? { detiene: { que: "el plan" } } : {}),
+    ...(cifras.length || d.supuesto ? { propuesta: { ...(cifras.length ? { cifras } : {}), ...(d.supuesto ? { supuesto: d.supuesto } : {}), ...(editar && d.al_editar ? { al_cambiar: d.al_editar } : {}) } } : {}),
+    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : NO_VENCEN.has(d.fuente ?? "") ? { sin_limite: true as const } : {}), ...(d.version_del_documento ? { version_del_documento: d.version_del_documento } : {}), ...(d.vencida && d.vence ? { vencida: true as const } : {}) },
+    origen: { fuente: d.fuente ?? "", ref: d.id },
+    acciones,
+    ...(pantalla ? { donde_se_hace: { pantalla } } : {}),
   }
 }

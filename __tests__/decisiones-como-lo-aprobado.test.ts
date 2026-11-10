@@ -23,8 +23,9 @@ describe("Decisiones como en la imagen aprobada", () => {
     expect(partirLoDecisivo(`${"x".repeat(95)}: resto`).porque).toBeNull() // la frase larga no es un título
   })
   it("🔴 el rótulo rojo dice «Decisivo», no «Sigue abierto»; las cifras con el número grande", () => {
-    const c = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")
-    expect(c).toContain('<Aviso rotulo="Decisivo">'); expect(c).not.toContain('rotulo="Sigue abierto"')
+    // 10-nov · T2: toda decisión se dibuja con la ficha única; el rótulo y las cifras viven en su dibujante
+    const c = readFileSync("components/nuevo/FichaDeDecision.tsx", "utf8")
+    expect(c).toContain('<Rotulo tono="alarma">Decisivo</Rotulo>'); expect(c).not.toContain("Sigue abierto")
     expect(c).toContain("data-numero-de-cifra className=\"block whitespace-nowrap text-numero font-normal")
   })
 })

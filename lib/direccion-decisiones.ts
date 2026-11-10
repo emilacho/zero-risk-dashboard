@@ -55,6 +55,10 @@ export interface Decision {
   alerta?: AlertaDeDecision
   /** 10-nov · la oficina que la ficha de la plataforma nombra como departamento (`ficha.departamento.oficina`); la antena la usa para saber si es de marketing */
   departamento_oficina?: string | null
+  /** 10-nov (CC1 #969 · #971 · Lenovo 00:30Z y 01:23Z) · la versión de lo que se decide (plan, Tablero Financiero): va a la derecha de la fecha, nunca en el título. Solo un entero positivo */
+  version_del_documento?: number
+  /** 10-nov (CC1 #973) · de qué documento es una revisión (manual · plan · pieza · …): dice en qué pantalla se decide. Sin dato no viene */
+  documento?: string
 }
 export interface AlertaDeDecision { clave: string; estado: "nueva" | "revisada" | null; revisada_en?: string }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
@@ -173,13 +177,14 @@ export const NOMBRE_DEL_TIPO: Record<TipoDeDecision, { nombre: string; plural: s
 }
 
 /** dónde se toma cada decisión dentro del tablero nuevo: el panel que se abre, o por qué todavía no se decide aquí */
-export type PanelDeDecision = "plan" | "gran_idea" | "piezas"
-export function dondeSeDecide(d: Pick<Decision, "tipo">): { panel: PanelDeDecision; boton: string } | { panel: null; nota: string } {
+export type PanelDeDecision = "plan" | "gran_idea" | "piezas" | "manual"
+export function dondeSeDecide(d: Pick<Decision, "tipo"> & Partial<Pick<Decision, "documento">>): { panel: PanelDeDecision; boton: string } | { panel: null; nota: string } {
   switch (d.tipo) {
     case "plan": return { panel: "plan", boton: "Abrir el plan para decidir" }
     case "gran_idea": return { panel: "gran_idea", boton: "Abrir la gran idea para decidir" }
     case "pieza": return { panel: "piezas", boton: "Abrir la pieza para decidir" }
-    case "revision": return { panel: "piezas", boton: "Abrir la revisión para decidir" }
+    // 10-nov (CC1 #973 · CC7): una revisión del manual o del plan va a su panel; Piezas las esconde («Otras revisiones» las excluye)
+    case "revision": return d.documento === "manual" ? { panel: "manual", boton: "Abrir el manual para decidir" } : d.documento === "plan" ? { panel: "plan", boton: "Abrir el plan para decidir" } : { panel: "piezas", boton: "Abrir la revisión para decidir" }
     case "firma_de_finanzas": return { panel: null, nota: "La firma del tablero financiero todavía no está en el tablero nuevo." }
     case "pregunta_de_finanzas": return { panel: null, nota: "Las preguntas de finanzas todavía no se responden desde el tablero nuevo." }
     case "pregunta_al_dueno": return { panel: null, nota: "Las preguntas para ti todavía no se responden desde el tablero." }
@@ -225,7 +230,8 @@ export const tituloLimpio = (t: string): string => {
     .replace(/(?<![\p{L}\p{N}])(?:versi[oó]n|v)\s?\d+(?![\p{L}\p{N}])/giu, " ")
     .replace(/(?<![\p{L}\p{N}])[A-Z]{2,5}-\d{2,}(?![\p{L}\p{N}])/gu, " ") // BRF-0001
     .replace(/(?<![\p{L}\p{N}])P\d+[a-z]?(?![\p{L}\p{N}])/gu, " ") // P3 · P4 · P10b
-  return sinCodigos.replace(/\s+([:,;.])/g, "$1").replace(/([·:—-])\s*(?=[·:—-])/g, "").replace(/\s{2,}/g, " ").replace(/^[\s·:—-]+|[\s·:—-]+$/g, "").trim()
+  // 10-nov: la plataforma titula «Tablero Financiero, versión 2: espera tu firma»; sin la versión quedaba «Financiero,: espera» (la coma suelta se va)
+  return sinCodigos.replace(/\s+([:,;.])/g, "$1").replace(/,(?=[:;.])/g, "").replace(/([·:—-])\s*(?=[·:—-])/g, "").replace(/\s{2,}/g, " ").replace(/^[\s·:—-]+|[\s·:—-]+$/g, "").trim()
 }
 
 /* ───────────── 6.52 · DECISIONES HABLAN CLARO (corrección aprobada por Emilio 2-nov 20:45Z, `2026-11-02-CORRECCION-LENOVO-a-CC5-decisiones-y-riesgos-hablan-claro.md`) ───────────── */
@@ -422,6 +428,9 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (o.destraba && txt(d.destraba_corto)) o.destraba_corto = txt(d.destraba_corto)
   if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
   if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
+  if (typeof d.version_del_documento === "number" && Number.isInteger(d.version_del_documento) && d.version_del_documento > 0) o.version_del_documento = d.version_del_documento
+  const documento = txt(d.documento)
+  if (documento) o.documento = documento
   if (txt(d.supuesto)) o.supuesto = txt(d.supuesto)
   const cifras = leerCifras(d.cifras)
   if (cifras.length) o.cifras = cifras

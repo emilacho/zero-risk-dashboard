@@ -70,7 +70,8 @@ describe("6.52 · Decisiones · sin nombres internos y con costo", () => {
     const { PanelDecisiones } = await import("@/components/nuevo/PanelDecisiones")
     const h = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: D })).replace(/<!-- -->/g, "")
     expect(h).toContain("El editor pidió que mires un texto de 👤 Content Creator"); expect(h).not.toMatch(/editor_escalation|content-creator/)
-    expect(h).toContain("Costó producirlo"); expect(h).toContain("US$ 0,42")
+    // 10-nov · T2: la ficha del boceto v7 no tiene «Costó producirlo» ni «Origen» (bloques fijos aprobados por Emilio); el costo sigue en Dinero
+    expect(h).not.toContain("Costó producirlo"); expect(h).not.toContain("data-origen")
   })
   it("la ruta agrega los clientes en pausa (las pausas que decidiste), solo leyendo", () => {
     const src = readFileSync("app/api/direccion/decisiones/route.ts", "utf8")

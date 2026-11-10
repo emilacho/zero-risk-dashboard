@@ -1,4 +1,7 @@
-/** 09-nov · DECISIONES EN ESCRITORIO IGUAL A LA IMAGEN APROBADA (firma de Emilio 15:20Z). US$ 0 · sin red. */
+/** 09-nov · DECISIONES EN ESCRITORIO IGUAL A LA IMAGEN APROBADA (firma de Emilio 15:20Z). US$ 0 · sin red.
+ *  10-nov · T2 de la ficha única (SEÑAL Lenovo 01:10Z · boceto v7): la firma ya se dibuja con la ficha. Lo que cambia frente a la tarjeta vieja:
+ *  sin corto de la oficina, «Uso» y «Desbloquea» se ven ENTEROS (contrato v7: nunca se recortan); las cifras de más y el texto entero salen al tocar
+ *  «Decisivo» o «Uso» (los mismos bloques, sin botón nuevo). */
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -22,6 +25,9 @@ const firma = (extra: Record<string, unknown> = {}): Decisiones => normalizarDec
   cifras: [META, TOTAL, PAUTA, CPV, CPV_PLAN], criticos: [INSTAGRAM, PRECIOS], para_que: USO, destraba: DESBLOQUEA, ...extra,
 }] })
 const pinta = (d: Decisiones, detalleInicial = false) => renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: d, detalleInicial })).replace(/<!-- -->/g, "")
+/** el texto que se lee (sin etiquetas): la ficha parte los nombres propios en trozos */
+const texto = (h: string) => h.replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+const dentro = (h: string, marca: string) => { const i = h.indexOf(marca); if (i < 0) return ""; const j = h.indexOf("</span></dd>", i); return texto(h.slice(h.indexOf(">", i) + 1, j < 0 ? undefined : j)) }
 
 describe("1 · solo 2 recuadros de propuesta: las dos cifras que decide el dueño", () => {
   it("son las que deja cambiar (meta y monto al mes); las demás van al detalle, en su orden", () => {
@@ -29,12 +35,13 @@ describe("1 · solo 2 recuadros de propuesta: las dos cifras que decide el dueñ
     expect(cifrasDelFrente([PAUTA, CPV, CPV_PLAN])).toEqual({ frente: [PAUTA, CPV], detalle: [CPV_PLAN] }) // sin editables: las dos primeras
     expect(cifrasDelFrente([META])).toEqual({ frente: [META], detalle: [] })
   })
-  it("el frente pinta 2 recuadros; el detalle abierto, las otras 3; ninguna cifra se pierde", () => {
+  it("el frente pinta 2 recuadros; abierto, las otras 3 en la misma Propuesta; ninguna cifra se pierde", () => {
     const h = pinta(firma())
     expect(h.match(/data-cifra="/g)).toHaveLength(2); expect(h).toContain('data-cifra="meta_ventas_semana"'); expect(h).toContain('data-cifra="presupuesto_total_mes"')
-    expect(h).not.toContain("data-cifra-del-detalle"); expect(h).not.toContain("data-detalle")
+    expect(h).not.toContain("data-cifra-del-detalle")
     const a = pinta(firma(), true)
     expect([...a.matchAll(/data-cifra-del-detalle="([^"]+)"/g)].map((m) => m[1])).toEqual(["pauta_dia", "cpv_pauta", "cpv_plan"])
+    expect(a.indexOf("data-demas-cifras")).toBeLessThan(a.indexOf('data-bloque="decisivo"')) // dentro de Propuesta, antes de Decisivo
   })
 })
 
@@ -56,39 +63,41 @@ describe("2 · «Decisivo»: una frase y su porqué en dos líneas; el texto lar
     expect(decisivoCorto("Faltan datos: sin ellos no se firma.")).toEqual({ frase: "Faltan datos", porque: "Sin ellos no se firma.", cortado: false })
     expect(decisivoCorto("Dos hallazgos sin cerrar")).toEqual({ frase: "Dos hallazgos sin cerrar", porque: null, cortado: false })
   })
-  it("el frente lleva esas dos líneas; el bloque es el que abre (sin botón nuevo) y el detalle trae TODO el texto de la oficina", () => {
+  it("el frente lleva esas dos líneas (v7: el porqué en gris); el bloque es el que abre (sin botón nuevo) y abierto trae TODO el texto de la oficina", () => {
     const h = pinta(firma())
-    expect(h).toMatch(/<button type="button" data-criticos="true" aria-expanded="false"[^>]*>.*?<span data-frase="true"[^>]*>Instagram @zeroriskgye lleva 6 años inactivo…<\/span><span data-porque="true"[^>]*>El 60% del presupuesto mensual \(\$804\.78\) va a Meta\/IG\.<\/span>/)
-    expect(h).not.toContain("canal principal"); expect(h).not.toContain(PRECIOS)
+    expect(h).toMatch(/<button type="button" data-abre-el-largo="true" aria-expanded="false"/)
+    const li = [...h.matchAll(/<li data-decisivo="true">([\s\S]*?)<\/li>/g)].map((m) => m[1])
+    expect(texto(li[0])).toBe("Instagram @zeroriskgye lleva 6 años inactivo…El 60% del presupuesto mensual ($804.78) va a Meta/IG.")
+    expect(li[0]).toMatch(/<span data-porque="true" class="block font-normal text-gris">/)
+    expect(texto(h)).not.toContain("canal principal"); expect(texto(h)).not.toContain(PRECIOS)
+    expect(h).toMatch(/data-bloque="decisivo" data-alarma="true" class="border-y border-linea-alarma/) // v7: entre dos líneas rojas
     const a = pinta(firma(), true)
-    expect(a).toContain('data-criticos="true" aria-expanded="true"')
-    expect([...a.matchAll(/<li data-critico-entero="true">([^<]+)<\/li>/g)].map((m) => m[1].replace(/&#x27;/g, "'"))).toEqual([INSTAGRAM, PRECIOS])
-    const t = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")
-    expect(t.match(/onClick=\{\(\) => setVerDetalle\(\(v\) => !v\)\}/g)).toHaveLength(2) // el bloque Decisivo y el de Uso/Desbloquea; ningún botón más
+    expect(a).toContain('data-abre-el-largo="true" aria-expanded="true"')
+    expect([...a.matchAll(/<li data-decisivo="true">([\s\S]*?)<\/li>/g)].map((m) => texto(m[1]))).toEqual([INSTAGRAM, PRECIOS])
+    const t = readFileSync("components/nuevo/FichaDeDecision.tsx", "utf8")
+    expect(t.match(/onClick=\{\(\) => setAbierto\(\(x\) => !x\)\}/g)).toHaveLength(1) // un solo abridor: los bloques Decisivo y Uso/Desbloquea; ningún botón más
   })
 })
 
-describe("3 · «Uso» y «Desbloquea»: la primera frase ENTERA, nunca palabras cortadas (Lenovo 09-nov)", () => {
-  it("la primera frase, sin cortar ni agregar «…»", () => {
+describe("3 · «Uso» y «Desbloquea»: el corto de la oficina; sin corto, el texto ENTERO (contrato v7: nunca se recorta)", () => {
+  it("la primera frase sigue existiendo para quien la use, sin cortar ni agregar «…»", () => {
     expect(primeraFrase(USO)).toBe(USO); expect(primeraFrase(DESBLOQUEA)).toBe(DESBLOQUEA)
     expect(primeraFrase("  Campañas ")).toBe("Campañas")
     expect(primeraFrase("Reparte la pauta. Después mide el costo por venta.")).toBe("Reparte la pauta.")
     expect(primeraFrase("Importa (ver D4. Precios) para el plan. Lo demás después.")).toBe("Importa (ver D4. Precios) para el plan.")
     expect(primeraFrase("")).toBe(""); expect(primeraFrase("   ")).toBe("")
   })
-  it("una sola frase: entera al frente y no se repite en el detalle", () => {
+  it("una sola frase: entera, una sola vez (cerrada y abierta)", () => {
     const h = pinta(firma())
-    expect(h).toContain(`<span data-uso="true">${USO}</span>`); expect(h).toContain(`<span data-destraba="true">${DESBLOQUEA}</span>`)
-    expect(h).not.toContain("…</span></dd>")
+    // la ficha escribe los nombres propios con su mayúscula («Oficina Financiera»): por lo demás, el texto tal cual
+    expect(dentro(h, "data-uso=").toLowerCase()).toBe(USO.toLowerCase()); expect(dentro(h, "data-desbloquea=")).toBe(DESBLOQUEA)
     const a = pinta(firma(), true)
-    expect(a).not.toContain("data-uso-entero"); expect(a).not.toContain("data-destraba-entero"); expect(a.split(USO)).toHaveLength(2)
+    expect(texto(a).toLowerCase().split(USO.toLowerCase())).toHaveLength(2)
   })
-  it("varias frases: la primera al frente y el texto entero en el detalle", () => {
+  it("varias frases sin corto: el texto entero, sin «…» (nada se esconde)", () => {
     const LARGO = "Reparte la pauta. Después mide el costo por venta."
     const h = pinta(firma({ para_que: LARGO, destraba: LARGO }))
-    expect(h).toContain('<span data-uso="true">Reparte la pauta.</span>'); expect(h).toContain('<span data-destraba="true">Reparte la pauta.</span>'); expect(h).not.toContain("Después mide")
-    const a = pinta(firma({ para_que: LARGO, destraba: LARGO }), true)
-    expect(a).toContain(`<p data-uso-entero="true" class="mt-1.5 text-dato text-hueso">${LARGO}</p>`); expect(a).toContain(`<p data-destraba-entero="true" class="mt-1.5 text-dato text-hueso">${LARGO}</p>`)
+    expect(dentro(h, "data-uso=")).toBe(LARGO); expect(dentro(h, "data-desbloquea=")).toBe(LARGO)
   })
 })
 
@@ -96,65 +105,50 @@ describe("4 · fuera «Baja para leer todo y firmar» y el pie «Sin dato»; que
   it("aunque la lectura venga incompleta y haya «sin dato»", () => {
     const h = pinta(firma())
     expect(h).not.toContain("Baja para leer"); expect(h).not.toContain("data-baja-para-firmar")
-    expect(h).not.toContain("data-sin-dato"); expect(h).not.toContain("gastos por aprobar"); expect(h).not.toContain("no se pudo leer")
-    expect(h).toContain("1 de 1"); expect(h).toContain("data-firmar")
+    expect(h).not.toContain("gastos por aprobar"); expect(h).not.toContain("no se pudo leer")
+    expect(h).toContain("1 de 1"); expect(h).toContain('data-verbo="aprobar"')
   })
 })
 
 describe("CC6 #290 · ninguna información se pierde aunque la firma no traiga textos", () => {
-  it("sin «Decisivo», «Uso» ni «Desbloquea», las demás cifras se ven sin tocar nada", () => {
+  it("sin «Decisivo», «Uso» ni «Desbloquea», los bloques igual abren las demás cifras (con su guion rojo al frente)", () => {
     const h = pinta(firma({ criticos: [], para_que: null, destraba: null }))
-    expect(h).not.toContain("data-criticos"); expect(h).not.toContain("data-contexto")
-    expect(h).toContain("data-detalle"); expect(h).toContain("Las demás cifras")
-    expect([...h.matchAll(/data-cifra-del-detalle="([^"]+)"/g)].map((m) => m[1])).toEqual(["pauta_dia", "cpv_pauta", "cpv_plan"])
+    expect(h).toContain('data-abre-el-largo="true"'); expect(h.match(/data-sin-dato="true"/g)?.length).toBeGreaterThanOrEqual(3)
+    const a = pinta(firma({ criticos: [], para_que: null, destraba: null }), true)
+    expect([...a.matchAll(/data-cifra-del-detalle="([^"]+)"/g)].map((m) => m[1])).toEqual(["pauta_dia", "cpv_pauta", "cpv_plan"])
   })
-  it("con algún texto, el detalle sigue cerrado hasta tocarlo; sin cifras de más, no hay detalle vacío", () => {
-    expect(pinta(firma({ criticos: [], destraba: null }))).not.toContain("data-detalle") // solo «Uso»
-    expect(pinta(firma({ para_que: null, destraba: null }))).not.toContain("data-detalle") // solo «Decisivo»
-    expect(pinta(firma({ criticos: [], para_que: null }))).not.toContain("data-detalle") // solo «Desbloquea»
-    expect(pinta(firma({ criticos: [], para_que: null, destraba: null, cifras: [META, TOTAL] }))).not.toContain("data-detalle")
+  it("sin nada de más que abrir, los bloques son texto: nunca un botón que abre lo mismo", () => {
+    expect(pinta(firma({ criticos: [], destraba: null, cifras: [META, TOTAL] }))).not.toContain("data-abre-el-largo") // solo «Uso», sin corto
+    expect(pinta(firma({ criticos: [], para_que: null, destraba: null, cifras: [META, TOTAL] }))).not.toContain("data-abre-el-largo")
   })
-  it("una tercera cifra que se puede cambiar sigue cambiándose en el detalle", () => {
+  it("una tercera cifra que se puede cambiar sigue cambiándose abierta", () => {
     const TERCERA: CifraDeFirma = { ...PAUTA, editable: true }
     const h = pinta(firma({ cifras: [META, TOTAL, TERCERA, CPV] }), true)
-    expect(h).toMatch(/data-cifra-del-detalle="pauta_dia"><button type="button" data-cambiar="pauta_dia"/)
-    expect(h).not.toMatch(/data-cifra-del-detalle="cpv_pauta"><button/)
+    expect(h).toMatch(/<button type="button" data-cifra-del-detalle="pauta_dia" data-cambiar="pauta_dia"/)
+    expect(h).not.toMatch(/<button[^>]*data-cifra-del-detalle="cpv_pauta"/)
   })
 })
 
-describe("CC6 #290 (e145a7c) · el detalle nunca se abre vacío", () => {
-  const SOLA = "El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas."
-  it("una sola frase en «Uso» y «Desbloquea», sin «Decisivo» ni cifras de más: los pares son texto, no un botón, y no hay detalle", () => {
+describe("CC6 #290 (e145a7c) · nunca un abridor vacío", () => {
+  const SOLA = "El Plan de Marketing de Náufrago sigue en cuanto contestes sus preguntas."
+  it("«Uso» y «Desbloquea» sin corto, sin «Decisivo» ni cifras de más: texto entero, no un botón", () => {
     for (const det of [false, true]) {
       const h = pinta(firma({ criticos: [], cifras: [META, TOTAL], para_que: SOLA, destraba: SOLA }), det)
-      expect(h).toContain(`<span data-uso="true">${SOLA}</span>`); expect(h).toContain("data-contexto-solo")
-      expect(h).not.toContain("data-contexto="); expect(h).not.toContain("data-detalle"); expect(h).not.toContain("Leer el detalle completo")
+      expect(dentro(h, "data-uso=")).toBe(SOLA); expect(h).not.toContain("data-abre-el-largo"); expect(h).not.toContain("Leer el texto entero")
     }
   })
-  it("basta una cosa de más (Decisivo, una frase de más o una cifra) para que sea botón y el detalle la muestre", () => {
+  it("basta algo que abrir (Decisivo cortado, un corto de la oficina o una cifra de más) para que el bloque sea botón", () => {
     const casos = [
       firma({ cifras: [META, TOTAL], para_que: SOLA, destraba: SOLA }),
-      firma({ criticos: [], cifras: [META, TOTAL], para_que: SOLA + " Y algo más.", destraba: SOLA }),
-      firma({ criticos: [], cifras: [META, TOTAL], para_que: SOLA, destraba: SOLA + " Y algo más." }),
+      firma({ criticos: [], cifras: [META, TOTAL], para_que: SOLA, para_que_corto: "Seguir", destraba: SOLA }),
       firma({ criticos: [], para_que: SOLA, destraba: SOLA }),
     ]
-    for (const f of casos) {
-      expect(pinta(f)).toContain('data-contexto="true"')
-      expect(pinta(f, true)).toMatch(/data-detalle="true"[^>]*><div>/)
-    }
+    for (const f of casos) expect(pinta(f)).toContain('data-abre-el-largo="true"')
   })
-  it("una sola frase con un espacio al final no se repite en el detalle", () => {
-    const a = pinta(firma({ para_que: "Una frase. ", destraba: "Otra frase.  " }), true)
-    expect(a).toContain('<span data-uso="true">Una frase.</span>'); expect(a).not.toContain("data-uso-entero"); expect(a).not.toContain("data-destraba-entero")
-  })
-})
-
-describe("CC6 #290 · la tarjeta sola, con texto sin normalizar, tampoco repite la frase", () => {
-  it("«Una frase. » con espacio al final: al frente entera, sin repetirse en el detalle", async () => {
+  it("un texto con espacio al final no se repite", async () => {
     const { TarjetaDelFrente } = await import("@/components/nuevo/PanelDecisiones")
     const d = { ...firma().decisiones[0], para_que: "Una frase. ", destraba: "Otra frase.  " }
     const h = renderToStaticMarkup(createElement(TarjetaDelFrente, { d, alDecidir: () => {}, enPausa: null, detiene: false, contestar: async () => ({ sale: true }) as never, verCambio: async () => null as never, previa: null, detalleInicial: true })).replace(/<!-- -->/g, "")
-    expect(h).toContain('<span data-uso="true">Una frase.</span>'); expect(h).toContain('<span data-destraba="true">Otra frase.</span>')
-    expect(h).not.toContain("data-uso-entero"); expect(h).not.toContain("data-destraba-entero")
+    expect(texto(h).split("Una frase.")).toHaveLength(2); expect(texto(h).split("Otra frase.")).toHaveLength(2)
   })
 })

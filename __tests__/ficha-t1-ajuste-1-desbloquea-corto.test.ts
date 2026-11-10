@@ -45,7 +45,8 @@ describe("el panel", () => {
   const c = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")
   it("el corto del tablero solo cuando el texto es del tablero; un corto ajeno nunca se cuela", () => {
     expect(c).toContain("const destrabaCorto = d.destraba ? (d.destraba_corto ?? null) : destraba ? DESBLOQUEA_EL_PLAN_CORTO : null")
-    expect(c).toContain("destrabaAlFrente = destraba ? (destrabaCorto || primeraFrase(destraba)) : null")
+    // 10-nov · T2: la tarjeta vieja ya no existe; el mismo corto va a la ficha de la pregunta y a la de todas las demás
     expect(c).toContain("destraba, destrabaCorto, conAsumir")
+    expect(c).toContain("detiene, destraba, destrabaCorto, acciones, panel: donde.panel")
   })
 })

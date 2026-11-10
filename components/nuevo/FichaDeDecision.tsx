@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, Rotulo } from "@/components/nuevo/EstiloBase"
 import { NOMBRE_DEL_VERBO, NOMBRE_MIENTRAS_SALE, NOMBRE_DE_LA_PANTALLA, conNombresPropios, nombrePropioO, revisarFicha, type FichaDeDecision as Ficha, type Pantalla, type Verbo } from "@/lib/ficha-de-decision"
-import { TOPE_MOTIVO, TOPE_RESPUESTA, cifraEnRecuadro, haceCuanto } from "@/lib/direccion-decisiones"
+import { TOPE_MOTIVO, TOPE_RESPUESTA, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, haceCuanto, type CifraDeFirma } from "@/lib/direccion-decisiones"
 
 /**
  * EL DIBUJANTE ÚNICO DE LA FICHA DE DECISIÓN (GO Lenovo 09-nov · boceto v7 aprobado por Emilio).
@@ -18,10 +18,17 @@ export function ConNombres({ texto }: { texto: string }) {
   return <>{conNombresPropios(texto).map((p, k) => (p.propio ? <span key={k} data-nombre-propio className="underline decoration-linea-oro decoration-1 underline-offset-4">{p.texto}</span> : <span key={k}>{p.texto}</span>))}</>
 }
 const fecha = (iso: string | null | undefined) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
-const Bloque = ({ nombre, children, linea = true }: { nombre: string; children: ReactNode; linea?: boolean }) => <div data-bloque={nombre} className={`${linea ? "border-t border-linea" : ""} py-5`}>{children}</div>
+/** v7: «Decisivo» con contenido va entre dos líneas rojas finas (sin dato, la línea de siempre) */
+/** Lenovo 00:30Z / 01:23Z: la versión va a la derecha de la fecha («9 nov 2026 · versión 2»), en la misma letra gris; sin versión entera, solo la fecha */
+export const conVersion = (f: string | null, v: number | undefined): string | undefined => (f ? (v && Number.isInteger(v) && v > 0 ? `${f} · versión ${v}` : f) : undefined)
+const Bloque = ({ nombre, children, linea = true, alarma = false }: { nombre: string; children: ReactNode; linea?: boolean; alarma?: boolean }) => <div data-bloque={nombre} data-alarma={alarma || undefined} className={`${alarma ? "border-y border-linea-alarma" : linea ? "border-t border-linea" : ""} py-5`}>{children}</div>
 
-export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, estado, ahora, textoInicial = "", nota }: {
+export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, alCifra, estado, ahora, textoInicial = "", nota, abiertoInicial = false }: {
   ficha: Ficha
+  /** para pruebas e imágenes: el texto entero ya abierto */
+  abiertoInicial?: boolean
+  /** T2 · tocar una cifra que se puede cambiar (el panel abre el editor de siempre). Sin esta función, ninguna cifra se toca */
+  alCifra?: (clave: string) => void
   /** el verbo que está saliendo (los botones se apagan mientras tanto) */
   enviando: Verbo | null
   /** tocar un verbo: el panel lo contesta por la puerta del servidor (el texto o el motivo, si la acción lo pide) */
@@ -39,7 +46,7 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, estado, ahora,
   const [texto, setTexto] = useState(textoInicial)
   const [motivo, setMotivo] = useState("")
   const [descartando, setDescartando] = useState(false)
-  const [abierto, setAbierto] = useState(false)
+  const [abierto, setAbierto] = useState(abiertoInicial)
   const r = revisarFicha(ficha)
   if (!r.ok) return (
     <article data-ficha={ficha.id} data-mal-armada className="rounded-tarjeta border border-linea-alarma bg-grafito-2 p-6 text-center">
@@ -51,9 +58,19 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, estado, ahora,
   const pideTexto = acciones.find((a) => a.pide?.que === "texto")
   const pideMotivo = acciones.find((a) => a.verbo === "descartar" && a.pide?.que === "motivo")
   const p = ficha.propuesta, cifras = p?.cifras ?? []
+  // al frente, las dos que se deciden (las que se pueden cambiar, o las dos primeras); las demás, al abrir
+  const { frente, detalle: demas } = cifrasDelFrente(cifras)
+  // v9 (Emilio): al pasar el cursor el recuadro entero se ilumina; al tocarlo se cambia la cifra. Solo si la cifra se puede cambiar y el panel sabe cambiarla
+  const recuadro = (c: CifraDeFirma, marca: Record<string, string>) => {
+    const x = cifraEnRecuadro(c)
+    const cuerpo = <><span data-numero-de-cifra className="block whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums] text-hueso">{x.numero}</span><span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{x.rotulo}</span>{c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}</>
+    return c.editable && alCifra
+      ? <button key={c.clave} type="button" {...marca} data-cambiar={c.clave} disabled={!!enviando} onClick={() => alCifra(c.clave)} aria-label={`Cambiar ${c.nombre}`} className="zr-apagable zr-luz-del-pizarron block w-full rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">{cuerpo}</button>
+      : <div key={c.clave} {...marca} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center">{cuerpo}</div>
+  }
   const decisivo = ficha.decisivo ?? []
   // lo que tiene corto se lee corto al frente; tocar el bloque abre el largo. Sin corto, el largo se ve entero (nunca se recorta)
-  const hayLargo = decisivo.some((x) => x.corto !== x.largo) || (!!ficha.uso?.corto && ficha.uso.corto !== ficha.uso.largo) || (!!ficha.desbloquea?.corto && ficha.desbloquea.corto !== ficha.desbloquea.largo)
+  const hayLargo = demas.length > 0 || decisivo.some((x) => x.corto !== x.largo) ||(!!ficha.uso?.corto && ficha.uso.corto !== ficha.uso.largo) || (!!ficha.desbloquea?.corto && ficha.desbloquea.corto !== ficha.desbloquea.largo)
   const corto = (x?: { corto?: string; largo: string }) => (x ? <ConNombres texto={abierto ? x.largo : (x.corto ?? x.largo)} /> : <SinDato />)
   const donde = ficha.donde_se_hace ? NOMBRE_DE_LA_PANTALLA[ficha.donde_se_hace.pantalla] : null
   const verbo = (v: Verbo) => {
@@ -85,28 +102,28 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, estado, ahora,
       </div>
       <Bloque nombre="propuesta">
         <Rotulo>Propuesta</Rotulo>
-        {cifras.length ? (
-          <div className={`mt-3 grid gap-3 ${cifras.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-            {cifras.map((c) => { const x = cifraEnRecuadro(c); return (
-              <div key={c.clave} data-cifra={c.clave} className="rounded-tarjeta border border-linea bg-grafito px-2 py-4 text-center">
-                <span className="block whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums] text-hueso">{x.numero}</span>
-                <span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">{x.rotulo}</span>
-                {c.nota && <span className="mt-1 block text-dato text-gris">{c.nota}</span>}
-              </div>
-            ) })}
+        {cifras.length ? (<>
+          <div className={`mt-3 grid gap-3 ${frente.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {frente.map((c) => recuadro(c, { "data-cifra": c.clave }))}
           </div>
-        ) : p?.supuesto ? (
+          {/* T2 · las demás cifras no se pierden: se ven al abrir el texto entero (tocando Decisivo o Uso), dentro de la misma Propuesta */}
+          {abierto && demas.length > 0 && <div data-demas-cifras className="mt-3 grid grid-cols-2 gap-3">{demas.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div>}
+        </>) : p?.supuesto ? (
           <div data-supuesto-recuadro className="mt-3 rounded-tarjeta border border-linea bg-grafito px-3 py-4 text-center">
             <span data-supuesto className={`block ${p.supuesto.length <= 24 ? "whitespace-nowrap text-numero font-normal [font-variant-numeric:tabular-nums]" : "text-cuerpo"} text-hueso`}><ConNombres texto={p.supuesto} /></span>
             <span className="mt-1 block text-rotulo uppercase tracking-rotulo text-gris">Supuesto</span>
           </div>
         ) : <p className="mt-1.5 text-cuerpo"><SinDato /></p>}
       </Bloque>
-      <Bloque nombre="decisivo">
+      <Bloque nombre="decisivo" alarma={decisivo.length > 0}>
         {contexto(<>
           <Rotulo tono="alarma">Decisivo</Rotulo>
           {decisivo.length
-            ? <ul className="mt-1.5 space-y-1.5 text-cuerpo font-medio text-hueso">{decisivo.map((x, k) => <li key={k} data-decisivo><ConNombres texto={abierto ? x.largo : x.corto} /></li>)}</ul>
+            ? <ul className="mt-1.5 space-y-1.5 text-cuerpo font-medio text-hueso">{decisivo.map((x, k) => {
+              // v7: cerrado, la frase y debajo su porqué en gris (si el corto es la frase del propio texto); abierto, el texto entero
+              const partes = decisivoCorto(x.largo), porque = !abierto && partes.frase === x.corto ? partes.porque : null
+              return <li key={k} data-decisivo><ConNombres texto={abierto ? x.largo : x.corto} />{porque && <span data-porque className="block font-normal text-gris"><ConNombres texto={porque} /></span>}</li>
+            })}</ul>
             : <p className="mt-1.5 text-cuerpo"><SinDato /></p>}
         </>)}
       </Bloque>
@@ -118,8 +135,8 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, estado, ahora,
       </Bloque>
       <Bloque nombre="espera">
         <Pares valor="text-cuerpo" pares={[
-          { rotulo: "Espera", valor: ficha.espera.desde ? <span data-espera>{haceCuanto(ficha.espera.desde, ahora)}</span> : <SinDato />, dato: fecha(ficha.espera.desde) ?? undefined },
-          { rotulo: "Vence", valor: <span data-vence>{ficha.espera.vence && fecha(ficha.espera.vence) ? fecha(ficha.espera.vence) : ficha.espera.sin_limite ? "Sin fecha límite" : <SinDato />}</span> },
+          { rotulo: "Espera", valor: ficha.espera.desde ? <span data-espera>{haceCuanto(ficha.espera.desde, ahora)}</span> : <SinDato />, dato: conVersion(fecha(ficha.espera.desde), ficha.espera.version_del_documento) },
+          { rotulo: "Vence", valor: <span data-vence>{ficha.espera.vence && fecha(ficha.espera.vence) ? <>{fecha(ficha.espera.vence)}{ficha.espera.vencida && <span data-vencida className="text-alarma"> · vencida</span>}</> : ficha.espera.sin_limite ? "Sin fecha límite" : <SinDato />}</span> },
         ]} />
       </Bloque>
       {pideTexto && (
@@ -143,6 +160,8 @@ export function FichaDeDecision({ ficha, enviando, alVerbo, alIr, estado, ahora,
                 onClick={() => verbo(a.verbo)} className={`${a.principal ? BOTON_PRINCIPAL : BOTON_SECUNDARIO} whitespace-nowrap`}>{enviando === a.verbo ? NOMBRE_MIENTRAS_SALE[a.verbo] : NOMBRE_DEL_VERBO[a.verbo]}</button>
             ))}
           </Acciones>
+        ) : donde ? (
+          <p data-se-decide-en={ficha.donde_se_hace!.pantalla} className="mt-1 rounded-control border border-dashed border-linea px-4 py-3 text-dato text-gris">Se decide {donde.en} {donde.propio ? <span data-nombre-propio className="underline decoration-linea-oro decoration-1 underline-offset-4">{donde.nombre}</span> : donde.nombre}.</p>
         ) : (
           <p data-solo-avisa className="mt-1 rounded-control border border-dashed border-linea px-4 py-3 text-dato text-gris">Esta ficha solo avisa: no hay nada que decidir aquí.</p>
         )}
