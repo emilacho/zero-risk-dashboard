@@ -7,6 +7,8 @@
  * Reglas del contrato: `completo: false` ⇒ nunca decir «nada pendiente»; `sin_fuente[]` se muestra como «sin dato».
  */
 
+import { claveValida } from "@/lib/alertas"
+
 export type TipoDeDecision = "plan" | "gran_idea" | "pieza" | "revision" | "pregunta_al_dueno" | "pregunta_de_finanzas" | "firma_de_finanzas"
 export const TIPOS_DE_DECISION: readonly TipoDeDecision[] = ["plan", "gran_idea", "pieza", "revision", "pregunta_al_dueno", "pregunta_de_finanzas", "firma_de_finanzas"]
 
@@ -49,9 +51,16 @@ export interface Decision {
   supuesto?: string | null
   /** el texto como lo guardó la fuente (la puerta del cerebro recibe la pregunta tal cual) */
   titulo_interno?: string | null
+  /** 10-nov (#310 ajuste 2 · CC1 #965) · la decisión como ALERTA: «nueva» o «revisada» (solo con «✓ Revisar»; abrirla no cuenta). `estado: null` = la libreta no se pudo leer */
+  alerta?: AlertaDeDecision
   /** 10-nov · la oficina que la ficha de la plataforma nombra como departamento (`ficha.departamento.oficina`); la antena la usa para saber si es de marketing */
   departamento_oficina?: string | null
+  /** 10-nov (CC1 #969 · #971 · Lenovo 00:30Z y 01:23Z) · la versión de lo que se decide (plan, Tablero Financiero): va a la derecha de la fecha, nunca en el título. Solo un entero positivo */
+  version_del_documento?: number
+  /** 10-nov (CC1 #973) · de qué documento es una revisión (manual · plan · pieza · …): dice en qué pantalla se decide. Sin dato no viene */
+  documento?: string
 }
+export interface AlertaDeDecision { clave: string; estado: "nueva" | "revisada" | null; revisada_en?: string }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
 export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null; /** 05-nov · la oficina deja cambiarla antes de firmar (hoy: la meta y el presupuesto) */ editable?: boolean }
 export type AccionDeDecision = "aceptar" | "editar" | "responder" | "asumir" | "descartar"
@@ -69,7 +78,16 @@ export interface Decisiones {
   sin_fuente: Array<{ que: string; motivo: string }>
   /** 6.52 · los clientes en pausa por decisión de Emilio (los agrega el servidor del tablero) */
   pausados?: ClienteEnPausa[]
+  /** 10-nov (#310 ajuste 2) · lo resuelto en los últimos 7 días (si la plataforma lo manda) y si ese registro vino entero */
+  resueltas?: Resuelta[]
+  resueltas_completo?: boolean
 }
+/** una decisión ya resuelta (se decidió o se arregló): la cierra el sistema, no el dueño */
+export interface Resuelta { id: string; titulo: string; tipo: string | null; cliente: string | null; resuelta_en: string | null; resultado: string | null }
+/** cuántos días mira atrás «Resueltas» (la ventana del registro de la plataforma, CC1) */
+export const DIAS_DE_RESUELTAS = 7
+/** «Nuevas · Revisadas»: una decisión es Revisada solo si su alerta lo dice (o la marcaste en esta visita). Sin dato de la libreta cuenta como Nueva: mejor avisar de más */
+export const esRevisada = (d: Pick<Decision, "alerta">, aqui: Record<string, string> = {}): boolean => !!d.alerta && (d.alerta.estado === "revisada" || !!aqui[d.alerta.clave])
 
 const txt = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null)
@@ -117,7 +135,19 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
     return que ? [{ que, motivo: motivo ?? "" }] : []
   })
   const pausados = (Array.isArray(r.pausados) ? r.pausados : []).flatMap((p) => { const o = (p && typeof p === "object" ? p : {}) as Record<string, unknown>; const cliente = txt(o.cliente); return cliente ? [{ cliente, motivo: txt(o.motivo) }] : [] })
-  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente, ...(pausados.length ? { pausados } : {}) }
+  const resueltas = leerResueltas(r.contestadas)
+  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente, ...(pausados.length ? { pausados } : {}),
+    ...(resueltas ? { resueltas, resueltas_completo: r.registro_completo === true } : {}) }
+}
+
+/** 10-nov (#310 ajuste 2) · RESUELTAS: lo decidido en los últimos 7 días (registro de la plataforma, `contestadas`, tope 50). Sin el campo, null: el contador dice «sin dato», nunca 0 */
+export function leerResueltas(v: unknown): Resuelta[] | null {
+  if (!Array.isArray(v)) return null
+  return v.flatMap((x) => {
+    const o = (x && typeof x === "object" ? x : {}) as Record<string, unknown>
+    const id = txt(o.id), titulo = txt(o.titulo)
+    return id && titulo ? [{ id, titulo, tipo: txt(o.tipo), cliente: txt(o.cliente), resuelta_en: txt(o.resuelta_en), resultado: txt(o.resultado) }] : []
+  })
 }
 
 /** la lectura (servidor): la ruta certificada de la plataforma con la llave interna; nunca escribe */
@@ -137,7 +167,7 @@ export async function leerDecisiones(d: { plataformaUrl?: string; llave?: string
 
 /** cómo se llama cada tipo, en palabras de negocio, y su marca corta para la pantalla */
 export const NOMBRE_DEL_TIPO: Record<TipoDeDecision, { nombre: string; plural: string }> = {
-  plan: { nombre: "Plan de 90 días", plural: "Planes" },
+  plan: { nombre: "Plan de Marketing", plural: "Planes" },
   gran_idea: { nombre: "Gran idea", plural: "Grandes ideas" },
   pieza: { nombre: "Pieza para publicar", plural: "Piezas" },
   revision: { nombre: "Revisión", plural: "Revisiones" },
@@ -147,13 +177,14 @@ export const NOMBRE_DEL_TIPO: Record<TipoDeDecision, { nombre: string; plural: s
 }
 
 /** dónde se toma cada decisión dentro del tablero nuevo: el panel que se abre, o por qué todavía no se decide aquí */
-export type PanelDeDecision = "plan" | "gran_idea" | "piezas"
-export function dondeSeDecide(d: Pick<Decision, "tipo">): { panel: PanelDeDecision; boton: string } | { panel: null; nota: string } {
+export type PanelDeDecision = "plan" | "gran_idea" | "piezas" | "manual"
+export function dondeSeDecide(d: Pick<Decision, "tipo"> & Partial<Pick<Decision, "documento">>): { panel: PanelDeDecision; boton: string } | { panel: null; nota: string } {
   switch (d.tipo) {
     case "plan": return { panel: "plan", boton: "Abrir el plan para decidir" }
     case "gran_idea": return { panel: "gran_idea", boton: "Abrir la gran idea para decidir" }
     case "pieza": return { panel: "piezas", boton: "Abrir la pieza para decidir" }
-    case "revision": return { panel: "piezas", boton: "Abrir la revisión para decidir" }
+    // 10-nov (CC1 #973 · CC7): una revisión del manual o del plan va a su panel; Piezas las esconde («Otras revisiones» las excluye)
+    case "revision": return d.documento === "manual" ? { panel: "manual", boton: "Abrir el manual para decidir" } : d.documento === "plan" ? { panel: "plan", boton: "Abrir el plan para decidir" } : { panel: "piezas", boton: "Abrir la revisión para decidir" }
     case "firma_de_finanzas": return { panel: null, nota: "La firma del tablero financiero todavía no está en el tablero nuevo." }
     case "pregunta_de_finanzas": return { panel: null, nota: "Las preguntas de finanzas todavía no se responden desde el tablero nuevo." }
     case "pregunta_al_dueno": return { panel: null, nota: "Las preguntas para ti todavía no se responden desde el tablero." }
@@ -194,12 +225,13 @@ export function resumenDeDecisiones(d: Decisiones): ResumenDeDecisiones {
 
 /** el título limpio para mostrar (la base trae marcas como «⚠️» al inicio) */
 export const tituloLimpio = (t: string): string => {
-  const sinCodigos = t.replace(/^[\s⚠️❗‼️]+/u, "")
+  const sinCodigos = t.replace(/\*\*/g, "").replace(/^[\s⚠️❗‼️]+/u, "") // «Gran idea · **El oro…**»: la negrita de formato no se ve como asteriscos (aviso CC1 #969)
     .replace(/\(\s*(?:P\d+[a-z]?|v(?:ersi[oó]n)?\s?\d+|[A-Z]{2,5}-\d{2,})\s*\)/giu, " ") // «(P3)», «(versión 2)», «(BRF-0001)»
     .replace(/(?<![\p{L}\p{N}])(?:versi[oó]n|v)\s?\d+(?![\p{L}\p{N}])/giu, " ")
     .replace(/(?<![\p{L}\p{N}])[A-Z]{2,5}-\d{2,}(?![\p{L}\p{N}])/gu, " ") // BRF-0001
     .replace(/(?<![\p{L}\p{N}])P\d+[a-z]?(?![\p{L}\p{N}])/gu, " ") // P3 · P4 · P10b
-  return sinCodigos.replace(/\s+([:,;.])/g, "$1").replace(/([·:—-])\s*(?=[·:—-])/g, "").replace(/\s{2,}/g, " ").replace(/^[\s·:—-]+|[\s·:—-]+$/g, "").trim()
+  // 10-nov: la plataforma titula «Tablero Financiero, versión 2: espera tu firma»; sin la versión quedaba «Financiero,: espera» (la coma suelta se va)
+  return sinCodigos.replace(/\s+([:,;.])/g, "$1").replace(/,(?=[:;.])/g, "").replace(/([·:—-])\s*(?=[·:—-])/g, "").replace(/\s{2,}/g, " ").replace(/^[\s·:—-]+|[\s·:—-]+$/g, "").trim()
 }
 
 /* ───────────── 6.52 · DECISIONES HABLAN CLARO (corrección aprobada por Emilio 2-nov 20:45Z, `2026-11-02-CORRECCION-LENOVO-a-CC5-decisiones-y-riesgos-hablan-claro.md`) ───────────── */
@@ -396,13 +428,29 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (o.destraba && txt(d.destraba_corto)) o.destraba_corto = txt(d.destraba_corto)
   if (d.detiene === true || d.detiene_trabajo === true) o.detiene = true
   if (txt(d.titulo_interno)) o.titulo_interno = txt(d.titulo_interno)
+  if (typeof d.version_del_documento === "number" && Number.isInteger(d.version_del_documento) && d.version_del_documento > 0) o.version_del_documento = d.version_del_documento
+  const documento = txt(d.documento)
+  if (documento) o.documento = documento
   if (txt(d.supuesto)) o.supuesto = txt(d.supuesto)
   const cifras = leerCifras(d.cifras)
   if (cifras.length) o.cifras = cifras
   if (txt(d.al_editar)) o.al_editar = txt(d.al_editar)!
   const criticos = (Array.isArray(d.criticos) ? d.criticos : []).flatMap((c) => { const t = txt(c); return t ? [t] : [] })
   if (criticos.length) o.criticos = criticos
+  const alerta = leerAlerta(d.alerta)
+  if (alerta) o.alerta = alerta
   return o
+}
+
+/** la alerta de la decisión (CC1 #965): sin una clave de decisión que la marca acepte no hay alerta (no se ofrece un «✓ Revisar» que fallaría);
+ *  un estado desconocido se lee como «no se sabe» (null), nunca como «revisada» */
+export function leerAlerta(v: unknown): AlertaDeDecision | null {
+  if (!v || typeof v !== "object") return null
+  const a = v as Record<string, unknown>
+  if (!claveValida(a.clave) || !a.clave.startsWith("decision:")) return null
+  const estado = a.estado === "nueva" || a.estado === "revisada" ? a.estado : null
+  const revisada_en = estado === "revisada" ? txt(a.revisada_en) : null
+  return { clave: a.clave, estado, ...(revisada_en ? { revisada_en } : {}) }
 }
 
 /** las que tienen un trabajo detenido: lo que la plataforma marca, y las preguntas de un cliente cuyo plan está en pausa esperando respuestas */
@@ -419,7 +467,7 @@ export function ordenarParaTi(lista: Decision[], detenidas: Set<string> = idsQue
 /** la oficina que pregunta, con su nombre real */
 const OFICINAS: Record<string, string> = {
   financiera: "Oficina financiera", finanzas: "Oficina financiera", planeacion: "Oficina de planeación", creativa: "Oficina creativa", jefatura: "Jefatura",
-  marketing: "Dpto. Marketing", cerebro: "El cerebro del cliente", portero: "El cerebro del cliente", alta: "Oficina de altas", onboarding: "Oficina de altas",
+  marketing: "Departamento de Marketing", cerebro: "El cerebro del cliente", portero: "El cerebro del cliente", alta: "Oficina de altas", onboarding: "Oficina de altas",
 }
 export function nombreDeOficina(o: string): string {
   const k = o.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/^oficina[\s_-]+(de[\s_-]+)?/, "").trim()
@@ -429,6 +477,10 @@ export function nombreDeOficina(o: string): string {
 /** «qué se destraba»: lo que dice la oficina; si un plan en pausa espera esta respuesta, eso (CC1: con la última, sigue en el acto) */
 export function queSeDestraba(d: Decision, detenidas: Set<string>): string | null {
   if (d.destraba) return d.destraba
-  if (d.tipo === "pregunta_al_dueno" && detenidas.has(d.id)) return `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.`
+  if (d.tipo === "pregunta_al_dueno" && detenidas.has(d.id)) return desbloqueaElPlan(d.cliente)
   return null
 }
+
+/** 10-nov (Emilio, #310 ajuste 1) · cuando el plan espera esta respuesta y la oficina no dijo qué destraba: al frente, corto y con el nombre propio oficial */
+export const DESBLOQUEA_EL_PLAN_CORTO = "Sigue el Plan de Marketing"
+export const desbloqueaElPlan = (cliente: string | null | undefined): string => `El Plan de Marketing${cliente ? ` de ${cliente}` : ""} sigue en cuanto contestes sus preguntas.`

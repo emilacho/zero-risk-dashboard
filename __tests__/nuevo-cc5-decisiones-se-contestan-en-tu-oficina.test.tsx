@@ -214,14 +214,14 @@ describe("nunca se firma a ciegas (CORRECCIÓN Lenovo 5-nov)", () => {
     expect(accionesDe(d.decisiones[0])).toEqual([])
     expect(gruposDeDecisiones(d).firma.map((x) => x.id)).toEqual([T1]); expect(gruposDeDecisiones(d).fuera).toEqual([])
     const html = pantalla(d)
-    expect(html).not.toContain("data-firmar"); expect(html).toContain("data-falta-informacion"); expect(html).toContain("Oficina financiera"); expect(html).toContain("Falta información")
+    expect(html).not.toContain("data-firmar"); expect(html).toContain("data-falta-informacion"); expect(html).toContain("Oficina Financiera"); expect(html).toContain("Falta información")
     expect(html).not.toContain("data-sin-panel")
   })
   it("con cifras: se leen y se puede firmar", () => {
     const d = leida({ cifras: [cifra, { clave: "meta", nombre: "Meta", valor: 5, unidad: "ventas por semana" }], criticos: ["Dos hallazgos sin cerrar"] })
     expect(accionesDe(d.decisiones[0])).toEqual(["aceptar"])
     const html = pantalla(d)
-    expect(html).toContain("data-firmar"); expect(html).not.toContain("data-falta-informacion")
+    expect(html).toContain('data-verbo="aprobar"'); expect(html).not.toContain("data-falta-informacion")
     expect(html).toMatch(/data-numero-de-cifra[^>]*>1\.341,27<[\s\S]*?>US\$ Presupuesto al mes</); expect(html).toContain("Instagram y Facebook"); expect(html).toMatch(/data-numero-de-cifra[^>]*>5<[\s\S]*?>Meta · ventas por semana</); expect(html).toContain("Dos hallazgos sin cerrar") // 06-nov: el número solo y la unidad en el rótulo (imagen aprobada); la unidad nunca se pierde
     expect(html).not.toMatch(/data-pie="true" class="[^"]*sticky/) // Firmar no va fijo: se llega pasando por las cifras (CC6 · #283)
   })
@@ -247,13 +247,12 @@ describe("la pantalla (boceto aprobado)", () => {
   const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: conQuien })).replace(/<!-- -->/g, "")
   it("la pregunta que detiene el plan va al frente, con quién pregunta, qué se destraba, la caja y sus dos acciones", () => {
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe(P1)
-    expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
-    expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-chip="detiene"') // estilo base: el recuadro es el filtro
-    expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Financiero<\/span>/) // estilo base: DEPARTAMENTO / Financiero, no una frase
-    // 09-nov · Lenovo: «Desbloquea» muestra la primera frase entera (aquí es una sola, así que no se repite en el detalle)
-    expect(html).toContain('<span data-destraba="true">El plan de 90 días de Náufrago sigue en cuanto contestes sus preguntas.</span>')
-    expect(renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: conQuien, detalleInicial: true }))).not.toContain("data-destraba-entero")
-    expect(html).toContain("data-respuesta"); expect(html).toContain("Enviar respuesta"); expect(html).toContain("data-descartar-abrir")
+    expect(html).toContain("3 nuevas · 0 revisadas · 1 tiene un trabajo detenido") // 10-nov (#310 ajuste 2): Nuevas · Revisadas · Resueltas en lugar de «Esperan · Detenidas»
+    expect(html).toMatch(/data-recuadro="nuevas"[^>]*>.*?>3<\/span>.*?>Nuevas</); expect(html).toMatch(/data-recuadro="resueltas"[^>]*>.*?>—<\/span>.*?>Resueltas</); expect(html).toContain('data-detiene="true"') // estilo base: el recuadro es el filtro · 09-nov ficha única (v7): «Detiene el plan» en alarma
+    expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Departamento de Finanzas<\/span>/) // estilo base: DEPARTAMENTO / su nombre oficial (Emilio 09-nov 23:29Z), nunca «Financiero»
+    // 10-nov (Emilio, #310 ajuste 1): lo que arma el tablero va corto, «Sigue el Plan de Marketing», con el nombre propio; el entero se abre al tocar
+    expect(html).toContain('<span data-desbloquea="true"><span>Sigue el </span><span data-nombre-propio="true" class="underline decoration-linea-oro decoration-1 underline-offset-4">Plan de Marketing</span></span>')
+    expect(html).toContain("data-respuesta"); expect(html).toMatch(/data-verbo="responder"[^>]*>Responder</); expect(html).toContain('data-verbo="descartar"')
     expect(html).not.toContain("data-firmar"); expect(html).not.toContain("buzón de preguntas") // la tarjeta vieja de la pausa (Slack) no se repite
   })
   it("sin «se atienden fuera» y sin textos técnicos a la vista", () => {

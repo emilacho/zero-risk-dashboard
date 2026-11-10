@@ -91,7 +91,7 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
             {datos?.cliente && datos.publicado && !datos.campana && (
               <div data-vista="sin-campana" className="br-entra max-w-[640px] space-y-3">
                 <h3 className="text-[15px] font-medium text-zinc-100">{nombre} todavía no tiene campaña</h3>
-                <p className="text-[13px] leading-relaxed text-zinc-400">El brief se escribe después del plan de 90 días. Cuando exista la campaña, la mesa del brief sesiona y su entrega aparece aquí.</p>
+                <p /* estilo-ok: solo cambia el nombre del plan, la pantalla migra entera aparte */ className="text-[13px] leading-relaxed text-zinc-400">El brief se escribe después del Plan de Marketing. Cuando exista la campaña, la mesa del brief sesiona y su entrega aparece aquí.</p>
               </div>
             )}
             {datos?.cliente && datos.publicado && datos.campana && !briefs.length && (

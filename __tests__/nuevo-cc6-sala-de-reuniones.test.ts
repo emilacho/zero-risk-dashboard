@@ -46,7 +46,7 @@ describe("la sala de reuniones · S3", () => {
     const e = armarEscena(entrada(10, { invocaciones: analisis(), despachos: [despachoJefe("running")] }))
     const r = e.sala!.reunion!
     expect(r.estado).toBe("en_curso")
-    expect(r.titulo).toBe("Plan de 90 días · Náufrago")
+    expect(r.titulo).toBe("Plan de Marketing · Náufrago")
     expect(r.dirige).toBe("Jefe de marketing")
     expect(r.participantes).toHaveLength(6)
     expect(r.participantes[0]).toMatchObject({ agente: "jefe-marketing", cabecera: true, estado: "hablando", fase: "redacción", silla: SILLAS_DE_LA_SALA[0] })
@@ -87,8 +87,8 @@ describe("la sala de reuniones · S3", () => {
     expect(lineasDeLaSala(recien)[2]).toContain("terminó hace")
     const luego = armarEscena(entrada(19.1 + MINUTOS_CIERRE + 2, { invocaciones: filas })).sala!
     expect(luego.reunion).toBeNull()
-    expect(luego.ultima?.titulo).toBe("Plan de 90 días · Náufrago")
-    expect(lineasDeLaSala(luego)[1]).toMatch(/^sala vacía · la última, Plan de 90 días · Náufrago, terminó hace/)
+    expect(luego.ultima?.titulo).toBe("Plan de Marketing · Náufrago")
+    expect(lineasDeLaSala(luego)[1]).toMatch(/^sala vacía · la última, Plan de Marketing · Náufrago, terminó hace/)
   })
 
   it("una corrida de un solo empleado, o de los de la biblioteca del cerebro, no es reunión", () => {
@@ -126,7 +126,7 @@ describe("la sala de reuniones · S3", () => {
     expect(html).toContain("· dirige") // 02-nov: ya no hay círculo con «DIRIGE»; el nombre de quien dirige sale al pasar el cursor
     expect(html).toContain('data-habla="true"') // la que habla se ilumina
     expect(html).toContain("Ver su aporte completo") // tocar a un participante abre su aporte
-    expect(html).toContain("Plan de 90 días · Náufrago")
+    expect(html).toContain("Plan de Marketing · Náufrago")
     expect(html).toMatch(/dirige Jefe de marketing \(Dirección\)/)
     const vacia = renderToStaticMarkup(createElement(Avatares, { datosIniciales: armarEscena(entrada(60)) }))
     expect(vacia).toContain('data-sala="vacia"')

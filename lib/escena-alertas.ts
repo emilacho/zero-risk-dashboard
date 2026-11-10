@@ -22,7 +22,27 @@ export const DESTINO_DEL_AVISO = {
   fallida: "envivo", colgada: "envivo", gasto: "dinero", cerebro_alarma: "riesgos", cerebro_diario: null, pregunta: "decisiones", decision: "decisiones",
 } as const satisfies Record<string, PanelDelMarco | null>
 
-export interface AlertaDeLaAntena { clave: string; tipo: TipoDeAlerta; /** la frase, en palabras simples */ texto: string; /** cuándo pasó (ISO), para poner la más reciente arriba */ cuando: string; /** el lugar donde se resuelve, si existe */ abre: PanelDelMarco | null; /** de qué departamento sale (`departments.name`), según su dato; null = el dato no lo dice */ departamento: string | null }
+export interface AlertaDeLaAntena { clave: string; tipo: TipoDeAlerta; /** la frase, en palabras simples */ texto: string; /** cuándo pasó (ISO), para poner la más reciente arriba */ cuando: string; /** el lugar donde se resuelve, si existe */ abre: PanelDelMarco | null; /** de qué departamento sale (`departments.name`), según su dato; null = el dato no lo dice */ departamento: string | null /** 10-nov (#310 ajuste 2 · Lenovo 23:46Z) · solo las decisiones: su alerta para «✓ Revisar» (la clave que arma la plataforma y su estado) */
+  revisar?: AlertaRevisable
+  /** 10-nov · el nombre del cliente, si la fila lo trae (boceto aprobado: «Náufrago · hace 5 min · abre Decisiones») */
+  cliente?: string }
+/** la alerta de una decisión (CC1 #965): «nueva», «revisada» o null (la libreta no se pudo leer) */
+export interface AlertaRevisable { clave: string; estado: "nueva" | "revisada" | null; revisada_en?: string }
+/**
+ * 10-nov (Lenovo 23:46Z · boceto `APROBADO-alertas-un-solo-camino.png`, panel 3): la antena cuenta SOLO las Nuevas.
+ * Revisada = la plataforma lo dice o la marcaste en esta visita (`aqui`). Los demás avisos (plan fallido, colgado…) no se revisan: siempre cuentan.
+ * Sin dato de la libreta (estado null) cuenta como Nueva, igual que el panel de Decisiones (CC4 `esRevisada`): mejor avisar de más que callar.
+ */
+export const esNuevaEnLaAntena = (a: Pick<AlertaDeLaAntena, "revisar">, aqui: Record<string, string> = {}): boolean =>
+  !a.revisar || (a.revisar.estado !== "revisada" && !aqui[a.revisar.clave])
+/**
+ * 10-nov (Lenovo 00:30Z, decisión de Emilio): si alguna decisión que cuenta viene SIN estado (la libreta no se leyó), el número es «—»
+ * (el guion estándar de «sin dato», como en la ficha), no un conteo; la antena igual se prende. Sin texto «sin dato».
+ */
+export const SIN_DATO = "—"
+export const numeroDeLaAntena = (nuevas: AlertaDeLaAntena[]): number | typeof SIN_DATO =>
+  nuevas.some((a) => a.revisar && a.revisar.estado === null) ? SIN_DATO : nuevas.length
+export const nuevasDeLaAntena = (alertas: AlertaDeLaAntena[] | undefined, aqui: Record<string, string> = {}): AlertaDeLaAntena[] => (alertas ?? []).filter((a) => esNuevaEnLaAntena(a, aqui))
 
 /** la antena es del Dept. Marketing: solo entran los avisos cuyo dato dice este departamento (`departments.name`) */
 export const DEPARTAMENTO_DE_LA_ANTENA = "marketing"
@@ -147,7 +167,7 @@ export function preguntasSinResponder(e: EntradaDeAlertas): AlertaDeLaAntena[] {
  * Las preguntas al dueño (`dueno_preguntas`) no se repiten aquí: ya avisan como «pregunta» (5).
  */
 export const FUENTES_DEL_DEPARTAMENTO: readonly string[] = ["hitl_queue", "plan_aprobaciones", "cadena_campanas"]
-export interface DecisionPendiente { id: string; tipo: string; fuente: string | null; client_id: string | null; desde: string | null; /** `ficha.departamento.oficina`, si la plataforma lo manda */ oficina: string | null }
+export interface DecisionPendiente { id: string; tipo: string; fuente: string | null; client_id: string | null; desde: string | null; /** `ficha.departamento.oficina`, si la plataforma lo manda */ oficina: string | null; cliente?: string | null; /** CC1 #965 */ alerta?: AlertaRevisable | null }
 export function departamentoDeLaDecision(d: Pick<DecisionPendiente, "fuente" | "oficina">): string | null {
   if (d.fuente && FUENTES_DEL_DEPARTAMENTO.includes(d.fuente)) return DEPARTAMENTO_DE_LA_ANTENA
   return departamentoDe(d.oficina)
@@ -158,13 +178,15 @@ export function decisionesPendientes(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   return (e.decisiones ?? []).filter((d) => d.fuente !== "dueno_preguntas" && delCliente(d.client_id, e.cliente)).map((d): AlertaDeLaAntena => ({
     clave: `decision:${d.id}`, tipo: "decision", texto: `${QUE_ESPERA[d.tipo] ?? "Una decisión"} espera tu aprobación`,
     cuando: d.desde ?? e.ahora.toISOString(), abre: DESTINO_DEL_AVISO.decision, departamento: departamentoDeLaDecision(d),
+    ...(d.alerta ? { revisar: d.alerta } : {}), ...(d.cliente ? { cliente: d.cliente } : {}),
   }))
 }
 
 /** las alertas de hoy DEL DEPARTAMENTO, la más reciente arriba; sin ninguna, la antena queda apagada y sin número */
 export function armarAlertas(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   return [...fallidas(e), ...colgadas(e), ...(GASTO_RARO_EN_LA_ANTENA ? gastosRaros(e) : []), ...cerebroNoCorrio(e), ...preguntasSinResponder(e), ...decisionesPendientes(e)]
-    .filter(delDepartamento).sort((a, b) => (ms(b.cuando) ?? 0) - (ms(a.cuando) ?? 0)).slice(0, MAXIMO_DE_ALERTAS)
+    // 10-nov · las Nuevas primero (una revisada nunca deja fuera del tope a una nueva); dentro de cada grupo, la más reciente arriba
+    .filter(delDepartamento).sort((a, b) => Number(esNuevaEnLaAntena(b)) - Number(esNuevaEnLaAntena(a)) || (ms(b.cuando) ?? 0) - (ms(a.cuando) ?? 0)).slice(0, MAXIMO_DE_ALERTAS)
 }
 
 /** dónde está la antena en la foto de 2560 px (la parabólica de la plataforma de arriba a la izquierda) */

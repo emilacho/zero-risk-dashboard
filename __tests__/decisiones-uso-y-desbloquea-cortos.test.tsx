@@ -1,4 +1,7 @@
-/** 09-nov · «Uso» y «Desbloquea» con los cortos que escribe cada oficina (#957 de la plataforma, CC1). Respaldo: la primera frase entera. US$ 0 · sin red. */
+/** 09-nov · «Uso» y «Desbloquea» con los cortos que escribe cada oficina (#957 de la plataforma, CC1). US$ 0 · sin red.
+ *  10-nov · T2: la firma ya va por la ficha única (contrato v7): sin corto, el texto ENTERO; con corto, el corto al frente y el largo al tocar el bloque. */
+const texto = (h: string) => h.replace(/<[^>]+>/g, "")
+const dentro = (h: string, marca: string) => { const i = h.indexOf(marca); if (i < 0) return ""; const j = h.indexOf("</span></dd>", i); return texto(h.slice(h.indexOf(">", i) + 1, j < 0 ? undefined : j)) }
 import { describe, expect, it } from "vitest"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -38,40 +41,39 @@ describe("2 · el frente: el corto de la oficina, entero y sin «…»", () => {
   const conCortos = lista({ para_que: USO, para_que_corto: "Validar cifras", destraba: DESBLOQUEA, destraba_corto: "Solo constancia" })
   it("muestra los cortos tal cual, no la primera frase", () => {
     const h = pinta(conCortos)
-    expect(h).toContain('<span data-uso="true">Validar cifras</span>'); expect(h).toContain('<span data-destraba="true">Solo constancia</span>')
-    expect(h).not.toContain(USO); expect(h).not.toContain(DESBLOQUEA); expect(h).not.toContain("…")
+    expect(dentro(h, "data-uso=")).toBe("Validar cifras"); expect(dentro(h, "data-desbloquea=")).toBe("Solo constancia")
+    expect(texto(h).toLowerCase()).not.toContain(USO.toLowerCase()); expect(texto(h)).not.toContain(DESBLOQUEA); expect(h).not.toContain("…")
   })
-  it("el largo no se pierde: el bloque abre el detalle y ahí va entero", () => {
-    expect(pinta(conCortos)).toContain("data-contexto=") // es botón, no texto suelto
+  it("el largo no se pierde: el bloque abre y ahí va entero, en el mismo lugar", () => {
+    expect(pinta(conCortos)).toContain('data-abre-el-largo="true"') // es botón, no texto suelto
     const a = pinta(conCortos, true)
-    expect(a).toContain(`<p data-uso-entero="true" class="mt-1.5 text-dato text-hueso">${USO}</p>`)
-    expect(a).toContain(`<p data-destraba-entero="true" class="mt-1.5 text-dato text-hueso">${DESBLOQUEA}</p>`)
+    expect(dentro(a, "data-uso=").toLowerCase()).toBe(USO.toLowerCase()); expect(dentro(a, "data-desbloquea=")).toBe(DESBLOQUEA)
   })
-  it("aunque el largo sea una sola frase, con corto el largo va al detalle (el frente ya no lo dice)", () => {
+  it("aunque el largo sea una sola frase, con corto el frente dice el corto y abierto el largo", () => {
     const una = lista({ para_que: "Una frase.", para_que_corto: "Corto" })
-    expect(pinta(una)).toContain('<span data-uso="true">Corto</span>')
-    expect(pinta(una, true)).toContain('<p data-uso-entero="true" class="mt-1.5 text-dato text-hueso">Una frase.</p>')
+    expect(dentro(pinta(una), "data-uso=")).toBe("Corto")
+    expect(dentro(pinta(una, true), "data-uso=")).toBe("Una frase.")
   })
 })
 
-describe("3 · respaldo: sin corto, la primera frase entera (como hasta hoy)", () => {
-  it("solo Uso trae corto: Desbloquea cae a su primera frase", () => {
+describe("3 · sin corto, el texto entero (contrato v7: nunca se recorta)", () => {
+  it("solo Uso trae corto: Desbloquea se ve entero", () => {
     const h = pinta(lista({ para_que: USO, para_que_corto: "Validar cifras", destraba: "Sigue el plan. Después mide." }))
-    expect(h).toContain('<span data-uso="true">Validar cifras</span>'); expect(h).toContain('<span data-destraba="true">Sigue el plan.</span>')
+    expect(dentro(h, "data-uso=")).toBe("Validar cifras"); expect(dentro(h, "data-desbloquea=")).toBe("Sigue el plan. Después mide.")
   })
-  it("sin ningún corto, una frase sola es texto (sin detalle vacío)", () => {
+  it("sin ningún corto ni nada más que abrir, los bloques son texto (sin abridor)", () => {
     const h = pinta(lista({ para_que: "Una frase.", destraba: "Otra frase." }))
-    expect(h).toContain('<span data-uso="true">Una frase.</span>'); expect(h).toContain('<span data-destraba="true">Otra frase.</span>')
-    expect(h).toContain("data-contexto-solo"); expect(pinta(lista({ para_que: "Una frase.", destraba: "Otra frase." }), true)).not.toContain("data-uso-entero")
+    expect(dentro(h, "data-uso=")).toBe("Una frase."); expect(dentro(h, "data-desbloquea=")).toBe("Otra frase.")
+    expect(h).not.toContain("data-abre-el-largo")
   })
   it("el «Desbloquea» que arma el tablero (pregunta que detiene el plan) nunca toma un corto ajeno", () => {
     const d = lista({ tipo: "pregunta_al_dueno", subtipo: null, fuente: "preguntas", titulo: "¿Cuántas sedes?", permite: ["responder"], detiene: true, destraba_corto: "No es mío" })
     const h = pinta(d)
-    expect(h).not.toContain("No es mío"); expect(h).toContain("sigue en cuanto contestes sus preguntas.")
+    expect(h).not.toContain("No es mío"); expect(h).toContain("<span data-desbloquea=\"true\"><span>Sigue el </span><span data-nombre-propio=\"true\" class=\"underline decoration-linea-oro decoration-1 underline-offset-4\">Plan de Marketing</span></span>") // 10-nov (#310 ajuste 1): el corto del tablero, con el nombre propio
   })
   it("…ni aunque el corto llegue al panel sin pasar por la lectura (el panel también lo exige)", () => {
     const base = lista({ tipo: "pregunta_al_dueno", subtipo: null, fuente: "preguntas", titulo: "¿Cuántas sedes?", permite: ["responder"], detiene: true })
     const h = pinta({ ...base, decisiones: base.decisiones.map((d) => ({ ...d, destraba_corto: "No es mío" })) })
-    expect(h).not.toContain("No es mío"); expect(h).toContain("sigue en cuanto contestes sus preguntas.")
+    expect(h).not.toContain("No es mío"); expect(h).toContain("<span data-desbloquea=\"true\"><span>Sigue el </span><span data-nombre-propio=\"true\" class=\"underline decoration-linea-oro decoration-1 underline-offset-4\">Plan de Marketing</span></span>") // 10-nov (#310 ajuste 1): el corto del tablero, con el nombre propio
   })
 })

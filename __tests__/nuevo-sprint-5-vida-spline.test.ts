@@ -66,7 +66,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     expect(OVALO_SALA).toContain("radial-gradient(ellipse 40% 46% at 48.8% 40.5%")
     expect(abierta).toContain("@keyframes nvFotoBEntra{from{opacity:0}50%{opacity:0}to{opacity:1}}")
     expect(abierta).toContain("@keyframes nvFotoBSale{from{opacity:1}35%{opacity:0}to{opacity:0}}")
-    expect(abierta).toMatch(/<img[^>]*alt=""[^>]*class="nv-foto-a/); expect(abierta).toMatch(/<img[^>]*alt="El interior del departamento de marketing"[^>]*class="nv-foto-b/)
+    expect(abierta).toMatch(/<img[^>]*alt=""[^>]*class="nv-foto-a/); expect(abierta).toMatch(/<img[^>]*alt="El interior del Departamento de Marketing"[^>]*class="nv-foto-b/)
   })
   it("5.3/5.4 · al pasar por Dept. Marketing se enciende la ESTRUCTURA ENTERA con una imagen real generada (no una figura pintada); sin campo naranja ni línea dura", () => {
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
@@ -116,7 +116,7 @@ describe("dashboard nuevo · sprint 5 · vida sobre la foto con Spline (la image
     const html = renderToStaticMarkup(createElement(EscenaNuevo))
     const marca = renderToStaticMarkup(createElement(BarraSuperior))
     const logo = marca.match(/<text[^>]*>ZERO RISK<\/text>/)![0]
-    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>DEPT\. MARKETING<\/text>/)![0]
+    const rotulo = html.match(/<text class="nv-rotulo"[^>]*>DEPARTAMENTO DE MARKETING<\/text>/)![0] // 10-nov · nombre oficial (Emilio 09-nov 23:29Z)
     for (const s of [logo, rotulo]) { expect(s).toContain('fill="none"'); expect(s).toContain('stroke="#e8731a"'); expect(s).toContain('font-weight="500"'); expect(s).toContain('font-family="system-ui, Arial, sans-serif"') }
     const num = (s: string, a: string) => Number(s.match(new RegExp(`${a}="([0-9.]+)"`))![1])
     expect(num(rotulo, "letter-spacing") / num(rotulo, "font-size")).toBeCloseTo(num(logo, "letter-spacing") / num(logo, "font-size"), 3)

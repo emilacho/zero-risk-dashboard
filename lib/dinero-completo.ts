@@ -297,7 +297,7 @@ export async function leerDinero(db: SupabaseClient, extra: { saldos?: Saldo[]; 
 }
 
 /* ───────────── 6.38 · parte 3: costo por resultado, costo de rehacer, anomalías y ahorro ───────────── */
-export const PROCESO_DEL_PLAN = "Planeación del plan de 90 días"
+export const PROCESO_DEL_PLAN = "Planeación del Plan de Marketing"
 export const PROCESO_DEL_ALTA = "Alta de un cliente nuevo"
 const ES_PRUEBA = /prueba|ensayo/i
 const enRango = (x: { d: string }, r: { desde: string; hasta: string }) => x.d >= r.desde && x.d <= r.hasta
@@ -315,7 +315,7 @@ export function costoPorResultado(d: Dinero, r: { desde: string; hasta: string }
   const plan = delProceso(PROCESO_DEL_PLAN), alta = delProceso(PROCESO_DEL_ALTA)
   const versiones = d.manuales == null ? null : d.manuales.filter((x) => x >= r.desde && x <= r.hasta).length
   const out: Resultado[] = [
-    { clave: "plan", nombre: "Un plan de 90 días", ...plan, nota: plan.cuantos ? `${plan.cuantos} ${plan.cuantos === 1 ? "plan hecho" : "planes hechos"} en el período` : "ningún plan en el período" },
+    { clave: "plan", nombre: "Un Plan de Marketing", ...plan, nota: plan.cuantos ? `${plan.cuantos} ${plan.cuantos === 1 ? "plan hecho" : "planes hechos"} en el período` : "ningún plan en el período" },
     { clave: "manual", nombre: "Un manual de marca (alta de cliente)", ...alta, nota: `${alta.cuantos} ${alta.cuantos === 1 ? "alta" : "altas"}${versiones == null ? "" : ` · ${versiones} ${versiones === 1 ? "versión guardada" : "versiones guardadas"} del manual`}` },
   ]
   if (d.piezas == null) out.push({ clave: "pieza", nombre: "Una pieza aprobada", por_unidad: null, cuantos: 0, total: 0, nota: "sin dato todavía" })

@@ -36,7 +36,7 @@ describe("6.27 · 2 · nombres claros", () => {
   })
   it("los procesos conocidos llevan nombre de oficina, como pidió Emilio", () => {
     const n = new Map([["ogfq56oIEoHufFPM", CEREBRO_N8N], ["X9F0zp6LQ2xGEYVS", "Zero Risk — planeacion (esqueleto B0 · piezas se pegan en C2)"]])
-    expect(nombreDeLaCorrida("X9F0zp6LQ2xGEYVS", "210611", n)).toBe("Planeación del plan de 90 días")
+    expect(nombreDeLaCorrida("X9F0zp6LQ2xGEYVS", "210611", n)).toBe("Planeación del Plan de Marketing")
     expect(nombreDeLaCorrida("ogfq56oIEoHufFPM", "210492", n)).toBe("Cerebro · mantenimiento del portero")
     expect(nombreDeLaCorrida("cc-cerebro-fallas-y-retencion", "pasos-n-transcripcion-1793527592265")).toBe("Cerebro · fallas y retención")
     expect(nombreDeLaCorrida("cc-cerebro-nuevo-oficio", "x")).toBe("Cerebro · nuevo oficio")

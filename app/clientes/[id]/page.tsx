@@ -86,7 +86,7 @@ export default async function FichaDeClientePage({ params }: { params: Promise<{
             </ul>
           )}
         </Bloque>
-        <Bloque titulo="Plan de 90 días" id="plan">
+        <Bloque titulo="Plan de Marketing" id="plan">
           {!f.plan ? <Vacio>Sin plan.</Vacio> : (
             <>
               <dl className="grid grid-cols-2 gap-3">

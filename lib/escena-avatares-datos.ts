@@ -259,7 +259,7 @@ export async function leerLaAntena(supa: SupabaseClient, ahora: Date, clientePed
       alarmasDelCerebro: ca.map((a) => ({ clave: String(a.clave), ultima_en: s(a.ultima_en) })),
       preguntas: dp.map((p) => ({ id: String(p.id), client_id: s(p.client_id), pregunta: s(p.pregunta), estado: s(p.estado), creado_en: s(p.creado_en), oficina: s(p.oficina) })),
       corridas: [...porCorrida.values()],
-      decisiones: (dec ?? []).map((d) => ({ id: d.id, tipo: d.tipo, fuente: d.fuente, client_id: d.client_id, desde: d.desde, oficina: d.departamento_oficina ?? null })),
+      decisiones: (dec ?? []).map((d) => ({ id: d.id, tipo: d.tipo, fuente: d.fuente, client_id: d.client_id, desde: d.desde, oficina: d.departamento_oficina ?? null, cliente: d.cliente, alerta: d.alerta ?? null })),
     })
     return { alertas, decisiones: dec ? "leidas" : "sin_leer" }
   })

@@ -15,7 +15,7 @@ import { cascadaDe, costoDelPeriodo, costoPorCubeta, cubetasDe, desdeDeLaLectura
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, refresh: () => {}, back: () => {} }) }))
 
 const NAU = "0a2ffbd4-0000-4000-8000-000000000001"
-const c = (id: string, x: Record<string, unknown> = {}) => ({ workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: id, client_id: NAU, cliente: "Náufrago", inicio: "2026-11-01T17:32:00.000Z", fin: "2026-11-01T17:48:00.000Z", duracion_ms: 960000, costo_usd: 1, tokens: 0, pasos: 1, fallos: 0, estado: "completa", nombre: "Plan de 90 días · investigación, redacción y revisión", ...x })
+const c = (id: string, x: Record<string, unknown> = {}) => ({ workflow_id: "X9F0zp6LQ2xGEYVS", workflow_execution_id: id, client_id: NAU, cliente: "Náufrago", inicio: "2026-11-01T17:32:00.000Z", fin: "2026-11-01T17:48:00.000Z", duracion_ms: 960000, costo_usd: 1, tokens: 0, pasos: 1, fallos: 0, estado: "completa", nombre: "Plan de Marketing · investigación, redacción y revisión", ...x })
 const hoy = "2026-11-02"
 const v = ventanaDe("7", hoy)
 const LISTA = normalizarLista({
@@ -25,11 +25,11 @@ const LISTA = normalizarLista({
     c("plan-2", { inicio: "2026-10-30T15:00:00.000Z" }),
     c("pieza-1", { workflow_id: "pieza", nombre: "Piezas y video · Náufrago", inicio: "2026-10-30T16:00:00.000Z", duracion_ms: 12000 }),
     c("pieza-2", { workflow_id: "pieza", nombre: "Piezas y video · Náufrago", inicio: "2026-10-31T16:00:00.000Z", duracion_ms: 13000 }),
-    c("cambio-1", { workflow_id: "cambio", nombre: "Cambios al plan de 90 días · pedido del dueño", inicio: "2026-10-29T15:00:00.000Z" }),
+    c("cambio-1", { workflow_id: "cambio", nombre: "Cambios al Plan de Marketing · pedido del dueño", inicio: "2026-10-29T15:00:00.000Z" }),
     c("alta-1", { workflow_id: "LyVoKcrypS5uLyuu", nombre: "Manual de marca y alta", inicio: "2026-10-29T18:00:00.000Z", duracion_ms: 240000 }),
   ],
 })
-const m = (corrida: string, d: string, usd: number, x: Partial<Movimiento> = {}): Movimiento => ({ t: `${d}T15:00:00.000Z`, d, proveedor: "Anthropic", modelo: "claude-sonnet-4-6", empleado: "Jefe de Marketing", cliente: "Náufrago", client_id: NAU, corrida, proceso: "Plan de 90 días", usd, ...x } as Movimiento)
+const m = (corrida: string, d: string, usd: number, x: Partial<Movimiento> = {}): Movimiento => ({ t: `${d}T15:00:00.000Z`, d, proveedor: "Anthropic", modelo: "claude-sonnet-4-6", empleado: "Jefe de Marketing", cliente: "Náufrago", client_id: NAU, corrida, proceso: "Plan de Marketing", usd, ...x } as Movimiento)
 const DINERO: Dinero = {
   movimientos: [m("plan-1", "2026-11-01", 6.36), m("plan-2", "2026-10-30", 1), m("pieza-1", "2026-10-30", 4), m("pieza-2", "2026-10-31", 2.53), m("cambio-1", "2026-10-29", 1.34), m("alta-1", "2026-10-29", 1.23)],
   saldos: [], cache: null, desde: "2026-09-01T00:00:00Z", leido_en: "2026-11-02T17:00:00Z", faltan: [], topes: [], piezas: [], manuales: [], manuales_de: [],
@@ -39,7 +39,7 @@ const empleados = {
   sin_interno: [{ slug: "jefe-marketing", nombre: "Jefe de Marketing", llamadas: 2, errores: 1, mediana_ms: 680000, max_ms: 680000, usd: 2, ejecuciones: ["plan-1"], interno: false }, { slug: "video-generation", nombre: "Video generation", llamadas: 1, errores: 0, mediana_ms: 441000, max_ms: 441000, usd: 2.59, ejecuciones: ["pieza-1"], interno: false }],
 }
 const paso = (id: string, nombre: string, inicio: string, ms: number, x: Record<string, unknown> = {}) => ({ origen: "invocacion", id, agente: "a", modelo: "claude-sonnet-4-6", inicio, fin: null, duracion_ms: ms, costo_usd: 0, tokens: {}, tokens_total: 0, turnos: 1, estado: "completed", error: null, despacho: null, nombre, ...x })
-// la corrida real del Plan de 90 días del 1-nov: 5 analistas en paralelo → escribe (11 min) → revisa → corrige (2 s, error) → cierre de 0 s
+// la corrida real del Plan de Marketing del 1-nov: 5 analistas en paralelo → escribe (11 min) → revisa → corrige (2 s, error) → cierre de 0 s
 const DETALLE = normalizarDetalle({
   corrida: c("plan-1", { estado: "fallida" }),
   arbol: [{ rama: null, costo_usd: 0, pasos: [
@@ -140,12 +140,12 @@ describe("6.49 · en pantalla (la primera pantalla del boceto)", () => {
     const g = h.slice(h.indexOf("data-grupos="), h.indexOf('data-grafico-caja="demora"'))
     expect(g.match(/data-barra-largo="100"/g)).toHaveLength(1); expect(g).toContain("data-tramo-rojo"); expect(g).toContain("US$ 7,36 · 2 corridas"); expect(g).toContain(" · 1 con error")
     expect(g).toContain("data-medir-por=\"costo\""); expect(g).toContain("data-medir-por=\"corridas\""); expect(g).toContain("largo = costo · tramo rojo = corridas con error")
-    expect(g.indexOf('data-grupo="Plan de 90 días"')).toBeLessThan(g.indexOf('data-grupo="Piezas y video"'))
+    expect(g.indexOf('data-grupo="Plan de Marketing"')).toBeLessThan(g.indexOf('data-grupo="Piezas y video"'))
   }, 60000)
   it("lo que falló: una línea con el motivo y «Ver completa →»; la cascada sale de la misma lectura de sus pasos", async () => {
     const h = await render()
     const f = h.slice(h.indexOf("data-lo-que-fallo"), h.indexOf("data-grupos="))
-    expect(f).toContain("Lo que falló"); expect(f).toContain("Plan de 90 días"); expect(f).toContain("Ver completa →"); expect(f).not.toContain("data-texto-tecnico")
+    expect(f).toContain("Lo que falló"); expect(f).toContain("Plan de Marketing"); expect(f).toContain("Ver completa →"); expect(f).not.toContain("data-texto-tecnico")
     const s = readFileSync("components/nuevo/PanelObservabilidad.tsx", "utf8")
     expect(s).toContain("setCascadas((m) => new Map(m).set(c.workflow_execution_id, cascadaDe(d)))"); expect(s).toContain("<CascadaVisible c={cas} alTocar={(k) => abrirEn(c, k)} />")
   }, 60000)

@@ -49,10 +49,10 @@ export const EQUIPOS: Equipo[] = [
       area("jefatura", "Jefatura", "jefatura de marketing", "en toda la cadena", ["jefe-marketing", "spell-check-corrector", "revisor-externo-gpt"], ["Legal Compliance Checker"], "GPT opina, no vota (satélite)"),
       area("revisores", "Revisores de la jefatura", "jefatura · 3 jefes (ADR-020)", "al revisar piezas y plan", ["editor_en_jefe", "brand_strategist", "jefe_client_success"], [], "no figuran en el MAPA 01-nov; se listan por ADR-020 §16 (3 jefes Sonnet) · confirmar con Lenovo"),
     ], fuente: "MAPA 01-nov · ESTRUCTURA FINAL 1 · ADR-020 §16" },
-  { clave: "estrategia", nombre: "Estrategia", sistema: "mesa de análisis + plan · brief · calendario", descripcion: "Investiga antes del plan y escribe el plan de 90 días, el brief creativo y el calendario", etapa: "activo", bloqueo: null, color: "#e8731a",
+  { clave: "estrategia", nombre: "Estrategia", sistema: "mesa de análisis + plan · brief · calendario", descripcion: "Investiga antes del plan y escribe el Plan de Marketing, el brief creativo y el calendario", etapa: "activo", bloqueo: null, color: "#e8731a",
     areas: [
       area("investigacion", "Investigación", "mesa de análisis", "antes del plan", ["market_research_analyst", "competitive-intelligence-agent", "growth-hacker"], ["Feedback Synthesizer", "X/Twitter Intelligence Analyst"], "sus informes van al cerebro (clase informe_de_analisis) y el portero los adjunta a todo pedido"),
-      area("plan", "Plan de 90 días", "jefe-marketing escribe", "al abrir la campaña", ["jefe-marketing"]),
+      area("plan", "Plan de Marketing", "jefe-marketing escribe", "al abrir la campaña", ["jefe-marketing"]),
       area("brief", "Brief de campaña", "mesa de brief", "después del plan", ["campaign-brief-agent"], [], "la mesa del brief es una sesión en la sala de reuniones"),
       area("calendario", "Calendario", "estrategia y calendario", "con la gran idea aprobada", ["social-media-strategist"]),
     ], fuente: "MAPA 01-nov · ESTRUCTURA FINAL 2 · FIRMAS 3 y 5 (31-oct) · FIRMA 01-nov §6" },

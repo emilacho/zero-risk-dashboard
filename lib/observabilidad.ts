@@ -102,12 +102,12 @@ export const costoDeLaCorrida = (c: Corrida, porEj: Map<string, number> | null):
 export type AgruparPor = "proceso" | "cliente" | "empleado"
 export const NOMBRE_DE_AGRUPAR: Record<AgruparPor, string> = { proceso: "Proceso", cliente: "Cliente", empleado: "Empleado" }
 export interface Grupo { clave: string; nombre: string; corridas: Corrida[]; numeros: Numeros; costo: number; tendencia: number[]; llamadas?: number }
-/** el proceso de una corrida en palabras de oficina: «Plan de 90 días», «Cambios al plan», «Manual de marca»… (el nombre completo sigue en la fila) */
+/** el proceso de una corrida en palabras de oficina: «Plan de Marketing», «Cambios al plan», «Manual de marca»… (el nombre completo sigue en la fila) */
 export function procesoDe(c: Pick<Corrida, "nombre">): string {
   const n = c.nombre
   if (/^Cambios? al plan/i.test(n)) return "Cambios al plan"
   if (/^Cambios? al manual/i.test(n)) return "Cambios al manual"
-  if (/plan de 90 d[ií]as/i.test(n)) return "Plan de 90 días"
+  if (/plan de 90 d[ií]as|plan de marketing/i.test(n)) return "Plan de Marketing"
   if (/^Alta de un cliente|manual de marca|brand book/i.test(n)) return "Manual de marca y alta"
   if (/^Cerebro ·/i.test(n)) return "Mantenimiento del cerebro"
   if (/^Portero ·/i.test(n)) return "Portero del cerebro"

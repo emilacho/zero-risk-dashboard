@@ -48,7 +48,7 @@ export function nombreLimpio(n: string): string {
 }
 /** 6.27 · nombres de oficina de los procesos conocidos (Emilio: «nombres claros; el técnico solo en Metadatos») */
 export const NOMBRE_DE_OFICINA: Readonly<Record<string, string>> = {
-  X9F0zp6LQ2xGEYVS: "Planeación del plan de 90 días",
+  X9F0zp6LQ2xGEYVS: "Planeación del Plan de Marketing",
   ogfq56oIEoHufFPM: "Cerebro · mantenimiento del portero",
   EZXAFQvKZsJlvGNO: "Cerebro · ponerse al día",
   "cc-cerebro-guardar-todo-2#etiquetar": "Cerebro · guardar y etiquetar fotos",

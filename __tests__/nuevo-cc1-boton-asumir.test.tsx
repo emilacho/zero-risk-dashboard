@@ -120,11 +120,12 @@ beforeEach(() => { vi.useFakeTimers(); Element.prototype.scrollIntoView = vi.fn(
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe("la tarjeta (boceto 1 y 3)", () => {
-  it("con supuesto: PREGUNTA → SI ASUMES (el supuesto en su recuadro) → tres botones del mismo ancho, Responder (ámbar) el último", () => {
+  // 09-nov · ficha única (boceto v7 de Emilio): el supuesto va en la PROPUESTA; sin supuesto, la Propuesta muestra el guion rojo (ningún bloque se esconde)
+  it("con supuesto: el supuesto en su recuadro dentro de la Propuesta → tres botones del mismo ancho, Responder (ámbar) el último", () => {
     pintar(tablero())
     expect(tarjeta()).toBe(CON)
     expect($("[data-supuesto]")?.textContent).toBe("US$ 1.200")
-    expect($("[data-si-asumes]")).not.toBeNull(); expect($("[data-sin-supuesto]")).toBeNull()
+    expect($("[data-bloque=propuesta] [data-supuesto-recuadro]")).not.toBeNull(); expect($("[data-bloque=propuesta] [data-sin-dato]")).toBeNull()
     const acc = $("[data-decision] [data-acciones]")!
     expect(acc.className).toContain("grid-cols-3")
     expect([...acc.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Descartar", "Asumir", "Responder"])
@@ -132,10 +133,10 @@ describe("la tarjeta (boceto 1 y 3)", () => {
     expect(acc.querySelector("button:last-child")!.className).toContain("bg-ambar")
     expect(acc.querySelectorAll(".bg-ambar")).toHaveLength(1)
   })
-  it("sin supuesto: el bloque SIN SUPUESTO dice por qué, sin botón Asumir (dos botones)", () => {
+  it("sin supuesto: la Propuesta muestra el guion rojo, sin botón Asumir (dos botones)", () => {
     pintar(tablero(), { ...D, decisiones: [por(SIN)] })
-    expect($("[data-sin-supuesto]")?.textContent).toContain("La oficina no propuso un supuesto")
-    expect($("[data-asumir]")).toBeNull(); expect($("[data-si-asumes]")).toBeNull()
+    expect($("[data-bloque=propuesta] [data-sin-dato]")).not.toBeNull()
+    expect($("[data-verbo=asumir]")).toBeNull(); expect($("[data-supuesto-recuadro]")).toBeNull()
     const acc = $("[data-decision] [data-acciones]")!
     expect(acc.className).toContain("grid-cols-2"); expect(acc.querySelectorAll("button")).toHaveLength(2)
   })
@@ -152,8 +153,8 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("ajuste 4 · la llamada sale recién a los 5 s: antes, la tarjeta ya pasó a la siguiente, el contador bajó y la constancia ofrece Deshacer", async () => {
     const t = tablero()
     pintar(t)
-    const antes = $('[data-recuadro="firma"]')?.textContent ?? document.body.textContent
-    fireEvent.click($("[data-asumir]")!)
+    const antes = $('[data-recuadro="nuevas"]')?.textContent ?? document.body.textContent
+    fireEvent.click($("[data-verbo=asumir]")!)
     expect(t.asumidas()).toHaveLength(0)
     expect(tarjeta()).not.toBe(CON)
     expect($('[data-constancia="asumida"]')?.textContent).toContain("US$ 1.200, como supuesto tuyo")
@@ -170,7 +171,7 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("Deshacer dentro de los 5 s no manda nada, nunca; la pregunta vuelve al frente y la constancia se va", async () => {
     const t = tablero()
     pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(2000)
     fireEvent.click($("[data-deshacer]")!)
     await pasar(ESPERA_PARA_DESHACER_MS * 3)
@@ -180,18 +181,18 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("502 · la pregunta vuelve al frente con la línea roja fina «Sin guardar» bajo los botones; sin constancia", async () => {
     const t = tablero(() => [200, { ok: false, sale: false, texto: "No salió: sigue en tu lista.", motivo: "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo.", registro: [] }])
     pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(ESPERA_PARA_DESHACER_MS)
     expect(tarjeta()).toBe(CON)
     expect($("[data-sin-guardar]")?.textContent).toBe("Sin guardarNo se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo.")
     expect($("[data-constancia]")).toBeNull()
     expect($("[data-por-que-volvio]")).toBeNull() // no el aviso grande de arriba
-    expect($("[data-asumir]")).not.toBeNull() // se puede volver a intentar
+    expect($("[data-verbo=asumir]")).not.toBeNull() // se puede volver a intentar
   })
   it("ajuste 3 · 409 → constancia «Ya estaba cerrada» y la lista se vuelve a leer entera (no solo restar 1)", async () => {
     const t = tablero(() => [200, { ok: true, sale: true, cerrada_antes: true, texto: "Ya estaba cerrada.", registro: [] }])
     pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(ESPERA_PARA_DESHACER_MS)
     expect($('[data-constancia="cerrada"]')?.textContent).toContain("Ya estaba cerrada")
     expect(t.lecturas()).toBeGreaterThanOrEqual(1)
@@ -199,7 +200,7 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("CC6 #303 · si otro la cerró durante los 5 s (el servidor del tablero ya no la encuentra: 409 ya_no_esta), dice «Ya estaba cerrada», no «Asumida», y relee", async () => {
     const t = tablero(() => [409, { ok: false, error: "ya_no_esta", detalle: "Esta decisión ya no está pendiente: se resolvió en otro lugar." }])
     pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(ESPERA_PARA_DESHACER_MS)
     expect($('[data-constancia="cerrada"]')?.textContent).toContain("Ya estaba cerrada")
     expect($('[data-constancia="asumida"]')).toBeNull()
@@ -208,12 +209,12 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("CC6 #303 menor 1 · si la oficina retiró el supuesto, vuelve sin «Asumir», lo dice y relee la lista (reintentar fallaría siempre)", async () => {
     const t = tablero(() => [409, { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." }], { ...D, decisiones: D.decisiones.map((x) => (x.id === CON ? { ...x, supuesto: null, permite: ["responder", "descartar"] } : x)) })
     pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(ESPERA_PARA_DESHACER_MS)
     await pasar(0)
     expect(tarjeta()).toBe(CON)
     expect($("[data-sin-guardar]")?.textContent).toContain("La oficina ya no propone un supuesto")
-    expect($("[data-asumir]")).toBeNull(); expect($("[data-si-asumes]")).toBeNull()
+    expect($("[data-verbo=asumir]")).toBeNull(); expect($("[data-supuesto-recuadro]")).toBeNull()
     expect(t.lecturas()).toBeGreaterThanOrEqual(1)
   })
   it("CC6 #303 menor 1 · aunque la relectura falle, la tarjeta ya vuelve sin el supuesto viejo ni «Asumir»", async () => {
@@ -221,20 +222,20 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
       ? new Response(JSON.stringify({ ok: false, error: "accion_no_permitida", detalle: "x" }), { status: 409 })
       : new Response(JSON.stringify({ ok: false, error: "caida" }), { status: 500 }))) as unknown as typeof fetch
     render(<PanelDecisiones onCerrar={() => undefined} datosIniciales={D} fetchImpl={f} />)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(ESPERA_PARA_DESHACER_MS)
     await pasar(0)
     expect(tarjeta()).toBe(CON)
-    expect($("[data-asumir]")).toBeNull(); expect($("[data-supuesto]")).toBeNull()
+    expect($("[data-verbo=asumir]")).toBeNull(); expect($("[data-supuesto]")).toBeNull()
   })
   it("CC6 #303 · el «supuesto retirado» es solo de Asumir: un 409 accion_no_permitida al responder no quita el supuesto ni cambia el mensaje", async () => {
     const t = tablero(() => [409, { ok: false, error: "accion_no_permitida", detalle: "Esta decisión no se contesta así." }])
     pintar(t)
     fireEvent.change($("[data-respuesta]")!, { target: { value: "Unos 1.300" } })
-    fireEvent.click($("[data-enviar]")!)
+    fireEvent.click($("[data-verbo=responder]")!)
     await pasar(0)
     expect(tarjeta()).toBe(CON)
-    expect($("[data-supuesto]")?.textContent).toBe("US$ 1.200"); expect($("[data-asumir]")).not.toBeNull()
+    expect($("[data-supuesto]")?.textContent).toBe("US$ 1.200"); expect($("[data-verbo=asumir]")).not.toBeNull()
     expect(document.body.textContent).not.toContain("La oficina ya no propone un supuesto")
   })
   it("CC6 #303 menor 2 · si no se pudo, la pregunta queda al frente aunque el dueño estuviera en otra página", async () => {
@@ -244,7 +245,7 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
     pintar(t, cuatro)
     for (let k = 0; k < 3; k++) fireEvent.keyDown(window, { key: "ArrowRight" })
     expect(tarjeta()).toBe(OTRA2)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(ESPERA_PARA_DESHACER_MS)
     expect(tarjeta()).toBe(OTRA2)
     expect($("[data-sin-guardar]")).not.toBeNull()
@@ -252,16 +253,16 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("al asumir con éxito también se vuelve a leer la lista", async () => {
     const t = tablero()
     pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(ESPERA_PARA_DESHACER_MS)
     expect(t.lecturas()).toBeGreaterThanOrEqual(1)
   })
   it("ajuste 2 · una sola constancia: asumir otra suelta ya la anterior (sale su llamada) y queda solo la nueva", async () => {
     const t = tablero(undefined, sin(CON, OTRA))
     pintar(t, { ...D, decisiones: [por(CON), por(OTRA)] })
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     expect(tarjeta()).toBe(OTRA)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     await pasar(0)
     expect(t.asumidas().map((x) => x.cuerpo?.id)).toEqual([CON])
     expect(document.querySelectorAll("[data-constancia]")).toHaveLength(1)
@@ -272,10 +273,10 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("ajuste 2 · la constancia se va con tu próxima acción (responder otra), y la asumida que esperaba sale antes", async () => {
     const t = tablero((c) => (c.accion === "asumir" ? [200, { ok: true, sale: true, texto: "Asumida.", registro: [] }] : [200, { ok: true, sale: false, texto: "No salió.", motivo: "x", registro: [] }]))
     pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     expect(tarjeta()).toBe(SIN)
     fireEvent.change($("[data-respuesta]")!, { target: { value: "Doce mesas" } })
-    fireEvent.click($("[data-enviar]")!)
+    fireEvent.click($("[data-verbo=responder]")!)
     await pasar(0)
     expect(t.asumidas()).toHaveLength(1)
     expect($("[data-constancia]")).toBeNull()
@@ -283,7 +284,7 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("cerrar el panel con una asumida esperando la manda ya (solo Deshacer la anula)", async () => {
     const t = tablero()
     const r = pintar(t)
-    fireEvent.click($("[data-asumir]")!)
+    fireEvent.click($("[data-verbo=asumir]")!)
     r.unmount()
     await pasar(0)
     expect(t.asumidas()).toHaveLength(1)

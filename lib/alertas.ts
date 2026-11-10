@@ -100,5 +100,6 @@ export function cruzarVistas(altas: AlertaCruda[], vistas: Record<string, string
   return { nuevas: todas.filter(esNueva).sort(porFecha), vistas: todas.filter((a) => !esNueva(a)).sort(porFecha) }
 }
 
-/** una clave de alerta válida para marcar: una de las tres fuentes o un riesgo (Riesgos · «Visto», 06-nov), sin espacios raros, de largo razonable */
-export const claveValida = (c: unknown): c is string => typeof c === "string" && c.length <= 200 && /^(cerebro|costo|oficina|riesgo):[\w.\-:/ ]+$/.test(c)
+/** una clave de alerta válida para marcar: una de las tres fuentes, un riesgo (Riesgos · «Visto», 06-nov) o una decisión (#310 ajuste 2 · «✓ Revisar», 10-nov:
+ *  la arma la plataforma, `decision:<fuente>:<id>`, CC1 #965), sin espacios raros, de largo razonable */
+export const claveValida = (c: unknown): c is string => typeof c === "string" && c.length <= 200 && /^(cerebro|costo|oficina|riesgo|decision):[\w.\-:/ ]+$/.test(c)

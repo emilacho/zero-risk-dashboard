@@ -133,10 +133,10 @@ describe("CC4 · antena · el conjunto y lo que se ve", () => {
   it("el panel de la lista: una fila por alerta con su texto; solo es botón activo si hay dónde resolverla; la lectura de datos sigue siendo solo lectura", () => {
     const alertas = armarAlertas({ ...vacia(), plan: [plan("a", "fallida", 3)] })
     const html = renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas, onAbrir: () => undefined, onCerrar: () => undefined }))
-    expect(html).toContain("data-panel-alertas"); expect(html).toMatch(/data-numero="true" aria-label="1 aviso abierto"[^>]*>1</); expect(html).toContain("El plan falló") // 06-nov · estilo base: el número en su recuadro
+    expect(html).toContain("data-panel-alertas"); expect(html).toMatch(/data-numero="true" aria-label="1 aviso nuevo"[^>]*>1</); expect(html).toContain("El plan falló") // 06-nov · estilo base: el número en su recuadro
     expect(renderToStaticMarkup(createElement(PanelDeLasAlertas, { alertas: [], onAbrir: () => undefined, onCerrar: () => undefined }))).toContain("Todo en orden")
     const av = readFileSync("components/nuevo/escena/Avatares.tsx", "utf8")
-    expect(av).toContain("<AntenaDeAlertas alertas={datos?.alertas}"); expect(av).toContain("<PanelDeLasAlertas")
+    expect(av).toContain("<AntenaDeAlertas alertas={nuevasDeLaAntena(datos?.alertas, revisadasAqui)}"); expect(av).toContain("<PanelDeLasAlertas")
     expect(readFileSync("lib/escena-avatares-datos.ts", "utf8")).toContain("alertas: await leerAlertasDeLaAntena")
     const lector = readFileSync("lib/escena-avatares-datos.ts", "utf8").split("export async function leerAlertasDeLaAntena")[1].split("/** la vitrina")[0]
     expect(lector).not.toMatch(/\.(insert|update|upsert|delete)\(/)

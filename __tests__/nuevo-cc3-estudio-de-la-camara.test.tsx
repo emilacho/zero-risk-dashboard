@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { PanelEstudio } from "@/components/nuevo/PanelEstudio"
 import { CAMARA } from "@/components/nuevo/EscenaViva"
-import { alEstudio, PISTA_DE_TEXTO, LARGO_MAXIMO_CENTRADO, claseDelCentrado, claseDelCosto, crearCentrado, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, esAnimable, estadoDeAnimar, nombreDelMovimiento, respuestaDeAnimar, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
+import { alEstudio, PISTA_DE_TEXTO, claseDelAviso, claseDelCentrado, claseDelCosto, esAvisoDelBoton, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, esAnimable, estadoDeAnimar, nombreDelMovimiento, respuestaDeAnimar, claveNueva, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, estadoDelBoton, piezasDelCliente, rutaDeGaleria, RUTAS_DEL_ESTUDIO, tardaMasDeLoNormal, textoListo, type Catalogo, type Pieza } from "@/lib/estudio"
 import { clientesDelEstudio } from "@/lib/estudio-clientes"
 
 const CLIENTE = "a0000000-0000-4000-8000-0000000000e1"
@@ -24,8 +24,9 @@ const plataforma = (status = 200, cuerpo: unknown = { ok: true }, comoTexto = fa
 }
 
 describe("la puerta del estudio", () => {
-  it("solo 6 rutas, cada una con su método", async () => {
-    expect(Object.keys(RUTAS_DEL_ESTUDIO).sort()).toEqual(["animar", "catalogo", "cotizar", "crear", "pieza", "piezas"])
+  it("solo 9 rutas, cada una con su método (09-nov: la papelera suma 3)", async () => {
+    expect(Object.keys(RUTAS_DEL_ESTUDIO).sort()).toEqual(["animar", "catalogo", "cotizar", "crear", "mover-a-papelera", "papelera", "pieza", "piezas", "recuperar"])
+    expect([RUTAS_DEL_ESTUDIO.papelera, RUTAS_DEL_ESTUDIO["mover-a-papelera"], RUTAS_DEL_ESTUDIO.recuperar]).toEqual(["GET", "POST", "POST"])
     expect(RUTAS_DEL_ESTUDIO.animar).toBe("POST")
     const p = plataforma()
     expect((await alEstudio("../agents/run-sdk", "POST", "", "{}", { fetch: p.f, llave: "k" })).status).toBe(404)
@@ -89,7 +90,7 @@ describe("el botón Crear", () => {
 describe("el pedido", () => {
   const o = { formato: "4:5", modelo3d: "meshy-6", calidad: "alta" as const, modeloVideo: "bytedance/seedance-2.0", segundos: 8, resolucion: "1080p" }
   it("lleva solo los campos de su tipo", () => {
-    expect(cuerpoDelPedido(CLIENTE, "3d", "taza", o, null)).toEqual({ client_id: CLIENTE, tipo: "3d", prompt: "taza", modelo: "meshy-6", calidad: "alta" })
+    expect(cuerpoDelPedido(CLIENTE, "3d", "taza", o, null)).toEqual({ client_id: CLIENTE, tipo: "3d", prompt: "taza", modelo: "meshy-6", calidad: "alta", pose: "imagen" })
     expect(cuerpoDelPedido(CLIENTE, "video", "ola", o, null)).toEqual({ client_id: CLIENTE, tipo: "video", prompt: "ola", modelo: "bytedance/seedance-2.0", formato: "9:16", segundos: 8, resolucion: "1080p" })
     expect(cuerpoDelPedido(CLIENTE, "imagen", "x", { ...o, formato: "16:9" }, { pieza_id: CLIENTE })).toEqual({ client_id: CLIENTE, tipo: "imagen", prompt: "x", formato: "16:9", foto_pieza_id: CLIENTE })
   })
@@ -105,39 +106,42 @@ describe("el panel", () => {
   const catalogo = { listos: { imagen: true, video: true, "3d": true, almacen: true }, imagen: { modelo: "m", formatos: ["1:1", "9:16", "16:9"], precio: {} }, video: { modelos: [{ id: "bytedance/seedance-2.5", nombre: "Seedance 2.5" }], formatos: ["9:16"], resoluciones: ["720p"], segundos: { min: 4, max: 15 } }, "3d": { modelos: [{ id: "tripo-h3.1", nombre: "Tripo H3.1", nota: "rápido", precio: { normal: 0.3, alta: 0.4 } }], imagen_previa_usd: 0.0138 } } satisfies Catalogo
   const pieza = (x: Partial<Pieza>): Pieza => ({ id: "p1", client_id: CLIENTE, tipo: "3d", estado: "lista", paso: null, prompt: "termo", modelo: "tripo-h3.1", parametros: {}, foto_partida_url: "https://a/p.png", costo_estimado_usd: 0.3138, costo_usd: 0.31327, archivo_url: "https://a/m.glb", archivo_tipo: "glb", miniatura_url: null, aviso: null, error: null, creado_en: "2026-11-05T20:00:00Z", terminado_en: null, ...x })
   const pintar = (props: Record<string, unknown>) => renderToStaticMarkup(createElement(PanelEstudio, { onCerrar: () => undefined, catalogoInicial: catalogo, clientesIniciales: [{ id: CLIENTE, nombre: "Náufrago" }], ...props }))
-  it("abre con las tres pestañas, el texto, la imagen de partida y Crear apagado hasta cotizar", () => {
+  it("abre con las tres pestañas, el texto, «Subir» dentro de la caja y Crear apagado hasta cotizar", () => {
     const h = pintar({ piezasIniciales: [] })
     for (const t of ["imagen", "video", "3d"]) expect(h).toContain(`data-tab="${t}"`)
     expect(h).toContain("data-texto")
-    expect(h).toContain("Imagen de partida")
+    expect(h).toMatch(/data-subir="true"[^>]*>\+ Subir</)
+    expect(h).toContain("Hasta 6 imágenes · png, jpg o webp")
     expect(h).toMatch(/data-crear="true" disabled=""/)
     expect(h).toContain("Todavía no hay nada creado")
   })
-  it("en escritorio «Crear» va centrado y la pista «escribe qué quieres» no se ve (en el teléfono sigue)", () => {
+  it("decisión B (09-nov 23:50Z) · «Crear» siempre centrado; un aviso sale en una línea debajo, nunca dentro del botón", () => {
     const h = pintar({ piezasIniciales: [] })
     const boton = h.match(/<button[^>]*data-crear="true"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? ""
-    expect(boton).toMatch(/class="[^"]*\bmd:justify-center\b/)
-    const costo = boton.match(/<span data-costo="true" class="([^"]*)">([^<]*)</)
-    expect(costo?.[2]).toBe("elige el cliente")
-    expect(costo?.[1]).toBe(claseDelCosto("elige el cliente"))
-    expect(claseDelCosto("elige el cliente").split(" ")).toEqual(expect.arrayContaining(["md:absolute", "md:right-4"]))
-    expect(claseDelCosto("elige el cliente").split(" ")).not.toContain("md:hidden")
-    expect(claseDelCosto(PISTA_DE_TEXTO).split(" ")).toContain("md:hidden")
-    expect(claseDelCosto(PISTA_DE_TEXTO).split(" ")).not.toContain("hidden")
+    expect(boton).toMatch(/class="[^"]*\bjustify-center\b/)
+    expect(boton).not.toMatch(/justify-between/)
+    expect(boton).not.toContain("elige el cliente")
+    expect(boton).not.toContain("data-costo")
+    const aviso = h.match(/<p data-aviso-crear="true" class="([^"]*)">([^<]*)</)
+    expect(aviso?.[2]).toBe("elige el cliente")
+    expect(aviso?.[1]).toBe(claseDelAviso("elige el cliente"))
+    expect(claseDelAviso("elige el cliente").split(" ")).toEqual(expect.arrayContaining(["text-dato"]))
+    expect(claseDelAviso("elige el cliente").split(" ")).not.toContain("md:hidden")
+    expect(claseDelAviso(PISTA_DE_TEXTO).split(" ")).toContain("md:hidden")
+    expect(claseDelAviso(PISTA_DE_TEXTO).split(" ")).not.toContain("hidden")
     expect(estadoDelBoton({ clienteId: CLIENTE, textoListo: false, listo: true, cotizacion: null, cotizando: false, sinPrecio: null, creando: false }).costo).toBe(PISTA_DE_TEXTO)
-    // centrado: el botón es la referencia del costo a la derecha (sin «relative» el costo se va a otra esquina)
-    expect(claseDelCentrado("≈ US$ 0,31").split(" ")).toEqual(["relative", "md:justify-center"])
+    // el precio queda dentro, a la derecha; el botón es su referencia
+    expect(claseDelCentrado("≈ US$ 0,31").split(" ")).toEqual(["relative", "justify-center"])
+    expect(claseDelCosto("≈ US$ 0,31").split(" ")).toEqual(expect.arrayContaining(["absolute", "right-4", "text-dato"]))
   })
-  it("con un aviso largo «Crear» vuelve a la izquierda y el aviso no lo tapa (CC6 #304)", () => {
+  it("los 4 casos: precio y «cotizando…» van dentro; proveedor no conectado, sin precio, elige cliente y la pista van debajo", () => {
     const base = { clienteId: CLIENTE, textoListo: true, cotizacion: null, cotizando: false, creando: false }
-    for (const aviso of [estadoDelBoton({ ...base, listo: false, sinPrecio: null }).costo, estadoDelBoton({ ...base, listo: true, sinPrecio: "no_se_pudo_cotizar" }).costo]) {
-      expect(aviso.length).toBeGreaterThan(LARGO_MAXIMO_CENTRADO)
-      expect(crearCentrado(aviso)).toBe(false)
-      expect(claseDelCentrado(aviso)).toBe("")
-      expect(claseDelCosto(aviso).split(" ")).not.toEqual(expect.arrayContaining(["md:absolute"]))
-      expect(claseDelCosto(aviso).split(" ")).not.toContain("md:hidden")
-    }
-    for (const corto of ["≈ US$ 0,014", "≈ US$ 12,50", "cotizando…", "elige el cliente", PISTA_DE_TEXTO]) expect(crearCentrado(corto)).toBe(true)
+    const noConectado = estadoDelBoton({ ...base, listo: false, sinPrecio: null })
+    const sinPrecio = estadoDelBoton({ ...base, listo: true, sinPrecio: "no_se_pudo_cotizar" })
+    const eligeCliente = estadoDelBoton({ ...base, clienteId: null, listo: true, sinPrecio: null })
+    for (const b of [noConectado, sinPrecio, eligeCliente]) { expect(esAvisoDelBoton(b.costo)).toBe(true); expect(b.habilitado).toBe(false) }
+    expect(esAvisoDelBoton(PISTA_DE_TEXTO)).toBe(true)
+    for (const precio of ["≈ US$ 0,014", "≈ US$ 12,50", "cotizando…"]) expect(esAvisoDelBoton(precio)).toBe(false)
   })
   it("la galería muestra cada pieza con su tipo y su costo", () => {
     const h = pintar({ piezasIniciales: [pieza({}), pieza({ id: "p2", tipo: "video", estado: "creando", archivo_url: null })] })
@@ -166,7 +170,10 @@ describe("lo que pidió CC6 en #289", () => {
   })
   it("crear nunca sale sin clave: el panel arma el cuerpo con cuerpoDeCreacion", () => {
     expect(cuerpoDeCreacion({ tipo: "3d" }, "estudio-fija-123")).toEqual({ tipo: "3d", clave: "estudio-fija-123" })
-    expect(panel).toContain('fetchImpl("/api/estudio/crear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCreacion(pedido)) })')
+    expect(panel).toContain('fetchImpl("/api/estudio/crear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCreacion(cuerpo)) })')
+    // el cuerpo es el pedido; con varias imágenes, el mismo pedido con las subidas achicadas otra vez
+    expect(panel).toContain("let cuerpo = pedido")
+    expect(panel).toContain("cuerpo = { ...pedido, fotos }")
   })
   it("la galería se pide siempre por cliente y solo muestra lo del cliente a la vista", () => {
     expect(rutaDeGaleria(CLIENTE)).toBe(`/api/estudio/piezas?client_id=${CLIENTE}`)

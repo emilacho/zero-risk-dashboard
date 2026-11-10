@@ -202,7 +202,7 @@ describe("sprint 6.6 · el panel", () => {
   })
   it("una revisión que no es pieza lleva sus botones en palabras de negocio y va por `revision-resolver`; resuelta, solo se dice", () => {
     const plan = dibujar({ piezaInicialDatos: { ...DETALLE, id: PLAN, tipo: "plan_con_pendientes", es_pieza: false, titulo: "Plan con puntos por resolver · Náufrago", laminas: [], pie: null, avisos: [], exige_casilla: false, encargo_id: null, gasto_usd: null, version: null, jefatura: { resultado: null, desacuerdos: [], opinion_externa: null, revision_id: null } } })
-    expect(plan).toContain("Aprobar el plan así"); expect(plan).toContain("Pedir cambios al plan…"); expect(plan).toContain("También la ves en el Plan de 90 días.")
+    expect(plan).toContain("Aprobar el plan así"); expect(plan).toContain("Pedir cambios al plan…"); expect(plan).toContain("También la ves en el Plan de Marketing.")
     expect(plan).toContain('data-accion="revision-aprobar"'); expect(plan).not.toContain('data-accion="pieza-aprobar"'); expect(plan).toContain("Esta revisión no lleva láminas"); expect(plan).not.toContain("Sin dibujo"); expect(plan).not.toContain('data-bloque="jefatura"'); expect(plan).toContain("Lo que dice la bandeja")
     expect(plan).toContain(">Otras revisiones</button>"); expect(plan).toContain('data-miga="pieza"') // la ruta ubica la elegida en su carpeta
     const resuelta = dibujar({ piezaInicialDatos: { ...DETALLE, id: OTRAS[1].id, tipo: "editor_escalation", es_pieza: false, estado: "archivada", status: "rejected", laminas: [], avisos: [], exige_casilla: false } })
