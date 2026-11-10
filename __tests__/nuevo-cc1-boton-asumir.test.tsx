@@ -153,7 +153,7 @@ describe("asumir en el panel (boceto 2 y 4 + ajustes 2, 3 y 4 de CC6)", () => {
   it("ajuste 4 · la llamada sale recién a los 5 s: antes, la tarjeta ya pasó a la siguiente, el contador bajó y la constancia ofrece Deshacer", async () => {
     const t = tablero()
     pintar(t)
-    const antes = $('[data-recuadro="firma"]')?.textContent ?? document.body.textContent
+    const antes = $('[data-recuadro="nuevas"]')?.textContent ?? document.body.textContent
     fireEvent.click($("[data-verbo=asumir]")!)
     expect(t.asumidas()).toHaveLength(0)
     expect(tarjeta()).not.toBe(CON)

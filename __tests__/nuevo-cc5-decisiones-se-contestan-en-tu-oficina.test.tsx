@@ -247,8 +247,8 @@ describe("la pantalla (boceto aprobado)", () => {
   const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: conQuien })).replace(/<!-- -->/g, "")
   it("la pregunta que detiene el plan va al frente, con quién pregunta, qué se destraba, la caja y sus dos acciones", () => {
     expect(html.match(/data-decision="([^"]+)"/)![1]).toBe(P1)
-    expect(html).toContain("3 esperan por ti · 1 tiene un trabajo detenido")
-    expect(html).toMatch(/data-recuadro="detienen"[^>]*>.*?>1<\/span>.*?>Detenidas</); expect(html).toContain('data-detiene="true"') // estilo base: el recuadro es el filtro · 09-nov ficha única (v7): «Detiene el plan» en alarma
+    expect(html).toContain("3 nuevas · 0 revisadas · 1 tiene un trabajo detenido") // 10-nov (#310 ajuste 2): Nuevas · Revisadas · Resueltas en lugar de «Esperan · Detenidas»
+    expect(html).toMatch(/data-recuadro="nuevas"[^>]*>.*?>3<\/span>.*?>Nuevas</); expect(html).toMatch(/data-recuadro="resueltas"[^>]*>.*?>—<\/span>.*?>Resueltas</); expect(html).toContain('data-detiene="true"') // estilo base: el recuadro es el filtro · 09-nov ficha única (v7): «Detiene el plan» en alarma
     expect(html).toMatch(/>Departamento<\/dt><dd[^>]*><span data-departamento="true">Departamento de Finanzas<\/span>/) // estilo base: DEPARTAMENTO / su nombre oficial (Emilio 09-nov 23:29Z), nunca «Financiero»
     // 10-nov (Emilio, #310 ajuste 1): lo que arma el tablero va corto, «Sigue el Plan de Marketing», con el nombre propio; el entero se abre al tocar
     expect(html).toContain('<span data-desbloquea="true"><span>Sigue el </span><span data-nombre-propio="true" class="underline decoration-linea-oro decoration-1 underline-offset-4">Plan de Marketing</span></span>')

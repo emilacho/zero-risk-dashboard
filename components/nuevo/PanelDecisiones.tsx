@@ -8,16 +8,17 @@ import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
   TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
-  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, desbloqueaElPlan, DESBLOQUEA_EL_PLAN_CORTO, primeraFrase } from "@/lib/direccion-decisiones"
+  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, desbloqueaElPlan, DESBLOQUEA_EL_PLAN_CORTO, DIAS_DE_RESUELTAS, esRevisada, primeraFrase, type Resuelta } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
 import { FichaDeDecision } from "@/components/nuevo/FichaDeDecision"
 import { ACCION_DEL_VERBO, VERBO_DE_LA_ACCION, esPregunta, fichaDeLaPregunta, NOMBRE_DEL_DEPARTAMENTO, departamentoDeLaOficina, type ClaveDeDepartamento } from "@/lib/ficha-de-decision"
+import { BotonRevisar } from "@/components/nuevo/BotonRevisar"
 
 /**
  * TU OFICINA · DECISIONES (6.20 · la mesa del director): todo lo que espera la firma de Emilio, de cualquier departamento.
  * ESTILO BASE aprobado por Emilio el 05-nov (guía zr-vault `00-meta/ESTILO-DASHBOARD.md`, imagen `APROBADO-concepto.png`):
- *  - arriba, los recuadros con el número: ESPERAN (tu firma) y DETENIDAS (tienen un trabajo parado); lo que se atiende fuera o está en pausa, en su propio
+ *  - arriba, los recuadros con el número: NUEVAS · REVISADAS · RESUELTAS (10-nov, #310 ajuste 2; antes «Esperan · Detenidas»); lo que se atiende fuera o está en pausa, en su propio
  *    recuadro. Los recuadros SON los filtros: no hay pestañas ni índice por tipo.
  *  - una tarjeta por decisión, siempre en el mismo orden: quién (CUENTA / cliente · DEPARTAMENTO / oficina) → propuesta o pregunta → aviso → para qué →
  *    acciones (el botón principal, ámbar y único, a la derecha). Se pasa de una a otra con «‹ 1 de N ›» o las flechas del teclado.
@@ -53,9 +54,26 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
 /** 6.52 · «Zero Risk Seguridad Industrial» → «Zero Risk SI» (nombres largos en un rótulo corto) */
 export const clienteCorto = (c: string): string => { const w = c.trim().split(/\s+/); return w.length > 3 ? `${w.slice(0, 2).join(" ")} ${w.slice(2).map((x) => x[0]?.toLocaleUpperCase("es") ?? "").join("")}` : c }
 /** el grupo que se mira: lo que espera tu firma, lo que tiene un trabajo detenido, lo que se atiende fuera, o lo de un cliente en pausa */
-type Grupo = "firma" | "detienen" | "fuera" | `pausa:${string}`
+// 10-nov (#310 ajuste 2 · Emilio): un solo camino para toda alerta, Nueva → Revisada (solo con «✓ Revisar») → Resuelta (la cierra el sistema). Reemplaza «Esperan · Detenidas»
+type Grupo = "nuevas" | "revisadas" | "resueltas" | "fuera" | `pausa:${string}`
 /** 09-nov · ajuste 4 de CC6: al tocar «Asumir», la llamada sale recién pasado este tiempo; «Deshacer» en ese lapso no manda nada */
 export const ESPERA_PARA_DESHACER_MS = 5000
+
+/** 10-nov (#310 ajuste 2) · RESUELTAS: solo lectura; las cierra el sistema cuando se deciden. Sin registro, se dice (nunca «nada») */
+function ListaDeResueltas({ resueltas, completo }: { resueltas: Resuelta[] | null; completo: boolean }) {
+  if (!resueltas) return <p data-resueltas-sin-dato className="py-6 text-center text-dato text-gris">Sin dato: todavía no llega el registro de lo resuelto.</p>
+  return (
+    <div data-resueltas className="text-center">
+      <p className="mb-2 text-dato text-gris">Lo que se decidió en los últimos {DIAS_DE_RESUELTAS} días.{completo ? "" : " Puede faltar alguna: el registro vino incompleto."}</p>
+      {resueltas.length ? <ul>{resueltas.map((r) => (
+        <li key={r.id} data-resuelta={r.id} className="border-t border-linea py-3">
+          <p className="text-cuerpo text-hueso">{r.titulo}</p>
+          <p className="mt-1 text-dato text-gris">{[r.cliente, r.resuelta_en ? `resuelta ${haceCuanto(r.resuelta_en)}` : null].filter(Boolean).join(" · ")}</p>
+        </li>
+      ))}</ul> : <p className="py-4 text-dato text-gris">Nada se resolvió en estos días.</p>}
+    </div>
+  )
+}
 
 /** 04-nov · lo que pasó con una decisión que contestaste (el registro de su detalle) */
 export interface Contestada { d: Decision; resultado: ResultadoDeContestar; accion: AccionDeDecision; en: string }
@@ -271,7 +289,8 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   const [datos, setDatos] = useState<Decisiones | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
-  const [grupo, setGrupo] = useState<Grupo>("firma")
+  const [grupo, setGrupo] = useState<Grupo>("nuevas")
+  const [revisadasAqui, setRevisadasAqui] = useState<Record<string, string>>({}) // las que marcaste «✓ Revisar» en esta visita (clave → cuándo)
   const [i, setI] = useState(0)
   const [abierta, setAbierta] = useState<Decision | null>(null) // la decisión abierta en su panel
   const [contestadas, setContestadas] = useState<Contestada[]>([]) // lo que contestaste en esta visita (con su registro)
@@ -296,7 +315,9 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
 
   // 6.52 · UN SOLO NÚMERO: «esperan tu firma» (lo mismo en la oficina y en el recuadro); lo de fuera y lo de clientes en pausa, aparte
   const g = useMemo(() => gruposDeDecisiones(datos ?? { decisiones: [] }), [datos])
-  const lista = useMemo(() => (grupo === "firma" ? g.firma : grupo === "detienen" ? g.detienen : grupo === "fuera" ? g.fuera : g.pausa.find((p) => `pausa:${p.cliente}` === grupo)?.decisiones ?? []), [g, grupo])
+  const nuevas = useMemo(() => g.firma.filter((d) => !esRevisada(d, revisadasAqui)), [g, revisadasAqui])
+  const revisadas = useMemo(() => g.firma.filter((d) => esRevisada(d, revisadasAqui)), [g, revisadasAqui])
+  const lista = useMemo(() => (grupo === "nuevas" ? nuevas : grupo === "revisadas" ? revisadas : grupo === "resueltas" ? [] : grupo === "fuera" ? g.fuera : g.pausa.find((p) => `pausa:${p.cliente}` === grupo)?.decisiones ?? []), [g, grupo, nuevas, revisadas])
   const enPausa = grupo.startsWith("pausa:") ? clienteCorto(grupo.slice(6)) : null
   const n = lista.length, actual = n ? lista[Math.min(i, n - 1)] : null
   const mover = useCallback((paso: number) => setI((k) => (n ? (Math.min(k, n - 1) + paso + n) % n : 0)), [n])
@@ -403,13 +424,16 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
   }
 
   const total = g.firma.length, fuera = g.fuera.length, detienen = g.detienen.length
+  // «Resueltas»: lo del registro de la plataforma (7 días) más lo que salió en esta visita y el registro todavía no trae; sin registro, «sin dato» (nunca 0)
+  const resueltas = datos?.resueltas ? [...datos.resueltas, ...contestadas.filter((c) => c.resultado.sale && !datos.resueltas!.some((r) => r.id === c.d.id)).map((c): Resuelta => ({ id: c.d.id, titulo: tituloDeDecision(c.d), tipo: c.d.tipo, cliente: c.d.cliente, resuelta_en: c.resultado.registro.at(-1)?.cuando ?? null, resultado: null }))] : null
   const aparte = [fuera ? `${plural(fuera, "se atiende", "se atienden")} fuera de este tablero` : null, ...g.pausa.map((p) => `${p.decisiones.length} en pausa (${clienteCorto(p.cliente)})`)].filter(Boolean).map((x) => ` · ${x}`).join("")
-  const resumen = !datos ? "" : `${total ? `${plural(total, "espera", "esperan")} por ti` : "Nada espera por ti ahora"}${detienen ? ` · ${plural(detienen, "tiene un trabajo detenido", "tienen un trabajo detenido")}` : ""}${aparte}${datos.completo ? "" : " · la lista puede estar incompleta"}`
+  const resumen = !datos ? "" : `${total ? `${plural(nuevas.length, "nueva", "nuevas")} · ${plural(revisadas.length, "revisada", "revisadas")}` : "Nada espera por ti ahora"}${resueltas ? ` · ${plural(resueltas.length, "resuelta", "resueltas")} en ${DIAS_DE_RESUELTAS} días` : ""}${detienen ? ` · ${plural(detienen, "tiene un trabajo detenido", "tienen un trabajo detenido")}` : ""}${aparte}${datos.completo ? "" : " · la lista puede estar incompleta"}`
   const elegir = (x: string) => { setGrupo(x as Grupo); setI(0); setRegistro(null) }
   const cifra = (k: number) => (datos ? k : "…")
   const recuadros = [
-    { clave: "firma", numero: cifra(total), rotulo: "Esperan", activo: grupo === "firma" },
-    { clave: "detienen", numero: cifra(detienen), rotulo: "Detenidas", activo: grupo === "detienen" },
+    { clave: "nuevas", numero: cifra(nuevas.length), rotulo: "Nuevas", activo: grupo === "nuevas" },
+    { clave: "revisadas", numero: cifra(revisadas.length), rotulo: "Revisadas", activo: grupo === "revisadas" },
+    { clave: "resueltas", numero: !datos ? "…" : resueltas ? resueltas.length : "—", rotulo: "Resueltas", activo: grupo === "resueltas" },
     ...(fuera ? [{ clave: "fuera", numero: fuera, rotulo: "Fuera", activo: grupo === "fuera" }] : []),
     ...g.pausa.map((p) => ({ clave: `pausa:${p.cliente}`, numero: p.decisiones.length, rotulo: g.pausa.length > 1 ? `Pausa ${clienteCorto(p.cliente)}` : "En pausa", activo: grupo === `pausa:${p.cliente}` })),
   ]
@@ -432,14 +456,25 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
       {aviso && <p data-aviso role="status" className="mb-4 rounded-full border border-linea-oro px-4 py-2 text-center text-dato text-hueso">{aviso}</p>}
 
       {registro ? <Registro c={registro} onCerrar={() => setRegistro(null)} />
+        : grupo === "resueltas" ? <ListaDeResueltas resueltas={resueltas} completo={datos?.resueltas_completo !== false} />
         : actual ? (
           <>
+            {actual.alerta && (
+              // 10-nov (#310 ajuste 2): «✓ Revisar» lleva la decisión de Nuevas a Revisadas; abrirla no cuenta. La MISMA pieza que la antena
+              <div data-fila-revisar className="-mt-2 mb-3 flex justify-end">
+                <BotonRevisar key={actual.alerta.clave} clave={actual.alerta.clave} fetchImpl={fetchImpl}
+                  revisadaEn={revisadasAqui[actual.alerta.clave] ?? (actual.alerta.estado === "revisada" ? actual.alerta.revisada_en ?? actual.alerta.clave : null)}
+                  alRevisar={(c, en) => { setRevisadasAqui((m) => ({ ...m, [c]: en })); if (grupo === "nuevas") setAviso("La marcaste como revisada: ahora está en «Revisadas».") }} />
+              </div>
+            )}
             <TarjetaDelFrente key={actual.id} d={actual} alDecidir={setAbierta} enPausa={enPausa} detiene={g.detienen.some((x) => x.id === actual.id)} contestar={contestar} verCambio={verCambio} previa={contestadas.find((c) => c.d.id === actual.id) ?? null} detalleInicial={detalleInicial} asumir={asumir} />
             <Paginas actual={Math.min(i, n - 1) + 1} total={n} alMover={mover} etiqueta="Pasar de una decisión a otra" />
           </>
         ) : (
           <div data-vacio className="py-6 text-center">
             {cargando ? <p className="text-dato text-gris">Leyendo tus decisiones…</p>
+              : grupo === "nuevas" && revisadas.length ? <><p className="text-cuerpo font-medio text-hueso">No hay nuevas</p><p className="mt-2 text-dato text-gris">Lo que ya revisaste sigue pendiente en «Revisadas».</p></>
+              : grupo === "revisadas" ? <p className="text-dato text-gris">No has marcado ninguna como revisada.</p>
               : datos?.completo && !error ? <><p className="text-cuerpo font-medio text-hueso">Estás al día</p><p className="mt-2 text-dato text-gris">Nada espera por ti en este momento.{recuadros.length > 2 ? " Lo que se atiende fuera o está en pausa sigue en su recuadro." : ""}</p></>
                 : <p className="text-dato text-gris">No pude leer todas las fuentes: no puedo asegurarte que no haya nada pendiente.</p>}
           </div>

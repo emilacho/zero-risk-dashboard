@@ -7,6 +7,8 @@
  * Reglas del contrato: `completo: false` ⇒ nunca decir «nada pendiente»; `sin_fuente[]` se muestra como «sin dato».
  */
 
+import { claveValida } from "@/lib/alertas"
+
 export type TipoDeDecision = "plan" | "gran_idea" | "pieza" | "revision" | "pregunta_al_dueno" | "pregunta_de_finanzas" | "firma_de_finanzas"
 export const TIPOS_DE_DECISION: readonly TipoDeDecision[] = ["plan", "gran_idea", "pieza", "revision", "pregunta_al_dueno", "pregunta_de_finanzas", "firma_de_finanzas"]
 
@@ -49,7 +51,10 @@ export interface Decision {
   supuesto?: string | null
   /** el texto como lo guardó la fuente (la puerta del cerebro recibe la pregunta tal cual) */
   titulo_interno?: string | null
+  /** 10-nov (#310 ajuste 2 · CC1 #965) · la decisión como ALERTA: «nueva» o «revisada» (solo con «✓ Revisar»; abrirla no cuenta). `estado: null` = la libreta no se pudo leer */
+  alerta?: AlertaDeDecision
 }
+export interface AlertaDeDecision { clave: string; estado: "nueva" | "revisada" | null; revisada_en?: string }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
 export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null; /** 05-nov · la oficina deja cambiarla antes de firmar (hoy: la meta y el presupuesto) */ editable?: boolean }
 export type AccionDeDecision = "aceptar" | "editar" | "responder" | "asumir" | "descartar"
@@ -67,7 +72,16 @@ export interface Decisiones {
   sin_fuente: Array<{ que: string; motivo: string }>
   /** 6.52 · los clientes en pausa por decisión de Emilio (los agrega el servidor del tablero) */
   pausados?: ClienteEnPausa[]
+  /** 10-nov (#310 ajuste 2) · lo resuelto en los últimos 7 días (si la plataforma lo manda) y si ese registro vino entero */
+  resueltas?: Resuelta[]
+  resueltas_completo?: boolean
 }
+/** una decisión ya resuelta (se decidió o se arregló): la cierra el sistema, no el dueño */
+export interface Resuelta { id: string; titulo: string; tipo: string | null; cliente: string | null; resuelta_en: string | null; resultado: string | null }
+/** cuántos días mira atrás «Resueltas» (la ventana del registro de la plataforma, CC1) */
+export const DIAS_DE_RESUELTAS = 7
+/** «Nuevas · Revisadas»: una decisión es Revisada solo si su alerta lo dice (o la marcaste en esta visita). Sin dato de la libreta cuenta como Nueva: mejor avisar de más */
+export const esRevisada = (d: Pick<Decision, "alerta">, aqui: Record<string, string> = {}): boolean => !!d.alerta && (d.alerta.estado === "revisada" || !!aqui[d.alerta.clave])
 
 const txt = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null)
@@ -106,7 +120,19 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
     return que ? [{ que, motivo: motivo ?? "" }] : []
   })
   const pausados = (Array.isArray(r.pausados) ? r.pausados : []).flatMap((p) => { const o = (p && typeof p === "object" ? p : {}) as Record<string, unknown>; const cliente = txt(o.cliente); return cliente ? [{ cliente, motivo: txt(o.motivo) }] : [] })
-  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente, ...(pausados.length ? { pausados } : {}) }
+  const resueltas = leerResueltas(r.contestadas)
+  return { generado_en: txt(r.generado_en), completo: r.completo === true && descartadas === 0, total: decisiones.length, decisiones, fuentes, sin_fuente, ...(pausados.length ? { pausados } : {}),
+    ...(resueltas ? { resueltas, resueltas_completo: r.registro_completo === true } : {}) }
+}
+
+/** 10-nov (#310 ajuste 2) · RESUELTAS: lo decidido en los últimos 7 días (registro de la plataforma, `contestadas`, tope 50). Sin el campo, null: el contador dice «sin dato», nunca 0 */
+export function leerResueltas(v: unknown): Resuelta[] | null {
+  if (!Array.isArray(v)) return null
+  return v.flatMap((x) => {
+    const o = (x && typeof x === "object" ? x : {}) as Record<string, unknown>
+    const id = txt(o.id), titulo = txt(o.titulo)
+    return id && titulo ? [{ id, titulo, tipo: txt(o.tipo), cliente: txt(o.cliente), resuelta_en: txt(o.resuelta_en), resultado: txt(o.resultado) }] : []
+  })
 }
 
 /** la lectura (servidor): la ruta certificada de la plataforma con la llave interna; nunca escribe */
@@ -391,7 +417,20 @@ function contextoDeLaPlataforma(d: Record<string, unknown>): Partial<Decision> {
   if (txt(d.al_editar)) o.al_editar = txt(d.al_editar)!
   const criticos = (Array.isArray(d.criticos) ? d.criticos : []).flatMap((c) => { const t = txt(c); return t ? [t] : [] })
   if (criticos.length) o.criticos = criticos
+  const alerta = leerAlerta(d.alerta)
+  if (alerta) o.alerta = alerta
   return o
+}
+
+/** la alerta de la decisión (CC1 #965): sin una clave de decisión que la marca acepte no hay alerta (no se ofrece un «✓ Revisar» que fallaría);
+ *  un estado desconocido se lee como «no se sabe» (null), nunca como «revisada» */
+export function leerAlerta(v: unknown): AlertaDeDecision | null {
+  if (!v || typeof v !== "object") return null
+  const a = v as Record<string, unknown>
+  if (!claveValida(a.clave) || !a.clave.startsWith("decision:")) return null
+  const estado = a.estado === "nueva" || a.estado === "revisada" ? a.estado : null
+  const revisada_en = estado === "revisada" ? txt(a.revisada_en) : null
+  return { clave: a.clave, estado, ...(revisada_en ? { revisada_en } : {}) }
 }
 
 /** las que tienen un trabajo detenido: lo que la plataforma marca, y las preguntas de un cliente cuyo plan está en pausa esperando respuestas */
