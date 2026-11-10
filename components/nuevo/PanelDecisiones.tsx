@@ -7,10 +7,12 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Paginas, Pares, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
-  NOMBRE_DEL_TIPO, TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
-  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, primeraFrase } from "@/lib/direccion-decisiones"
+  TOPE_MOTIVO, TOPE_RESPUESTA, accionesDe, costoDeLaDecision, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, prioridadLegible, tituloDeDecision,
+  type AccionDeDecision, type CifraDeFirma, type Decision, type Decisiones, cifraEnRecuadro, cifrasDelFrente, decisivoCorto, desbloqueaElPlan, DESBLOQUEA_EL_PLAN_CORTO, primeraFrase } from "@/lib/direccion-decisiones"
 import type { PasoDelRegistro, ResultadoDeContestar } from "@/lib/decisiones-contestar"
 import { HORA_24 } from "@/lib/formato"
+import { FichaDeDecision } from "@/components/nuevo/FichaDeDecision"
+import { ACCION_DEL_VERBO, VERBO_DE_LA_ACCION, esPregunta, fichaDeLaPregunta, NOMBRE_DEL_DEPARTAMENTO, departamentoDeLaOficina, type ClaveDeDepartamento } from "@/lib/ficha-de-decision"
 
 /**
  * TU OFICINA · DECISIONES (6.20 · la mesa del director): todo lo que espera la firma de Emilio, de cualquier departamento.
@@ -28,17 +30,23 @@ type Respuesta = ({ ok: true } & Decisiones) | { ok: false; error: string }
 
 /** de qué parte de la empresa viene cada decisión (la tabla de origen, en palabras de negocio) */
 const ORIGEN: Record<string, string> = {
-  hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina financiera", finanzas_preguntas: "Oficina financiera",
+  hitl_queue: "Bandeja de revisión", finanzas_tableros: "Oficina Financiera", finanzas_preguntas: "Oficina Financiera",
   cerebro_dueno_preguntas: "El cerebro del cliente", dueno_preguntas: "Preguntas de las oficinas", plan_aprobaciones: "Oficina de planeación",
 }
-/** el departamento en una o dos palabras (rótulo fijo DEPARTAMENTO / valor) */
-const DEPARTAMENTO: Record<string, string> = {
-  hitl_queue: "Revisión", finanzas_tableros: "Financiero", finanzas_preguntas: "Financiero", cerebro_dueno_preguntas: "Cerebro", plan_aprobaciones: "Planeación",
+/** el departamento (rótulo fijo DEPARTAMENTO / valor): solo los nombres oficiales (Emilio 09-nov 23:29Z), nunca «Financiero» ni el nombre de un documento.
+ *  La bandeja (gran idea, piezas), el plan y las preguntas de Planeación, la Oficina Creativa o Revisión son del Departamento de Marketing */
+const DEPARTAMENTO_DE_LA_FUENTE: Record<string, ClaveDeDepartamento> = {
+  hitl_queue: "marketing", plan_aprobaciones: "marketing", finanzas_tableros: "finanzas", finanzas_preguntas: "finanzas",
+}
+const DEPARTAMENTO_DEL_TIPO: Partial<Record<Decision["tipo"], ClaveDeDepartamento>> = {
+  plan: "marketing", gran_idea: "marketing", pieza: "marketing", revision: "marketing", firma_de_finanzas: "finanzas", pregunta_de_finanzas: "finanzas",
 }
 export function departamentoDe(d: Pick<Decision, "tipo" | "fuente" | "pregunta_de">): string {
-  if (d.tipo === "firma_de_finanzas" || d.tipo === "pregunta_de_finanzas") return "Financiero"
-  if (d.pregunta_de) { const o = nombreDeOficina(d.pregunta_de.oficina).replace(/^Oficina (de |del )?/i, ""); return o === "financiera" ? "Financiero" : o.charAt(0).toLocaleUpperCase("es") + o.slice(1) }
-  return DEPARTAMENTO[d.fuente ?? ""] ?? NOMBRE_DEL_TIPO[d.tipo].nombre
+  const clave = DEPARTAMENTO_DEL_TIPO[d.tipo] ?? (d.pregunta_de ? departamentoDeLaOficina(d.pregunta_de.oficina) : null) ?? DEPARTAMENTO_DE_LA_FUENTE[d.fuente ?? ""] ?? null
+  if (clave) return NOMBRE_DEL_DEPARTAMENTO[clave]
+  // lo que no es de un departamento (el cerebro del cliente, una oficina sin departamento): su oficina tal cual, sin inventar un departamento
+  if (d.pregunta_de) { const o = nombreDeOficina(d.pregunta_de.oficina).replace(/^Oficina (de |del )?/i, ""); return o.charAt(0).toLocaleUpperCase("es") + o.slice(1) }
+  return d.fuente === "cerebro_dueno_preguntas" ? "Cerebro" : ""
 }
 const fecha = (iso: string | null) => { if (!iso) return null; const t = new Date(iso); return Number.isNaN(t.getTime()) ? null : t.toLocaleDateString("es-EC", { day: "numeric", month: "short", year: "numeric" }) }
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
@@ -114,7 +122,9 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const conAsumir = acciones.includes("asumir") && !!asumir && !!d.supuesto
   // las preguntas de las oficinas (la ruta de la plataforma): si la oficina no propuso supuesto, se dice por qué no hay «Asumir»
   const esDeLasOficinas = d.tipo === "pregunta_al_dueno" && d.fuente === "dueno_preguntas"
-  const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? `El plan de 90 días${d.cliente ? ` de ${d.cliente}` : ""} sigue en cuanto contestes sus preguntas.` : null)
+  const destraba = d.destraba ?? (d.tipo === "pregunta_al_dueno" && detiene ? desbloqueaElPlan(d.cliente) : null)
+  // 10-nov (#310 ajuste 1): el corto que manda la oficina; si el texto lo pone el tablero (el plan espera), «Sigue el Plan de Marketing»; si la oficina no mandó corto, la primera frase
+  const destrabaCorto = d.destraba ? (d.destraba_corto ?? null) : destraba ? DESBLOQUEA_EL_PLAN_CORTO : null
   const hacer = async (a: AccionDeDecision, t: { respuesta?: string; motivo?: string; cambio?: { clave: string; firmado: number } }) => { setEnviando(a); try { return await contestar(d, a, t) } finally { setEnviando(null) } }
   const contestable = acciones.length > 0
   const falta = faltaQueLeer(d)
@@ -124,7 +134,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   // CC6 #290 (e145a7c): el detalle solo existe si tiene algo que mostrar; si no, «Uso / Desbloquea» es texto, no un botón que abre una caja vacía
   // 09-nov (#957): el frente lleva el corto de la oficina; si no vino, la primera frase entera (como hasta hoy)
   const usoAlFrente = d.para_que ? (d.para_que_corto ?? primeraFrase(d.para_que)) : null
-  const destrabaAlFrente = destraba ? ((d.destraba && d.destraba_corto) || primeraFrase(destraba)) : null
+  const destrabaAlFrente = destraba ? (destrabaCorto || primeraFrase(destraba)) : null
   const usoDeMas = !!d.para_que && usoAlFrente !== d.para_que.trim()
   const destrabaDeMas = !!destraba && destrabaAlFrente !== destraba.trim()
   const hayDetalle = !!d.criticos?.length || usoDeMas || destrabaDeMas || cifrasDelDetalle.length > 0
@@ -135,6 +145,23 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
   const porQue = useRef<HTMLDivElement>(null)
   const pie = useRef<HTMLElement>(null) // Firmar no va fijo: se llega a él pasando por las cifras y por lo que sigue abierto (CC6 · #283)
   useEffect(() => { if (fallo) porQue.current?.scrollIntoView({ block: "center", behavior: "smooth" }) }, [fallo, previa?.en, cifraEnCambio])
+  // 09-nov · T1 de la ficha única (GO Lenovo, boceto v7 de Emilio): las preguntas se dibujan con la ficha; las demás siguen aquí hasta el T2
+  if (esPregunta(d)) {
+    const ficha = fichaDeLaPregunta(d, { departamento: departamentoDe(d), detiene, destraba, destrabaCorto, conAsumir, responder: acciones.includes("responder"), descartar: acciones.includes("descartar") })
+    return (
+      <FichaDeDecision ficha={ficha} enviando={enviando ? VERBO_DE_LA_ACCION[enviando] ?? null : null} textoInicial={respuesta}
+        nota={enPausa ? `${enPausa} está en pausa por tu decisión: esto no cuenta en «esperan».` : undefined}
+        alVerbo={(v, t) => { if (v === "asumir") { asumir?.(d); return } const a = ACCION_DEL_VERBO[v]; if (a) void hacer(a, v === "responder" ? { respuesta: t.texto ?? "" } : { motivo: t.motivo ?? "" }) }}
+        alIr={() => alDecidir(d)}
+        estado={{
+          arriba: fallo ? <span data-chip="volvio" className="inline-flex items-center gap-1.5"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />No salió</span> : null,
+          abajo: <>
+            {fallo && <div ref={porQue} data-por-que-volvio role="status"><Aviso rotulo="No salió">{fallo}</Aviso></div>}
+            {sinGuardar && <div data-sin-guardar role="status" className="mt-5 border-t border-linea-alarma pt-3 text-center"><Rotulo tono="alarma">Sin guardar</Rotulo><p className="mt-1 text-dato text-gris">{previa?.resultado.ya_no_se_asume ? previa.resultado.motivo : "No se pudo asumir. La pregunta sigue abierta; vuelve a intentarlo."}</p></div>}
+          </>,
+        }} />
+    )
+  }
   const estado = falta ? <span data-chip="falta">Falta información</span>
     : fallo ? <span data-chip="volvio" className="inline-flex items-center gap-1.5 text-alarma"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-alarma" />No salió</span>
     : detiene ? <span data-chip="detiene" className="inline-flex items-center gap-1.5 text-oro"><span aria-hidden className="h-[7px] w-[7px] rounded-full bg-oro" />Detiene el plan</span>
@@ -191,7 +218,7 @@ export function TarjetaDelFrente({ d, alDecidir, enPausa, detiene, contestar, ve
           {cifrasDelDetalle.length > 0 && <div><Rotulo tono="gris">Las demás cifras</Rotulo><div className="mt-2 grid grid-cols-2 gap-3">{cifrasDelDetalle.map((c) => recuadro(c, { "data-cifra-del-detalle": c.clave }))}</div></div>}
         </div>
       )}
-      {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina financiera debe mandar las cifras que propone.</Aviso></div>}
+      {falta && <div data-falta-informacion role="status"><Aviso rotulo="Nada que firmar">Falta información: la Oficina Financiera debe mandar las cifras que propone.</Aviso></div>}
       {!contestable && !falta && (
         <div className="mt-5 space-y-4">
           <Pares valor="text-dato" pares={[

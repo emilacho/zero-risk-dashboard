@@ -67,11 +67,11 @@ describe("3 · respaldo: sin corto, la primera frase entera (como hasta hoy)", (
   it("el «Desbloquea» que arma el tablero (pregunta que detiene el plan) nunca toma un corto ajeno", () => {
     const d = lista({ tipo: "pregunta_al_dueno", subtipo: null, fuente: "preguntas", titulo: "¿Cuántas sedes?", permite: ["responder"], detiene: true, destraba_corto: "No es mío" })
     const h = pinta(d)
-    expect(h).not.toContain("No es mío"); expect(h).toContain("sigue en cuanto contestes sus preguntas.")
+    expect(h).not.toContain("No es mío"); expect(h).toContain("<span data-desbloquea=\"true\"><span>Sigue el </span><span data-nombre-propio=\"true\" class=\"underline decoration-linea-oro decoration-1 underline-offset-4\">Plan de Marketing</span></span>") // 10-nov (#310 ajuste 1): el corto del tablero, con el nombre propio
   })
   it("…ni aunque el corto llegue al panel sin pasar por la lectura (el panel también lo exige)", () => {
     const base = lista({ tipo: "pregunta_al_dueno", subtipo: null, fuente: "preguntas", titulo: "¿Cuántas sedes?", permite: ["responder"], detiene: true })
     const h = pinta({ ...base, decisiones: base.decisiones.map((d) => ({ ...d, destraba_corto: "No es mío" })) })
-    expect(h).not.toContain("No es mío"); expect(h).toContain("sigue en cuanto contestes sus preguntas.")
+    expect(h).not.toContain("No es mío"); expect(h).toContain("<span data-desbloquea=\"true\"><span>Sigue el </span><span data-nombre-propio=\"true\" class=\"underline decoration-linea-oro decoration-1 underline-offset-4\">Plan de Marketing</span></span>") // 10-nov (#310 ajuste 1): el corto del tablero, con el nombre propio
   })
 })
