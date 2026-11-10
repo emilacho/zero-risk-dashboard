@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
-import { agregarImagenes, avisoDeUnaSola, diasQueQuedan, enOrden, lineaDeLoQueNoSubio, lineaDeReferencias, quitarImagen, revisarArchivos, rutaDePapelera, sePuedeQuitar, textoDeDias, MAXIMO_DE_IMAGENES, type ImagenAdjunta, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelCentrado, claseDelCosto, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { agregarImagenes, avisoDeUnaSola, diasQueQuedan, enOrden, lineaDeLoQueNoSubio, lineaDeReferencias, quitarImagen, revisarArchivos, rutaDePapelera, sePuedeQuitar, textoDeDias, MAXIMO_DE_IMAGENES, type ImagenAdjunta, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelAviso, claseDelCentrado, claseDelCosto, esAvisoDelBoton, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -469,14 +469,14 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
               </div>
             )}
             <button type="button" data-crear onClick={() => void crear()} disabled={!puedeCrear}
-              className={`mt-auto flex items-center justify-between rounded-control px-4 py-3.5 text-boton font-medio transition-opacity disabled:cursor-not-allowed ${claseDelCentrado(boton.costo)}`}
+              className={`mt-auto flex items-center rounded-control px-4 py-3.5 text-boton font-medio transition-opacity disabled:cursor-not-allowed ${claseDelCentrado(boton.costo)}`}
               style={{ background: puedeCrear ? AMBAR : "#3a2a1a", color: puedeCrear ? "#1a0d02" : "#f0a04b" }}>
               <span>{creando ? "Creando…" : "Crear"}</span>
-              {/* en escritorio «Crear» va centrado: el costo o el aviso queda a la derecha sin empujarlo, y la pista «escribe qué quieres» no se muestra */}
-              <span data-costo className={claseDelCosto(boton.costo)}>
-                {boton.costo}
-              </span>
+              {/* decisión B (09-nov 23:50Z): «Crear» siempre centrado; dentro solo el precio, a la derecha sin empujarlo */}
+              {!esAvisoDelBoton(boton.costo) && <span data-costo className={claseDelCosto(boton.costo)}>{boton.costo}</span>}
             </button>
+            {/* el aviso va en una línea debajo, en 13, donde va el desglose del costo; nunca dentro del botón */}
+            {esAvisoDelBoton(boton.costo) && <p data-aviso-crear className={claseDelAviso(boton.costo)}>{boton.costo}</p>}
             {referencias && <p data-referencias className="-mt-2 text-right text-rotulo text-apagado">{referencias}</p>}
             {cotizacion && cotizacion.partes.length > 1 && <p data-desglose className="-mt-2 text-right text-[11.5px] text-zinc-500">{cotizacion.partes.map((x) => `${x.que} ${dolares(x.usd)}`).join(" + ")}</p>}
             {error && <p role="alert" className="text-[12.5px] text-red-300">{error}</p>}
