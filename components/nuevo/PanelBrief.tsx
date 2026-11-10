@@ -115,7 +115,7 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                       <p className="whitespace-pre-wrap">{sinCodigos(brief.devolucion_texto, { fotos: datos?.fotos ?? [] })}</p>
                     </div>
                   )}
-                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave fotosConocidas={datos?.fotos ?? []} /> : <p className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
+                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave fotosConocidas={datos?.fotos ?? []} /> : <p /* estilo-ok: solo se pasan las fotos conocidas, la pantalla migra entera aparte */ className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
                 </article>
                 <aside aria-label="Lo esencial del brief" data-barra-del-brief className="space-y-3 lg:sticky lg:top-0 lg:self-start">
                   <section data-barra="estado" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
