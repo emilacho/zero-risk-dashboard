@@ -179,7 +179,8 @@ export function granIdeaDelCalendario(conceptos: Array<{ version?: unknown; esta
     const texto = nombre && frase ? `${nombre} — ${frase}` : nombre || frase
     if (texto) return { texto, nota: "" }
   }
-  if (orden.some((c) => c.estado === "lista" && (c.aprobacion == null || c.aprobacion === ""))) return { texto: null, nota: GRAN_IDEA_ESPERA }
+  // la cadena guarda «lista» + aprobacion «pendiente» al entregar (cert CC6 #327 punto 1); vacía por si acaso
+  if (orden.some((c) => c.estado === "lista" && (c.aprobacion === "pendiente" || c.aprobacion == null || c.aprobacion === ""))) return { texto: null, nota: GRAN_IDEA_ESPERA }
   return { texto: null, nota: GRAN_IDEA_NO_HAY }
 }
 

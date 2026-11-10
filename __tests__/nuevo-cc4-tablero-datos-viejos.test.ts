@@ -81,6 +81,7 @@ describe("1 · la gran idea de la cabecera del Calendario sale de la base", () =
   }
   it("una más nueva sin decidir no tapa la aprobada (la aprobada sigue siendo la vigente)", () => {
     expect(granIdeaDelCalendario([...CLIENTES[0].conceptos, { version: 5, estado: "lista", aprobacion: null, gran_idea: { nombre: "Otra", frase: "x" } }]).texto).toBe(CLIENTES[0].esperado)
+    expect(granIdeaDelCalendario([...CLIENTES[0].conceptos, { version: 5, estado: "lista", aprobacion: "pendiente", gran_idea: { nombre: "Otra", frase: "x" } }]).texto).toBe(CLIENTES[0].esperado)
   })
   it("con dos aprobadas, manda la de versión más alta (sin importar el orden en que llegan)", () => {
     const vieja = { version: 2, estado: "lista", aprobacion: "aprobado", gran_idea: { nombre: "Vieja", frase: "de la v2" } }
@@ -89,6 +90,8 @@ describe("1 · la gran idea de la cabecera del Calendario sale de la base", () =
     expect(granIdeaDelCalendario([nueva, vieja]).texto).toBe("Nueva — de la v7")
   })
   it("sin aprobada: si hay una lista sin decidir, espera tu decisión; si solo hay con cambios, sin mesa o nada, que no hay", () => {
+    // el valor REAL: al entregar, la cadena guarda estado «lista» + aprobacion «pendiente» (plataforma src/lib/cadena/mesas.ts · cert CC6 #327)
+    expect(granIdeaDelCalendario([{ version: 1, estado: "sin_mesa", aprobacion: null, gran_idea: null }, { version: 2, estado: "lista", aprobacion: "cambios", gran_idea: { nombre: "N", frase: "F" } }, { version: 3, estado: "lista", aprobacion: "pendiente", gran_idea: { nombre: "N3", frase: "F3" } }])).toEqual({ texto: null, nota: GRAN_IDEA_ESPERA })
     expect(granIdeaDelCalendario([{ version: 1, estado: "lista", aprobacion: null, gran_idea: { nombre: "N", frase: "F" } }])).toEqual({ texto: null, nota: GRAN_IDEA_ESPERA })
     expect(granIdeaDelCalendario([{ version: 1, estado: "lista", aprobacion: "cambios", gran_idea: { nombre: "N", frase: "F" } }, { version: 2, estado: "sin_mesa", aprobacion: null }])).toEqual({ texto: null, nota: GRAN_IDEA_NO_HAY })
     expect(granIdeaDelCalendario([])).toEqual({ texto: null, nota: GRAN_IDEA_NO_HAY })
