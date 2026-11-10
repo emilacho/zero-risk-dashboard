@@ -126,7 +126,7 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
       cadena_campanas: [fila],
       client_historical_outputs: [{ id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", title: "Plan de 90 dias · 2026-10-30", status: "draft", content_text: TEXTO_DEL_PLAN, content: null, provenance_tag: PROVENANCE, created_at: "2026-10-30T23:13:22Z", updated_at: null }],
       cadena_estrategias: [{ version: 1, estado: "validada", contenido: CONTENIDO, texto_md: null, costo_usd: "0.2499", creada_en: "2026-10-30T23:40:37Z" }],
-      cadena_calendario_filas: (f: string[]) => (f.some((x) => x.includes('"head":true')) ? [{ id: "a" }, { id: "b" }] : f.some((x) => x.includes("calendario_version")) ? [{ calendario_version: 1 }] : [{ id: "a" }, { id: "b" }]),
+      cadena_calendario_filas: (f: string[]) => (f.some((x) => x.includes('"head":true')) ? (f.some((x) => x.includes('"estado","esquema"')) ? [] : [{ id: "a" }, { id: "b" }]) : f.some((x) => x.includes("calendario_version")) ? [{ calendario_version: 1 }] : [{ id: "a" }, { id: "b" }]),
       cadena_esperas: (f: string[]) => (f.some((x) => x.includes('"vencida"')) ? [] : [{ objeto_tipo: "espera_video", motivo: "espera al brazo de video", vence_en: "2026-10-31T13:30:00Z", estado: "viva" }]),
       hitl_queue: [{ id: REVISION, title: "Plan con pendientes", status: "pending", decision: null, created_at: "2026-10-30T23:40:00Z", expires_at: null }],
     })

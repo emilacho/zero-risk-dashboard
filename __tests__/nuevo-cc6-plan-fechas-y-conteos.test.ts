@@ -74,12 +74,29 @@ const comun = (filas: (f: string[]) => unknown) => ({
 
 describe("3 · publicaciones: las mismas que el calendario", () => {
   it("se cuentan sobre la versión VIGENTE del calendario y sin las archivadas (antes: todas las versiones → «136» contra «0»)", async () => {
-    const b = base(comun((f) => (f.some((x) => x.includes('"head":true')) ? [{ id: "1" }, { id: "2" }, { id: "3" }] : [{ calendario_version: 4 }])))
+    // GO Lenovo 10-nov 20:30Z: de las 5 filas vigentes, 2 siguen «en el esquema» (no son publicaciones) → 3 publicaciones · 2 en esquema
+    const b = base(comun((f) => (f.some((x) => x.includes('"head":true')) ? (f.some((x) => x.includes('"estado","esquema"')) ? [{ id: "4" }, { id: "5" }] : [{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }, { id: "5" }]) : [{ calendario_version: 4 }])))
     const p = await leerPlanDelCliente(b, { cliente: C, ahora: new Date("2026-11-05T15:00:00Z") })
-    expect(p.campana).toMatchObject({ publicaciones: 3, version_calendario: 4 })
+    expect(p.campana).toMatchObject({ publicaciones: 3, en_esquema: 2, version_calendario: 4 })
     const conteo = b.registro.filter((x) => x.startsWith("cadena_calendario_filas."))
     expect(conteo).toContain('cadena_calendario_filas.eq("calendario_version",4)')
     expect(conteo).toContain('cadena_calendario_filas.is("archivada_en",null)')
+  })
+  it("las DOS cuentas (filas y «en esquema») filtran por la versión vigente, sin archivadas, sin seco y por campaña (cert CC6 #327 punto 3)", async () => {
+    // filas como las guarda la base: la base falsa aplica de verdad los filtros eq/is que recibe la consulta
+    const fila = (calendario_version: number, estado: string, extra: Record<string, unknown> = {}) => ({ campana_id: K, seco: false, archivada_en: null, calendario_version, estado, ...extra })
+    const filas = [
+      fila(4, "validada"), fila(4, "validada"), fila(4, "validada"), fila(4, "esquema"), fila(4, "esquema"),
+      fila(3, "esquema"), fila(3, "esquema"), fila(3, "esquema"), fila(3, "esquema"), // versión vieja
+      fila(4, "esquema", { archivada_en: "2026-11-01T00:00:00Z" }), fila(4, "esquema", { seco: true }), fila(4, "esquema", { campana_id: "otra" }),
+    ]
+    const aplica = (f: string[]) => filas.filter((r) => f.every((x) => {
+      const m = /^cadena_calendario_filas\.(eq|is)\((.*)\)$/.exec(x); if (!m) return true
+      const [col, val] = JSON.parse(`[${m[2]}]`) as [string, unknown]; return (r as Record<string, unknown>)[col] === val
+    }))
+    const b = base(comun((f) => (f.some((x) => x.includes('"head":true')) ? aplica(f) : [{ calendario_version: 4 }])))
+    const p = await leerPlanDelCliente(b, { cliente: C, ahora: new Date("2026-11-05T15:00:00Z") })
+    expect(p.campana).toMatchObject({ publicaciones: 3, en_esquema: 2, version_calendario: 4 })
   })
   it("sin calendario: no se cuenta nada y el panel dice «calendario: aún no armado», no 0", async () => {
     const b = base(comun(() => []))

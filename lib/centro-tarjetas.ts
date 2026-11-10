@@ -9,6 +9,7 @@
 import type { ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
 import type { Centro } from "@/lib/centro-datos"
 import type { Pizarron } from "@/lib/pizarron-datos"
+import { conteoDePublicaciones, textoDePublicaciones } from "@/lib/pizarron"
 
 export type TonoDeEstado = "oro" | "alarma" | "gris"
 export interface TarjetaDelCentro { estado: string; tono: TonoDeEstado; cantidad: string; linea: string }
@@ -45,7 +46,7 @@ function hecho(p: PasoDeCampana, datos: Pizarron, centro: Centro): boolean {
   return datos.campana?.estado === "activa" && datos.filas.length > 0
 }
 function cantidadDelPaso(p: PasoDeCampana, datos: Pizarron, centro: Centro): string {
-  if (p === "calendario") return String(datos.filas.length)
+  if (p === "calendario") return String(conteoDePublicaciones(datos.filas).publicaciones) // las filas en esquema no son publicaciones (GO Lenovo 20:30Z)
   const v = p === "brief" ? centro.brief.versiones : centro.gran_idea.versiones
   return v == null ? SIN_DATO : String(v)
 }
@@ -57,7 +58,7 @@ function tarjetaDelPaso(p: PasoDeCampana, datos: Pizarron, centro: Centro): Tarj
   if (c.estado === "cerrada" || c.estado === "reemplazada") return { estado: c.estado === "cerrada" ? "Cerrada" : "Reemplazada", tono: "gris", cantidad: cantidadDelPaso(p, datos, centro), linea: "La campaña ya no corre" }
   if (p !== "calendario" && !(p === "brief" ? centro.brief.publicado : centro.gran_idea.publicado)) return sinDato()
   const cantidad = cantidadDelPaso(p, datos, centro)
-  if (hecho(p, datos, centro)) return { estado: p === "gran_idea" ? "Aprobada" : p === "calendario" ? "Armado" : "Listo", tono: "oro", cantidad, linea: p === "calendario" ? `${datos.filas.length === 1 ? "1 publicación" : `${datos.filas.length} publicaciones`}` : act(fechaDelPaso(p, centro)) }
+  if (hecho(p, datos, centro)) return { estado: p === "gran_idea" ? "Aprobada" : p === "calendario" ? "Armado" : "Listo", tono: "oro", cantidad, linea: p === "calendario" ? textoDePublicaciones(conteoDePublicaciones(datos.filas)) ?? "0 publicaciones" : act(fechaDelPaso(p, centro)) }
   const i = PASOS_DE_CAMPANA.indexOf(p)
   const primeroQueFalta = PASOS_DE_CAMPANA.find((x) => !hecho(x, datos, centro))
   // un paso después del que falta espera al anterior, aunque la campaña esté detenida

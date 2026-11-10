@@ -5,7 +5,7 @@ import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
-import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, type FilaDelTablero } from "@/lib/pizarron"
+import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, conteoDePublicaciones, textoDePublicaciones, type FilaDelTablero } from "@/lib/pizarron"
 import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible } from "@/lib/lenguaje"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDeFila } from "@/lib/kanban"
@@ -131,7 +131,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <h3 className="text-[17px] font-medium text-zinc-50">Campaña de {datos.cliente?.nombre}</h3>
                     <span className="text-[13.5px] text-zinc-300">{estadoDeCampanaLegible(datos.campana.estado)}{datos.campana.desde ? ` · ${diaDelCalendario(datos.campana.desde)}` : ""}{datos.campana.hasta ? ` → ${diaDelCalendario(datos.campana.hasta)}` : ""}</span>
-                    <span className="text-[13.5px] text-zinc-400">{datos.filas.length} publicaciones{datos.campana.del_plan_anterior ? " · del plan anterior" : ""}</span>
+                    <span /* estilo-ok: solo cambia la cuenta de publicaciones, la pantalla migra entera aparte */ className="text-[13.5px] text-zinc-400">{textoDePublicaciones(conteoDePublicaciones(datos.filas)) ?? "Sin publicaciones todavía"}{datos.campana.del_plan_anterior ? " · del plan anterior" : ""}</span>
                   </div>
                   {datos.campana.del_plan_anterior && <p data-calendario-anterior className="mt-2 text-[12.5px] text-amber-200/90">Este calendario se armó con el plan anterior; el plan vigente todavía no lo reemplaza.</p>}
                   <p className="mt-2 text-[14.5px]"><span className="text-zinc-400">Gran idea · </span>{datos.gran_idea.texto ? <span className="text-zinc-100">{datos.gran_idea.texto}</span> : <span className="italic text-zinc-400">{datos.gran_idea.nota}</span>}</p>
@@ -237,7 +237,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
               <div className="min-h-0 flex-1 space-y-3 px-4 py-4 lg:overflow-y-auto">
                 <section data-barra="semana" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
                   <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-amber-300">{semanaVista ? `Semana ${datos.semanas.indexOf(semanaVista) + 1} · ${diaDelCalendario(semanaVista.desde)} – ${diaDelCalendario(semanaVista.hasta)}` : "Semana"}</p>
-                  <p className="text-[14px] leading-snug text-zinc-100">{resumen.total === 1 ? "1 publicación" : `${resumen.total} publicaciones`}{resumen.partes.length ? ` · ${resumen.partes.join(" · ")}` : ""}</p>
+                  <p /* estilo-ok: solo cambia la cuenta de publicaciones, la pantalla migra entera aparte */ className="text-[14px] leading-snug text-zinc-100">{textoDePublicaciones({ publicaciones: resumen.total, en_esquema: resumen.en_esquema }) ?? "0 publicaciones"}{resumen.partes.length ? ` · ${resumen.partes.join(" · ")}` : ""}</p>
                 </section>
                 <section data-barra="fase" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
                   <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] text-amber-300">Fase</p>

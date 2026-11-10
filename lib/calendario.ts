@@ -3,7 +3,7 @@
  * palabras cortas, y una barra fija con el resumen de la semana, la fase y lo que te toca. Solo lectura: el calendario no se firma.
  */
 import type { FilaDelTablero, SemanaDelTablero } from "@/lib/pizarron"
-import { nombreDelEstado } from "@/lib/pizarron"
+import { esFilaEnEsquema, nombreDelEstado } from "@/lib/pizarron"
 
 /** el estado de la fila en pocas palabras (para la etiqueta de cada publicación) */
 const CORTO_DE_LA_FILA: Record<string, string> = {
@@ -36,11 +36,13 @@ export function semanaInicial(semanas: SemanaDelTablero[], hoy: string): number 
 }
 
 /** el resumen de una semana: cuántas publicaciones y cuántas en cada estado, en el orden en que aparecen («20 publicaciones · se investiga un dato ×7 · validada ×6») */
-export function resumenDeLaSemana(s: SemanaDelTablero | undefined): { total: number; partes: string[] } {
-  const filas = (s?.dias ?? []).flatMap((d) => d.publicaciones)
+// GO Lenovo 10-nov 20:30Z (punto 4): las filas en esquema no son publicaciones: `total` las deja fuera y van aparte en `en_esquema` (no se repiten en `partes`)
+export function resumenDeLaSemana(s: SemanaDelTablero | undefined): { total: number; en_esquema: number; partes: string[] } {
+  const todas = (s?.dias ?? []).flatMap((d) => d.publicaciones)
+  const filas = todas.filter((f) => !esFilaEnEsquema(f.estado_fila))
   const cuenta = new Map<string, number>()
   for (const f of filas) { const e = estadoCortoDeLaPublicacion(f); cuenta.set(e, (cuenta.get(e) ?? 0) + 1) }
-  return { total: filas.length, partes: [...cuenta.entries()].sort((a, b) => b[1] - a[1]).map(([e, n]) => (n > 1 ? `${e} ×${n}` : e)) }
+  return { total: filas.length, en_esquema: todas.length - filas.length, partes: [...cuenta.entries()].sort((a, b) => b[1] - a[1]).map(([e, n]) => (n > 1 ? `${e} ×${n}` : e)) }
 }
 
 /** lo que te toca en el calendario: nada se firma aquí; si hay piezas en tu bandeja, se abren desde su publicación */

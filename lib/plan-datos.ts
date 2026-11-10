@@ -38,7 +38,10 @@ export interface PlanDelCliente {
     /** si la oficina produce las piezas sola cuando el calendario las pide */
     autoproducir: boolean
     /** CC6 · 03-nov (auditoría 6): las del calendario VIGENTE (última versión, sin archivadas), igual que el calendario; sin calendario, `version_calendario` es null */
-    publicaciones: number; version_calendario: number | null; creada_en: string | null; actualizada_en: string | null
+    publicaciones: number; version_calendario: number | null
+    /** GO Lenovo 10-nov 20:30Z: de esas filas, cuántas siguen «en el esquema» (no son publicaciones todavía) */
+    en_esquema?: number
+    creada_en: string | null; actualizada_en: string | null
     /** la campaña (su estrategia y su calendario) se armó con un plan que ya no es el vigente: el plan nuevo todavía no la reemplaza */
     del_plan_anterior?: boolean
   }
@@ -224,7 +227,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
   // la versión vigente del calendario primero: las publicaciones se cuentan sobre ELLA (antes se sumaban todas las versiones y las archivadas: «136» contra «0» del calendario)
   const ultimaVersion = await una(supa.from("cadena_calendario_filas").select("calendario_version").eq("campana_id", campId).eq("seco", false).order("calendario_version", { ascending: false }).limit(1).maybeSingle(), "cadena_calendario_filas")
   const versionVigente = ultimaVersion?.calendario_version == null ? null : Number(ultimaVersion.calendario_version)
-  const [d, est, nFilas, esperas, ciclo, topes, yaVencidas] = await Promise.all([
+  const [d, est, nFilas, esperas, ciclo, topes, yaVencidas, nEsquema] = await Promise.all([
     docP,
     una(supa.from("cadena_estrategias").select("version, estado, contenido, texto_md, costo_usd, creada_en").eq("campana_id", campId).eq("seco", false).order("version", { ascending: false }).limit(1).maybeSingle(), "cadena_estrategias"),
     versionVigente == null ? Promise.resolve(0) : contar(supa.from("cadena_calendario_filas").select("*", { count: "exact", head: true }).eq("campana_id", campId).eq("seco", false).eq("calendario_version", versionVigente).is("archivada_en", null), "cadena_calendario_filas"),
@@ -232,6 +235,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
     cicloP,
     topesP,
     filas(supa.from("cadena_esperas").select("objeto_tipo, motivo, vence_en, estado").eq("campana_id", campId).eq("estado", "vencida").eq("seco", false).order("vence_en", { ascending: false }).limit(100), "cadena_esperas"),
+    versionVigente == null ? Promise.resolve(0) : contar(supa.from("cadena_calendario_filas").select("*", { count: "exact", head: true }).eq("campana_id", campId).eq("seco", false).eq("calendario_version", versionVigente).is("archivada_en", null).eq("estado", "esquema"), "cadena_calendario_filas"),
   ])
   const estrategia = est ? { version: est.version == null ? null : Number(est.version), estado: String(est.estado ?? ""), creada_en: t(est.creada_en), costo_usd: est.costo_usd == null ? null : Number(est.costo_usd), texto_md: t(est.texto_md), ...estrategiaDelContenido(est.contenido) } : null
   const desde = t(camp.fecha_inicio)
@@ -244,7 +248,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
       sedes: Array.isArray(camp.sedes) ? camp.sedes.map(String) : [],
       tope_planeacion_usd: camp.presupuesto_planificacion_usd == null ? null : Number(camp.presupuesto_planificacion_usd),
       autoproducir: camp.autoproducir === true,
-      publicaciones: nFilas, version_calendario: versionVigente,
+      publicaciones: nFilas - nEsquema, en_esquema: nEsquema, version_calendario: versionVigente,
       creada_en: t(camp.creada_en), actualizada_en: t(camp.actualizada_en),
       // la campaña apunta a un plan (`plan_id`); si el documento vigente es otro, lo que cuelga de la campaña es del plan anterior
       del_plan_anterior: !!(d && t(camp.plan_id) && String(d.id) !== t(camp.plan_id)),
