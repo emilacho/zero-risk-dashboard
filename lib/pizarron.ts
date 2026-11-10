@@ -151,6 +151,38 @@ export function semanasDelTablero(filas: FilaDelTablero[]): SemanaDelTablero[] {
   return semanas
 }
 
+/** GO Lenovo 10-nov 20:30Z (punto 4): una fila «en el esquema» (las tandas que todavía no se desarrollan) NO es una publicación. UNA sola cuenta para
+ *  el Calendario, el Centro, Aplicaciones y el Plan: las publicaciones de verdad y, aparte, cuántas filas siguen en esquema */
+export const esFilaEnEsquema = (estado_fila: string | null | undefined): boolean => String(estado_fila ?? "") === "esquema"
+export function conteoDePublicaciones(filas: Array<{ estado_fila: string }>): { publicaciones: number; en_esquema: number } {
+  const en_esquema = filas.filter((f) => esFilaEnEsquema(f.estado_fila)).length
+  return { publicaciones: filas.length - en_esquema, en_esquema }
+}
+/** «56 publicaciones · 56 en esquema» · «1 publicación» · «Sin publicaciones todavía · 28 en esquema»; sin filas, null (cada panel dice lo suyo) */
+export function textoDePublicaciones(c: { publicaciones: number; en_esquema: number }): string | null {
+  if (c.publicaciones + c.en_esquema === 0) return null
+  const pub = c.publicaciones === 0 ? "Sin publicaciones todavía" : c.publicaciones === 1 ? "1 publicación" : `${c.publicaciones} publicaciones`
+  return c.en_esquema ? `${pub} · ${c.en_esquema} en esquema` : pub
+}
+
+/** GO Lenovo 10-nov 20:30Z (punto 1): la gran idea de la cabecera del Calendario sale de `cadena_conceptos` de la campaña: la ÚLTIMA versión aprobada
+ *  (nombre — frase, sin las marcas de formato que a veces deja el agente); sin aprobada, si hay una lista sin decidir, que espera tu decisión; si no, que no hay */
+export const GRAN_IDEA_NO_HAY = "Todavía no hay gran idea para esta campaña."
+export const GRAN_IDEA_ESPERA = "La gran idea está esperando tu decisión."
+const sinMarcas = (s: unknown): string => String(s ?? "").replace(/[*_]+/g, "").replace(/\s+/g, " ").trim()
+export function granIdeaDelCalendario(conceptos: Array<{ version?: unknown; estado?: unknown; aprobacion?: unknown; gran_idea?: unknown }>): { texto: string | null; nota: string } {
+  const orden = [...conceptos].sort((a, b) => Number(b.version ?? 0) - Number(a.version ?? 0))
+  const aprobada = orden.find((c) => c.aprobacion === "aprobado")
+  if (aprobada) {
+    const g = (aprobada.gran_idea ?? null) as { nombre?: unknown; frase?: unknown } | null
+    const nombre = sinMarcas(g?.nombre), frase = sinMarcas(g?.frase)
+    const texto = nombre && frase ? `${nombre} — ${frase}` : nombre || frase
+    if (texto) return { texto, nota: "" }
+  }
+  if (orden.some((c) => c.estado === "lista" && (c.aprobacion == null || c.aprobacion === ""))) return { texto: null, nota: GRAN_IDEA_ESPERA }
+  return { texto: null, nota: GRAN_IDEA_NO_HAY }
+}
+
 /** cuántas publicaciones hay en cada estado (para la leyenda y el resumen) */
 export function totalesDelTablero(filas: FilaDelTablero[]): Partial<Record<EstadoDelTablero, number>> {
   const t: Partial<Record<EstadoDelTablero, number>> = {}

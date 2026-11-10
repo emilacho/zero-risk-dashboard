@@ -13,7 +13,7 @@ import { estadoDeLaPieza } from "@/lib/piezas"
 import { versionDelTag } from "@/lib/plan"
 import { leerPlanDelCliente } from "@/lib/plan-datos"
 import { momentoDeLaCampana } from "@/lib/escena-avatares"
-import { estadoDelTablero, faseActiva, hoyEnEcuador, semanasDelTablero, totalesDelTablero, type EncargoDelTablero, type FaseActiva, type FilaDelTablero, type PiezaDelTablero, type RevisionDelTablero, type SemanaDelTablero, type EstadoDelTablero } from "@/lib/pizarron"
+import { estadoDelTablero, granIdeaDelCalendario, GRAN_IDEA_NO_HAY, faseActiva, hoyEnEcuador, semanasDelTablero, totalesDelTablero, type EncargoDelTablero, type FaseActiva, type FilaDelTablero, type PiezaDelTablero, type RevisionDelTablero, type SemanaDelTablero, type EstadoDelTablero } from "@/lib/pizarron"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -72,11 +72,12 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   const planes = await filas(supa.from("client_historical_outputs").select("id, status, provenance_tag").eq("client_id", cliente.id).eq("output_type", "campaign_plan_90d").order("created_at", { ascending: false }).limit(40), "client_historical_outputs")
   const vigente = planes.find((p) => p.status !== "rejected" && versionDelTag(p.provenance_tag).vigente)
   const delPlanAnterior = !!(vigente && camp.plan_id && String(vigente.id) !== String(camp.plan_id))
-  const [est, ultimaVersion, esperas, encargos] = await Promise.all([
+  const [est, ultimaVersion, esperas, encargos, conceptos] = await Promise.all([
     una(supa.from("cadena_estrategias").select("version, contenido").eq("campana_id", campId).eq("seco", false).order("version", { ascending: false }).limit(1).maybeSingle(), "cadena_estrategias"),
     una(supa.from("cadena_calendario_filas").select("calendario_version").eq("campana_id", campId).eq("seco", false).order("calendario_version", { ascending: false }).limit(1).maybeSingle(), "cadena_calendario_filas"),
     filas(supa.from("cadena_esperas").select("motivo, vence_en").eq("campana_id", campId).eq("estado", "viva").eq("seco", false).order("vence_en", { ascending: true }).limit(20), "cadena_esperas"),
     filas(supa.from("oficina_encargos").select("id, brief_id, familia, estado, hitl_queue_id, sala_ref, gasto_usd, creado_en").eq("client_id", cliente.id).eq("dry_run", false).order("creado_en", { ascending: false }).limit(500), "oficina_encargos"),
+    filas(supa.from("cadena_conceptos").select("version, estado, aprobacion, gran_idea:leido->gran_idea").eq("campana_id", campId).eq("seco", false).order("version", { ascending: false }).limit(50), "cadena_conceptos"),
   ])
   const version = ultimaVersion ? Number(ultimaVersion.calendario_version) : null
   const crudas = version == null ? [] : await filas(
@@ -134,11 +135,11 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
     clientes, cliente,
     campana: { id: campId, estado: String(camp.estado ?? ""), desde: camp.fecha_inicio ? String(camp.fecha_inicio) : null, hasta: camp.fecha_fin ? String(camp.fecha_fin) : null, version_calendario: version, version_estrategia: est ? Number(est.version) : null, del_plan_anterior: delPlanAnterior, momento_del_plan: momentoDelPlan },
     fases, fase_activa: faseActiva(fases, camp.fecha_inicio ? String(camp.fecha_inicio) : null, hoy),
-    gran_idea: GRAN_IDEA_SIN_TABLA,
+    gran_idea: granIdeaDelCalendario(conceptos),
     esperas: esperas.map((e) => ({ motivo: String(e.motivo ?? ""), vence_en: e.vence_en ? String(e.vence_en) : null })),
     filas: vivas, semanas: semanasDelTablero(vivas), totales: totalesDelTablero(vivas), archivo, hoy, leido_en: ahora.toISOString(),
   }
 }
 
 // 03-nov · sin frases internas («diseñada, no construida») a la vista
-export const GRAN_IDEA_SIN_TABLA = { texto: null, nota: "Todavía no hay gran idea para esta campaña." } as const
+export const GRAN_IDEA_SIN_TABLA = { texto: null, nota: GRAN_IDEA_NO_HAY } as const

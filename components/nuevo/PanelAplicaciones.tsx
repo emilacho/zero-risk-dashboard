@@ -4,6 +4,7 @@ import { PLAN_ESPERA_EL_MANUAL } from "@/lib/manual-primero"
 import { clienteRecordadoEn, guardarClienteDeTrabajo, leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { Pizarron } from "@/lib/pizarron-datos"
+import { conteoDePublicaciones, textoDePublicaciones } from "@/lib/pizarron"
 import { APLICACIONES, type ClaveDeAplicacion } from "@/lib/aplicaciones-marketing"
 import { PanelPizarron, textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { PanelManual } from "@/components/nuevo/PanelManual"
@@ -56,7 +57,7 @@ export function detalleDelCuadro(clave: ClaveDeAplicacion, datos: Pizarron | nul
     return { texto: PLAN_ESPERA_EL_MANUAL, aviso: true }
   }
   if (clave === "plan") return { texto: datos.campana ? textoDeLaFase(datos) : "Sin campaña todavía", aviso: false }
-  if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${datos.filas.length} publicaciones${datos.campana.del_plan_anterior ? " · del plan anterior" : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }
+  if (clave === "calendario") return { texto: datos.campana ? (datos.filas.length ? `${textoDePublicaciones(conteoDePublicaciones(datos.filas))}${datos.campana.del_plan_anterior ? " · del plan anterior" : ""}` : "La campaña todavía no tiene publicaciones") : "Sin campaña todavía", aviso: false }
   if (clave === "piezas") {
     // las piezas del calendario de un plan anterior no esperan nada: ese plan ya no es el vigente
     if (datos.campana?.del_plan_anterior) return { texto: "Nada por aprobar del plan vigente", aviso: false }

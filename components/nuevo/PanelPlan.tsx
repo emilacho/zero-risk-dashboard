@@ -297,7 +297,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 {c && (
                   <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-3">
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Sedes</dt><dd className="text-zinc-200">{c.sedes.length ? c.sedes.map(sedeLegible).join(" · ") : "—"}</dd></div>
-                    <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Publicaciones</dt><dd data-publicaciones className="text-zinc-200">{c.version_calendario == null ? "calendario: aún no armado" : `${c.publicaciones}${c.del_plan_anterior ? " · del plan anterior" : ""}`}</dd></div>
+                    <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Publicaciones</dt><dd data-publicaciones className="text-zinc-200">{c.version_calendario == null ? "calendario: aún no armado" : `${c.publicaciones}${c.en_esquema ? ` · ${c.en_esquema} en esquema` : ""}${c.del_plan_anterior ? " · del plan anterior" : ""}`}</dd></div>
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Producción</dt><dd className="text-zinc-200">{c.autoproducir ? "la oficina produce sola" : "cada pieza se pide"}</dd></div>
                   </dl>
                 )}

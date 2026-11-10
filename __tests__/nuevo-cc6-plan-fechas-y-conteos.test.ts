@@ -74,9 +74,10 @@ const comun = (filas: (f: string[]) => unknown) => ({
 
 describe("3 · publicaciones: las mismas que el calendario", () => {
   it("se cuentan sobre la versión VIGENTE del calendario y sin las archivadas (antes: todas las versiones → «136» contra «0»)", async () => {
-    const b = base(comun((f) => (f.some((x) => x.includes('"head":true')) ? [{ id: "1" }, { id: "2" }, { id: "3" }] : [{ calendario_version: 4 }])))
+    // GO Lenovo 10-nov 20:30Z: de las 5 filas vigentes, 2 siguen «en el esquema» (no son publicaciones) → 3 publicaciones · 2 en esquema
+    const b = base(comun((f) => (f.some((x) => x.includes('"head":true')) ? (f.some((x) => x.includes('"estado","esquema"')) ? [{ id: "4" }, { id: "5" }] : [{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }, { id: "5" }]) : [{ calendario_version: 4 }])))
     const p = await leerPlanDelCliente(b, { cliente: C, ahora: new Date("2026-11-05T15:00:00Z") })
-    expect(p.campana).toMatchObject({ publicaciones: 3, version_calendario: 4 })
+    expect(p.campana).toMatchObject({ publicaciones: 3, en_esquema: 2, version_calendario: 4 })
     const conteo = b.registro.filter((x) => x.startsWith("cadena_calendario_filas."))
     expect(conteo).toContain('cadena_calendario_filas.eq("calendario_version",4)')
     expect(conteo).toContain('cadena_calendario_filas.is("archivada_en",null)')
