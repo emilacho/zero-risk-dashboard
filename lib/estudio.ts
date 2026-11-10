@@ -148,6 +148,9 @@ export type Pose = "imagen" | "animar"
 export const MODELO_CON_POSE = "meshy-6"
 export const NOMBRE_DE_LA_POSE: Record<Pose, string> = { imagen: "Como en la imagen", animar: "Lista para animar" }
 export const preguntaLaPose = (tipo: TipoDePieza, modelo3d: string) => tipo === "3d" && modelo3d === MODELO_CON_POSE
+/** decisión de Lenovo por Emilio (10-nov 00:30Z, opción b): al abrir 3D viene marcado Meshy 6 (como el boceto); si el catálogo no lo trae, el primero */
+export const modeloInicialDe3D = (modelos: readonly { id: string }[] | null | undefined) =>
+  !modelos?.length || modelos.some((m) => m.id === MODELO_CON_POSE) ? MODELO_CON_POSE : modelos[0].id
 export interface Opciones { formato: string; modelo3d: string; calidad: "normal" | "alta"; modeloVideo: string; segundos: number; resolucion: string; pose?: Pose }
 
 // ── varias imágenes (GO 09-nov 22:45Z · boceto aprobado por Emilio + los 4 puntos de CC6) ────────────

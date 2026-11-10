@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
 import { NotaDeTodos, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
-import { agregarImagenes, avisoDeUnaSola, diasQueQuedan, enOrden, lineaDeLoQueNoSubio, lineaDeReferencias, quitarImagen, revisarArchivos, rutaDePapelera, sePuedeQuitar, textoDeDias, MAXIMO_DE_IMAGENES, type ImagenAdjunta, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelAviso, claseDelCentrado, claseDelCosto, esAvisoDelBoton, NOMBRE_DE_LA_POSE, preguntaLaPose, type Pose, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
+import { agregarImagenes, avisoDeUnaSola, diasQueQuedan, enOrden, lineaDeLoQueNoSubio, lineaDeReferencias, quitarImagen, revisarArchivos, rutaDePapelera, sePuedeQuitar, textoDeDias, MAXIMO_DE_IMAGENES, type ImagenAdjunta, alternarMovimiento, buscarMovimientos, clipsDe, cotizarAnimacion, cuerpoDeAnimacion, cuerpoDeCotizacion, cuerpoDeCreacion, cuerpoDelPedido, dolares, esAnimable, estadoDeAnimar, estadoDelBoton, respuestaDeAnimar, MODELO_DE_ANIMACION, NOMBRE_DEL_TIPO, claseDelAviso, claseDelCentrado, claseDelCosto, esAvisoDelBoton, NOMBRE_DE_LA_POSE, modeloInicialDe3D, preguntaLaPose, type Pose, nombreDelMovimiento, piezasDelCliente, rutaDeGaleria, tardaMasDeLoNormal, textoListo as hayTexto, type Catalogo, type Cotizacion, type Pieza, type TipoDePieza } from "@/lib/estudio"
 
 const AMBAR = "#e8731a"
 const TIPOS: TipoDePieza[] = ["imagen", "video", "3d"]
@@ -177,7 +177,9 @@ export function PanelEstudio({ onCerrar, fetchImpl = fetch, catalogoInicial = nu
   const [tipo, setTipo] = useState<TipoDePieza>("imagen")
   const [texto, setTexto] = useState(textoInicial)
   const [formato, setFormato] = useState("1:1")
-  const [modelo3d, setModelo3d] = useState("tripo-h3.1")
+  const [modelo3d, setModelo3d] = useState(() => modeloInicialDe3D(catalogoInicial?.["3d"].modelos))
+  // si el catálogo llega después y no trae el modelo marcado, se marca el que sí está
+  useEffect(() => { const ms = catalogo?.["3d"].modelos; if (ms?.length && !ms.some((m) => m.id === modelo3d)) setModelo3d(modeloInicialDe3D(ms)) }, [catalogo, modelo3d])
   const [calidad, setCalidad] = useState<"normal" | "alta">("normal")
   const [pose, setPose] = useState<Pose>("imagen")
   const [modeloVideo, setModeloVideo] = useState("bytedance/seedance-2.5")
