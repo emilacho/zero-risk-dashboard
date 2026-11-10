@@ -71,8 +71,14 @@ const BORDE_DESPUES = String.raw`(?![\p{L}\p{N}_-])`
 const RANGO_DE_APORTES = new RegExp(String.raw`${BORDE_ANTES}A(\d+)\s*[–-]\s*A(\d+)${BORDE_DESPUES}`, "gu")
 /** la forma de las citas del brief: «A1 usé:», «A5 usé parcialmente:», «A4 descarté:», «A2 no usé:» */
 const CITA_DE_APORTE = new RegExp(String.raw`${BORDE_ANTES}A(\d+)\s+((?:no\s+)?(?:usé|descarté)(?:\s+(?:parcialmente|en\s+parte))?)(?=\s*\**\s*:)`, "gu")
-/** «el aporte A3», «los aportes de A5»: la palabra ya está, solo falta de quién */
-const PALABRA_APORTE = new RegExp(String.raw`\b([Aa]portes?)\s+(?:de\s+)?A(\d+)${BORDE_DESPUES}`, "gu")
+/** «el aporte A3», «los aportes de A5», «la aportación de A11» (GO Lenovo 10-nov 21:15Z): la palabra ya está, solo falta de quién */
+const PALABRA_APORTE = new RegExp(String.raw`\b([Aa]portes?|[Aa]portaci[oó]n(?:es)?)\s+(?:de\s+)?A(\d+)${BORDE_DESPUES}`, "gu")
+/** GO Lenovo 10-nov 21:15Z · el nombre del que aportó seguido de su código: «(content-creator A10)», «(tiktok-strategist A17/A23)».
+ *  Se quita el código SOLO si cada «A<n>» es de ESE encargo y lo dio ESE mismo empleado (verificación exacta: código + quién) */
+const AGENTE_Y_CODIGOS = new RegExp(String.raw`${BORDE_ANTES}([\p{L}\p{N}_-]+)[ \t]+(A\d+(?:[ \t]*/[ \t]*A\d+)*)${BORDE_DESPUES}`, "gu")
+/** …y al revés, el código con el nombre entre paréntesis: «A10 (content-creator)» → «el aporte de content-creator» (con la misma verificación) */
+const CODIGO_Y_AGENTE = new RegExp(String.raw`${BORDE_ANTES}A(\d+)[ \t]+\(([\p{L}\p{N}_-]+)\)`, "gu")
+const mismoAgente = (a: string | undefined, b: string) => !!a && a.toLowerCase() === b.toLowerCase()
 const APORTE_SUELTO = new RegExp(String.raw`${BORDE_ANTES}A(\d+)${BORDE_DESPUES}`, "gu")
 const SERIE = new RegExp(String.raw`(\b[Ss]erie\s+)?${BORDE_ANTES}(S\d+)${BORDE_DESPUES}`, "gu")
 
@@ -88,6 +94,14 @@ function aportesEnPalabras(t: string, aportes: Readonly<Record<string, string>> 
   const de = (n: string): string | undefined => aportes[String(Number(n))]
   const conocido = (n: string) => de(n) !== undefined
   return t
+    .replace(AGENTE_Y_CODIGOS, (m, quien: string, codigos: string) => {
+      const ns = [...codigos.matchAll(/A(\d+)/g)].map((x) => x[1])
+      return ns.every((n) => conocido(n) && mismoAgente(de(n), quien)) ? quien : m
+    })
+    .replace(CODIGO_Y_AGENTE, (m, n: string, quien: string, i: number, s: string) => {
+      if (!conocido(n) || !mismoAgente(de(n), quien)) return m
+      return alEmpezar(s.slice(0, i)) ? conMayuscula(elAporte(n, quien)) : elAporte(n, quien)
+    })
     .replace(RANGO_DE_APORTES, (m, a: string, b: string) => {
       if (!conocido(a) || !conocido(b)) return m
       const quienes = [...new Set(Array.from({ length: Math.max(0, Number(b) - Number(a) + 1) }, (_, k) => de(String(Number(a) + k)) ?? "").filter(Boolean))]
@@ -211,6 +225,24 @@ export function trozosSinCodigos(t: string | null | undefined, ctx: ContextoSinC
 export function sinCodigos(t: string | null | undefined, ctx: ContextoSinCodigos = {}): string {
   return ordenar(trozosSinCodigos(t, ctx).map((x) => ("texto" in x ? x.texto : "")).join(""))
 }
+
+/** GO Lenovo 10-nov 21:15Z · el FORMATO del agente (negrita «**…**», cursiva «*…*») en pedazos, para mostrarlo en vez de los asteriscos.
+ *  Una sola línea por marca (nunca cruza un salto); un asterisco suelto («5 * 3», «nota*») se queda como vino */
+export type TrozoDeFormato = { t: string; negrita?: true; cursiva?: true }
+const FORMATO = /\*\*(?=\S)([^*\n]+?)(?<=\S)\*\*|(?<![\p{L}\p{N}*\\])\*(?=[^\s*])([^*\n]+?)(?<=[^\s*])\*(?![\p{L}\p{N}*])/gu
+export function trozosDeFormato(t: string | null | undefined): TrozoDeFormato[] {
+  const s = String(t ?? ""), out: TrozoDeFormato[] = []
+  let i = 0
+  for (const m of s.matchAll(FORMATO)) {
+    if (m.index! > i) out.push({ t: s.slice(i, m.index) })
+    out.push(m[1] != null ? { t: m[1], negrita: true } : { t: m[2], cursiva: true })
+    i = m.index! + m[0].length
+  }
+  if (i < s.length) out.push({ t: s.slice(i) })
+  return out
+}
+/** el texto sin las marcas de formato (para títulos y resúmenes de una línea) */
+export const sinMarcasDeFormato = (t: string | null | undefined): string => trozosDeFormato(t).map((x) => x.t).join("")
 
 /** las series de los capítulos como código → nombre. Un código que en dos capítulos nombra series distintas («S1» en cada capítulo) es ambiguo y
  *  NO se traduce: se queda como vino antes que poner el nombre equivocado */
