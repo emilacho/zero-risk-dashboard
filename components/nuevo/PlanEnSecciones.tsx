@@ -3,10 +3,10 @@
 import { createContext, useContext, useMemo, useState } from "react"
 import { TITULO_1, TITULO_2, TITULO_3 } from "@/components/nuevo/manual/niveles"
 import { bloquesDelMarkdown, datosClave, seccionesDelPlan, trozosDelTexto, type Bloque } from "@/lib/plan-documento"
-import { sinCodigos } from "@/lib/sin-codigos"
+import { sinCodigos, type ContextoSinCodigos } from "@/lib/sin-codigos"
 
-/** los códigos de foto que de verdad son fotos del cliente (10-nov · 2º cliente): solo esos se quitan cuando vienen entre comillas y son solo números */
-const FotosConocidas = createContext<readonly string[]>([])
+/** lo que el texto cita con código y de verdad existe: las fotos del cliente (10-nov · 2º cliente) y los aportes de la mesa (GO Lenovo 10-nov 14:10Z) */
+const LoConocido = createContext<ContextoSinCodigos>({})
 
 /**
  * EL PLAN EN SECCIONES (CC6 · 02-nov · Emilio: «que esté bien segmentado para que el lector no se pierda entre párrafos gigantes»).
@@ -15,11 +15,11 @@ const FotosConocidas = createContext<readonly string[]>([])
  * Solo lectura del documento: no cambia nada por sí mismo.
  */
 function Texto({ texto }: { texto: string }) {
-  const fotos = useContext(FotosConocidas)
+  const conocido = useContext(LoConocido)
   return (
     <>
       {/* GO Lenovo 10-nov: lo que lee Emilio sin códigos del sistema (ids de documento, versiones, ideas, fotos); lo guardado no cambia */}
-      {trozosDelTexto(sinCodigos(texto, { fotos })).map((x, i) => (
+      {trozosDelTexto(sinCodigos(texto, conocido)).map((x, i) => (
         <span key={i} className={`${x.negrita ? "font-semibold text-zinc-50" : ""} ${x.cifra ? "rounded bg-amber-400/[0.12] px-0.5 text-amber-100" : ""}`}>{x.t}</span>
       ))}
     </>
@@ -49,10 +49,12 @@ function Bloques({ bloques }: { bloques: Bloque[] }) {
   )
 }
 
-export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [], sinDatosClave = false, fotosConocidas = [] }: {
+export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [], sinDatosClave = false, fotosConocidas = [], aportes }: {
   prosa: string
   /** los códigos de las fotos propias del cliente que cita el texto (no se muestran) */
   fotosConocidas?: readonly string[]
+  /** los aportes de la mesa del encargo de este documento (número → quién), para decir «A3» en palabras */
+  aportes?: Record<string, string>
   /** sin las tarjetas de fechas/lugar/presupuesto/meta (son del plan; el brief las reusa sin ellas) */
   sinDatosClave?: boolean
   /** pedir cambios sobre una sección (solo si el plan admite pedir cambios ahora) */
@@ -68,11 +70,11 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
     setAbiertas((s) => new Set(s).add(id))
     if (typeof document !== "undefined") requestAnimationFrame(() => document.getElementById(`plan-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }))
   }
-  const conFotos = { fotos: fotosConocidas }
+  const conFotos: ContextoSinCodigos = { fotos: fotosConocidas, aportes }
   if (!doc.secciones.length) return <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="whitespace-pre-line text-[13px] leading-relaxed text-zinc-200">{sinCodigos(prosa, conFotos)}</p>
 
   return (
-    <FotosConocidas.Provider value={fotosConocidas}>
+    <LoConocido.Provider value={conFotos}>
     <div data-plan-en-secciones className="space-y-4">
       {/* los datos clave: copiados del documento; lo que no está, se dice */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4" aria-label="Los datos clave del plan">
@@ -136,6 +138,6 @@ export function PlanEnSecciones({ prosa, onPedirCambios, abiertasIniciales = [],
         </div>
       </div>
     </div>
-    </FotosConocidas.Provider>
+    </LoConocido.Provider>
   )
 }

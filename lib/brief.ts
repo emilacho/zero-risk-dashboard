@@ -21,6 +21,8 @@ export interface Brief {
   encargo_id?: string | null
   /** CC6 · 02-nov (reserva 4 de CC3): los empleados que escribieron esta versión, leídos de `oficina_mesa_aportes.de`; vacío = la base no lo registró */
   quienes_escribieron?: string[]
+  /** los aportes de la mesa de su encargo: número → quién lo dio (vacío si fue el sistema). Para mostrar «A3» en palabras; nunca se guarda */
+  aportes?: Record<string, string>
 }
 type Fila = Record<string, unknown>
 const texto = (v: unknown): string | null => (v == null || v === "" ? null : String(v))

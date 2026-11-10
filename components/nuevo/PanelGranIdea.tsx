@@ -7,7 +7,7 @@ import { diaYHora, plural } from "@/lib/lenguaje"
 import { NOTA_MINIMA, type ApuntaA } from "@/lib/concepto-decision"
 import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { estadoDelBriefLegible } from "@/lib/brief"
-import { sinCodigos } from "@/lib/sin-codigos"
+import { seriesSinRepetir, sinCodigos, type ContextoSinCodigos } from "@/lib/sin-codigos"
 import { TextoSinCodigos } from "@/components/nuevo/TextoSinCodigos"
 import { AL_APROBAR_LA_GRAN_IDEA, avanceDeGranIdea, avisoTrasDecidirGranIdea, cuerpoDeDecisionDeGranIdea, errorTrasDecidirGranIdea, rutaDeDecisionDeGranIdea, type AccionDeGranIdea, type RespuestaDeDecisionDeGranIdea } from "@/lib/gran-idea"
 
@@ -110,6 +110,8 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
   const tarjetas = datos?.tarjetas ?? []
   const d = datos?.detalle ?? null
   const fotos = datos?.fotos ?? {}
+  /** lo que el texto puede citar con código: sus fotos, los aportes de la sala y las series del concepto (GO Lenovo 10-nov 14:10Z) */
+  const ctx: ContextoSinCodigos = { fotos: Object.keys(fotos), aportes: datos?.aportes ?? {}, series: seriesSinRepetir(d?.capitulos ?? []) }
   const pendientes = tarjetas.filter((t) => t.estado === "pendiente").length
   const resumen = datos ? (!datos.publicado && !tarjetas.length ? "la sala creativa aún no abre" : tarjetas.length ? `${plural(tarjetas.length, "propuesta", "propuestas")}${pendientes ? ` · ${pendientes} esperan tu decisión` : ""}` : "todavía sin propuesta") : ""
   const pendiente = !!d && d.estado === "pendiente" && d.status === "pending"
@@ -142,7 +144,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
         </header>
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 px-4 py-2 sm:px-6">
           <span data-miga="cliente" className={`${MIGA} ${!d ? "text-white" : ""}`}>{nombre}</span>
-          {d && <><Sep /><span data-miga="gran-idea" /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="truncate px-1.5 text-[12.5px] text-white">{sinCodigos(d.gran_idea?.nombre ?? d.titulo)}</span></>}
+          {d && <><Sep /><span data-miga="gran-idea" /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="truncate px-1.5 text-[12.5px] text-white">{sinCodigos(d.gran_idea?.nombre ?? d.titulo, ctx)}</span></>}
         </nav>
         {mensaje && !dialogo && <p role="status" data-aviso={mensaje.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-6 ${mensaje.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{mensaje.texto}</p>}
 
@@ -171,8 +173,8 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                 <article className="min-w-0 space-y-3">
                   <div className={`rounded-xl border p-4 ${pendiente ? "border-amber-400/40 bg-amber-400/[0.07]" : "border-white/10 bg-white/[0.02]"}`}>
                     <p className="text-[11px] uppercase tracking-[0.14em] text-amber-300">La gran idea</p>
-                    <h3 /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[20px] font-semibold leading-snug text-zinc-50">{sinCodigos(d.gran_idea?.nombre ?? d.titulo)}</h3>
-                    {d.gran_idea?.frase && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[14px] italic text-amber-100/90">«{sinCodigos(d.gran_idea.frase)}»</p>}
+                    <h3 /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[20px] font-semibold leading-snug text-zinc-50">{sinCodigos(d.gran_idea?.nombre ?? d.titulo, ctx)}</h3>
+                    {d.gran_idea?.frase && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 text-[14px] italic text-amber-100/90">«{sinCodigos(d.gran_idea.frase, ctx)}»</p>}
                     {pendiente && (
                       <div data-bloque="decision" className="mt-3">
                         {d.sin_concepto && <p className="mb-2 text-[12px] text-rose-200">No se puede decidir hasta que la cadena complete la tarjeta: {d.sin_concepto}.</p>}
@@ -186,18 +188,18 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                   </div>
                   {avance && <BarraDelPedido avance={avance} />}
                   {d.sin_concepto && !pendiente && <p className="rounded-md border border-white/10 bg-white/[0.03] p-2.5 text-[12px] text-zinc-400">Lo que la cadena guardó de esta propuesta está incompleto: {d.sin_concepto}.</p>}
-                  {d.avisos.length > 0 && <Plegable id="avisos" titulo="Avisos de la sala" resumen={sinCodigos(d.avisos[0])}><ul className="list-disc space-y-0.5 pl-4">{d.avisos.map((a, i) => <li key={i}>{sinCodigos(a)}</li>)}</ul></Plegable>}
-                  {d.por_que_funciona && <Plegable id="por_que_funciona" titulo="Por qué funciona" resumen={sinCodigos(d.por_que_funciona)}><TextoSinCodigos texto={d.por_que_funciona} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
-                  {d.como_se_ve && <Plegable id="como_se_ve" titulo="Cómo se ve" resumen={sinCodigos(d.como_se_ve)}><TextoSinCodigos texto={d.como_se_ve} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
-                  {d.como_suena && <Plegable id="como_suena" titulo="Cómo suena" resumen={sinCodigos(d.como_suena)}><TextoSinCodigos texto={d.como_suena} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
+                  {d.avisos.length > 0 && <Plegable id="avisos" titulo="Avisos de la sala" resumen={sinCodigos(d.avisos[0], ctx)}><ul className="list-disc space-y-0.5 pl-4">{d.avisos.map((a, i) => <li key={i}>{sinCodigos(a, ctx)}</li>)}</ul></Plegable>}
+                  {d.por_que_funciona && <Plegable id="por_que_funciona" titulo="Por qué funciona" resumen={sinCodigos(d.por_que_funciona, ctx)}><TextoSinCodigos contexto={ctx} texto={d.por_que_funciona} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
+                  {d.como_se_ve && <Plegable id="como_se_ve" titulo="Cómo se ve" resumen={sinCodigos(d.como_se_ve, ctx)}><TextoSinCodigos contexto={ctx} texto={d.como_se_ve} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
+                  {d.como_suena && <Plegable id="como_suena" titulo="Cómo suena" resumen={sinCodigos(d.como_suena, ctx)}><TextoSinCodigos contexto={ctx} texto={d.como_suena} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
                   {d.capitulos.length > 0 && (
-                    <Plegable id="capitulos" titulo={`Capítulos · ${d.capitulos.length}`} resumen={d.capitulos.map((c) => sinCodigos(c.nombre)).join(" · ")}>
+                    <Plegable id="capitulos" titulo={`Capítulos · ${d.capitulos.length}`} resumen={d.capitulos.map((c) => sinCodigos(c.nombre, ctx)).join(" · ")}>
                       <ul className="space-y-2">
                         {d.capitulos.map((c) => (
                           <li key={c.clave} className="rounded-lg border border-white/10 bg-black/20 p-2.5">
-                            <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="font-medium text-zinc-100">{sinCodigos(c.nombre)}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
-                            {c.que_cuenta && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-0.5 text-zinc-300">{sinCodigos(c.que_cuenta)}</p>}
-                            {c.series.length > 0 && <ul /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{sinCodigos(x.nombre)}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
+                            <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="font-medium text-zinc-100">{sinCodigos(c.nombre, ctx)}{c.fase ? <span className="ml-2 text-[11px] font-normal text-zinc-500">fase {c.fase}</span> : null}</p>
+                            {c.que_cuenta && <p /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-0.5 text-zinc-300">{sinCodigos(c.que_cuenta, ctx)}</p>}
+                            {c.series.length > 0 && <ul /* estilo-ok: solo se quitan los códigos, la pantalla migra entera aparte */ className="mt-1 list-disc pl-4 text-zinc-400">{c.series.map((x) => <li key={x.id}>{sinCodigos(x.nombre, ctx)}{x.redes.length ? ` · ${x.redes.join(", ")}` : ""}</li>)}</ul>}
                           </li>
                         ))}
                       </ul>
@@ -209,8 +211,8 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                       {d.resumen.parcial.length > 0 && <p className="mt-1 text-[11.5px] text-amber-200/80">Banco parcial: {d.resumen.parcial.map((x) => `${x.red} / ${x.capitulo} faltan ${x.faltan}`).join(" · ")}</p>}
                     </Plegable>
                   )}
-                  {d.caminos_descartados && <Plegable id="caminos_descartados" titulo="Caminos descartados" resumen={sinCodigos(d.caminos_descartados)}><TextoSinCodigos texto={d.caminos_descartados} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
-                  {d.devolucion_del_brief && <Plegable id="devolucion_del_brief" titulo="Devolución al brief" resumen={sinCodigos(d.devolucion_del_brief)}><TextoSinCodigos texto={d.devolucion_del_brief} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
+                  {d.caminos_descartados && <Plegable id="caminos_descartados" titulo="Caminos descartados" resumen={sinCodigos(d.caminos_descartados, ctx)}><TextoSinCodigos contexto={ctx} texto={d.caminos_descartados} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
+                  {d.devolucion_del_brief && <Plegable id="devolucion_del_brief" titulo="Devolución al brief" resumen={sinCodigos(d.devolucion_del_brief, ctx)}><TextoSinCodigos contexto={ctx} texto={d.devolucion_del_brief} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}
                   {(d.nota_de_emilio || d.decidido_en) && (
                     <div data-bloque="decidido" className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
                       <Titulito>Tu decisión</Titulito>

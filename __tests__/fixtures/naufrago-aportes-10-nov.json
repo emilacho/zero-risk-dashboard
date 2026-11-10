@@ -1,0 +1,178 @@
+{
+ "_fuente": "oficina_mesa_aportes (n, de) de producción, leído el 10-nov-2026 ~15:30Z, solo lectura: los encargos de los 3 briefs y del concepto v3 de Náufrago",
+ "concepto": "6563e705-84a6-42ac-aa4a-6e383d4a28b1",
+ "encargos": {
+  "8aa4483e-6906-4d52-95e2-956aa0855888": [
+   {
+    "n": 1,
+    "de": "oficina-creativa"
+   },
+   {
+    "n": 2,
+    "de": "portero"
+   },
+   {
+    "n": 3,
+    "de": "campaign-brief-agent"
+   },
+   {
+    "n": 4,
+    "de": "campaign-brief-agent"
+   }
+  ],
+  "7cb061b8-a0cf-4489-afc9-09bc779a9a57": [
+   {
+    "n": 1,
+    "de": "oficina-creativa"
+   },
+   {
+    "n": 2,
+    "de": "portero"
+   },
+   {
+    "n": 3,
+    "de": "campaign-brief-agent"
+   },
+   {
+    "n": 4,
+    "de": "campaign-brief-agent"
+   },
+   {
+    "n": 5,
+    "de": "competitive-intelligence-agent"
+   },
+   {
+    "n": 6,
+    "de": "campaign-brief-agent"
+   }
+  ],
+  "ee269e7d-55f4-43df-80b9-7ceeb0d3d6d0": [
+   {
+    "n": 1,
+    "de": "oficina-creativa"
+   },
+   {
+    "n": 2,
+    "de": "portero"
+   },
+   {
+    "n": 3,
+    "de": "campaign-brief-agent"
+   },
+   {
+    "n": 4,
+    "de": "campaign-brief-agent"
+   },
+   {
+    "n": 5,
+    "de": "competitive-intelligence-agent"
+   },
+   {
+    "n": 6,
+    "de": "campaign-brief-agent"
+   }
+  ],
+  "6563e705-84a6-42ac-aa4a-6e383d4a28b1": [
+   {
+    "n": 1,
+    "de": "oficina-creativa"
+   },
+   {
+    "n": 2,
+    "de": "portero"
+   },
+   {
+    "n": 3,
+    "de": "creative-director-mesa"
+   },
+   {
+    "n": 4,
+    "de": "creative-director-mesa"
+   },
+   {
+    "n": 5,
+    "de": "creative-director-mesa"
+   },
+   {
+    "n": 6,
+    "de": "creative-director-mesa"
+   },
+   {
+    "n": 7,
+    "de": "creative-director-mesa"
+   },
+   {
+    "n": 8,
+    "de": "creative-director-mesa"
+   },
+   {
+    "n": 9,
+    "de": "content-creator"
+   },
+   {
+    "n": 10,
+    "de": "carousel-designer"
+   },
+   {
+    "n": 11,
+    "de": "whimsy-injector"
+   },
+   {
+    "n": 12,
+    "de": "design-image-prompt-engineer"
+   },
+   {
+    "n": 13,
+    "de": "feedback-synthesizer"
+   },
+   {
+    "n": 14,
+    "de": "design-visual-storyteller"
+   },
+   {
+    "n": 15,
+    "de": "marketing_instagram_curator"
+   },
+   {
+    "n": 16,
+    "de": "tiktok-strategist"
+   },
+   {
+    "n": 17,
+    "de": "video-editor"
+   },
+   {
+    "n": 18,
+    "de": "creative-director-mesa"
+   },
+   {
+    "n": 19,
+    "de": "content-creator"
+   },
+   {
+    "n": 20,
+    "de": "design-visual-storyteller"
+   },
+   {
+    "n": 21,
+    "de": "marketing_instagram_curator"
+   },
+   {
+    "n": 22,
+    "de": "tiktok-strategist"
+   },
+   {
+    "n": 23,
+    "de": "video-editor"
+   },
+   {
+    "n": 24,
+    "de": "whimsy-injector"
+   },
+   {
+    "n": 25,
+    "de": "creative-director-mesa"
+   }
+  ]
+ }
+}

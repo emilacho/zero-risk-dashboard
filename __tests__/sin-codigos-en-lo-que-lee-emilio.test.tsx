@@ -130,7 +130,7 @@ describe("4 · en todo el tablero: una sola función", () => {
   it("las pantallas que muestran texto de la cadena usan la misma función (gran idea, brief, documento en secciones, decisiones)", () => {
     for (const f of ["components/nuevo/PanelGranIdea.tsx", "components/nuevo/PanelBrief.tsx", "components/nuevo/PlanEnSecciones.tsx", "lib/direccion-decisiones.ts"]) expect(readFileSync(f, "utf8")).toMatch(/from "@\/lib\/sin-codigos"/)
     const gi = readFileSync("components/nuevo/PanelGranIdea.tsx", "utf8")
-    for (const campo of ["por_que_funciona", "como_se_ve", "como_suena", "caminos_descartados", "devolucion_del_brief"]) expect(gi).toContain(`<TextoSinCodigos texto={d.${campo}} fotos={fotos}`)
-    expect(gi).toContain("{sinCodigos(a)}")
+    for (const campo of ["por_que_funciona", "como_se_ve", "como_suena", "caminos_descartados", "devolucion_del_brief"]) expect(gi).toContain(`<TextoSinCodigos contexto={ctx} texto={d.${campo}} fotos={fotos}`)
+    expect(gi).toContain("{sinCodigos(a, ctx)}")
   })
 })
