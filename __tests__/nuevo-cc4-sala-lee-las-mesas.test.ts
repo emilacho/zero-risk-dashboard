@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest"
 import { armarEscena, type EntradaDeLaEscena, type InvocacionViva } from "@/lib/escena-avatares"
 import { lineasDeLaSala, tituloDeLaMesa, type AporteDeMesa } from "@/lib/escena-sala"
-import { leerMesasDeLaSala } from "@/lib/escena-avatares-datos"
+import { leerEscenaViva, leerMesasDeLaSala } from "@/lib/escena-avatares-datos"
 
 const T0 = Date.parse("2026-11-10T12:00:00Z")
 const en = (min: number) => new Date(T0 + min * 60_000).toISOString()
@@ -162,4 +162,34 @@ describe("la lectura de las mesas", () => {
     expect(await leerMesasDeLaSala(base({ oficina_mesa_aportes: [] }, registro), "2026-11-09T21:00:00Z")).toEqual([])
     expect(registro.some((x) => x.startsWith("oficina_encargos"))).toBe(false)
   })
+})
+
+/** cert CC6 #328: la escena VIVA (la que llama la ruta) le pasa las mesas a la sala; sin esto un cambio la desconecta en silencio */
+describe("la escena viva le pasa las mesas a la sala", () => {
+  // base de mentira permisiva: cualquier método encadena; cada tabla devuelve sus filas (los filtros no hacen falta aquí)
+  const baseViva = (tablas: Record<string, unknown[]>) => ({ from: (t: string) => {
+    const q: Record<string, unknown> = new Proxy({}, { get: (_o, k) => {
+      if (k === "then") return (ok: (r: unknown) => unknown) => Promise.resolve({ data: tablas[t] ?? [], error: null }).then(ok)
+      if (k === "maybeSingle" || k === "single") return () => Promise.resolve({ data: (tablas[t] ?? [])[0] ?? null, error: null })
+      return () => q
+    } }) as Record<string, unknown>
+    return q
+  } }) as never
+  for (const c of CLIENTES) {
+    it(`${c.nombre}: con aportes \`integra\` de un encargo, la sala abre la reunión de esa mesa; sin aportes (control), no`, async () => {
+      const m = mesa(c, `enc-${c.id}`, 231500)
+      const tablas = {
+        agent_invocations: m.invocaciones.map((i) => ({ ...i, created_at: i.started_at })),
+        agents: TODOS.map((a) => ({ name: a, display_name: a })), clients: [{ id: c.id, name: c.nombre }],
+        oficina_directorio: TODOS.map((a) => ({ agente: a, equipo: "creativo", rol: a === c.dirige ? "direccion" : "miembro" })),
+        oficina_mesa_aportes: m.aportes.map((a) => ({ ...a, creado_en: en(0) })),
+        oficina_encargos: [{ id: `enc-${c.id}`, familia: c.familia, dry_run: false, prueba: false }],
+      }
+      const ahora = new Date(T0 + (m.fin + 1) * 60_000)
+      const r = await leerEscenaViva(baseViva(tablas), { ahora })
+      expect(r.sala?.reunion?.titulo).toBe(`${c.titulo} · ${c.nombre}`)
+      const sin = await leerEscenaViva(baseViva({ ...tablas, oficina_mesa_aportes: [] }), { ahora })
+      expect(sin.sala?.reunion ?? null).toBeNull()
+    })
+  }
 })
