@@ -133,3 +133,33 @@ export function fichaDeLaPregunta(d: Decision, x: { departamento: string; detien
     acciones,
   }
 }
+
+/** 10-nov · T2 (SEÑAL Lenovo 01:10Z · DISENO §9): las demás decisiones también por la ficha. La pantalla dueña, traducida a la lista cerrada */
+export const PANTALLA_DEL_PANEL: Record<string, Pantalla> = { plan: "plan", gran_idea: "gran_idea", piezas: "piezas" }
+/** las fuentes que declaran que no vencen (como la plataforma, `NO_VENCEN`): el Tablero Financiero se reemplaza solo con una versión nueva (v7 «Sin fecha límite») */
+const NO_VENCEN = new Set(["finanzas_tableros"])
+
+/** T2 · TRADUCTOR DEL TABLERO para todo lo que no es pregunta: firma, plan, gran idea, piezas, revisiones, campaña y avisos.
+ *  Refleja lo que hoy se ofrece y nada más: «Firmar» pasa a Aprobar; «Cambiar cifra» deja de ser botón (se toca la cifra); lo que se decide en otra
+ *  pantalla queda sin verbo y con su enlace «Ir al …». Lo que la fila no trae, la ficha no lo trae (guion rojo) */
+export function fichaDeLaDecision(d: Decision, x: { departamento: string; cuenta: string | null; titulo: string; detiene: boolean; destraba: string | null; destrabaCorto?: string | null; acciones: AccionDeDecision[]; panel: string | null }): FichaDeDecision {
+  const editar = x.acciones.includes("editar")
+  const cifras = (d.cifras ?? []).map((c) => ({ ...c, editable: editar && !!c.editable }))
+  const acciones: Accion[] = x.acciones.includes("aceptar") ? [{ verbo: "aprobar", principal: true, destino: "firmar-tablero" }] : []
+  const pantalla = x.panel ? PANTALLA_DEL_PANEL[x.panel] : undefined
+  return {
+    version: 1, id: d.id,
+    cuenta: x.cuenta ? { client_id: d.client_id, nombre: x.cuenta } : null,
+    departamento: { oficina: d.pregunta_de?.oficina ?? d.fuente ?? "", nombre: x.departamento },
+    que_se_decide: x.titulo,
+    ...(d.criticos?.length ? { decisivo: d.criticos.map((c) => ({ corto: decisivoCorto(c).frase, largo: c })) } : {}),
+    ...(d.para_que ? { uso: { largo: d.para_que, ...(d.para_que_corto ? { corto: d.para_que_corto } : {}) } } : {}),
+    ...(x.destraba ? { desbloquea: { largo: x.destraba, ...(x.destrabaCorto ? { corto: x.destrabaCorto } : {}) } } : {}),
+    ...(x.detiene ? { detiene: { que: "el plan" } } : {}),
+    ...(cifras.length || d.supuesto ? { propuesta: { ...(cifras.length ? { cifras } : {}), ...(d.supuesto ? { supuesto: d.supuesto } : {}), ...(editar && d.al_editar ? { al_cambiar: d.al_editar } : {}) } } : {}),
+    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : NO_VENCEN.has(d.fuente ?? "") ? { sin_limite: true as const } : {}) },
+    origen: { fuente: d.fuente ?? "", ref: d.id },
+    acciones,
+    ...(pantalla ? { donde_se_hace: { pantalla } } : {}),
+  }
+}

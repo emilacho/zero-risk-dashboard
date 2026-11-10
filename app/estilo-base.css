@@ -59,3 +59,10 @@
 .zr-hilo-oro::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 1px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--color-linea-oro), transparent); }
 /* lo que no se puede tocar ahora: opacidad fija (no un color aparte) */
 .zr-apagable:disabled { opacity: 0.45; cursor: default; }
+/* v9 (Emilio 09-nov): el recuadro de una cifra que se cambia se ilumina entero al pasar el cursor, como el pizarrón de Dept. Marketing:
+   la misma luz ámbar de la escena (`nv-camara-luz`: rgba(255,170,70,.22) → 0) y el mismo encendido (.45s ease de `nv-tablero-luz`) */
+.zr-luz-del-pizarron { position: relative; transition: border-color .45s ease; }
+.zr-luz-del-pizarron::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .45s ease; background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255, 170, 70, 0.22), rgba(255, 140, 40, 0) 100%); }
+.zr-luz-del-pizarron:hover:not(:disabled), .zr-luz-del-pizarron:focus-visible { border-color: var(--color-linea-oro); }
+.zr-luz-del-pizarron:hover:not(:disabled)::after, .zr-luz-del-pizarron:focus-visible::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .zr-luz-del-pizarron, .zr-luz-del-pizarron::after { transition: none; } }

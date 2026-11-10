@@ -42,17 +42,19 @@ describe("cuándo se ofrece cambiar una cifra", () => {
     expect(d.cifras?.map((c) => [c.clave, c.editable ?? false])).toEqual([["total_mes", true], ["costo_por_venta", false], ["y", false]])
     expect(d.al_editar).toBe(AL_EDITAR)
   })
-  it("la tarjeta ofrece «Cambiar esta cifra» solo en las que se pueden cambiar, y sigue el Firmar de siempre", () => {
+  // 10-nov · T2 (boceto v7): «Firmar» pasa a Aprobar y «Cambiar cifra» deja de ser botón: se toca la cifra, que se ilumina como el pizarrón (v9)
+  it("la ficha deja tocar solo las cifras que se pueden cambiar, y sigue el Aprobar de siempre", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida() }))
     expect(html).toContain('data-cambiar="total_mes"'); expect(html).toContain('data-cambiar="meta_por_semana"'); expect(html).not.toContain('data-cambiar="costo_por_venta"')
-    expect(html).toContain("data-firmar")
+    expect(html).toMatch(/<button[^>]*data-cambiar="total_mes"[^>]*class="[^"]*zr-luz-del-pizarron/)
+    expect(html).toContain('data-verbo="aprobar"'); expect(html).not.toContain("data-cambiar-cifra"); expect(html).not.toContain(">Firmar<")
     const sinPermiso = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ permite: ["aceptar"] }) }))
     expect(sinPermiso).not.toContain("data-cambiar")
   })
   // estilo base (05-nov · guía de Emilio, regla 6): cada tarjeta en el mismo orden · propuesta → aviso (lo que sigue abierto) → para qué → acciones
-  it("Firmar va después de todo lo que hay que leer, y no va fijo (CC6 · #283)", () => {
+  it("Aprobar va después de todo lo que hay que leer, y no va fijo (CC6 · #283)", () => {
     const html = renderToStaticMarkup(createElement(PanelDecisiones, { onCerrar: () => {}, datosIniciales: leida({ para_que: "Para repartir el dinero", criticos: ["Dos hallazgos sin cerrar"] }) }))
-    const orden = ["data-cifras", "data-criticos", "data-contexto", "data-pie", "data-firmar"].map((x) => html.indexOf(x))
+    const orden = ['data-bloque="propuesta"', 'data-bloque="decisivo"', 'data-bloque="uso"', "data-pie", 'data-verbo="aprobar"'].map((x) => html.indexOf(x))
     expect(orden.every((x) => x > -1)).toBe(true); expect(orden).toEqual([...orden].sort((x, y) => x - y))
     expect(html).not.toMatch(/data-pie="true" class="[^"]*sticky/)
   })
@@ -164,12 +166,14 @@ describe("una firma rechazada se lee sin bajar (CC6 · #283)", () => {
   it("sin respuesta también dice algo", () => {
     expect(trasFirmar(null)?.problema.motivo).toContain("No se pudo firmar")
   })
-  it("el «Firmar» normal: el motivo va antes de las cifras, no debajo del pie", () => {
+  // 10-nov · T2: en la ficha, como en las preguntas (T1), «No salió» va arriba (antes de las cifras) y el motivo entero bajo los botones; la tarjeta baja sola hasta él
+  it("el «Aprobar» normal: «No salió» se ve antes de las cifras y el motivo se lee entero", () => {
     const d = leida().decisiones[0]
     const previa = { d, resultado: rechazo, accion: "aceptar" as const, en: "2026-11-05T12:00:00Z" }
     const html = renderToStaticMarkup(createElement(TarjetaDelFrente, { d, alDecidir: () => {}, enPausa: null, detiene: false, contestar: async () => null, verCambio: async () => rechazo, previa }))
-    const motivo = html.indexOf("data-por-que-volvio")
-    expect(motivo).toBeGreaterThan(-1); expect(motivo).toBeLessThan(html.indexOf("data-cifras")); expect(html).toContain(rechazo.motivo)
+    const chip = html.indexOf('data-chip="volvio"')
+    expect(chip).toBeGreaterThan(-1); expect(chip).toBeLessThan(html.indexOf('data-bloque="propuesta"')); expect(html).toContain("data-por-que-volvio"); expect(html).toContain(rechazo.motivo)
+    expect(readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")).toContain("porQue.current?.scrollIntoView")
   })
 })
 

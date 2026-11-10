@@ -221,7 +221,7 @@ describe("nunca se firma a ciegas (CORRECCIÓN Lenovo 5-nov)", () => {
     const d = leida({ cifras: [cifra, { clave: "meta", nombre: "Meta", valor: 5, unidad: "ventas por semana" }], criticos: ["Dos hallazgos sin cerrar"] })
     expect(accionesDe(d.decisiones[0])).toEqual(["aceptar"])
     const html = pantalla(d)
-    expect(html).toContain("data-firmar"); expect(html).not.toContain("data-falta-informacion")
+    expect(html).toContain('data-verbo="aprobar"'); expect(html).not.toContain("data-falta-informacion")
     expect(html).toMatch(/data-numero-de-cifra[^>]*>1\.341,27<[\s\S]*?>US\$ Presupuesto al mes</); expect(html).toContain("Instagram y Facebook"); expect(html).toMatch(/data-numero-de-cifra[^>]*>5<[\s\S]*?>Meta · ventas por semana</); expect(html).toContain("Dos hallazgos sin cerrar") // 06-nov: el número solo y la unidad en el rótulo (imagen aprobada); la unidad nunca se pierde
     expect(html).not.toMatch(/data-pie="true" class="[^"]*sticky/) // Firmar no va fijo: se llega pasando por las cifras (CC6 · #283)
   })
