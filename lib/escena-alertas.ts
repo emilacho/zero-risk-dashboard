@@ -25,7 +25,11 @@ export const DESTINO_DEL_AVISO = {
 export interface AlertaDeLaAntena { clave: string; tipo: TipoDeAlerta; /** la frase, en palabras simples */ texto: string; /** cuándo pasó (ISO), para poner la más reciente arriba */ cuando: string; /** el lugar donde se resuelve, si existe */ abre: PanelDelMarco | null; /** de qué departamento sale (`departments.name`), según su dato; null = el dato no lo dice */ departamento: string | null /** 10-nov (#310 ajuste 2 · Lenovo 23:46Z) · solo las decisiones: su alerta para «✓ Revisar» (la clave que arma la plataforma y su estado) */
   revisar?: AlertaRevisable
   /** 10-nov · el nombre del cliente, si la fila lo trae (boceto aprobado: «Náufrago · hace 5 min · abre Decisiones») */
-  cliente?: string }
+  cliente?: string
+  /** 11-nov (CC5 · boceto v2 aprobado por Emilio 20:47 Zúrich) · la pieza que espera aprobación (`hitl_queue.id`): se abre EN EL LUGAR, en su visor, sin ir a Decisiones */
+  pieza?: string
+  /** 11-nov · los avisos con el mismo `grupo.clave` van juntos en UN renglón con su número; `texto` es la frase en plural */
+  grupo?: { clave: string; texto: string } }
 /** la alerta de una decisión (CC1 #965): «nueva», «revisada» o null (la libreta no se pudo leer) */
 export interface AlertaRevisable { clave: string; estado: "nueva" | "revisada" | null; revisada_en?: string }
 /**
@@ -174,12 +178,39 @@ export function departamentoDeLaDecision(d: Pick<DecisionPendiente, "fuente" | "
 }
 /** la frase del aviso, en palabras de negocio */
 const QUE_ESPERA: Record<string, string> = { gran_idea: "Gran idea de la Campaña de Marketing", pieza: "Pieza de la Campaña de Marketing", revision: "Revisión de la Campaña de Marketing", plan: "Plan de Marketing" }
+/** la misma frase en plural, para el renglón que junta varias iguales */
+const QUE_ESPERAN: Record<string, string> = { gran_idea: "Grandes ideas de la Campaña de Marketing", pieza: "Piezas de la Campaña de Marketing", revision: "Revisiones de la Campaña de Marketing", plan: "Planes de Marketing" }
+/** una pieza de la bandeja de la campaña: la única decisión que hoy tiene visor propio para abrirse en el lugar */
+export const esPiezaDeLaBandeja = (d: Pick<DecisionPendiente, "tipo" | "fuente">): boolean => d.tipo === "pieza" && d.fuente === "hitl_queue"
 export function decisionesPendientes(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   return (e.decisiones ?? []).filter((d) => d.fuente !== "dueno_preguntas" && delCliente(d.client_id, e.cliente)).map((d): AlertaDeLaAntena => ({
     clave: `decision:${d.id}`, tipo: "decision", texto: `${QUE_ESPERA[d.tipo] ?? "Una decisión"} espera tu aprobación`,
     cuando: d.desde ?? e.ahora.toISOString(), abre: DESTINO_DEL_AVISO.decision, departamento: departamentoDeLaDecision(d),
     ...(d.alerta ? { revisar: d.alerta } : {}), ...(d.cliente ? { cliente: d.cliente } : {}),
+    ...(esPiezaDeLaBandeja(d) ? { pieza: d.id } : {}),
+    grupo: { clave: `decision:${d.tipo}:${d.client_id ?? ""}`, texto: `${QUE_ESPERAN[d.tipo] ?? "Decisiones"} esperan tu aprobación` },
   }))
+}
+
+/**
+ * 11-nov (boceto v2 aprobado por Emilio 20:47 Zúrich) · LOS RENGLONES DE LA LISTA: los avisos iguales (mismo `grupo.clave`: mismo tipo de decisión
+ * y mismo cliente) van en UN renglón con su número, en el lugar del más reciente; los demás, uno por renglón. El orden de la lista se respeta.
+ */
+export type RenglonDeLaAntena = { tipo: "solo"; alerta: AlertaDeLaAntena } | { tipo: "grupo"; clave: string; texto: string; alertas: AlertaDeLaAntena[] }
+export function renglonesDeLaAntena(alertas: AlertaDeLaAntena[] | undefined): RenglonDeLaAntena[] {
+  const lista = alertas ?? []
+  const cuantas = new Map<string, number>()
+  for (const a of lista) if (a.grupo) cuantas.set(a.grupo.clave, (cuantas.get(a.grupo.clave) ?? 0) + 1)
+  const out: RenglonDeLaAntena[] = []
+  const grupos = new Map<string, Extract<RenglonDeLaAntena, { tipo: "grupo" }>>()
+  for (const a of lista) {
+    if (!a.grupo || (cuantas.get(a.grupo.clave) ?? 0) < 2) { out.push({ tipo: "solo", alerta: a }); continue }
+    const g = grupos.get(a.grupo.clave)
+    if (g) { g.alertas.push(a); continue }
+    const nuevo = { tipo: "grupo" as const, clave: a.grupo.clave, texto: a.grupo.texto, alertas: [a] }
+    grupos.set(a.grupo.clave, nuevo); out.push(nuevo)
+  }
+  return out
 }
 
 /** las alertas de hoy DEL DEPARTAMENTO, la más reciente arriba; sin ninguna, la antena queda apagada y sin número */
