@@ -25,7 +25,7 @@ function Recuadro({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div className="rounded-tarjeta border border-linea bg-grafito-2 px-3 py-3" data-recuadro={rotulo}>
       <Rotulo tono="gris">{rotulo}</Rotulo>
-      <p className="num mt-1 text-cuerpo font-medio text-hueso">{valor}</p>
+      <p className="mt-1 text-cuerpo font-medio text-hueso [font-variant-numeric:tabular-nums]">{valor}</p>
     </div>
   )
 }
