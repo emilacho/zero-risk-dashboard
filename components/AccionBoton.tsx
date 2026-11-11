@@ -2,7 +2,7 @@
 /**
  * Un botón del tablero que HACE algo (30-oct). Una sola forma para todos:
  *  · opcional: pide datos (campos) en un panel pequeño antes de enviar;
- *  · si la acción gasta, el panel muestra el tope y exige confirmar (el servidor también lo exige);
+ *  · si la acción gasta, el panel exige confirmar, sin montos (el servidor también lo exige y pone el tope de la familia);
  *  · dice con franqueza el resultado: hecho, no disponible todavía, o por qué falló. Nunca finge.
  */
 import { useRouter } from "next/navigation"
@@ -24,8 +24,8 @@ export interface AccionBotonProps {
   datos?: Record<string, unknown>
   etiqueta: string
   campos?: CampoDeAccion[]
-  /** si la acción puede gastar, el tope en dólares: se muestra y se confirma */
-  tope_usd?: number
+  /** la acción gasta: se confirma, pero sin montos a la vista (Emilio, 11-nov 20:27: «no me interesa precios»; el gasto vive en Dinero). El tope lo pone el servidor */
+  gasta?: boolean
   /** texto de confirmación para acciones fuertes (dar de baja, apagar) */
   confirmar?: string
   variante?: "normal" | "suave" | "peligro"
@@ -45,12 +45,10 @@ const CLASES: Record<NonNullable<AccionBotonProps["variante"]>, string> = {
   peligro: "border-rose-500/50 text-rose-200 hover:bg-rose-500/10",
 }
 
-const usd = (n: number) => `US$ ${n.toLocaleString("es-EC", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
-
 export function AccionBoton(p: AccionBotonProps) {
   const router = useRouter()
   const campos = p.campos ?? []
-  const necesitaPanel = campos.length > 0 || p.tope_usd != null || !!p.confirmar
+  const necesitaPanel = campos.length > 0 || !!p.gasta || !!p.confirmar
   const [abierto, setAbierto] = useState(false)
   const [valores, setValores] = useState<Record<string, string>>(() => Object.fromEntries(campos.map((c) => [c.clave, c.inicial ?? ""])))
   const [estado, setEstado] = useState<"quieto" | "enviando">("quieto")
@@ -74,7 +72,7 @@ export function AccionBoton(p: AccionBotonProps) {
         else destino[a] = valor
       }
       if (p.anidar) cuerpo[p.anidar] = destino
-      if (p.tope_usd != null) cuerpo.confirmo_gasto = true
+      if (p.gasta) cuerpo.confirmo_gasto = true
       const r = await fetch(`/api/acciones/${encodeURIComponent(p.accion)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo) })
       const j = (await r.json().catch(() => ({}))) as Record<string, unknown>
       if (r.ok && j.ok) {
@@ -116,9 +114,8 @@ export function AccionBoton(p: AccionBotonProps) {
               {c.ayuda && <span className="mt-0.5 block text-[11px] text-zinc-500">{c.ayuda}</span>}
             </label>
           ))}
-          {p.tope_usd != null && <span className="block rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-amber-100">Esto puede costar hasta {usd(p.tope_usd)}. Al confirmar, el sistema empieza a gastar.</span>}
           <span className="flex gap-2">
-            <button type="button" disabled={estado === "enviando"} onClick={enviar} className={clase}>{estado === "enviando" ? "Enviando…" : p.tope_usd != null ? `Confirmar (hasta ${usd(p.tope_usd)})` : "Confirmar"}</button>
+            <button type="button" disabled={estado === "enviando"} onClick={enviar} className={clase}>{estado === "enviando" ? "Enviando…" : "Confirmar"}</button>
             <button type="button" onClick={() => { setAbierto(false); setAviso(null) }} className="rounded-md border border-white/10 px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
           </span>
         </span>

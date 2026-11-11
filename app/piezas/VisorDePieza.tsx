@@ -9,7 +9,6 @@ import { resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegi
 import { hayTexto, ROTULO_DEL_VIDEO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { AccionBoton } from "@/components/AccionBoton"
-import { TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
 
 type Pestana = "lamina" | "equipo" | "jefatura"
 type Dialogo = null | "cambios" | "rechazar"
@@ -207,7 +206,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[13px] text-[hsl(var(--muted-foreground))]">{ETIQUETA_ESTADO[estadoVisto]}.</span>
             {pieza.encargo_id && (pieza.estado === "rechazada" || pieza.estado === "otro") && (
-              <AccionBoton accion="rehacer-pieza" datos={{ encargo_id: pieza.encargo_id }} etiqueta="Rehacer esta pieza" tope_usd={TOPE_POR_PIEZA_USD} variante="suave" campos={[{ clave: "comentario", etiqueta: "Qué debe cambiar (opcional)", tipo: "largo" }]} />
+              <AccionBoton accion="rehacer-pieza" datos={{ encargo_id: pieza.encargo_id }} etiqueta="Rehacer esta pieza" gasta variante="suave" campos={[{ clave: "comentario", etiqueta: "Qué debe cambiar (opcional)", tipo: "largo" }]} />
             )}
           </div>
         )}
