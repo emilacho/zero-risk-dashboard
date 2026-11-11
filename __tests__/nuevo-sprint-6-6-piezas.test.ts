@@ -100,11 +100,13 @@ describe("sprint 6.6 · la lógica pura de la bandeja", () => {
     const base = { comentario: "", laminas: [] as number[], casilla: false, total: 2, exige_casilla: true, estado_visto: "pending" }
     expect(cuerpoDeDecisionDePieza({ ...base, accion: "aprobar" })).toEqual({ error: expect.stringContaining("marca «entiendo»") })
     expect(cuerpoDeDecisionDePieza({ ...base, accion: "aprobar", casilla: true })).toEqual({ cuerpo: { accion: "aprobar", casilla: true, estado_visto: "pending" } })
-    expect(cuerpoDeDecisionDePieza({ ...base, accion: "cambios", comentario: "corto" })).toEqual({ error: expect.stringContaining("al menos 10") })
+    expect(cuerpoDeDecisionDePieza({ ...base, accion: "cambios", comentario: "  " })).toEqual({ error: expect.stringContaining("cuenta qué quieres distinto") }) // GO 11-nov: basta que haya texto
+    expect(cuerpoDeDecisionDePieza({ ...base, accion: "cambios", comentario: "más rojo" })).not.toHaveProperty("error")
     const cambios = cuerpoDeDecisionDePieza({ ...base, accion: "cambios", comentario: "La foto de la lámina 1 no muestra el plato.", laminas: [2, 1, 1] })
     expect(cambios).toEqual({ cuerpo: { accion: "cambios", comentario: "La foto de la lámina 1 no muestra el plato.", laminas: [1, 2], estado_visto: "pending" } })
     expect(cuerpoDeDecisionDePieza({ ...base, accion: "cambios", comentario: "La foto no muestra el plato.", laminas: [3] })).toEqual({ error: expect.stringContaining("entre 1 y 2") })
-    expect(cuerpoDeDecisionDePieza({ ...base, accion: "rechazar", comentario: "mal" })).toEqual({ error: expect.stringContaining("al menos 5") })
+    expect(cuerpoDeDecisionDePieza({ ...base, accion: "rechazar", comentario: " " })).toEqual({ error: expect.stringContaining("cuenta por qué se rechaza") }) // GO 11-nov
+    expect(cuerpoDeDecisionDePieza({ ...base, accion: "rechazar", comentario: "mal" })).not.toHaveProperty("error")
     expect(cuerpoDeDecisionDePieza({ ...base, accion: "rechazar", comentario: "No va con la marca." })).toEqual({ cuerpo: { accion: "rechazar", comentario: "No va con la marca.", estado_visto: "pending" } })
     // y lo que el panel arma es exactamente lo que `validarDecision` (la del servidor) vuelve a aceptar
     if ("cuerpo" in cambios) expect(validarDecision(cambios.cuerpo, 2, true)).toEqual({ ok: true, pedido: cambios.cuerpo })

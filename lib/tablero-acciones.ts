@@ -85,7 +85,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       const plan = conId(c, "plan_id")
       if (plan) {
         const t = texto(c.texto), tope = Number(c.tope_usd)
-        if (t.length < 5 || t.length > 4000) return mal("cuenta qué debe cambiar (de 5 a 4.000 caracteres)")
+        if (!t || t.length > 4000) return mal("cuenta qué debe cambiar (hasta 4.000 caracteres)")
         if (c.confirmo_gasto !== true) return { ok: false, error: "falta_confirmar_gasto", detalle: `pedir cambios gasta (tope hasta US$ ${TOPE_PEDIR_CAMBIOS_USD}): confírmalo antes` }
         if (!Number.isFinite(tope) || tope <= 0) return mal("falta el tope del gasto")
         if (tope > TOPE_PEDIR_CAMBIOS_USD) return mal(`el tope pasa de US$ ${TOPE_PEDIR_CAMBIOS_USD}`)
@@ -158,7 +158,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       if (!id) return mal("falta la revisión")
       if (d !== "aprobar" && d !== "rechazar") return mal("la decisión es «aprobar» o «rechazar»")
       const t = texto(c.comentario)
-      if (d === "rechazar" && t.length < 5) return mal("cuenta por qué se rechaza (mínimo 5 caracteres)")
+      if (d === "rechazar" && !t) return mal("cuenta por qué se rechaza")
       return { ok: true, cuerpo: { hitl_id: id, decision: d, ...(t ? { comentario: t.slice(0, 2000) } : {}) } }
     },
   },
@@ -231,7 +231,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       if (largo > TOPE_DEL_TEXTO_DEL_DUENO) return mal(`lo escrito pasa de ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres`)
       const reescribe = largo > 0
       if (!reescribe && !Object.keys(directos).length && !retirar.length) return mal("no hay cambios para pedir")
-      if (reescribe && !observaciones.length && t.length < 5) return mal("cuenta qué debe cambiar (al menos 5 letras)")
+      if (reescribe && !observaciones.length && !t) return mal("cuenta qué debe cambiar")
       const seccion = texto(c.seccion)
       if (seccion.length > 80) return mal("la sección es demasiado larga")
       const liberar = Array.isArray(c.campos) ? c.campos : []

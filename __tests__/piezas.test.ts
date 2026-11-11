@@ -121,10 +121,12 @@ describe("la validación de lo que mandan los botones", () => {
     expect(validarDecision({ accion: "aprobar", casilla: true }, 3, true)).toMatchObject({ ok: true })
     expect(validarDecision({ accion: "aprobar" }, 3, false)).toMatchObject({ ok: true })
   })
-  it("rechazar pide motivo (5 caracteres); pedir cambios pide comentario (10) y láminas dentro de la pieza", () => {
-    expect(validarDecision({ accion: "rechazar", comentario: "no" }, 3, false)).toMatchObject({ ok: false, error: "motivo_requerido" })
+  it("rechazar pide motivo y pedir cambios pide comentario: basta que haya texto (GO 11-nov); láminas dentro de la pieza", () => {
+    expect(validarDecision({ accion: "rechazar", comentario: "  " }, 3, false)).toMatchObject({ ok: false, error: "motivo_requerido" })
+    expect(validarDecision({ accion: "rechazar", comentario: "no" }, 3, false)).toMatchObject({ ok: true })
     expect(validarDecision({ accion: "rechazar", comentario: "no sirve" }, 3, false)).toMatchObject({ ok: true })
-    expect(validarDecision({ accion: "cambios", comentario: "más corto" }, 3, false)).toMatchObject({ ok: false, error: "comentario_requerido" }) // 9 caracteres
+    expect(validarDecision({ accion: "cambios", comentario: " " }, 3, false)).toMatchObject({ ok: false, error: "comentario_requerido" })
+    expect(validarDecision({ accion: "cambios", comentario: "más rojo" }, 3, false)).toMatchObject({ ok: true }) // 8 letras: antes no pasaba
     expect(validarDecision({ accion: "cambios", comentario: "el titular es largo", laminas: [1, 4] }, 3, false)).toMatchObject({ ok: false, error: "lamina_invalida" })
     expect(validarDecision({ accion: "cambios", comentario: "el titular es largo", laminas: [0] }, 3, false)).toMatchObject({ ok: false, error: "lamina_invalida" })
     expect(validarDecision({ accion: "cambios", comentario: "el titular es largo", laminas: [1.5] }, 3, false)).toMatchObject({ ok: false, error: "lamina_invalida" })

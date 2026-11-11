@@ -8,8 +8,11 @@
 export const TIPO_PIEZA = "content_piece_review"
 /** límite de rondas de cambios por pieza (decisión de Emilio, 29-oct). NO lo hace cumplir el tablero: lo hace la ruta de la plataforma `POST /api/oficina/cambios` (CC#2); aquí solo se muestra en el aviso al dueño. Si cambia, cambia en los dos lados. */
 export const RONDAS_MAXIMAS_DE_CAMBIOS = 5
-export const COMENTARIO_MINIMO = 10
-export const MOTIVO_MINIMO = 5
+/**
+ * GO Lenovo 11-nov 05:03Z (barrido CC6 #1 y #2) · «Pedir cambios» y «Rechazar» exigen SOLO que haya texto: un número fijo de letras («más rojo» = 8) no deja pedir un cambio corto.
+ * Una sola regla para todas las pantallas del tablero; la plataforma valida lo mismo.
+ */
+export const hayTexto = (t: string | null | undefined): boolean => typeof t === "string" && t.trim().length > 0
 export const COMENTARIO_MAXIMO = 2000
 
 export type EstadoPieza = "pendiente" | "aprobada" | "con_cambios" | "rechazada" | "superada" | "archivada" | "otro"
@@ -210,10 +213,10 @@ export function validarDecision(raw: unknown, total: number, casillaExigida: boo
     return { ok: true, pedido: { accion, casilla: b.casilla === true, estado_visto } }
   }
   if (accion === "rechazar") {
-    if (comentario.length < MOTIVO_MINIMO) return { ok: false, error: "motivo_requerido", detalle: `el motivo del rechazo lleva al menos ${MOTIVO_MINIMO} caracteres` }
+    if (!hayTexto(comentario)) return { ok: false, error: "motivo_requerido", detalle: "cuenta por qué se rechaza" }
     return { ok: true, pedido: { accion, comentario, estado_visto } }
   }
-  if (comentario.length < COMENTARIO_MINIMO) return { ok: false, error: "comentario_requerido", detalle: `el comentario del cambio lleva al menos ${COMENTARIO_MINIMO} caracteres` }
+  if (!hayTexto(comentario)) return { ok: false, error: "comentario_requerido", detalle: "cuenta qué quieres distinto" }
   const crudas = Array.isArray(b.laminas) ? b.laminas : []
   const laminas = [...new Set(crudas.map((x) => Number(x)))].sort((a, c) => a - c)
   if (laminas.some((n) => !Number.isInteger(n) || n < 1 || n > total)) return { ok: false, error: "lamina_invalida", detalle: `las láminas marcadas deben estar entre 1 y ${total}` }

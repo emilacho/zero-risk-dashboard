@@ -548,11 +548,11 @@ export function queCambioDelTexto(contenido: unknown): string | null {
   return cuerpo ? cuerpo.slice(0, 3000) : null
 }
 
-/** el cuerpo de «Pedir cambios» (contrato: texto de 5 a 4.000, confirmación del gasto y tope ≤ 8) */
+/** el cuerpo de «Pedir cambios» (contrato: que haya texto, hasta 4.000; confirmación del gasto y tope ≤ 8) */
 export function cuerpoDePedirCambios(planId: string | null, observaciones: string): { plan_id: string; texto: string; confirmo_gasto: true; tope_usd: number } | { error: string } {
   if (!planId || !UUID.test(planId)) return { error: "No hay un plan sobre el que pedir cambios" }
   const t = observaciones.trim()
-  if (t.length < 5) return { error: "Cuenta qué debe cambiar (al menos 5 caracteres)" }
+  if (!t) return { error: "Cuenta qué debe cambiar" }
   if (t.length > 4000) return { error: "Máximo 4.000 caracteres" }
   return { plan_id: planId, texto: t, confirmo_gasto: true, tope_usd: TOPE_REESCRITURA_USD }
 }
@@ -635,7 +635,7 @@ export function cuerpoDeResolucion(hitlId: string | null, decision: "aprobar" | 
   if (!hitlId || !UUID.test(hitlId)) return { error: "No hay una revisión del plan que decidir" }
   const t = comentario.trim()
   if (t.length > 1000) return { error: "Máximo 1.000 caracteres" }
-  if (decision === "rechazar" && t.length < 5) return { error: "Cuenta qué debe cambiar (al menos 5 caracteres)" }
+  if (decision === "rechazar" && !t) return { error: "Cuenta qué debe cambiar" }
   return { hitl_id: hitlId, decision, ...(t ? { comentario: t } : {}) }
 }
 /** la decisión ya tomada (columna `decision` de la bandeja) en palabras */

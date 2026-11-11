@@ -6,7 +6,7 @@ import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
 import { estadoTrasDecidir } from "@/lib/reflejo"
 import type { EstadoPieza } from "@/lib/piezas"
 import { resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible, usdES } from "@/lib/lenguaje"
-import { COMENTARIO_MINIMO, MOTIVO_MINIMO, ROTULO_DEL_VIDEO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
+import { hayTexto, ROTULO_DEL_VIDEO, ROTULO_DE_ORIGEN } from "@/lib/piezas"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { AccionBoton } from "@/components/AccionBoton"
 import { TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
@@ -229,11 +229,10 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
             <h3 className="font-display text-[16px] font-semibold">{dialogo === "cambios" ? "Pedir cambios" : "Rechazar la pieza"}</h3>
             {dialogo === "cambios" && <p className="mt-1 text-[12px] text-[hsl(var(--muted-foreground))]">{marcadas.length > 0 ? `Láminas ${marcadas.join(", ")} · ` : "Toda la pieza · "}vuelve a gastar ≈ {usd(pieza.gasto_usd)}</p>}
             <textarea autoFocus value={comentario} onChange={(e) => setComentario(e.target.value)} rows={5} maxLength={2000} placeholder={dialogo === "cambios" ? "¿Qué quieres distinto?" : "Motivo del rechazo"} className="mt-3 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-sm outline-none focus:border-[hsl(var(--primary))]" />
-            <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Mínimo {dialogo === "cambios" ? COMENTARIO_MINIMO : MOTIVO_MINIMO} letras</p>
             {mensaje && !mensaje.ok && <p className="mt-2 text-[13px] text-rose-300">{mensaje.texto}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setDialogo(null)} className={`${boton} border-white/10`}>Cancelar</button>
-              <button disabled={enviando || comentario.trim().length < (dialogo === "cambios" ? COMENTARIO_MINIMO : MOTIVO_MINIMO)} onClick={() => enviar(dialogo)} className={`${boton} ${dialogo === "cambios" ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.4)]" : "border-rose-500 bg-rose-900"}`}>{enviando ? "Enviando…" : dialogo === "cambios" ? "Confirmar y pedir cambios" : "Confirmar rechazo"}</button>
+              <button disabled={enviando || !hayTexto(comentario)} onClick={() => enviar(dialogo)} className={`${boton} ${dialogo === "cambios" ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.4)]" : "border-rose-500 bg-rose-900"}`}>{enviando ? "Enviando…" : dialogo === "cambios" ? "Confirmar y pedir cambios" : "Confirmar rechazo"}</button>
             </div>
           </div>
         </div>
