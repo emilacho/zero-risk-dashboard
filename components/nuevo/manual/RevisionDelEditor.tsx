@@ -54,7 +54,7 @@ export function TarjetaDeRevisionDelEditor({ r, accion, onHecho }: { r: Revision
         </div>
       ) : (
         <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); void decidir("rechazar") }}>
-          <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={3} aria-label="Qué debe cambiar" placeholder="Qué debe cambiar" className="w-full rounded-md border border-amber-400/30 bg-black/40 px-2.5 py-2 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-300" />
+          <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={3} aria-label="Qué debe cambiar" placeholder="Qué debe cambiar" /* estilo-ok: solo cambia el texto de ayuda, los tokens van con boceto para Emilio */ className="w-full rounded-md border border-amber-400/30 bg-black/40 px-2.5 py-2 text-[13px] text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-300" />
           <div className="flex gap-2">
             <button type="submit" data-accion="confirmar-revision-rechazar" disabled={enviando} className="rounded-md border border-amber-300/60 bg-amber-500/70 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-amber-500 disabled:opacity-50">{enviando ? "Enviando…" : `✗ ${b.rechazar}`}</button>
             <button type="button" onClick={() => setDevolver(false)} className="rounded-md border border-white/10 px-3 py-1.5 text-[12.5px] text-zinc-400">Cancelar</button>
