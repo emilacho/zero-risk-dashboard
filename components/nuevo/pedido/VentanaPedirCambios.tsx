@@ -83,24 +83,24 @@ export function VentanaPedirCambios({ documento, seccion = null, minimo, quePasa
 
   return (
     <div {...{ [DATO_DE_LA_VENTANA]: panel }} role="dialog" aria-modal="true" aria-labelledby={titulo} className="fixed inset-0 z-[90] grid place-items-center bg-velo p-4" onMouseDown={(e) => { if (e.target === e.currentTarget && !enVuelo.current) onCancelar() }}>
-      <div ref={marco} className="w-full max-w-[44rem] rounded-tarjeta border border-white/10 bg-[#222224] p-6 shadow-2xl sm:p-8">
-        <h3 id={titulo} data-titulo-ventana className="text-[26px] font-medio leading-snug text-hueso">
+      <div ref={marco} className="w-full max-w-[44rem] rounded-tarjeta border border-linea bg-grafito-2 p-6 sm:p-8">
+        <h3 id={titulo} data-titulo-ventana className="text-titulo font-medio leading-snug text-hueso">
           Pedir cambios {ARTICULO_DEL_DOCUMENTO[documento]} <span data-nombre-propio data-documento className={NOMBRE}>{documento}</span>{seccion ? <> · <span data-seccion-ventana>{seccion}</span></> : null}
         </h3>
-        <p className="mt-1 text-[17px] text-gris">Escribe qué quieres distinto. El equipo lo reescribe con tu nota.</p>
+        <p className="mt-1 text-cuerpo text-gris">Escribe qué quieres distinto. El equipo lo reescribe con tu nota.</p>
         <textarea ref={caja} data-caja-pedir-cambios value={nota} onChange={(e) => setNota(e.target.value)} rows={5} maxLength={maximo} disabled={enviando} placeholder="¿Qué quieres distinto?" aria-label="¿Qué quieres distinto?"
-          className="mt-5 w-full resize-y rounded-control border border-white/15 bg-[#1c1c1e] px-4 py-3 text-[17px] leading-relaxed text-hueso placeholder:text-apagado focus:border-oro focus:outline-none" />
-        {ayuda && <p data-minimo-ventana className="mt-1.5 text-[14px] text-apagado">{ayuda}</p>}
+          className="mt-5 w-full resize-y rounded-control border border-linea-oro bg-grafito px-4 py-3 text-cuerpo leading-relaxed text-hueso placeholder:text-apagado focus:border-oro focus:outline-none" />
+        {ayuda && <p data-minimo-ventana className="mt-1.5 text-dato text-apagado">{ayuda}</p>}
         {debajoDeLaCaja}
         {extra && <div className="mt-4">{extra}</div>}
-        <div data-que-pasa-despues className="mt-5 rounded-control border border-white/10 px-5 py-4">
-          <p className="text-[14px] font-medio uppercase tracking-[0.08em] text-oro">Qué pasa después</p>
-          <p className="mt-1.5 text-[17px] leading-relaxed text-hueso"><ConSubrayado t={quePasaDespues} /></p>
+        <div data-que-pasa-despues className="mt-5 rounded-control border border-linea px-5 py-4">
+          <p className="text-rotulo font-medio uppercase tracking-[0.08em] text-oro">Qué pasa después</p>
+          <p className="mt-1.5 text-cuerpo leading-relaxed text-hueso"><ConSubrayado t={quePasaDespues} /></p>
         </div>
-        {error && <p role="alert" data-error-ventana className="mt-4 text-[15px] text-alarma">{error}</p>}
+        {error && <p role="alert" data-error-ventana className="mt-4 text-cuerpo text-alarma">{error}</p>}
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button type="button" data-accion="ventana-cancelar" disabled={enviando} onClick={onCancelar} className="min-h-11 rounded-control border border-white/20 px-6 text-boton font-medio text-hueso hover:bg-white/[0.05] disabled:opacity-50">Cancelar</button>
-          <button type="button" data-accion="ventana-confirmar" disabled={enviando || !alcanza} onClick={() => void confirmar()} className="min-h-11 rounded-control border border-oro/70 bg-[#3a2c14] px-6 text-boton font-medio text-oro hover:bg-[#46351a] disabled:opacity-50">{enviando ? "Enviando…" : botonConfirmar}</button>
+          <button type="button" data-accion="ventana-cancelar" disabled={enviando} onClick={onCancelar} className="min-h-11 rounded-control border border-linea px-6 text-boton font-medio text-hueso hover:border-linea-oro disabled:opacity-50">Cancelar</button>
+          <button type="button" data-accion="ventana-confirmar" disabled={enviando || !alcanza} onClick={() => void confirmar()} className="min-h-11 rounded-control border border-linea-oro bg-grafito px-6 text-boton font-medio text-oro hover:border-oro disabled:opacity-50">{enviando ? "Enviando…" : botonConfirmar}</button>
         </div>
         <span className="sr-only" aria-live="polite">{letrasDeLaNota(nota)} letras</span>
       </div>

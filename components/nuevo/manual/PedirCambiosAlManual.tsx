@@ -64,7 +64,7 @@ export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDel
       {ventana && puedeEscribir && (
         <VentanaPedirCambios panel="manual" documento="Manual" seccion={ventana.titulo} minimo={MINIMO_DE_LA_NOTA.manual} maximo={TOPE_DEL_TEXTO_LIBRE}
           quePasaDespues={QUE_PASA_DESPUES.manual} botonConfirmar="Sumar a tus cambios" onConfirmar={sumar} onCancelar={cerrarVentana}
-          debajoDeLaCaja={avisoDeLaVentana ? <p data-aviso-validados-ventana className="mt-1.5 text-[14px] text-oro">{avisoDeLaVentana}</p> : null} />
+          debajoDeLaCaja={avisoDeLaVentana ? <p data-aviso-validados-ventana className="mt-1.5 text-dato text-oro">{avisoDeLaVentana}</p> : null} />
       )}
       {rotulo && <p data-rotulo-reescribiendo className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">{rotulo}</p>}
       {ciclo.avance && barraOculta && <button type="button" data-accion="ver-avance" onClick={() => setBarraOculta(false)} className="mt-2 rounded-full border border-amber-300/50 px-3 py-1 text-[12.5px] text-amber-100 hover:bg-amber-500/15">Ver el avance</button>}

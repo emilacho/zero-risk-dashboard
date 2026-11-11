@@ -268,12 +268,12 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
             onConfirmar={(nota) => decidir("cambios", nota)} onCancelar={cancelarPedido}
             extra={
               <fieldset data-eleccion-gran-idea>
-                <legend className="text-[15px] text-gris">{d.vueltas_restantes != null ? `Quedan ${plural(d.vueltas_restantes, "vuelta", "vueltas")} de cambios en esta campaña. ` : ""}¿A qué apuntan los cambios?</legend>
+                <legend className="text-cuerpo text-gris">{d.vueltas_restantes != null ? `Quedan ${plural(d.vueltas_restantes, "vuelta", "vueltas")} de cambios en esta campaña. ` : ""}¿A qué apuntan los cambios?</legend>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 {(["concepto", "brief"] as const).map((a) => (
-                  <label key={a} data-apunta={a} className="block cursor-pointer rounded-control border border-white/10 px-4 py-3 text-hueso has-[:checked]:border-oro/70">
-                    <span className="flex items-center gap-2 text-[16px] font-medio"><input type="radio" name="gi-apunta" value={a} checked={apunta === a} onChange={() => setApunta(a)} />{a === "concepto" ? "Al concepto" : "Al brief"}</span>
-                    <span className="mt-1 block text-[15px] leading-snug text-gris"><ConSubrayado t={a === "concepto" ? QUE_PASA_DESPUES.gran_idea_concepto : QUE_PASA_DESPUES.gran_idea_brief} /></span>
+                  <label key={a} data-apunta={a} className="block cursor-pointer rounded-control border border-linea px-4 py-3 text-hueso has-[:checked]:border-oro">
+                    <span className="flex items-center gap-2 text-cuerpo font-medio"><input type="radio" name="gi-apunta" value={a} checked={apunta === a} onChange={() => setApunta(a)} />{a === "concepto" ? "Al concepto" : "Al brief"}</span>
+                    <span className="mt-1 block text-cuerpo leading-snug text-gris"><ConSubrayado t={a === "concepto" ? QUE_PASA_DESPUES.gran_idea_concepto : QUE_PASA_DESPUES.gran_idea_brief} /></span>
                   </label>
                 ))}
                 </div>

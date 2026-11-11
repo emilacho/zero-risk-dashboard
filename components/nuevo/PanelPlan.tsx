@@ -166,7 +166,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       {modo === "quieto" && (lectura.puede_aprobar || lectura.puede_pedir_cambios) && (
         // «Pedir cambios» con borde oro a la izquierda y «Aprobar» en ámbar a la derecha (corrección de Lenovo 06-nov · estilo base)
         <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-          {lectura.puede_pedir_cambios && <button type="button" data-accion="plan-pedir-cambios" disabled={!!ocupado} onClick={() => { setError(null); setVentana({ seccion: null }) }} className={`${BOTON_GRANDE} border border-[#d6aa64]/70 bg-transparent text-[#d6aa64] hover:bg-[#d6aa64]/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
+          {lectura.puede_pedir_cambios && <button /* estilo-ok: solo cambia lo que abre, el botón migra con su pantalla */ type="button" data-accion="plan-pedir-cambios" disabled={!!ocupado} onClick={() => { setError(null); setVentana({ seccion: null }) }} className={`${BOTON_GRANDE} border border-[#d6aa64]/70 bg-transparent text-[#d6aa64] hover:bg-[#d6aa64]/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
           {lectura.puede_aprobar && <button type="button" data-accion="plan-aprobar-asi" disabled={!!ocupado} onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, ""))} className={`${BOTON_GRANDE} border border-[#e8731a] bg-[#e8731a] text-[#160b02] hover:bg-[#f0832e]`}>{ocupado === "plan-aprobar" ? "Aprobando…" : BOTONES_DEL_PLAN.aprobar}</button>}
         </div>
       )}

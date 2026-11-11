@@ -589,17 +589,17 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                       <VentanaPedirCambios panel="piezas" documento="Pieza" seccion={pieza.titulo || null} minimo={MINIMO_DE_LA_NOTA.piezas} maximo={MINIMOS.maximo}
                         quePasaDespues={QUE_PASA_DESPUES.piezas} notaOpcional={ediciones.length > 0}
                         onConfirmar={(nota) => decidir("cambios", nota)} onCancelar={cancelarPedido}
-                        debajoDeLaCaja={ediciones.length > 0 ? <p className="mt-1.5 text-[14px] text-apagado">Tus textos editados ya son el pedido: la nota es opcional.</p> : null}
+                        debajoDeLaCaja={ediciones.length > 0 ? <p className="mt-1.5 text-dato text-apagado">Tus textos editados ya son el pedido: la nota es opcional.</p> : null}
                         extra={va ? (
-                          <div data-va-con-tu-nota className="rounded-control border border-dashed border-white/15 px-4 py-3">
-                            <p className="text-[15px] text-gris"><b className="font-medio text-hueso">Va con tu nota:</b> {va}</p>
+                          <div data-va-con-tu-nota className="rounded-control border border-dashed border-linea-oro px-4 py-3">
+                            <p className="text-cuerpo text-gris"><b className="font-medio text-hueso">Va con tu nota:</b> {va}</p>
                             {total > 1 && (
                               <ul className="mt-2 flex flex-wrap gap-2" aria-label="Las láminas del pedido">
-                                {[...Array(total).keys()].map((i) => i + 1).map((k) => <li key={k} data-lamina-va={k} data-va={laminasDelPedido.includes(k)} className={`num grid h-10 w-10 place-items-center rounded-control border text-[13px] ${laminasDelPedido.includes(k) ? "border-oro text-hueso" : "border-white/10 text-apagado"}`}>{k}</li>)}
+                                {[...Array(total).keys()].map((i) => i + 1).map((k) => <li key={k} data-lamina-va={k} data-va={laminasDelPedido.includes(k)} className={`num grid h-10 w-10 place-items-center rounded-control border text-dato ${laminasDelPedido.includes(k) ? "border-oro text-hueso" : "border-linea text-apagado"}`}>{k}</li>)}
                               </ul>
                             )}
                             {ediciones.length > 0 && (
-                              <ul data-ediciones className="mt-2 space-y-1 text-[14px]" aria-label="Los textos editados">
+                              <ul data-ediciones className="mt-2 space-y-1 text-dato" aria-label="Los textos editados">
                                 {ediciones.map((e) => <li key={`${e.lamina}-${e.campo}`} className="text-gris">{e.lamina != null ? `Lámina ${e.lamina} · ` : ""}{CAMPO_LEGIBLE[e.campo]}: <span className="text-hueso">«{e.despues}»</span></li>)}
                               </ul>
                             )}
