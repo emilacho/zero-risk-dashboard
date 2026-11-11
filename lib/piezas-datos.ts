@@ -61,6 +61,8 @@ export interface FilaDeLaLista {
   incompleta: boolean
   desacuerdos: number
   tiene_dibujo: boolean
+  /** 11-nov (Emilio: «tiene que verse el thumbnail o la imagen»): qué miniatura lleva la tarjeta: la primera imagen, el cuadro del video o ninguna */
+  miniatura?: "imagen" | "video" | null
   /** CC6 · 03-nov: está en el archivo de una campaña anterior (`archivada_en` no nulo): se ve, no se aprueba */
   archivada?: boolean
 }
@@ -79,17 +81,88 @@ export async function contarPiezasPorAprobar(supa: SupabaseClient): Promise<numb
  *  Si no se puede leer, el título vuelve a la fecha de creación: nunca se inventa una fecha */
 export async function fechasDePublicacion(supa: SupabaseClient, encargoIds: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>()
+  for (const [id, d] of await datosDeLosEncargos(supa, encargoIds)) if (d.publica) out.set(id, d.publica)
+  return out
+}
+
+/** lo que el ENCARGO de la oficina sabe de su pieza: el día de publicación (`sala_ref.fila.fecha`) y la familia (11-nov · Piezas v2, arreglo 2: una fila de la bandeja
+ *  sin `metadata.familia` caía en la carpeta «Pieza»; la oficina sí sabe qué es). Si no se puede leer, nada: nunca se inventa */
+export async function datosDeLosEncargos(supa: SupabaseClient, encargoIds: string[]): Promise<Map<string, { publica: string | null; familia: string | null }>> {
+  const out = new Map<string, { publica: string | null; familia: string | null }>()
   const ids = [...new Set(encargoIds.filter((x) => /^[0-9a-f-]{36}$/i.test(x)))]
   if (ids.length === 0) return out
   try {
-    const r = await supa.from("oficina_encargos").select("id, sala_ref").in("id", ids)
+    const r = await supa.from("oficina_encargos").select("id, familia, sala_ref").in("id", ids)
     if (r.error) return out
-    for (const e of (r.data ?? []) as Array<{ id?: unknown; sala_ref?: { fila?: { fecha?: unknown } | null } | null }>) {
+    for (const e of (r.data ?? []) as Array<{ id?: unknown; familia?: unknown; sala_ref?: { fila?: { fecha?: unknown } | null } | null }>) {
+      if (typeof e.id !== "string") continue
       const fecha = e.sala_ref?.fila?.fecha
-      if (typeof e.id === "string" && typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}/.test(fecha)) out.set(e.id, fecha.slice(0, 10))
+      out.set(e.id, { publica: typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}/.test(fecha) ? fecha.slice(0, 10) : null, familia: typeof e.familia === "string" && e.familia ? e.familia : null })
     }
-  } catch { /* sin fecha de publicación: queda la de creación */ }
+  } catch { /* sin datos del encargo: queda lo de la bandeja */ }
   return out
+}
+
+/** la miniatura que la tarjeta puede mostrar, por los archivos de la entrega (`metadata.enlace_entrega`: nombre → dirección): la imagen, el video o nada */
+export function miniaturaDeLaEntrega(enlace: unknown): "imagen" | "video" | null {
+  if (!enlace || typeof enlace !== "object" || !("manifest.json" in enlace)) return null
+  const nombres = Object.keys(enlace)
+  if (nombres.some((n) => /\.(png|jpe?g|webp)$/i.test(n))) return "imagen"
+  if (nombres.some((n) => /\.mp4$/i.test(n))) return "video"
+  return null
+}
+
+/** una pieza que la oficina todavía está haciendo (o que la jefatura revisa) y que aún no llegó a la bandeja (11-nov · Piezas v2, arreglo 7) */
+export interface PiezaEnCurso {
+  encargo_id: string
+  cliente_id: string | null
+  familia: string | null
+  /** «Video corto» · «Carrusel»: el tipo, para ubicarla en la fila de su subcategoría */
+  tipo_legible: string
+  columna: "en_el_estudio" | "en_revision"
+  /** cuántos pasos lleva la oficina (`estado_del_motor.pasos_ejecutados`); null si no se sabe. No hay total: no se inventa «de N» */
+  paso: number | null
+  publica: string | null
+  creada: string
+}
+const ESTADOS_EN_LA_MESA = ["abierto", "en_paso"]
+const REVISION_TERMINADA = /^(cerrada|fallida)/
+/** las piezas en producción: encargos reales (ni ensayo ni prueba ni archivados) hechos para una publicación (con su fila del calendario, o para rehacer una pieza),
+ *  que todavía no tienen fila en la bandeja. En la mesa → «En el estudio»; entregados con la revisión de la jefatura abierta → «En revisión». Un error de la base lanza */
+export async function listarEnCurso(supa: SupabaseClient, o: { limite?: number } = {}): Promise<PiezaEnCurso[]> {
+  const r = await supa.from("oficina_encargos")
+    .select("id, client_id, familia, estado, creado_en, fila:sala_ref->fila, rehace:sala_ref->cambios_del_dueno, paso:estado_del_motor->pasos_ejecutados")
+    .eq("dry_run", false).eq("prueba", false).is("archivada_en", null).is("hitl_queue_id", null).in("estado", [...ESTADOS_EN_LA_MESA, "cerrado"])
+    .order("creado_en", { ascending: false }).limit(o.limite ?? 50)
+  if (r.error) throw new Error(`no pude leer los encargos en curso: ${r.error.message}`)
+  const filas = ((r.data ?? []) as Array<Record<string, unknown>>).filter((e) => (e.fila && typeof e.fila === "object") || (e.rehace && typeof e.rehace === "object"))
+  const entregadas = filas.filter((e) => e.estado === "cerrado").map((e) => String(e.id))
+  const enRevision = new Set<string>()
+  if (entregadas.length) {
+    const j = await supa.from("jefatura_revisiones").select("artifact_id, estado, creado_en").eq("artifact_type", "pieza").in("artifact_id", entregadas).order("creado_en", { ascending: false }).limit(500)
+    if (j.error) throw new Error(`no pude leer las revisiones de la jefatura: ${j.error.message}`)
+    const vistas = new Set<string>()
+    for (const x of (j.data ?? []) as Array<{ artifact_id?: unknown; estado?: unknown }>) {
+      const id = String(x.artifact_id ?? "")
+      if (vistas.has(id)) continue // la más nueva manda
+      vistas.add(id)
+      if (!REVISION_TERMINADA.test(String(x.estado ?? ""))) enRevision.add(id)
+    }
+  }
+  return filas.filter((e) => ESTADOS_EN_LA_MESA.includes(String(e.estado)) || enRevision.has(String(e.id))).map((e) => {
+    const fecha = (e.fila as { fecha?: unknown } | null)?.fecha
+    const paso = Number(e.paso)
+    return {
+      encargo_id: String(e.id),
+      cliente_id: typeof e.client_id === "string" ? e.client_id : null,
+      familia: typeof e.familia === "string" ? e.familia : null,
+      tipo_legible: familiaLegible(e.familia),
+      columna: ESTADOS_EN_LA_MESA.includes(String(e.estado)) ? "en_el_estudio" as const : "en_revision" as const,
+      paso: e.paso != null && Number.isFinite(paso) && paso > 0 ? paso : null,
+      publica: typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}/.test(fecha) ? fecha.slice(0, 10) : null,
+      creada: String(e.creado_en ?? ""),
+    }
+  })
 }
 
 /** el último paso de la revisión que falló, para decir POR QUÉ no terminó; null si no se sabe */
@@ -128,10 +201,13 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       if (esDePractica({ rubro: x.industry, nombre: x.name })) practica.add(x.id)
     }
   }
-  const publica = await fechasDePublicacion(supa, filas.filter((f) => f.type === TIPO_PIEZA).map((f) => String(((f.metadata ?? {}) as Record<string, unknown>).oficina_encargo_id ?? "")))
+  const encargos = await datosDeLosEncargos(supa, filas.filter((f) => f.type === TIPO_PIEZA).map((f) => String(((f.metadata ?? {}) as Record<string, unknown>).oficina_encargo_id ?? "")))
+  const publica = new Map([...encargos].map(([id, d]) => [id, d.publica]))
   // las piezas de un cliente de práctica no salen en ninguna lista
   return filas.filter((f) => !(typeof f.client_id === "string" && practica.has(f.client_id))).map((f) => {
-    const meta = (f.metadata ?? {}) as Record<string, unknown>
+    const crudo = (f.metadata ?? {}) as Record<string, unknown>
+    // sin familia en la bandeja, la del encargo (arreglo 2 · antes caía en «Pieza»)
+    const meta = crudo.familia ? crudo : { ...crudo, familia: encargos.get(String(crudo.oficina_encargo_id ?? ""))?.familia ?? crudo.familia }
     const desac = Array.isArray(meta.desacuerdos) ? meta.desacuerdos.length : 0
     return {
       id: String(f.id),
@@ -152,6 +228,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       incompleta: meta.revision_incompleta === true,
       desacuerdos: desac,
       tiene_dibujo: typeof meta.enlace_entrega === "object" && meta.enlace_entrega !== null && "manifest.json" in (meta.enlace_entrega as object),
+      miniatura: f.type === TIPO_PIEZA ? miniaturaDeLaEntrega(meta.enlace_entrega) : null,
     }
   })
 }
