@@ -6,7 +6,7 @@
  * el manual (A1) suma a «Tus cambios» y no manda · Esc es Cancelar y el foco no sale de la ventana.
  * Dos clientes de rubros distintos: Náufrago (restaurante) y Zero Risk Seguridad Industrial (industria). Nada escribe ni gasta: `fetch` es falso.
  */
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
 import { createElement } from "react"
 import { readFileSync } from "node:fs"
@@ -230,6 +230,9 @@ describe.each(CLIENTES)("gran idea · $nombre", (c) => {
 
 describe.each(CLIENTES)("manual (A1) · $nombre", (c) => {
   const ciclo = { disponible: true, abierto: null, avance: null, que_cambio: [] }
+  // «Sumar» trae el cuadro a la vista; jsdom no tiene scrollIntoView (sin esto, el error sale en un cuadro de animación ya fuera de la prueba)
+  const traer = vi.fn()
+  beforeEach(() => { Element.prototype.scrollIntoView = traer })
   const montar = (libre: string, validados: string[] = []) => {
     const onLibre = vi.fn()
     const props = { clienteNombre: c.nombre, ciclo, validadosDelManual: [], libre, onLibre }
@@ -249,6 +252,7 @@ describe.each(CLIENTES)("manual (A1) · $nombre", (c) => {
     expect(onLibre).toHaveBeenCalledTimes(1)
     expect(onLibre).toHaveBeenCalledWith("Lo que ya escribí\n\nSección «Voz de la marca»: Más cercana, menos técnica")
     expect(ventana()).toBeNull()
+    await waitFor(() => expect(traer).toHaveBeenCalled()) // el cuadro con la nota se trae a la vista
   })
   it("Cancelar no toca el texto libre; con campos validados por el dueño, la ventana lo avisa", () => {
     const onLibre = montar("", ["Tono"])
