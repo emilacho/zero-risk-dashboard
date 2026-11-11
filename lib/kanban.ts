@@ -34,8 +34,8 @@ export const COLUMNAS: readonly Columna[] = [
   { clave: "vencida", nombre: "Vencida / Rechazada", descripcion: "Perdió su fecha, se descartó o la rechazaste", activa: true },
 ] as const
 
-/** el calendario: «En el esquema» va primero (Emilio, boceto v2 11-nov); Piezas no la lleva (la bandeja no tiene filas en esquema) */
-export const COLUMNA_EN_ESQUEMA: Columna = { clave: "en_esquema", nombre: "En el esquema", descripcion: "Tandas que todavía no se desarrollan: no son publicaciones aún", activa: true }
+/** el calendario: «Próximas» va primero (Emilio, boceto v2 11-nov; 20:39 el nombre: «En el esquema» no se entendía); Piezas no la lleva (la bandeja no tiene filas en esquema) */
+export const COLUMNA_EN_ESQUEMA: Columna = { clave: "en_esquema", nombre: "Próximas", descripcion: "Tandas que todavía no se desarrollan: no son publicaciones aún", activa: true }
 export const COLUMNAS_DEL_CALENDARIO: readonly Columna[] = [COLUMNA_EN_ESQUEMA, ...COLUMNAS]
 const COLOR_EN_ESQUEMA = "#818189"
 
@@ -94,7 +94,7 @@ export function tarjetaDeFila(f: FilaDelTablero): TarjetaDelKanban {
     detalle: `${red.nombre} · ${formatoLegible(f.formato)}${f.sede ? ` · ${f.sede}` : ""}`,
     cuando: f.fecha ? `${diaDelCalendario(f.fecha)}${f.hora ? ` · ${f.hora}` : ""}` : null,
     color: esquema ? COLOR_EN_ESQUEMA : colorDelEstado(f.tablero),
-    estado: esquema ? "En el esquema" : nombreDelEstado(f.tablero),
+    estado: esquema ? "Próxima" : nombreDelEstado(f.tablero),
     motivo: f.motivo || null,
     destacada: f.tablero === "emilio",
     orden: `${f.fecha}|${f.hora ?? ""}|${f.id}`,

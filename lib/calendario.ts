@@ -7,7 +7,7 @@ import { esFilaEnEsquema, nombreDelEstado } from "@/lib/pizarron"
 
 /** el estado de la fila en pocas palabras (para la etiqueta de cada publicación) */
 const CORTO_DE_LA_FILA: Record<string, string> = {
-  esquema: "en el esquema", propuesta: "propuesta", validada: "validada", en_investigacion: "se investiga un dato", lista_para_brief: "lista para el brief",
+  esquema: "próxima", propuesta: "propuesta", validada: "validada", en_investigacion: "se investiga un dato", lista_para_brief: "lista para el brief",
   briefeada: "con brief", en_oficina: "en la oficina", aprobada: "aprobada", cancelada: "cancelada", espera_video: "espera video",
   vencida_sin_brazo: "venció sin video", perdio_su_fecha: "perdió su fecha", descartada_sin_fuente: "descartada: sin fuente",
 }

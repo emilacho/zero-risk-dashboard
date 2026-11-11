@@ -120,16 +120,16 @@ describe("2 · la escena: con el plan aprobado, lo que pasa con su campaña", ()
 describe("4 · una fila en esquema no es una publicación", () => {
   for (const c of CLIENTES) {
     const filas = [fila("v1", "validada"), fila("v2", "validada"), fila("v3", "en_oficina"), fila("e1", "esquema"), fila("e2", "esquema")]
-    it(`${c.nombre}: Calendario, Aplicaciones y Centro dicen «3 publicaciones · 2 en esquema»`, () => {
+    it(`${c.nombre}: Calendario, Aplicaciones y Centro dicen «3 publicaciones · 2 próximas» (11-nov, Emilio: «Próximas», no «en esquema»)`, () => {
       const d = pizarron(c, filas)
       expect(conteoDePublicaciones(filas)).toEqual({ publicaciones: 3, en_esquema: 2 })
       const h = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: d }))
-      expect(h).toContain("3 publicaciones · 2 en esquema"); expect(h).not.toContain("5 publicaciones")
+      expect(h).toContain("3 publicaciones · 2 próximas"); expect(h).not.toContain("5 publicaciones")
       // la barra de la semana también (antes: «5 publicaciones · en el esquema ×2 · …»)
-      expect(h).toContain("3 publicaciones · 2 en esquema · validada ×2 · en la oficina"); expect(h).not.toContain("en el esquema ×2")
-      expect(detalleDelCuadro("calendario", d).texto).toBe("3 publicaciones · 2 en esquema")
+      expect(h).toContain("3 publicaciones · 2 próximas · validada ×2 · en la oficina"); expect(h).not.toContain("próxima ×2"); expect(h).not.toContain("esquema")
+      expect(detalleDelCuadro("calendario", d).texto).toBe("3 publicaciones · 2 próximas")
       const t = tarjetaDelCentro("calendario", d, {} as never)
-      expect(t.cantidad).toBe("3"); expect(t.linea).toBe("3 publicaciones · 2 en esquema")
+      expect(t.cantidad).toBe("3"); expect(t.linea).toBe("3 publicaciones · 2 próximas")
     })
   }
   it("control: sin filas en esquema, el texto de siempre (y el singular)", () => {
@@ -137,7 +137,8 @@ describe("4 · una fila en esquema no es una publicación", () => {
     expect(textoDePublicaciones(conteoDePublicaciones([fila("a", "validada")]))).toBe("1 publicación")
     expect(textoDePublicaciones(conteoDePublicaciones([]))).toBeNull()
   })
-  it("solo filas en esquema: «Sin publicaciones todavía · N en esquema»", () => {
-    expect(textoDePublicaciones(conteoDePublicaciones([fila("e1", "esquema")]))).toBe("Sin publicaciones todavía · 1 en esquema")
+  it("solo filas en esquema: «Sin publicaciones todavía · N próximas» (en singular, «1 próxima»)", () => {
+    expect(textoDePublicaciones(conteoDePublicaciones([fila("e1", "esquema")]))).toBe("Sin publicaciones todavía · 1 próxima")
+    expect(textoDePublicaciones(conteoDePublicaciones([fila("e1", "esquema"), fila("e2", "esquema")]))).toBe("Sin publicaciones todavía · 2 próximas")
   })
 })
