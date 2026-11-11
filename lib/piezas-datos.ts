@@ -20,6 +20,7 @@ import {
   type MetaDelManifiesto,
   type SlideDeLaOficina,
   type MapaDeOrigenes,
+  type PasoFallido,
   type VideoDeLaPieza,
 } from "@/lib/piezas"
 import { familiaLegible, redLegible, tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
@@ -74,6 +75,35 @@ export async function contarPiezasPorAprobar(supa: SupabaseClient): Promise<numb
   return r.count ?? 0
 }
 
+/** 11-nov (Emilio vía Lenovo): el día de PUBLICACIÓN de cada encargo, el de la fila del calendario para la que se hizo (`sala_ref.fila.fecha`).
+ *  Si no se puede leer, el título vuelve a la fecha de creación: nunca se inventa una fecha */
+export async function fechasDePublicacion(supa: SupabaseClient, encargoIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const ids = [...new Set(encargoIds.filter((x) => /^[0-9a-f-]{36}$/i.test(x)))]
+  if (ids.length === 0) return out
+  try {
+    const r = await supa.from("oficina_encargos").select("id, sala_ref").in("id", ids)
+    if (r.error) return out
+    for (const e of (r.data ?? []) as Array<{ id?: unknown; sala_ref?: { fila?: { fecha?: unknown } | null } | null }>) {
+      const fecha = e.sala_ref?.fila?.fecha
+      if (typeof e.id === "string" && typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}/.test(fecha)) out.set(e.id, fecha.slice(0, 10))
+    }
+  } catch { /* sin fecha de publicación: queda la de creación */ }
+  return out
+}
+
+/** el último paso de la revisión que falló, para decir POR QUÉ no terminó; null si no se sabe */
+export async function pasoQueFallo(supa: SupabaseClient, revisionId: string | null): Promise<PasoFallido | null> {
+  if (!revisionId) return null
+  try {
+    const r = await supa.from("jefatura_pasos").select("paso, error").eq("revision_id", revisionId).eq("estado", "fallo").order("n", { ascending: false }).limit(1)
+    const p = ((r.data ?? [])[0] ?? null) as { paso?: unknown; error?: unknown } | null
+    return r.error || !p ? null : { paso: typeof p.paso === "string" ? p.paso : null, error: typeof p.error === "string" ? p.error : null }
+  } catch {
+    return null
+  }
+}
+
 /** `tipo`: solo piezas (por omisión), solo las otras revisiones de la bandeja, o todo */
 export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: FiltroDeEstado; limite?: number; tipo?: "piezas" | "otras" | "todas"; /** «fuera» (por omisión): sin lo archivado · «solo»: únicamente lo archivado */ archivo?: "fuera" | "solo" } = {}): Promise<FilaDeLaLista[]> {
   let q = supa.from("hitl_queue").select(COLUMNAS_DE_LA_LISTA).order("created_at", { ascending: false }).limit(filtro.limite ?? 60)
@@ -98,6 +128,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       if (esDePractica({ rubro: x.industry, nombre: x.name })) practica.add(x.id)
     }
   }
+  const publica = await fechasDePublicacion(supa, filas.filter((f) => f.type === TIPO_PIEZA).map((f) => String(((f.metadata ?? {}) as Record<string, unknown>).oficina_encargo_id ?? "")))
   // las piezas de un cliente de práctica no salen en ninguna lista
   return filas.filter((f) => !(typeof f.client_id === "string" && practica.has(f.client_id))).map((f) => {
     const meta = (f.metadata ?? {}) as Record<string, unknown>
@@ -110,7 +141,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       es_pieza: f.type === TIPO_PIEZA,
       titulo: String(f.title ?? f.output_preview ?? ""),
       titulo_legible: f.type === TIPO_PIEZA
-        ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null, creada: String(f.created_at) })
+        ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente: f.client_id ? nombres.get(String(f.client_id)) ?? null : null, creada: String(f.created_at), publica: publica.get(String(meta.oficina_encargo_id ?? "")) ?? null })
         : [tipoDeRevisionLegible(f.type), f.client_id ? nombres.get(String(f.client_id)) : null].filter(Boolean).join(" · "),
       carpeta: f.archivada_en ? CARPETA_ARCHIVO : f.type === TIPO_PIEZA ? [familiaLegible(meta.familia), redLegible(f.title)].filter(Boolean).join(" ") : CARPETA_OTRAS,
       archivada: !!f.archivada_en,
@@ -218,6 +249,9 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
   }
   const laminas = laminasDeLaPieza(archivos, slides, origenes)
   const video = videoDeLaPieza(archivos, man, segundos)
+  const esPieza = f.type === TIPO_PIEZA
+  const publica = esPieza && encargoId ? (await fechasDePublicacion(supa, [encargoId])).get(encargoId) ?? null : null
+  const pasoFallido = esPieza && (meta.jefatura_resultado === "fallida" || meta.revision_incompleta === true) ? await pasoQueFallo(supa, (meta.jefatura_revision_id as string | undefined) ?? null) : null
   const opinion = (meta.opinion_externa as { texto?: string } | null | undefined)?.texto ?? null
   return {
     id: String(f.id),
@@ -225,7 +259,7 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     status: String(f.status),
     tipo: String(f.type ?? ""),
     es_pieza: f.type === TIPO_PIEZA,
-    titulo: f.type === TIPO_PIEZA ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente, creada: String(f.created_at) }) : [tipoDeRevisionLegible(f.type), cliente].filter(Boolean).join(" · "),
+    titulo: f.type === TIPO_PIEZA ? tituloDePieza({ familia: meta.familia, tituloCrudo: f.title, cliente, creada: String(f.created_at), publica }) : [tipoDeRevisionLegible(f.type), cliente].filter(Boolean).join(" · "),
     cliente,
     creada: String(f.created_at),
     familia: (meta.familia as string | undefined) ?? null,
@@ -236,7 +270,7 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     pie: await leerArchivoDeTexto(meta.enlace_entrega as Record<string, unknown> | undefined, /_texto\.txt$/, 4000, deps),
     video,
     guion: video ? await leerArchivoDeTexto(meta.enlace_entrega as Record<string, unknown> | undefined, /_guion\.md$/, 8000, deps) : null,
-    avisos: avisosDeLaPieza({ output_preview: (f.output_preview as string | null) ?? null, metadata: meta }, laminas, video),
+    avisos: avisosDeLaPieza({ output_preview: (f.output_preview as string | null) ?? null, metadata: meta }, laminas, video, pasoFallido),
     exige_casilla: exigeCasilla({ metadata: meta }),
     archivada: !!f.archivada_en,
     recuperada_del_archivo: !!meta.recuperada_del_archivo,
