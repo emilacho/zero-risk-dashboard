@@ -16,8 +16,6 @@ import { diaConNombre, estadoCortoDeLaPublicacion, loQueTeTocaEnElCalendario, or
 export type VistaDelTablero = "dias" | "calendario" | "kanban"
 const NOMBRE_DE_LA_VISTA: Record<VistaDelTablero, string> = { dias: "Por día", calendario: "Mes", kanban: "Kanban" }
 
-/** el dorado sutil de los títulos (boceto v2 del Kanban, 11-nov) */
-const DORADO = "#c9a227"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 
 const ESTILO = `
@@ -103,10 +101,10 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
       <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" data-vista-activa={vista} data-pantalla-completa className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <span aria-hidden className={`h-2 w-2 rounded-full ${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}`} />
-          {/* 11-nov (boceto v2 aprobado por Emilio): título 1 «Centro de campaña» grande en dorado sutil · título 2 la pantalla y el cliente · sin la línea de ayuda */}
+          {/* 11-nov (boceto v2 aprobado por Emilio): título 1 «Centro de campaña» grande en oro · título 2 la pantalla y el cliente · sin la línea de ayuda; con los tokens del estilo base (cifra 24 > titulo 20) */}
           <div className="min-w-0">
-            <h2 id="pizarron-titulo" className="font-display text-[30px] font-semibold leading-tight tracking-tight" style={{ color: DORADO }}>Centro de campaña</h2>
-            <p data-subtitulo className="mt-0.5 truncate font-display text-[20px] font-medium text-zinc-200">Calendario · {NOMBRE_DE_LA_VISTA[vista]}{datos?.cliente?.nombre && <span data-cliente-cabecera className="text-zinc-500"> · {datos?.cliente?.nombre}</span>}</p>
+            <h2 id="pizarron-titulo" className="font-display text-cifra font-medio text-oro">Centro de campaña</h2>
+            <p data-subtitulo className="mt-0.5 truncate font-display text-titulo font-medio text-hueso">Calendario · {NOMBRE_DE_LA_VISTA[vista]}{datos?.cliente?.nombre && <span data-cliente-cabecera className="text-apagado"> · {datos?.cliente?.nombre}</span>}</p>
           </div>
           <div role="group" aria-label="Cómo ver la campaña" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
             {(["dias", "calendario", "kanban"] as const).map((v) => (

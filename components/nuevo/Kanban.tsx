@@ -5,7 +5,7 @@ import type { ColumnaArmada } from "@/lib/kanban"
 /**
  * EL KANBAN (sprint 6.11 · ADENDA 3): 7 columnas genéricas, SOLO LECTURA (nada se arrastra: cada tarjeta está donde la plataforma dice que está).
  * Se usa dentro del Calendario (Centro de campaña · Calendario ↔ Kanban) y dentro de Piezas. «Publicada» viene atenuada mientras el sistema no publique.
- * 11-nov (boceto v2 aprobado por Emilio): sin frases de ayuda bajo el nombre; el nombre de la columna a 15 px en negrita (título 30 > subtítulo 20 > columna 15 > tarjeta 12).
+ * 11-nov (boceto v2 aprobado por Emilio): sin frases de ayuda bajo el nombre; el nombre de la columna en «cuerpo» 15 y peso medio (título 24 > subtítulo 20 > columna 15 > tarjeta 12, con los tokens del estilo base).
  * Tocar una tarjeta la elige en el panel de origen (el calendario abre su detalle; la bandeja abre la pieza).
  */
 const ESTILO = `
@@ -31,12 +31,12 @@ export function Kanban({ columnas, elegida = null, onElegir, etiqueta }: {
         <section key={c.clave} role="listitem" data-columna={c.clave} data-activa={c.activa} data-total={c.tarjetas.length} aria-label={`${c.nombre}: ${c.tarjetas.length}`} className="kb-columna flex w-[196px] shrink-0 flex-col rounded-lg border border-white/10 bg-black/25">
           <header className="border-b border-white/10 px-2.5 py-2">
             <div className="flex items-center gap-2">
-              <h4 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-zinc-100" title={c.descripcion}>{c.nombre}</h4>
+              <h4 className="min-w-0 flex-1 truncate text-cuerpo font-medio text-hueso" title={c.descripcion}>{c.nombre}</h4>
               <span className={`num shrink-0 rounded-full px-1.5 text-[10.5px] ${c.clave === "por_aprobar" && c.tarjetas.length ? "bg-amber-400/20 text-amber-200" : "bg-white/[0.06] text-zinc-400"}`}>{c.tarjetas.length}</span>
             </div>
           </header>
           <div className="flex max-h-[52vh] flex-col gap-1.5 overflow-y-auto p-1.5">
-            {c.tarjetas.length === 0 && <p className="px-2 py-2 text-[11px] text-zinc-600">Nada aquí</p>}
+            {c.tarjetas.length === 0 && <p className="px-2 py-2 text-rotulo text-apagado">Nada aquí</p>}
             {c.tarjetas.slice(0, MAXIMO_POR_COLUMNA).map((t) => (
               <button key={t.id} type="button" data-tarjeta={t.id} data-columna-tarjeta={t.columna} data-elegida={t.id === elegida} data-destacada={t.destacada} onClick={() => onElegir?.(t.id)} disabled={!onElegir}
                 title={`${t.estado}${t.motivo ? ` · ${t.motivo}` : ""}`} aria-label={`${t.titulo} · ${t.estado}`} aria-pressed={t.id === elegida}
