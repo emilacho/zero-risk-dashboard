@@ -63,7 +63,7 @@ function baseFalsa(respuestas: Record<string, unknown | ((registro: string[]) =>
 const estrategia = estrategiaDelContenido(CONTENIDO)
 const datos: PlanDelCliente = {
   clientes: [{ id: CLIENTE, nombre: "Náufrago", con_campana: true }, { id: "11111111-1111-4111-8111-111111111111", nombre: "Otro", con_campana: false }], cliente: { id: CLIENTE, nombre: "Náufrago" }, hoy: "2026-11-05",
-  campana: { id: CAMPANA, estado: "pausada", estado_motivo: "pausa de pruebas por decisión del dueño 31-oct", desde: "2026-11-02", hasta: "2027-01-30", sedes: ["guayaquil", "olon"], tope_planeacion_usd: 6, autoproducir: true, publicaciones: 136, version_calendario: 1, creada_en: "2026-10-30T23:39:58Z", actualizada_en: "2026-10-31T13:36:53Z" },
+  campana: { id: CAMPANA, estado: "pausada", desde: "2026-11-02", hasta: "2027-01-30", sedes: ["guayaquil", "olon"], tope_planeacion_usd: 6, autoproducir: true, publicaciones: 136, version_calendario: 1, creada_en: "2026-10-30T23:39:58Z", actualizada_en: "2026-10-31T13:36:53Z" },
   estrategia: { version: 1, estado: "validada", creada_en: "2026-10-30T23:40:37Z", costo_usd: 0.2499, texto_md: null, ...estrategia },
   fase_activa: faseActiva(estrategia.fases, "2026-11-02", "2026-11-05"),
   documento: { id: "3dfcc12f-993e-478a-b884-f7df45ceaf77", titulo: "Plan de 90 dias · 2026-10-30", creado_en: "2026-10-30T23:13:22Z", actualizado_en: null, status: "draft", estado_del_plan: "con_pendientes", marcas: marcasDelChequeo(PROVENANCE.pendientes), aviso_del_chequeo: puntosDelAviso(PROVENANCE.registro_interno.aviso_del_chequeo), no_se_busco: puntosDeLoNoBuscado(PROVENANCE.registro_interno.no_se_busco_del_sistema), jefatura: { resultado: "con_desacuerdo", marcado_en: "2026-10-30T23:39:50Z" }, plan: planDelTexto(TEXTO_DEL_PLAN).plan, prosa: null, caracteres: 1485, que_cambio: null },
@@ -158,7 +158,12 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
   it("el panel dibuja la portada, la decisión pendiente con sus marcas y botones, las fases, la meta, las redes, la semana tipo y lo que espera; sin revisión pendiente no hay botones", () => {
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="plan"'); expect(html).toContain("Plan de 90 días") /* Lenovo 20:37Z: el nombre dice lo que el plan promete */; expect(html).toContain("Este plan solo cubre 60 de los 90 días.") /* y lo que cubre de verdad (sus fases llegan al día 60), en palabras */; expect(html).toContain("Náufrago")
-    expect(html).toContain("campaña en pausa"); expect(html).toContain("pausa de pruebas por decisión del dueño"); expect(html).not.toContain("Día 4 · fase"); // con la campaña en pausa no se dice en qué día va; expect(html).toContain("estrategia validada"); expect(html).not.toContain("estrategia v1"); expect(html).toContain("Con puntos por resolver · 3")
+    expect(html).toContain("campaña en pausa")
+    expect(html).not.toContain("pausa de pruebas por decisión del dueño") // GO Lenovo 11-nov 23:54Z: la nota interna de la cadena no se muestra
+    expect(html).not.toContain("Día 4 · fase") // con la campaña en pausa no se dice en qué día va
+    expect(html).toContain("estrategia validada")
+    expect(html).not.toContain("estrategia v1")
+    expect(html).toContain("Con puntos por resolver · 3")
     expect(html).not.toContain("Topes de la planeación"); expect(html).not.toContain("US$ 1,50"); expect(html).not.toContain("Tope de planeación"); // 01-nov (punto 8 de Emilio): el panel del plan no muestra dinero; el dinero va en Dinero
      expect(html).toContain("136"); expect(html).toContain("Guayaquil · Olón")
     // la decisión pendiente: solo lo elemental (Emilio, 06-nov) · el estado y los dos botones, sin las marcas del chequeo ni la línea de la jefatura
