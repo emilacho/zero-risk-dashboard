@@ -417,7 +417,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
         {/* la barra de dirección: de macro a micro, dentro del cliente enfocado */}
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 bg-black/30 px-4 py-2 sm:px-5">
           <button type="button" data-miga="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "page" : undefined} className={`${MIGA} ${!carpeta ? "text-amber-200" : ""}`}>{nombreDelCliente}</button>
-          {carpeta && <><Sep /><button type="button" data-miga="carpeta" onClick={() => irA(null)} aria-current={!elegida ? "page" : undefined} className={`${MIGA} ${!elegida ? "text-amber-200" : ""}`}>{carpeta}</button></>}
+          {carpeta && <><Sep /><button type="button" data-miga="carpeta" onClick={() => irA(null)} aria-current={!elegida ? "page" : undefined} className={`${MIGA} ${!elegida ? "text-oro" : ""}`}>{carpeta}</button></>}
           {elegida && <><Sep /><span data-miga="pieza" aria-current="page" className="px-1.5 text-[12.5px] text-amber-200">{pieza?.titulo ?? filaElegida?.titulo_legible ?? "Pieza"}</span></>}
           {elegida && total > 0 && <><Sep /><span data-miga="lamina" className="px-1.5 text-[12.5px] text-zinc-400">{juntas ? `${total} láminas` : `lámina ${n} de ${total}`}</span></>}
         </nav>
@@ -454,7 +454,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
             {pieza && estadoVisto && (
               <>
                 <div className="pi-entra flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-5" key={pieza.id}>
-                  <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(null)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
+                  <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(null)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-control border border-linea text-gris hover:border-linea-oro">‹</button>
                   <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
                   {pieza.archivada && <span data-chip="archivada"><Chip>{CARPETA_ARCHIVO.toLowerCase()}</Chip></span>}
