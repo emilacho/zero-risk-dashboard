@@ -158,7 +158,12 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
   it("el panel dibuja la portada, la decisión pendiente con sus marcas y botones, las fases, la meta, las redes, la semana tipo y lo que espera; sin revisión pendiente no hay botones", () => {
     const html = renderToStaticMarkup(createElement(PanelPlan, { onCerrar: () => {}, datosIniciales: datos }))
     expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="plan"'); expect(html).toContain("Plan de 90 días") /* Lenovo 20:37Z: el nombre dice lo que el plan promete */; expect(html).toContain("Este plan solo cubre 60 de los 90 días.") /* y lo que cubre de verdad (sus fases llegan al día 60), en palabras */; expect(html).toContain("Náufrago")
-    expect(html).toContain("campaña en pausa"); expect(html).not.toContain("pausa de pruebas por decisión del dueño"); // GO Lenovo 11-nov 23:54Z: la nota interna de la cadena no se muestra expect(html).not.toContain("Día 4 · fase"); // con la campaña en pausa no se dice en qué día va; expect(html).toContain("estrategia validada"); expect(html).not.toContain("estrategia v1"); expect(html).toContain("Con puntos por resolver · 3")
+    expect(html).toContain("campaña en pausa")
+    expect(html).not.toContain("pausa de pruebas por decisión del dueño") // GO Lenovo 11-nov 23:54Z: la nota interna de la cadena no se muestra
+    expect(html).not.toContain("Día 4 · fase") // con la campaña en pausa no se dice en qué día va
+    expect(html).toContain("estrategia validada")
+    expect(html).not.toContain("estrategia v1")
+    expect(html).toContain("Con puntos por resolver · 3")
     expect(html).not.toContain("Topes de la planeación"); expect(html).not.toContain("US$ 1,50"); expect(html).not.toContain("Tope de planeación"); // 01-nov (punto 8 de Emilio): el panel del plan no muestra dinero; el dinero va en Dinero
      expect(html).toContain("136"); expect(html).toContain("Guayaquil · Olón")
     // la decisión pendiente: solo lo elemental (Emilio, 06-nov) · el estado y los dos botones, sin las marcas del chequeo ni la línea de la jefatura
