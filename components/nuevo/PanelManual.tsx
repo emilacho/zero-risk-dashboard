@@ -1,5 +1,6 @@
 "use client"
 
+import { hayVentanaDePedirCambios } from "@/components/nuevo/pedido/VentanaPedirCambios"
 import { faltantesDeLasSecciones } from "@/lib/manual-secciones"
 import { TarjetaDeRevisionDelEditor } from "@/components/nuevo/manual/RevisionDelEditor"
 import { leerClienteDeTrabajo } from "@/lib/cliente-de-trabajo"
@@ -298,7 +299,7 @@ export function PanelManual({ borrador: apiBorrador = BORRADOR_REAL, borradorIni
   useEffect(() => { cerrar.current?.focus() }, [])
   // Esc cierra el manual y NO la oficina: se atiende en captura y se detiene ahí
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); salirConAviso.current(onCerrar) } }
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape" && !hayVentanaDePedirCambios()) { e.stopPropagation(); e.preventDefault(); salirConAviso.current(onCerrar) } }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
   }, [onCerrar])

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { NotaDeTodos, useAlCambiarElCliente, useClienteDeTrabajo } from "@/components/nuevo/ClienteComoTexto"
 import type { Bandeja } from "@/lib/bandeja-datos"
 import type { DetalleDeLaPieza, FilaDeLaLista, PiezaEnCurso } from "@/lib/piezas-datos"
-import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, alcanceDeLosCambios, arbolDeLaBandeja, avisoTrasDecidir, filasDeSubcategorias, numeroDelCliente, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type ElementoDeLaFila, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono } from "@/lib/bandeja"
+import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono, filasDeSubcategorias, numeroDelCliente, type ElementoDeLaFila } from "@/lib/bandeja"
 import { hayTexto, type AccionDeLaPieza, type EstadoPieza } from "@/lib/piezas"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDePieza } from "@/lib/kanban"
@@ -17,7 +17,9 @@ import { llamarAccion } from "@/components/nuevo/PanelManual"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
 import { Rotulo } from "@/components/nuevo/EstiloBase"
 import { BarraDeLaPieza } from "@/components/nuevo/BarraDeLaPieza"
-import { diaDeCalendario, diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
+import { loQueVaConTuNota, MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES } from "@/lib/pedir-cambios"
+import { hayVentanaDePedirCambios, VentanaPedirCambios, type ResultadoDelPedido } from "@/components/nuevo/pedido/VentanaPedirCambios"
+import { diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, tipoDeRevisionLegible, diaDeCalendario } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
@@ -318,6 +320,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       const enCampo = ["TEXTAREA", "INPUT", "SELECT"].includes((e.target as HTMLElement)?.tagName ?? "")
+      if (hayVentanaDePedirCambios()) return // la ventana «Pedir cambios» atiende su Esc y su Tab
       if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); if (zoom) setZoom(false); else if (dialogo) setDialogo(null); else onCerrar(); return }
       if (enCampo || dialogo) return
       if (e.key === "ArrowRight") ir(1)
@@ -336,17 +339,22 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const marcar = (k: number) => setMarcadas((m) => (m.includes(k) ? m.filter((x) => x !== k) : [...m, k].sort((a, b) => a - b)))
   const abrir = (d: Dialogo) => { setDialogo(d); setErrorDialogo(null); setAviso(null) }
   const cancelar = () => { setDialogo(null); setErrorDialogo(null) }
+  // Cancelar la ventana «Pedir cambios» NO borra lo marcado ni lo editado (CC7): solo la cierra
+  const cancelarPedido = useCallback(() => { setDialogo(null); setErrorDialogo(null) }, [])
   const editar = (e: Edicion) => setEdiciones((l) => conEdicion(l, e))
   const edicionDe = (lam: number | null, campo: CampoEditable) => ediciones.find((e) => e.lamina === lam && e.campo === campo)
   const laminasDelPedido = [...new Set([...marcadas, ...laminasDeLasEdiciones(ediciones)])].sort((a, b) => a - b)
 
-  /** Aprobar · Pedir cambios · Rechazar una PIEZA: la misma puerta que la ventana de siempre (`POST /api/piezas/{id}/decidir`) */
-  async function decidir(a: AccionDeLaPieza) {
-    if (!pieza) return
-    let texto = comentario
-    if (a === "cambios" && ediciones.length) { const c = comentarioDeEdiciones(ediciones, comentario); if ("error" in c) { setErrorDialogo(c.error); return } texto = c.comentario }
+  /** Aprobar · Pedir cambios · Rechazar una PIEZA: la misma puerta que la ventana de siempre (`POST /api/piezas/{id}/decidir`).
+   *  «Pedir cambios» lleva la nota de la ventana (y su error vuelve a la ventana, que queda abierta); aprobar y rechazar, el comentario de su formulario */
+  async function decidir(a: AccionDeLaPieza, nota?: string): Promise<ResultadoDelPedido> {
+    if (!pieza) return { ok: false, error: "No hay una pieza abierta." }
+    const enVentana = a === "cambios"
+    const fallo = (error: string): ResultadoDelPedido => { if (!enVentana) setErrorDialogo(error); return { ok: false, error } }
+    let texto = enVentana ? nota ?? "" : comentario
+    if (a === "cambios" && ediciones.length) { const c = comentarioDeEdiciones(ediciones, texto); if ("error" in c) return fallo(c.error); texto = c.comentario }
     const c = cuerpoDeDecisionDePieza({ accion: a, comentario: texto, laminas: a === "cambios" ? laminasDelPedido : marcadas, casilla, total, exige_casilla: pieza.exige_casilla, estado_visto: pieza.status })
-    if ("error" in c) { setErrorDialogo(c.error); return }
+    if ("error" in c) return fallo(c.error)
     setEnviando(true); setErrorDialogo(null)
     try {
       const r = await fetchImpl(`/api/piezas/${encodeURIComponent(pieza.id)}/decidir`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(c.cuerpo) })
@@ -359,11 +367,12 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           await leerLaBandeja(filtro)
           if (siguiente && filtro === "pendiente") setElegida(siguiente); else void leerLaPieza(pieza.id)
         }
-      } else {
-        setErrorDialogo(errorTrasDecidir(r.status, j))
-        if (r.status === 409) { await leerLaBandeja(filtro); void leerLaPieza(pieza.id) }
+        return { ok: true }
       }
-    } catch (e) { setErrorDialogo(`No se pudo contactar al servidor: ${e instanceof Error ? e.message : String(e)}`) } finally { setEnviando(false) }
+      const error = errorTrasDecidir(r.status, j)
+      if (r.status === 409) { await leerLaBandeja(filtro); void leerLaPieza(pieza.id) }
+      return fallo(error)
+    } catch (e) { return fallo(`No se pudo contactar al servidor: ${e instanceof Error ? e.message : String(e)}`) } finally { setEnviando(false) }
   }
 
   /** las OTRAS revisiones (plan con pendientes · lista de competidores · revisión del editor): la acción del tablero `revision-resolver`, la de siempre */
@@ -614,23 +623,30 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                       <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
                     </div>
                   )}
-                  {pendiente && dialogo === "cambios" && (
-                    <form data-editor="pieza-cambios" className="rounded-md border border-white/15 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void decidir("cambios") }}>
-                      <p className="text-[12.5px] text-zinc-400">{alcanceDeLosCambios(laminasDelPedido)}{laminasDelPedido.length === 0 && total > 1 ? " · en «Ver las juntas» puedes marcar solo algunas láminas" : ""}</p>
-                      {ediciones.length > 0 && (
-                        <ul data-ediciones className="mt-2 space-y-1 rounded-md border border-amber-400/20 bg-amber-400/[0.05] p-2 text-[12.5px]" aria-label="Los textos editados">
-                          {ediciones.map((e) => <li key={`${e.lamina}-${e.campo}`} className="flex items-start gap-2"><span className="min-w-0 flex-1 text-zinc-200">{e.lamina != null ? `Lámina ${e.lamina} · ` : ""}{CAMPO_LEGIBLE[e.campo]}: <span className="text-amber-100">«{e.despues}»</span>{e.antes ? <span className="text-zinc-500"> (antes «{e.antes}»)</span> : null}</span><button type="button" data-accion="quitar-edicion" onClick={() => setEdiciones((l) => l.filter((x) => x !== e))} aria-label="Quitar este cambio" className="text-[11px] text-zinc-500 hover:text-rose-200">quitar</button></li>)}
-                        </ul>
-                      )}
-                      <label className="mt-2 block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">{ediciones.length ? "Algo más para la oficina (opcional)" : "¿Qué quieres distinto? (la oficina creativa lo lee)"}</span>
-                        <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={3} maxLength={MINIMOS.maximo} aria-label="Qué debe cambiar en la pieza" autoFocus className={CAJA} /></label>
-                      <p /* estilo-ok: solo cambia el texto de ayuda, los tokens van con boceto para Emilio */ className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/{MINIMOS.maximo}</p>
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button type="submit" data-accion="confirmar-pedir-cambios-pieza" disabled={enviando || (!ediciones.length && !hayTexto(comentario))} className={B_AMBAR}>{enviando ? "Enviando…" : "Enviar el pedido de cambios a la oficina"}</button>
-                        <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
-                      </div>
-                    </form>
-                  )}
+                  {pendiente && dialogo === "cambios" && (() => {
+                    const va = loQueVaConTuNota(marcadas.length, ediciones.length)
+                    return (
+                      <VentanaPedirCambios panel="piezas" documento="Pieza" seccion={pieza.titulo || null} minimo={MINIMO_DE_LA_NOTA.piezas} maximo={MINIMOS.maximo}
+                        quePasaDespues={QUE_PASA_DESPUES.piezas} notaOpcional={ediciones.length > 0}
+                        onConfirmar={(nota) => decidir("cambios", nota)} onCancelar={cancelarPedido}
+                        debajoDeLaCaja={ediciones.length > 0 ? <p className="mt-1.5 text-dato text-apagado">Tus textos editados ya son el pedido: la nota es opcional.</p> : null}
+                        extra={va ? (
+                          <div data-va-con-tu-nota className="rounded-control border border-dashed border-linea-oro px-4 py-3">
+                            <p className="text-cuerpo text-gris"><b className="font-medio text-hueso">Va con tu nota:</b> {va}</p>
+                            {total > 1 && (
+                              <ul className="mt-2 flex flex-wrap gap-2" aria-label="Las láminas del pedido">
+                                {[...Array(total).keys()].map((i) => i + 1).map((k) => <li key={k} data-lamina-va={k} data-va={laminasDelPedido.includes(k)} className={`num grid h-10 w-10 place-items-center rounded-control border text-dato ${laminasDelPedido.includes(k) ? "border-oro text-hueso" : "border-linea text-apagado"}`}>{k}</li>)}
+                              </ul>
+                            )}
+                            {ediciones.length > 0 && (
+                              <ul data-ediciones className="mt-2 space-y-1 text-dato" aria-label="Los textos editados">
+                                {ediciones.map((e) => <li key={`${e.lamina}-${e.campo}`} className="text-gris">{e.lamina != null ? `Lámina ${e.lamina} · ` : ""}{CAMPO_LEGIBLE[e.campo]}: <span className="text-hueso">«{e.despues}»</span></li>)}
+                              </ul>
+                            )}
+                          </div>
+                        ) : null} />
+                    )
+                  })()}
                   {pendiente && dialogo === "rechazar" && (
                     <form data-editor="pieza-rechazo" className="rounded-md border border-rose-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void decidir("rechazar") }}>
                       <label className="block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Por qué se rechaza? (queda registrado)</span>

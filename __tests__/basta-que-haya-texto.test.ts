@@ -60,9 +60,11 @@ describe("las pantallas ya no piden un mínimo de letras", () => {
   })
   it("los botones de pedir cambios y rechazar se apagan solo si no hay texto", () => {
     const s = readFileSync("components/nuevo/PanelPiezas.tsx", "utf8")
-    for (const accion of ["confirmar-pedir-cambios-pieza", "confirmar-rechazar-pieza", "confirmar-revision-rechazar"]) {
+    for (const accion of ["confirmar-rechazar-pieza", "confirmar-revision-rechazar"]) {
       const boton = s.slice(s.indexOf(`data-accion="${accion}"`), s.indexOf(">", s.indexOf(`data-accion="${accion}"`)))
       expect(boton, accion).toMatch(/!hayTexto\(comentario\)/)
     }
+    // «Pedir cambios» de la pieza va en la ventana nueva: su mínimo es MINIMO_DE_LA_NOTA.piezas (1 = basta que haya texto, por hayTexto)
+    expect(s).toContain("minimo={MINIMO_DE_LA_NOTA.piezas}")
   })
 })

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { GranIdeaDelCliente } from "@/lib/gran-idea-datos"
 import type { EstadoDelConcepto } from "@/lib/concepto-datos"
 import { diaYHora, plural } from "@/lib/lenguaje"
-import { NOTA_MINIMA, type ApuntaA } from "@/lib/concepto-decision"
+import type { ApuntaA } from "@/lib/concepto-decision"
+import { MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES } from "@/lib/pedir-cambios"
+import { ConSubrayado, hayVentanaDePedirCambios, VentanaPedirCambios, type ResultadoDelPedido } from "@/components/nuevo/pedido/VentanaPedirCambios"
 import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { estadoDelBriefLegible } from "@/lib/brief"
 import { seriesSinRepetir, sinCodigos, sinMarcasDeFormato, type ContextoSinCodigos } from "@/lib/sin-codigos"
@@ -38,7 +40,6 @@ const MIGA = "rounded px-1.5 py-0.5 text-[12.5px] text-zinc-300"
 const BOTON = "rounded-xl border px-5 py-3 text-[14px] font-medium transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
 const B_VERDE = `${BOTON} border-emerald-500/70 bg-emerald-700/60 text-emerald-50 hover:bg-emerald-700/80`
 const B_AMBAR = `${BOTON} border-amber-400/70 bg-amber-400/15 text-amber-100 hover:bg-amber-400/25`
-const B_GRIS = "rounded-xl border border-white/15 px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-white/[0.06]"
 const Sep = () => <span className="text-zinc-600" aria-hidden>›</span>
 /** una sección plegable con su resumen (como el plan): cerrada, la primera línea; abierta, todo */
 function Plegable({ id, titulo, resumen, children }: { id: string; titulo: string; resumen?: string | null; children: React.ReactNode }) {
@@ -85,7 +86,6 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
   const cerrar = useRef<HTMLButtonElement>(null)
   // 6.11 · la decisión
   const [dialogo, setDialogo] = useState(false)
-  const [nota, setNota] = useState("")
   const [apunta, setApunta] = useState<ApuntaA>("concepto")
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null)
@@ -103,7 +103,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
   useEffect(() => { cerrar.current?.focus() }, [])
   useEffect(() => { if (!datosIniciales) void leer(clienteInicial) }, [leer, datosIniciales, clienteInicial])
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); if (dialogo) setDialogo(false); else onCerrar() }
+    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape" || hayVentanaDePedirCambios()) return; e.stopPropagation(); e.preventDefault(); if (dialogo) setDialogo(false); else onCerrar() }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
   }, [onCerrar, dialogo])
@@ -120,19 +120,28 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
   // tras «Pedir cambios» y mientras no llegue la propuesta nueva: la misma barra de avance del plan y el manual
   const avance = d && tarjetas[0]?.hitl_id === d.hitl_id ? avanceDeGranIdea(tarjetas, d.decidido_en, new Date()) : null
 
-  /** la decisión va a la ruta de CC#1 (`POST /api/piezas/{id}/gran-idea`); la plataforma la aplica. Con 409 (la tarjeta cambió) se recarga */
-  const decidir = async (accion: AccionDeGranIdea) => {
-    if (!d) return
+  /** la decisión va a la ruta de CC#1 (`POST /api/piezas/{id}/gran-idea`); la plataforma la aplica. Con 409 (la tarjeta cambió) se recarga.
+   *  «Aprobar» va sin nota; «Pedir cambios» lleva la nota de la ventana. Devuelve si salió: si no, la ventana queda abierta con el error */
+  const decidir = async (accion: AccionDeGranIdea, nota = ""): Promise<ResultadoDelPedido> => {
+    if (!d) return { ok: false, error: "No hay una propuesta abierta." }
     const c = cuerpoDeDecisionDeGranIdea({ accion, nota, apunta_a: apunta, estado_visto: d.status })
-    if ("error" in c) { setMensaje({ ok: false, texto: c.error }); return }
+    if ("error" in c) { if (accion === "aprobar") setMensaje({ ok: false, texto: c.error }); return { ok: false, error: c.error } }
     setEnviando(true); setMensaje(null)
     try {
       const r = await fetchImpl(rutaDeDecisionDeGranIdea(d.hitl_id), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(c.cuerpo) })
       const j = (await r.json().catch(() => ({}))) as RespuestaDeDecisionDeGranIdea
-      if (r.ok && j.ok) { setMensaje({ ok: true, texto: avisoTrasDecidirGranIdea(accion, j) }); setDialogo(false); setNota(""); await leer(datos?.cliente?.id ?? null, d.hitl_id) }
-      else { setMensaje({ ok: false, texto: errorTrasDecidirGranIdea(r.status, j) }); if (r.status === 409) await leer(datos?.cliente?.id ?? null, d.hitl_id) }
-    } catch { setMensaje({ ok: false, texto: "No se pudo contactar al servidor." }) } finally { setEnviando(false) }
+      if (r.ok && j.ok) { setMensaje({ ok: true, texto: avisoTrasDecidirGranIdea(accion, j) }); setDialogo(false); await leer(datos?.cliente?.id ?? null, d.hitl_id); return { ok: true } }
+      const texto = errorTrasDecidirGranIdea(r.status, j)
+      if (accion === "aprobar") setMensaje({ ok: false, texto })
+      if (r.status === 409) await leer(datos?.cliente?.id ?? null, d.hitl_id)
+      return { ok: false, error: texto }
+    } catch {
+      const texto = "No se pudo contactar al servidor."
+      if (accion === "aprobar") setMensaje({ ok: false, texto })
+      return { ok: false, error: texto }
+    } finally { setEnviando(false) }
   }
+  const cancelarPedido = useCallback(() => setDialogo(false), [])
 
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar() }}>
@@ -254,23 +263,22 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
         </div>
 
         {dialogo && d && (
-          <div className="absolute inset-0 z-10 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="gi-dialogo-titulo" data-dialogo="cambios" onMouseDown={(e) => { if (e.target === e.currentTarget) setDialogo(false) }}>
-            <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#171717] p-5 shadow-2xl">
-              <h3 id="gi-dialogo-titulo" className="text-[16px] font-medium text-zinc-50">Pedir cambios a la gran idea</h3>
-              <p className="mt-1 text-[12px] text-zinc-400">{d.vueltas_restantes != null ? `Quedan ${plural(d.vueltas_restantes, "vuelta", "vueltas")} de cambios en esta campaña. ` : ""}Di a qué apuntan los cambios.</p>
-              <div className="mt-3 space-y-1.5 text-[13px] text-zinc-200">
-                <label className="flex items-start gap-2"><input type="radio" name="gi-apunta" value="concepto" checked={apunta === "concepto"} onChange={() => setApunta("concepto")} /><span><b>Al concepto</b> · la mesa de creativos hace otra ronda con tu nota (el brief se queda).</span></label>
-                <label className="flex items-start gap-2"><input type="radio" name="gi-apunta" value="brief" checked={apunta === "brief"} onChange={() => setApunta("brief")} /><span><b>Al brief</b> · se escribe un brief nuevo y, sobre él, otra gran idea (es el camino largo).</span></label>
-              </div>
-              <textarea autoFocus value={nota} onChange={(e) => setNota(e.target.value)} rows={5} maxLength={2000} placeholder="¿Qué quieres distinto?" aria-label="Qué quieres distinto" className="mt-3 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-[13px] text-zinc-100 outline-none focus:border-amber-400/70" />
-              <p className="mt-1 text-[11px] text-zinc-500">Mínimo {NOTA_MINIMA} letras</p>
-              {mensaje && !mensaje.ok && <p role="alert" className="mt-2 text-[13px] text-rose-300">{mensaje.texto}</p>}
-              <div className="mt-4 flex justify-end gap-2">
-                <button type="button" onClick={() => setDialogo(false)} className={B_GRIS}>Cancelar</button>
-                <button type="button" data-accion="confirmar-cambios-gran-idea" disabled={enviando || nota.trim().length < NOTA_MINIMA} onClick={() => void decidir("cambios")} className={B_AMBAR}>{enviando ? "Enviando…" : "Confirmar y pedir cambios"}</button>
-              </div>
-            </div>
-          </div>
+          <VentanaPedirCambios panel="gran-idea" documento="Gran idea" seccion={apunta === "brief" ? "Brief" : "Concepto"} minimo={MINIMO_DE_LA_NOTA.gran_idea} maximo={2000}
+            quePasaDespues={apunta === "brief" ? QUE_PASA_DESPUES.gran_idea_brief : QUE_PASA_DESPUES.gran_idea_concepto}
+            onConfirmar={(nota) => decidir("cambios", nota)} onCancelar={cancelarPedido}
+            extra={
+              <fieldset data-eleccion-gran-idea>
+                <legend className="text-cuerpo text-gris">{d.vueltas_restantes != null ? `Quedan ${plural(d.vueltas_restantes, "vuelta", "vueltas")} de cambios en esta campaña. ` : ""}¿A qué apuntan los cambios?</legend>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                {(["concepto", "brief"] as const).map((a) => (
+                  <label key={a} data-apunta={a} className="block cursor-pointer rounded-control border border-linea px-4 py-3 text-hueso has-[:checked]:border-oro">
+                    <span className="flex items-center gap-2 text-cuerpo font-medio"><input type="radio" name="gi-apunta" value={a} checked={apunta === a} onChange={() => setApunta(a)} />{a === "concepto" ? "Al concepto" : "Al brief"}</span>
+                    <span className="mt-1 block text-cuerpo leading-snug text-gris"><ConSubrayado t={a === "concepto" ? QUE_PASA_DESPUES.gran_idea_concepto : QUE_PASA_DESPUES.gran_idea_brief} /></span>
+                  </label>
+                ))}
+                </div>
+              </fieldset>
+            } />
         )}
       </section>
     </div>
