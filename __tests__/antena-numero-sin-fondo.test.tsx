@@ -87,7 +87,7 @@ describe("la lista al tocarla, en estilo base", () => {
     oyentes.get("keydown")!.f(e as never); expect(cerrar).toHaveBeenCalledTimes(1); expect(e.stopPropagation).toHaveBeenCalled()
     oyentes.get("keydown")!.f({ key: "a", stopPropagation: vi.fn(), preventDefault: vi.fn() } as never); expect(cerrar).toHaveBeenCalledTimes(1)
     soltar(); expect(oyentes.has("keydown")).toBe(false)
-    expect(readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8")).toContain("useEffect(() => escucharEsc(window, onCerrar), [onCerrar])")
+    expect(readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8")).toContain("useEffect(() => (abierta ? undefined : escucharEsc(window, onCerrar)), [onCerrar, abierta])") // 11-nov · con una pieza abierta en el lugar, Esc es del visor
   })
   it("sin avisos de dinero en la antena (firmado)", () => {
     expect(readFileSync("lib/escena-alertas.ts", "utf8")).toContain("export const GASTO_RARO_EN_LA_ANTENA = false")
