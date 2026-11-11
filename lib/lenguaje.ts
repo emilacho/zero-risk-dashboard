@@ -37,6 +37,14 @@ export function diaYHora(iso: string | Date): string {
   return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]} · ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
 }
 
+/** «17 nov a las 23:28» en hora de Ecuador (11-nov · Emilio aprobó «vence el 17 nov a las 23:28 (hora de Ecuador)»). null si no es una fecha: nunca se muestra el valor crudo */
+export function fechaYHoraEnPalabras(iso: unknown): string | null {
+  if (iso == null || iso === "") return null
+  const d = new Date(new Date(String(iso)).getTime() - ECUADOR_MS)
+  if (Number.isNaN(d.getTime())) return null
+  return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]} a las ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
+}
+
 const FAMILIAS: Array<[RegExp, string]> = [
   [/^carrusel/i, "Carrusel"],
   [/^kit_historias|^historias/i, "Historias"],

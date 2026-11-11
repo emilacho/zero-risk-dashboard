@@ -73,7 +73,7 @@ describe("qué es un video para la ventana", () => {
     const a = avisosDeLaPieza({ output_preview: "x", metadata: META }, [], v)
     expect(a.map((x) => x.texto).join("|")).not.toMatch(/Sin dibujo/)
     expect(a.find((x) => x.nivel === "info")?.texto).toMatch(/GENERADO por un modelo/)
-    expect(a.map((x) => x.texto).join("|")).toMatch(/vence 2026-11-02/)
+    expect(a.map((x) => x.texto).join("|")).toContain("vence el 2 nov a las 05:00 (hora de Ecuador)")
     expect(a.some((x) => x.nivel === "rojo")).toBe(false)
     expect(avisosDeLaPieza({ output_preview: "x", metadata: META }, [], { ...v, simulado: true }).find((x) => x.nivel === "ambar")?.texto).toMatch(/simulado/)
     const soloAlla = avisosDeLaPieza({ output_preview: "x", metadata: META }, [], { ...v, nombre: null, solo_en_proveedor: true }).find((x) => x.nivel === "ambar")?.texto

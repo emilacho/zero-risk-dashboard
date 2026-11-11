@@ -4,6 +4,8 @@
  * cuando no había ninguna). Aprobar NO publica todavía: la plataforma lo ensaya.
  */
 
+import { fechaYHoraEnPalabras } from "./lenguaje"
+
 /** el único tipo de la bandeja que se aprueba aquí; los demás se listan en solo lectura */
 export const TIPO_PIEZA = "content_piece_review"
 /** límite de rondas de cambios por pieza (decisión de Emilio, 29-oct). NO lo hace cumplir el tablero: lo hace la ruta de la plataforma `POST /api/oficina/cambios` (CC#2); aquí solo se muestra en el aviso al dueño. Si cambia, cambia en los dos lados. */
@@ -195,11 +197,12 @@ export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: V
   else if (dice > 0 && dice !== conImagen && dice !== generadas && !video) out.push({ nivel: "rojo", texto: `El resumen de la bandeja dice ${dice} imágenes generadas y la pieza muestra ${generadas > 0 ? generadas : conImagen}.` })
   // una pieza de video no tiene láminas: lo que falta (o no) es el video
   if (video) {
+    const vence = fechaYHoraEnPalabras(video.vence)
     out.push({ nivel: "info", texto: `${ROTULO_DEL_VIDEO}. Míralo entero antes de aprobar.` })
     if (video.simulado) out.push({ nivel: "ambar", texto: "Ensayo: el video es simulado (el brazo no filmó nada real). No hay archivo que mirar." })
     // la descarga NO es automática: la hoja de publicación de la oficina pide que una persona lo baje del proveedor antes de que venza
-    else if (video.solo_en_proveedor) out.push({ nivel: "ambar", texto: `El video quedó solo en el proveedor${video.vence ? ` y vence ${video.vence}` : ""}: no se puede mostrar aquí. Hay que bajarlo del proveedor antes de que venza${video.url_proveedor ? " (enlace en la pestaña Video)" : ""}.` })
-    else if (video.vence) out.push({ nivel: "info", texto: `El archivo del video vence ${video.vence}.` })
+    else if (video.solo_en_proveedor) out.push({ nivel: "ambar", texto: `El video quedó solo en el proveedor${vence ? ` y vence el ${vence} (hora de Ecuador)` : ""}: no se puede mostrar aquí. Hay que bajarlo del proveedor antes de que venza${video.url_proveedor ? " (enlace en la pestaña Video)" : ""}.` })
+    else if (vence) out.push({ nivel: "info", texto: `El archivo del video vence el ${vence} (hora de Ecuador).` })
   } else if (laminas.length === 0) {
     out.push(esFamiliaDeVideo(meta.familia)
       ? { nivel: "rojo", texto: "Sin video: esta pieza no tiene archivo de video (un ensayo, o el brazo de video falló). No hay nada que mirar." }
