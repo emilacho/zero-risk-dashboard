@@ -39,8 +39,8 @@ describe("1 · el reel se mira en el visor del Centro de campaña", () => {
       expect(h).toMatch(/<video[^>]*controls/)
       expect(h).toContain("data-video-de-la-pieza")
       expect(h).toContain(`>${d.video!.segundos} s<`)
-      expect(h).toContain('data-bloque="video"')
-      expect(h).toContain(`Video · ${d.video!.segundos} s`)
+      expect(h).toContain('data-recuadro="Video"') // 11-nov (panel derecho aprobado): el recuadro «Video»
+      expect(h).toContain(`${d.video!.segundos} s · generado`)
       expect(h).toContain(d.video!.nombre!)
       expect(h).not.toContain("Sin dibujo")
       expect(h).toContain('data-accion="pieza-aprobar"')

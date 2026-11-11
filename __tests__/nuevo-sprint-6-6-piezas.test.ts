@@ -60,6 +60,8 @@ const DETALLE: DetalleDeLaPieza = {
   aportes: [], version: 1, resumen_de_la_bandeja: "🖼️ 2 foto propia del cliente — ¿Qué lleva el encebollado?",
 }
 
+/** PIEZAS v2: lo que hay en la fila de una subcategoría */
+const seccion = (html: string, nombre: string) => { const a = html.indexOf(`data-subcategoria="${nombre}"`); return a < 0 ? "" : html.slice(a, html.indexOf("</section>", a)) }
 const dibujar = (props: Partial<Parameters<typeof PanelPiezas>[0]> = {}) => renderToStaticMarkup(createElement(PanelPiezas, { onCerrar: () => {}, bandejaInicial: BANDEJA, piezaInicialDatos: DETALLE, ...props }))
 
 /** una base de mentira que solo anota qué tablas y filtros se piden */
@@ -125,7 +127,7 @@ describe("sprint 6.6 · la lógica pura de la bandeja", () => {
     const c = cuerpoDeRehacer("db7c2d8b-773b-4a49-82d0-602e39da8706", "  Que la foto muestre el plato.  ")
     expect(c).toEqual({ encargo_id: "db7c2d8b-773b-4a49-82d0-602e39da8706", comentario: "Que la foto muestre el plato.", confirmo_gasto: true })
     expect(ACCIONES["rehacer-pieza"].validar(c)).toEqual({ ok: true, cuerpo: { encargo_id: "db7c2d8b-773b-4a49-82d0-602e39da8706", comentario: "Que la foto muestre el plato." } })
-    expect(ACCIONES["rehacer-pieza"].gasta).toEqual({ tope_usd: 5 })
+    expect(ACCIONES["rehacer-pieza"].gasta).toEqual({ de_la_familia: true }) // 11-nov: el tope de la familia de la pieza, no 5 fijos
     expect(cuerpoDeRehacer("db7c2d8b-773b-4a49-82d0-602e39da8706", "")).toEqual({ encargo_id: "db7c2d8b-773b-4a49-82d0-602e39da8706", confirmo_gasto: true })
   })
 })
@@ -134,7 +136,7 @@ describe("sprint 6.6 · la lectura de la bandeja", () => {
   it("pide piezas, otras revisiones, la cuenta y los clientes de una vez, con los filtros de la lectura de siempre", async () => {
     const { supa, pedidos } = baseFalsa({ hitl_queue: [], clients: [] }, { hitl_queue: 2 })
     const b = await leerBandeja(supa, { estado: "todas", ahora: new Date("2026-10-31T21:00:00Z") })
-    expect(b).toEqual({ estado: "todas", por_aprobar: 2, piezas: [], otras: [], archivo: [], clientes: [], leido_en: "2026-10-31T21:00:00.000Z" })
+    expect(b).toEqual({ estado: "todas", por_aprobar: 2, piezas: [], otras: [], archivo: [], clientes: [], en_curso: [], leido_en: "2026-10-31T21:00:00.000Z" }) // con «Todas», también lo que está en producción (Piezas v2)
     // CC6 · 03-nov: lo archivado de una campaña anterior queda fuera de las listas y de la cuenta, y se lee aparte para su carpeta
     expect(pedidos.filter((p) => p.tabla === "hitl_queue").every((p) => p.filtros.some((f) => f.startsWith("is(\"archivada_en\"") || f.startsWith("not(\"archivada_en\"")))).toBe(true)
     const hitl = pedidos.filter((p) => p.tabla === "hitl_queue").map((p) => p.filtros.join(" "))
@@ -158,15 +160,19 @@ describe("sprint 6.6 · la lectura de la bandeja", () => {
 })
 
 describe("sprint 6.6 · el panel", () => {
-  it("el explorador va de macro a micro DENTRO del cliente enfocado en la oficina: carpetas por tipo de pieza › piezas como tarjetas › la pieza con sus láminas", () => {
+  it("el explorador va de macro a micro DENTRO del cliente enfocado en la oficina: la carpeta del cliente › una fila por tipo de pieza › la pieza con sus láminas", () => {
     const carpetas = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ })
+    const abierta = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Facebook" })
     expect(carpetas).toContain('role="dialog"'); expect(carpetas).toContain('data-seccion="piezas"'); expect(carpetas).toContain("1 por aprobar") // la cuenta es la del cliente enfocado
     expect(carpetas).not.toContain("data-cliente="); expect(carpetas).not.toContain("Todos los clientes") // de cliente se cambia en la ventana de selección, no aquí (Emilio 31-oct)
-    expect([...carpetas.matchAll(/data-carpeta="([^"]+)"/g)].map((m) => m[1])).toEqual(["Carrusel Facebook", "Carrusel Instagram", "Otras revisiones"]) // las otras revisiones, al final
-    expect(carpetas).toContain("2 piezas"); expect(carpetas).toContain("1 por aprobar · 1 en total"); expect(carpetas).toContain('data-miga="cliente"'); expect(carpetas).toContain(">Zero Risk Seguridad Industrial</button>"); expect(carpetas).toContain('data-nodo-carpeta="Carrusel Instagram"')
-    const tarjetas = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Facebook" })
+    // Piezas v2: al entrar, la carpeta del cliente está cerrada y la derecha vacía; abierta, una fila por tipo («Otras revisiones», al final)
+    expect(carpetas).toContain('aria-expanded="false"'); expect(carpetas).not.toContain("data-subcategoria=")
+    expect([...abierta.matchAll(/data-subcategoria="([^"]+)"/g)].map((m) => m[1])).toEqual(["Carrusel Facebook", "Carrusel Instagram", "Otras revisiones"])
+    expect(abierta).toContain('aria-expanded="true"'); expect(abierta).toContain('data-miga="cliente"'); expect(abierta).toContain(">Zero Risk Seguridad Industrial</button>"); expect(abierta).not.toContain("data-nodo-carpeta") // el árbol ya no repite las carpetas
+    const tarjetas = seccion(abierta, "Carrusel Facebook")
+    expect(tarjetas).toMatch(/<h4[^>]*>.*Carrusel Facebook<span[^>]*>2<\/span><\/h4>/) // un solo número: con «Todas», el total
     expect([...tarjetas.matchAll(/data-pieza="([^"]+)" data-estado="([^"]+)"/g)].map((m) => [m[1], m[2]])).toEqual([[PIEZAS[1].id, "aprobada"], [PIEZAS[3].id, "superada"]])
-    expect(tarjetas).toContain(`src="/api/piezas/${PIEZAS[1].id}/lamina/1"`); expect(tarjetas).toContain("superada (la reemplazó otra pieza)"); expect(tarjetas).not.toContain("US$ 2,05") /* 6.23: sin avisos de gasto */; expect(tarjetas).toContain('data-miga="carpeta"')
+    expect(tarjetas).toContain(`src="/api/piezas/${PIEZAS[1].id}/lamina/1"`); expect(tarjetas).toContain("superada (la reemplazó otra pieza)"); expect(abierta).not.toContain("US$ 2,05") /* 6.23: sin avisos de gasto */; expect(abierta).toContain('data-miga="carpeta"')
     const incompleta = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Instagram" })
     expect(incompleta).toContain("revisión de la jefatura incompleta · 9 desacuerdos"); expect(incompleta).toContain("por aprobar")
     const otras = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Otras revisiones" })
@@ -175,11 +181,11 @@ describe("sprint 6.6 · el panel", () => {
     const html = dibujar()
     expect(html).toContain(">Náufrago</button>"); expect(html).toContain(">Historias Instagram</button>"); expect(html).toContain('data-miga="pieza"'); expect(html).toContain("lámina 1 de 2")
     expect(html).toContain('aria-current="true"'); expect(html).not.toContain("data-cliente=")
-    expect(html).toContain("Historias Instagram · Náufrago · 31 oct"); expect(html).toContain("versión 1"); expect(html).toContain("jefatura sin observaciones")
+    expect(html).toContain("Historias Instagram · Náufrago · 31 oct"); expect(html).toContain("Versión 1"); expect(html).not.toContain("jefatura sin observaciones") // 11-nov: la cabecera de una pieza queda solo con el título
     expect(html).toContain(`src="/api/piezas/${PIEZA}/lamina/1"`); expect(html).toContain('alt="Lámina 1 de 2"'); expect(html).toContain("aspect-ratio:1080/1920"); expect(html).toContain("Ver las 2 juntas")
     expect(html).toContain("Lámina 1 · con imagen de fondo"); expect(html).toContain("¿Qué lleva el encebollado?"); expect(html).toContain("#encebollado #mariscos")
-    expect(html).toContain("Desacuerdos (2)"); expect(html).toContain("Opinión externa (otro modelo, no vota)"); expect(html).toContain("La mesa no dejó aportes guardados")
-    expect(html).toContain("2 desacuerdos abiertos en la revisión."); expect(html).toContain("Entró a la bandeja")
+    expect(html).toContain("2 desacuerdos"); expect(html).toContain("Opinión externa (otro modelo, no vota)"); expect(html).toContain("0 aportes")
+    expect(html).toMatch(/data-chip-aviso="ambar"[^>]*>2 desacuerdos</); expect(html).toContain("Entró a la bandeja") // 11-nov: el aviso es un chip; su texto entero se ve al tocarlo
     // nada crudo de la base
     expect(html).not.toMatch(/content_piece_review|con_imagen|kit_historias|pending"?>/)
   })
@@ -211,10 +217,10 @@ describe("sprint 6.6 · el panel", () => {
     expect(resuelta).toContain("Revisión del editor · ya resuelta (archivada)."); expect(resuelta).not.toContain('data-accion="revision-aprobar"')
   })
   it("en un cliente sin nada por aprobar lo dice y ofrece ver las ya decididas; nunca ofrece cambiar de cliente", () => {
-    const html = dibujar({ clienteInicial: NAUFRAGO, piezaInicialDatos: null })
-    expect([...html.matchAll(/data-carpeta="([^"]+)"/g)].map((m) => m[1])).toEqual(["Historias Instagram", "Otras revisiones"]); expect(html).toContain(">Náufrago</button>")
+    const html = dibujar({ clienteInicial: NAUFRAGO, piezaInicialDatos: null, carpetaInicial: "Historias Instagram" })
+    expect([...html.matchAll(/data-subcategoria="([^"]+)"/g)].map((m) => m[1])).toEqual(["Historias Instagram", "Otras revisiones"]); expect(html).toContain(">Náufrago</button>")
     const sinNada = dibujar({ bandejaInicial: { ...BANDEJA, estado: "pendiente", piezas: PIEZAS.filter((p) => p.cliente_id === PEREZ), otras: [] }, piezaInicialDatos: null, clienteInicial: NAUFRAGO })
-    expect(sinNada).toContain("No hay piezas por aprobar de Náufrago."); expect(sinNada).toContain('data-accion="ver-todas"'); expect(sinNada).not.toContain("Todos los clientes"); expect(sinNada).not.toContain("data-carpeta=")
+    expect(sinNada).toContain("No hay piezas por aprobar de Náufrago."); expect(sinNada).toContain('data-accion="ver-todas"'); expect(sinNada).not.toContain("Todos los clientes"); expect(sinNada).not.toContain("data-subcategoria=")
   })
   it("el cuadro «Piezas» abre encima (ya no enlaza a la ventana vieja) y el calendario abre la pieza encima cuando le dan cómo", () => {
     expect(APLICACIONES.find((a) => a.clave === "piezas")!.enlace(NAUFRAGO)).toBeNull()

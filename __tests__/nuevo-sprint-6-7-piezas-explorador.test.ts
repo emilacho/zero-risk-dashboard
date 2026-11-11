@@ -86,22 +86,24 @@ describe("sprint 6.7 · los textos editables viajan como UN pedido de cambios", 
 describe("sprint 6.7 · el panel", () => {
   it("cada texto de la lámina y el pie llevan «Editar» solo cuando la pieza sigue pendiente; nada se edita en el lugar: se suma al pedido de cambios", () => {
     const html = dibujar()
-    expect([...html.matchAll(/data-campo-editar="([^"]+)"/g)].map((m) => m[1])).toEqual(["1-encabezado", "1-titular", "1-cuerpo", "pie-pie"])
+    expect([...html.matchAll(/data-campo-editar="([^"]+)"/g)].map((m) => m[1])).toEqual(["pie-pie", "1-encabezado", "1-titular", "1-cuerpo"]) // 11-nov (panel derecho aprobado): el Texto va antes que la lámina
     expect(html).toContain('data-campo="1-titular" data-editado="false"'); expect(html).toContain("¿Qué lleva el encebollado?"); expect(html).not.toContain("data-editor=") // el editor abre al pulsar
     const aprobada = dibujar({ piezaInicialDatos: { ...DETALLE, estado: "aprobada", status: "approved" } })
     expect(aprobada).not.toContain('data-accion="editar-texto"'); expect(aprobada).toContain("¿Qué lleva el encebollado?") // se lee igual, sin editar
     const c = readFileSync("components/nuevo/PanelPiezas.tsx", "utf8")
-    expect(c).toContain("comentarioDeEdiciones(ediciones, comentario)") // el texto exacto va en el pedido de cambios
+    expect(c).toContain("comentarioDeEdiciones(ediciones, texto)") // el texto exacto va en el pedido de cambios
     expect(c).toContain("laminasDeLasEdiciones(ediciones)") // las láminas tocadas por una edición entran al alcance del pedido
-    expect(c).toContain('data-accion="quitar-edicion"'); expect(c).toContain("El texto va exacto a la oficina creativa, que vuelve a dibujar la lámina.")
+    expect(c).not.toContain('data-accion="quitar-edicion"') // el recuadro «Va con tu nota» es de solo lectura (boceto): una edición se deshace volviendo el campo a su texto
+    expect(c).toContain("El texto va exacto a la oficina creativa, que vuelve a dibujar la lámina.")
     expect(c).toContain("aprobar no los aplica") // aprobar con ediciones pendientes avisa que no se aplican
     expect(c).not.toMatch(/PATCH|laminas_armadas|\.update\(/) // ninguna escritura directa: solo la puerta de decidir
   })
-  it("el explorador: árbol a la izquierda (el cliente enfocado y sus carpetas, con cuentas), barra de ruta, carpetas y tarjetas a la derecha; la pieza elegida ubica la ruta en su carpeta", () => {
+  it("el explorador: árbol a la izquierda (SOLO la carpeta del cliente · Piezas v2), barra de ruta, una fila por tipo a la derecha; la pieza elegida ubica la ruta en su carpeta", () => {
     const carpeta = dibujar({ piezaInicialDatos: null, clienteInicial: PEREZ, carpetaInicial: "Carrusel Facebook" })
     expect(carpeta).toContain('data-nodo="cliente"'); expect(carpeta).not.toContain("data-nodo-cliente="); expect(carpeta).not.toContain("Todos los clientes") // el cliente lo elige la oficina, no este panel
-    expect(carpeta).toContain('data-vista="piezas"'); expect([...carpeta.matchAll(/data-pieza="([^"]+)"/g)].map((m) => m[1])).toEqual(["p2", "a1", "s1"])
-    expect(carpeta).toContain('data-nodo-carpeta="Carrusel Facebook" aria-current="true"'); expect(carpeta).toContain("Abre una para verla lámina por lámina.")
+    const fila = carpeta.slice(carpeta.indexOf('data-subcategoria="Carrusel Facebook"'), carpeta.indexOf("</section>", carpeta.indexOf('data-subcategoria="Carrusel Facebook"')))
+    expect(carpeta).toContain('data-vista="carpetas" data-abierta="true"'); expect([...fila.matchAll(/data-pieza="([^"]+)"/g)].map((m) => m[1])).toEqual(["p2", "a1", "s1"])
+    expect(carpeta).toContain('data-nodo="cliente" aria-expanded="true" aria-current="true"'); expect(carpeta).not.toContain("data-nodo-carpeta"); expect(carpeta).not.toContain("Abre una para verla lámina por lámina.") // sin frases de ayuda
     const pieza = dibujar()
     expect(pieza).toMatch(/data-miga="cliente"[^>]*>Náufrago<\/button>.*data-miga="carpeta"[^>]*>Historias Instagram<\/button>.*data-miga="pieza"[^>]*>Historias Instagram · Náufrago · 31 oct<\/span>.*data-miga="lamina"[^>]*>lámina 1 de 2</s)
     expect(pieza).toContain('data-accion="volver-a-la-carpeta"'); expect(pieza).not.toContain('data-vista=')

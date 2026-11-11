@@ -1,0 +1,462 @@
+{
+ "leido": "2026-11-11 producción hitl_queue vía cargarPieza (textos largos recortados)",
+ "reel": {
+  "id": "319e8a8a-812e-4573-bbdd-d1a8566f3024",
+  "estado": "pendiente",
+  "status": "pending",
+  "tipo": "content_piece_review",
+  "es_pieza": true,
+  "titulo": "Video corto Instagram · Náufrago · publica 16 nov",
+  "cliente": "Náufrago",
+  "creada": "2026-11-11T04:32:25.715308+00:00",
+  "familia": "video_mesa",
+  "brief_id": "s2-d1-lun_reel_gye",
+  "encargo_id": "86ae3cd3-3490-4225-9dc6-1e8e8029a615",
+  "gasto_usd": 5.739545,
+  "laminas": [],
+  "pie": "El encebollado de Olón ya está en zona norte. Pídelo en naufrago.ec — pagas en efectivo al recibir.\n\n#naufrago #encebollado #mariscos #guayaquil #naufrago_ec #zonaNorte #ceviche #Ecuador #comidaecuatoriana #encebollados",
+  "video": {
+   "nombre": "2026-11-16_1000_instagram_reel_s2-d1-lun_reel_gye_01-de-01.mp4",
+   "bytes": 11758598,
+   "segundos": 12,
+   "simulado": false,
+   "solo_en_proveedor": false,
+   "vence": "2026-11-18T04:28:33.956066+00:00",
+   "url_proveedor": "https://d3u0tzju9qaucj.cloudfront.net/c7a9360c-a2cd-4e4d-ae69-1b46550ec4f3/01a1c8d8-865f-7145-9cbe-da30befab2f9/b25a38bf-d9cc-4b6f-b76a-62ea175ddf4c.mp4"
+  },
+  "guion": "# Guion · s2-d1-lun_reel_gye\nPlano 1 · 0–3 s\n  Se ve: fachada exterior del restaurante Náufrago en Olón al amanecer — terraza con mesas turquesa, mural pintado en la pared, adoquín húmedo en primer pl",
+  "avisos": [
+   {
+    "nivel": "info",
+    "texto": "Video GENERADO por un modelo (no es una grabación real) · sin voces ni narración. Míralo entero antes de aprobar."
+   },
+   {
+    "nivel": "info",
+    "texto": "El archivo del video vence el 17 nov a las 23:28 (hora de Ecuador)."
+   },
+   {
+    "nivel": "ambar",
+    "texto": "Falló un paso de la revisión (la decisión): la cuenta del proveedor de IA llegó a su límite de uso."
+   },
+   {
+    "nivel": "ambar",
+    "texto": "2 desacuerdos abiertos en la revisión."
+   }
+  ],
+  "exige_casilla": true,
+  "archivada": false,
+  "recuperada_del_archivo": false,
+  "jefatura": {
+   "resultado": "fallida",
+   "desacuerdos": [
+    "entrega: no hay especificación técnica para este formato y red",
+    "revisión: incompleta (fallida)"
+   ],
+   "opinion_externa": "**La mantendría como base, con cambios pequeños pero importantes.** Es un aviso claro de disponibilidad y compra; funciona mejor como anuncio práctico que como desarrollo de «El oro que nunca buscaste",
+   "revision_id": "71b888fe-f639-45d1-bfae-906b3a8ad708"
+  },
+  "aportes": [
+   {
+    "n": 1,
+    "de": "oficina-creativa",
+    "para": "portero",
+    "tipo": "pide",
+    "texto": "Antes de empezar la pieza s2-d1-lun_reel_gye · Instagram · reel: trae lo que el cerebro tenga de ESTA pieza. Protagonist",
+    "costo_usd": 0
+   },
+   {
+    "n": 2,
+    "de": "portero",
+    "para": "oficina-creativa",
+    "tipo": "material",
+    "texto": "- 87 foto(s) etiquetada(s) con su origen (propias 87 · competencia 528 · referencias 120); sin traer nada nuevo",
+    "costo_usd": 0
+   },
+   {
+    "n": 3,
+    "de": "creative-director-mesa",
+    "para": "marketing_short_video_editing_coach",
+    "tipo": "pide",
+    "texto": "El gancho final para este reel y su puerta de retención completa (gancho · confirmación · entrega · cierre) con texto en",
+    "costo_usd": 0
+   },
+   {
+    "n": 4,
+    "de": "creative-director-mesa",
+    "para": "video-editor",
+    "tipo": "pide",
+    "texto": "Guion de video corto con los planos ya definidos por dirección creativa, integrado con el gancho que va a entregar marke",
+    "costo_usd": 0
+   },
+   {
+    "n": 5,
+    "de": "creative-director-mesa",
+    "para": "content-creator",
+    "tipo": "pide",
+    "texto": "Pie de foto para Instagram (máximo 150 caracteres en la primera línea visible antes del «más»), con llamado a acción hac",
+    "costo_usd": 0
+   },
+   {
+    "n": 6,
+    "de": "creative-director-mesa",
+    "para": "design-image-prompt-engineer",
+    "tipo": "pide",
+    "texto": "Prompts de generación de imagen para los planos 1, 2 y 3 del reel, usando como referencia las fotos propias indicadas. P",
+    "costo_usd": 0
+   },
+   {
+    "n": 7,
+    "de": "creative-director-mesa",
+    "para": "whimsy-injector",
+    "tipo": "pide",
+    "texto": "Un momento de encanto para este reel. La pieza ya tiene su arco (fachada Olón → manos + caldo → bowl → pergamino con fra",
+    "costo_usd": 0
+   },
+   {
+    "n": 8,
+    "de": "creative-director-mesa",
+    "para": null,
+    "tipo": "dirige",
+    "texto": "Leí el manual, el brief y el plan. Voy a abrir la pieza y convocar al equipo.\n\n**Idea rectora — s2-d1-lun_reel_gye**\n\nLa",
+    "costo_usd": 0.22724
+   },
+   {
+    "n": 9,
+    "de": "marketing_short_video_editing_coach",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "## Gancho final · s2-d1-lun_reel_gye · Instagram Reel\n\n---\n\n### Por qué descarto las otras familias\n\nAntes de entregar e",
+    "costo_usd": 0.158718
+   },
+   {
+    "n": 10,
+    "de": "video-editor",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "Voy a integrar el gancho del coach (A9) con los planos de dirección creativa para armar el guion filmable completo y los",
+    "costo_usd": 0.363178
+   },
+   {
+    "n": 11,
+    "de": "content-creator",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "Voy a revisar el tablero y entregar el pie de foto con sus etiquetas.\n\n---\n\n## Pie de foto · s2-d1-lun_reel_gye · Instag",
+    "costo_usd": 0.134658
+   },
+   {
+    "n": 12,
+    "de": "design-image-prompt-engineer",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "## Prompts de imagen · planos 1–3 · s2-d1-lun_reel_gye\n\nLos prompts van en inglés porque los generadores lo interpretan ",
+    "costo_usd": 0.130437
+   },
+   {
+    "n": 13,
+    "de": "whimsy-injector",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "Leí el tablero completo. El arco es sólido y el gancho ya está resuelto. Voy directo a lo que me toca: los momentos que ",
+    "costo_usd": 0.135191
+   },
+   {
+    "n": 14,
+    "de": "design-visual-storyteller",
+    "para": null,
+    "tipo": "aporta",
+    "texto": "Voy a revisar el tablero completo para entender qué necesita mi especialidad — narrativa visual y arco del storytelling ",
+    "costo_usd": 0.247776
+   },
+   {
+    "n": 15,
+    "de": "marketing_instagram_curator",
+    "para": null,
+    "tipo": "aporta",
+    "texto": "## Curaduría visual · s2-d1-lun_reel_gye · marketing_instagram_curator\n\nEl gancho, el guion, los prompts y el arco emoci",
+    "costo_usd": 0.143227
+   },
+   {
+    "n": 16,
+    "de": "tiktok-strategist",
+    "para": null,
+    "tipo": "aporta",
+    "texto": "## Aporte de formato nativo · s2-d1-lun_reel_gye · tiktok-strategist\n\nEl gancho, el guion y los prompts están resueltos.",
+    "costo_usd": 0.131587
+   },
+   {
+    "n": 17,
+    "de": "creative-director-mesa",
+    "para": null,
+    "tipo": "integra",
+    "texto": "Voy a leer los aportes completos del tablero para integrar la pieza con precisión.## Plano 1 · 0–3 s\nSe ve: fachada exte",
+    "costo_usd": 0.164077
+   },
+   {
+    "n": 18,
+    "de": "creative-director-mesa",
+    "para": null,
+    "tipo": "integra",
+    "texto": "## Plano 1 · 0–3 s\nSe ve: fachada exterior del restaurante Náufrago en Olón al amanecer — terraza con mesas turquesa, mu",
+    "costo_usd": 0.151582
+   }
+  ],
+  "version": null,
+  "resumen_de_la_bandeja": "El encebollado de Olón ya está en zona norte. Pídelo en naufrago.ec — pagas en efectivo al recibir.",
+  "acompana": {
+   "fila": {
+    "fecha": "2026-11-16",
+    "hora": "10:00",
+    "semana": 2,
+    "red": "instagram",
+    "formato": "reel",
+    "pilar": "producto",
+    "sede": "guayaquil",
+    "tema": "Historia de origen: fachada de Olón, manos con el caldo, bowl; el encebollado de Olón llega a la zona norte",
+    "fase": "desbloquear",
+    "idea_ref": "C1-I09"
+   },
+   "productores": [
+    {
+     "donde": "texto",
+     "agente": "content-creator"
+    },
+    {
+     "donde": "hashtags",
+     "agente": "content-creator"
+    },
+    {
+     "donde": "guion",
+     "agente": "video-editor"
+    }
+   ],
+   "decidida_en": null,
+   "rehechura": null
+  }
+ },
+ "carrusel": {
+  "id": "aa677fad-678e-40a5-89b5-9c4f2c369b7d",
+  "estado": "aprobada",
+  "status": "approved",
+  "tipo": "content_piece_review",
+  "es_pieza": true,
+  "titulo": "Carrusel Facebook · Zero Risk Seguridad Industrial · 30 oct",
+  "cliente": "Zero Risk Seguridad Industrial",
+  "creada": "2026-10-30T12:09:36.649802+00:00",
+  "familia": "carrusel_mesa",
+  "brief_id": "BRF-0002",
+  "encargo_id": "48776d13-fb07-47c1-ac0e-c1c39456c7a7",
+  "gasto_usd": 2.051572,
+  "laminas": [
+   {
+    "n": 1,
+    "nombre": "sin-fecha_sin-hora_facebook_carrusel_BRF-0002_01-de-07.png",
+    "ancho": 1080,
+    "alto": 1350,
+    "origen": "generada",
+    "eyebrow": null,
+    "titular": "¿Tu extintor está en regla?",
+    "cuerpo": "4 puntos que revisa el Cuerpo de Bomberos",
+    "pie": "desliza",
+    "glifos_riesgosos": false
+   },
+   {
+    "n": 2,
+    "nombre": "sin-fecha_sin-hora_facebook_carrusel_BRF-0002_02-de-07.png",
+    "ancho": 1080,
+    "alto": 1350,
+    "origen": "tipografia",
+    "eyebrow": null,
+    "titular": "Extintor vencido: multa segura",
+    "cuerpo": "Esto es lo que revisan en tu empresa",
+    "pie": "desliza",
+    "glifos_riesgosos": false
+   },
+   {
+    "n": 3,
+    "nombre": "sin-fecha_sin-hora_facebook_carrusel_BRF-0002_03-de-07.png",
+    "ancho": 1080,
+    "alto": 1350,
+    "origen": "generada",
+    "eyebrow": null,
+    "titular": "Fecha de vencimiento",
+    "cuerpo": "Vigente al día de la visita",
+    "pie": "desliza",
+    "glifos_riesgosos": false
+   },
+   {
+    "n": 4,
+    "nombre": "sin-fecha_sin-hora_facebook_carrusel_BRF-0002_04-de-07.png",
+    "ancho": 1080,
+    "alto": 1350,
+    "origen": "generada",
+    "eyebrow": null,
+    "titular": "Presión del manómetro",
+    "cuerpo": "Aguja en zona verde",
+    "pie": "desliza",
+    "glifos_riesgosos": false
+   },
+   {
+    "n": 5,
+    "nombre": "sin-fecha_sin-hora_facebook_carrusel_BRF-0002_05-de-07.png",
+    "ancho": 1080,
+    "alto": 1350,
+    "origen": "generada",
+    "eyebrow": null,
+    "titular": "Sello y pasador de seguridad",
+    "cuerpo": "Sin daños ni manipulación",
+    "pie": "desliza",
+    "glifos_riesgosos": false
+   },
+   {
+    "n": 6,
+    "nombre": "sin-fecha_sin-hora_facebook_carrusel_BRF-0002_06-de-07.png",
+    "ancho": 1080,
+    "alto": 1350,
+    "origen": "generada",
+    "eyebrow": null,
+    "titular": "Etiqueta de recarga",
+    "cuerpo": "Con fecha y firma del técnico",
+    "pie": "desliza",
+    "glifos_riesgosos": false
+   },
+   {
+    "n": 7,
+    "nombre": "sin-fecha_sin-hora_facebook_carrusel_BRF-0002_07-de-07.png",
+    "ancho": 1080,
+    "alto": 1350,
+    "origen": "generada",
+    "eyebrow": null,
+    "titular": "Cotiza tu recarga hoy",
+    "cuerpo": "WhatsApp · envíos a Ecuador",
+    "pie": null,
+    "glifos_riesgosos": false
+   }
+  ],
+  "pie": "¿Tu extintor pasaría la inspección del Cuerpo de Bomberos hoy? Estos son los 4 puntos que revisan. 👇\n\nFecha de vencimiento, presión del manómetro, sello y pasador, etiqueta de recarga — todo debe estar en regla.\n\nCotiza tu recarga por WhatsApp.\n\n#extintores #recarga #mantenimientodeextintores #CuerpodeBomberos #seguridadcontraincendios #prevencióncontraincendios #seguridadindustrial #zeroriskgye #Guayaquil #Ecuador",
+  "video": null,
+  "guion": null,
+  "avisos": [
+   {
+    "nivel": "rojo",
+    "texto": "El resumen de la bandeja dice 7 imágenes generadas y la pieza muestra 6."
+   }
+  ],
+  "exige_casilla": false,
+  "archivada": true,
+  "recuperada_del_archivo": false,
+  "jefatura": {
+   "resultado": "limpia",
+   "desacuerdos": [],
+   "opinion_externa": "## Lectura general\n\n**Mantendría la idea de revisión preventiva, pero no publicaría esta versión sin corregirla.** La pieza tiene buena legibilidad y un recorrido comprensible; el problema principal e",
+   "revision_id": "2ae6ede4-aebe-435b-bf78-677044261955"
+  },
+  "aportes": [
+   {
+    "n": 1,
+    "de": "creative-director-mesa",
+    "para": "content-creator",
+    "tipo": "pide",
+    "texto": "Texto limpio y final para las 6 láminas del carrusel Facebook de Zero Risk, sin ningún asterisco, corchete, nota interna",
+    "costo_usd": 0
+   },
+   {
+    "n": 2,
+    "de": "creative-director-mesa",
+    "para": "carousel-designer",
+    "tipo": "pide",
+    "texto": "Propuesta de estructura y ritmo para 6 láminas 1:1 en Facebook. Lámina 1: portada (dos variantes A y B). Láminas 2-5: un",
+    "costo_usd": 0
+   },
+   {
+    "n": 3,
+    "de": "creative-director-mesa",
+    "para": "marketing_instagram_curator",
+    "tipo": "pide",
+    "texto": "Revisión de las fotos propias del cliente para este carrusel. Foto candidata principal: 0443a42d (mano señalando manómet",
+    "costo_usd": 0
+   },
+   {
+    "n": 4,
+    "de": "creative-director-mesa",
+    "para": null,
+    "tipo": "dirige",
+    "texto": "Voy a leer el tablero y los aportes anteriores para entender qué se entregó y dónde están los asteriscos e indicaciones ",
+    "costo_usd": 0.178141
+   },
+   {
+    "n": 5,
+    "de": "content-creator",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "Aquí está el texto final, limpio, listo para integrar.\n\n---\n\n## TEXTO DE PUBLICACIÓN · Facebook\n\n**Primera oración (ganc",
+    "costo_usd": 0.096292
+   },
+   {
+    "n": 6,
+    "de": "carousel-designer",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "Voy a responder el pedido A2 de dirección creativa con mi propuesta de estructura y ritmo, incorporando la corrección de",
+    "costo_usd": 0.288748
+   },
+   {
+    "n": 7,
+    "de": "marketing_instagram_curator",
+    "para": "creative-director-mesa",
+    "tipo": "responde",
+    "texto": "Respondo el pedido A3 de dirección creativa.\n\n---\n\n## CURADURÍA VISUAL · BRF-0002 · Carrusel Facebook · Zero Risk\n\n### A",
+    "costo_usd": 0.09882
+   },
+   {
+    "n": 8,
+    "de": "design-image-prompt-engineer",
+    "para": null,
+    "tipo": "aporta",
+    "texto": "APORTE · DISEÑADOR DE PROMPTS DE IMAGEN · BRF-0002 · Carrusel Facebook\n\nRespuesta al comentario del dueño: de mi parte, ",
+    "costo_usd": 0.164374
+   },
+   {
+    "n": 9,
+    "de": "creative-director-mesa",
+    "para": null,
+    "tipo": "integra",
+    "texto": "Voy a leer el tablero completo para integrar todos los aportes del equipo y entregar la pieza final limpia.Tengo todo lo",
+    "costo_usd": 0.125687
+   },
+   {
+    "n": 10,
+    "de": "creative-director-mesa",
+    "para": null,
+    "tipo": "integra",
+    "texto": "Voy a leer el tablero completo y entregar la pieza con las citas correctas, sin ninguna nota interna, asterisco ni indic",
+    "costo_usd": 0.125866
+   }
+  ],
+  "version": 2,
+  "resumen_de_la_bandeja": "🖼️ 7 imagen generada con IA — ¿Tu extintor pasaría la inspección del Cuerpo de Bomberos hoy? Estos son los 4 puntos que revisan. 👇\n\nFecha de vencimiento, presión del manómetro, sello y pasador, etiq",
+  "acompana": {
+   "fila": null,
+   "productores": [
+    {
+     "donde": "texto",
+     "agente": "content-creator"
+    },
+    {
+     "donde": "hashtags",
+     "agente": "content-creator"
+    },
+    {
+     "donde": "imagen",
+     "agente": "marketing_instagram_curator"
+    },
+    {
+     "donde": "laminas",
+     "agente": "carousel-designer"
+    }
+   ],
+   "decidida_en": null,
+   "rehechura": null
+  }
+ }
+}

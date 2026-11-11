@@ -1,15 +1,12 @@
 "use client"
 
-import { avanceDeLaPieza, quienLaHizo } from "@/lib/pieza-acompana"
+import { avanceDeLaPieza } from "@/lib/pieza-acompana"
 import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
-import { diaConNombre } from "@/lib/calendario"
-import { formatoLegible, redDelTablero } from "@/lib/pizarron"
-import { nombreDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { NotaDeTodos, useAlCambiarElCliente, useClienteDeTrabajo } from "@/components/nuevo/ClienteComoTexto"
 import type { Bandeja } from "@/lib/bandeja-datos"
-import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
-import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, alcanceDeLosCambios, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuentaDeLaCarpeta, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono } from "@/lib/bandeja"
+import type { DetalleDeLaPieza, FilaDeLaLista, PiezaEnCurso } from "@/lib/piezas-datos"
+import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono, filasDeSubcategorias, numeroDelCliente, type ElementoDeLaFila } from "@/lib/bandeja"
 import { hayTexto, type AccionDeLaPieza, type EstadoPieza } from "@/lib/piezas"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDePieza } from "@/lib/kanban"
@@ -18,7 +15,11 @@ import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 import { llamarAccion } from "@/components/nuevo/PanelManual"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
-import { diaYHora, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
+import { Rotulo } from "@/components/nuevo/EstiloBase"
+import { BarraDeLaPieza } from "@/components/nuevo/BarraDeLaPieza"
+import { loQueVaConTuNota, MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES } from "@/lib/pedir-cambios"
+import { hayVentanaDePedirCambios, VentanaPedirCambios, type ResultadoDelPedido } from "@/components/nuevo/pedido/VentanaPedirCambios"
+import { diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, tipoDeRevisionLegible, diaDeCalendario } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
@@ -38,7 +39,6 @@ const ESTILO = `
 `
 const PUNTO: Record<Tono, string> = { ambar: "bg-amber-400", verde: "bg-emerald-400", azul: "bg-sky-400", rojo: "bg-rose-400", neutro: "bg-zinc-500" }
 const CHIP: Record<Tono, string> = { ambar: "border-amber-400/50 text-amber-200", verde: "border-emerald-400/40 text-emerald-200", azul: "border-sky-400/40 text-sky-200", rojo: "border-rose-400/40 text-rose-200", neutro: "border-white/15 text-zinc-300" }
-const COLOR_AVISO = { rojo: "border-rose-500/40 bg-rose-500/10 text-rose-200", ambar: "border-amber-500/40 bg-amber-500/10 text-amber-100", info: "border-white/10 bg-white/5 text-zinc-300" } as const
 
 const Chip = ({ children, tono = "neutro" }: { children: React.ReactNode; tono?: Tono }) => <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] ${CHIP[tono]}`}>{children}</span>
 const Titulito = ({ children }: { children: React.ReactNode }) => <h4 className="mb-1 text-[11px] uppercase tracking-[0.08em] text-zinc-500">{children}</h4>
@@ -59,18 +59,13 @@ const B_ROJO = `${GRANDE} border-rose-400/70 bg-rose-400/15 text-rose-50 hover:b
 const B_GRIS = `${BOTON} px-3 py-1.5 text-[12px] border-white/10 text-zinc-400 hover:bg-white/[0.05]`
 const B_CHICO = `${BOTON} px-3 py-1.5 text-[12px] border-white/15 text-zinc-200 hover:bg-white/[0.06]`
 const CAJA = "w-full resize-y rounded-md border border-white/15 bg-black/40 px-2.5 py-2 text-[13px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400"
-const CUADRICULA = "grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4"
-const CARPETA = "pi-carpeta flex w-full flex-col items-start gap-2 rounded-xl border border-white/10 bg-[#1c1c1c] p-4 text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400"
 const MIGA = "rounded px-1.5 py-0.5 text-[12.5px] text-zinc-300 hover:bg-white/[0.06] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400"
 
-function IconoCarpeta({ abierta = false }: { abierta?: boolean }) {
-  return <svg viewBox="0 0 32 32" aria-hidden className="h-9 w-9 shrink-0"><path d="M4 9.5A2.5 2.5 0 0 1 6.5 7h6l3 3h10A2.5 2.5 0 0 1 28 12.5v12a2.5 2.5 0 0 1-2.5 2.5h-19A2.5 2.5 0 0 1 4 24.5v-15Z" fill={abierta ? "rgba(245,165,36,.18)" : "none"} stroke={AMBAR} strokeWidth="1.5" strokeLinejoin="round" /><path d="M4 14h24" stroke={AMBAR} strokeWidth="1.5" /></svg>
-}
 const IconoCarpetaChica = () => <svg viewBox="0 0 16 16" aria-hidden className="h-3.5 w-3.5 shrink-0"><path d="M1.5 4.5A1.5 1.5 0 0 1 3 3h3l1.5 1.5H13A1.5 1.5 0 0 1 14.5 6v6A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12v-7.5Z" fill="none" stroke={AMBAR} strokeWidth="1.2" strokeLinejoin="round" /></svg>
 const Sep = () => <span className="text-zinc-600" aria-hidden>›</span>
 
 /** un texto de la pieza con su botón «Editar» (solo si la pieza sigue pendiente): el texto nuevo se suma al pedido de cambios */
-function CampoDeTexto({ etiqueta, valor, campo, lamina, editable, edicion, onEditar, fuerte = false }: { etiqueta: string; valor: string | null; campo: CampoEditable; lamina: number | null; editable: boolean; edicion: Edicion | undefined; onEditar: (e: Edicion) => void; fuerte?: boolean }) {
+function CampoDeTexto({ etiqueta, valor, campo, lamina, editable, edicion, onEditar, fuerte = false, sinEtiqueta = false }: { etiqueta: string; valor: string | null; campo: CampoEditable; lamina: number | null; editable: boolean; edicion: Edicion | undefined; onEditar: (e: Edicion) => void; fuerte?: boolean; sinEtiqueta?: boolean }) {
   const [abierto, setAbierto] = useState(false)
   const [texto, setTexto] = useState(edicion?.despues ?? valor ?? "")
   useEffect(() => { setTexto(edicion?.despues ?? valor ?? ""); setAbierto(false) }, [valor, edicion?.despues, lamina])
@@ -79,7 +74,9 @@ function CampoDeTexto({ etiqueta, valor, campo, lamina, editable, edicion, onEdi
     <div data-campo={clave} data-editado={!!edicion}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
+          {!sinEtiqueta && (
           <span className="block text-[10.5px] uppercase tracking-[0.08em] text-zinc-500">{etiqueta}</span>
+          )}
           {edicion ? (
             <><p className="whitespace-pre-wrap text-amber-100">{edicion.despues}</p>{edicion.antes && <p className="whitespace-pre-wrap text-[11.5px] text-zinc-500 line-through">{edicion.antes}</p>}</>
           ) : valor ? <p className={`whitespace-pre-wrap ${fuerte ? "font-semibold text-zinc-50" : ""}`}>{valor}</p> : <p className="italic text-zinc-500">sin texto</p>}
@@ -104,31 +101,106 @@ function CampoDeTexto({ etiqueta, valor, campo, lamina, editable, edicion, onEdi
   )
 }
 
-/** una pieza como archivo del explorador: la primera lámina de miniatura, el estado y lo que avisa */
+/** «12 s» · «1:05»: la duración que el propio archivo dice al cargarse; nunca un número inventado */
+export const duracionLegible = (s: number | null): string | null => (s == null || !Number.isFinite(s) || s <= 0 ? null : s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`)
+
+/** dónde se toma el cuadro de la portada: al 20 % del video y nunca después de 2 s (el primer cuadro suele ser negro, por el fundido de entrada) */
+export const segundoDeLaPortada = (duracion: number): number => (Number.isFinite(duracion) && duracion > 0 ? Math.min(2, duracion * 0.2) : 0)
+
+/** PIEZAS v2 · la miniatura REAL (Emilio 11-nov 20:26: «tiene que verse el thumbnail o la imagen»): foto o lámina → la imagen; video → un cuadro del comienzo,
+ *  que saca el navegador del mismo archivo (sin portada guardada ni trabajo a mano, sirve para cualquier video), con el sello de duración */
+function MiniaturaDeLaPieza({ p }: { p: FilaDeLaLista }) {
+  const [falla, setFalla] = useState(false)
+  const [segundos, setSegundos] = useState<number | null>(null)
+  // el cuadro se muestra recién cuando el navegador lo tiene (CC6 11-nov: antes del salto el <video> se veía NEGRO); mientras tanto, un fondo que late
+  const [cuadroListo, setCuadroListo] = useState(false)
+  const tipo = falla || !p.es_pieza ? null : p.miniatura ?? (p.tiene_dibujo ? "imagen" : null)
+  if (tipo === "imagen") {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img data-miniatura="imagen" src={`/api/piezas/${p.id}/lamina/1`} alt="" loading="lazy" onError={() => setFalla(true)} className="h-full w-full object-cover" />
+  }
+  if (tipo === "video") {
+    const dura = duracionLegible(segundos)
+    return (
+      <>
+        {!cuadroListo && <span data-portada="cargando" aria-hidden className="absolute inset-0 animate-pulse bg-grafito-2" />}
+        <video data-miniatura="video" src={`/api/piezas/${p.id}/video#t=0.1`} preload="metadata" muted playsInline aria-hidden tabIndex={-1} onLoadedMetadata={(e) => { const v = e.currentTarget; setSegundos(v.duration); v.currentTime = segundoDeLaPortada(v.duration) }} onSeeked={() => setCuadroListo(true)} onError={() => setFalla(true)} className={`pointer-events-none h-full w-full object-cover ${cuadroListo ? "opacity-100" : "opacity-0"}`} />
+        <span data-sello-video className="num absolute bottom-2 right-2 rounded-full bg-velo px-2 py-0.5 text-rotulo text-hueso">▶{dura ? ` ${dura}` : ""}</span>
+      </>
+    )
+  }
+  return <div data-miniatura="ninguna" className="flex h-full w-full items-center justify-center px-3 text-center text-rotulo text-apagado">{p.es_pieza ? "sin archivo todavía" : tipoDeRevisionLegible(p.tipo)}</div>
+}
+
+/** una pieza de la bandeja: su miniatura, el estado y lo que avisa */
 function TarjetaDePieza({ p, onAbrir }: { p: FilaDeLaLista; onAbrir: () => void }) {
-  const [conLamina, setConLamina] = useState(p.tiene_dibujo)
-  const tono = tonoDelEstado(p.estado); const avisoFila = avisosDeLaFila(p)
+  // la falta de archivo ya la dice la miniatura: el aviso de abajo no la repite
+  const tono = tonoDelEstado(p.estado); const avisoFila = avisosDeLaFila({ ...p, tiene_dibujo: true })
   return (
     <li>
-      <button type="button" data-pieza={p.id} data-estado={p.estado} onClick={onAbrir} className="pi-carpeta flex w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#1c1c1c] text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400">
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/50">
-          {conLamina && p.es_pieza
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={`/api/piezas/${p.id}/lamina/1`} alt="" loading="lazy" onError={() => setConLamina(false)} className="h-full w-full object-cover" />
-            : <div className="flex h-full w-full items-center justify-center px-3 text-center text-[11.5px] text-zinc-500">{p.es_pieza ? "sin dibujo" : tipoDeRevisionLegible(p.tipo)}</div>}
+      <button type="button" data-pieza={p.id} data-estado={p.estado} onClick={onAbrir} className="pi-carpeta flex w-full flex-col overflow-hidden rounded-tarjeta border border-linea bg-grafito text-left">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-carbon">
+          <MiniaturaDeLaPieza p={p} />
           <span className={`absolute left-2 top-2 h-2.5 w-2.5 rounded-full ${PUNTO[tono]}`} aria-hidden />
         </div>
         <div className="p-3">
-          <span className="block text-[13px] font-medium leading-snug text-zinc-100">{p.titulo_legible}</span>
-          <span className="mt-0.5 block text-[11px] text-zinc-500">{diaYHora(p.creada)} · {ESTADO_DE_PIEZA_LEGIBLE[p.estado]}</span>
-          {avisoFila && <span className="mt-0.5 block text-[11px] text-amber-300/90">{avisoFila}</span>}
+          <span className="block text-dato font-medio text-hueso">{p.titulo_legible}</span>
+          <span className="mt-0.5 block text-rotulo text-apagado">{diaYHora(p.creada)} · {ESTADO_DE_PIEZA_LEGIBLE[p.estado]}</span>
+          {avisoFila && <span className="mt-0.5 block text-rotulo text-oro">{avisoFila}</span>}
         </div>
       </button>
     </li>
   )
 }
 
-export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista" }: {
+/** una pieza que la oficina todavía hace (o la jefatura revisa): aún no tiene archivo, así que dice dónde está («En el estudio · paso 5») */
+function TarjetaEnCurso({ e, cliente }: { e: PiezaEnCurso; cliente: string }) {
+  const estado = e.columna === "en_el_estudio" ? `En el estudio${e.paso != null ? ` · paso ${e.paso}` : ""}` : "En revisión"
+  const publica = diaDeCalendario(e.publica)
+  return (
+    <li data-en-curso={e.encargo_id} data-columna={e.columna}>
+      <div className="flex w-full flex-col overflow-hidden rounded-tarjeta border border-linea-oro bg-grafito">
+        <div className="relative flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 bg-carbon px-3 text-center">
+          <span className="text-dato text-oro">{estado}</span>
+          <span className="text-rotulo text-apagado">{e.columna === "en_el_estudio" ? "la oficina creativa la está haciendo" : "la jefatura la revisa antes de tu bandeja"}</span>
+        </div>
+        <div className="p-3">
+          <span className="block text-dato font-medio text-hueso">{[e.tipo_legible, cliente, publica ? `publica ${publica}` : null].filter(Boolean).join(" · ")}</span>
+          <span className="mt-0.5 block text-rotulo text-apagado">{diaYHora(e.creada)} · todavía no llega a tu bandeja</span>
+        </div>
+      </div>
+    </li>
+  )
+}
+
+/** PIEZAS v2 · una fila por subcategoría: 4 a la vista y flechas que avanzan de a una */
+export const POR_FILA = 4
+const FLECHA = "absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-linea bg-velo text-titulo text-hueso hover:border-linea-oro"
+function FilaDeSubcategoria({ nombre, numero, elementos, cliente, onAbrir }: { nombre: string; numero: number; elementos: ElementoDeLaFila[]; cliente: string; onAbrir: (id: string) => void }) {
+  const [desde, setDesde] = useState(0)
+  const ultimo = Math.max(0, elementos.length - POR_FILA)
+  const inicio = Math.min(desde, ultimo)
+  return (
+    <section data-subcategoria={nombre} className="mb-6">
+      <h4 className="mb-2 flex items-center gap-2 text-cuerpo font-medio text-hueso"><IconoCarpetaChica />{nombre}<span className="num text-dato font-normal text-gris">{numero}</span></h4>
+      <div className="relative">
+        {inicio > 0 && <button type="button" data-flecha="izquierda" aria-label={`Ver las anteriores de ${nombre}`} onClick={() => setDesde(inicio - 1)} className={`${FLECHA} -left-3`}>‹</button>}
+        <ul className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={nombre}>
+          {elementos.slice(inicio, inicio + POR_FILA).map((x) => x.tipo === "pieza" ? <TarjetaDePieza key={x.fila.id} p={x.fila} onAbrir={() => onAbrir(x.fila.id)} /> : <TarjetaEnCurso key={x.pieza.encargo_id} e={x.pieza} cliente={cliente} />)}
+        </ul>
+        {inicio < ultimo && <button type="button" data-flecha="derecha" aria-label={`Ver las siguientes de ${nombre}`} onClick={() => setDesde(inicio + 1)} className={`${FLECHA} -right-3`}>›</button>}
+      </div>
+    </section>
+  )
+}
+
+/** otro cliente elegido arriba con Piezas abierto: el explorador vuelve a su raíz; la pieza abierta EN EL LUGAR (desde las alertas) se cierra, porque era del otro cliente */
+export function alCambiarElClienteDelVisor(enElLugar: boolean, h: { cerrar: () => void; irA: (carpeta: string | null) => void }): void {
+  if (enElLugar) h.cerrar()
+  else h.irA(null)
+}
+
+export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista", soloLaPieza = null }: {
   onCerrar: () => void
   /** lecturas ya hechas (pruebas) */
   bandejaInicial?: Bandeja | null
@@ -145,6 +217,11 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   fetchImpl?: typeof fetch
   /** 6.11: abrir como lista (carpetas) o como Kanban */
   vistaInicial?: VistaDePiezas
+  /**
+   * 11-nov (CC5 · boceto v2 aprobado por Emilio 20:47 Zúrich): la pieza se abre EN EL LUGAR desde las alertas. Es el MISMO visor, sin el explorador
+   * (sin cabecera, sin migas, sin carpetas); el botón de arriba dice a dónde vuelves («Volver a las alertas») y cierra este panel.
+   */
+  soloLaPieza?: { volverA: string } | null
 }) {
   const [bandeja, setBandeja] = useState<Bandeja | null>(bandejaInicial)
   const [errorBandeja, setErrorBandeja] = useState<string | null>(null)
@@ -175,6 +252,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   // lo que la pantalla dice apenas el servidor contesta «ok», sin esperar la lectura nueva
   const [resultadoLocal, setResultadoLocal] = useState<{ id: string; estado: EstadoPieza } | null>(null)
   const cerrar = useRef<HTMLButtonElement>(null)
+  // PIEZAS v2: la carpeta del cliente arranca CERRADA (arreglo 1); se abre sola si se llega con una pieza o una carpeta pedida
+  const [abierta, setAbierta] = useState(!!(piezaInicial || piezaInicialDatos || carpetaInicial))
 
   const leerLaBandeja = useCallback(async (estado: FiltroDeLaBandeja) => {
     setCargando(true); setErrorBandeja(null)
@@ -197,6 +276,9 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   }, [fetchImpl])
 
   useEffect(() => { cerrar.current?.focus() }, [])
+  // en el lugar no hay cabecera: el foco va a «Volver a las alertas» apenas la pieza se dibuja
+  const volver = useRef<HTMLButtonElement>(null)
+  useEffect(() => { if (soloLaPieza) volver.current?.focus() }, [soloLaPieza, pieza?.id])
   useEffect(() => { if (!bandejaInicial) void leerLaBandeja(filtro) }, [leerLaBandeja, bandejaInicial, filtro])
   useEffect(() => { if (elegida && elegida !== pieza?.id) void leerLaPieza(elegida) }, [elegida, pieza?.id, leerLaPieza])
   // al cambiar de pieza, el visor vuelve a la primera lámina y se olvidan marcas, ediciones y diálogo
@@ -217,11 +299,13 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const filasDelCliente = clienteActual ? clienteActual.carpetas.flatMap((k) => k.filas) : []
   const porAprobarDelCliente = filasDelCliente.filter((f) => f.estado === "pendiente" && f.es_pieza).length
   const otrasPendientes = filasDelCliente.filter((f) => f.estado === "pendiente" && !f.es_pieza).length
+  const filasDeLaDerecha = useMemo(() => filasDeSubcategorias(clienteActual, bandeja?.en_curso ?? [], filtro), [clienteActual, bandeja, filtro])
+  const numeroCliente = numeroDelCliente(filasDeLaDerecha)
 
   const irA = (k: string | null) => { setCarpeta(k); setElegida(null); setPieza(null); setErrorPieza(null) }
   // si se elige otro cliente arriba con Piezas abierto, se vuelve a la raíz (la carpeta y la pieza eran del otro)
-  useAlCambiarElCliente(clienteId, () => irA(null))
-  const verTodas = () => { setFiltro("todas"); if (!bandejaInicial) void leerLaBandeja("todas") }
+  useAlCambiarElCliente(clienteId, () => alCambiarElClienteDelVisor(!!soloLaPieza, { cerrar: onCerrar, irA }))
+  const verTodas = () => setFiltro("todas")
   // el Kanban muestra TODAS las piezas del cliente (decididas incluidas): entrar a él pasa el filtro a «todas»
   const verComo = (v: VistaDePiezas) => { setVista(v); if (v === "kanban") { setElegida(null); setPieza(null); if (filtro !== "todas") verTodas() } }
   // solo piezas (lo que no es pieza —plan con pendientes, revisión del editor— sigue en «Otras revisiones» de las carpetas)
@@ -236,6 +320,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       const enCampo = ["TEXTAREA", "INPUT", "SELECT"].includes((e.target as HTMLElement)?.tagName ?? "")
+      if (hayVentanaDePedirCambios()) return // la ventana «Pedir cambios» atiende su Esc y su Tab
       if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); if (zoom) setZoom(false); else if (dialogo) setDialogo(null); else onCerrar(); return }
       if (enCampo || dialogo) return
       if (e.key === "ArrowRight") ir(1)
@@ -254,17 +339,22 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const marcar = (k: number) => setMarcadas((m) => (m.includes(k) ? m.filter((x) => x !== k) : [...m, k].sort((a, b) => a - b)))
   const abrir = (d: Dialogo) => { setDialogo(d); setErrorDialogo(null); setAviso(null) }
   const cancelar = () => { setDialogo(null); setErrorDialogo(null) }
+  // Cancelar la ventana «Pedir cambios» NO borra lo marcado ni lo editado (CC7): solo la cierra
+  const cancelarPedido = useCallback(() => { setDialogo(null); setErrorDialogo(null) }, [])
   const editar = (e: Edicion) => setEdiciones((l) => conEdicion(l, e))
   const edicionDe = (lam: number | null, campo: CampoEditable) => ediciones.find((e) => e.lamina === lam && e.campo === campo)
   const laminasDelPedido = [...new Set([...marcadas, ...laminasDeLasEdiciones(ediciones)])].sort((a, b) => a - b)
 
-  /** Aprobar · Pedir cambios · Rechazar una PIEZA: la misma puerta que la ventana de siempre (`POST /api/piezas/{id}/decidir`) */
-  async function decidir(a: AccionDeLaPieza) {
-    if (!pieza) return
-    let texto = comentario
-    if (a === "cambios" && ediciones.length) { const c = comentarioDeEdiciones(ediciones, comentario); if ("error" in c) { setErrorDialogo(c.error); return } texto = c.comentario }
+  /** Aprobar · Pedir cambios · Rechazar una PIEZA: la misma puerta que la ventana de siempre (`POST /api/piezas/{id}/decidir`).
+   *  «Pedir cambios» lleva la nota de la ventana (y su error vuelve a la ventana, que queda abierta); aprobar y rechazar, el comentario de su formulario */
+  async function decidir(a: AccionDeLaPieza, nota?: string): Promise<ResultadoDelPedido> {
+    if (!pieza) return { ok: false, error: "No hay una pieza abierta." }
+    const enVentana = a === "cambios"
+    const fallo = (error: string): ResultadoDelPedido => { if (!enVentana) setErrorDialogo(error); return { ok: false, error } }
+    let texto = enVentana ? nota ?? "" : comentario
+    if (a === "cambios" && ediciones.length) { const c = comentarioDeEdiciones(ediciones, texto); if ("error" in c) return fallo(c.error); texto = c.comentario }
     const c = cuerpoDeDecisionDePieza({ accion: a, comentario: texto, laminas: a === "cambios" ? laminasDelPedido : marcadas, casilla, total, exige_casilla: pieza.exige_casilla, estado_visto: pieza.status })
-    if ("error" in c) { setErrorDialogo(c.error); return }
+    if ("error" in c) return fallo(c.error)
     setEnviando(true); setErrorDialogo(null)
     try {
       const r = await fetchImpl(`/api/piezas/${encodeURIComponent(pieza.id)}/decidir`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(c.cuerpo) })
@@ -277,11 +367,12 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           await leerLaBandeja(filtro)
           if (siguiente && filtro === "pendiente") setElegida(siguiente); else void leerLaPieza(pieza.id)
         }
-      } else {
-        setErrorDialogo(errorTrasDecidir(r.status, j))
-        if (r.status === 409) { await leerLaBandeja(filtro); void leerLaPieza(pieza.id) }
+        return { ok: true }
       }
-    } catch (e) { setErrorDialogo(`No se pudo contactar al servidor: ${e instanceof Error ? e.message : String(e)}`) } finally { setEnviando(false) }
+      const error = errorTrasDecidir(r.status, j)
+      if (r.status === 409) { await leerLaBandeja(filtro); void leerLaPieza(pieza.id) }
+      return fallo(error)
+    } catch (e) { return fallo(`No se pudo contactar al servidor: ${e instanceof Error ? e.message : String(e)}`) } finally { setEnviando(false) }
   }
 
   /** las OTRAS revisiones (plan con pendientes · lista de competidores · revisión del editor): la acción del tablero `revision-resolver`, la de siempre */
@@ -325,13 +416,16 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-5" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) onCerrar() }}>
       <style>{ESTILO + ESTILO_DEL_PEDIDO}</style>
+      {/* en el lugar (11-nov): un marco más chico alrededor del mismo visor; en el explorador no hace nada («contents») */}
+      <div data-en-el-lugar={soloLaPieza ? "true" : undefined} className={soloLaPieza ? "flex h-full w-full max-w-[1160px] sm:max-h-[90vh]" : "contents"}>
       <section role="dialog" aria-modal="true" aria-labelledby="piezas-titulo" data-seccion="piezas" className="relative flex h-full max-h-full w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
+        {soloLaPieza && <h2 id="piezas-titulo" className="sr-only">{pieza?.titulo ?? "Pieza"}</h2>}
+        {!soloLaPieza && <>
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
           {nombreDelCliente && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{nombreDelCliente}</span>}
           <NotaDeTodos />
           {bandeja && <Chip tono={porAprobarDelCliente > 0 ? "ambar" : "neutro"}>{resumenDeLaBandeja({ por_aprobar: porAprobarDelCliente, otras_pendientes: otrasPendientes })}</Chip>}
-          <p className="hidden text-[12px] text-zinc-500 xl:block">Lo que la oficina creativa entregó para {nombreDelCliente}, por tipo de pieza · aquí se aprueba, se piden cambios o se rechaza</p>
           <div role="group" aria-label="Cómo ver las piezas" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
             {(["lista", "kanban"] as const).map((v) => (
               <button key={v} type="button" data-vista-piezas={v} aria-pressed={vista === v} onClick={() => verComo(v)}
@@ -340,7 +434,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           </div>
           <div role="group" aria-label="Qué piezas ver" className="flex rounded-md border border-white/10 p-0.5 text-[11px]">
             {(["pendiente", "todas"] as const).map((f) => (
-              <button key={f} type="button" data-filtro={f} aria-pressed={filtro === f} onClick={() => { setFiltro(f); if (!bandejaInicial) void leerLaBandeja(f) }}
+              <button key={f} type="button" data-filtro={f} aria-pressed={filtro === f} onClick={() => setFiltro(f)}
                 className={`rounded px-2.5 py-1 transition ${filtro === f ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{f === "pendiente" ? "Por aprobar" : "Todas"}</button>
             ))}
           </div>
@@ -353,30 +447,26 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
         {/* la barra de dirección: de macro a micro, dentro del cliente enfocado */}
         <nav aria-label="Dónde estás" data-ruta className="flex flex-wrap items-center gap-1 border-b border-white/10 bg-black/30 px-4 py-2 sm:px-5">
           <button type="button" data-miga="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "page" : undefined} className={`${MIGA} ${!carpeta ? "text-amber-200" : ""}`}>{nombreDelCliente}</button>
-          {carpeta && <><Sep /><button type="button" data-miga="carpeta" onClick={() => irA(carpeta)} aria-current={!elegida ? "page" : undefined} className={`${MIGA} ${!elegida ? "text-amber-200" : ""}`}>{carpeta}</button></>}
+          {carpeta && <><Sep /><button type="button" data-miga="carpeta" onClick={() => irA(null)} aria-current={!elegida ? "page" : undefined} className={`${MIGA} ${!elegida ? "text-oro" : ""}`}>{carpeta}</button></>}
           {elegida && <><Sep /><span data-miga="pieza" aria-current="page" className="px-1.5 text-[12.5px] text-amber-200">{pieza?.titulo ?? filaElegida?.titulo_legible ?? "Pieza"}</span></>}
           {elegida && total > 0 && <><Sep /><span data-miga="lamina" className="px-1.5 text-[12.5px] text-zinc-400">{juntas ? `${total} láminas` : `lámina ${n} de ${total}`}</span></>}
         </nav>
+        </>}
 
         {errorBandeja && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-5">{errorBandeja}</p>}
         {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-5 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)]">
+        <div className={`grid min-h-0 flex-1 grid-cols-1 ${soloLaPieza ? "" : "md:grid-cols-[250px_minmax(0,1fr)]"}`}>
           {/* el árbol, como el panel izquierdo de un explorador: el cliente enfocado y sus carpetas por tipo de pieza */}
+          {!soloLaPieza && (
           <aside aria-label="Las carpetas del cliente" className={`min-h-0 overflow-y-auto border-white/10 py-2 md:border-r ${elegida ? "hidden md:block" : "border-b md:border-b-0"}`}>
-            <button type="button" data-nodo="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13.5px] text-zinc-100 hover:bg-white/[0.04]"><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>{porAprobarDelCliente + otrasPendientes > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{porAprobarDelCliente + otrasPendientes}</span>}</button>
-            {bandeja && !clienteActual && <p className="px-4 py-3 text-[13px] text-zinc-300">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
-            <ul>
-              {clienteActual?.carpetas.map((k2) => (
-                <li key={k2.nombre}>
-                  <button type="button" data-nodo-carpeta={k2.nombre} onClick={() => irA(k2.nombre)} aria-current={carpeta === k2.nombre ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 py-1.5 pl-8 pr-3 text-left text-[13px] text-zinc-200 hover:bg-white/[0.04]">
-                    <IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{k2.nombre}</span><span className="num text-[11.5px] text-zinc-300">{k2.filas.length}</span>
-                    {k2.por_aprobar > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{k2.por_aprobar}</span>}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <button type="button" data-nodo="cliente" onClick={() => { irA(null); setAbierta((v) => !v) }} aria-expanded={abierta} aria-current={abierta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-dato text-hueso">
+              <span className="w-3 text-rotulo text-gris" aria-hidden>{abierta ? "▾" : "▸"}</span><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>
+              {numeroCliente > 0 && <span data-numero-cliente className={`num rounded-full px-1.5 text-rotulo ${filtro === "pendiente" ? "bg-ambar text-sobre-ambar" : "text-gris"}`}>{numeroCliente}</span>}
+            </button>
+            {bandeja && !clienteActual && <p className="px-4 py-3 text-dato text-gris">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
           </aside>
+          )}
 
           {/* el panel derecho: carpetas → piezas → la pieza */}
           <section aria-label="El contenido" className="flex min-h-0 flex-col">
@@ -386,42 +476,31 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                 <Kanban columnas={kanbanDePiezas} onElegir={(id) => setElegida(id)} etiqueta="Las piezas por columna" />
               </div>
             )}
-            {!elegida && bandeja && vista === "lista" && !carpeta && (
-              <div className="pi-entra overflow-y-auto p-5" data-vista="carpetas">
-                {!clienteActual ? <p className="text-[14.5px] text-zinc-200">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-amber-200">Ver también las ya decididas</button></> : null}</p> : (
-                  <>
-                    <p className="mb-3 text-[13.5px] text-zinc-300">Las piezas de {clienteActual.nombre}, por tipo. Entra a una carpeta.</p>
-                    <ul className={CUADRICULA} aria-label="Las carpetas">
-                      {clienteActual.carpetas.map((k2) => (
-                        <li key={k2.nombre}><button type="button" data-carpeta={k2.nombre} onClick={() => irA(k2.nombre)} className={CARPETA}>
-                          <IconoCarpeta /><span className="text-[14px] font-medium text-zinc-100">{k2.nombre}</span><span className="text-[13px] text-zinc-300">{cuentaDeLaCarpeta({ por_aprobar: k2.por_aprobar, total: k2.filas.length })}</span></button></li>
-                      ))}
-                    </ul>
-                  </>
-                )}
+            {!elegida && bandeja && vista === "lista" && (
+              <div className="pi-entra overflow-y-auto p-5" data-vista="carpetas" data-abierta={abierta}>
+                {!clienteActual || filasDeLaDerecha.length === 0 ? <p className="text-cuerpo text-hueso">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-oro">Ver también las ya decididas</button></> : null}</p>
+                  : abierta && filasDeLaDerecha.map((k2) => <FilaDeSubcategoria key={`${clienteId}|${filtro}|${k2.nombre}`} nombre={k2.nombre} numero={k2.numero} elementos={k2.elementos} cliente={nombreDelCliente} onAbrir={(id) => setElegida(id)} />)}
               </div>
             )}
-            {!elegida && bandeja && vista === "lista" && carpetaActual && (
-              <div className="pi-entra overflow-y-auto p-5" data-vista="piezas">
-                <p className="mb-3 text-[13.5px] text-zinc-300">{carpetaActual.nombre} de {clienteActual?.nombre} · {cuentaDeLaCarpeta({ por_aprobar: carpetaActual.por_aprobar, total: carpetaActual.filas.length })}. Abre una para verla lámina por lámina.</p>
-                <ul className={CUADRICULA} aria-label="Las piezas">
-                  {carpetaActual.filas.map((p) => <TarjetaDePieza key={p.id} p={p} onAbrir={() => setElegida(p.id)} />)}
-                </ul>
-              </div>
-            )}
-            {!elegida && bandeja && vista === "lista" && carpeta && !carpetaActual && <p className="p-5 text-[13px] text-zinc-400">Esa carpeta ya no tiene piezas con este filtro. <button type="button" onClick={() => irA(null)} className="underline decoration-dotted hover:text-amber-200">Volver a las carpetas de {nombreDelCliente}</button></p>}
             {elegida && !pieza && <p className={`p-6 text-[13px] ${errorPieza && !cargandoPieza ? "text-rose-300" : "text-zinc-500"}`}>{cargandoPieza ? "Leyendo la pieza…" : errorPieza ?? "Leyendo la pieza…"}</p>}
+            {elegida && !pieza && soloLaPieza && <p className="px-6 pb-6"><button type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="text-dato text-gris underline decoration-dotted hover:text-hueso">{soloLaPieza.volverA}</button></p>}
 
             {pieza && estadoVisto && (
               <>
                 <div className="pi-entra flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-5" key={pieza.id}>
-                  <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
+                  {soloLaPieza && <button ref={volver} type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-control border border-linea-oro px-3 text-boton font-medio text-hueso hover:border-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><span aria-hidden>‹</span>{soloLaPieza.volverA}</button>}
+                  {!soloLaPieza && (
+                  <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(null)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-control border border-linea text-gris hover:border-linea-oro">‹</button>
+                  )}
                   <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
+                  {/* 11-nov (panel derecho aprobado por Emilio 21:54): en una pieza, la cabecera queda solo con el título; el estado y los avisos los dice el panel */}
+                  {!pieza.es_pieza && (<>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
                   {pieza.archivada && <span data-chip="archivada"><Chip>{CARPETA_ARCHIVO.toLowerCase()}</Chip></span>}
                   {pieza.recuperada_del_archivo && !pieza.archivada && <span data-chip="recuperada"><Chip tono="azul">recuperada del archivo</Chip></span>}
                   {pieza.version != null && <Chip>versión {pieza.version}</Chip>}
                   {pieza.jefatura.resultado && <Chip tono={pieza.jefatura.desacuerdos.length ? "ambar" : "neutro"}>jefatura {resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}</Chip>}
+                  </>)}
                   {total > 0 && <button type="button" data-accion="ver-juntas" aria-pressed={juntas} onClick={() => { setJuntas((v) => !v); setZoom(false) }} className={`${B_CHICO} ml-auto`}>{juntas ? "Ver una lámina" : `Ver las ${total} juntas`}</button>}
                 </div>
 
@@ -439,7 +518,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     )}
                     {video && !hayReproductor && (
                       <div className="max-w-md rounded-tarjeta border border-linea-oro bg-grafito p-4 text-dato text-oro" data-video-sin-reproductor>
-                        {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
+                        {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${fechaYHoraEnPalabras(video.vence) ? ` (vence el ${fechaYHoraEnPalabras(video.vence)}, hora de Ecuador)` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
                         {video.solo_en_proveedor && video.url_proveedor && <a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="mt-2 block underline">Abrir en el proveedor</a>}
                       </div>
                     )}
@@ -485,54 +564,24 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   </div>
 
                   <aside className="min-h-0 space-y-3 border-t border-white/10 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Lo que acompaña a la pieza" data-barra-de-la-pieza>
-                    {(pieza.es_pieza ? pieza.avisos : []).map((a, i) => <div key={i} role={a.nivel === "rojo" ? "alert" : undefined} data-aviso-pieza={a.nivel} className={`rounded-lg border p-2.5 text-[12.5px] ${COLOR_AVISO[a.nivel]}`}>{a.texto}</div>)}
-                    {video && <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`} etiqueta="video">
-                      {video.nombre ? <p className="text-gris">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1).replace(".", ",")} MB` : ""}</p> : <p className="italic text-apagado">Sin archivo guardado.</p>}
-                      {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{video.vence ? ` antes de ${video.vence}` : ""}</p>}
-                    </Bloque>}
-                    {pieza.es_pieza && <Bloque titulo="De la fila del calendario" etiqueta="fila">
-                      {pieza.acompana?.fila ? (() => { const f = pieza.acompana!.fila!; return (
-                        <dl className="space-y-0.5 text-[12.5px]">
-                          <div><dt className="inline text-zinc-500">Cuándo · </dt><dd className="inline text-zinc-200">{f.fecha ? diaConNombre(f.fecha) : "sin fecha"}{f.hora ? ` · ${f.hora}` : ""}{f.semana != null ? ` · semana ${f.semana}` : ""}</dd></div>
-                          {(f.red || f.formato) && <div><dt className="inline text-zinc-500">Dónde · </dt><dd className="inline text-zinc-200">{f.red ? redDelTablero(f.red).nombre : ""} {f.formato ? formatoLegible(f.formato).toLowerCase() : ""}</dd></div>}
-                          {f.tema && <div><dt className="inline text-zinc-500">Tema · </dt><dd className="inline text-zinc-200">{f.tema}</dd></div>}
-                          {(f.pilar || f.sede) && <div><dt className="inline text-zinc-500">Pilar y sede · </dt><dd className="inline text-zinc-200">{[f.pilar, f.sede].filter(Boolean).join(" · ")}</dd></div>}
-                          <div><dt className="inline text-zinc-500">Fase · </dt><dd className="inline text-zinc-200">{f.fase ? nombreDeLaFase(f.fase) : "sin fase asignada"}{f.idea_ref ? ` · idea ${f.idea_ref}` : ""}</dd></div>
-                        </dl>
-                      ) })() : <p className="italic text-zinc-500">Esta pieza no está atada a una fila del calendario.</p>}
-                    </Bloque>}
-                    {pieza.es_pieza && <Bloque titulo={`Jefatura · ${resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}`} etiqueta="jefatura">
-                      {pieza.jefatura.desacuerdos.length > 0 && <><Titulito>Desacuerdos ({pieza.jefatura.desacuerdos.length})</Titulito><ul className="list-disc space-y-1 pl-4">{pieza.jefatura.desacuerdos.map((d, i) => <li key={i}>{d}</li>)}</ul></>}
-                      {pieza.jefatura.opinion_externa && <details className="mt-2"><summary className="cursor-pointer text-[12px] text-zinc-400">Opinión externa (otro modelo, no vota)</summary><p className="mt-1 whitespace-pre-wrap text-[12px] text-zinc-300">{pieza.jefatura.opinion_externa.slice(0, 1400)}</p></details>}
-                      {pieza.jefatura.desacuerdos.length === 0 && !pieza.jefatura.opinion_externa && <p className="italic text-zinc-500">Sin desacuerdos ni opinión externa guardados.</p>}
-                    </Bloque>}
-                    {pieza.es_pieza && <Bloque titulo="Quién la hizo" etiqueta="quien">
-                      {pieza.acompana && pieza.acompana.productores.length > 0 ? (
-                        <ul className="space-y-1">{quienLaHizo(pieza.acompana.productores).map((q) => <li key={q.agente} data-productor={q.agente}><span className="font-mono text-[11.5px] text-amber-100">{q.agente}</span>{q.que.length ? <span className="text-zinc-400"> · {q.que.join(" · ")}</span> : null}</li>)}</ul>
-                      ) : <p className="italic text-zinc-500">La jefatura no guardó quién hizo cada parte.</p>}
-                    </Bloque>}
-                    {lamina && !juntas && (
-                      <Bloque titulo={`Lámina ${lamina.n} · ${ORIGEN_CORTO[lamina.origen]}`} etiqueta="lamina">
-                        <div className="space-y-2">
-                          <CampoDeTexto etiqueta="Encabezado" valor={lamina.eyebrow} campo="encabezado" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "encabezado")} onEditar={editar} />
-                          <CampoDeTexto etiqueta="Titular" valor={lamina.titular} campo="titular" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "titular")} onEditar={editar} fuerte />
-                          <CampoDeTexto etiqueta="Cuerpo" valor={lamina.cuerpo} campo="cuerpo" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "cuerpo")} onEditar={editar} />
-                          {lamina.pie && <p className="text-[11.5px] text-zinc-400">{lamina.pie}</p>}
-                        </div>
-                      </Bloque>
-                    )}
+                    {/* 11-nov (panel derecho aprobado por Emilio 21:54 · `2-panel-despues.png`): en una pieza, de lo macro a lo micro */}
                     {pieza.es_pieza && (
-                      <Bloque titulo="Pie de la publicación" etiqueta="pie">
-                        <CampoDeTexto etiqueta="Texto que acompaña la publicación" valor={pieza.pie} campo="pie" lamina={null} editable={pendiente} edicion={edicionDe(null, "pie")} onEditar={editar} />
-                      </Bloque>
+                      <BarraDeLaPieza pieza={pieza} estado={estadoVisto} video={video} total={total} lamina={lamina ?? null}
+                        texto={<CampoDeTexto etiqueta="Texto" valor={pieza.pie} campo="pie" lamina={null} editable={pendiente} edicion={edicionDe(null, "pie")} onEditar={editar} sinEtiqueta />}
+                        bloqueDeLaLamina={lamina && !juntas ? (
+                          <div data-bloque="lamina">
+                            <Rotulo>{`Lámina ${lamina.n} · ${ORIGEN_CORTO[lamina.origen]}`}</Rotulo>
+                            <div className="mt-1 space-y-2 rounded-tarjeta border border-linea bg-grafito-2 px-3 py-3 text-cuerpo text-hueso">
+                              <CampoDeTexto etiqueta="Encabezado" valor={lamina.eyebrow} campo="encabezado" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "encabezado")} onEditar={editar} />
+                              <CampoDeTexto etiqueta="Titular" valor={lamina.titular} campo="titular" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "titular")} onEditar={editar} fuerte />
+                              <CampoDeTexto etiqueta="Cuerpo" valor={lamina.cuerpo} campo="cuerpo" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "cuerpo")} onEditar={editar} />
+                              {lamina.pie && <p className="text-dato text-gris">{lamina.pie}</p>}
+                            </div>
+                          </div>
+                        ) : null} />
                     )}
                     {!pieza.es_pieza && pieza.resumen_de_la_bandeja && <Bloque titulo={pieza.tipo === "editor_escalation" ? "Lo que revisó el editor" : "Lo que dice la bandeja"} etiqueta="bandeja">{pieza.tipo === "editor_escalation" ? <DocumentoLegible texto={pieza.resumen_de_la_bandeja} className="text-[13.5px]" /> : <p className="whitespace-pre-wrap">{pieza.resumen_de_la_bandeja.slice(0, 1200)}</p>}</Bloque>}
-                    {pieza.es_pieza && <Bloque titulo={`La mesa de la oficina (${pieza.aportes.length})`} etiqueta="mesa">
-                      {pieza.aportes.length === 0 ? <p className="italic text-zinc-500">La mesa no dejó aportes guardados para esta pieza.</p> : (
-                        <ul className="space-y-2">{pieza.aportes.map((a) => <li key={a.n}><p className="text-[11px] text-zinc-400">{rolDeLaMesaLegible(a.de)} {tipoDeAporteLegible(a.tipo)}{a.para ? ` a ${rolDeLaMesaLegible(a.para)}` : ""}</p><p className="whitespace-pre-wrap">{a.texto.slice(0, 600)}</p></li>)}</ul>
-                      )}
-                    </Bloque>}
-                    <Bloque titulo="Ficha" etiqueta="ficha">
+                    {!pieza.es_pieza && <Bloque titulo="Ficha" etiqueta="ficha">
                       <dl className="space-y-0.5 text-[12px] text-zinc-400">
                         <div><dt className="inline text-zinc-500">Entró a la bandeja · </dt><dd className="inline">{diaYHora(pieza.creada)}</dd></div>
                         {pieza.cliente && <div><dt className="inline text-zinc-500">Cliente · </dt><dd className="inline">{pieza.cliente}</dd></div>}
@@ -540,7 +589,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                         {pieza.brief_id && <div><dt className="inline text-zinc-500">Brief · </dt><dd className="inline">{pieza.brief_id}</dd></div>}
                         {total > 0 && <div><dt className="inline text-zinc-500">Láminas · </dt><dd className="inline">{total}{lamina?.ancho && lamina.alto ? ` · ${lamina.ancho}×${lamina.alto}` : ""}</dd></div>}
                       </dl>
-                    </Bloque>
+                    </Bloque>}
                   </aside>
                 </div>
 
@@ -574,23 +623,30 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                       <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
                     </div>
                   )}
-                  {pendiente && dialogo === "cambios" && (
-                    <form data-editor="pieza-cambios" className="rounded-md border border-white/15 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void decidir("cambios") }}>
-                      <p className="text-[12.5px] text-zinc-400">{alcanceDeLosCambios(laminasDelPedido)}{laminasDelPedido.length === 0 && total > 1 ? " · en «Ver las juntas» puedes marcar solo algunas láminas" : ""}</p>
-                      {ediciones.length > 0 && (
-                        <ul data-ediciones className="mt-2 space-y-1 rounded-md border border-amber-400/20 bg-amber-400/[0.05] p-2 text-[12.5px]" aria-label="Los textos editados">
-                          {ediciones.map((e) => <li key={`${e.lamina}-${e.campo}`} className="flex items-start gap-2"><span className="min-w-0 flex-1 text-zinc-200">{e.lamina != null ? `Lámina ${e.lamina} · ` : ""}{CAMPO_LEGIBLE[e.campo]}: <span className="text-amber-100">«{e.despues}»</span>{e.antes ? <span className="text-zinc-500"> (antes «{e.antes}»)</span> : null}</span><button type="button" data-accion="quitar-edicion" onClick={() => setEdiciones((l) => l.filter((x) => x !== e))} aria-label="Quitar este cambio" className="text-[11px] text-zinc-500 hover:text-rose-200">quitar</button></li>)}
-                        </ul>
-                      )}
-                      <label className="mt-2 block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">{ediciones.length ? "Algo más para la oficina (opcional)" : "¿Qué quieres distinto? (la oficina creativa lo lee)"}</span>
-                        <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={3} maxLength={MINIMOS.maximo} aria-label="Qué debe cambiar en la pieza" autoFocus className={CAJA} /></label>
-                      <p /* estilo-ok: solo cambia el texto de ayuda, los tokens van con boceto para Emilio */ className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/{MINIMOS.maximo}</p>
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button type="submit" data-accion="confirmar-pedir-cambios-pieza" disabled={enviando || (!ediciones.length && !hayTexto(comentario))} className={B_AMBAR}>{enviando ? "Enviando…" : "Enviar el pedido de cambios a la oficina"}</button>
-                        <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
-                      </div>
-                    </form>
-                  )}
+                  {pendiente && dialogo === "cambios" && (() => {
+                    const va = loQueVaConTuNota(marcadas.length, ediciones.length)
+                    return (
+                      <VentanaPedirCambios panel="piezas" documento="Pieza" seccion={pieza.titulo || null} minimo={MINIMO_DE_LA_NOTA.piezas} maximo={MINIMOS.maximo}
+                        quePasaDespues={QUE_PASA_DESPUES.piezas} notaOpcional={ediciones.length > 0}
+                        onConfirmar={(nota) => decidir("cambios", nota)} onCancelar={cancelarPedido}
+                        debajoDeLaCaja={ediciones.length > 0 ? <p className="mt-1.5 text-dato text-apagado">Tus textos editados ya son el pedido: la nota es opcional.</p> : null}
+                        extra={va ? (
+                          <div data-va-con-tu-nota className="rounded-control border border-dashed border-linea-oro px-4 py-3">
+                            <p className="text-cuerpo text-gris"><b className="font-medio text-hueso">Va con tu nota:</b> {va}</p>
+                            {total > 1 && (
+                              <ul className="mt-2 flex flex-wrap gap-2" aria-label="Las láminas del pedido">
+                                {[...Array(total).keys()].map((i) => i + 1).map((k) => <li key={k} data-lamina-va={k} data-va={laminasDelPedido.includes(k)} className={`num grid h-10 w-10 place-items-center rounded-control border text-dato ${laminasDelPedido.includes(k) ? "border-oro text-hueso" : "border-linea text-apagado"}`}>{k}</li>)}
+                              </ul>
+                            )}
+                            {ediciones.length > 0 && (
+                              <ul data-ediciones className="mt-2 space-y-1 text-dato" aria-label="Los textos editados">
+                                {ediciones.map((e) => <li key={`${e.lamina}-${e.campo}`} className="text-gris">{e.lamina != null ? `Lámina ${e.lamina} · ` : ""}{CAMPO_LEGIBLE[e.campo]}: <span className="text-hueso">«{e.despues}»</span></li>)}
+                              </ul>
+                            )}
+                          </div>
+                        ) : null} />
+                    )
+                  })()}
                   {pendiente && dialogo === "rechazar" && (
                     <form data-editor="pieza-rechazo" className="rounded-md border border-rose-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void decidir("rechazar") }}>
                       <label className="block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Por qué se rechaza? (queda registrado)</span>
@@ -654,6 +710,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           </section>
         </div>
       </section>
+      </div>
     </div>
   )
 }
