@@ -149,7 +149,7 @@ describe("4 · el visor en el lugar es el mismo visor, sin el explorador", () =>
     for (const d of [detalle(REALES[3][0], "Náufrago", "Video corto Instagram · Náufrago · publica 16 nov"), detalle(OTRO, "Zero Risk Seguridad Industrial", "Video TikTok · Zero Risk Seguridad Industrial · publica 3 dic")]) {
       const h = renderToStaticMarkup(createElement(PanelPiezas, { onCerrar: () => {}, bandejaInicial: bandeja(d) as never, piezaInicialDatos: d, piezaInicial: d.id, soloLaPieza: { volverA: VOLVER_A_LAS_ALERTAS } }))
       expect(h).toContain('data-en-el-lugar="true"')
-      expect(h).not.toContain('id="piezas-titulo"'); expect(h).not.toContain("data-ruta"); expect(h).not.toContain('aria-label="Las carpetas del cliente"')
+      expect(h).not.toContain("data-cliente-cabecera"); expect(h).toMatch(/<h2 id="piezas-titulo" class="sr-only">/); expect(h).not.toContain("data-ruta"); expect(h).not.toContain('aria-label="Las carpetas del cliente"')
       expect(h).toContain('data-accion="volver-a-las-alertas"'); expect(h).toContain("Volver a las alertas"); expect(h).not.toContain('data-accion="volver-a-la-carpeta"')
       expect(h).toContain(d.titulo); expect(h).toContain('data-accion="pieza-aprobar"'); expect(h).toContain(`src="/api/piezas/${d.id}/video"`)
     }

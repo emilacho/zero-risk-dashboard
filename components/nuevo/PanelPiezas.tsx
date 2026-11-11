@@ -333,7 +333,10 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-5" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) onCerrar() }}>
       <style>{ESTILO + ESTILO_DEL_PEDIDO}</style>
-      <section role="dialog" aria-modal="true" aria-labelledby={soloLaPieza ? "pieza-en-el-lugar-titulo" : "piezas-titulo"} data-seccion="piezas" data-en-el-lugar={soloLaPieza ? "true" : undefined} className={`relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl ${soloLaPieza ? "max-w-[1160px] sm:max-h-[90vh]" : "max-w-[1480px]"}`}>
+      {/* en el lugar (11-nov): un marco más chico alrededor del mismo visor; en el explorador no hace nada («contents») */}
+      <div data-en-el-lugar={soloLaPieza ? "true" : undefined} className={soloLaPieza ? "flex h-full w-full max-w-[1160px] sm:max-h-[90vh]" : "contents"}>
+      <section role="dialog" aria-modal="true" aria-labelledby="piezas-titulo" data-seccion="piezas" className="relative flex h-full max-h-full w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
+        {soloLaPieza && <h2 id="piezas-titulo" className="sr-only">{pieza?.titulo ?? "Pieza"}</h2>}
         {!soloLaPieza && <>
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
@@ -373,7 +376,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
         <div className={`grid min-h-0 flex-1 grid-cols-1 ${soloLaPieza ? "" : "md:grid-cols-[250px_minmax(0,1fr)]"}`}>
           {/* el árbol, como el panel izquierdo de un explorador: el cliente enfocado y sus carpetas por tipo de pieza */}
-          {!soloLaPieza && <aside aria-label="Las carpetas del cliente" className={`min-h-0 overflow-y-auto border-white/10 py-2 md:border-r ${elegida ? "hidden md:block" : "border-b md:border-b-0"}`}>
+          {!soloLaPieza && (
+          <aside aria-label="Las carpetas del cliente" className={`min-h-0 overflow-y-auto border-white/10 py-2 md:border-r ${elegida ? "hidden md:block" : "border-b md:border-b-0"}`}>
             <button type="button" data-nodo="cliente" onClick={() => irA(null)} aria-current={!carpeta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13.5px] text-zinc-100 hover:bg-white/[0.04]"><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>{porAprobarDelCliente + otrasPendientes > 0 && <span className="num rounded-full bg-amber-400/20 px-1.5 text-[10.5px] text-amber-200">{porAprobarDelCliente + otrasPendientes}</span>}</button>
             {bandeja && !clienteActual && <p className="px-4 py-3 text-[13px] text-zinc-300">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
             <ul>
@@ -386,7 +390,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                 </li>
               ))}
             </ul>
-          </aside>}
+          </aside>
+          )}
 
           {/* el panel derecho: carpetas → piezas → la pieza */}
           <section aria-label="El contenido" className="flex min-h-0 flex-col">
@@ -420,15 +425,17 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
               </div>
             )}
             {!elegida && bandeja && vista === "lista" && carpeta && !carpetaActual && <p className="p-5 text-[13px] text-zinc-400">Esa carpeta ya no tiene piezas con este filtro. <button type="button" onClick={() => irA(null)} className="underline decoration-dotted hover:text-amber-200">Volver a las carpetas de {nombreDelCliente}</button></p>}
-            {elegida && !pieza && <p className={`p-6 text-[13px] ${errorPieza && !cargandoPieza ? "text-rose-300" : "text-zinc-500"}`}>{cargandoPieza ? "Leyendo la pieza…" : errorPieza ?? "Leyendo la pieza…"}{soloLaPieza && <> <button type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="ml-2 underline decoration-dotted text-zinc-300 hover:text-amber-200">{soloLaPieza.volverA}</button></>}</p>}
+            {elegida && !pieza && <p className={`p-6 text-[13px] ${errorPieza && !cargandoPieza ? "text-rose-300" : "text-zinc-500"}`}>{cargandoPieza ? "Leyendo la pieza…" : errorPieza ?? "Leyendo la pieza…"}</p>}
+            {elegida && !pieza && soloLaPieza && <p className="px-6 pb-6"><button type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="text-dato text-gris underline decoration-dotted hover:text-hueso">{soloLaPieza.volverA}</button></p>}
 
             {pieza && estadoVisto && (
               <>
                 <div className="pi-entra flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-5" key={pieza.id}>
-                  {soloLaPieza
-                    ? <button ref={volver} type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-control border border-linea-oro px-3 text-boton font-medio text-hueso hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><span aria-hidden>‹</span>{soloLaPieza.volverA}</button>
-                    : <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>}
-                  <h3 id={soloLaPieza ? "pieza-en-el-lugar-titulo" : undefined} className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
+                  {soloLaPieza && <button ref={volver} type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-control border border-linea-oro px-3 text-boton font-medio text-hueso hover:border-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><span aria-hidden>‹</span>{soloLaPieza.volverA}</button>}
+                  {!soloLaPieza && (
+                  <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
+                  )}
+                  <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
                   {pieza.archivada && <span data-chip="archivada"><Chip>{CARPETA_ARCHIVO.toLowerCase()}</Chip></span>}
                   {pieza.recuperada_del_archivo && !pieza.archivada && <span data-chip="recuperada"><Chip tono="azul">recuperada del archivo</Chip></span>}
@@ -666,6 +673,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           </section>
         </div>
       </section>
+      </div>
     </div>
   )
 }
