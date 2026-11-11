@@ -11,7 +11,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import type { DetalleDeLaPieza } from "@/lib/piezas-datos"
-import { fechasDePublicacion, pasoQueFallo } from "@/lib/piezas-datos"
+import { fechasDePublicacion, listarPiezas, pasoQueFallo } from "@/lib/piezas-datos"
 import { avisoDeRevisionIncompleta, avisosDeLaPieza, motivoDelFalloLegible, nombreDelPasoLegible, type VideoDeLaPieza } from "@/lib/piezas"
 import { diaDeCalendario, tituloDePieza } from "@/lib/lenguaje"
 
@@ -53,6 +53,11 @@ describe("1 · el reel se mira en el visor del Centro de campaña", () => {
     const prov = dibujar({ ...DETALLE, video: { ...VIDEO, nombre: null, bytes: null, solo_en_proveedor: true } })
     expect(prov).not.toMatch(/<video/); expect(prov).toContain("El video quedó solo en el proveedor"); expect(prov).toContain('href="https://proveedor.test/v.mp4"')
     expect(prov).toContain("Sin archivo guardado.")
+  })
+  it("video sin archivo guardado (ni ensayo ni solo en el proveedor): sin reproductor roto, dice «Sin archivo de video.» (CC6 · reproductor-sin-nombre)", () => {
+    const h = dibujar({ ...DETALLE, video: { ...VIDEO, nombre: null, bytes: null } })
+    expect(h).not.toMatch(/<video/); expect(h).not.toContain("data-video-de-la-pieza")
+    expect(h).toContain("data-video-sin-reproductor"); expect(h).toContain("Sin archivo de video.")
   })
   it("el rojo queda SOLO para la pieza sin láminas y sin video", () => {
     const h = dibujar({ ...DETALLE, video: null })
@@ -118,6 +123,9 @@ function baseFalsa(tablas: Record<string, Array<Record<string, unknown>>>, conEr
     b.select = () => b
     b.eq = (c: string, v: unknown) => { filas = filas.filter((f) => f[c] === v); return b }
     b.in = (c: string, vs: unknown[]) => { filas = filas.filter((f) => vs.includes(f[c])); return b }
+    b.is = (c: string, v: unknown) => { filas = filas.filter((f) => (f[c] ?? null) === v); return b }
+    b.not = () => b
+    b.neq = (c: string, v: unknown) => { filas = filas.filter((f) => f[c] !== v); return b }
     b.order = (c: string, o?: { ascending?: boolean }) => { filas.sort((x, y) => (Number(x[c]) - Number(y[c])) * (o?.ascending === false ? -1 : 1)); return b }
     b.limit = (n: number) => { filas = filas.slice(0, n); return b }
     b.then = (ok: (v: unknown) => unknown) => Promise.resolve(conError.includes(t) ? { data: null, error: { message: "x" } } : { data: filas, error: null }).then(ok)
@@ -134,6 +142,21 @@ describe("lectura de la base (sin red)", () => {
     expect(m.get(E1)).toBe("2026-11-16"); expect(m.has(E2)).toBe(false); expect(m.size).toBe(1)
     expect((await fechasDePublicacion(baseFalsa({}, ["oficina_encargos"]), [E1])).size).toBe(0)
     expect((await fechasDePublicacion(supa, [])).size).toBe(0)
+  })
+  it("la LISTA también titula con el día de publicación; sin fila, la creación (CC6 · lista-sin-lectura)", async () => {
+    const PZ = (id: string, enc: string | null, cliente: string, title: string) => ({ id, status: "pending", client_id: cliente, created_at: "2026-11-11T04:32:25Z", title, type: "content_piece_review", agent_name: "oficina", output_preview: null, decision: {}, archivada_en: null, metadata: { familia: "video_mesa", ...(enc ? { oficina_encargo_id: enc } : {}) } })
+    const tablas = {
+      hitl_queue: [PZ("p1", E1, "n", "Video s2 · Instagram"), PZ("p2", null, "z", "Video x · TikTok")],
+      clients: [{ id: "n", name: "Náufrago", industry: "restaurante" }, { id: "z", name: "Zero Risk Seguridad Industrial", industry: "seguridad industrial" }],
+      oficina_encargos: [{ id: E1, sala_ref: { fila: { fecha: "2026-11-16" } } }],
+    }
+    const leidas: string[] = []
+    const base = baseFalsa(tablas)
+    const supa = { from: (t: string) => { leidas.push(t); return (base as unknown as { from: (t: string) => unknown }).from(t) } } as unknown as SupabaseClient
+    const l = await listarPiezas(supa, { estado: "pendiente" })
+    expect(leidas).toContain("oficina_encargos")
+    expect(l.find((x) => x.id === "p1")?.titulo_legible).toBe("Video corto Instagram · Náufrago · publica 16 nov")
+    expect(l.find((x) => x.id === "p2")?.titulo_legible).toMatch(/· Zero Risk Seguridad Industrial · 10 nov$/)
   })
   it("pasoQueFallo: el último paso en «fallo» de esa revisión", async () => {
     const supa = baseFalsa({ jefatura_pasos: [
