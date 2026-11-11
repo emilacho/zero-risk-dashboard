@@ -26,7 +26,7 @@ export const nombreDelEstado = (e: EstadoDelTablero): string => ESTADOS_DEL_TABL
 
 /** los estados de una fila del calendario (CHECK de `cadena_calendario_filas.estado`), en palabras */
 export const ESTADO_DE_FILA_LEGIBLE: Record<string, string> = {
-  esquema: "en el esquema del calendario",
+  esquema: "próxima: está en el calendario y todavía no se desarrolla",
   propuesta: "propuesta por el estratega",
   validada: "validada",
   en_investigacion: "en investigación (buscando fuentes)",
@@ -158,11 +158,11 @@ export function conteoDePublicaciones(filas: Array<{ estado_fila: string }>): { 
   const en_esquema = filas.filter((f) => esFilaEnEsquema(f.estado_fila)).length
   return { publicaciones: filas.length - en_esquema, en_esquema }
 }
-/** «56 publicaciones · 56 en esquema» · «1 publicación» · «Sin publicaciones todavía · 28 en esquema»; sin filas, null (cada panel dice lo suyo) */
+/** «56 publicaciones · 56 próximas» · «1 publicación» · «Sin publicaciones todavía · 28 próximas» (11-nov, Emilio: «Próximas», no «en esquema»); sin filas, null (cada panel dice lo suyo) */
 export function textoDePublicaciones(c: { publicaciones: number; en_esquema: number }): string | null {
   if (c.publicaciones + c.en_esquema === 0) return null
   const pub = c.publicaciones === 0 ? "Sin publicaciones todavía" : c.publicaciones === 1 ? "1 publicación" : `${c.publicaciones} publicaciones`
-  return c.en_esquema ? `${pub} · ${c.en_esquema} en esquema` : pub
+  return c.en_esquema ? `${pub} · ${c.en_esquema} ${c.en_esquema === 1 ? "próxima" : "próximas"}` : pub
 }
 
 /** GO Lenovo 10-nov 20:30Z (punto 1): la gran idea de la cabecera del Calendario sale de `cadena_conceptos` de la campaña: la ÚLTIMA versión aprobada

@@ -189,7 +189,7 @@ describe("la puerta y el dibujo", () => {
       gran_idea: GRAN_IDEA_SIN_TABLA, esperas: [{ motivo: "espera la revisión", vence_en: null }], filas, semanas: semanasDelTablero(filas), totales: totalesDelTablero(filas), hoy: "2026-11-05", leido_en: "x",
     }
     const html = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: datos, vistaInicial: "calendario" }))
-    expect(html).toContain('role="dialog"'); expect(html).toContain(">Calendario<"); // 6.9 (Emilio): el nombre «pizarrón» se retira; el cuadro se llama Calendario expect(html).toContain("Campaña de Náufrago"); expect(html).toContain("en pausa")
+    expect(html).toContain('role="dialog"'); expect(html).toContain(">Calendario · "); // 11-nov: subtítulo bajo «Centro de campaña» · 6.9 (Emilio): el nombre «pizarrón» se retira; el cuadro se llama Calendario expect(html).toContain("Campaña de Náufrago"); expect(html).toContain("en pausa")
     expect(html).toContain(GRAN_IDEA_SIN_TABLA.nota); expect(html).toContain("Campaña en pausa"); expect(html).toContain('aria-current="step"')
     expect(html).toContain("La campaña espera: espera la revisión")
     expect(agruparEsperas([{ motivo: "a" }, { motivo: "b" }, { motivo: "a" }])).toEqual(["a ×2", "b"])

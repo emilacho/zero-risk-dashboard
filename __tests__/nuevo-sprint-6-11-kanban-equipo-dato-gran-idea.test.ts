@@ -1,13 +1,13 @@
 /**
  * DASHBOARD NUEVO · SPRINT 6.11 (encargo Lenovo 01-nov ADENDA 3 + ADENDA 7): el Kanban (Calendario ↔ Kanban en el Centro de campaña · Carpetas ↔ Kanban en Piezas),
  * el equipo de cada empleado leído del DATO (`oficina_equipos` + `oficina_directorio.equipo`) y los botones de decisión de la gran idea (la ruta de CC#1, tal cual).
- * «Publicada» no existe: la columna se ve atenuada con su leyenda; no se inventa.
+ * «Publicada» no existe: la columna se ve atenuada y, vacía, dice «Nada aquí» (Emilio, 11-nov: fuera «Se activa cuando…»); no se inventa.
  */
 import { describe, expect, it } from "vitest"
 import { readFileSync, existsSync } from "node:fs"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { COLUMNAS, COLUMNA_DEL_TABLERO, COLUMNA_DE_LA_PIEZA, LEYENDA_PUBLICADA, armarKanban, resumenDelKanban, tarjetaDeFila, tarjetaDePieza } from "@/lib/kanban"
+import { COLUMNAS, COLUMNA_DEL_TABLERO, COLUMNA_DE_LA_PIEZA, armarKanban, resumenDelKanban, tarjetaDeFila, tarjetaDePieza } from "@/lib/kanban"
 import { ESTADOS_DEL_TABLERO, type FilaDelTablero } from "@/lib/pizarron"
 import type { EstadoPieza } from "@/lib/piezas"
 import type { FilaDeLaLista } from "@/lib/piezas-datos"
@@ -37,10 +37,10 @@ const pieza = (p: Partial<FilaDeLaLista>): FilaDeLaLista => ({
 })
 
 describe("6.11 · el Kanban (ADENDA 3): columnas genéricas que salen de estados reales", () => {
-  it("son 7 columnas en el orden de la cadena; «Publicada» está atenuada con su leyenda porque el sistema todavía no publica (ADENDA 7.3)", () => {
+  it("son 7 columnas en el orden de la cadena; «Publicada» está atenuada porque el sistema todavía no publica (ADENDA 7.3)", () => {
     expect(COLUMNAS.map((c) => c.clave)).toEqual(["por_hacer", "en_el_estudio", "en_revision", "por_aprobar", "aprobada", "publicada", "vencida"])
     const pub = COLUMNAS.find((c) => c.clave === "publicada")!
-    expect(pub.activa).toBe(false); expect(pub.leyenda).toBe(LEYENDA_PUBLICADA); expect(LEYENDA_PUBLICADA).toMatch(/publicación esté conectada/)
+    expect(pub.activa).toBe(false)
     expect(COLUMNAS.filter((c) => c.activa).length).toBe(6)
   })
   it("cada estado del calendario y cada estado de una pieza caen en UNA columna (nada queda sin lugar; nada cae en «publicada»)", () => {
@@ -67,10 +67,11 @@ describe("6.11 · el Kanban (ADENDA 3): columnas genéricas que salen de estados
     expect(armarKanban([tarjetaDePieza(pieza({ id: "vieja", creada: "2026-10-01T00:00:00Z" })), p1]).find((c) => c.clave === "por_aprobar")!.tarjetas.map((t) => t.id)).toEqual(["h1", "vieja"])
     expect(resumenDelKanban(cols)).toBe("1 por hacer · 2 por aprobar · 1 vencida / rechazada")
   })
-  it("el componente pinta las 7 columnas, la de «publicada» con data-activa=false y su leyenda, y una tarjeta por ítem (solo lectura: nada se arrastra)", () => {
+  it("el componente pinta las 7 columnas, la de «publicada» con data-activa=false y «Nada aquí» (sin la leyenda vieja), y una tarjeta por ítem (solo lectura: nada se arrastra)", () => {
     const html = renderToStaticMarkup(createElement(Kanban, { columnas: armarKanban([tarjetaDeFila(fila({ tablero: "emilio" }))]), etiqueta: "prueba", onElegir: () => {} }))
     expect(html.match(/data-columna="/g)!.length).toBe(7)
-    expect(html).toContain('data-columna="publicada" data-activa="false"'); expect(html).toContain("data-leyenda"); expect(html).toContain("publicación esté conectada")
+    expect(html).toContain('data-columna="publicada" data-activa="false"'); expect(html).not.toContain("data-leyenda"); expect(html).not.toContain("Se activa cuando")
+    expect(html.match(/Nada aquí/g)!.length).toBe(6) // 7 columnas, 1 con tarjeta: «Publicada» vacía dice lo mismo que las demás
     expect(html).toContain('data-tarjeta="f1|2026-11-05"'); expect(html).toContain('data-columna-tarjeta="por_aprobar"'); expect(html).toContain('data-destacada="true"')
     expect(html).not.toContain("draggable")
   })

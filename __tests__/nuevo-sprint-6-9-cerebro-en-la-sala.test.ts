@@ -63,7 +63,8 @@ describe("6.9 · «Centro de campaña» (ya no «Pizarrón de piezas») e «Info
     expect(renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {} }))).not.toMatch(/pizarr[oó]n/i)
     const cal = leer("components/nuevo/PanelPizarron.tsx")
     for (const t of ["Pizarrón de piezas", "el pizarrón", "Colores del pizarrón", "Leyendo el pizarrón"]) expect(cal, t).not.toContain(t)
-    expect(cal).toContain(">Calendario</h2>")
+    // 11-nov (boceto v2 del Kanban aprobado por Emilio): título «Centro de campaña», y el cuadro sigue llamándose Calendario en el subtítulo
+    expect(cal).toContain(">Centro de campaña</h2>"); expect(cal).toContain("Calendario · {NOMBRE_DE_LA_VISTA[vista]}")
     expect(leer("components/nuevo/PanelAplicaciones.tsx")).toContain('<PanelBase titulo="Centro de campaña"')
   })
   it("el Centro de campaña tiene Informes (abre encima) y ya no tiene Cerebro", () => {
