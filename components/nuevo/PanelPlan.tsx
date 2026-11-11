@@ -15,6 +15,8 @@ import { textoDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { enviarAlCiclo, type PuertaDelCiclo } from "@/lib/plan-ciclo"
 import { fechaCortaEC } from "@/lib/manual"
 import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
+import { VentanaPedirCambios, hayVentanaDePedirCambios, type ResultadoDelPedido } from "@/components/nuevo/pedido/VentanaPedirCambios"
+import { MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES, textoDelPedidoDelPlan } from "@/lib/pedir-cambios"
 import { estadoDeCampanaLegible, pilarLegible, plural } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
@@ -84,33 +86,40 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
   const lectura = leerElCiclo(statusDelDocumento, ciclo)
   // Emilio (01-nov 16:27Z): sin avisos ni confirmaciones de gasto. Aprobar = un clic; Pedir cambios = escribir y enviar. El cuerpo sigue llevando lo que la
   // puerta exige (`confirmo_gasto:true`, `tope_usd:8`): el tope lo cuida la plataforma; el gasto se verá en el panel de gastos de la oficina y en Dinero
-  const [modo, setModo] = useState<"quieto" | "escribir">("quieto")
+  // la ventana «Pedir cambios» (GO Lenovo 21:59): abierta desde el botón grande (sin sección) o desde una sección del plan
+  const [ventana, setVentana] = useState<{ seccion: string | null } | null>(null)
+  const modo = ventana ? "escribir" : "quieto"
   const [ocupado, setOcupado] = useState<null | "plan-aprobar" | "plan-cambios">(null)
-  const [observaciones, setObservaciones] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [verHistorial, setVerHistorial] = useState(false)
   // la barra se ve SIEMPRE que haya avance (sale del dato, no de la memoria del navegador); solo se oculta si Emilio la cierra, y se reabre con «Ver el avance»
   const [barraOculta, setBarraOculta] = useState(false)
   const corregido = ciclo.version - 1
-  // «Pedir cambios en esta sección»: abre el formulario con el nombre de la sección al comienzo, y lo trae a la vista
+  // «Pedir cambios en esta sección»: abre la ventana con la sección en el título
   useEffect(() => {
     if (!pedirEn || !lectura.puede_pedir_cambios) return
-    setError(null); setModo("escribir")
-    setObservaciones((o) => (o.trim() ? `${o.trimEnd()}\n\nSección «${pedirEn.seccion}»: ` : `Sección «${pedirEn.seccion}»: `))
-    if (typeof document !== "undefined") requestAnimationFrame(() => document.querySelector('[data-apartado="decision"]')?.scrollIntoView({ behavior: "smooth", block: "start" }))
+    setError(null); setVentana({ seccion: pedirEn.seccion })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedirEn?.n])
 
-  async function mandar(accion: PuertaDelCiclo, cuerpo: Record<string, unknown> | { error: string }) {
+  async function mandar(accion: PuertaDelCiclo, cuerpo: Record<string, unknown> | { error: string }): Promise<RespuestaDelCiclo | null> {
     setError(null)
-    if ("error" in cuerpo) { setError(String(cuerpo.error)); return }
+    if ("error" in cuerpo) { setError(String(cuerpo.error)); return null }
     setOcupado(accion)
     const r = await enviar(accion, cuerpo)
     setOcupado(null)
-    setModo("quieto")
     // la respuesta se dice una sola vez, arriba del panel (el aviso); aquí abajo solo quedan los errores de lo que se escribió
-    if (r.ok) setObservaciones("")
     onResultado(r)
+    return r
+  }
+  /** la ventana manda el MISMO cuerpo que el formulario de antes: con sección, «Sección «X»: » va al comienzo del texto (CC7 · punto 4) */
+  async function pedirCambios(nota: string, seccion: string | null): Promise<ResultadoDelPedido> {
+    const cuerpo = cuerpoDePedirCambios(planId, textoDelPedidoDelPlan(nota, seccion))
+    if ("error" in cuerpo) return { ok: false, error: cuerpo.error }
+    const r = await mandar("plan-cambios", cuerpo)
+    if (!r) return { ok: false, error: "No se pudo enviar." }
+    if (r.ok) { setVentana(null); return { ok: true } }
+    return { ok: false, error: r.texto }
   }
   const reintentar = () => {
     if (lectura.reintentar === "plan-aprobar") { void mandar("plan-aprobar", cuerpoDeAprobar(planId, "")); return }
@@ -157,7 +166,7 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
       {modo === "quieto" && (lectura.puede_aprobar || lectura.puede_pedir_cambios) && (
         // «Pedir cambios» con borde oro a la izquierda y «Aprobar» en ámbar a la derecha (corrección de Lenovo 06-nov · estilo base)
         <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-          {lectura.puede_pedir_cambios && <button type="button" data-accion="plan-pedir-cambios" disabled={!!ocupado} onClick={() => { setError(null); setModo("escribir") }} className={`${BOTON_GRANDE} border border-[#d6aa64]/70 bg-transparent text-[#d6aa64] hover:bg-[#d6aa64]/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
+          {lectura.puede_pedir_cambios && <button /* estilo-ok: solo cambia lo que abre, el botón migra con su pantalla */ type="button" data-accion="plan-pedir-cambios" disabled={!!ocupado} onClick={() => { setError(null); setVentana({ seccion: null }) }} className={`${BOTON_GRANDE} border border-[#d6aa64]/70 bg-transparent text-[#d6aa64] hover:bg-[#d6aa64]/10`}>{BOTONES_DEL_PLAN.rechazar}</button>}
           {lectura.puede_aprobar && <button type="button" data-accion="plan-aprobar-asi" disabled={!!ocupado} onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, ""))} className={`${BOTON_GRANDE} border border-[#e8731a] bg-[#e8731a] text-[#160b02] hover:bg-[#f0832e]`}>{ocupado === "plan-aprobar" ? "Aprobando…" : BOTONES_DEL_PLAN.aprobar}</button>}
         </div>
       )}
@@ -169,19 +178,9 @@ function DecisionDelPlan({ planId, statusDelDocumento, ciclo, enviar, onResultad
         </div>
       )}
 
-      {modo === "escribir" && (
-        <form data-editor="plan-cambios" className="mt-4 rounded-lg border border-violet-400/30 bg-black/30 p-3" onSubmit={(ev) => { ev.preventDefault(); void mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones)) }}>
-          <label className="block">
-            <span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Qué debe cambiar? (el jefe de marketing lo lee y reescribe el plan)</span>
-            <textarea value={observaciones} onChange={(ev) => setObservaciones(ev.target.value)} rows={4} maxLength={4000} aria-label="Qué debe cambiar en el plan" autoFocus
-              className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[14px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
-          </label>
-          <p className="mt-1 text-[11px] text-zinc-500">{observaciones.trim().length}/4000</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="submit" data-accion="enviar-pedido" disabled={!!ocupado} className="rounded-md border border-violet-300/60 bg-violet-500/70 px-5 py-2 text-[13.5px] font-medium text-white hover:bg-violet-500 disabled:opacity-50">{ocupado === "plan-cambios" ? "Enviando…" : "Enviar el pedido"}</button>
-            <button type="button" disabled={!!ocupado} onClick={() => setModo("quieto")} className="rounded-md border border-white/10 px-4 py-2 text-[13px] text-zinc-400 hover:bg-white/[0.05]">Cancelar</button>
-          </div>
-        </form>
+      {ventana && (
+        <VentanaPedirCambios panel="plan" documento="Plan" seccion={ventana.seccion} minimo={MINIMO_DE_LA_NOTA.plan} quePasaDespues={QUE_PASA_DESPUES.plan}
+          onConfirmar={(nota) => pedirCambios(nota, ventana.seccion)} onCancelar={() => setVentana(null)} />
       )}
 
       {error && <p role="alert" className="mt-3 text-[13px] text-rose-300">{error}</p>}
@@ -213,7 +212,7 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
   useEffect(() => { cerrar.current?.focus() }, [])
   // Esc cierra el plan y NO la oficina: se atiende en captura y se detiene ahí
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape" && !hayVentanaDePedirCambios()) { e.stopPropagation(); e.preventDefault(); onCerrar() } }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
   }, [onCerrar])

@@ -1,6 +1,6 @@
 /**
  * GRAN IDEA · la decisión desde /nuevo (sprint 6.11 · ADENDA 7.2). Lógica PURA del panel: arma el cuerpo que recibe la ruta de CC#1 (`POST /api/piezas/{id}/gran-idea`,
- * PR #77, reutilizada TAL CUAL) y traduce sus respuestas. La regla de la nota es LA MISMA que exige la plataforma (`NOTA_MINIMA` de `lib/concepto-decision.ts`).
+ * PR #77, reutilizada TAL CUAL) y traduce sus respuestas. El mínimo de letras de la nota (`NOTA_MINIMA` de `lib/concepto-decision.ts`) es del TABLERO: la plataforma solo exige que haya nota (400 `E-NOTA` · CC6 11-nov 22:01).
  * El tablero no escribe nada: la plataforma aplica la decisión (cierra la tarjeta, resuelve la espera, abre la versión siguiente si hay cambios).
  */
 import { NOTA_MINIMA, NOTA_MAXIMA, type ApuntaA } from "@/lib/concepto-decision"
