@@ -9,10 +9,10 @@
 import { describe, expect, it, vi } from "vitest"
 import { createElement, isValidElement, type ReactElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { ListaDeLasAlertas, estadoCortoDeLaPieza, leerLasPiezas, VOLVER_A_LAS_ALERTAS } from "@/components/nuevo/escena/AntenaDeAlertas"
-import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
-import { armarAlertas, renglonesDeLaAntena, type AlertaDeLaAntena, type DecisionPendiente, type EntradaDeAlertas } from "@/lib/escena-alertas"
-import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
+import { ListaDeLasAlertas, escucharEscDeLaLista, estadoCortoDeLaPieza, leerLasPiezas, marcarVistaAlAbrir, VOLVER_A_LAS_ALERTAS } from "@/components/nuevo/escena/AntenaDeAlertas"
+import { PanelPiezas, alCambiarElClienteDelVisor } from "@/components/nuevo/PanelPiezas"
+import { armarAlertas, esPiezaDeLaBandeja, renglonesDeLaAntena, type AlertaDeLaAntena, type DecisionPendiente, type EntradaDeAlertas } from "@/lib/escena-alertas"
+import { listarPiezas, type DetalleDeLaPieza, type FilaDeLaLista } from "@/lib/piezas-datos"
 
 const AHORA = new Date("2026-11-11T20:36:00Z")
 const NAUFRAGO = "0a2ffbd4-957c-4315-a37f-b9e4fbbbb312", ZR = "11111111-2222-4333-8444-555555555555"
@@ -175,5 +175,80 @@ describe("5 · lecturas y palabras", () => {
     expect(estadoCortoDeLaPieza({ tiene_dibujo: false, incompleta: true })).toBe("Sin dibujo: la decide una persona")
     expect(estadoCortoDeLaPieza({ tiene_dibujo: true, incompleta: true })).toBe("La revisión no terminó")
     expect(estadoCortoDeLaPieza({ tiene_dibujo: true, incompleta: false })).toBe("Lista para tu aprobación")
+  })
+})
+
+describe("6 · lo que pidió CC6 (certificación de fcba87b6)", () => {
+  const ventana = () => {
+    const oyentes = new Map<string, unknown>()
+    return { oyentes, w: { addEventListener: (t: string, f: unknown) => oyentes.set(t, f), removeEventListener: (t: string, f: unknown) => { if (oyentes.get(t) === f) oyentes.delete(t) } } }
+  }
+  it("Esc con una pieza abierta encima NO cierra la lista; sin pieza, sí (y se suelta)", () => {
+    const a = ventana(), cerrar = vi.fn()
+    expect(escucharEscDeLaLista(a.w as never, cerrar, true)).toBeUndefined(); expect(a.oyentes.has("keydown")).toBe(false)
+    const b = ventana(), soltar = escucharEscDeLaLista(b.w as never, cerrar, false)
+    expect(b.oyentes.has("keydown")).toBe(true)
+    ;(b.oyentes.get("keydown") as (e: unknown) => void)({ key: "Escape", stopPropagation: () => {}, preventDefault: () => {} }); expect(cerrar).toHaveBeenCalledTimes(1)
+    soltar!(); expect(b.oyentes.has("keydown")).toBe(false)
+  })
+  it("abrir una pieza nueva la marca como vista (POST /api/alertas/visto con su clave) y la escena lo anota; una ya vista no se vuelve a guardar", async () => {
+    const [a] = armarAlertas(entrada([dec(OTRO, "2026-11-11T19:00:00Z", { client_id: ZR, cliente: "Zero Risk Seguridad Industrial" })]))
+    const llamadas: Array<{ url: string; cuerpo: string }> = []
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => { llamadas.push({ url, cuerpo: String(init?.body) }); return new Response(JSON.stringify({ ok: true, en: "2026-11-11T20:40:00Z" }), { status: 200 }) })
+    const alRevisar = vi.fn()
+    expect(await marcarVistaAlAbrir(a, { revisadasAqui: {}, fetchImpl: fetchImpl as never, alRevisar })).toBe(true)
+    expect(llamadas).toHaveLength(1); expect(llamadas[0].url).toBe("/api/alertas/visto"); expect(JSON.parse(llamadas[0].cuerpo)).toEqual({ clave: `decision:hitl_queue:${OTRO}` })
+    expect(alRevisar).toHaveBeenCalledTimes(1); expect(alRevisar.mock.calls[0][0]).toBe(`decision:hitl_queue:${OTRO}`)
+    // ya marcada en esta visita, o ya revisada en la plataforma: nada sale
+    expect(await marcarVistaAlAbrir(a, { revisadasAqui: { [`decision:hitl_queue:${OTRO}`]: "x" }, fetchImpl: fetchImpl as never, alRevisar })).toBe(false)
+    const [r] = armarAlertas(entrada([dec(OTRO, "2026-11-11T19:00:00Z", { alerta: { clave: `decision:hitl_queue:${OTRO}`, estado: "revisada" } })]))
+    expect(await marcarVistaAlAbrir(r, { revisadasAqui: {}, fetchImpl: fetchImpl as never, alRevisar })).toBe(false)
+    expect(fetchImpl).toHaveBeenCalledTimes(1); expect(alRevisar).toHaveBeenCalledTimes(1)
+    // si no se guardó, la escena no la anota
+    const mal = vi.fn(async () => new Response("{}", { status: 500 }))
+    expect(await marcarVistaAlAbrir(a, { revisadasAqui: {}, fetchImpl: mal as never, alRevisar })).toBe(false); expect(alRevisar).toHaveBeenCalledTimes(1)
+  })
+  it("listarPiezas pone es_video desde la familia (video_mesa sí · carrusel_mesa no)", async () => {
+    const filaDeLaBase = (id: string, familia: string, cliente: string) => ({ id, status: "pending", client_id: cliente, created_at: "2026-11-11T18:45:13Z", title: "t", type: "content_piece_review", agent_name: "oficina", output_preview: null, decision: {}, archivada_en: null, metadata: { familia } })
+    const tablas: Record<string, Array<Record<string, unknown>>> = {
+      hitl_queue: [filaDeLaBase(REALES[0][0], "video_mesa", NAUFRAGO), filaDeLaBase(OTRO, "carrusel_mesa", ZR)],
+      clients: [{ id: NAUFRAGO, name: "Náufrago", industry: "restaurante" }, { id: ZR, name: "Zero Risk Seguridad Industrial", industry: "seguridad industrial" }],
+      oficina_encargos: [],
+    }
+    const from = (t: string) => {
+      let filas = [...(tablas[t] ?? [])]
+      const b: Record<string, unknown> = {}
+      for (const m of ["select", "order", "not", "neq"]) b[m] = () => b
+      b.eq = (c: string, v: unknown) => { filas = filas.filter((f) => f[c] === v); return b }
+      b.in = (c: string, vs: unknown[]) => { filas = filas.filter((f) => vs.includes(f[c])); return b }
+      b.is = (c: string, v: unknown) => { filas = filas.filter((f) => (f[c] ?? null) === v); return b }
+      b.limit = () => b
+      b.then = (ok: (v: unknown) => unknown) => Promise.resolve({ data: filas, error: null }).then(ok)
+      return b
+    }
+    const l = await listarPiezas({ from } as never, { estado: "pendiente" })
+    expect(l.find((x) => x.id === REALES[0][0])?.es_video).toBe(true)
+    expect(l.find((x) => x.id === OTRO)?.es_video).toBe(false)
+  })
+  it("otro cliente elegido arriba con la pieza abierta en el lugar la cierra; en el explorador vuelve a la raíz", () => {
+    const cerrar = vi.fn(), irA = vi.fn()
+    alCambiarElClienteDelVisor(true, { cerrar, irA }); expect(cerrar).toHaveBeenCalledTimes(1); expect(irA).not.toHaveBeenCalled()
+    alCambiarElClienteDelVisor(false, { cerrar, irA }); expect(irA).toHaveBeenCalledWith(null); expect(cerrar).toHaveBeenCalledTimes(1)
+  })
+  it("menores: solo la pieza de la bandeja se abre en el lugar; la bandeja con ok:false no se usa", async () => {
+    expect(esPiezaDeLaBandeja({ tipo: "pieza", fuente: "hitl_queue" })).toBe(true)
+    expect(esPiezaDeLaBandeja({ tipo: "pieza", fuente: "otra_tabla" })).toBe(false)
+    expect(esPiezaDeLaBandeja({ tipo: "gran_idea", fuente: "hitl_queue" })).toBe(false)
+    expect(await leerLasPiezas((async () => new Response(JSON.stringify({ ok: false, piezas: [PIEZAS[OTRO]] }), { status: 200 })) as never)).toBeNull()
+  })
+})
+
+describe("7 · los paneles usan esas piezas (no una copia)", () => {
+  it("la lista suelta Esc con la pieza abierta, marca vista al abrir y el visor se cierra al cambiar de cliente", async () => {
+    const { readFileSync } = await import("node:fs")
+    const antena = readFileSync("components/nuevo/escena/AntenaDeAlertas.tsx", "utf8"), visor = readFileSync("components/nuevo/PanelPiezas.tsx", "utf8")
+    expect(antena).toContain("useEffect(() => escucharEscDeLaLista(window, onCerrar, !!abierta), [onCerrar, abierta])")
+    expect(antena).toMatch(/setAbierta\(a\)\s+void marcarVistaAlAbrir\(a, \{ revisadasAqui, fetchImpl: fetchImpl \?\? fetch, alRevisar \}\)/)
+    expect(visor).toContain("useAlCambiarElCliente(clienteId, () => alCambiarElClienteDelVisor(!!soloLaPieza, { cerrar: onCerrar, irA }))")
   })
 })

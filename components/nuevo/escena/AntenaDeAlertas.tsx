@@ -133,7 +133,7 @@ export function PanelDeLasAlertas(p: PropsDeLaLista) {
   const [desplegados, setDesplegados] = useState<Record<string, boolean>>({})
   const [piezas, setPiezas] = useState<Record<string, FilaDeLaLista> | null>(null)
   // con el visor abierto, Esc es del visor (cierra un diálogo o vuelve a la lista); la lista no se cierra por debajo
-  useEffect(() => (abierta ? undefined : escucharEsc(window, onCerrar)), [onCerrar, abierta])
+  useEffect(() => escucharEscDeLaLista(window, onCerrar, !!abierta), [onCerrar, abierta])
   const hayPiezas = (p.alertas ?? []).some((a) => a.pieza)
   useEffect(() => {
     if (!hayPiezas || piezas) return
@@ -143,8 +143,7 @@ export function PanelDeLasAlertas(p: PropsDeLaLista) {
   }, [hayPiezas, piezas, fetchImpl])
   const alAbrirPieza = useCallback((a: AlertaDeLaAntena) => {
     setAbierta(a)
-    const r = a.revisar
-    if (r && esNuevaEnLaAntena(a, revisadasAqui)) void marcarRevisada(fetchImpl ?? fetch, r.clave).then((x) => { if (x.ok) alRevisar?.(r.clave, x.en) })
+    void marcarVistaAlAbrir(a, { revisadasAqui, fetchImpl: fetchImpl ?? fetch, alRevisar })
   }, [fetchImpl, revisadasAqui, alRevisar])
   return enElCuerpo(
     <>
@@ -152,6 +151,21 @@ export function PanelDeLasAlertas(p: PropsDeLaLista) {
       {abierta?.pieza && <PanelPiezas key={abierta.pieza} piezaInicial={abierta.pieza} soloLaPieza={{ volverA: VOLVER_A_LAS_ALERTAS }} onCerrar={() => setAbierta(null)} fetchImpl={fetchImpl} />}
     </>,
   )
+}
+
+/** Esc de la lista: solo mientras NO hay una pieza abierta encima (entonces es del visor). Devuelve cómo soltarlo, o nada */
+export function escucharEscDeLaLista(w: Pick<Window, "addEventListener" | "removeEventListener">, onCerrar: () => void, hayPiezaAbierta: boolean): (() => void) | undefined {
+  return hayPiezaAbierta ? undefined : escucharEsc(w, onCerrar)
+}
+
+/** abrir una pieza NUEVA la marca como vista (boceto v2: reemplaza al «✓ Revisar» del grupo); una ya vista no se vuelve a guardar. true si se guardó */
+export async function marcarVistaAlAbrir(a: AlertaDeLaAntena, h: { revisadasAqui: Record<string, string>; fetchImpl: typeof fetch; alRevisar?: (clave: string, en: string) => void }): Promise<boolean> {
+  const r = a.revisar
+  if (!r || !esNuevaEnLaAntena(a, h.revisadasAqui)) return false
+  const x = await marcarRevisada(h.fetchImpl, r.clave)
+  if (!x.ok) return false
+  h.alRevisar?.(r.clave, x.en)
+  return true
 }
 
 /** los nombres legibles y lo que hace falta para la miniatura, de la bandeja de piezas por aprobar; null si no se pudo leer */

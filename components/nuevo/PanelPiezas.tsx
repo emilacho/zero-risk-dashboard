@@ -128,6 +128,12 @@ function TarjetaDePieza({ p, onAbrir }: { p: FilaDeLaLista; onAbrir: () => void 
   )
 }
 
+/** otro cliente elegido arriba con Piezas abierto: el explorador vuelve a su raíz; la pieza abierta EN EL LUGAR (desde las alertas) se cierra, porque era del otro cliente */
+export function alCambiarElClienteDelVisor(enElLugar: boolean, h: { cerrar: () => void; irA: (carpeta: string | null) => void }): void {
+  if (enElLugar) h.cerrar()
+  else h.irA(null)
+}
+
 export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista", soloLaPieza = null }: {
   onCerrar: () => void
   /** lecturas ya hechas (pruebas) */
@@ -228,7 +234,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
   const irA = (k: string | null) => { setCarpeta(k); setElegida(null); setPieza(null); setErrorPieza(null) }
   // si se elige otro cliente arriba con Piezas abierto, se vuelve a la raíz (la carpeta y la pieza eran del otro)
-  useAlCambiarElCliente(clienteId, () => (soloLaPieza ? onCerrar() : irA(null)))
+  useAlCambiarElCliente(clienteId, () => alCambiarElClienteDelVisor(!!soloLaPieza, { cerrar: onCerrar, irA }))
   const verTodas = () => { setFiltro("todas"); if (!bandejaInicial) void leerLaBandeja("todas") }
   // el Kanban muestra TODAS las piezas del cliente (decididas incluidas): entrar a él pasa el filtro a «todas»
   const verComo = (v: VistaDePiezas) => { setVista(v); if (v === "kanban") { setElegida(null); setPieza(null); if (filtro !== "todas") verTodas() } }
