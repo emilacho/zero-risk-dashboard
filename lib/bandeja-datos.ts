@@ -4,7 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { clientesParaElegir } from "@/lib/clientes-datos"
-import { contarPiezasPorAprobar, listarPiezas, type FilaDeLaLista } from "@/lib/piezas-datos"
+import { contarPiezasPorAprobar, listarEnCurso, listarPiezas, type FilaDeLaLista, type PiezaEnCurso } from "@/lib/piezas-datos"
 import type { FiltroDeLaBandeja } from "@/lib/bandeja"
 
 export interface Bandeja {
@@ -16,17 +16,23 @@ export interface Bandeja {
   /** CC6 · 03-nov: lo archivado de una campaña anterior (todas, decididas o no): la carpeta plegada del final */
   archivo?: FilaDeLaLista[]
   clientes: Array<{ id: string; nombre: string }>
+  /** 11-nov · Piezas v2 (arreglo 7): con «Todas», lo que la oficina todavía está haciendo o la jefatura revisa (aún no está en la bandeja). Solo de los clientes de la lista */
+  en_curso?: PiezaEnCurso[]
   leido_en: string
 }
 
 export async function leerBandeja(supa: SupabaseClient, o: { estado?: FiltroDeLaBandeja; ahora?: Date } = {}): Promise<Bandeja> {
   const estado = o.estado ?? "pendiente"
-  const [piezas, otras, archivo, por_aprobar, clientes] = await Promise.all([
+  const [piezas, otras, archivo, por_aprobar, clientes, enCurso] = await Promise.all([
     listarPiezas(supa, { estado, tipo: "piezas" }),
     listarPiezas(supa, { estado, tipo: "otras" }),
     listarPiezas(supa, { estado: "todas", tipo: "piezas", archivo: "solo", limite: 300 }),
     contarPiezasPorAprobar(supa),
     clientesParaElegir(supa),
+    estado === "todas" ? listarEnCurso(supa) : Promise.resolve([] as PiezaEnCurso[]),
   ])
-  return { estado, por_aprobar, piezas, otras, archivo, clientes, leido_en: (o.ahora ?? new Date()).toISOString() }
+  // los encargos de un cliente de práctica o dado de baja no salen (la lista de clientes ya los deja fuera)
+  const deLaLista = new Set(clientes.map((c) => c.id))
+  const en_curso = enCurso.filter((e) => e.cliente_id != null && deLaLista.has(e.cliente_id))
+  return { estado, por_aprobar, piezas, otras, archivo, clientes, ...(estado === "todas" ? { en_curso } : {}), leido_en: (o.ahora ?? new Date()).toISOString() }
 }

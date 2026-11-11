@@ -3,7 +3,7 @@
  * panel enseña y de los cuerpos que manda. Las reglas de la decisión (mínimos · casilla «entiendo» · láminas) son las de `lib/piezas.ts`, LAS MISMAS que exige
  * el servidor en `POST /api/piezas/{id}/decidir`: aquí solo se arman antes de enviar y se dicen en palabras. Nada de esto escribe.
  */
-import type { FilaDeLaLista } from "@/lib/piezas-datos"
+import type { FilaDeLaLista, PiezaEnCurso } from "@/lib/piezas-datos"
 import { COMENTARIO_MAXIMO, hayTexto, validarDecision, type AccionDeLaPieza, type EstadoPieza, type OrigenDeLaImagen, type PedidoDeDecision } from "@/lib/piezas"
 
 export type FiltroDeLaBandeja = "pendiente" | "todas"
@@ -136,6 +136,38 @@ export function arbolDeLaBandeja(piezas: FilaDeLaLista[], otras: FilaDeLaLista[]
 export function cuentaDeLaCarpeta(o: { por_aprobar: number; total: number }): string {
   return o.por_aprobar ? `${o.por_aprobar} por aprobar · ${o.total} en total` : o.total === 1 ? "1 pieza" : `${o.total} piezas`
 }
+
+/** PIEZAS v2 (boceto aprobado por Emilio 11-nov 20:26): a la derecha, una FILA por subcategoría con sus piezas lado a lado */
+export type ElementoDeLaFila = { tipo: "pieza"; fila: FilaDeLaLista } | { tipo: "en_curso"; pieza: PiezaEnCurso }
+export interface FilaDeSubcategoria { nombre: string; elementos: ElementoDeLaFila[]; por_aprobar: number; /** UN solo número (arreglo 3): con «Por aprobar», las que esperan; con «Todas», el total */ numero: number }
+const ES_FINAL = (n: string) => n in ORDEN_FINAL
+
+/** las filas del cliente: sus carpetas de la bandeja y, con «Todas», las piezas en producción en la fila de su tipo (primero, son lo más nuevo).
+ *  Una pieza en curso (o una sin red en su título) va a la ÚNICA carpeta de su tipo («Video corto» → «Video corto Instagram»); si hay varias o ninguna, abre su propia fila */
+export function filasDeSubcategorias(cliente: ClienteDeLaBandeja | null, enCurso: PiezaEnCurso[], filtro: FiltroDeLaBandeja): FilaDeSubcategoria[] {
+  let filas = (cliente?.carpetas ?? []).map((k) => ({ nombre: k.nombre, elementos: k.filas.map((fila): ElementoDeLaFila => ({ tipo: "pieza", fila })), por_aprobar: k.por_aprobar }))
+  // la ÚNICA fila de un tipo con su red («Video corto» → «Video corto Instagram»); si hay varias redes o ninguna, null: no se adivina la red
+  const unicaDelTipo = (tipo: string) => { const m = filas.filter((k) => !ES_FINAL(k.nombre) && k.nombre.startsWith(`${tipo} `)); return m.length === 1 ? m[0] : null }
+  // una pieza cuyo título no dice la red (la del reel «sin dibujar») va con la única fila de su tipo, no en una fila aparte
+  for (const k of [...filas]) {
+    const destino = ES_FINAL(k.nombre) ? null : unicaDelTipo(k.nombre)
+    if (destino) { destino.elementos.push(...k.elementos); destino.por_aprobar += k.por_aprobar; filas = filas.filter((x) => x !== k) }
+  }
+  if (filtro === "todas" && cliente) {
+    for (const e of enCurso.filter((x) => (x.cliente_id ?? "") === (cliente.id ?? ""))) {
+      let f = filas.find((k) => k.nombre === e.tipo_legible) ?? unicaDelTipo(e.tipo_legible)
+      if (!f) { f = { nombre: e.tipo_legible, elementos: [], por_aprobar: 0 }; filas.push(f) }
+      const primeraPieza = f.elementos.findIndex((x) => x.tipo === "pieza")
+      f.elementos.splice(primeraPieza < 0 ? f.elementos.length : primeraPieza, 0, { tipo: "en_curso", pieza: e })
+    }
+  }
+  // el mismo orden que el árbol: por nombre, con «Otras revisiones» y el archivo al final
+  filas.sort((a, b) => (ORDEN_FINAL[a.nombre] ?? 0) - (ORDEN_FINAL[b.nombre] ?? 0) || a.nombre.localeCompare(b.nombre, "es"))
+  return filas.filter((f) => f.elementos.length > 0).map((f) => ({ ...f, numero: filtro === "pendiente" ? f.por_aprobar : f.elementos.length }))
+}
+
+/** el número junto a la carpeta del cliente en el árbol: la misma regla que cada fila (con «Todas», el total con lo que está en producción) */
+export const numeroDelCliente = (filas: FilaDeSubcategoria[]): number => filas.reduce((t, f) => t + f.numero, 0)
 
 export type CampoEditable = "encabezado" | "titular" | "cuerpo" | "pie"
 export const CAMPO_LEGIBLE: Record<CampoEditable, string> = { encabezado: "Encabezado", titular: "Titular", cuerpo: "Cuerpo", pie: "Pie de la publicación" }
