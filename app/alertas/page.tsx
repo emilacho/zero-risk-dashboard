@@ -6,7 +6,6 @@ import { leerAlertas } from "@/lib/alertas-datos"
 import type { Alerta, FuenteDeAlerta } from "@/lib/alertas"
 import { BotonYaLoVi } from "./BotonYaLoVi"
 import { AccionBoton } from "@/components/AccionBoton"
-import { TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
 import { HORA_24 } from "@/lib/formato"
 
 export const dynamic = "force-dynamic"
@@ -30,7 +29,7 @@ function Fila({ a, conBoton }: { a: Alerta; conBoton: boolean }) {
         {(a.acciones.length > 0 || a.encargo_id) && (
           <p className="mt-2 flex flex-wrap gap-2">
             {a.acciones.map((x) => <Link key={x.texto} href={x.href} className="rounded border border-zinc-700 px-2.5 py-1 text-[12px] text-zinc-200 hover:bg-zinc-800">{x.texto}</Link>)}
-            {a.encargo_id && conBoton && <AccionBoton accion="rehacer-pieza" datos={{ encargo_id: a.encargo_id }} etiqueta="Rehacer" tope_usd={TOPE_POR_PIEZA_USD} variante="suave" campos={[{ clave: "comentario", etiqueta: "Qué debe cambiar (opcional)", tipo: "largo" }]} />}
+            {a.encargo_id && conBoton && <AccionBoton accion="rehacer-pieza" datos={{ encargo_id: a.encargo_id }} etiqueta="Rehacer" gasta variante="suave" campos={[{ clave: "comentario", etiqueta: "Qué debe cambiar (opcional)", tipo: "largo" }]} />}
           </p>
         )}
       </div>
