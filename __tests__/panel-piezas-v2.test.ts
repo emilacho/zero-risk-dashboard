@@ -71,6 +71,12 @@ describe("Piezas v2 · la miniatura real (condición de Emilio)", () => {
     expect(v).not.toMatch(/<video[^>]*controls/); expect(v).toContain("data-sello-video"); expect(v).toContain(">▶</span>") // sin duración hasta que el archivo la dice
     expect(h).not.toContain("sin dibujo")
   })
+  it("video: hasta que el navegador tiene el cuadro, el video está oculto y se ve un fondo «cargando», nunca una tarjeta negra (CC6 11-nov)", () => {
+    const v = seccion(h, "Video corto Instagram")
+    expect(v).toMatch(/<span data-portada="cargando"[^>]*animate-pulse/)
+    expect(v).toMatch(/<video data-miniatura="video"[^>]*class="[^"]*opacity-0/)
+    expect(v.indexOf('data-portada="cargando"')).toBeLessThan(v.indexOf("<video")) // detrás del video, que aparece encima cuando está listo
+  })
   it("imagen: la primera lámina; sin archivo, lo dice («sin archivo todavía»)", () => {
     const a = seccion(h, "Anuncio imagen")
     expect(a).toContain('<img data-miniatura="imagen" src="/api/piezas/f1000000-0000-4000-8000-000000000000/lamina/1"')
@@ -148,7 +154,8 @@ function baseFalsa(tablas: Record<string, Array<Record<string, unknown>>>, conEr
     b.is = (c: string, v: unknown) => { log.push(`${t}:is ${c}`); filas = filas.filter((f) => (f[c] ?? null) === v); return b }
     b.not = () => b
     b.neq = (c: string, v: unknown) => { filas = filas.filter((f) => f[c] !== v); return b }
-    b.order = () => b
+    // ordena de verdad (CC6 11-nov: «la más nueva manda» se prueba con el orden real de la base)
+    b.order = (c: string, o: { ascending?: boolean } = {}) => { const s = o.ascending === false ? -1 : 1; filas.sort((x, y) => (String(x[c] ?? "") < String(y[c] ?? "") ? -s : String(x[c] ?? "") > String(y[c] ?? "") ? s : 0)); return b }
     b.limit = (n: number) => { filas = filas.slice(0, n); return b }
     b.then = (ok: (v: unknown) => unknown) => Promise.resolve(conError.includes(t) ? { data: null, error: { message: "x" } } : { data: filas, error: null }).then(ok)
     return b
@@ -178,6 +185,20 @@ describe("Piezas v2 · la lectura (sin red)", () => {
     // nunca ensayos, pruebas, archivados ni lo que ya está en la bandeja
     for (const x of ["oficina_encargos:eq dry_run=false", "oficina_encargos:eq prueba=false", "oficina_encargos:is archivada_en", "oficina_encargos:is hitl_queue_id", "jefatura_revisiones:eq artifact_type=pieza"]) expect(log).toContain(x)
     expect(log.find((x) => x.startsWith("oficina_encargos:select"))).toContain("paso:estado_del_motor->pasos_ejecutados")
+  })
+  it("listarEnCurso: una revisión FALLIDA terminó (no queda «En revisión» para siempre: en producción hay 3) · CC6 11-nov", async () => {
+    for (const estado of ["fallida", "fallida_por_tope", "cerrada_por_tope"]) {
+      const l = await listarEnCurso(baseFalsa({ oficina_encargos: [ENC(E2, { estado: "cerrado" })], jefatura_revisiones: [{ artifact_type: "pieza", artifact_id: E2, estado, creado_en: "2026-11-11T10:00:00Z" }] }))
+      expect(l, estado).toEqual([])
+    }
+  })
+  it("listarEnCurso: con dos revisiones del mismo encargo manda la MÁS NUEVA, en los dos sentidos · CC6 11-nov", async () => {
+    const vieja = { artifact_type: "pieza", artifact_id: E2, creado_en: "2026-11-10T08:00:00Z" }, nueva = { artifact_type: "pieza", artifact_id: E2, creado_en: "2026-11-11T09:00:00Z" }
+    // la vieja abierta y la nueva cerrada → ya no está en revisión (las filas llegan en el orden de la tabla, la vieja primero)
+    expect(await listarEnCurso(baseFalsa({ oficina_encargos: [ENC(E2, { estado: "cerrado" })], jefatura_revisiones: [{ ...vieja, estado: "en_curso" }, { ...nueva, estado: "cerrada" }] }))).toEqual([])
+    // la vieja cerrada y la nueva abierta (una segunda vuelta) → «En revisión»
+    const l = await listarEnCurso(baseFalsa({ oficina_encargos: [ENC(E2, { estado: "cerrado" })], jefatura_revisiones: [{ ...vieja, estado: "cerrada" }, { ...nueva, estado: "en_curso" }] }))
+    expect(l.map((x) => x.columna)).toEqual(["en_revision"])
   })
   it("listarEnCurso: paso desconocido → null (no se inventa); un error de la base lanza (nunca «nada en producción»)", async () => {
     expect((await listarEnCurso(baseFalsa({ oficina_encargos: [ENC(E1, { paso: null })] })))[0].paso).toBeNull()

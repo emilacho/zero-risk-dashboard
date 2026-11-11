@@ -110,6 +110,8 @@ export const segundoDeLaPortada = (duracion: number): number => (Number.isFinite
 function MiniaturaDeLaPieza({ p }: { p: FilaDeLaLista }) {
   const [falla, setFalla] = useState(false)
   const [segundos, setSegundos] = useState<number | null>(null)
+  // el cuadro se muestra recién cuando el navegador lo tiene (CC6 11-nov: antes del salto el <video> se veía NEGRO); mientras tanto, un fondo que late
+  const [cuadroListo, setCuadroListo] = useState(false)
   const tipo = falla || !p.es_pieza ? null : p.miniatura ?? (p.tiene_dibujo ? "imagen" : null)
   if (tipo === "imagen") {
     // eslint-disable-next-line @next/next/no-img-element
@@ -119,7 +121,8 @@ function MiniaturaDeLaPieza({ p }: { p: FilaDeLaLista }) {
     const dura = duracionLegible(segundos)
     return (
       <>
-        <video data-miniatura="video" src={`/api/piezas/${p.id}/video#t=0.1`} preload="metadata" muted playsInline aria-hidden tabIndex={-1} onLoadedMetadata={(e) => { const v = e.currentTarget; setSegundos(v.duration); v.currentTime = segundoDeLaPortada(v.duration) }} onError={() => setFalla(true)} className="pointer-events-none h-full w-full object-cover" />
+        {!cuadroListo && <span data-portada="cargando" aria-hidden className="absolute inset-0 animate-pulse bg-grafito-2" />}
+        <video data-miniatura="video" src={`/api/piezas/${p.id}/video#t=0.1`} preload="metadata" muted playsInline aria-hidden tabIndex={-1} onLoadedMetadata={(e) => { const v = e.currentTarget; setSegundos(v.duration); v.currentTime = segundoDeLaPortada(v.duration) }} onSeeked={() => setCuadroListo(true)} onError={() => setFalla(true)} className={`pointer-events-none h-full w-full object-cover ${cuadroListo ? "opacity-100" : "opacity-0"}`} />
         <span data-sello-video className="num absolute bottom-2 right-2 rounded-full bg-velo px-2 py-0.5 text-rotulo text-hueso">▶{dura ? ` ${dura}` : ""}</span>
       </>
     )
