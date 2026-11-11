@@ -108,6 +108,11 @@ describe("Piezas v2 · lo que está en producción (arreglo 7)", () => {
     expect(numeroDelCliente(pend)).toBe(8)
     expect(filasDeSubcategorias(null, BANDEJA.en_curso!, "todas")).toEqual([])
   })
+  it("con «Por aprobar», el número de la fila cuenta solo las que esperan; con «Todas», también las decididas", () => {
+    const [c] = arbolDeLaBandeja([REELS[0], fila({ id: "d1000000-0000-4000-8000-000000000000", estado: "aprobada", status: "approved" })], [])
+    expect(filasDeSubcategorias(c, [], "pendiente").map((f) => f.numero)).toEqual([1])
+    expect(filasDeSubcategorias(c, [], "todas").map((f) => f.numero)).toEqual([2])
+  })
   it("una pieza sin la red en su título («Video corto», el reel sin dibujar) va con la ÚNICA fila de su tipo; con dos redes no se adivina", () => {
     const sinRed = fila({ id: "s1000000-0000-4000-8000-000000000000", carpeta: "Video corto", miniatura: null })
     const [c1] = arbolDeLaBandeja([REELS[0], sinRed], [])
