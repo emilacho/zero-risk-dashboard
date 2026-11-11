@@ -427,18 +427,18 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
                 <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_23rem] lg:overflow-hidden">
                   <div className="flex min-h-[60vh] flex-col items-center gap-2 overflow-auto bg-black/40 p-4 lg:min-h-0">
-                    {total === 0 && pieza.es_pieza && !video && <div className="max-w-md rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-[13px] text-rose-200">Sin dibujo: esta pieza no tiene láminas ni video que mirar.</div>}
+                    {total === 0 && pieza.es_pieza && !video && <div className="max-w-md rounded-tarjeta border border-linea-alarma bg-grafito p-4 text-dato text-alarma">Sin dibujo: esta pieza no tiene láminas ni video que mirar.</div>}
                     {/* 11-nov (boceto aprobado por Emilio): la pieza de video se mira aquí, igual que en el visor de /piezas; el mp4 lo sirve el tablero */}
                     {video && hayReproductor && (
                       <div className="flex min-h-0 w-full flex-1 items-center justify-center" data-video-de-la-pieza>
-                        <div className="relative h-full max-h-full max-w-full overflow-hidden rounded-xl border border-white/10 bg-black" style={{ aspectRatio: "9/16" }}>
+                        <div className="relative h-full max-h-full max-w-full overflow-hidden rounded-tarjeta border border-linea bg-carbon" style={{ aspectRatio: "9/16" }}>
                           <video controls playsInline preload="metadata" src={`/api/piezas/${pieza.id}/video`} className="h-full w-full object-contain" />
-                          <span className="num absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-0.5 text-[11px]">{video.segundos != null ? `${video.segundos} s` : "video"}</span>
+                          <span className="num absolute left-3 top-3 rounded-full bg-velo px-2.5 py-0.5 text-rotulo text-hueso">{video.segundos != null ? `${video.segundos} s` : "video"}</span>
                         </div>
                       </div>
                     )}
                     {video && !hayReproductor && (
-                      <div className="max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-[13px] text-amber-100" data-video-sin-reproductor>
+                      <div className="max-w-md rounded-tarjeta border border-linea-oro bg-grafito p-4 text-dato text-oro" data-video-sin-reproductor>
                         {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
                         {video.solo_en_proveedor && video.url_proveedor && <a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="mt-2 block underline">Abrir en el proveedor</a>}
                       </div>
@@ -487,7 +487,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   <aside className="min-h-0 space-y-3 border-t border-white/10 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Lo que acompaña a la pieza" data-barra-de-la-pieza>
                     {(pieza.es_pieza ? pieza.avisos : []).map((a, i) => <div key={i} role={a.nivel === "rojo" ? "alert" : undefined} data-aviso-pieza={a.nivel} className={`rounded-lg border p-2.5 text-[12.5px] ${COLOR_AVISO[a.nivel]}`}>{a.texto}</div>)}
                     {video && <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`} etiqueta="video">
-                      {video.nombre ? <p className="text-zinc-400">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1).replace(".", ",")} MB` : ""}</p> : <p className="italic text-zinc-500">Sin archivo guardado.</p>}
+                      {video.nombre ? <p className="text-gris">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1).replace(".", ",")} MB` : ""}</p> : <p className="italic text-apagado">Sin archivo guardado.</p>}
                       {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{video.vence ? ` antes de ${video.vence}` : ""}</p>}
                     </Bloque>}
                     {pieza.es_pieza && <Bloque titulo="De la fila del calendario" etiqueta="fila">
