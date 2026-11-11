@@ -80,7 +80,8 @@ describe("el cliente recordado (este navegador)", () => {
 describe("el cliente a la vista", () => {
   it("la cabecera del panel dice el cliente, grande, junto al título", () => {
     const h = renderToStaticMarkup(createElement(PanelPizarron, { onCerrar: () => {}, datosIniciales: { clientes: [{ id: NAUFRAGO, nombre: "Náufrago", con_campana: true }], cliente: { id: NAUFRAGO, nombre: "Náufrago" }, campana: null, fases: [], fase_activa: faseActiva([], null, "2026-11-02"), gran_idea: { texto: null, nota: "x" }, esperas: [], filas: [], semanas: [], totales: {}, hoy: "2026-11-02", leido_en: "x" } }))
-    expect(h).toMatch(/id="pizarron-titulo"[^>]*>Calendario<\/h2><span data-cliente-cabecera[^>]*>Náufrago<\/span>/)
+    // 11-nov (boceto v2 aprobado por Emilio): título «Centro de campaña» y, debajo, «Calendario · <vista> · <cliente>»
+    expect(h).toMatch(/id="pizarron-titulo"[^>]*>Centro de campaña<\/h2><p data-subtitulo[^>]*>Calendario · [^<]*<span data-cliente-cabecera[^>]*> · Náufrago<\/span>/)
   })
   it("las observaciones para todo el manual dicen para qué cliente (03-nov: el cuadro está siempre a la vista, sin botón propio)", () => {
     const h = renderToStaticMarkup(createElement(PedirCambiosAlManual, { clienteNombre: "Náufrago", ciclo: { disponible: true, abierto: null, avance: null, que_cambio: [] }, validadosDelManual: [], libre: "", onLibre: () => {} }))

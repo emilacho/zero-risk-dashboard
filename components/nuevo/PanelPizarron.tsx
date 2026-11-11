@@ -8,7 +8,7 @@ import type { Pizarron } from "@/lib/pizarron-datos"
 import { DIAS_DE_LA_SEMANA, ESTADOS_DEL_TABLERO, colorDelEstado, diaDelCalendario, enlaceDeLaPieza, estadoDeFilaLegible, formatoLegible, nombreDelEstado, redDelTablero, conteoDePublicaciones, textoDePublicaciones, type FilaDelTablero } from "@/lib/pizarron"
 import { estadoDeCampanaLegible, familiaLegible, pilarLegible, resultadoDeJefaturaDePiezaLegible } from "@/lib/lenguaje"
 import { Kanban } from "@/components/nuevo/Kanban"
-import { armarKanban, tarjetaDeFila } from "@/lib/kanban"
+import { COLUMNAS_DEL_CALENDARIO, armarKanban, tarjetaDeFila } from "@/lib/kanban"
 import { diaConNombre, estadoCortoDeLaPublicacion, loQueTeTocaEnElCalendario, origenDeLaPublicacion, resumenDeLaSemana, semanaInicial } from "@/lib/calendario"
 
 /** 6.11 (ADENDA 3): las mismas publicaciones, como calendario (semanas × días) o como Kanban (columnas genéricas).
@@ -16,7 +16,8 @@ import { diaConNombre, estadoCortoDeLaPublicacion, loQueTeTocaEnElCalendario, or
 export type VistaDelTablero = "dias" | "calendario" | "kanban"
 const NOMBRE_DE_LA_VISTA: Record<VistaDelTablero, string> = { dias: "Por día", calendario: "Mes", kanban: "Kanban" }
 
-const AMBAR = "#f5a524"
+/** el dorado sutil de los títulos (boceto v2 del Kanban, 11-nov) */
+const DORADO = "#c9a227"
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 
 const ESTILO = `
@@ -92,7 +93,7 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
   const porAprobar = datos?.totales.emilio ?? 0
   const fases = datos?.fases ?? []
   const faseActiva = datos?.fase_activa.situacion === "en_curso" ? datos.fase_activa.fase?.clave : null
-  const kanban = useMemo(() => armarKanban((datos?.filas ?? []).map(tarjetaDeFila)), [datos])
+  const kanban = useMemo(() => armarKanban((datos?.filas ?? []).map(tarjetaDeFila), COLUMNAS_DEL_CALENDARIO), [datos])
   const semanaVista = datos?.semanas[semana] ?? datos?.semanas[0]
   const resumen = useMemo(() => resumenDeLaSemana(semanaVista), [semanaVista])
 
@@ -102,9 +103,11 @@ export function PanelPizarron({ onCerrar, datosIniciales = null, onAbrirPieza, v
       <section role="dialog" aria-modal="true" aria-labelledby="pizarron-titulo" data-seccion="pizarron" data-vista-activa={vista} data-pantalla-completa className="relative flex h-full max-h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-6">
           <span aria-hidden className={`h-2 w-2 rounded-full ${porAprobar > 0 ? "bg-amber-400 animate-pulse" : "bg-zinc-500"}`} />
-          <h2 id="pizarron-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Calendario</h2>
-          {datos?.cliente?.nombre && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{datos?.cliente?.nombre}</span>}
-          <p className="hidden text-[12px] text-zinc-500 md:block">La campaña del cliente, publicación por publicación · solo lectura</p>
+          {/* 11-nov (boceto v2 aprobado por Emilio): título 1 «Centro de campaña» grande en dorado sutil · título 2 la pantalla y el cliente · sin la línea de ayuda */}
+          <div className="min-w-0">
+            <h2 id="pizarron-titulo" className="font-display text-[30px] font-semibold leading-tight tracking-tight" style={{ color: DORADO }}>Centro de campaña</h2>
+            <p data-subtitulo className="mt-0.5 truncate font-display text-[20px] font-medium text-zinc-200">Calendario · {NOMBRE_DE_LA_VISTA[vista]}{datos?.cliente?.nombre && <span data-cliente-cabecera className="text-zinc-500"> · {datos?.cliente?.nombre}</span>}</p>
+          </div>
           <div role="group" aria-label="Cómo ver la campaña" className="ml-auto flex rounded-md border border-white/10 p-0.5 text-[11px]">
             {(["dias", "calendario", "kanban"] as const).map((v) => (
               <button key={v} type="button" data-vista-tablero={v} aria-pressed={vista === v} onClick={() => setVista(v)} className={`rounded px-2.5 py-1 transition ${vista === v ? "bg-amber-400/20 text-amber-100" : "text-zinc-400 hover:text-zinc-200"}`}>{NOMBRE_DE_LA_VISTA[v]}</button>
