@@ -32,8 +32,10 @@ export const CARPETA_OTRAS = "Otras revisiones"
  * los DOCUMENTOS que tienen su propio panel (auditoría n.º 5 · CC1 #871): la plataforma clasifica cada revisión en `hitl_queue.documento`
  * (pieza · manual · plan · gran_idea · competidores · otro), para cualquier cliente. Lo del manual va al Manual y lo del plan al Plan.
  * Antes era un filtro por TIPO en esta pantalla (02-nov) y mandaba al Manual también las revisiones del editor sobre PIEZAS (8 de 14).
+ * 11-nov (GO Lenovo · CC4): la GRAN IDEA también tiene su panel (Centro de campaña › Gran idea): sus decisiones salían en «Otras revisiones» como si fueran piezas «sin dibujo».
+ * «competidores» y «otro» no tienen panel propio todavía: siguen aquí para que no queden sin lugar donde decidirse.
  */
-export const DOCUMENTOS_CON_SU_PROPIO_PANEL = ["manual", "plan"] as const
+export const DOCUMENTOS_CON_SU_PROPIO_PANEL = ["manual", "plan", "gran_idea"] as const
 /** la carpeta de lo archivado de una campaña anterior (CC1 #852 · corrección 3 de Lenovo): va plegada al final, se mira y solo se «recupera» */
 export const CARPETA_ARCHIVO = "Archivo · campaña anterior"
 

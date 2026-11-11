@@ -84,9 +84,9 @@ describe("en el panel del Manual, dentro de su sección; ya no en Piezas", () =>
     q.not = (...a: unknown[]) => { filtros.push(`not ${JSON.stringify(a)}`); return q }
     q.then = (ok: (r: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(ok)
     await listarPiezas({ from: () => q } as never, { tipo: "otras", estado: "todas" })
-    expect(filtros).toContain(`not ${JSON.stringify(["documento", "in", "(manual,plan)"])}`)
+    expect(filtros).toContain(`not ${JSON.stringify(["documento", "in", "(manual,plan,gran_idea)"])}`)
     expect(filtros).toContain(`neq ${JSON.stringify(["type", "content_piece_review"])}`)
-    expect([...DOCUMENTOS_CON_SU_PROPIO_PANEL]).toEqual(["manual", "plan"])
+    expect([...DOCUMENTOS_CON_SU_PROPIO_PANEL]).toEqual(["manual", "plan", "gran_idea"])
     expect(filtros.some((f) => f.includes("editor_escalation"))).toBe(false) // el tipo ya no decide el panel
   })
 })

@@ -185,7 +185,8 @@ export function dondeSeDecide(d: Pick<Decision, "tipo"> & Partial<Pick<Decision,
     case "gran_idea": return { panel: "gran_idea", boton: "Abrir la gran idea para decidir" }
     case "pieza": return { panel: "piezas", boton: "Abrir la pieza para decidir" }
     // 10-nov (CC1 #973 · CC7): una revisión del manual o del plan va a su panel; Piezas las esconde («Otras revisiones» las excluye)
-    case "revision": return d.documento === "manual" ? { panel: "manual", boton: "Abrir el manual para decidir" } : d.documento === "plan" ? { panel: "plan", boton: "Abrir el plan para decidir" } : { panel: "piezas", boton: "Abrir la revisión para decidir" }
+    // 11-nov (CC4): una revisión de la gran idea va a su panel; Piezas ya no la muestra
+    case "revision": return d.documento === "manual" ? { panel: "manual", boton: "Abrir el manual para decidir" } : d.documento === "plan" ? { panel: "plan", boton: "Abrir el plan para decidir" } : d.documento === "gran_idea" ? { panel: "gran_idea", boton: "Abrir la gran idea para decidir" } : { panel: "piezas", boton: "Abrir la revisión para decidir" }
     case "firma_de_finanzas": return { panel: null, nota: "La firma del tablero financiero todavía no está en el tablero nuevo." }
     case "pregunta_de_finanzas": return { panel: null, nota: "Las preguntas de finanzas todavía no se responden desde el tablero nuevo." }
     case "pregunta_al_dueno": return { panel: null, nota: "Las preguntas para ti todavía no se responden desde el tablero." }
