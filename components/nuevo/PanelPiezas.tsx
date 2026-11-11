@@ -18,7 +18,7 @@ import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 import { llamarAccion } from "@/components/nuevo/PanelManual"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
-import { diaYHora, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
+import { diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
@@ -439,7 +439,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     )}
                     {video && !hayReproductor && (
                       <div className="max-w-md rounded-tarjeta border border-linea-oro bg-grafito p-4 text-dato text-oro" data-video-sin-reproductor>
-                        {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
+                        {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${fechaYHoraEnPalabras(video.vence) ? ` (vence el ${fechaYHoraEnPalabras(video.vence)}, hora de Ecuador)` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
                         {video.solo_en_proveedor && video.url_proveedor && <a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="mt-2 block underline">Abrir en el proveedor</a>}
                       </div>
                     )}
@@ -488,7 +488,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     {(pieza.es_pieza ? pieza.avisos : []).map((a, i) => <div key={i} role={a.nivel === "rojo" ? "alert" : undefined} data-aviso-pieza={a.nivel} className={`rounded-lg border p-2.5 text-[12.5px] ${COLOR_AVISO[a.nivel]}`}>{a.texto}</div>)}
                     {video && <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`} etiqueta="video">
                       {video.nombre ? <p className="text-gris">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1).replace(".", ",")} MB` : ""}</p> : <p className="italic text-apagado">Sin archivo guardado.</p>}
-                      {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{video.vence ? ` antes de ${video.vence}` : ""}</p>}
+                      {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{fechaYHoraEnPalabras(video.vence) ? ` antes del ${fechaYHoraEnPalabras(video.vence)} (hora de Ecuador)` : ""}</p>}
                     </Bloque>}
                     {pieza.es_pieza && <Bloque titulo="De la fila del calendario" etiqueta="fila">
                       {pieza.acompana?.fila ? (() => { const f = pieza.acompana!.fila!; return (
