@@ -86,7 +86,7 @@ describe("sprint 6.7 · los textos editables viajan como UN pedido de cambios", 
 describe("sprint 6.7 · el panel", () => {
   it("cada texto de la lámina y el pie llevan «Editar» solo cuando la pieza sigue pendiente; nada se edita en el lugar: se suma al pedido de cambios", () => {
     const html = dibujar()
-    expect([...html.matchAll(/data-campo-editar="([^"]+)"/g)].map((m) => m[1])).toEqual(["1-encabezado", "1-titular", "1-cuerpo", "pie-pie"])
+    expect([...html.matchAll(/data-campo-editar="([^"]+)"/g)].map((m) => m[1])).toEqual(["pie-pie", "1-encabezado", "1-titular", "1-cuerpo"]) // 11-nov (panel derecho aprobado): el Texto va antes que la lámina
     expect(html).toContain('data-campo="1-titular" data-editado="false"'); expect(html).toContain("¿Qué lleva el encebollado?"); expect(html).not.toContain("data-editor=") // el editor abre al pulsar
     const aprobada = dibujar({ piezaInicialDatos: { ...DETALLE, estado: "aprobada", status: "approved" } })
     expect(aprobada).not.toContain('data-accion="editar-texto"'); expect(aprobada).toContain("¿Qué lleva el encebollado?") // se lee igual, sin editar

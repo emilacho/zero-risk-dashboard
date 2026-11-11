@@ -25,9 +25,10 @@ describe("la pieza con su barra", () => {
   it("la barra: primero la fila del calendario, luego la jefatura y quién la hizo con el nombre real; los botones grandes de siempre", () => {
     const h = dibujar(DETALLE)
     const i = (x: string) => h.indexOf(x)
-    expect(i('data-bloque="fila"')).toBeGreaterThan(-1); expect(i('data-bloque="fila"')).toBeLessThan(i('data-bloque="jefatura"')); expect(i('data-bloque="jefatura"')).toBeLessThan(i('data-bloque="quien"'))
-    expect(h).toContain("lun 2 nov · 11:00 · semana 1"); expect(h).toContain("Señal · idea C1-I03")
-    expect(h).toContain('data-productor="content-creator"'); expect(h).toContain("texto · hashtags"); expect(h).toContain('data-productor="marketing_instagram_curator"')
+    // 11-nov (panel derecho aprobado por Emilio): los recuadros de la fila arriba; Revisión, Equipo y Detalle plegados abajo, en ese orden
+    expect(i('data-recuadro="Cuándo"')).toBeGreaterThan(-1); expect(i('data-recuadro="Cuándo"')).toBeLessThan(i('data-plegado="Revisión"')); expect(i('data-plegado="Revisión"')).toBeLessThan(i('data-plegado="Equipo"')); expect(i('data-plegado="Equipo"')).toBeLessThan(i('data-plegado="Detalle"'))
+    expect(h).toContain("Lun 2 nov · 11:00"); expect(h).toContain("Señal"); expect(h).not.toContain("C1-I03")
+    expect(h).toContain("Redactor"); expect(h).toContain("texto · hashtags"); expect(h).toContain("Especialista"); expect(h).not.toContain("content-creator"); expect(h).not.toContain("marketing_instagram_curator")
     expect(h).toContain('data-accion="pieza-aprobar"'); expect(h).not.toContain("data-barra-del-pedido")
   })
   it("sin fila ni productores lo dice (no inventa)", () => {

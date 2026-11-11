@@ -175,11 +175,11 @@ describe("sprint 6.6 · el panel", () => {
     const html = dibujar()
     expect(html).toContain(">Náufrago</button>"); expect(html).toContain(">Historias Instagram</button>"); expect(html).toContain('data-miga="pieza"'); expect(html).toContain("lámina 1 de 2")
     expect(html).toContain('aria-current="true"'); expect(html).not.toContain("data-cliente=")
-    expect(html).toContain("Historias Instagram · Náufrago · 31 oct"); expect(html).toContain("versión 1"); expect(html).toContain("jefatura sin observaciones")
+    expect(html).toContain("Historias Instagram · Náufrago · 31 oct"); expect(html).toContain("Versión 1"); expect(html).not.toContain("jefatura sin observaciones") // 11-nov: la cabecera de una pieza queda solo con el título
     expect(html).toContain(`src="/api/piezas/${PIEZA}/lamina/1"`); expect(html).toContain('alt="Lámina 1 de 2"'); expect(html).toContain("aspect-ratio:1080/1920"); expect(html).toContain("Ver las 2 juntas")
     expect(html).toContain("Lámina 1 · con imagen de fondo"); expect(html).toContain("¿Qué lleva el encebollado?"); expect(html).toContain("#encebollado #mariscos")
-    expect(html).toContain("Desacuerdos (2)"); expect(html).toContain("Opinión externa (otro modelo, no vota)"); expect(html).toContain("La mesa no dejó aportes guardados")
-    expect(html).toContain("2 desacuerdos abiertos en la revisión."); expect(html).toContain("Entró a la bandeja")
+    expect(html).toContain("2 desacuerdos"); expect(html).toContain("Opinión externa (otro modelo, no vota)"); expect(html).toContain("0 aportes")
+    expect(html).toMatch(/data-chip-aviso="ambar"[^>]*>2 desacuerdos</); expect(html).toContain("Entró a la bandeja") // 11-nov: el aviso es un chip; su texto entero se ve al tocarlo
     // nada crudo de la base
     expect(html).not.toMatch(/content_piece_review|con_imagen|kit_historias|pending"?>/)
   })
