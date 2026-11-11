@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { avisoDeLoValidado, rotuloMientrasSeReescribe, type CicloDelManual } from "@/lib/manual-ciclo"
+import { MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES, sumarATusCambios } from "@/lib/pedir-cambios"
+import { VentanaPedirCambios } from "@/components/nuevo/pedido/VentanaPedirCambios"
 
 /** una sección pedida desde su apartado: título, las claves de sus campos y cuáles son del dueño (`n` cambia en cada clic) */
 export interface PedidoEnSeccion { titulo: string; campos: string[]; validados: string[]; n: number }
@@ -13,7 +15,8 @@ export const TOPE_DEL_TEXTO_LIBRE = 100_000
 /**
  * PEDIR CAMBIOS AL MANUAL (CC6 · 02-nov · mismo patrón del plan) · 03-nov (corrección de Lenovo 16:40Z): el cuadro del texto libre está
  * SIEMPRE a la vista y lo que se escribe es un cambio pendiente más; no tiene botón propio. Todo sale junto con «Pedir los cambios»
- * (abajo, en «Tus cambios»). «Pedir cambios en esta sección» antepone «Sección «X»: » en este cuadro y lo trae a la vista.
+ * (abajo, en «Tus cambios»). «Pedir cambios en esta sección» abre la ventana «Pedir cambios» (A1 · GO Lenovo 21:59): su botón es «Sumar a
+ * tus cambios» y NO manda nada; la nota se suma a este cuadro con «Sección «X»: » delante y el envío sigue siendo uno solo, abajo.
  * Aquí siguen el avance del pedido, «Qué cambió» y el aviso del campo validado («Lo que pediste» se quitó el 04-nov: Emilio ya sabe lo que pidió).
  * Mientras la plataforma no tenga el pedido de manuales (`ciclo.disponible` falso) no se ofrece nada: la puerta daría 404.
  */
@@ -32,24 +35,37 @@ export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDel
   onLibre: (t: string) => void
 }) {
   const [seccion, setSeccion] = useState<PedidoEnSeccion | null>(null)
+  const [ventana, setVentana] = useState<PedidoEnSeccion | null>(null)
+  const cerrarVentana = useCallback(() => setVentana(null), [])
   const [barraOculta, setBarraOculta] = useState(false)
   const caja = useRef<HTMLTextAreaElement>(null)
   const puedeEscribir = ciclo.disponible && !ciclo.abierto
 
-  // «Pedir cambios en esta sección»: antepone el nombre de la sección en el cuadro y lo trae a la vista (igual que el plan)
+  // «Pedir cambios en esta sección»: abre la ventana con la sección en el título (A1)
   useEffect(() => {
     if (!pedirEn || !puedeEscribir) return
-    setSeccion(pedirEn)
-    onLibre(libre.trim() ? `${libre.trimEnd()}\n\nSección «${pedirEn.titulo}»: ` : `Sección «${pedirEn.titulo}»: `)
-    if (typeof document !== "undefined") requestAnimationFrame(() => { document.querySelector("[data-pedir-cambios-manual]")?.scrollIntoView({ behavior: "smooth", block: "start" }); caja.current?.focus() })
+    setVentana(pedirEn)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedirEn?.n])
+  // «Sumar a tus cambios»: la nota entra al cuadro (con la sección delante) y el cuadro se trae a la vista; no sale nada todavía
+  const sumar = (nota: string) => {
+    if (!ventana) return { ok: false as const, error: "No hay una sección elegida." }
+    onLibre(sumarATusCambios(libre, nota, ventana.titulo)); setSeccion(ventana); setVentana(null)
+    if (typeof document !== "undefined") requestAnimationFrame(() => { document.querySelector("[data-pedir-cambios-manual]")?.scrollIntoView({ behavior: "smooth", block: "start" }); caja.current?.focus() })
+    return { ok: true as const }
+  }
 
   if (!ciclo.disponible) return null
+  const avisoDeLaVentana = ventana && ventana.validados.length ? avisoDeLoValidado(ventana.validados, true) : null
   const rotulo = rotuloMientrasSeReescribe(ciclo)
   const aviso = libre.trim() ? avisoDeLoValidado(seccion ? seccion.validados : validadosDelManual, !!seccion) : null
   return (
     <div data-pedir-cambios-manual data-tablero-accion="manual-cambios" className="mt-3 scroll-mt-2">
+      {ventana && puedeEscribir && (
+        <VentanaPedirCambios panel="manual" documento="Manual" seccion={ventana.titulo} minimo={MINIMO_DE_LA_NOTA.manual} maximo={TOPE_DEL_TEXTO_LIBRE}
+          quePasaDespues={QUE_PASA_DESPUES.manual} botonConfirmar="Sumar a tus cambios" onConfirmar={sumar} onCancelar={cerrarVentana}
+          debajoDeLaCaja={avisoDeLaVentana ? <p data-aviso-validados-ventana className="mt-1.5 text-[14px] text-oro">{avisoDeLaVentana}</p> : null} />
+      )}
       {rotulo && <p data-rotulo-reescribiendo className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">{rotulo}</p>}
       {ciclo.avance && barraOculta && <button type="button" data-accion="ver-avance" onClick={() => setBarraOculta(false)} className="mt-2 rounded-full border border-amber-300/50 px-3 py-1 text-[12.5px] text-amber-100 hover:bg-amber-500/15">Ver el avance</button>}
       {ciclo.avance && !barraOculta && <BarraDelPedido avance={ciclo.avance} onOcultar={() => setBarraOculta(true)} />}

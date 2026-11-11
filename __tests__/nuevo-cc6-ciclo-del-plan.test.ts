@@ -209,7 +209,8 @@ describe("CC6 · el panel: botones grandes para todo plan, estados a la vista, h
     const c = readFileSync("components/nuevo/PanelPlan.tsx", "utf8")
     expect(c).not.toMatch(/data-confirmar|costo-estimado|COSTO_ESTIMADO|TOPE_REESCRITURA|hasta US\$|Antes de enviar/)
     expect(c).toContain('onClick={() => void mandar("plan-aprobar", cuerpoDeAprobar(planId, ""))}') // un clic
-    expect(c).toContain('void mandar("plan-cambios", cuerpoDePedirCambios(planId, observaciones))') // escribir y enviar
+    // escribir y enviar · 11-nov (GO Lenovo 21:59): desde la ventana «Pedir cambios», con el mismo cuerpo (la sección al comienzo del texto)
+    expect(c).toContain("cuerpoDePedirCambios(planId, textoDelPedidoDelPlan(nota, seccion))"); expect(c).toContain('await mandar("plan-cambios", cuerpo)')
     expect(cuerpoDePedirCambios(PLAN, "Sube la meta a 130")).toMatchObject({ confirmo_gasto: true, tope_usd: 8 }) // el cuerpo sigue con lo que la puerta exige
     expect(c).not.toMatch(/supabase|service_role|method: "POST"/)
   })

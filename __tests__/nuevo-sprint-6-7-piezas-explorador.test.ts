@@ -91,9 +91,10 @@ describe("sprint 6.7 · el panel", () => {
     const aprobada = dibujar({ piezaInicialDatos: { ...DETALLE, estado: "aprobada", status: "approved" } })
     expect(aprobada).not.toContain('data-accion="editar-texto"'); expect(aprobada).toContain("¿Qué lleva el encebollado?") // se lee igual, sin editar
     const c = readFileSync("components/nuevo/PanelPiezas.tsx", "utf8")
-    expect(c).toContain("comentarioDeEdiciones(ediciones, comentario)") // el texto exacto va en el pedido de cambios
+    expect(c).toContain("comentarioDeEdiciones(ediciones, texto)") // el texto exacto va en el pedido de cambios
     expect(c).toContain("laminasDeLasEdiciones(ediciones)") // las láminas tocadas por una edición entran al alcance del pedido
-    expect(c).toContain('data-accion="quitar-edicion"'); expect(c).toContain("El texto va exacto a la oficina creativa, que vuelve a dibujar la lámina.")
+    expect(c).not.toContain('data-accion="quitar-edicion"') // el recuadro «Va con tu nota» es de solo lectura (boceto): una edición se deshace volviendo el campo a su texto
+    expect(c).toContain("El texto va exacto a la oficina creativa, que vuelve a dibujar la lámina.")
     expect(c).toContain("aprobar no los aplica") // aprobar con ediciones pendientes avisa que no se aplican
     expect(c).not.toMatch(/PATCH|laminas_armadas|\.update\(/) // ninguna escritura directa: solo la puerta de decidir
   })
