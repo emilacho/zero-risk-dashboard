@@ -127,7 +127,7 @@ describe("sprint 6.6 · la lógica pura de la bandeja", () => {
     const c = cuerpoDeRehacer("db7c2d8b-773b-4a49-82d0-602e39da8706", "  Que la foto muestre el plato.  ")
     expect(c).toEqual({ encargo_id: "db7c2d8b-773b-4a49-82d0-602e39da8706", comentario: "Que la foto muestre el plato.", confirmo_gasto: true })
     expect(ACCIONES["rehacer-pieza"].validar(c)).toEqual({ ok: true, cuerpo: { encargo_id: "db7c2d8b-773b-4a49-82d0-602e39da8706", comentario: "Que la foto muestre el plato." } })
-    expect(ACCIONES["rehacer-pieza"].gasta).toEqual({ tope_usd: 5 })
+    expect(ACCIONES["rehacer-pieza"].gasta).toEqual({ de_la_familia: true }) // 11-nov: el tope de la familia de la pieza, no 5 fijos
     expect(cuerpoDeRehacer("db7c2d8b-773b-4a49-82d0-602e39da8706", "")).toEqual({ encargo_id: "db7c2d8b-773b-4a49-82d0-602e39da8706", confirmo_gasto: true })
   })
 })

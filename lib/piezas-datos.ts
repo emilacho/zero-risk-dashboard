@@ -12,6 +12,7 @@ import {
   gastoDeLaFila,
   laminasDeLaPieza,
   esMp4,
+  esFamiliaDeVideo,
   videoDeLaPieza,
   type ArchivoDelManifiesto,
   type Aviso,
@@ -63,6 +64,8 @@ export interface FilaDeLaLista {
   tiene_dibujo: boolean
   /** 11-nov (Emilio: «tiene que verse el thumbnail o la imagen»): qué miniatura lleva la tarjeta: la primera imagen, el cuadro del video o ninguna */
   miniatura?: "imagen" | "video" | null
+  /** 11-nov (CC5 · alertas en el lugar) · es de video: su miniatura es un cuadro del video, no la lámina 1 */
+  es_video?: boolean
   /** CC6 · 03-nov: está en el archivo de una campaña anterior (`archivada_en` no nulo): se ve, no se aprueba */
   archivada?: boolean
 }
@@ -229,6 +232,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       desacuerdos: desac,
       tiene_dibujo: typeof meta.enlace_entrega === "object" && meta.enlace_entrega !== null && "manifest.json" in (meta.enlace_entrega as object),
       miniatura: f.type === TIPO_PIEZA ? miniaturaDeLaEntrega(meta.enlace_entrega) : null,
+      es_video: esFamiliaDeVideo(meta.familia),
     }
   })
 }

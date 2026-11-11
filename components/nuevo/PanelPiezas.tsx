@@ -18,7 +18,7 @@ import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 import { llamarAccion } from "@/components/nuevo/PanelManual"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
-import { diaDeCalendario, diaYHora, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
+import { diaDeCalendario, diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
@@ -192,7 +192,13 @@ function FilaDeSubcategoria({ nombre, numero, elementos, cliente, onAbrir }: { n
   )
 }
 
-export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista" }: {
+/** otro cliente elegido arriba con Piezas abierto: el explorador vuelve a su raíz; la pieza abierta EN EL LUGAR (desde las alertas) se cierra, porque era del otro cliente */
+export function alCambiarElClienteDelVisor(enElLugar: boolean, h: { cerrar: () => void; irA: (carpeta: string | null) => void }): void {
+  if (enElLugar) h.cerrar()
+  else h.irA(null)
+}
+
+export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista", soloLaPieza = null }: {
   onCerrar: () => void
   /** lecturas ya hechas (pruebas) */
   bandejaInicial?: Bandeja | null
@@ -209,6 +215,11 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   fetchImpl?: typeof fetch
   /** 6.11: abrir como lista (carpetas) o como Kanban */
   vistaInicial?: VistaDePiezas
+  /**
+   * 11-nov (CC5 · boceto v2 aprobado por Emilio 20:47 Zúrich): la pieza se abre EN EL LUGAR desde las alertas. Es el MISMO visor, sin el explorador
+   * (sin cabecera, sin migas, sin carpetas); el botón de arriba dice a dónde vuelves («Volver a las alertas») y cierra este panel.
+   */
+  soloLaPieza?: { volverA: string } | null
 }) {
   const [bandeja, setBandeja] = useState<Bandeja | null>(bandejaInicial)
   const [errorBandeja, setErrorBandeja] = useState<string | null>(null)
@@ -263,6 +274,9 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   }, [fetchImpl])
 
   useEffect(() => { cerrar.current?.focus() }, [])
+  // en el lugar no hay cabecera: el foco va a «Volver a las alertas» apenas la pieza se dibuja
+  const volver = useRef<HTMLButtonElement>(null)
+  useEffect(() => { if (soloLaPieza) volver.current?.focus() }, [soloLaPieza, pieza?.id])
   useEffect(() => { if (!bandejaInicial) void leerLaBandeja(filtro) }, [leerLaBandeja, bandejaInicial, filtro])
   useEffect(() => { if (elegida && elegida !== pieza?.id) void leerLaPieza(elegida) }, [elegida, pieza?.id, leerLaPieza])
   // al cambiar de pieza, el visor vuelve a la primera lámina y se olvidan marcas, ediciones y diálogo
@@ -288,7 +302,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
   const irA = (k: string | null) => { setCarpeta(k); setElegida(null); setPieza(null); setErrorPieza(null) }
   // si se elige otro cliente arriba con Piezas abierto, se vuelve a la raíz (la carpeta y la pieza eran del otro)
-  useAlCambiarElCliente(clienteId, () => irA(null))
+  useAlCambiarElCliente(clienteId, () => alCambiarElClienteDelVisor(!!soloLaPieza, { cerrar: onCerrar, irA }))
   const verTodas = () => setFiltro("todas")
   // el Kanban muestra TODAS las piezas del cliente (decididas incluidas): entrar a él pasa el filtro a «todas»
   const verComo = (v: VistaDePiezas) => { setVista(v); if (v === "kanban") { setElegida(null); setPieza(null); if (filtro !== "todas") verTodas() } }
@@ -393,7 +407,11 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-5" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) onCerrar() }}>
       <style>{ESTILO + ESTILO_DEL_PEDIDO}</style>
+      {/* en el lugar (11-nov): un marco más chico alrededor del mismo visor; en el explorador no hace nada («contents») */}
+      <div data-en-el-lugar={soloLaPieza ? "true" : undefined} className={soloLaPieza ? "flex h-full w-full max-w-[1160px] sm:max-h-[90vh]" : "contents"}>
       <section role="dialog" aria-modal="true" aria-labelledby="piezas-titulo" data-seccion="piezas" className="relative flex h-full max-h-full w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#171717] text-zinc-200 shadow-2xl">
+        {soloLaPieza && <h2 id="piezas-titulo" className="sr-only">{pieza?.titulo ?? "Pieza"}</h2>}
+        {!soloLaPieza && <>
         <header className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <h2 id="piezas-titulo" className="font-display text-[15px] font-light uppercase tracking-[0.28em]" style={{ color: AMBAR }}>Piezas</h2>
           {nombreDelCliente && <span data-cliente-cabecera className="ml-1 truncate font-display text-[19px] font-medium tracking-normal text-zinc-50">{nombreDelCliente}</span>}
@@ -424,12 +442,14 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           {elegida && <><Sep /><span data-miga="pieza" aria-current="page" className="px-1.5 text-[12.5px] text-amber-200">{pieza?.titulo ?? filaElegida?.titulo_legible ?? "Pieza"}</span></>}
           {elegida && total > 0 && <><Sep /><span data-miga="lamina" className="px-1.5 text-[12.5px] text-zinc-400">{juntas ? `${total} láminas` : `lámina ${n} de ${total}`}</span></>}
         </nav>
+        </>}
 
         {errorBandeja && <p role="alert" className="border-b border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[13px] text-rose-200 sm:px-5">{errorBandeja}</p>}
         {aviso && <p role="status" data-aviso={aviso.ok ? "ok" : "error"} className={`border-b px-4 py-2 text-[13px] sm:px-5 ${aviso.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{aviso.texto}</p>}
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)]">
+        <div className={`grid min-h-0 flex-1 grid-cols-1 ${soloLaPieza ? "" : "md:grid-cols-[250px_minmax(0,1fr)]"}`}>
           {/* el árbol, como el panel izquierdo de un explorador: el cliente enfocado y sus carpetas por tipo de pieza */}
+          {!soloLaPieza && (
           <aside aria-label="Las carpetas del cliente" className={`min-h-0 overflow-y-auto border-white/10 py-2 md:border-r ${elegida ? "hidden md:block" : "border-b md:border-b-0"}`}>
             <button type="button" data-nodo="cliente" onClick={() => { irA(null); setAbierta((v) => !v) }} aria-expanded={abierta} aria-current={abierta ? "true" : undefined} className="pi-nodo flex w-full items-center gap-2 px-3 py-1.5 text-left text-dato text-hueso">
               <span className="w-3 text-rotulo text-gris" aria-hidden>{abierta ? "▾" : "▸"}</span><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>
@@ -437,6 +457,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
             </button>
             {bandeja && !clienteActual && <p className="px-4 py-3 text-dato text-gris">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
           </aside>
+          )}
 
           {/* el panel derecho: carpetas → piezas → la pieza */}
           <section aria-label="El contenido" className="flex min-h-0 flex-col">
@@ -453,11 +474,15 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
               </div>
             )}
             {elegida && !pieza && <p className={`p-6 text-[13px] ${errorPieza && !cargandoPieza ? "text-rose-300" : "text-zinc-500"}`}>{cargandoPieza ? "Leyendo la pieza…" : errorPieza ?? "Leyendo la pieza…"}</p>}
+            {elegida && !pieza && soloLaPieza && <p className="px-6 pb-6"><button type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="text-dato text-gris underline decoration-dotted hover:text-hueso">{soloLaPieza.volverA}</button></p>}
 
             {pieza && estadoVisto && (
               <>
                 <div className="pi-entra flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3 sm:px-5" key={pieza.id}>
+                  {soloLaPieza && <button ref={volver} type="button" data-accion="volver-a-las-alertas" onClick={onCerrar} className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-control border border-linea-oro px-3 text-boton font-medio text-hueso hover:border-oro focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"><span aria-hidden>‹</span>{soloLaPieza.volverA}</button>}
+                  {!soloLaPieza && (
                   <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(null)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-control border border-linea text-gris hover:border-linea-oro">‹</button>
+                  )}
                   <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
                   {pieza.archivada && <span data-chip="archivada"><Chip>{CARPETA_ARCHIVO.toLowerCase()}</Chip></span>}
@@ -481,7 +506,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     )}
                     {video && !hayReproductor && (
                       <div className="max-w-md rounded-tarjeta border border-linea-oro bg-grafito p-4 text-dato text-oro" data-video-sin-reproductor>
-                        {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
+                        {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${fechaYHoraEnPalabras(video.vence) ? ` (vence el ${fechaYHoraEnPalabras(video.vence)}, hora de Ecuador)` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
                         {video.solo_en_proveedor && video.url_proveedor && <a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="mt-2 block underline">Abrir en el proveedor</a>}
                       </div>
                     )}
@@ -530,7 +555,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     {(pieza.es_pieza ? pieza.avisos : []).map((a, i) => <div key={i} role={a.nivel === "rojo" ? "alert" : undefined} data-aviso-pieza={a.nivel} className={`rounded-lg border p-2.5 text-[12.5px] ${COLOR_AVISO[a.nivel]}`}>{a.texto}</div>)}
                     {video && <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`} etiqueta="video">
                       {video.nombre ? <p className="text-gris">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1).replace(".", ",")} MB` : ""}</p> : <p className="italic text-apagado">Sin archivo guardado.</p>}
-                      {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{video.vence ? ` antes de ${video.vence}` : ""}</p>}
+                      {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{fechaYHoraEnPalabras(video.vence) ? ` antes del ${fechaYHoraEnPalabras(video.vence)} (hora de Ecuador)` : ""}</p>}
                     </Bloque>}
                     {pieza.es_pieza && <Bloque titulo="De la fila del calendario" etiqueta="fila">
                       {pieza.acompana?.fila ? (() => { const f = pieza.acompana!.fila!; return (
@@ -696,6 +721,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           </section>
         </div>
       </section>
+      </div>
     </div>
   )
 }
