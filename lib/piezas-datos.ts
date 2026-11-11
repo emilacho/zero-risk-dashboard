@@ -12,6 +12,7 @@ import {
   gastoDeLaFila,
   laminasDeLaPieza,
   esMp4,
+  esFamiliaDeVideo,
   videoDeLaPieza,
   type ArchivoDelManifiesto,
   type Aviso,
@@ -61,6 +62,8 @@ export interface FilaDeLaLista {
   incompleta: boolean
   desacuerdos: number
   tiene_dibujo: boolean
+  /** 11-nov (CC5 · alertas en el lugar) · es de video: su miniatura es un cuadro del video, no la lámina 1 */
+  es_video?: boolean
   /** CC6 · 03-nov: está en el archivo de una campaña anterior (`archivada_en` no nulo): se ve, no se aprueba */
   archivada?: boolean
 }
@@ -152,6 +155,7 @@ export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: Filt
       incompleta: meta.revision_incompleta === true,
       desacuerdos: desac,
       tiene_dibujo: typeof meta.enlace_entrega === "object" && meta.enlace_entrega !== null && "manifest.json" in (meta.enlace_entrega as object),
+      es_video: esFamiliaDeVideo(meta.familia),
     }
   })
 }

@@ -35,12 +35,13 @@ export const TOPE_PEDIR_CAMBIOS_USD = 8
 export const TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD = 5
 /** lo que el dueño escribe en un pedido (texto libre + observaciones): el mismo techo que la plataforma (CC1 #869 · `plan_cambios_texto_check` · Lenovo 16:57Z: se queda en 100.000) */
 export const TOPE_DEL_TEXTO_DEL_DUENO = 100_000
-/** tope por pieza de la mesa creativa (firma de Emilio, 30-oct): se muestra antes de confirmar */
-export const TOPE_POR_PIEZA_USD = 5
+/** lo que puede gastar una acción. «de_la_familia»: el tope por pieza de la FAMILIA de esa pieza (`oficina_tipos_de_grupo.limites.tope_encargo_usd`), el mismo con que
+ *  la abre la oficina; lo lee el servidor del tablero y no se muestra (Emilio, 11-nov 20:27: «no me interesa precios»; el gasto vive en Dinero) */
+export type GastoDeLaAccion = { tope_usd: number } | { de_la_familia: true }
 
 export interface DefinicionDeAccion {
-  /** cuánto puede costar como máximo; si hay valor, el botón muestra el tope y exige confirmar */
-  gasta: null | { tope_usd: number }
+  /** si gasta, el servidor exige la confirmación (`confirmo_gasto`) y manda el tope a la plataforma; la pantalla no muestra montos */
+  gasta: null | GastoDeLaAccion
   validar: (c: Cuerpo) => Validacion
   /** ruta de la plataforma; por omisión `/api/tablero/{accion}` */
   ruta?: (c: Cuerpo) => string
@@ -65,7 +66,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
     ruta: () => "/api/cadena/archivo/recuperar-pieza",
   },
   "rehacer-pieza": {
-    gasta: { tope_usd: TOPE_POR_PIEZA_USD },
+    gasta: { de_la_familia: true },
     validar: (c) => { const id = conId(c, "encargo_id"); return id ? { ok: true, cuerpo: { encargo_id: id, ...(texto(c.comentario) ? { comentario: texto(c.comentario).slice(0, 2000) } : {}) } } : mal("falta la pieza que se rehace") },
   },
   // CICLO DEL PLAN (CC6 · 01-nov · contrato certificado de CC1 §2): con `plan_id` van las puertas nuevas. Sin él queda la forma vieja (`campana_id`, la ficha del
@@ -301,7 +302,12 @@ export const CAMPOS_DEL_MANUAL: Array<{ clave: string; etiqueta: string; largo: 
 ]
 
 export interface RespuestaDeAccion { status: number; cuerpo: Record<string, unknown> }
-export interface DepsDeAccion { revisor: string; plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch }
+export interface DepsDeAccion {
+  revisor: string; plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch
+  /** el tope por pieza de la familia del encargo (lo pone la ruta con la base; null si no se puede leer) */
+  topeDeLaFamilia?: (encargoId: string) => Promise<number | null>
+}
+
 
 const sinBarra = (u: string) => u.replace(/\/+$/, "")
 
@@ -313,8 +319,15 @@ export async function ejecutarAccion(nombre: string, raw: unknown, d: DepsDeAcci
   const c = esObjeto(raw) ? raw : {}
   const v = def.validar(c)
   if (!v.ok) return { status: 400, cuerpo: { ok: false, error: v.error, detalle: v.detalle } }
-  // un botón que gasta no puede gastar sin que Emilio haya visto el tope: el servidor lo exige, no solo la pantalla
-  if (def.gasta && c.confirmo_gasto !== true) return { status: 400, cuerpo: { ok: false, error: "falta_confirmar_gasto", detalle: `esta acción puede costar hasta US$ ${def.gasta.tope_usd}: confírmalo antes`, tope_usd: def.gasta.tope_usd } }
+  // un botón que gasta no puede gastar sin que Emilio lo haya confirmado: el servidor lo exige, no solo la pantalla
+  // (sin montos en el mensaje: a Emilio no se le muestran precios · GO Lenovo 11-nov 20:28)
+  if (def.gasta && c.confirmo_gasto !== true) return { status: 400, cuerpo: { ok: false, error: "falta_confirmar_gasto", detalle: "esta acción gasta: confírmala antes" } }
+  // el tope que se manda: el fijo de la acción, o el de la familia de la pieza; si no se puede leer, no se gasta a ciegas
+  let tope: number | null = null
+  if (def.gasta) {
+    tope = "tope_usd" in def.gasta ? def.gasta.tope_usd : typeof v.cuerpo.encargo_id === "string" && d.topeDeLaFamilia ? await d.topeDeLaFamilia(v.cuerpo.encargo_id).catch(() => null) : null
+    if (tope == null) return { status: 503, cuerpo: { ok: false, error: "sin_tope_de_la_familia", detalle: "no pude leer cuánto puede gastar este tipo de pieza: no se rehízo nada" } }
+  }
   const base = sinBarra(d.plataformaUrl ?? process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://zero-risk-platform.vercel.app")
   const llave = d.llave ?? (process.env.PLATFORM_INTERNAL_KEY || process.env.INTERNAL_API_KEY || "")
   if (!llave) return { status: 503, cuerpo: { ok: false, error: "llave_interna_sin_poner", detalle: "el tablero no tiene la llave con la que llama a la plataforma" } }
@@ -324,7 +337,7 @@ export async function ejecutarAccion(nombre: string, raw: unknown, d: DepsDeAcci
     const r = await (d.fetchImpl ?? fetch)(`${base}${ruta}`, {
       method: def.metodo ?? "POST",
       headers: { "Content-Type": "application/json", "x-api-key": llave },
-      body: JSON.stringify({ ...cuerpoFinal, reviewer: d.revisor, origen: "dashboard", ...(def.gasta ? { confirmo_gasto: true, tope_usd: def.gasta.tope_usd } : {}) }),
+      body: JSON.stringify({ ...cuerpoFinal, reviewer: d.revisor, origen: "dashboard", ...(def.gasta ? { confirmo_gasto: true, tope_usd: tope } : {}) }),
     })
     vaciarCache() // después de una acción la próxima lectura es fresca (el reflejo inmediato manda sobre la caché corta)
     // se LEE la respuesta entera (CC6 · 03-nov): cortarla antes de leerla perdía `despertado: false` en una respuesta larga y el panel decía «listo»;

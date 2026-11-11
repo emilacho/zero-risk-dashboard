@@ -30,7 +30,7 @@ describe("1 · el dato: la decisión trae su alerta y la antena sabe si es Nueva
   it("la decisión lleva `revisar` con la clave y el estado de la plataforma, y el nombre del cliente", () => {
     const [a] = armarAlertas({ ...vacia(), decisiones: [dec({ alerta: { clave: CLAVE, estado: "nueva" } })] })
     expect(a.revisar).toEqual({ clave: CLAVE, estado: "nueva" }); expect(a.cliente).toBe("Náufrago")
-    expect(Object.keys(a).sort()).toEqual(["abre", "clave", "cliente", "cuando", "departamento", "revisar", "texto", "tipo"]) // nada de la ficha (ADENDA 1)
+    expect(Object.keys(a).sort()).toEqual(["abre", "clave", "cliente", "cuando", "departamento", "grupo", "revisar", "texto", "tipo"]) // nada de la ficha (ADENDA 1)
   })
   it("nueva cuenta; revisada no; sin dato de la libreta (null) cuenta; marcada en esta visita no; sin alerta (no es decisión) siempre cuenta", () => {
     const de = (estado: "nueva" | "revisada" | null) => armarAlertas({ ...vacia(), decisiones: [dec({ alerta: { clave: CLAVE, estado } })] })[0]

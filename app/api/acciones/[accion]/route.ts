@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { SOLO_DESDE_DECISIONES, ejecutarAccion } from "@/lib/tablero-acciones"
+import { leerTopeDeLaFamilia } from "@/lib/tope-de-la-familia"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -16,6 +17,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ accion: string
   const { accion } = await ctx.params
   if (SOLO_DESDE_DECISIONES.includes(accion)) return NextResponse.json({ ok: false, error: "se_firma_en_decisiones", detalle: "Las firmas se hacen en Tu oficina › Decisiones, con sus cifras a la vista." }, { status: 409 })
   const cuerpo = await req.json().catch(() => ({}))
-  const r = await ejecutarAccion(accion, cuerpo, { revisor: puerta.email ?? "emilio" })
+  // «rehacer» gasta hasta el tope de la familia de la pieza: lo lee el servidor (solo lectura)
+  const r = await ejecutarAccion(accion, cuerpo, { revisor: puerta.email ?? "emilio", topeDeLaFamilia: leerTopeDeLaFamilia })
   return NextResponse.json(r.cuerpo, { status: r.status })
 }

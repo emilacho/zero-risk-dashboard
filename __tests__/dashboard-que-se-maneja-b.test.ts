@@ -6,7 +6,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { describe, expect, it, vi } from "vitest"
-import { ACCIONES, ejecutarAccion, esNombreDeAccion, TOPE_POR_PIEZA_USD } from "@/lib/tablero-acciones"
+import { ACCIONES, ejecutarAccion, esNombreDeAccion } from "@/lib/tablero-acciones"
 import { botonesDeRevision } from "@/lib/revisiones"
 
 const RAIZ = path.join(__dirname, "..")
@@ -22,7 +22,9 @@ function plataforma(status = 200, cuerpo: unknown = { ok: true }) {
   })
   return { fetchImpl: fetchImpl as unknown as typeof fetch, llamadas }
 }
-const deps = (p: ReturnType<typeof plataforma>) => ({ revisor: "emilio@x.com", plataformaUrl: "https://plataforma.test/", llave: "llave-de-prueba", fetchImpl: p.fetchImpl })
+/** 11-nov (GO Lenovo 20:28): «rehacer» manda el tope de la FAMILIA de la pieza; aquí, un video de 35 */
+const TOPE_DE_LA_FAMILIA = 35
+const deps = (p: ReturnType<typeof plataforma>, tope: number | null = TOPE_DE_LA_FAMILIA) => ({ revisor: "emilio@x.com", plataformaUrl: "https://plataforma.test/", llave: "llave-de-prueba", fetchImpl: p.fetchImpl, topeDeLaFamilia: async () => tope })
 
 describe("cada acción valida lo que pide", () => {
   const casos: Array<[string, Record<string, unknown>, boolean]> = [
@@ -73,18 +75,30 @@ describe("cada acción valida lo que pide", () => {
   })
 })
 
-describe("lo que gasta exige confirmar el tope; el servidor lo comprueba, no solo la pantalla", () => {
+describe("lo que gasta exige confirmar; el servidor lo comprueba, no solo la pantalla (y sin montos a la vista: Emilio 11-nov 20:27)", () => {
   it("sin confirmo_gasto no sale nada hacia la plataforma", async () => {
     const p = plataforma()
     const r = await ejecutarAccion("rehacer-pieza", { encargo_id: ID }, deps(p))
     expect(r.status).toBe(400)
-    expect(r.cuerpo).toMatchObject({ error: "falta_confirmar_gasto", tope_usd: TOPE_POR_PIEZA_USD })
+    expect(r.cuerpo).toMatchObject({ error: "falta_confirmar_gasto" }); expect(r.cuerpo).not.toHaveProperty("tope_usd"); expect(JSON.stringify(r.cuerpo)).not.toMatch(/US\$|\d+ ?d[oó]lares/)
     expect(p.llamadas).toHaveLength(0)
   })
-  it("con la confirmación, rehacer una pieza manda a la plataforma el tope y la marca", async () => {
+  it("con la confirmación, rehacer una pieza manda a la plataforma el tope DE SU FAMILIA (no 5 fijos) y la marca", async () => {
     const p = plataforma()
-    await ejecutarAccion("rehacer-pieza", { encargo_id: ID, confirmo_gasto: true }, deps(p))
-    expect(p.llamadas[0].cuerpo).toMatchObject({ encargo_id: ID, confirmo_gasto: true, tope_usd: TOPE_POR_PIEZA_USD, reviewer: "emilio@x.com", origen: "dashboard" })
+    const pedidos: string[] = []
+    await ejecutarAccion("rehacer-pieza", { encargo_id: ID, confirmo_gasto: true }, { ...deps(p), topeDeLaFamilia: async (id: string) => { pedidos.push(id); return TOPE_DE_LA_FAMILIA } })
+    expect(pedidos).toEqual([ID]) // el tope es el del encargo que se rehace
+    expect(p.llamadas[0].cuerpo).toMatchObject({ encargo_id: ID, confirmo_gasto: true, tope_usd: TOPE_DE_LA_FAMILIA, reviewer: "emilio@x.com", origen: "dashboard" })
+    const foto = plataforma()
+    await ejecutarAccion("rehacer-pieza", { encargo_id: ID, confirmo_gasto: true }, deps(foto, 2.5))
+    expect(foto.llamadas[0].cuerpo.tope_usd).toBe(2.5)
+  })
+  it("si no se puede leer el tope de la familia, no se gasta a ciegas: 503 y nada sale hacia la plataforma", async () => {
+    for (const d of [(p: ReturnType<typeof plataforma>) => deps(p, null), (p: ReturnType<typeof plataforma>) => ({ ...deps(p), topeDeLaFamilia: undefined }), (p: ReturnType<typeof plataforma>) => ({ ...deps(p), topeDeLaFamilia: async () => { throw new Error("base caída") } })]) {
+      const p = plataforma()
+      const r = await ejecutarAccion("rehacer-pieza", { encargo_id: ID, confirmo_gasto: true }, d(p))
+      expect(r).toMatchObject({ status: 503, cuerpo: { ok: false, error: "sin_tope_de_la_familia" } }); expect(p.llamadas).toHaveLength(0)
+    }
   })
   it("solo gasta «rehacer una pieza de la campaña»; el resto no puede costar", () => {
     expect(Object.entries(ACCIONES).filter(([, d]) => d.gasta).map(([n]) => n).sort()).toEqual(["rehacer-pieza"])
@@ -144,7 +158,7 @@ describe("la puerta del tablero: solo administrador con sesión", () => {
   it("con sesión de administrador se ejecuta a nombre de su correo", async () => {
     const { pedir, ejecutar } = await ruta({ ok: true, email: "emilio@x.com" })
     expect((await pedir()).status).toBe(200)
-    expect(ejecutar).toHaveBeenCalledWith("plan-aprobar", { campana_id: ID }, { revisor: "emilio@x.com" })
+    expect(ejecutar).toHaveBeenCalledWith("plan-aprobar", { campana_id: ID }, { revisor: "emilio@x.com", topeDeLaFamilia: expect.any(Function) })
   })
 })
 
@@ -172,9 +186,13 @@ describe("cada botón que pintan las pantallas nombra una acción que existe, y 
     const todo = PANTALLAS.map(leer).join("\n")
     expect(todo).not.toMatch(/pieza-nueva|Pedir una pieza nueva/)
   })
-  it("la acción que gasta lleva el tope visible en su botón", () => {
+  it("la acción que gasta se confirma en su botón, pero SIN montos (Emilio 11-nov 20:27: «no me interesa precios»)", () => {
     const todo = PANTALLAS.map(leer).join("\n")
-    for (const a of ["rehacer-pieza"]) for (const m of todo.matchAll(new RegExp(`accion="${a}"[^\\n]*`, "g"))) expect(m[0], a).toMatch(/tope_usd=\{TOPE_POR_PIEZA_USD\}/)
+    const botones = [...todo.matchAll(/accion="rehacer-pieza"[^\n]*/g)].map((m) => m[0])
+    expect(botones.length).toBe(2) // alertas y el visor de la pieza
+    for (const b of botones) { expect(b).toMatch(/ gasta /); expect(b).not.toMatch(/tope_usd|TOPE_POR_PIEZA_USD/) }
+    const boton = leer("components/AccionBoton.tsx")
+    expect(boton).not.toMatch(/US\$|puede costar|Confirmar \(hasta/); expect(boton).toContain('"Confirmar"')
   })
   it("ni la puerta de acciones ni el botón escriben en la base: nada de supabase ni de .insert/.update", () => {
     for (const f of ["app/api/acciones/[accion]/route.ts", "lib/tablero-acciones.ts", "components/AccionBoton.tsx"]) {
