@@ -1,10 +1,7 @@
 "use client"
 
-import { avanceDeLaPieza, quienLaHizo } from "@/lib/pieza-acompana"
+import { avanceDeLaPieza } from "@/lib/pieza-acompana"
 import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/PiezasDelPedido"
-import { diaConNombre } from "@/lib/calendario"
-import { formatoLegible, redDelTablero } from "@/lib/pizarron"
-import { nombreDeLaFase } from "@/components/nuevo/PanelPizarron"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { NotaDeTodos, useAlCambiarElCliente, useClienteDeTrabajo } from "@/components/nuevo/ClienteComoTexto"
 import type { Bandeja } from "@/lib/bandeja-datos"
@@ -18,9 +15,11 @@ import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 import { llamarAccion } from "@/components/nuevo/PanelManual"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
+import { Rotulo } from "@/components/nuevo/EstiloBase"
+import { BarraDeLaPieza } from "@/components/nuevo/BarraDeLaPieza"
 import { loQueVaConTuNota, MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES } from "@/lib/pedir-cambios"
 import { hayVentanaDePedirCambios, VentanaPedirCambios, type ResultadoDelPedido } from "@/components/nuevo/pedido/VentanaPedirCambios"
-import { diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, rolDeLaMesaLegible, tipoDeAporteLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
+import { diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, tipoDeRevisionLegible } from "@/lib/lenguaje"
 
 const AMBAR = "#f5a524"
 type RespuestaBandeja = ({ ok: true } & Bandeja) | { ok: false; error: string }
@@ -40,7 +39,6 @@ const ESTILO = `
 `
 const PUNTO: Record<Tono, string> = { ambar: "bg-amber-400", verde: "bg-emerald-400", azul: "bg-sky-400", rojo: "bg-rose-400", neutro: "bg-zinc-500" }
 const CHIP: Record<Tono, string> = { ambar: "border-amber-400/50 text-amber-200", verde: "border-emerald-400/40 text-emerald-200", azul: "border-sky-400/40 text-sky-200", rojo: "border-rose-400/40 text-rose-200", neutro: "border-white/15 text-zinc-300" }
-const COLOR_AVISO = { rojo: "border-rose-500/40 bg-rose-500/10 text-rose-200", ambar: "border-amber-500/40 bg-amber-500/10 text-amber-100", info: "border-white/10 bg-white/5 text-zinc-300" } as const
 
 const Chip = ({ children, tono = "neutro" }: { children: React.ReactNode; tono?: Tono }) => <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] ${CHIP[tono]}`}>{children}</span>
 const Titulito = ({ children }: { children: React.ReactNode }) => <h4 className="mb-1 text-[11px] uppercase tracking-[0.08em] text-zinc-500">{children}</h4>
@@ -72,7 +70,7 @@ const IconoCarpetaChica = () => <svg viewBox="0 0 16 16" aria-hidden className="
 const Sep = () => <span className="text-zinc-600" aria-hidden>›</span>
 
 /** un texto de la pieza con su botón «Editar» (solo si la pieza sigue pendiente): el texto nuevo se suma al pedido de cambios */
-function CampoDeTexto({ etiqueta, valor, campo, lamina, editable, edicion, onEditar, fuerte = false }: { etiqueta: string; valor: string | null; campo: CampoEditable; lamina: number | null; editable: boolean; edicion: Edicion | undefined; onEditar: (e: Edicion) => void; fuerte?: boolean }) {
+function CampoDeTexto({ etiqueta, valor, campo, lamina, editable, edicion, onEditar, fuerte = false, sinEtiqueta = false }: { etiqueta: string; valor: string | null; campo: CampoEditable; lamina: number | null; editable: boolean; edicion: Edicion | undefined; onEditar: (e: Edicion) => void; fuerte?: boolean; sinEtiqueta?: boolean }) {
   const [abierto, setAbierto] = useState(false)
   const [texto, setTexto] = useState(edicion?.despues ?? valor ?? "")
   useEffect(() => { setTexto(edicion?.despues ?? valor ?? ""); setAbierto(false) }, [valor, edicion?.despues, lamina])
@@ -81,7 +79,9 @@ function CampoDeTexto({ etiqueta, valor, campo, lamina, editable, edicion, onEdi
     <div data-campo={clave} data-editado={!!edicion}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
+          {!sinEtiqueta && (
           <span className="block text-[10.5px] uppercase tracking-[0.08em] text-zinc-500">{etiqueta}</span>
+          )}
           {edicion ? (
             <><p className="whitespace-pre-wrap text-amber-100">{edicion.despues}</p>{edicion.antes && <p className="whitespace-pre-wrap text-[11.5px] text-zinc-500 line-through">{edicion.antes}</p>}</>
           ) : valor ? <p className={`whitespace-pre-wrap ${fuerte ? "font-semibold text-zinc-50" : ""}`}>{valor}</p> : <p className="italic text-zinc-500">sin texto</p>}
@@ -451,11 +451,14 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   <button type="button" data-accion="volver-a-la-carpeta" onClick={() => irA(carpeta)} aria-label="Volver a la carpeta" className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-zinc-300 hover:bg-white/[0.06]">‹</button>
                   )}
                   <h3 className="font-display text-[18px] font-semibold leading-tight tracking-tight text-zinc-50" data-titulo-pieza>{pieza.titulo}</h3>
+                  {/* 11-nov (panel derecho aprobado por Emilio 21:54): en una pieza, la cabecera queda solo con el título; el estado y los avisos los dice el panel */}
+                  {!pieza.es_pieza && (<>
                   <Chip tono={pieza.es_pieza ? tonoDelEstado(estadoVisto) : pieza.status === "pending" ? "ambar" : "neutro"}>{pieza.es_pieza ? ESTADO_DE_PIEZA_LEGIBLE[estadoVisto] : pieza.status === "pending" ? "espera tu decisión" : "ya resuelta"}</Chip>
                   {pieza.archivada && <span data-chip="archivada"><Chip>{CARPETA_ARCHIVO.toLowerCase()}</Chip></span>}
                   {pieza.recuperada_del_archivo && !pieza.archivada && <span data-chip="recuperada"><Chip tono="azul">recuperada del archivo</Chip></span>}
                   {pieza.version != null && <Chip>versión {pieza.version}</Chip>}
                   {pieza.jefatura.resultado && <Chip tono={pieza.jefatura.desacuerdos.length ? "ambar" : "neutro"}>jefatura {resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}</Chip>}
+                  </>)}
                   {total > 0 && <button type="button" data-accion="ver-juntas" aria-pressed={juntas} onClick={() => { setJuntas((v) => !v); setZoom(false) }} className={`${B_CHICO} ml-auto`}>{juntas ? "Ver una lámina" : `Ver las ${total} juntas`}</button>}
                 </div>
 
@@ -519,54 +522,24 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   </div>
 
                   <aside className="min-h-0 space-y-3 border-t border-white/10 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Lo que acompaña a la pieza" data-barra-de-la-pieza>
-                    {(pieza.es_pieza ? pieza.avisos : []).map((a, i) => <div key={i} role={a.nivel === "rojo" ? "alert" : undefined} data-aviso-pieza={a.nivel} className={`rounded-lg border p-2.5 text-[12.5px] ${COLOR_AVISO[a.nivel]}`}>{a.texto}</div>)}
-                    {video && <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`} etiqueta="video">
-                      {video.nombre ? <p className="text-gris">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1).replace(".", ",")} MB` : ""}</p> : <p className="italic text-apagado">Sin archivo guardado.</p>}
-                      {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{fechaYHoraEnPalabras(video.vence) ? ` antes del ${fechaYHoraEnPalabras(video.vence)} (hora de Ecuador)` : ""}</p>}
-                    </Bloque>}
-                    {pieza.es_pieza && <Bloque titulo="De la fila del calendario" etiqueta="fila">
-                      {pieza.acompana?.fila ? (() => { const f = pieza.acompana!.fila!; return (
-                        <dl className="space-y-0.5 text-[12.5px]">
-                          <div><dt className="inline text-zinc-500">Cuándo · </dt><dd className="inline text-zinc-200">{f.fecha ? diaConNombre(f.fecha) : "sin fecha"}{f.hora ? ` · ${f.hora}` : ""}{f.semana != null ? ` · semana ${f.semana}` : ""}</dd></div>
-                          {(f.red || f.formato) && <div><dt className="inline text-zinc-500">Dónde · </dt><dd className="inline text-zinc-200">{f.red ? redDelTablero(f.red).nombre : ""} {f.formato ? formatoLegible(f.formato).toLowerCase() : ""}</dd></div>}
-                          {f.tema && <div><dt className="inline text-zinc-500">Tema · </dt><dd className="inline text-zinc-200">{f.tema}</dd></div>}
-                          {(f.pilar || f.sede) && <div><dt className="inline text-zinc-500">Pilar y sede · </dt><dd className="inline text-zinc-200">{[f.pilar, f.sede].filter(Boolean).join(" · ")}</dd></div>}
-                          <div><dt className="inline text-zinc-500">Fase · </dt><dd className="inline text-zinc-200">{f.fase ? nombreDeLaFase(f.fase) : "sin fase asignada"}{f.idea_ref ? ` · idea ${f.idea_ref}` : ""}</dd></div>
-                        </dl>
-                      ) })() : <p className="italic text-zinc-500">Esta pieza no está atada a una fila del calendario.</p>}
-                    </Bloque>}
-                    {pieza.es_pieza && <Bloque titulo={`Jefatura · ${resultadoDeJefaturaDePiezaLegible(pieza.jefatura.resultado)}`} etiqueta="jefatura">
-                      {pieza.jefatura.desacuerdos.length > 0 && <><Titulito>Desacuerdos ({pieza.jefatura.desacuerdos.length})</Titulito><ul className="list-disc space-y-1 pl-4">{pieza.jefatura.desacuerdos.map((d, i) => <li key={i}>{d}</li>)}</ul></>}
-                      {pieza.jefatura.opinion_externa && <details className="mt-2"><summary className="cursor-pointer text-[12px] text-zinc-400">Opinión externa (otro modelo, no vota)</summary><p className="mt-1 whitespace-pre-wrap text-[12px] text-zinc-300">{pieza.jefatura.opinion_externa.slice(0, 1400)}</p></details>}
-                      {pieza.jefatura.desacuerdos.length === 0 && !pieza.jefatura.opinion_externa && <p className="italic text-zinc-500">Sin desacuerdos ni opinión externa guardados.</p>}
-                    </Bloque>}
-                    {pieza.es_pieza && <Bloque titulo="Quién la hizo" etiqueta="quien">
-                      {pieza.acompana && pieza.acompana.productores.length > 0 ? (
-                        <ul className="space-y-1">{quienLaHizo(pieza.acompana.productores).map((q) => <li key={q.agente} data-productor={q.agente}><span className="font-mono text-[11.5px] text-amber-100">{q.agente}</span>{q.que.length ? <span className="text-zinc-400"> · {q.que.join(" · ")}</span> : null}</li>)}</ul>
-                      ) : <p className="italic text-zinc-500">La jefatura no guardó quién hizo cada parte.</p>}
-                    </Bloque>}
-                    {lamina && !juntas && (
-                      <Bloque titulo={`Lámina ${lamina.n} · ${ORIGEN_CORTO[lamina.origen]}`} etiqueta="lamina">
-                        <div className="space-y-2">
-                          <CampoDeTexto etiqueta="Encabezado" valor={lamina.eyebrow} campo="encabezado" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "encabezado")} onEditar={editar} />
-                          <CampoDeTexto etiqueta="Titular" valor={lamina.titular} campo="titular" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "titular")} onEditar={editar} fuerte />
-                          <CampoDeTexto etiqueta="Cuerpo" valor={lamina.cuerpo} campo="cuerpo" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "cuerpo")} onEditar={editar} />
-                          {lamina.pie && <p className="text-[11.5px] text-zinc-400">{lamina.pie}</p>}
-                        </div>
-                      </Bloque>
-                    )}
+                    {/* 11-nov (panel derecho aprobado por Emilio 21:54 · `2-panel-despues.png`): en una pieza, de lo macro a lo micro */}
                     {pieza.es_pieza && (
-                      <Bloque titulo="Pie de la publicación" etiqueta="pie">
-                        <CampoDeTexto etiqueta="Texto que acompaña la publicación" valor={pieza.pie} campo="pie" lamina={null} editable={pendiente} edicion={edicionDe(null, "pie")} onEditar={editar} />
-                      </Bloque>
+                      <BarraDeLaPieza pieza={pieza} estado={estadoVisto} video={video} total={total} lamina={lamina ?? null}
+                        texto={<CampoDeTexto etiqueta="Texto" valor={pieza.pie} campo="pie" lamina={null} editable={pendiente} edicion={edicionDe(null, "pie")} onEditar={editar} sinEtiqueta />}
+                        bloqueDeLaLamina={lamina && !juntas ? (
+                          <div data-bloque="lamina">
+                            <Rotulo>{`Lámina ${lamina.n} · ${ORIGEN_CORTO[lamina.origen]}`}</Rotulo>
+                            <div className="mt-1 space-y-2 rounded-tarjeta border border-linea bg-grafito-2 px-3 py-3 text-cuerpo text-hueso">
+                              <CampoDeTexto etiqueta="Encabezado" valor={lamina.eyebrow} campo="encabezado" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "encabezado")} onEditar={editar} />
+                              <CampoDeTexto etiqueta="Titular" valor={lamina.titular} campo="titular" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "titular")} onEditar={editar} fuerte />
+                              <CampoDeTexto etiqueta="Cuerpo" valor={lamina.cuerpo} campo="cuerpo" lamina={lamina.n} editable={pendiente} edicion={edicionDe(lamina.n, "cuerpo")} onEditar={editar} />
+                              {lamina.pie && <p className="text-dato text-gris">{lamina.pie}</p>}
+                            </div>
+                          </div>
+                        ) : null} />
                     )}
                     {!pieza.es_pieza && pieza.resumen_de_la_bandeja && <Bloque titulo={pieza.tipo === "editor_escalation" ? "Lo que revisó el editor" : "Lo que dice la bandeja"} etiqueta="bandeja">{pieza.tipo === "editor_escalation" ? <DocumentoLegible texto={pieza.resumen_de_la_bandeja} className="text-[13.5px]" /> : <p className="whitespace-pre-wrap">{pieza.resumen_de_la_bandeja.slice(0, 1200)}</p>}</Bloque>}
-                    {pieza.es_pieza && <Bloque titulo={`La mesa de la oficina (${pieza.aportes.length})`} etiqueta="mesa">
-                      {pieza.aportes.length === 0 ? <p className="italic text-zinc-500">La mesa no dejó aportes guardados para esta pieza.</p> : (
-                        <ul className="space-y-2">{pieza.aportes.map((a) => <li key={a.n}><p className="text-[11px] text-zinc-400">{rolDeLaMesaLegible(a.de)} {tipoDeAporteLegible(a.tipo)}{a.para ? ` a ${rolDeLaMesaLegible(a.para)}` : ""}</p><p className="whitespace-pre-wrap">{a.texto.slice(0, 600)}</p></li>)}</ul>
-                      )}
-                    </Bloque>}
-                    <Bloque titulo="Ficha" etiqueta="ficha">
+                    {!pieza.es_pieza && <Bloque titulo="Ficha" etiqueta="ficha">
                       <dl className="space-y-0.5 text-[12px] text-zinc-400">
                         <div><dt className="inline text-zinc-500">Entró a la bandeja · </dt><dd className="inline">{diaYHora(pieza.creada)}</dd></div>
                         {pieza.cliente && <div><dt className="inline text-zinc-500">Cliente · </dt><dd className="inline">{pieza.cliente}</dd></div>}
@@ -574,7 +547,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                         {pieza.brief_id && <div><dt className="inline text-zinc-500">Brief · </dt><dd className="inline">{pieza.brief_id}</dd></div>}
                         {total > 0 && <div><dt className="inline text-zinc-500">Láminas · </dt><dd className="inline">{total}{lamina?.ancho && lamina.alto ? ` · ${lamina.ancho}×${lamina.alto}` : ""}</dd></div>}
                       </dl>
-                    </Bloque>
+                    </Bloque>}
                   </aside>
                 </div>
 
