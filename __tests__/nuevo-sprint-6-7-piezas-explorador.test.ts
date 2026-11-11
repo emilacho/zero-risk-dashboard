@@ -76,7 +76,8 @@ describe("sprint 6.7 · los textos editables viajan como UN pedido de cambios", 
   it("el pedido lleva cada texto exacto (antes → después) y respeta el mínimo y el máximo del servidor", () => {
     const r = comentarioDeEdiciones([e(2, "titular", "¿Encebollado o ceviche hoy?", "¿Encebollado o ceviche?"), e(null, "pie", null, "Fresco en Olón")], "y la foto más cerca")
     expect(r).toEqual({ comentario: "Cambios de texto pedidos por el dueño (el texto final va exacto, sin reinterpretar):\n- Lámina 2 · Titular: cambiar «¿Encebollado o ceviche hoy?» por «¿Encebollado o ceviche?»\n- Pie de la publicación: poner «Fresco en Olón»\nAdemás: y la foto más cerca" })
-    expect(comentarioDeEdiciones([], "corto")).toEqual({ error: expect.stringContaining("al menos 10 letras") })
+    expect(comentarioDeEdiciones([], "  ")).toEqual({ error: "Cuenta qué quieres distinto o edita un texto." }) // GO 11-nov: basta que haya texto
+    expect(comentarioDeEdiciones([], "corto")).toEqual({ comentario: "corto" })
     expect(comentarioDeEdiciones([e(1, "cuerpo", "a", "x".repeat(COMENTARIO_MAXIMO))], "")).toEqual({ error: expect.stringContaining(`${COMENTARIO_MAXIMO}`) })
     expect(comentarioDeEdiciones([], "la foto de la primera historia, más cerca")).toEqual({ comentario: "la foto de la primera historia, más cerca" })
   })

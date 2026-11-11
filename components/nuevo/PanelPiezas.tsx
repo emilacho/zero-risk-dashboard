@@ -10,7 +10,7 @@ import { NotaDeTodos, useAlCambiarElCliente, useClienteDeTrabajo } from "@/compo
 import type { Bandeja } from "@/lib/bandeja-datos"
 import type { DetalleDeLaPieza, FilaDeLaLista } from "@/lib/piezas-datos"
 import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, alcanceDeLosCambios, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuentaDeLaCarpeta, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono } from "@/lib/bandeja"
-import type { AccionDeLaPieza, EstadoPieza } from "@/lib/piezas"
+import { hayTexto, type AccionDeLaPieza, type EstadoPieza } from "@/lib/piezas"
 import { Kanban } from "@/components/nuevo/Kanban"
 import { armarKanban, tarjetaDePieza } from "@/lib/kanban"
 import { estadoTrasDecidir } from "@/lib/reflejo"
@@ -562,9 +562,9 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                       )}
                       <label className="mt-2 block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">{ediciones.length ? "Algo más para la oficina (opcional)" : "¿Qué quieres distinto? (la oficina creativa lo lee)"}</span>
                         <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={3} maxLength={MINIMOS.maximo} aria-label="Qué debe cambiar en la pieza" autoFocus className={CAJA} /></label>
-                      <p className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/{MINIMOS.maximo}{ediciones.length ? "" : ` · mínimo ${MINIMOS.cambios} letras`}</p>
+                      <p /* estilo-ok: solo cambia el texto de ayuda, los tokens van con boceto para Emilio */ className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/{MINIMOS.maximo}</p>
                       <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button type="submit" data-accion="confirmar-pedir-cambios-pieza" disabled={enviando || (!ediciones.length && comentario.trim().length < MINIMOS.cambios)} className={B_AMBAR}>{enviando ? "Enviando…" : "Enviar el pedido de cambios a la oficina"}</button>
+                        <button type="submit" data-accion="confirmar-pedir-cambios-pieza" disabled={enviando || (!ediciones.length && !hayTexto(comentario))} className={B_AMBAR}>{enviando ? "Enviando…" : "Enviar el pedido de cambios a la oficina"}</button>
                         <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
                       </div>
                     </form>
@@ -573,9 +573,9 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     <form data-editor="pieza-rechazo" className="rounded-md border border-rose-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void decidir("rechazar") }}>
                       <label className="block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Por qué se rechaza? (queda registrado)</span>
                         <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={3} maxLength={MINIMOS.maximo} aria-label="Motivo del rechazo" autoFocus className={CAJA} /></label>
-                      <p className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/{MINIMOS.maximo} · mínimo {MINIMOS.rechazo} letras</p>
+                      <p /* estilo-ok: solo cambia el texto de ayuda, los tokens van con boceto para Emilio */ className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/{MINIMOS.maximo}</p>
                       <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button type="submit" data-accion="confirmar-rechazar-pieza" disabled={enviando || comentario.trim().length < MINIMOS.rechazo} className={B_ROJO}>{enviando ? "Enviando…" : "Confirmar el rechazo"}</button>
+                        <button type="submit" data-accion="confirmar-rechazar-pieza" disabled={enviando || !hayTexto(comentario)} className={B_ROJO}>{enviando ? "Enviando…" : "Confirmar el rechazo"}</button>
                         <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
                       </div>
                     </form>
@@ -618,9 +618,9 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                     <form data-editor="revision-rechazo" className="rounded-md border border-rose-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); void resolver("rechazar") }}>
                       <label className="block"><span className="mb-1 block text-[11px] uppercase tracking-[0.06em] text-zinc-500">¿Por qué? (la oficina lo lee)</span>
                         <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} rows={3} maxLength={1000} aria-label="Por qué se devuelve" autoFocus className={CAJA} /></label>
-                      <p className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/1000 · mínimo 5 letras</p>
+                      <p /* estilo-ok: solo cambia el texto de ayuda, los tokens van con boceto para Emilio */ className="mt-1 text-[11px] text-zinc-500">{comentario.trim().length}/1000</p>
                       <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button type="submit" data-accion="confirmar-revision-rechazar" disabled={enviando || comentario.trim().length < 5} className={B_ROJO}>{enviando ? "Enviando…" : botones.rechazar}</button>
+                        <button type="submit" data-accion="confirmar-revision-rechazar" disabled={enviando || !hayTexto(comentario)} className={B_ROJO}>{enviando ? "Enviando…" : botones.rechazar}</button>
                         <button type="button" onClick={cancelar} disabled={enviando} className={B_GRIS}>Cancelar</button>
                       </div>
                     </form>

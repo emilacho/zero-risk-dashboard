@@ -4,7 +4,7 @@
  * el servidor en `POST /api/piezas/{id}/decidir`: aquí solo se arman antes de enviar y se dicen en palabras. Nada de esto escribe.
  */
 import type { FilaDeLaLista } from "@/lib/piezas-datos"
-import { COMENTARIO_MAXIMO, COMENTARIO_MINIMO, MOTIVO_MINIMO, validarDecision, type AccionDeLaPieza, type EstadoPieza, type OrigenDeLaImagen, type PedidoDeDecision } from "@/lib/piezas"
+import { COMENTARIO_MAXIMO, hayTexto, validarDecision, type AccionDeLaPieza, type EstadoPieza, type OrigenDeLaImagen, type PedidoDeDecision } from "@/lib/piezas"
 
 export type FiltroDeLaBandeja = "pendiente" | "todas"
 export type Tono = "ambar" | "verde" | "azul" | "rojo" | "neutro"
@@ -62,7 +62,7 @@ export function cuerpoDeDecisionDePieza(p: PedidoDelPanel): { cuerpo: PedidoDeDe
   return { cuerpo: v.pedido }
 }
 
-export const MINIMOS = { cambios: COMENTARIO_MINIMO, rechazo: MOTIVO_MINIMO, maximo: COMENTARIO_MAXIMO } as const
+export const MINIMOS = { maximo: COMENTARIO_MAXIMO } as const
 
 /** «Pedir cambios» o «Pedir cambios en 2 láminas» */
 export function textoDelBotonDeCambios(marcadas: number[]): string {
@@ -159,7 +159,7 @@ export function comentarioDeEdiciones(lista: Edicion[], libre: string): { coment
   const lineas = lista.map((e) => `${e.lamina != null ? `Lámina ${e.lamina} · ` : ""}${CAMPO_LEGIBLE[e.campo]}: ${e.antes ? `cambiar «${e.antes}» por «${e.despues}»` : `poner «${e.despues}»`}`)
   const partes = [lineas.length ? `Cambios de texto pedidos por el dueño (el texto final va exacto, sin reinterpretar):\n${lineas.map((l) => `- ${l}`).join("\n")}` : "", libre.trim() ? (lineas.length ? `Además: ${libre.trim()}` : libre.trim()) : ""].filter(Boolean)
   const comentario = partes.join("\n")
-  if (comentario.length < COMENTARIO_MINIMO) return { error: `Cuenta qué quieres distinto (al menos ${COMENTARIO_MINIMO} letras) o edita un texto.` }
+  if (!hayTexto(comentario)) return { error: "Cuenta qué quieres distinto o edita un texto." }
   if (comentario.length > COMENTARIO_MAXIMO) return { error: `El pedido pasa de ${COMENTARIO_MAXIMO} caracteres: acorta los textos o mándalo en dos rondas.` }
   return { comentario }
 }

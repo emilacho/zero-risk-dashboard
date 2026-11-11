@@ -23,7 +23,8 @@ describe("la lógica del pedido (pura)", () => {
   it("el cuerpo lleva la confirmación y el tope por código (sin aviso de gasto); con sección, sus campos", () => {
     expect(cuerpoDePedirCambiosAlManual(CLIENTE, "  Más cercano  ")).toEqual({ client_id: CLIENTE, texto: "Más cercano", confirmo_gasto: true, tope_usd: TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD })
     expect(cuerpoDePedirCambiosAlManual(CLIENTE, "Sección «Cómo habla»: más cercano", { titulo: "Cómo habla", campos: ["voz", "nunca"] })).toMatchObject({ seccion: "Cómo habla", campos: ["voz", "nunca"] })
-    expect(cuerpoDePedirCambiosAlManual(CLIENTE, "hey")).toEqual({ error: "Cuenta qué debe cambiar (al menos 5 letras)." })
+    expect(cuerpoDePedirCambiosAlManual(CLIENTE, "  ")).toEqual({ error: "Cuenta qué debe cambiar." }) // GO 11-nov: basta que haya texto
+    expect(cuerpoDePedirCambiosAlManual(CLIENTE, "hey")).not.toHaveProperty("error")
     expect(cuerpoDePedirCambiosAlManual(null, "algo largo")).toEqual({ error: "Falta el cliente." })
     expect(TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD).toBe(TOPE_DEL_SERVIDOR) // panel y servidor con el mismo tope
   })
@@ -93,7 +94,8 @@ describe("la puerta del tablero `manual-cambios`", () => {
     expect(v({ client_id: CLIENTE, texto: "más cercano", tope_usd: 5 })).toMatchObject({ ok: false, error: "falta_confirmar_gasto" })
     expect(v({ client_id: CLIENTE, texto: "más cercano", confirmo_gasto: true, tope_usd: 9 })).toMatchObject({ ok: false })
     expect(v({ client_id: CLIENTE, texto: "más cercano", confirmo_gasto: true, tope_usd: 5, seccion: "X", campos: ["DROP TABLE"] })).toMatchObject({ ok: false })
-    expect(v({ client_id: CLIENTE, texto: "ok", confirmo_gasto: true, tope_usd: 5 })).toMatchObject({ ok: false })
+    expect(v({ client_id: CLIENTE, texto: "  ", confirmo_gasto: true, tope_usd: 5 })).toMatchObject({ ok: false }) // GO 11-nov: basta que haya texto
+    expect(v({ client_id: CLIENTE, texto: "ok", confirmo_gasto: true, tope_usd: 5 })).toMatchObject({ ok: true })
     expect(ACCIONES["manual-cambios"].gasta).toBeNull() // el aviso de gasto no va en /nuevo: lo cuida la plataforma con el tope
   })
 })

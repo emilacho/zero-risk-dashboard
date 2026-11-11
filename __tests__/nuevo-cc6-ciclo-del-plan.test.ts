@@ -52,7 +52,8 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
   it("pedir cambios lleva el texto (5–4.000), la confirmación del gasto y el tope ≤ 8; aprobar, el comentario opcional", () => {
     expect(cuerpoDePedirCambios(PLAN, "  Sube la meta a 130 visitas  ")).toEqual({ plan_id: PLAN, texto: "Sube la meta a 130 visitas", confirmo_gasto: true, tope_usd: TOPE_REESCRITURA_USD })
     expect(TOPE_REESCRITURA_USD).toBeLessThanOrEqual(8)
-    expect(cuerpoDePedirCambios(PLAN, "no")).toEqual({ error: "Cuenta qué debe cambiar (al menos 5 caracteres)" })
+    expect(cuerpoDePedirCambios(PLAN, "   ")).toEqual({ error: "Cuenta qué debe cambiar" }) // GO 11-nov: basta que haya texto
+    expect(cuerpoDePedirCambios(PLAN, "no")).not.toHaveProperty("error")
     expect(cuerpoDePedirCambios(PLAN, "x".repeat(4001))).toEqual({ error: "Máximo 4.000 caracteres" })
     expect(cuerpoDePedirCambios("no-es-uuid", "Sube la meta")).toHaveProperty("error")
     expect(cuerpoDeAprobar(PLAN, "")).toEqual({ plan_id: PLAN }); expect(cuerpoDeAprobar(PLAN, " ok ")).toEqual({ plan_id: PLAN, comentario: "ok" }); expect(cuerpoDeAprobar(PLAN, "x".repeat(1001))).toEqual({ error: "Máximo 1.000 caracteres" })

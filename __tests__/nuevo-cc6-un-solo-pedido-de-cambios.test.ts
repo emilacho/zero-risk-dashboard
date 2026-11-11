@@ -163,9 +163,11 @@ describe("«Pedir los cambios» manda todo en UNA llamada (opción B)", () => {
     const r = await enviarTusCambios(p.accion, C, TODO, { puedeReescribir: false })
     expect(p.llamadas).toEqual([]); expect(r).toMatchObject({ ok: false, quedan: TODO })
   })
-  it("lo que la plataforma rechazaría se dice sin llamar: texto libre de menos de 5 letras, o más de 100.000 en total", async () => {
+  it("lo que la plataforma rechazaría se dice sin llamar: más de 100.000 en total (GO 11-nov: un texto libre corto ya no se rechaza)", async () => {
+    const corto = puerta()
+    expect((await enviarTusCambios(corto.accion, C, { ...TODO, notas: {}, libre: "hey" }, O)).ok).toBe(true)
+    expect(corto.llamadas).toHaveLength(1)
     const p = puerta()
-    expect(await enviarTusCambios(p.accion, C, { ...TODO, notas: {}, libre: "hey" }, O)).toMatchObject({ ok: false, texto: "Cuenta qué debe cambiar (al menos 5 letras)." })
     expect((await enviarTusCambios(p.accion, C, { ...TODO, libre: "x".repeat(100_000) }, O)).ok).toBe(false)
     expect(p.llamadas).toEqual([])
   })

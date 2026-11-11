@@ -74,7 +74,7 @@ export const esPedidoAbierto = (estado: string) => estado === "pendiente" || est
 export function cuerpoDePedirCambiosAlManual(cliente: string | null, observaciones: string, seccion: { titulo: string; campos: string[] } | null = null): Record<string, unknown> | { error: string } {
   if (!cliente) return { error: "Falta el cliente." }
   const t = observaciones.trim()
-  if (t.length < 5) return { error: "Cuenta qué debe cambiar (al menos 5 letras)." }
+  if (!t) return { error: "Cuenta qué debe cambiar." }
   if (t.length > 4000) return { error: "Máximo 4.000 caracteres." }
   return { client_id: cliente, texto: t, ...(seccion ? { seccion: seccion.titulo, campos: seccion.campos } : {}), confirmo_gasto: true, tope_usd: TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD }
 }
