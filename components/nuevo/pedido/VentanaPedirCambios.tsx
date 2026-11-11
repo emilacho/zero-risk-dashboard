@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
-import { ARTICULO_DEL_DOCUMENTO, letrasDeLaNota, lineaDelMinimo, notaAlcanza, trozosConNombres, type DocumentoDelPedido, type TextoConNombres } from "@/lib/pedir-cambios"
+import { ARTICULO_DEL_DOCUMENTO, SUBTITULO_DE_LA_VENTANA, letrasDeLaNota, lineaDelMinimo, notaAlcanza, trozosConNombres, type DocumentoDelPedido, type TextoConNombres } from "@/lib/pedir-cambios"
 
 /**
  * LA VENTANA «PEDIR CAMBIOS» (GO Lenovo 21:59 · Emilio aprobó el boceto y sus 3 variantes · A1 + B1). Una sola ventana para el plan, el manual,
@@ -22,7 +22,7 @@ export function ConSubrayado({ t }: { t: TextoConNombres }) {
   return <>{trozosConNombres(t).map((p, k) => (p.nombre ? <span key={k} data-nombre-propio className={NOMBRE}>{p.texto}</span> : <span key={k}>{p.texto}</span>))}</>
 }
 
-export function VentanaPedirCambios({ documento, seccion = null, minimo, quePasaDespues, onConfirmar, onCancelar, botonConfirmar = "Confirmar y pedir cambios", notaOpcional = false, extra = null, debajoDeLaCaja = null, notaInicial = "", maximo = 4000, panel }: {
+export function VentanaPedirCambios({ documento, seccion = null, minimo, quePasaDespues, onConfirmar, onCancelar, botonConfirmar = "Confirmar y pedir cambios", notaOpcional = false, extra = null, debajoDeLaCaja = null, notaInicial = "", maximo = 4000, panel, subtitulo = SUBTITULO_DE_LA_VENTANA.sale }: {
   /** «Plan» · «Manual» · «Gran idea» · «Pieza» (va subrayado en el título) */
   documento: DocumentoDelPedido
   /** la sección o la pieza («Insight», «Carrusel 2»); sin sección, el título es solo el documento */
@@ -45,6 +45,8 @@ export function VentanaPedirCambios({ documento, seccion = null, minimo, quePasa
   maximo?: number
   /** para las pruebas y la certificación: qué panel la abrió */
   panel: string
+  /** la línea bajo el título (el manual dice que la nota se suma, no que sale) */
+  subtitulo?: string
 }) {
   const [nota, setNota] = useState(notaInicial)
   const [enviando, setEnviando] = useState(false)
@@ -87,7 +89,7 @@ export function VentanaPedirCambios({ documento, seccion = null, minimo, quePasa
         <h3 id={titulo} data-titulo-ventana className="text-titulo font-medio leading-snug text-hueso">
           Pedir cambios {ARTICULO_DEL_DOCUMENTO[documento]} <span data-nombre-propio data-documento className={NOMBRE}>{documento}</span>{seccion ? <> · <span data-seccion-ventana>{seccion}</span></> : null}
         </h3>
-        <p className="mt-1 text-cuerpo text-gris">Escribe qué quieres distinto. El equipo lo reescribe con tu nota.</p>
+        <p data-subtitulo-ventana className="mt-1 text-cuerpo text-gris">{subtitulo}</p>
         <textarea ref={caja} data-caja-pedir-cambios value={nota} onChange={(e) => setNota(e.target.value)} rows={5} maxLength={maximo} disabled={enviando} placeholder="¿Qué quieres distinto?" aria-label="¿Qué quieres distinto?"
           className="mt-5 w-full resize-y rounded-control border border-linea-oro bg-grafito px-4 py-3 text-cuerpo leading-relaxed text-hueso placeholder:text-apagado focus:border-oro focus:outline-none" />
         {ayuda && <p data-minimo-ventana className="mt-1.5 text-dato text-apagado">{ayuda}</p>}

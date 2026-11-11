@@ -10,13 +10,13 @@ import { NOTA_MINIMA } from "@/lib/concepto-decision"
 export const letrasDeLaNota = (t: string | null | undefined): number => (typeof t === "string" ? t.trim().length : 0)
 
 /** ¿alcanza la nota? `minimo` 1 = «basta que haya texto» (regla del 11-nov 05:03Z, la de `hayTexto`); la gran idea pide `NOTA_MINIMA`
- *  porque la plataforma lo exige. Es una ayuda de la pantalla: la puerta de cada panel decide igual que hoy. */
+ *  (mínimo del tablero, no de la plataforma: esa solo exige que haya nota · CC6 22:01; lo decide Lenovo). Es una ayuda de la pantalla: la puerta de cada panel decide igual que hoy. */
 export function notaAlcanza(t: string | null | undefined, minimo: number): boolean {
   const n = letrasDeLaNota(t)
   return minimo <= 1 ? hayTexto(t ?? "") : n >= minimo
 }
 
-/** el mínimo de cada panel (pendiente de la respuesta de Lenovo: «basta que haya texto» o 10 en los 4) */
+/** el mínimo de cada panel (pendiente de la respuesta de Lenovo: «basta que haya texto» en los 4, o 10 en la gran idea por decisión) */
 export const MINIMO_DE_LA_NOTA = { plan: 1, manual: 1, piezas: 1, gran_idea: NOTA_MINIMA } as const
 export type PanelDelPedido = keyof typeof MINIMO_DE_LA_NOTA
 
@@ -32,6 +32,12 @@ export function sumarATusCambios(libre: string, nota: string, seccion: string | 
   const nuevo = seccion ? `${prefijoDeSeccion(seccion)}${nota}` : nota
   return libre.trim() ? `${libre.trimEnd()}\n\n${nuevo}` : nuevo
 }
+
+/** el subtítulo de la ventana: donde la nota sale (plan, gran idea, piezas) y donde solo se suma (manual, A1) */
+export const SUBTITULO_DE_LA_VENTANA = {
+  sale: "Escribe qué quieres distinto. El equipo lo reescribe con tu nota.",
+  suma: "Escribe qué quieres distinto. Se suma a tus cambios y sale con ellos.",
+} as const
 
 /** la línea bajo la caja: solo cuando hay un mínimo de verdad (más de una letra) */
 export const lineaDelMinimo = (minimo: number): string | null => (minimo > 1 ? `Mínimo ${minimo} letras` : null)

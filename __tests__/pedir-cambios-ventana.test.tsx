@@ -11,7 +11,7 @@ import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react
 import { createElement } from "react"
 import { readFileSync } from "node:fs"
 import { VentanaPedirCambios, DATO_DE_LA_VENTANA, hayVentanaDePedirCambios } from "@/components/nuevo/pedido/VentanaPedirCambios"
-import { letrasDeLaNota, lineaDelMinimo, loQueVaConTuNota, MINIMO_DE_LA_NOTA, notaAlcanza, QUE_PASA_DESPUES, sumarATusCambios, textoDelPedidoDelPlan, trozosConNombres } from "@/lib/pedir-cambios"
+import { SUBTITULO_DE_LA_VENTANA, letrasDeLaNota, lineaDelMinimo, loQueVaConTuNota, MINIMO_DE_LA_NOTA, notaAlcanza, QUE_PASA_DESPUES, sumarATusCambios, textoDelPedidoDelPlan, trozosConNombres } from "@/lib/pedir-cambios"
 import { NOTA_MINIMA } from "@/lib/concepto-decision"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
@@ -75,6 +75,7 @@ describe("la ventana · las reglas de CC7", () => {
     abrir()
     expect(document.querySelector("[data-titulo-ventana]")!.textContent).toBe("Pedir cambios al Plan · Insight")
     expect(document.querySelector("[data-minimo-ventana]")).toBeNull()
+    expect(document.querySelector("[data-subtitulo-ventana]")!.textContent).toBe(SUBTITULO_DE_LA_VENTANA.sale)
     expect(hayVentanaDePedirCambios()).toBe(true)
     expect(document.activeElement).toBe(caja())
   })
@@ -240,6 +241,7 @@ describe.each(CLIENTES)("manual (A1) · $nombre", (c) => {
     const onLibre = montar("Lo que ya escribí")
     expect(document.querySelector("[data-titulo-ventana]")!.textContent).toBe("Pedir cambios al Manual · Voz de la marca")
     expect(confirmar().textContent).toBe("Sumar a tus cambios")
+    expect(document.querySelector("[data-subtitulo-ventana]")!.textContent).toBe(SUBTITULO_DE_LA_VENTANA.suma) // aquí la nota no sale: se suma
     expect(document.querySelector("[data-que-pasa-despues]")!.textContent).toContain(QUE_PASA_DESPUES.manual.texto)
     expect(onLibre).not.toHaveBeenCalled() // abrir la ventana ya no escribe en el cuadro
     escribir("Más cercana, menos técnica")

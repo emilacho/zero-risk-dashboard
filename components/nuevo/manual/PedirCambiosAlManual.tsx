@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { BarraDelPedido, QueCambio } from "@/components/nuevo/pedido/PiezasDelPedido"
 import { avisoDeLoValidado, rotuloMientrasSeReescribe, type CicloDelManual } from "@/lib/manual-ciclo"
-import { MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES, sumarATusCambios } from "@/lib/pedir-cambios"
+import { MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES, SUBTITULO_DE_LA_VENTANA, sumarATusCambios } from "@/lib/pedir-cambios"
 import { VentanaPedirCambios } from "@/components/nuevo/pedido/VentanaPedirCambios"
 
 /** una sección pedida desde su apartado: título, las claves de sus campos y cuáles son del dueño (`n` cambia en cada clic) */
@@ -63,7 +63,7 @@ export function PedirCambiosAlManual({ clienteNombre = null, ciclo, validadosDel
     <div data-pedir-cambios-manual data-tablero-accion="manual-cambios" className="mt-3 scroll-mt-2">
       {ventana && puedeEscribir && (
         <VentanaPedirCambios panel="manual" documento="Manual" seccion={ventana.titulo} minimo={MINIMO_DE_LA_NOTA.manual} maximo={TOPE_DEL_TEXTO_LIBRE}
-          quePasaDespues={QUE_PASA_DESPUES.manual} botonConfirmar="Sumar a tus cambios" onConfirmar={sumar} onCancelar={cerrarVentana}
+          quePasaDespues={QUE_PASA_DESPUES.manual} botonConfirmar="Sumar a tus cambios" subtitulo={SUBTITULO_DE_LA_VENTANA.suma} onConfirmar={sumar} onCancelar={cerrarVentana}
           debajoDeLaCaja={avisoDeLaVentana ? <p data-aviso-validados-ventana className="mt-1.5 text-dato text-oro">{avisoDeLaVentana}</p> : null} />
       )}
       {rotulo && <p data-rotulo-reescribiendo className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">{rotulo}</p>}
