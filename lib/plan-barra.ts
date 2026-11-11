@@ -68,7 +68,7 @@ export function barraDelPlan(p: PlanDelCliente): BarraDelPlan {
   const bandeja = p.esperas.grupos.find((g) => g.tipo === "aprobacion_bandeja")?.n ?? 0
   if (bandeja) teToca.push(bandeja === 1 ? "1 aprobación en tu bandeja" : `${bandeja} aprobaciones en tu bandeja`)
   for (const x of p.palabra_del_dueno ?? []) teToca.push(x.requiere_humano ? `Revisar: ${sinPrefijoDelPlan(x.titulo)}` : `Mirar: ${sinPrefijoDelPlan(x.titulo)}`)
-  if (c?.estado === "pausada" || c?.estado === "necesita_humano") teToca.push(c.estado === "pausada" ? `La campaña está pausada${c.estado_motivo ? ` (${c.estado_motivo})` : ""}: reanudarla es decisión tuya` : "La campaña necesita una decisión tuya")
+  if (c?.estado === "pausada" || c?.estado === "necesita_humano") teToca.push(c.estado === "pausada" ? "La campaña está pausada: reanudarla es decisión tuya" : "La campaña necesita una decisión tuya")
   const cerrado = !!p.ciclo?.cerrado
   return {
     decision: esperaElManual ? { titulo: PLAN_ESPERA_EL_MANUAL, estado: "espera_el_manual" } : lectura ? { titulo: lectura.titulo, estado: lectura.estado } : null,

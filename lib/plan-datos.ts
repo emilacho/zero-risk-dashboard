@@ -32,7 +32,7 @@ export interface PlanDelCliente {
   cliente: { id: string; nombre: string } | null
   hoy: string
   campana: null | {
-    id: string; estado: string; estado_motivo: string | null; desde: string | null; hasta: string | null; sedes: string[]
+    id: string; estado: string; desde: string | null; hasta: string | null; sedes: string[]
     /** lo máximo que gasta la PLANEACIÓN de esta campaña (no es pauta ni presupuesto del cliente) */
     tope_planeacion_usd: number | null
     /** si la oficina produce las piezas sola cuando el calendario las pide */
@@ -194,7 +194,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
   const cliente = { id: elegido.id, nombre: elegido.nombre }
 
   const [camp, rev, palabras] = await Promise.all([
-    una(supa.from("cadena_campanas").select("id, plan_id, estado, estado_motivo, fecha_inicio, fecha_fin, sedes, presupuesto_planificacion_usd, autoproducir, creada_en, actualizada_en").eq("client_id", cliente.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas"),
+    una(supa.from("cadena_campanas").select("id, plan_id, estado, fecha_inicio, fecha_fin, sedes, presupuesto_planificacion_usd, autoproducir, creada_en, actualizada_en").eq("client_id", cliente.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas"),
     una(supa.from("hitl_queue").select("id, title, status, decision, created_at, expires_at").eq("client_id", cliente.id).eq("type", "plan_con_pendientes").order("created_at", { ascending: false }).limit(1).maybeSingle(), "hitl_queue"),
     filas(supa.from("hitl_queue").select("id, title, output_preview, metadata, created_at").eq("client_id", cliente.id).eq("type", "palabra_del_dueno").eq("status", "pending").order("created_at", { ascending: false }).limit(10), "hitl_queue"),
   ])
@@ -244,7 +244,7 @@ export async function leerPlanDelCliente(supa: SupabaseClient, o: { cliente?: st
   return {
     ...base, cliente,
     campana: {
-      id: campId, estado: String(camp.estado ?? ""), estado_motivo: t(camp.estado_motivo), desde, hasta: t(camp.fecha_fin),
+      id: campId, estado: String(camp.estado ?? ""), desde, hasta: t(camp.fecha_fin),
       sedes: Array.isArray(camp.sedes) ? camp.sedes.map(String) : [],
       tope_planeacion_usd: camp.presupuesto_planificacion_usd == null ? null : Number(camp.presupuesto_planificacion_usd),
       autoproducir: camp.autoproducir === true,

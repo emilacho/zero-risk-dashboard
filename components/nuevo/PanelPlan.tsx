@@ -293,7 +293,6 @@ export function PanelPlan({ onCerrar, datosIniciales = null, clienteInicial = nu
                 </div>
                 {/* Lenovo 20:37Z: el nombre del plan no cambia; si cubre menos de lo que promete, se dice en palabras */}
                 {cobertura && <p data-cobertura className="mt-2 text-[13px] text-amber-200">{cobertura}</p>}
-                {c?.estado_motivo && <p className="mt-2 text-[12.5px] text-zinc-400">{c.estado_motivo}</p>}
                 {c && (
                   <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-3">
                     <div><dt className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">Sedes</dt><dd className="text-zinc-200">{c.sedes.length ? c.sedes.map(sedeLegible).join(" · ") : "—"}</dd></div>

@@ -7,7 +7,7 @@ import { avanceDelPedido, planDelTexto } from "@/lib/plan"
 import { leerPlanDelCliente, type PlanDelCliente } from "@/lib/plan-datos"
 import { PanelPlan } from "@/components/nuevo/PanelPlan"
 
-const CAMP = { id: "k", estado: "pausada", estado_motivo: null, desde: "2026-11-02", hasta: "2027-01-30", sedes: [], tope_planeacion_usd: null, autoproducir: false, publicaciones: 108, version_calendario: 2, creada_en: null, actualizada_en: null }
+const CAMP = { id: "k", estado: "pausada", desde: "2026-11-02", hasta: "2027-01-30", sedes: [], tope_planeacion_usd: null, autoproducir: false, publicaciones: 108, version_calendario: 2, creada_en: null, actualizada_en: null }
 const FASES = [{ clave: "a", objetivo: "Señal", dia_desde: 1, dia_hasta: 30 }, { clave: "b", objetivo: "Recompra", dia_desde: 31, dia_hasta: 84 }]
 const doc = (prosa: string | null, plan: unknown = null) => ({ id: "d", titulo: "", creado_en: null, actualizado_en: null, status: "draft", estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan, prosa, caracteres: 0, que_cambio: null }) as never
 const est = (fases = FASES) => ({ version: 1, estado: "validada", creada_en: null, costo_usd: null, texto_md: null, fases, redes: [], excluidos: [], pilares: [], hitos: [], dependencias: [], fechas_que_importan: [], patron_semanal: [], piezas_fijas: [], pendientes: [], alertas: [] }) as never

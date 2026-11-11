@@ -10,7 +10,7 @@ import type { PlanDelCliente } from "@/lib/plan-datos"
 const PROSA = "# PLAN\n**Olón · 2 de noviembre de 2026 – 24 de enero de 2027**\n\n## Resumen\nEl número que persigue el plan: 130 tickets semanales.\n\n## Presupuesto\n- Pauta: $200 por semana\n"
 const base = (o: Partial<PlanDelCliente> = {}): PlanDelCliente => ({
   clientes: [], cliente: { id: "c", nombre: "Náufrago" }, hoy: "2026-11-02", leido_en: "",
-  campana: { id: "k", estado: "pausada", estado_motivo: "pausa de pruebas", desde: "2026-11-02", hasta: "2027-01-30", sedes: ["guayaquil", "olon"], tope_planeacion_usd: 6, autoproducir: true, publicaciones: 1, version_calendario: 1, creada_en: null, actualizada_en: null },
+  campana: { id: "k", estado: "pausada", desde: "2026-11-02", hasta: "2027-01-30", sedes: ["guayaquil", "olon"], tope_planeacion_usd: 6, autoproducir: true, publicaciones: 1, version_calendario: 1, creada_en: null, actualizada_en: null },
   estrategia: { version: 1, estado: "validada", creada_en: null, costo_usd: null, texto_md: null, fases: [{ clave: "b", objetivo: "Recompra", dia_desde: 31, dia_hasta: 60 }, { clave: "a", objetivo: "Señal", dia_desde: 1, dia_hasta: 30 }], redes: [{ red: "instagram", rol: "principal", motivo: "", formatos: [], feed_semana: 1, historias_semana: 0, anuncios_semana: 0 }, { red: "linkedin", rol: "no", motivo: "", formatos: [], feed_semana: 0, historias_semana: 0, anuncios_semana: 0 }], excluidos: [], pilares: [], hitos: [], dependencias: [], fechas_que_importan: [], patron_semanal: [], piezas_fijas: [], pendientes: [], alertas: [] },
   fase_activa: { situacion: "en_curso", fase: null, dia: 1, dias_para_empezar: null },
   documento: { id: "d", titulo: "", creado_en: null, actualizado_en: null, status: "draft", estado_del_plan: null, marcas: [], aviso_del_chequeo: [], no_se_busco: [], jefatura: null, plan: null, prosa: PROSA, caracteres: 0, que_cambio: null },
@@ -34,7 +34,7 @@ describe("la barra del plan (pura)", () => {
     const t = barraDelPlan(base()).te_toca
     expect(t[0]).toBe("Aprobar el plan o pedir cambios")
     expect(t).toContain("2 aprobaciones en tu bandeja")
-    expect(t.some((x) => /pausada \(pausa de pruebas\)/.test(x))).toBe(true)
+    expect(t).toContain("La campaña está pausada: reanudarla es decisión tuya") // GO Lenovo 11-nov 23:54Z: sin la nota interna de la cadena
   })
   it("sin campaña: las fechas del documento, rotuladas; sin plan: se dice que falta", () => {
     expect(barraDelPlan(base({ campana: null })).fechas).toEqual({ texto: "2 nov → 24 ene · 84 días", detalle: "según el plan (todavía sin campaña)" })
