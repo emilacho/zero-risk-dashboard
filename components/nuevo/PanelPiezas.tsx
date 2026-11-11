@@ -228,7 +228,10 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const kanbanDePiezas = vista === "kanban" ? armarKanban(filasDelCliente.filter((f) => f.es_pieza).map(tarjetaDePieza)) : []
 
   const total = pieza?.laminas.length ?? 0
-  const ir = useCallback((d: number) => { if (total > 0) { setN((x) => ((x - 1 + d + total) % total) + 1); setZoom(false) } }, [total])
+  // pieza de video (T8): hay reproductor solo si el mp4 quedó en la entrega y no es un ensayo ni una copia que solo vive en el proveedor
+  const video = pieza?.video ?? null
+  const hayReproductor = !!video && !!video.nombre && !video.simulado && !video.solo_en_proveedor
+  const ir =useCallback((d: number) => { if (total > 0) { setN((x) => ((x - 1 + d + total) % total) + 1); setZoom(false) } }, [total])
   // Esc cierra lo más cercano (zoom → diálogo → el panel), en captura para que la oficina no lo reciba; ← → cambian de lámina
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
@@ -424,7 +427,22 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
                 <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_23rem] lg:overflow-hidden">
                   <div className="flex min-h-[60vh] flex-col items-center gap-2 overflow-auto bg-black/40 p-4 lg:min-h-0">
-                    {total === 0 && pieza.es_pieza && <div className="max-w-md rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-[13px] text-rose-200">Sin dibujo: esta pieza no tiene láminas que mirar.</div>}
+                    {total === 0 && pieza.es_pieza && !video && <div className="max-w-md rounded-tarjeta border border-linea-alarma bg-grafito p-4 text-dato text-alarma">Sin dibujo: esta pieza no tiene láminas ni video que mirar.</div>}
+                    {/* 11-nov (boceto aprobado por Emilio): la pieza de video se mira aquí, igual que en el visor de /piezas; el mp4 lo sirve el tablero */}
+                    {video && hayReproductor && (
+                      <div className="flex min-h-0 w-full flex-1 items-center justify-center" data-video-de-la-pieza>
+                        <div className="relative h-full max-h-full max-w-full overflow-hidden rounded-tarjeta border border-linea bg-carbon" style={{ aspectRatio: "9/16" }}>
+                          <video controls playsInline preload="metadata" src={`/api/piezas/${pieza.id}/video`} className="h-full w-full object-contain" />
+                          <span className="num absolute left-3 top-3 rounded-full bg-velo px-2.5 py-0.5 text-rotulo text-hueso">{video.segundos != null ? `${video.segundos} s` : "video"}</span>
+                        </div>
+                      </div>
+                    )}
+                    {video && !hayReproductor && (
+                      <div className="max-w-md rounded-tarjeta border border-linea-oro bg-grafito p-4 text-dato text-oro" data-video-sin-reproductor>
+                        {video.simulado ? "Ensayo: el video es simulado, no hay archivo que mirar." : video.solo_en_proveedor ? `El video quedó solo en el proveedor${video.vence ? ` (vence ${video.vence})` : ""}: no se puede mostrar aquí. Hay que bajarlo antes de que venza.` : "Sin archivo de video."}
+                        {video.solo_en_proveedor && video.url_proveedor && <a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="mt-2 block underline">Abrir en el proveedor</a>}
+                      </div>
+                    )}
                     {!pieza.es_pieza && <div className="max-w-md rounded-xl border border-white/10 bg-white/[0.03] p-4 text-[13px] text-zinc-300">Esta revisión no lleva láminas: es una decisión sobre «{tipoDeRevisionLegible(pieza.tipo).toLowerCase()}». Lo que hay que saber está al costado y la decisión abajo.</div>}
                     {total > 0 && !juntas && lamina && (
                       <>
@@ -468,6 +486,10 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
                   <aside className="min-h-0 space-y-3 border-t border-white/10 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Lo que acompaña a la pieza" data-barra-de-la-pieza>
                     {(pieza.es_pieza ? pieza.avisos : []).map((a, i) => <div key={i} role={a.nivel === "rojo" ? "alert" : undefined} data-aviso-pieza={a.nivel} className={`rounded-lg border p-2.5 text-[12.5px] ${COLOR_AVISO[a.nivel]}`}>{a.texto}</div>)}
+                    {video && <Bloque titulo={`Video${video.segundos != null ? ` · ${video.segundos} s` : ""}`} etiqueta="video">
+                      {video.nombre ? <p className="text-gris">{video.nombre}{video.bytes != null ? ` · ${(video.bytes / 1_000_000).toFixed(1).replace(".", ",")} MB` : ""}</p> : <p className="italic text-apagado">Sin archivo guardado.</p>}
+                      {video.solo_en_proveedor && video.url_proveedor && <p><a href={video.url_proveedor} target="_blank" rel="noopener noreferrer" className="underline">Bajarlo del proveedor</a>{video.vence ? ` antes de ${video.vence}` : ""}</p>}
+                    </Bloque>}
                     {pieza.es_pieza && <Bloque titulo="De la fila del calendario" etiqueta="fila">
                       {pieza.acompana?.fila ? (() => { const f = pieza.acompana!.fila!; return (
                         <dl className="space-y-0.5 text-[12.5px]">

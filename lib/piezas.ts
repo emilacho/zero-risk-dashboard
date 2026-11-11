@@ -152,7 +152,40 @@ export function resumenDiceImagenesGeneradas(preview: string | null | undefined)
   return m ? Number(m[1]) : 0
 }
 
-export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: VideoDeLaPieza | null = null): Aviso[] {
+/** el paso de la jefatura que falló (`jefatura_pasos` con estado «fallo»), tal como lo guardó el motor */
+export interface PasoFallido { paso: string | null; error: string | null }
+
+const NOMBRE_DEL_PASO: Array<[RegExp, string]> = [[/^decision/i, "la decisión"], [/^fondo/i, "la revisión de fondo"], [/^correcci/i, "la corrección"], [/^(segunda|externa|gpt|cruzad)/i, "la segunda mirada"], [/^fidelidad/i, "la revisión de fidelidad"]]
+/** «la decisión» · «la corrección»… sin el nombre interno del paso ni del agente; null si no se sabe */
+export function nombreDelPasoLegible(paso: unknown): string | null {
+  const p = String(paso ?? "").trim()
+  if (!p) return null
+  for (const [re, t] of NOMBRE_DEL_PASO) if (re.test(p)) return t
+  return null
+}
+
+/** el motivo del fallo en palabras de negocio: el error crudo del motor nunca se muestra (regla 7) */
+export function motivoDelFalloLegible(error: unknown): string {
+  const e = String(error ?? "")
+  if (/usage limit|credit balance|insufficient.?quota|billing/i.test(e)) return "la cuenta del proveedor de IA llegó a su límite de uso"
+  if (/rate.?limit|429|overloaded|529/i.test(e)) return "el proveedor de IA estaba saturado y no respondió"
+  if (/timeout|timed out|tiempo|aborted|ETIMEDOUT/i.test(e)) return "el paso tardó más de lo permitido"
+  if (/\$\.|json|fuera de \[|demasiado largo|formato|schema|parse/i.test(e)) return "la respuesta del empleado vino con un formato que no se pudo leer"
+  return "el paso no terminó (el detalle queda en el registro de la jefatura)"
+}
+
+/** 11-nov (Emilio vía Lenovo): el aviso de una revisión que no terminó dice POR QUÉ. «Límite de gasto» solo cuando de verdad se cortó por el tope */
+export function avisoDeRevisionIncompleta(meta: Record<string, unknown>, paso: PasoFallido | null = null): string | null {
+  if (meta.jefatura_resultado === "incompleta_por_tope") return "La revisión de la jefatura no terminó: se cortó por el tope de gasto de la revisión."
+  if (meta.jefatura_resultado === "fallida" || (meta.revision_incompleta === true && paso)) {
+    const nombre = nombreDelPasoLegible(paso?.paso)
+    return `Falló un paso de la revisión${nombre ? ` (${nombre})` : ""}: ${paso ? motivoDelFalloLegible(paso.error) : "no quedó guardado el motivo"}.`
+  }
+  if (meta.revision_incompleta === true) return "La revisión de la jefatura no terminó."
+  return null
+}
+
+export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: VideoDeLaPieza | null = null, pasoFallido: PasoFallido | null = null): Aviso[] {
   const meta = fila.metadata ?? {}
   const out: Aviso[] = []
   const conImagen = laminas.filter((l) => l.origen !== "tipografia").length
@@ -172,7 +205,8 @@ export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: V
       ? { nivel: "rojo", texto: "Sin video: esta pieza no tiene archivo de video (un ensayo, o el brazo de video falló). No hay nada que mirar." }
       : { nivel: "rojo", texto: "Sin dibujo: esta pieza no tiene láminas dibujadas (un ensayo, o el dibujo falló). No hay nada que mirar." })
   }
-  if (meta.revision_incompleta === true || meta.jefatura_resultado === "incompleta_por_tope") out.push({ nivel: "ambar", texto: "La revisión de la jefatura no terminó: se cortó por el límite de gasto." })
+  const incompleta = avisoDeRevisionIncompleta(meta, pasoFallido)
+  if (incompleta) out.push({ nivel: "ambar", texto: incompleta })
   const desac = lista(meta.desacuerdos)
   if (desac.length > 0) out.push({ nivel: "ambar", texto: `${desac.length} desacuerdo${desac.length === 1 ? "" : "s"} abierto${desac.length === 1 ? "" : "s"} en la revisión.` })
   const glifos = laminas.filter((l) => l.glifos_riesgosos).map((l) => l.n)

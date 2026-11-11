@@ -23,6 +23,13 @@ export function diaCorto(iso: string | Date): string {
   const d = new Date(new Date(iso).getTime() - ECUADOR_MS)
   return Number.isNaN(d.getTime()) ? "—" : `${d.getUTCDate()} ${MESES[d.getUTCMonth()]}`
 }
+/** «16 nov» de una fecha de calendario («2026-11-16»): es un día, no un instante, así que no se corre a la hora de Ecuador. null si no es una fecha */
+export function diaDeCalendario(fecha: unknown): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(fecha ?? ""))
+  if (!m) return null
+  const mes = Number(m[2]), dia = Number(m[3])
+  return mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31 ? `${dia} ${MESES[mes - 1]}` : null
+}
 /** «29 oct · 06:52» en hora de Ecuador */
 export function diaYHora(iso: string | Date): string {
   const d = new Date(new Date(iso).getTime() - ECUADOR_MS)
@@ -49,11 +56,14 @@ export function redLegible(texto: unknown): string | null {
   return null
 }
 
-/** «Carrusel Facebook · Zero Risk Seguridad Industrial · 29 oct» (sin BRF, sin versión, sin códigos) */
-export function tituloDePieza(p: { familia?: unknown; tituloCrudo?: unknown; cliente?: string | null; creada?: string | Date | null }): string {
+/** «Carrusel Facebook · Zero Risk Seguridad Industrial · 29 oct» (sin BRF, sin versión, sin códigos).
+ *  11-nov (Emilio vía Lenovo): si la pieza sale de una fila del calendario, el día es el de PUBLICACIÓN («publica 16 nov»), no el de creación */
+export function tituloDePieza(p: { familia?: unknown; tituloCrudo?: unknown; cliente?: string | null; creada?: string | Date | null; publica?: string | null }): string {
   const partes = [[familiaLegible(p.familia), redLegible(p.tituloCrudo)].filter(Boolean).join(" ")]
   if (p.cliente) partes.push(p.cliente)
-  if (p.creada) partes.push(diaCorto(p.creada))
+  const publica = diaDeCalendario(p.publica)
+  if (publica) partes.push(`publica ${publica}`)
+  else if (p.creada) partes.push(diaCorto(p.creada))
   return partes.join(" · ")
 }
 
