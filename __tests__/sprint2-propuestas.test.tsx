@@ -235,6 +235,14 @@ describe("5 · elegir y contestar (con un doble de la plataforma)", () => {
     expect(v.container.textContent).toContain("Aprobaste «Un día en la clínica»")
     fireEvent.click(v.container.querySelector("[data-volver]")!); expect(cerrar).toHaveBeenCalled()
   })
+  it("en la ronda 3, aprobar manda `ronda: 3` (la que se ve), no la primera: si no, la plataforma la tomaría por vieja (q10 de CC6)", async () => {
+    const f = vi.fn<(u: string, i?: RequestInit) => Promise<Response>>(() => respuesta(200, { ok: true, accion: "propuestas-aprobar" }))
+    const v = render(createElement(PanelPropuestas, { decision: decision({}, { ronda: 3, quedan_vueltas: 1 }), onCerrar: () => undefined, fetchImpl: f as never }))
+    fireEvent.click(v.container.querySelector('[data-elegir="P3"]')!)
+    fireEvent.click(v.container.querySelector('[data-verbo="aprobar"]')!)
+    await waitFor(() => expect(f).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(String(f.mock.calls[0][1]!.body))).toEqual({ encargo_id: ENCARGO, ronda: 3, propuesta_id: "P3" })
+  })
   it("pedir cambios: primero abre la caja (Aprobar se esconde); sin texto no sale; con texto manda las observaciones", async () => {
     const f = vi.fn<(u: string, i?: RequestInit) => Promise<Response>>(() => respuesta(200, { ok: true }))
     const v = render(createElement(PanelPropuestas, { decision: decision({}, { ronda: 2 }), onCerrar: () => undefined, fetchImpl: f as never }))
