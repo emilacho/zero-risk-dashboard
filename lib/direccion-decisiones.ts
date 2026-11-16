@@ -9,9 +9,11 @@
 
 import { claveValida } from "@/lib/alertas"
 import { sinCodigos as sinCodigosDelSistema } from "@/lib/sin-codigos"
+import { leerPropuestas, type Propuestas } from "@/lib/propuestas"
 
-export type TipoDeDecision = "plan" | "gran_idea" | "pieza" | "revision" | "pregunta_al_dueno" | "pregunta_de_finanzas" | "firma_de_finanzas"
-export const TIPOS_DE_DECISION: readonly TipoDeDecision[] = ["plan", "gran_idea", "pieza", "revision", "pregunta_al_dueno", "pregunta_de_finanzas", "firma_de_finanzas"]
+/** 16-nov (Sprint 2 · ADENDA 1 de CC1): «propuestas» = un encargo parado en la única aprobación del dueño (elige una de las N propuestas en borrador) */
+export type TipoDeDecision = "plan" | "gran_idea" | "pieza" | "revision" | "pregunta_al_dueno" | "pregunta_de_finanzas" | "firma_de_finanzas" | "propuestas"
+export const TIPOS_DE_DECISION: readonly TipoDeDecision[] = ["plan", "gran_idea", "pieza", "revision", "pregunta_al_dueno", "pregunta_de_finanzas", "firma_de_finanzas", "propuestas"]
 
 export interface Decision {
   id: string
@@ -60,6 +62,8 @@ export interface Decision {
   version_del_documento?: number
   /** 10-nov (CC1 #973) · de qué documento es una revisión (manual · plan · pieza · …): dice en qué pantalla se decide. Sin dato no viene */
   documento?: string
+  /** 16-nov (Sprint 2) · las N propuestas en borrador de un encargo parado en la aprobación del dueño (`tipo: "propuestas"`); revisadas contra el contrato */
+  propuestas?: Propuestas
 }
 export interface AlertaDeDecision { clave: string; estado: "nueva" | "revisada" | null; revisada_en?: string }
 /** una cifra de una firma: `unidad` «US$» se muestra como dinero; cualquier otra va detrás del número («ventas por semana») */
@@ -112,6 +116,9 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
     const tipo = TIPOS_DE_DECISION.find((t) => t === d.tipo)
     const id = txt(d.id), titulo = txt(d.titulo)
     if (!tipo || !id || !titulo) { descartadas++; continue }
+    // una decisión de propuestas sin propuestas legibles no tiene nada que elegir: se descarta (y la lista queda marcada incompleta)
+    const propuestas = tipo === "propuestas" ? leerPropuestas(d.propuestas) : null
+    if (tipo === "propuestas" && !propuestas) { descartadas++; continue }
     // una decisión que la plataforma marca «reemplazada» ya no espera nada: no se muestra (no es un error de lectura)
     if (/reemplazad|superseded/i.test(`${txt(d.estado) ?? ""} ${txt(d.subtipo) ?? ""} ${txt(d.status) ?? ""}`) || d.reemplazada === true || d.vigente === false) continue
     const dec = (d.decidir && typeof d.decidir === "object" ? d.decidir : {}) as Record<string, unknown>
@@ -123,6 +130,7 @@ export function normalizarDecisiones(raw: unknown): Decisiones {
       ...contextoDeLaPlataforma(d),
       costo_usd: num(d.costo_usd), costo_nota: txt(d.costo_nota),
       ...departamentoDeLaFicha(d),
+      ...(propuestas ? { propuestas } : {}),
     })
   }
   const fuentes = (Array.isArray(r.fuentes) ? r.fuentes : []).flatMap((f) => {
@@ -172,13 +180,14 @@ export const NOMBRE_DEL_TIPO: Record<TipoDeDecision, { nombre: string; plural: s
   gran_idea: { nombre: "Gran idea", plural: "Grandes ideas" },
   pieza: { nombre: "Pieza para publicar", plural: "Piezas" },
   revision: { nombre: "Revisión", plural: "Revisiones" },
+  propuestas: { nombre: "Propuestas", plural: "Propuestas" },
   pregunta_al_dueno: { nombre: "Pregunta para ti", plural: "Preguntas para ti" },
   pregunta_de_finanzas: { nombre: "Pregunta de finanzas", plural: "Preguntas de finanzas" },
   firma_de_finanzas: { nombre: "Firma de finanzas", plural: "Firmas de finanzas" },
 }
 
 /** dónde se toma cada decisión dentro del tablero nuevo: el panel que se abre, o por qué todavía no se decide aquí */
-export type PanelDeDecision = "plan" | "gran_idea" | "piezas" | "manual"
+export type PanelDeDecision = "plan" | "gran_idea" | "piezas" | "manual" | "propuestas"
 export function dondeSeDecide(d: Pick<Decision, "tipo"> & Partial<Pick<Decision, "documento">>): { panel: PanelDeDecision; boton: string } | { panel: null; nota: string } {
   switch (d.tipo) {
     case "plan": return { panel: "plan", boton: "Abrir el plan para decidir" }
@@ -190,6 +199,8 @@ export function dondeSeDecide(d: Pick<Decision, "tipo"> & Partial<Pick<Decision,
     case "firma_de_finanzas": return { panel: null, nota: "La firma del tablero financiero todavía no está en el tablero nuevo." }
     case "pregunta_de_finanzas": return { panel: null, nota: "Las preguntas de finanzas todavía no se responden desde el tablero nuevo." }
     case "pregunta_al_dueno": return { panel: null, nota: "Las preguntas para ti todavía no se responden desde el tablero." }
+    // 16-nov (Sprint 2): las propuestas se abren encima, en el mismo lugar (regla de Emilio del 11-nov: la alerta no navega)
+    case "propuestas": return { panel: "propuestas", boton: "Ver las propuestas" }
   }
 }
 

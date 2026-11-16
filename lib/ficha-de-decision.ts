@@ -6,6 +6,7 @@
  * Los botones son solo los del vocabulario fijo. La ficha no trae clase ni tipo: el dibujante no puede elegir nada por tipo.
  */
 import { decisivoCorto, type AccionDeDecision, type CifraDeFirma, type Decision } from "@/lib/direccion-decisiones"
+import { resumenDeLasPropuestas } from "@/lib/propuestas"
 
 /** el vocabulario FIJO: las únicas 5 palabras que puede tener un botón de decisión */
 export type Verbo = "aprobar" | "pedir_cambios" | "responder" | "asumir" | "descartar"
@@ -22,15 +23,18 @@ export const VERBO_DE_LA_ACCION: Partial<Record<AccionDeDecision, Verbo>> = { ac
 export const esPregunta = (d: Pick<Decision, "tipo" | "cifras">): boolean => (d.tipo === "pregunta_al_dueno" || d.tipo === "pregunta_de_finanzas") && !d.cifras?.length
 /** la lista CERRADA de puertas que una ficha puede nombrar (regla 1 del contrato: un nombre, nunca una dirección). Una puerta desconocida no da botón */
 /** la MISMA lista que `DESTINOS` de la plataforma (CC1 #959 T0): una prueba lo exige */
-export const PUERTAS_DE_LA_FICHA = ["firmar-tablero", "recalcular-tablero", "plan-aprobar", "plan-cambios", "revision-resolver", "dueno-preguntas"] as const
+/** 16-nov (Sprint 2 · ADENDA 1 de CC1): + `propuestas-aprobar` y `propuestas-cambios` (se contestan en la pantalla Propuestas, no en la ficha) */
+export const PUERTAS_DE_LA_FICHA = ["firmar-tablero", "recalcular-tablero", "plan-aprobar", "plan-cambios", "revision-resolver", "dueno-preguntas", "propuestas-aprobar", "propuestas-cambios"] as const
 export type Puerta = (typeof PUERTAS_DE_LA_FICHA)[number]
 
 /** las pantallas donde se hace lo que no cabe en la ficha (ADENDA 2 de Emilio). El texto del enlace sale de aquí, nunca de la oficina */
-export type Pantalla = "plan" | "piezas" | "gran_idea" | "manual"
+/** 16-nov · «Propuestas»: el nombre lo dio Emilio (22:23); sirve para video e imagen. Se abre encima, en el mismo lugar */
+export type Pantalla = "plan" | "piezas" | "gran_idea" | "manual" | "propuestas"
 /** `propio`: nombre propio del sistema fijado por Emilio (mayúscula en cada palabra principal y línea dorada). Los demás, pendientes de su nombre */
 /** `en`: cómo se dice «Se decide en …» (CC6 #321 opción a: lo que se decide en otra pantalla no «solo avisa») */
 export const NOMBRE_DE_LA_PANTALLA: Record<Pantalla, { ir: string; en: string; nombre: string; propio: boolean }> = {
   plan: { ir: "Ir al", en: "en el", nombre: "Plan de Marketing", propio: true }, piezas: { ir: "Ir a", en: "en", nombre: "Piezas", propio: false }, gran_idea: { ir: "Ir a la", en: "en la", nombre: "Gran idea", propio: false }, manual: { ir: "Ir al", en: "en el", nombre: "Manual de marca", propio: false },
+  propuestas: { ir: "Ver las", en: "en", nombre: "Propuestas", propio: false },
 }
 /** NOMBRES PROPIOS DEL SISTEMA (Emilio, 09-nov · regla del estilo base): mayúscula en cada palabra principal; dentro del texto, una línea dorada sutil debajo.
  *  Uno nuevo se agrega aquí solo con el nombre que dio Emilio (si no está definido, se pregunta por Lenovo; no se inventa) */
@@ -136,9 +140,10 @@ export function fichaDeLaPregunta(d: Decision, x: { departamento: string; detien
 }
 
 /** 10-nov · T2 (SEÑAL Lenovo 01:10Z · DISENO §9): las demás decisiones también por la ficha. La pantalla dueña, traducida a la lista cerrada */
-export const PANTALLA_DEL_PANEL: Record<string, Pantalla> = { plan: "plan", gran_idea: "gran_idea", piezas: "piezas", manual: "manual" }
+export const PANTALLA_DEL_PANEL: Record<string, Pantalla> = { plan: "plan", gran_idea: "gran_idea", piezas: "piezas", manual: "manual", propuestas: "propuestas" }
 /** las fuentes que declaran que no vencen (como la plataforma, `NO_VENCEN`): el Tablero Financiero se reemplaza solo con una versión nueva (v7 «Sin fecha límite») */
 const NO_VENCEN = new Set(["finanzas_tableros"])
+// 16-nov · Propuestas: sin fecha límite (Emilio 22:23); la parada espera hasta que decidas
 
 /** T2 · TRADUCTOR DEL TABLERO para todo lo que no es pregunta: firma, plan, gran idea, piezas, revisiones, campaña y avisos.
  *  Refleja lo que hoy se ofrece y nada más: «Firmar» pasa a Aprobar; «Cambiar cifra» deja de ser botón (se toca la cifra); lo que se decide en otra
@@ -156,9 +161,12 @@ export function fichaDeLaDecision(d: Decision, x: { departamento: string; cuenta
     ...(d.criticos?.length ? { decisivo: d.criticos.map((c) => ({ corto: decisivoCorto(c).frase, largo: c })) } : {}),
     ...(d.para_que ? { uso: { largo: d.para_que, ...(d.para_que_corto ? { corto: d.para_que_corto } : {}) } } : {}),
     ...(x.destraba ? { desbloquea: { largo: x.destraba, ...(x.destrabaCorto ? { corto: x.destrabaCorto } : {}) } } : {}),
-    ...(x.detiene ? { detiene: { que: "el plan" } } : {}),
-    ...(cifras.length || d.supuesto ? { propuesta: { ...(cifras.length ? { cifras } : {}), ...(d.supuesto ? { supuesto: d.supuesto } : {}), ...(editar && d.al_editar ? { al_cambiar: d.al_editar } : {}) } } : {}),
-    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : NO_VENCEN.has(d.fuente ?? "") ? { sin_limite: true as const } : {}), ...(d.version_del_documento ? { version_del_documento: d.version_del_documento } : {}), ...(d.vencida && d.vence ? { vencida: true as const } : {}) },
+    // 16-nov · lo que espera unas propuestas es la producción de esa pieza, no el plan
+    ...(x.detiene ? { detiene: { que: d.tipo === "propuestas" ? "la producción" : "el plan" } } : {}),
+    // 16-nov · Propuestas: lo que se propone es cuántas hay (el dato del encargo, no un texto del tablero)
+    ...(d.tipo === "propuestas" && d.propuestas ? { propuesta: { supuesto: resumenDeLasPropuestas(d.propuestas) } } : {}),
+    ...(d.tipo !== "propuestas" && (cifras.length || d.supuesto) ? { propuesta: { ...(cifras.length ? { cifras } : {}), ...(d.supuesto ? { supuesto: d.supuesto } : {}), ...(editar && d.al_editar ? { al_cambiar: d.al_editar } : {}) } } : {}),
+    espera: { desde: d.desde, ...(d.vence ? { vence: d.vence } : NO_VENCEN.has(d.fuente ?? "") || d.tipo === "propuestas" ? { sin_limite: true as const } : {}), ...(d.version_del_documento ? { version_del_documento: d.version_del_documento } : {}), ...(d.vencida && d.vence ? { vencida: true as const } : {}) },
     origen: { fuente: d.fuente ?? "", ref: d.id },
     acciones,
     ...(pantalla ? { donde_se_hace: { pantalla } } : {}),

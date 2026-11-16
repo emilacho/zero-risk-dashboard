@@ -63,6 +63,7 @@ describe("6.20 · dónde se decide cada una (tablero nuevo, nunca el viejo)", ()
   it("plan → panel del plan · gran idea → panel de la gran idea · piezas y revisiones → panel de piezas; el resto lo dice, sin botón", () => {
     expect(TIPOS_DE_DECISION.map((t) => { const x = dondeSeDecide({ tipo: t }); return [t, x.panel] })).toEqual([
       ["plan", "plan"], ["gran_idea", "gran_idea"], ["pieza", "piezas"], ["revision", "piezas"], ["pregunta_al_dueno", null], ["pregunta_de_finanzas", null], ["firma_de_finanzas", null],
+      ["propuestas", "propuestas"], // 16-nov (Sprint 2): se eligen en Propuestas, encima y en el mismo lugar
     ])
     const panel = readFileSync("components/nuevo/PanelDecisiones.tsx", "utf8")
     expect(panel).not.toMatch(/href=|\/oficinas|\/piezas"|window\.location/) // nada enlaza al tablero viejo
