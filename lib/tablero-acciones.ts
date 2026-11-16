@@ -17,6 +17,7 @@ export type NombreDeAccion =
   | "oficina-estado" | "oficina-tope"
   | "revision-resolver"
   | "manual-campos" | "manual-validar" | "manual-palabra" | "manual-validar-campo" | "manual-cambios"
+  | "propuestas-aprobar" | "propuestas-cambios"
 
 type Cuerpo = Record<string, unknown>
 export type Validacion = { ok: true; cuerpo: Cuerpo } | { ok: false; error: string; detalle: string }
@@ -58,7 +59,27 @@ export const SOLO_DESDE_DECISIONES: readonly string[] = ["firmar-tablero", "reca
 const conId = (c: Cuerpo, campo: string): string | null => (typeof c[campo] === "string" && UUID.test(c[campo] as string) ? (c[campo] as string) : null)
 const comentario = (c: Cuerpo, min: number, max = 2000): string | null => { const t = texto(c.comentario); return t.length >= min && t.length <= max ? t : null }
 
+/** 16-nov (Sprint 2 · ADENDA 1 de CC1): la ronda que se contesta (la plataforma rechaza una vieja con 409 `ronda_vieja`) y la propuesta elegida («P1», «P2»…) */
+const rondaDe = (c: Cuerpo): number | null => (typeof c.ronda === "number" && Number.isInteger(c.ronda) && c.ronda >= 1 ? c.ronda : null)
+const PROPUESTA_ID = /^[A-Za-z0-9_-]{1,40}$/
+
 export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
+  // PROPUESTAS (Sprint 2 · Emilio 16-nov): la ÚNICA aprobación del encargo. Aprobar es el «dale» de esa pieza: fabrica la elegida dentro del tope del encargo, que ya está
+  // fijado (no pide otra confirmación de gasto · CC1 ADENDA 1 §2). Pedir cambios devuelve las observaciones a la mesa, que vuelve a presentar (ronda + 1)
+  "propuestas-aprobar": {
+    gasta: null,
+    validar: (c) => {
+      const id = conId(c, "encargo_id"), ronda = rondaDe(c), p = texto(c.propuesta_id)
+      return !id ? mal("falta el encargo") : !ronda ? mal("falta la ronda") : !PROPUESTA_ID.test(p) ? mal("falta la propuesta elegida") : { ok: true, cuerpo: { encargo_id: id, ronda, propuesta_id: p } }
+    },
+  },
+  "propuestas-cambios": {
+    gasta: null,
+    validar: (c) => {
+      const id = conId(c, "encargo_id"), ronda = rondaDe(c), t = texto(c.observaciones)
+      return !id ? mal("falta el encargo") : !ronda ? mal("falta la ronda") : t.length < 1 || t.length > 2000 ? mal("escribe tus observaciones (hasta 2.000 caracteres)") : { ok: true, cuerpo: { encargo_id: id, ronda, observaciones: t } }
+    },
+  },
   // CC6 · 03-nov · ruta de CC1 (#852): devuelve UNA pieza archivada de una campaña anterior a la bandeja; no gasta. Fuera del archivo la plataforma da 409
   "archivo-recuperar-pieza": {
     gasta: null,

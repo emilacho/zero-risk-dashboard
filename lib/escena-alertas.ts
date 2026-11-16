@@ -172,23 +172,27 @@ export function preguntasSinResponder(e: EntradaDeAlertas): AlertaDeLaAntena[] {
  */
 export const FUENTES_DEL_DEPARTAMENTO: readonly string[] = ["hitl_queue", "plan_aprobaciones", "cadena_campanas"]
 export interface DecisionPendiente { id: string; tipo: string; fuente: string | null; client_id: string | null; desde: string | null; /** `ficha.departamento.oficina`, si la plataforma lo manda */ oficina: string | null; cliente?: string | null; /** CC1 #965 */ alerta?: AlertaRevisable | null }
-export function departamentoDeLaDecision(d: Pick<DecisionPendiente, "fuente" | "oficina">): string | null {
+export function departamentoDeLaDecision(d: Pick<DecisionPendiente, "fuente" | "oficina"> & Partial<Pick<DecisionPendiente, "tipo">>): string | null {
   if (d.fuente && FUENTES_DEL_DEPARTAMENTO.includes(d.fuente)) return DEPARTAMENTO_DE_LA_ANTENA
+  // 16-nov (Sprint 2): las propuestas de una pieza las presenta la mesa creativa: son de Marketing aunque su fuente (`oficina_turnos`) sea general
+  if (d.tipo === "propuestas") return DEPARTAMENTO_DE_LA_ANTENA
   return departamentoDe(d.oficina)
 }
 /** la frase del aviso, en palabras de negocio */
 const QUE_ESPERA: Record<string, string> = { gran_idea: "Gran idea de la Campaña de Marketing", pieza: "Pieza de la Campaña de Marketing", revision: "Revisión de la Campaña de Marketing", plan: "Plan de Marketing" }
 /** la misma frase en plural, para el renglón que junta varias iguales */
 const QUE_ESPERAN: Record<string, string> = { gran_idea: "Grandes ideas de la Campaña de Marketing", pieza: "Piezas de la Campaña de Marketing", revision: "Revisiones de la Campaña de Marketing", plan: "Planes de Marketing" }
+/** 16-nov (Sprint 2) · lo que se decide es cuál fabricar: «elección», no «aprobación» de una pieza hecha */
+export const PROPUESTAS_ESPERAN = "Propuestas de la Campaña de Marketing esperan tu elección"
 /** una pieza de la bandeja de la campaña: la única decisión que hoy tiene visor propio para abrirse en el lugar */
 export const esPiezaDeLaBandeja = (d: Pick<DecisionPendiente, "tipo" | "fuente">): boolean => d.tipo === "pieza" && d.fuente === "hitl_queue"
 export function decisionesPendientes(e: EntradaDeAlertas): AlertaDeLaAntena[] {
   return (e.decisiones ?? []).filter((d) => d.fuente !== "dueno_preguntas" && delCliente(d.client_id, e.cliente)).map((d): AlertaDeLaAntena => ({
-    clave: `decision:${d.id}`, tipo: "decision", texto: `${QUE_ESPERA[d.tipo] ?? "Una decisión"} espera tu aprobación`,
+    clave: `decision:${d.id}`, tipo: "decision", texto: d.tipo === "propuestas" ? PROPUESTAS_ESPERAN : `${QUE_ESPERA[d.tipo] ?? "Una decisión"} espera tu aprobación`,
     cuando: d.desde ?? e.ahora.toISOString(), abre: DESTINO_DEL_AVISO.decision, departamento: departamentoDeLaDecision(d),
     ...(d.alerta ? { revisar: d.alerta } : {}), ...(d.cliente ? { cliente: d.cliente } : {}),
     ...(esPiezaDeLaBandeja(d) ? { pieza: d.id } : {}),
-    grupo: { clave: `decision:${d.tipo}:${d.client_id ?? ""}`, texto: `${QUE_ESPERAN[d.tipo] ?? "Decisiones"} esperan tu aprobación` },
+    grupo: { clave: `decision:${d.tipo}:${d.client_id ?? ""}`, texto: d.tipo === "propuestas" ? PROPUESTAS_ESPERAN : `${QUE_ESPERAN[d.tipo] ?? "Decisiones"} esperan tu aprobación` },
   }))
 }
 

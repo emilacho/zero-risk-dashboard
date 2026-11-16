@@ -6,6 +6,7 @@ import { PanelPlan } from "@/components/nuevo/PanelPlan"
 import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
 import { PanelManual } from "@/components/nuevo/PanelManual"
+import { PanelPropuestas } from "@/components/nuevo/PanelPropuestas"
 import { Acciones, Aviso, BOTON_SECUNDARIO, PanelBase, Paginas, Recuadros, Rotulo } from "@/components/nuevo/EstiloBase"
 import {
   accionesDe, dondeSeDecide, faltaQueLeer, gruposDeDecisiones, haceCuanto, nombreDeOficina, tituloDeDecision,
@@ -36,7 +37,7 @@ const DEPARTAMENTO_DE_LA_FUENTE: Record<string, ClaveDeDepartamento> = {
   hitl_queue: "marketing", plan_aprobaciones: "marketing", finanzas_tableros: "finanzas", finanzas_preguntas: "finanzas",
 }
 const DEPARTAMENTO_DEL_TIPO: Partial<Record<Decision["tipo"], ClaveDeDepartamento>> = {
-  plan: "marketing", gran_idea: "marketing", pieza: "marketing", revision: "marketing", firma_de_finanzas: "finanzas", pregunta_de_finanzas: "finanzas",
+  plan: "marketing", gran_idea: "marketing", pieza: "marketing", revision: "marketing", propuestas: "marketing", firma_de_finanzas: "finanzas", pregunta_de_finanzas: "finanzas",
 }
 export function departamentoDe(d: Pick<Decision, "tipo" | "fuente" | "pregunta_de">): string {
   const clave = DEPARTAMENTO_DEL_TIPO[d.tipo] ?? (d.pregunta_de ? departamentoDeLaOficina(d.pregunta_de.oficina) : null) ?? DEPARTAMENTO_DE_LA_FUENTE[d.fuente ?? ""] ?? null
@@ -296,6 +297,8 @@ export function PanelDecisiones({ onCerrar, datosIniciales = null, fetchImpl = f
     if (donde.panel === "gran_idea") return <PanelGranIdea onCerrar={volver} clienteInicial={abierta.client_id} />
     if (donde.panel === "manual") return <PanelManual onCerrar={volver} clienteInicial={abierta.client_id} />
     if (donde.panel === "piezas") return <PanelPiezas onCerrar={volver} clienteInicial={abierta.client_id} piezaInicial={abierta.id} />
+    // 16-nov (Sprint 2): las propuestas se eligen encima, en el mismo lugar; al volver, Decisiones se lee de nuevo
+    if (donde.panel === "propuestas" && abierta.propuestas) return <PanelPropuestas decision={{ ...abierta, propuestas: abierta.propuestas }} onCerrar={volver} fetchImpl={fetchImpl} />
   }
 
   const total = g.firma.length, fuera = g.fuera.length, detienen = g.detienen.length
