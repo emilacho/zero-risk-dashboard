@@ -116,7 +116,7 @@ export function PanelPropuestas({ decision, onCerrar, fetchImpl = fetch, elegida
 function Tarjeta({ x, k, total, elegida, alElegir, apagada }: { x: PropuestaDeVideo; k: number; total: number; elegida: boolean; alElegir: () => void; apagada: boolean }) {
   const portada = x.planos.find((p) => p.imagenes.length)?.imagenes[0]
   return (
-    <article data-propuesta={x.id} data-elegida={elegida || undefined} className={`flex min-w-0 flex-col gap-4 rounded-tarjeta border bg-grafito-2 p-5 ${elegida ? "border-oro shadow-[0_0_0_1px_rgba(232,200,120,0.35)]" : "border-linea"}`}>
+    <article data-propuesta={x.id} data-elegida={elegida || undefined} className={`flex min-w-0 flex-col gap-4 rounded-tarjeta border bg-grafito-2 p-5 ${elegida ? "border-oro" : "border-linea"}`}>
       <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <Rotulo tono="gris">Propuesta {k + 1} de {total}</Rotulo>
@@ -129,7 +129,7 @@ function Tarjeta({ x, k, total, elegida, alElegir, apagada }: { x: PropuestaDeVi
       <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-4">
         {/* el borrador en video (animatic): fiel al final en planos, encuadres, duración y textos */}
         {x.video_url
-          ? <video data-borrador-video src={x.video_url} poster={portada} controls playsInline preload="metadata" className="aspect-[9/16] w-full rounded-control border border-linea bg-black object-cover" aria-label={`Borrador en video de ${x.nombre}`} />
+          ? <video data-borrador-video src={x.video_url} poster={portada} controls playsInline preload="metadata" className="aspect-[9/16] w-full rounded-control border border-linea bg-carbon object-cover" aria-label={`Borrador en video de ${x.nombre}`} />
           : <div data-sin-video className="flex aspect-[9/16] w-full items-center justify-center rounded-control border border-dashed border-linea p-2 text-center text-dato text-gris">El borrador en video todavía no está<SinDato /></div>}
         <div className="min-w-0 space-y-3 text-left">
           <p data-concepto className="text-cuerpo text-hueso">{x.concepto ? <ConNombres texto={x.concepto} /> : <SinDato />}</p>
@@ -162,12 +162,12 @@ function Plano({ p }: { p: PlanoDePropuesta }) {
       <div className="flex gap-1">
         {p.imagenes.length
           // eslint-disable-next-line @next/next/no-img-element -- cuadros del almacén de la plataforma, ya en tamaño de borrador
-          ? p.imagenes.map((src, i) => <img key={i} data-cuadro src={src} alt={p.se_ve ?? ""} loading="lazy" className="aspect-[9/16] w-16 rounded-control border border-linea bg-black object-cover" />)
-          : <div data-cuadro-vacio className="flex aspect-[9/16] w-16 items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-[10px] leading-tight text-gris">{p.se_ve ?? "Sin imagen"}</div>}
+          ? p.imagenes.map((src, i) => <img key={i} data-cuadro src={src} alt={p.se_ve ?? ""} loading="lazy" className="aspect-[9/16] w-16 rounded-control border border-linea bg-carbon object-cover" />)
+          : <div data-cuadro-vacio className="flex aspect-[9/16] w-16 items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-rotulo leading-tight text-gris">{p.se_ve ?? "Sin imagen"}</div>}
       </div>
-      <span className="text-[11px] text-oro">{p.n} · {rolLegible(p.rol) ?? <SinDato />}</span>
-      <span className="text-[11px] text-gris">{tramo(p) ?? <SinDato />}</span>
-      <span className="text-[11px] leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
+      <span className="text-rotulo text-oro">{p.n} · {rolLegible(p.rol) ?? <SinDato />}</span>
+      <span className="text-rotulo text-gris">{tramo(p) ?? <SinDato />}</span>
+      <span className="text-rotulo leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
     </li>
   )
 }
