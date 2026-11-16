@@ -147,7 +147,7 @@ describe("3 · la puerta del tablero: valida y pasa a la plataforma (ADENDA 1 §
     expect(c.validar({ encargo_id: ENCARGO, ronda: 2, observaciones: "x".repeat(2000) }).ok).toBe(true)
   })
   it("va a `POST /api/tablero/propuestas-aprobar` con la llave interna y el cuerpo validado; un 409 trae el motivo de la plataforma", async () => {
-    const f = vi.fn((_u: string, _i?: RequestInit) => respuesta(200, { ok: true, encargo_id: ENCARGO, propuesta_id: "P2", estado: "aprobada" }))
+    const f = vi.fn<(u: string, i?: RequestInit) => Promise<Response>>(() => respuesta(200, { ok: true, encargo_id: ENCARGO, propuesta_id: "P2", estado: "aprobada" }))
     const r = await ejecutarAccion("propuestas-aprobar", { encargo_id: ENCARGO, ronda: 1, propuesta_id: "P2" }, { revisor: "emilio", plataformaUrl: "https://plataforma.example/", llave: "k", fetchImpl: f as never })
     expect(r.status).toBe(200)
     const [u, init] = f.mock.calls[0]
@@ -222,7 +222,7 @@ describe("4 · la pantalla Propuestas (boceto aprobado + borrador en video + cos
 
 describe("5 · elegir y contestar (con un doble de la plataforma)", () => {
   it("elegir la propuesta 2 y aprobar manda `propuesta_id: P2` de la ronda que se ve, y dice qué pasa ahora", async () => {
-    const f = vi.fn((_u: string, _i?: RequestInit) => respuesta(200, { ok: true, accion: "propuestas-aprobar" }))
+    const f = vi.fn<(u: string, i?: RequestInit) => Promise<Response>>(() => respuesta(200, { ok: true, accion: "propuestas-aprobar" }))
     const cerrar = vi.fn()
     const v = render(createElement(PanelPropuestas, { decision: decision(), onCerrar: cerrar, fetchImpl: f as never }))
     fireEvent.click(v.container.querySelector('[data-elegir="P2"]')!)
@@ -236,7 +236,7 @@ describe("5 · elegir y contestar (con un doble de la plataforma)", () => {
     fireEvent.click(v.container.querySelector("[data-volver]")!); expect(cerrar).toHaveBeenCalled()
   })
   it("pedir cambios: primero abre la caja (Aprobar se esconde); sin texto no sale; con texto manda las observaciones", async () => {
-    const f = vi.fn((_u: string, _i?: RequestInit) => respuesta(200, { ok: true }))
+    const f = vi.fn<(u: string, i?: RequestInit) => Promise<Response>>(() => respuesta(200, { ok: true }))
     const v = render(createElement(PanelPropuestas, { decision: decision({}, { ronda: 2 }), onCerrar: () => undefined, fetchImpl: f as never }))
     fireEvent.click(v.container.querySelector('[data-verbo="pedir_cambios"]')!)
     expect(v.container.querySelector("[data-observaciones]")).not.toBeNull(); expect(v.container.querySelector('[data-verbo="aprobar"]')).toBeNull()
@@ -279,7 +279,7 @@ describe("6 · desde Decisiones: la tarjeta abre Propuestas en el mismo lugar y,
   it("«Ver las Propuestas» abre la pantalla encima; «Volver» tras aprobar vuelve a Decisiones y relee la lista", async () => {
     const { PanelDecisiones } = await import("@/components/nuevo/PanelDecisiones")
     const datos = normalizarDecisiones({ decisiones: [fila()], fuentes: [], sin_fuente: [], completo: true })
-    const f = vi.fn((u: string, _i?: RequestInit) => u.startsWith("/api/acciones/")
+    const f = vi.fn<(u: string, i?: RequestInit) => Promise<Response>>((u) => u.startsWith("/api/acciones/")
       ? respuesta(200, { ok: true })
       : respuesta(200, { ok: true, ...normalizarDecisiones({ decisiones: [], fuentes: [], sin_fuente: [], completo: true }) }))
     const v = render(createElement(PanelDecisiones, { onCerrar: () => undefined, datosIniciales: datos, fetchImpl: f as never }))
