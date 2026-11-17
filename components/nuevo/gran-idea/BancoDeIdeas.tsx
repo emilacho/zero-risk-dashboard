@@ -97,14 +97,15 @@ export function BancoDeIdeas({ d, ctx, onGuardado, fetchImpl = fetch }: {
         </button>
         <div className="px-3 pb-3">
           {CAMPOS_EDITABLES.map((c: CampoEditable) => {
-            const guardado = limpio(i[c])
-            const valor = ed[c] ?? guardado
+            // 🟡 de CC6: se edita el texto GUARDADO (con los códigos que dicen qué idea replicar), y se lee limpio
+            const crudo = ed[c] ?? i[c]
+            const valor = limpio(crudo)
             if (!valor) return null
             return (
               <div key={c} data-campo={c} className="mt-2">
                 <p className="mb-1 text-rotulo uppercase tracking-[0.08em] text-gris">{ETIQUETA_DEL_CAMPO[c]}{ed[c] != null && <span className="ml-1 rounded-full border border-linea-oro px-2 py-0.5 text-rotulo normal-case tracking-normal text-oro">editado · en espera</span>}</p>
                 {editable
-                  ? <div className="flex flex-wrap items-start gap-3"><RenglonEditable key={valor} texto={valor} editado={ed[c] != null} sinVineta etiqueta={ETIQUETA_DEL_CAMPO[c].toLowerCase()} onEditar={(nuevo) => setEdiciones((e) => conEdicion(e, { ...i, [c]: guardado }, c, nuevo))} /></div>
+                  ? <div className="flex flex-wrap items-start gap-3"><RenglonEditable key={crudo} texto={valor} textoAEditar={crudo} editado={ed[c] != null} sinVineta etiqueta={ETIQUETA_DEL_CAMPO[c].toLowerCase()} onEditar={(nuevo) => setEdiciones((e) => conEdicion(e, i, c, nuevo))} /></div>
                   : <p className={`text-dato leading-relaxed text-hueso`}>{valor}</p>}
               </div>
             )
@@ -162,7 +163,7 @@ export function BancoDeIdeas({ d, ctx, onGuardado, fetchImpl = fetch }: {
               const i = porId.get(id)
               return (
                 <li key={`${id}-${c}`} data-cambio={`${id}:${c}`} className="flex items-start gap-3">
-                  <span className="min-w-0 flex-1">«{i ? limpio(nombreDelCapitulo(i)) : "Idea"}» · {ETIQUETA_DEL_CAMPO[c as CampoEditable]}: <span className="text-oro">{t}</span></span>
+                  <span className="min-w-0 flex-1">«{i ? limpio(nombreDelCapitulo(i)) : "Idea"}» · {ETIQUETA_DEL_CAMPO[c as CampoEditable]}: <span className="text-oro">{limpio(t)}</span></span>
                   <button type="button" aria-label={`Deshacer el cambio de ${ETIQUETA_DEL_CAMPO[c as CampoEditable].toLowerCase()}`} onClick={() => deshacer(id, c as CampoEditable)} className="text-gris hover:text-hueso">✕</button>
                 </li>
               )

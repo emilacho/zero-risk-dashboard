@@ -157,7 +157,10 @@ describe("4 · el pedido va a la plataforma (el tablero no escribe la base)", ()
   it("lo que dice la plataforma: sin ruta = 501 sin simular · 409 se pasa · un rechazo o un ok:false nunca es ok", async () => {
     const b = base(hitl(), concepto)
     expect(await pedirAlBanco(HITL, EDITAR, deps(b, respuesta(404, {})))).toMatchObject({ status: 501, cuerpo: { ok: false, error: "plataforma_sin_ruta" } })
-    expect(await pedirAlBanco(HITL, EDITAR, deps(b, respuesta(409, { ok: false, codigo: "version_cambio", error: "la versión aprobada es otra" })))).toEqual({ status: 409, cuerpo: { ok: false, error: "version_cambio", detalle: "la versión aprobada es otra" } })
+    // la forma de CC1 (#1084): `{ok:false, error, code, detalle}` · en pantalla solo el `detalle`, en lenguaje claro
+    expect(await pedirAlBanco(HITL, EDITAR, deps(b, respuesta(409, { ok: false, error: "e_version", code: "E-VERSION-NO-VIGENTE", detalle: "la versión aprobada es otra: recarga", version_vigente: 5 })))).toEqual({ status: 409, cuerpo: { ok: false, error: "E-VERSION-NO-VIGENTE", detalle: "la versión aprobada es otra: recarga" } })
+    expect(await pedirAlBanco(HITL, EDITAR, deps(b, respuesta(400, { ok: false, error: "e_campo", code: "E-CAMPO-NO-EDITABLE" })))).toMatchObject({ status: 502, cuerpo: { ok: false, detalle: "la plataforma no pudo guardar el cambio" } })
+    expect(await pedirAlBanco(HITL, EDITAR, deps(b, respuesta(200, { ok: true, sin_cambios: true })))).toMatchObject({ status: 200, cuerpo: { ok: true, nota: "No había cambios que guardar: el texto ya era ese." } })
     expect(await pedirAlBanco(HITL, EDITAR, deps(b, respuesta(500, { error: "se_rompio" })))).toMatchObject({ status: 502, cuerpo: { ok: false, plataforma_status: 500 } })
     expect(await pedirAlBanco(HITL, EDITAR, deps(b, respuesta(200, { ok: false, error: "raro" })))).toMatchObject({ status: 502, cuerpo: { ok: false } })
     const caida = vi.fn(async () => { throw new Error("sin red") }) as unknown as typeof fetch
@@ -221,6 +224,23 @@ describe("5 · en pantalla", () => {
     expect(JSON.parse(init.body)).toEqual({ accion: "editar", version: 4, cambios: [{ idea_id: "C1-I01", campos: { mensaje: "lo que dura se compra en El Clavo" } }] })
     expect(container.querySelector("[data-tus-cambios]")).toBeNull()
     expect(screen.getByRole("status").textContent).toBe("Cambios guardados en 1 idea.")
+  })
+  it("🟡 de CC6: editar una palabra conserva el código que la pantalla lee en palabras («C1-I02» viaja tal cual)", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ ok: true, nota: "Cambios guardados en 1 idea." }), { status: 200 })) as unknown as typeof fetch
+    const { container } = render(<BancoDeIdeas d={D("aprobada", BANCO_FERRE, CAPS_FERRE)} ctx={CTX} onGuardado={() => {}} fetchImpl={f} />)
+    abrirCapitulo(/La caja se abre/)
+    fireEvent.click(screen.getByText("el martillo de tu abuelo sigue en la caja"))
+    expect(container.querySelector('[data-campo="gancho"]')?.textContent).not.toContain("C1-I02")
+    fireEvent.click(screen.getByRole("button", { name: /^Editar «repite el ritual/ }))
+    const caja = screen.getByRole("textbox") as HTMLTextAreaElement
+    expect(caja.value).toBe("repite el ritual de C1-I02 con el martillo")
+    fireEvent.change(caja, { target: { value: "repite el ritual de C1-I02 con el serrucho" } })
+    fireEvent.click(screen.getByRole("button", { name: "Listo" }))
+    expect(container.querySelector('[data-campo="gancho"]')?.textContent).not.toContain("C1-I02")
+    expect(container.querySelector("[data-tus-cambios]")?.textContent).not.toContain("C1-I02")
+    fireEvent.click(screen.getByRole("button", { name: "Pedir los cambios" }))
+    await waitFor(() => expect(f).toHaveBeenCalled())
+    expect(JSON.parse(((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, { body: string }])[1].body).cambios).toEqual([{ idea_id: "C1-I01", campos: { gancho: "repite el ritual de C1-I02 con el serrucho" } }])
   })
   it("el ✕ deshace un cambio; si la plataforma dice que no, los cambios quedan y se lee el porqué", async () => {
     const f = vi.fn(async () => new Response(JSON.stringify({ ok: false, error: "version_cambio", detalle: "la gran idea cambió mientras la mirabas: recarga" }), { status: 409 })) as unknown as typeof fetch

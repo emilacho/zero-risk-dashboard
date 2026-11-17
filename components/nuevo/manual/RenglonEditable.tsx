@@ -11,9 +11,11 @@ import { confirmaConEnter, textoDelRenglon } from "@/lib/renglones-del-manual"
  *  · Lo editado es directo: no reescribe ni gasta; el panel lo deja en «Tus cambios» y no manda nada hasta «Pedir los cambios».
  *  · Si el renglón ya fue editado (cambio en espera) y se toca «Retirar», avisa antes: se va con su edición.
  */
-export function RenglonEditable({ texto, editado, onEditar, onRetirar: retirarDelPanel, sinVineta = false, etiqueta }: {
+export function RenglonEditable({ texto: visible, textoAEditar, editado, onEditar, onRetirar: retirarDelPanel, sinVineta = false, etiqueta }: {
   /** el renglón como se lee (limpio) */
   texto: string
+  /** 17-nov · banco de ideas (🟡 de CC6): lo que se edita es el texto GUARDADO (con sus códigos), aunque se lea limpio; por defecto, el mismo `texto` */
+  textoAEditar?: string
   /** true = este renglón ya tiene una edición en espera (no es el guardado) */
   editado: boolean
   /** el renglón corregido (una sola línea, ya sin saltos) */
@@ -27,6 +29,7 @@ export function RenglonEditable({ texto, editado, onEditar, onRetirar: retirarDe
 }) {
   const [editando, setEditando] = useState(false)
   const [avisar, setAvisar] = useState(false)
+  const texto = textoAEditar ?? visible
   const [valor, setValor] = useState(texto)
   const [error, setError] = useState<string | null>(null)
   const caja = useRef<HTMLTextAreaElement>(null)
@@ -45,7 +48,7 @@ export function RenglonEditable({ texto, editado, onEditar, onRetirar: retirarDe
   if (editando) {
     return (
       <form data-editor-renglon className="min-w-0 flex-1 rounded-lg border border-amber-400/30 bg-black/30 p-3" onSubmit={(e) => { e.preventDefault(); listo() }}>
-        <textarea ref={caja} value={valor} onChange={(e) => setValor(e.target.value)} rows={2} aria-label={`Editar ${etiqueta ?? "el renglón"} «${texto.slice(0, 60)}»`}
+        <textarea ref={caja} value={valor} onChange={(e) => setValor(e.target.value)} rows={2} aria-label={`Editar ${etiqueta ?? "el renglón"} «${visible.slice(0, 60)}»`}
           onKeyDown={(e) => { if (confirmaConEnter(e.key, e.shiftKey)) { e.preventDefault(); listo() } }}
           className="w-full resize-y rounded-md border border-white/15 bg-black/40 px-3 py-2 text-[15px] leading-relaxed text-zinc-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400" />
         {error && <p role="alert" className="mt-2 text-[13px] text-rose-300">{error}</p>}
@@ -58,11 +61,11 @@ export function RenglonEditable({ texto, editado, onEditar, onRetirar: retirarDe
   }
   return (
     <>
-      <span className={`min-w-0 flex-1 ${CUERPO}`}>{!sinVineta && <span aria-hidden /* estilo-ok: la viñeta solo se vuelve opcional, el manual migra entero aparte */ className="mr-2 text-zinc-500">•</span>}{texto}</span>
+      <span className={`min-w-0 flex-1 ${CUERPO}`}>{!sinVineta && <span aria-hidden /* estilo-ok: la viñeta solo se vuelve opcional, el manual migra entero aparte */ className="mr-2 text-zinc-500">•</span>}{visible}</span>
       <span className="flex shrink-0 gap-1.5">
-        <button type="button" data-accion="editar-renglon" aria-label={`Editar «${texto.slice(0, 60)}»`} onClick={abrir}
+        <button type="button" data-accion="editar-renglon" aria-label={`Editar «${visible.slice(0, 60)}»`} onClick={abrir}
           className="rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-300 transition hover:border-amber-400/60 hover:text-amber-100">Editar</button>
-        {retirarDelPanel && <button type="button" data-accion="retirar" aria-label={`Retirar «${texto.slice(0, 60)}»`} onClick={retirar}
+        {retirarDelPanel && <button type="button" data-accion="retirar" aria-label={`Retirar «${visible.slice(0, 60)}»`} onClick={retirar}
           /* estilo-ok: el botón solo se vuelve opcional, el manual migra entero aparte */ className="rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-400 transition hover:border-rose-400/60 hover:text-rose-200">Retirar</button>}
       </span>
       {avisar && (

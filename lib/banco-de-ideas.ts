@@ -139,15 +139,16 @@ export async function pedirAlBanco(hitlId: string, raw: unknown, d: DepsDelBanco
     let j: Record<string, unknown> = {}
     try { j = txt ? (JSON.parse(txt) as Record<string, unknown>) : {} } catch { j = { detalle: txt.slice(0, 400) } }
     if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "plataforma_sin_ruta", detalle: "la plataforma todavía no tiene la ruta del banco de ideas: no se envió nada" } }
-    if (r.status === 409) return { status: 409, cuerpo: { ok: false, error: String(j.codigo ?? j.error ?? "la_cadena_dijo_que_no"), detalle: String(j.error ?? j.detalle ?? "la gran idea cambió: recarga") } }
-    if (!r.ok || j.ok !== true) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: r.status, detalle: String(j.error ?? j.detalle ?? txt.slice(0, 400)) } }
+    // la plataforma (ENTREGA CC1 #1084) responde `{ok:false, error, code, detalle}`: `detalle` está en lenguaje claro y es lo único que se lee en pantalla
+    if (r.status === 409) return { status: 409, cuerpo: { ok: false, error: String(j.code ?? j.error ?? "la_cadena_dijo_que_no"), detalle: String(j.detalle ?? "la gran idea cambió mientras la mirabas: recarga") } }
+    if (!r.ok || j.ok !== true) return { status: 502, cuerpo: { ok: false, error: "la_plataforma_rechazo", plataforma_status: r.status, detalle: String(j.detalle ?? "la plataforma no pudo guardar el cambio") } }
     return {
       status: 200,
       cuerpo: {
         ok: true,
         accion: v.pedido.accion,
         version: j.version ?? detalle.version,
-        nota: v.pedido.accion === "editar"
+        nota: j.sin_cambios === true ? "No había cambios que guardar: el texto ya era ese." : v.pedido.accion === "editar"
           ? `Cambios guardados en ${ids.length === 1 ? "1 idea" : `${ids.length} ideas`}. ${ALCANCE_DE_LOS_CAMBIOS}`
           : "Idea retirada del banco.",
       },
