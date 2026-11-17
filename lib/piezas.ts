@@ -187,6 +187,23 @@ export function avisoDeRevisionIncompleta(meta: Record<string, unknown>, paso: P
   return null
 }
 
+/** el rótulo del aviso que deja la mesa cuando no pudo corregir sin tocar el concepto aprobado */
+export const ROTULO_AVISO_DE_CONCEPTO = "La mesa no pudo corregir sin tocar el concepto aprobado"
+const TOPE_AVISOS_DE_CONCEPTO = 5
+const TOPE_TEXTO_DE_CONCEPTO = 500
+/** las líneas de `metadata.avisos_de_concepto`: solo textos con contenido, recortados, sin repetidas y con tope; cualquier otra forma no muestra nada */
+export function avisosDeConcepto(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  const vistos = new Set<string>()
+  for (const x of v) {
+    if (typeof x !== "string") continue
+    const t = x.trim().slice(0, TOPE_TEXTO_DE_CONCEPTO)
+    if (t && !vistos.has(t)) vistos.add(t)
+    if (vistos.size >= TOPE_AVISOS_DE_CONCEPTO) break
+  }
+  return [...vistos]
+}
+
 export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: VideoDeLaPieza | null = null, pasoFallido: PasoFallido | null = null): Aviso[] {
   const meta = fila.metadata ?? {}
   const out: Aviso[] = []
@@ -212,6 +229,9 @@ export function avisosDeLaPieza(fila: DatosDeLaFila, laminas: Lamina[], video: V
   if (incompleta) out.push({ nivel: "ambar", texto: incompleta })
   const desac = lista(meta.desacuerdos)
   if (desac.length > 0) out.push({ nivel: "ambar", texto: `${desac.length} desacuerdo${desac.length === 1 ? "" : "s"} abierto${desac.length === 1 ? "" : "s"} en la revisión.` })
+  // 17-nov (Lenovo, parada única): si corregir obligaba a cambiar el concepto aprobado, la mesa siguió con la mejor versión fiel y lo avisa aquí (CC1 · `metadata.avisos_de_concepto`).
+  // No pide la casilla: el encargo no vuelve a pedir aprobación. Solo texto legible, sin repetidas, con tope (lo demás no se muestra).
+  for (const t of avisosDeConcepto(meta.avisos_de_concepto)) out.push({ nivel: "ambar", texto: `${ROTULO_AVISO_DE_CONCEPTO}: ${t}` })
   const glifos = laminas.filter((l) => l.glifos_riesgosos).map((l) => l.n)
   if (glifos.length > 0) out.push({ nivel: "ambar", texto: `Las láminas ${glifos.join(", ")} llevan signos (✔ ✗ o emojis) que el dibujo pinta como cuadros vacíos. Mira la imagen antes de aprobar.` })
   if (meta.sin_dibujar === true) out.push({ nivel: "rojo", texto: "Cerrada SIN DIBUJAR: es solo el texto del equipo, decide una persona." })

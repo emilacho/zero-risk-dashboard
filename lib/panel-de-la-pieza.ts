@@ -4,6 +4,7 @@
  * Aquí viven solo las cuentas y las frases, sin React, para poder probarlas con datos reales de más de un cliente.
  */
 import type { Aviso, VideoDeLaPieza } from "@/lib/piezas"
+import { ROTULO_AVISO_DE_CONCEPTO } from "@/lib/piezas"
 import type { FilaDeLaPieza } from "@/lib/pieza-acompana"
 import { diaConNombre } from "@/lib/calendario"
 import { formatoLegible, redDelTablero } from "@/lib/pizarron"
@@ -32,6 +33,7 @@ export function chipDelAviso(a: Aviso): ChipDeAviso | null {
   if (/SIN DIBUJAR/.test(t)) return chip("Sin dibujar")
   if (/^Las láminas .* signos/.test(t)) return chip("Signos que salen vacíos")
   if (/^El resumen de la bandeja/.test(t)) return chip("Faltan imágenes")
+  if (t.startsWith(ROTULO_AVISO_DE_CONCEPTO)) return chip("Toca el concepto")
   return chip("Aviso")
 }
 
