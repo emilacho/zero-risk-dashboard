@@ -20,7 +20,11 @@ export interface PlanoDePropuesta {
   producto: boolean | null
   /** los cuadros en borrador del plano (más de uno si dura más de 3 s); vacío = todavía no hay imagen */
   imagenes: string[]
+  /** 17-nov · imagen: la lámina usa una foto propia del cliente (no generada). null = no se dijo */
+  foto_propia: boolean | null
 }
+/** 17-nov · el texto que acompaña la publicación de una pieza de imagen (pie, hashtags, llamado) */
+export interface TextoDeLaPublicacion { texto_base: string | null; pie_de_foto: string | null; hashtags: string[]; llamado: string | null }
 export interface PropuestaDeVideo {
   id: string
   nombre: string
@@ -33,8 +37,15 @@ export interface PropuestaDeVideo {
   video_url: string | null
   /** lo que costó el borrador y lo que costará el final (Emilio 22:23: «costo visible sí») */
   costo: { borrador_usd: number | null; final_usd: number | null }
+  /** en imagen, cada lámina (carrusel/kit) o la pieza (post) viaja como un «plano» sin segundos */
   planos: PlanoDePropuesta[]
+  /** 17-nov · imagen: el pie, los hashtags y el llamado de la publicación; null = no viene (video, o la mesa no lo escribió) */
+  texto_de_la_publicacion: TextoDeLaPublicacion | null
 }
+/** 17-nov · contrato `CONTRATO-CC5-a-CC1-CC6-CC7-propuestas-en-imagen.md` §2: sin `familia`, video (como hasta hoy) */
+export type FamiliaDePropuestas = "video" | "imagen"
+export type ClaseDeImagen = "kit" | "carrusel" | "post_img"
+const CLASES_DE_IMAGEN: readonly ClaseDeImagen[] = ["kit", "carrusel", "post_img"]
 export interface Propuestas {
   encargo_id: string
   brief_id: string | null
@@ -43,6 +54,9 @@ export interface Propuestas {
   quedan_vueltas: number | null
   avisos: string[]
   lista: PropuestaDeVideo[]
+  /** 17-nov · de qué es la pieza: video o imagen (en imagen, `clase` dice si es kit, carrusel o post; null = no se dijo) */
+  familia: FamiliaDePropuestas
+  clase: ClaseDeImagen | null
 }
 
 /** lo que el dueño escribe al pedir cambios (la puerta de la plataforma: 1 a 2.000) */
@@ -67,7 +81,18 @@ function leerPlano(v: unknown, k: number): PlanoDePropuesta {
     rol: txt(p.rol), dice: txt(p.dice), se_ve: txt(p.se_ve), texto_en_pantalla: txt(p.texto_en_pantalla),
     producto: typeof p.producto === "boolean" ? p.producto : null,
     imagenes,
+    foto_propia: typeof p.foto_propia === "boolean" ? p.foto_propia : null,
   }
+}
+
+/** el texto de la publicación: solo si trae algo legible (si no, null: la tarjeta no inventa un pie) */
+function leerTextoDeLaPublicacion(v: unknown): TextoDeLaPublicacion | null {
+  const t = obj(v)
+  const r = {
+    texto_base: txt(t.texto_base), pie_de_foto: txt(t.pie_de_foto), llamado: txt(t.llamado),
+    hashtags: (Array.isArray(t.hashtags) ? t.hashtags : []).map(txt).filter((x): x is string => !!x),
+  }
+  return r.texto_base || r.pie_de_foto || r.llamado || r.hashtags.length ? r : null
 }
 
 function leerPropuesta(v: unknown): PropuestaDeVideo | null {
@@ -81,6 +106,7 @@ function leerPropuesta(v: unknown): PropuestaDeVideo | null {
     video_url: url(p.video_url),
     costo: { borrador_usd: noNegativo(c.borrador_usd), final_usd: noNegativo(c.final_usd) },
     planos: (Array.isArray(p.planos) ? p.planos : []).map(leerPlano),
+    texto_de_la_publicacion: leerTextoDeLaPublicacion(p.texto_de_la_publicacion),
   }
 }
 
@@ -98,7 +124,21 @@ export function leerPropuestas(v: unknown): Propuestas | null {
     quedan_vueltas: qv != null && Number.isInteger(qv) && qv >= 0 ? qv : null,
     avisos: (Array.isArray(p.avisos) ? p.avisos : []).map(txt).filter((x): x is string => !!x),
     lista,
+    // 17-nov · imagen: solo con `familia: 'imagen'` explícito; cualquier otra cosa (o nada) es video, como hasta hoy
+    familia: p.familia === "imagen" ? "imagen" : "video",
+    clase: p.familia === "imagen" && CLASES_DE_IMAGEN.includes(p.clase as ClaseDeImagen) ? (p.clase as ClaseDeImagen) : null,
   }
+}
+
+/** 17-nov · cómo se llama cada «plano» de una propuesta de imagen: «Lámina 2» (carrusel/kit) o «Pieza» (post) */
+export function nombreDeLaLamina(clase: ClaseDeImagen | null, n: number, total: number): string {
+  return clase === "post_img" || total === 1 ? "Pieza" : `Lámina ${n}`
+}
+
+/** 17-nov · la clase en palabras, para la ficha de la propuesta («Carrusel · 5 láminas») */
+export function claseLegible(clase: ClaseDeImagen | null, laminas: number): string {
+  const nombre = clase === "kit" ? "Historia" : clase === "carrusel" ? "Carrusel" : clase === "post_img" ? "Foto" : "Imagen"
+  return clase === "post_img" ? nombre : `${nombre} · ${laminas} ${laminas === 1 ? "lámina" : "láminas"}`
 }
 
 /** «US$ 1,25» (o null si no hay dato: el dibujante pone el guion rojo) */
