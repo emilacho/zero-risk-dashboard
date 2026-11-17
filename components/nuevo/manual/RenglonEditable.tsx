@@ -58,12 +58,12 @@ export function RenglonEditable({ texto, editado, onEditar, onRetirar: retirarDe
   }
   return (
     <>
-      <span className={`min-w-0 flex-1 ${CUERPO}`}>{!sinVineta && <span aria-hidden className="mr-2 text-zinc-500">•</span>}{texto}</span>
+      <span className={`min-w-0 flex-1 ${CUERPO}`}>{!sinVineta && <span aria-hidden /* estilo-ok: la viñeta solo se vuelve opcional, el manual migra entero aparte */ className="mr-2 text-zinc-500">•</span>}{texto}</span>
       <span className="flex shrink-0 gap-1.5">
         <button type="button" data-accion="editar-renglon" aria-label={`Editar «${texto.slice(0, 60)}»`} onClick={abrir}
           className="rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-300 transition hover:border-amber-400/60 hover:text-amber-100">Editar</button>
         {retirarDelPanel && <button type="button" data-accion="retirar" aria-label={`Retirar «${texto.slice(0, 60)}»`} onClick={retirar}
-          className="rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-400 transition hover:border-rose-400/60 hover:text-rose-200">Retirar</button>}
+          /* estilo-ok: el botón solo se vuelve opcional, el manual migra entero aparte */ className="rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-400 transition hover:border-rose-400/60 hover:text-rose-200">Retirar</button>}
       </span>
       {avisar && (
         <div data-aviso-renglon-editado className="basis-full flex flex-wrap items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/[0.06] px-3 py-2">
