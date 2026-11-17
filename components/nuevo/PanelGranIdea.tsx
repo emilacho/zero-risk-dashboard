@@ -11,6 +11,8 @@ import { BarraDelPedido, ESTILO_DEL_PEDIDO } from "@/components/nuevo/pedido/Pie
 import { estadoDelBriefLegible } from "@/lib/brief"
 import { seriesSinRepetir, sinCodigos, sinMarcasDeFormato, type ContextoSinCodigos } from "@/lib/sin-codigos"
 import { ConFormato, TextoSinCodigos } from "@/components/nuevo/TextoSinCodigos"
+import { BancoDeIdeas } from "@/components/nuevo/gran-idea/BancoDeIdeas"
+import { nombreDeRed } from "@/lib/banco-de-ideas"
 import { AL_APROBAR_LA_GRAN_IDEA, avanceDeGranIdea, avisoTrasDecidirGranIdea, cuerpoDeDecisionDeGranIdea, errorTrasDecidirGranIdea, rutaDeDecisionDeGranIdea, type AccionDeGranIdea, type RespuestaDeDecisionDeGranIdea } from "@/lib/gran-idea"
 
 /**
@@ -217,9 +219,11 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                     </Plegable>
                   )}
                   {d.resumen.total > 0 && (
-                    <Plegable id="banco" titulo={`Banco de ideas · ${d.resumen.total}`} resumen={Object.entries(d.resumen.por_red).map(([red, n]) => `${red}: ${n}`).join(" · ")}>
-                      <p>{Object.entries(d.resumen.por_red).map(([red, n]) => `${red}: ${n}`).join(" · ")}</p>
-                      {d.resumen.parcial.length > 0 && <p className="mt-1 text-[11.5px] text-amber-200/80">Banco parcial: {d.resumen.parcial.map((x) => `${x.red} / ${x.capitulo} faltan ${x.faltan}`).join(" · ")}</p>}
+                    // 17-nov · boceto aprobado por Emilio: las ideas mismas, por capítulo, y se editan como el manual (`BancoDeIdeas`)
+                    <Plegable id="banco" titulo={`Banco de ideas · ${d.resumen.total}`} resumen={Object.entries(d.resumen.por_red).map(([red, n]) => `${nombreDeRed(red)}: ${n}`).join(" · ")}>
+                      <p className="mb-3 text-gris">{Object.entries(d.resumen.por_red).map(([red, n]) => `${nombreDeRed(red)}: ${n}`).join(" · ")} · agrupadas por capítulo</p>
+                      {d.resumen.parcial.length > 0 && <p className="mb-3 text-rotulo text-oro">Banco parcial: {d.resumen.parcial.map((x) => `${nombreDeRed(x.red)} / ${x.capitulo} faltan ${x.faltan}`).join(" · ")}</p>}
+                      <BancoDeIdeas d={d} ctx={ctx} fetchImpl={fetchImpl} onGuardado={() => leer(datos?.cliente?.id ?? null, d.hitl_id)} />
                     </Plegable>
                   )}
                   {d.caminos_descartados && <Plegable id="caminos_descartados" titulo="Caminos descartados" resumen={sinCodigos(d.caminos_descartados, ctx)}><TextoSinCodigos contexto={ctx} texto={d.caminos_descartados} fotos={fotos} className="whitespace-pre-wrap" /></Plegable>}

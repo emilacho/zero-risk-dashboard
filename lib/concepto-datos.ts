@@ -14,7 +14,7 @@ export const VUELTAS_MAXIMAS_DE_CAMBIOS = 2
 
 export type EstadoDelConcepto = "pendiente" | "aprobada" | "con_cambios" | "rechazada" | "otro"
 
-export interface IdeaDelBanco { id: string; capitulo: string | null; red: string; formato: string; idea: string; mensaje: string; gancho: string; protagonista: string; serie: string | null; foto: string | null }
+export interface IdeaDelBanco { id: string; capitulo: string | null; red: string; formato: string; idea: string; mensaje: string; gancho: string; protagonista: string; serie: string | null; foto: string | null; retirada?: boolean }
 export interface SerieDelCapitulo { id: string; nombre: string; que_cuenta: string; redes: string[] }
 export interface CapituloDelConcepto { clave: string; fase: string | null; nombre: string; que_cuenta: string; objetivo_cita: string; como_se_ve: string; series: SerieDelCapitulo[] }
 export interface BancoParcial { red: string; capitulo: string; faltan: number; esperadas: number; hay: number }
@@ -74,14 +74,15 @@ export function resumenDelBanco(banco: IdeaDelBanco[], parcial: BancoParcial[], 
   const por_red: Record<string, number> = {}
   const por_capitulo: Record<string, number> = {}
   const ejemplos: ResumenDelBanco["ejemplos"] = {}
-  for (const i of banco) {
+  const vigentes = banco.filter((i) => !i.retirada)
+  for (const i of vigentes) {
     por_red[i.red] = (por_red[i.red] ?? 0) + 1
     const k = i.capitulo ?? "?"
     por_capitulo[k] = (por_capitulo[k] ?? 0) + 1
     ;(ejemplos[k] ??= [])
     if (ejemplos[k].length < ejemplosPorCapitulo) ejemplos[k].push({ id: i.id, idea: i.idea, mensaje: i.mensaje, gancho: i.gancho })
   }
-  return { total: banco.length, por_red, por_capitulo, ejemplos, parcial }
+  return { total: vigentes.length, por_red, por_capitulo, ejemplos, parcial }
 }
 
 export interface FilasDelConcepto {
@@ -98,6 +99,8 @@ export function detalleDelConcepto(f: FilasDelConcepto): DetalleDelConcepto {
   const banco = lista<IdeaDelBanco>(leido?.banco, (i) => ({
     id: texto(i.id), capitulo: typeof i.capitulo === "string" ? i.capitulo : null, red: texto(i.red), formato: texto(i.formato), idea: texto(i.idea), mensaje: texto(i.mensaje), gancho: texto(i.gancho), protagonista: texto(i.protagonista),
     serie: typeof i.serie === "string" ? i.serie : null, foto: typeof i.foto === "string" ? i.foto : null,
+    // 17-nov · banco de ideas: la plataforma marca la idea retirada (no la borra); no se muestra ni se cuenta
+    retirada: i.retirada === true,
   }))
   const parcial = lista<BancoParcial>(leido?.banco_parcial, (p) => ({ red: texto(p.red), capitulo: texto(p.capitulo), faltan: Number(p.faltan ?? 0), esperadas: Number(p.esperadas ?? 0), hay: Number(p.hay ?? 0) }))
   const granIdea = leido?.gran_idea as { nombre?: unknown; frase?: unknown } | null | undefined
