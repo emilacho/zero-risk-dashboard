@@ -76,7 +76,9 @@ describe("el visor de piezas se dibuja", () => {
     expect(html).toMatch(/<button[^>]*>Video<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Lámina<\/button>/)
     const sinAvisos = dibujar(<VisorDePieza pieza={{ ...pieza, avisos: [] }} siguienteId={null} />)
-    expect(sinAvisos).toMatch(/Video · 12 s<\/h4>[\s\S]*?Video GENERADO por un modelo \(no es una grabación real\) · sin voces ni narración\./)
+    expect(sinAvisos).toMatch(/Video · 12 s<\/h4>[\s\S]*?Video GENERADO por un modelo \(no es una grabación real\) · su audio también es generado\./)
+    // DECISIÓN Emilio 17-nov: el rótulo ya no afirma «sin voces»
+    expect(sinAvisos).not.toMatch(/sin voces|sin narraci/i)
   })
   it("T8 · video que quedó solo en el proveedor: no hay reproductor, se dice, lleva el enlace para bajarlo (nunca se reproduce desde ahí) y se puede decidir igual", async () => {
     const { VisorDePieza } = await import("@/app/piezas/VisorDePieza")

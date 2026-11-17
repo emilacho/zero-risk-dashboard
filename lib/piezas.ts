@@ -130,7 +130,8 @@ export function videoDeLaPieza(archivos: ArchivoDelManifiesto[] | null | undefin
   }
 }
 
-export const ROTULO_DEL_VIDEO = "Video GENERADO por un modelo (no es una grabación real) · sin voces ni narración"
+/** 17-nov · DECISIÓN de Emilio: el video ya no tiene reglas fijas de voz ni de rostros (las decide la mesa); el rótulo ya no afirma «sin voces ni narración» */
+export const ROTULO_DEL_VIDEO = "Video GENERADO por un modelo (no es una grabación real) · su audio también es generado"
 
 export const ROTULO_DE_ORIGEN: Record<OrigenDeLaImagen, string> = {
   tipografia: "Solo tipografía de marca · sin foto ni imagen generada",
