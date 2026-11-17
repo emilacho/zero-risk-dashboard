@@ -5,7 +5,7 @@ import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Rotulo }
 import { ConNombres, SinDato } from "@/components/nuevo/FichaDeDecision"
 import { NOMBRE_DEL_VERBO, NOMBRE_MIENTRAS_SALE } from "@/lib/ficha-de-decision"
 import type { Decision } from "@/lib/direccion-decisiones"
-import { TOPE_OBSERVACIONES, contestarPropuestas, dolares, rolLegible, tramo, type PlanoDePropuesta, type PropuestaDeVideo, type Propuestas, type ResultadoDePropuestas } from "@/lib/propuestas"
+import { TOPE_OBSERVACIONES, claseLegible, contestarPropuestas, dolares, nombreDeLaLamina, rolLegible, textosDeLaPublicacion, tramo, type ClaseDeImagen, type PlanoDePropuesta, type PropuestaDeVideo, type Propuestas, type ResultadoDePropuestas } from "@/lib/propuestas"
 
 /**
  * PROPUESTAS (Sprint 2 · boceto aprobado por Emilio 16-nov 22:23 · `raw/evidencia/2026-11-16-sprint2-tarjeta-propuestas/`).
@@ -14,6 +14,8 @@ import { TOPE_OBSERVACIONES, contestarPropuestas, dolares, rolLegible, tramo, ty
  * y su porqué. «Elegir esta» solo marca; los únicos botones de decisión son «Aprobar» y «Pedir cambios» (vocabulario fijo de la ficha).
  * Aprobar fabrica la elegida en máxima calidad y lo demás corre solo; Pedir cambios devuelve las observaciones a la mesa, que vuelve a presentar.
  * Lo que no viene es guion rojo: nada se inventa.
+ * 17-nov · también IMAGEN (historia, carrusel, foto · contrato `CONTRATO-CC5-a-CC1-CC6-CC7-propuestas-en-imagen.md` §3): el mismo boceto; en lugar del video,
+ * la primera lámina en borrador; «Lámina n» / «Pieza» en lugar de «Plano n · segundos»; y el texto de la publicación bajo la idea.
  */
 export function PanelPropuestas({ decision, onCerrar, fetchImpl = fetch, elegidaInicial = null, observandoInicial = false, textoInicial = "" }: {
   decision: Decision & { propuestas: Propuestas }
@@ -63,7 +65,7 @@ export function PanelPropuestas({ decision, onCerrar, fetchImpl = fetch, elegida
     <PanelBase titulo="Propuestas" id="propuestas-titulo" seccion="propuestas" onCerrar={onCerrar} etiquetaCerrar="Cerrar las propuestas" ancho="max-w-[min(1320px,100%)]">
       <p data-subtitulo className="mb-5 text-center text-dato text-gris">{subtitulo}</p>
       <div data-lista-de-propuestas aria-label="Las propuestas" className="grid gap-4 lg:grid-cols-[repeat(auto-fit,minmax(340px,1fr))]">
-        {p.lista.map((x, k) => <Tarjeta key={x.id} x={x} k={k} total={p.lista.length} elegida={x.id === elegida} alElegir={() => setElegida(x.id)} apagada={!!enviando} />)}
+        {p.lista.map((x, k) => <Tarjeta key={x.id} x={x} k={k} total={p.lista.length} elegida={x.id === elegida} alElegir={() => setElegida(x.id)} apagada={!!enviando} imagen={p.familia === "imagen"} clase={p.clase} />)}
       </div>
       {p.avisos.length > 0 && (
         <details data-avisos className="mx-auto mt-4 w-full max-w-[720px] text-dato text-gris">
@@ -113,8 +115,10 @@ export function PanelPropuestas({ decision, onCerrar, fetchImpl = fetch, elegida
 }
 
 /** una propuesta: su borrador en video, sus datos, su guion gráfico y su porqué. Tocarla la marca (no decide nada) */
-function Tarjeta({ x, k, total, elegida, alElegir, apagada }: { x: PropuestaDeVideo; k: number; total: number; elegida: boolean; alElegir: () => void; apagada: boolean }) {
+function Tarjeta({ x, k, total, elegida, alElegir, apagada, imagen = false, clase = null }: { x: PropuestaDeVideo; k: number; total: number; elegida: boolean; alElegir: () => void; apagada: boolean; imagen?: boolean; clase?: ClaseDeImagen | null }) {
   const portada = x.planos.find((p) => p.imagenes.length)?.imagenes[0]
+  const pub = x.texto_de_la_publicacion
+  const textosPub = textosDeLaPublicacion(pub)
   return (
     <article data-propuesta={x.id} data-elegida={elegida || undefined} className={`flex min-w-0 flex-col gap-4 rounded-tarjeta border bg-grafito-2 p-5 ${elegida ? "border-oro" : "border-linea"}`}>
       <header className="flex items-center justify-between gap-3">
@@ -128,25 +132,40 @@ function Tarjeta({ x, k, total, elegida, alElegir, apagada }: { x: PropuestaDeVi
       </header>
       <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-4">
         {/* el borrador en video (animatic): fiel al final en planos, encuadres, duración y textos */}
-        {x.video_url
+        {imagen
+          // imagen: la primera lámina en borrador (su proporción real: no se recorta), o el cuadro vacío
+          ? portada
+            // eslint-disable-next-line @next/next/no-img-element -- lámina del almacén de la plataforma, ya en tamaño de borrador
+            ? <img data-portada src={portada} alt={`Primera lámina de ${x.nombre}`} className="h-auto w-full self-start rounded-control border border-linea bg-carbon" />
+            : <div data-sin-portada className="flex aspect-[4/5] w-full items-center justify-center rounded-control border border-dashed border-linea p-2 text-center text-dato text-gris">El borrador todavía no está<SinDato /></div>
+          : x.video_url
           ? <video data-borrador-video src={x.video_url} poster={portada} controls playsInline preload="metadata" className="aspect-[9/16] w-full rounded-control border border-linea bg-carbon object-cover" aria-label={`Borrador en video de ${x.nombre}`} />
           : <div data-sin-video className="flex aspect-[9/16] w-full items-center justify-center rounded-control border border-dashed border-linea p-2 text-center text-dato text-gris">El borrador en video todavía no está<SinDato /></div>}
         <div className="min-w-0 space-y-3 text-left">
           <p data-concepto className="text-cuerpo text-hueso">{x.concepto ? <ConNombres texto={x.concepto} /> : <SinDato />}</p>
           <p data-ficha-tecnica className="flex flex-wrap gap-x-2 text-dato text-gris">
-            <span className="font-medio text-hueso">{x.segundos != null ? `${x.segundos} s` : <SinDato />}</span><span aria-hidden>·</span>
+            <span className="font-medio text-hueso">{imagen ? claseLegible(clase, x.planos.length) : x.segundos != null ? `${x.segundos} s` : <SinDato />}</span><span aria-hidden>·</span>
             <span>{x.red ?? <SinDato />}</span><span aria-hidden>·</span><span>{x.objetivo ?? <SinDato />}</span>
           </p>
           <dl data-costo className="grid grid-cols-2 gap-2 text-dato">
             <div><dt className="text-rotulo uppercase tracking-rotulo text-gris">Borrador</dt><dd className="text-hueso [font-variant-numeric:tabular-nums]">{dolares(x.costo.borrador_usd) ?? <SinDato />}</dd></div>
             <div><dt className="text-rotulo uppercase tracking-rotulo text-gris">Final</dt><dd className="text-hueso [font-variant-numeric:tabular-nums]">{dolares(x.costo.final_usd) ?? <SinDato />}</dd></div>
           </dl>
+          {imagen && (
+            <p data-texto-publicacion className="text-dato text-gris">
+              <span className="text-rotulo uppercase tracking-rotulo">Texto de la publicación · </span>
+              {textosPub.length
+                ? textosPub.map((t) => <span key={t.campo} data-texto={t.campo} className="block text-hueso"><ConNombres texto={t.texto} /></span>)
+                : <SinDato />}
+              {pub?.hashtags.length ? <span data-hashtags className="block text-gris">{pub.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")}</span> : null}
+            </p>
+          )}
         </div>
       </div>
       <div>
-        <Rotulo>Guion gráfico · borrador</Rotulo>
+        <Rotulo>{imagen ? "Láminas · borrador" : "Guion gráfico · borrador"}</Rotulo>
         {x.planos.length
-          ? <ol data-guion-grafico className="mt-2 flex gap-2 overflow-x-auto pb-1">{x.planos.map((p, i) => <Plano key={i} p={p} />)}</ol>
+          ? <ol data-guion-grafico className="mt-2 flex gap-2 overflow-x-auto pb-1">{x.planos.map((p, i) => (imagen ? <Lamina key={i} p={p} nombre={nombreDeLaLamina(clase, p.n, x.planos.length)} /> : <Plano key={i} p={p} />))}</ol>
           : <p className="mt-1.5 text-dato"><SinDato /></p>}
       </div>
       <p data-por-que className="mt-auto border-t border-linea pt-3 text-dato text-gris"><span className="text-oro">Por qué · </span>{x.por_que ? <ConNombres texto={x.por_que} /> : <SinDato />}</p>
@@ -168,6 +187,22 @@ function Plano({ p }: { p: PlanoDePropuesta }) {
       <span className="text-rotulo text-oro">{p.n} · {rolLegible(p.rol) ?? <SinDato />}</span>
       <span className="text-rotulo text-gris">{tramo(p) ?? <SinDato />}</span>
       <span className="text-rotulo leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
+    </li>
+  )
+}
+
+/** 17-nov · una lámina de imagen: su borrador (renderizado con texto, en su proporción), su nombre y papel, si usa foto propia, y su texto. Sin segundos */
+function Lamina({ p, nombre }: { p: PlanoDePropuesta; nombre: string }) {
+  const src = p.imagenes[0]
+  return (
+    <li data-lamina={p.n} className="flex w-24 shrink-0 flex-col gap-1">
+      {src
+        // eslint-disable-next-line @next/next/no-img-element -- lámina del almacén de la plataforma, ya en tamaño de borrador
+        ? <img data-cuadro src={src} alt={p.se_ve ?? nombre} loading="lazy" className="h-auto w-24 rounded-control border border-linea bg-carbon" />
+        : <div data-cuadro-vacio className="flex aspect-[4/5] w-24 items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-rotulo leading-tight text-gris">{p.se_ve ?? "Sin imagen"}</div>}
+      <span className="text-rotulo text-oro">{nombre}{rolLegible(p.rol) ? ` · ${rolLegible(p.rol)}` : ""}</span>
+      {p.foto_propia === true && <span data-foto-propia className="text-rotulo text-gris">Foto propia</span>}
+      <span className="whitespace-pre-line text-rotulo leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
     </li>
   )
 }
