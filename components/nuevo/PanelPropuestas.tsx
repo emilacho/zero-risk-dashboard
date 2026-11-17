@@ -14,8 +14,10 @@ import { TOPE_OBSERVACIONES, claseLegible, contestarPropuestas, dolares, nombreD
  * y su porqué. «Elegir esta» solo marca; los únicos botones de decisión son «Aprobar» y «Pedir cambios» (vocabulario fijo de la ficha).
  * Aprobar fabrica la elegida en máxima calidad y lo demás corre solo; Pedir cambios devuelve las observaciones a la mesa, que vuelve a presentar.
  * Lo que no viene es guion rojo: nada se inventa.
- * 17-nov · también IMAGEN (historia, carrusel, foto · contrato `CONTRATO-CC5-a-CC1-CC6-CC7-propuestas-en-imagen.md` §3): el mismo boceto; en lugar del video,
- * la primera lámina en borrador; «Lámina n» / «Pieza» en lugar de «Plano n · segundos»; y el texto de la publicación bajo la idea.
+ * 17-nov · también IMAGEN (historia, carrusel, foto · contrato `CONTRATO-CC5-a-CC1-CC6-CC7-propuestas-en-imagen.md` §3): la misma tarjeta; «Lámina n» / «Pieza»
+ * en lugar de «Plano n · segundos», y el texto de la publicación completo bajo la línea de información.
+ * 17-nov · GO Lenovo «volver al boceto» (Emilio: «se ven más imágenes»): vuelve la forma de `2-visor.png`, sin la vista previa grande arriba; el guion con 4 cuadros
+ * grandes a lo ancho y flechas si hay más; costo y borrador en video en una línea bajo el guion.
  */
 export function PanelPropuestas({ decision, onCerrar, fetchImpl = fetch, elegidaInicial = null, observandoInicial = false, textoInicial = "" }: {
   decision: Decision & { propuestas: Propuestas }
@@ -114,13 +116,35 @@ export function PanelPropuestas({ decision, onCerrar, fetchImpl = fetch, elegida
   )
 }
 
-/** una propuesta: su borrador en video, sus datos, su guion gráfico y su porqué. Tocarla la marca (no decide nada) */
+/** cuántos cuadros del guion caben a lo ancho (boceto aprobado `2-visor.png`: 4 grandes, del mismo tamaño) */
+export const CUADROS_A_LO_ANCHO = 4
+
+/** 17-nov (GO Lenovo «volver al boceto») · cada cuadro del guion es una celda: un plano de video que dura más de 3 s da varios cuadros, que se leen como ese plano */
+type Celda = { p: PlanoDePropuesta; src: string | null; i: number; de: number }
+export function celdasDelGuion(planos: PlanoDePropuesta[]): Celda[] {
+  return planos.flatMap<Celda>((p) => (p.imagenes.length ? p.imagenes.map((src, i) => ({ p, src, i, de: p.imagenes.length })) : [{ p, src: null, i: 0, de: 1 }]))
+}
+
+/** dónde empieza la ventana de 4 al pasar con la flecha: nunca más allá del final (la última ventana muestra los 4 últimos) ni antes del principio */
+export function ventanaSiguiente(desde: number, hay: number): number {
+  return Math.max(0, Math.min(desde + CUADROS_A_LO_ANCHO, hay - CUADROS_A_LO_ANCHO))
+}
+export function ventanaAnterior(desde: number): number {
+  return Math.max(0, desde - CUADROS_A_LO_ANCHO)
+}
+
+/** proporción de la lámina: la historia es vertical; carrusel y foto, 4:5. El video, 9:16 */
+const PROPORCION: Record<string, string> = { kit: "aspect-[9/16]", carrusel: "aspect-[4/5]", post_img: "aspect-[4/5]" }
+
+/** una propuesta (boceto aprobado `2-visor.png`, GO Lenovo 17-nov): título, idea, línea de datos, el guion con las imágenes grandes (4 a lo ancho, flechas si hay
+ *  más), debajo la línea de información (costo y el borrador en video) y el porqué. Tocarla la marca (no decide nada) */
 function Tarjeta({ x, k, total, elegida, alElegir, apagada, imagen = false, clase = null }: { x: PropuestaDeVideo; k: number; total: number; elegida: boolean; alElegir: () => void; apagada: boolean; imagen?: boolean; clase?: ClaseDeImagen | null }) {
-  const portada = x.planos.find((p) => p.imagenes.length)?.imagenes[0]
+  const [verVideo, setVerVideo] = useState(false)
   const pub = x.texto_de_la_publicacion
   const textosPub = textosDeLaPublicacion(pub)
+  const portada = x.planos.find((p) => p.imagenes.length)?.imagenes[0]
   return (
-    <article data-propuesta={x.id} data-elegida={elegida || undefined} className={`flex min-w-0 flex-col gap-4 rounded-tarjeta border bg-grafito-2 p-5 ${elegida ? "border-oro" : "border-linea"}`}>
+    <article data-propuesta={x.id} data-elegida={elegida || undefined} className={`flex min-w-0 flex-col gap-3.5 rounded-tarjeta border bg-grafito-2 p-5 ${elegida ? "border-oro" : "border-linea"}`}>
       <header className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <Rotulo tono="gris">Propuesta {k + 1} de {total}</Rotulo>
@@ -130,76 +154,102 @@ function Tarjeta({ x, k, total, elegida, alElegir, apagada, imagen = false, clas
           ? <span data-marca-elegida className="whitespace-nowrap text-dato font-medio uppercase tracking-rotulo text-oro">✓ Elegida</span>
           : <button type="button" aria-pressed={false} data-elegir={x.id} disabled={apagada} onClick={alElegir} className={`${BOTON_SECUNDARIO} whitespace-nowrap`}>Elegir esta</button>}
       </header>
-      <div className="grid grid-cols-[minmax(0,150px)_1fr] gap-4">
-        {/* el borrador en video (animatic): fiel al final en planos, encuadres, duración y textos */}
-        {imagen
-          // imagen: la primera lámina en borrador (su proporción real: no se recorta), o el cuadro vacío
-          ? portada
-            // eslint-disable-next-line @next/next/no-img-element -- lámina del almacén de la plataforma, ya en tamaño de borrador
-            ? <img data-portada src={portada} alt={`Primera lámina de ${x.nombre}`} className="h-auto w-full self-start rounded-control border border-linea bg-carbon" />
-            : <div data-sin-portada className="flex aspect-[4/5] w-full items-center justify-center rounded-control border border-dashed border-linea p-2 text-center text-dato text-gris">El borrador todavía no está<SinDato /></div>
-          : x.video_url
-          ? <video data-borrador-video src={x.video_url} poster={portada} controls playsInline preload="metadata" className="aspect-[9/16] w-full rounded-control border border-linea bg-carbon object-cover" aria-label={`Borrador en video de ${x.nombre}`} />
-          : <div data-sin-video className="flex aspect-[9/16] w-full items-center justify-center rounded-control border border-dashed border-linea p-2 text-center text-dato text-gris">El borrador en video todavía no está<SinDato /></div>}
-        <div className="min-w-0 space-y-3 text-left">
-          <p data-concepto className="text-cuerpo text-hueso">{x.concepto ? <ConNombres texto={x.concepto} /> : <SinDato />}</p>
-          <p data-ficha-tecnica className="flex flex-wrap gap-x-2 text-dato text-gris">
-            <span className="font-medio text-hueso">{imagen ? claseLegible(clase, x.planos.length) : x.segundos != null ? `${x.segundos} s` : <SinDato />}</span><span aria-hidden>·</span>
-            <span>{x.red ?? <SinDato />}</span><span aria-hidden>·</span><span>{x.objetivo ?? <SinDato />}</span>
-          </p>
-          <dl data-costo className="grid grid-cols-2 gap-2 text-dato">
-            <div><dt className="text-rotulo uppercase tracking-rotulo text-gris">Borrador</dt><dd className="text-hueso [font-variant-numeric:tabular-nums]">{dolares(x.costo.borrador_usd) ?? <SinDato />}</dd></div>
-            <div><dt className="text-rotulo uppercase tracking-rotulo text-gris">Final</dt><dd className="text-hueso [font-variant-numeric:tabular-nums]">{dolares(x.costo.final_usd) ?? <SinDato />}</dd></div>
-          </dl>
-          {imagen && (
-            <p data-texto-publicacion className="text-dato text-gris">
-              <span className="text-rotulo uppercase tracking-rotulo">Texto de la publicación · </span>
-              {textosPub.length
-                ? textosPub.map((t) => <span key={t.campo} data-texto={t.campo} className="block text-hueso"><ConNombres texto={t.texto} /></span>)
-                : <SinDato />}
-              {pub?.hashtags.length ? <span data-hashtags className="block text-gris">{pub.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")}</span> : null}
-            </p>
-          )}
+      <p data-concepto className="text-cuerpo text-hueso">{x.concepto ? <ConNombres texto={x.concepto} /> : <SinDato />}</p>
+      <p data-ficha-tecnica className="flex flex-wrap gap-x-2 text-dato text-gris">
+        <span className="font-medio text-hueso">{imagen ? claseLegible(clase, x.planos.length) : x.segundos != null ? `${x.segundos} s` : <SinDato />}</span><span aria-hidden>·</span>
+        <span>{x.red ?? <SinDato />}</span><span aria-hidden>·</span><span>{x.objetivo ?? <SinDato />}</span>
+      </p>
+      {verVideo && x.video_url
+        ? (
+          <div data-ver-video>
+            <Rotulo>Borrador en video</Rotulo>
+            <video data-borrador-video src={x.video_url} poster={portada} controls autoPlay playsInline preload="metadata" className="mx-auto mt-2 block aspect-[9/16] max-h-[420px] rounded-control border border-linea bg-carbon object-cover" aria-label={`Borrador en video de ${x.nombre}`} />
+          </div>
+        )
+        : <Guion x={x} imagen={imagen} clase={clase} />}
+      <p data-costo className="flex flex-wrap items-center gap-x-2 gap-y-1 text-dato text-gris">
+        <span>Borrador <span className="text-hueso [font-variant-numeric:tabular-nums]">{dolares(x.costo.borrador_usd) ?? <SinDato />}</span></span><span aria-hidden>·</span>
+        <span>Final <span className="text-hueso [font-variant-numeric:tabular-nums]">{dolares(x.costo.final_usd) ?? <SinDato />}</span></span>
+        {!imagen && <span aria-hidden>·</span>}
+        {!imagen && (x.video_url
+          ? <button type="button" data-boton-video aria-pressed={verVideo} onClick={() => setVerVideo((v) => !v)} className="-my-3 min-h-11 rounded-control text-dato text-oro hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-linea-oro">{verVideo ? "‹ Volver al guion" : "Ver el video ›"}</button>
+          : <span data-sin-video>Video <SinDato /></span>)}
+      </p>
+      {imagen && (
+        <div data-texto-publicacion className="text-dato text-gris">
+          <Rotulo tono="gris">Texto de la publicación</Rotulo>
+          {textosPub.length
+            ? textosPub.map((t) => <span key={t.campo} data-texto={t.campo} className="mt-1 block whitespace-pre-line text-hueso"><ConNombres texto={t.texto} /></span>)
+            : <span className="mt-1 block"><SinDato /></span>}
+          {pub?.hashtags.length ? <span data-hashtags className="mt-1 block text-gris">{pub.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")}</span> : null}
         </div>
-      </div>
-      <div>
-        <Rotulo>{imagen ? "Láminas · borrador" : "Guion gráfico · borrador"}</Rotulo>
-        {x.planos.length
-          ? <ol data-guion-grafico className="mt-2 flex gap-2 overflow-x-auto pb-1">{x.planos.map((p, i) => (imagen ? <Lamina key={i} p={p} nombre={nombreDeLaLamina(clase, p.n, x.planos.length)} /> : <Plano key={i} p={p} />))}</ol>
-          : <p className="mt-1.5 text-dato"><SinDato /></p>}
-      </div>
+      )}
       <p data-por-que className="mt-auto border-t border-linea pt-3 text-dato text-gris"><span className="text-oro">Por qué · </span>{x.por_que ? <ConNombres texto={x.por_que} /> : <SinDato />}</p>
     </article>
   )
 }
 
-/** un plano: sus cuadros en borrador (varios si dura más de 3 s), su papel, sus segundos y el texto que irá en pantalla. Sin imagen, el cuadro vacío dice qué se verá */
-function Plano({ p }: { p: PlanoDePropuesta }) {
-  const cuadros = Math.max(1, p.imagenes.length)
+/** el guion: 4 cuadros grandes a lo ancho, del mismo tamaño. Con más de 4, flechas a los lados para pasar a los siguientes (y volver); la flecha no elige nada */
+function Guion({ x, imagen, clase }: { x: PropuestaDeVideo; imagen: boolean; clase: ClaseDeImagen | null }) {
+  const celdas = celdasDelGuion(x.planos)
+  const [desde, setDesde] = useState(0)
+  const hay = celdas.length
+  const hasta = Math.min(desde + CUADROS_A_LO_ANCHO, hay)
+  const antes = desde > 0
+  const despues = hasta < hay
+  const proporcion = imagen ? (PROPORCION[clase ?? ""] ?? "aspect-[4/5]") : "aspect-[9/16]"
+  const flecha = "absolute top-[38%] z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-linea-oro bg-carbon/90 text-titulo text-oro hover:bg-grafito focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"
   return (
-    <li data-plano={p.n} className="flex shrink-0 flex-col gap-1" style={{ width: `${cuadros * 64 + (cuadros - 1) * 4}px` }}>
-      <div className="flex gap-1">
-        {p.imagenes.length
-          // eslint-disable-next-line @next/next/no-img-element -- cuadros del almacén de la plataforma, ya en tamaño de borrador
-          ? p.imagenes.map((src, i) => <img key={i} data-cuadro src={src} alt={p.se_ve ?? ""} loading="lazy" className="aspect-[9/16] w-16 rounded-control border border-linea bg-carbon object-cover" />)
-          : <div data-cuadro-vacio className="flex aspect-[9/16] w-16 items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-rotulo leading-tight text-gris">{p.se_ve ?? "Sin imagen"}</div>}
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <Rotulo>{imagen ? "Láminas · borrador" : "Guion gráfico · borrador"}</Rotulo>
+        {hay > CUADROS_A_LO_ANCHO && <span data-cuantos className="text-rotulo text-gris">{desde + 1}–{hasta} de {hay}</span>}
       </div>
+      {hay
+        ? (
+          <div className="relative mt-2">
+            {antes && <button type="button" data-flecha="antes" aria-label={`Ver las imágenes anteriores de ${x.nombre}`} onClick={() => setDesde(ventanaAnterior(desde))} className={`${flecha} -left-3`}>‹</button>}
+            <ol data-guion-grafico className="grid grid-cols-4 gap-2">
+              {celdas.slice(desde, hasta).map((c) => (imagen
+                ? <Lamina key={`${c.p.n}-${c.i}`} c={c} nombre={nombreDeLaLamina(clase, c.p.n, x.planos.length)} proporcion={proporcion} />
+                : <Cuadro key={`${c.p.n}-${c.i}`} c={c} />))}
+            </ol>
+            {despues && <button type="button" data-flecha="despues" aria-label={`Ver las imágenes siguientes de ${x.nombre}`} onClick={() => setDesde(ventanaSiguiente(desde, hay))} className={`${flecha} -right-3`}>›</button>}
+          </div>
+        )
+        : <p className="mt-1.5 text-dato"><SinDato /></p>}
+    </div>
+  )
+}
+
+/** un cuadro del guion de video: su imagen en borrador, su plano y papel, sus segundos y el texto que irá en pantalla. Sin imagen, el cuadro vacío dice qué se verá.
+ *  Un plano de varios cuadros lleva su nombre en cada uno; los segundos y el texto van en el primero y los demás dicen «sigue el plano» */
+function Cuadro({ c }: { c: Celda }) {
+  const { p } = c
+  return (
+    <li data-plano={p.n} data-cuadro-n={c.i + 1} className="flex min-w-0 flex-col gap-1">
+      {c.src
+        // eslint-disable-next-line @next/next/no-img-element -- cuadros del almacén de la plataforma, ya en tamaño de borrador
+        ? <img data-cuadro src={c.src} alt={p.se_ve ?? ""} loading="lazy" className="aspect-[9/16] w-full rounded-control border border-linea bg-carbon object-cover" />
+        : <div data-cuadro-vacio className="flex aspect-[9/16] w-full items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-rotulo leading-tight text-gris">{p.se_ve ?? "Sin imagen"}</div>}
       <span className="text-rotulo text-oro">{p.n} · {rolLegible(p.rol) ?? <SinDato />}</span>
-      <span className="text-rotulo text-gris">{tramo(p) ?? <SinDato />}</span>
-      <span className="text-rotulo leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
+      {c.i > 0 ? <span data-continua className="text-rotulo text-gris">sigue el plano</span> : <>
+        <span className="text-rotulo text-gris">{tramo(p) ?? <SinDato />}</span>
+        <span className="text-rotulo leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
+      </>}
     </li>
   )
 }
 
-/** 17-nov · una lámina de imagen: su borrador (renderizado con texto, en su proporción), su nombre y papel, si usa foto propia, y su texto. Sin segundos */
-function Lamina({ p, nombre }: { p: PlanoDePropuesta; nombre: string }) {
-  const src = p.imagenes[0]
+/** 17-nov · una lámina de imagen: su borrador entero (con su texto: no se recorta), su nombre y papel, si usa foto propia, y su texto. Sin segundos */
+function Lamina({ c, nombre, proporcion }: { c: Celda; nombre: string; proporcion: string }) {
+  const { p } = c
   return (
-    <li data-lamina={p.n} className="flex w-24 shrink-0 flex-col gap-1">
-      {src
+    <li data-lamina={p.n} className="flex min-w-0 flex-col gap-1">
+      {c.src
         // eslint-disable-next-line @next/next/no-img-element -- lámina del almacén de la plataforma, ya en tamaño de borrador
-        ? <img data-cuadro src={src} alt={p.se_ve ?? nombre} loading="lazy" className="h-auto w-24 rounded-control border border-linea bg-carbon" />
-        : <div data-cuadro-vacio className="flex aspect-[4/5] w-24 items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-rotulo leading-tight text-gris">{p.se_ve ?? "Sin imagen"}</div>}
+        ? <img data-cuadro src={c.src} alt={p.se_ve ?? nombre} loading="lazy" className={`${proporcion} w-full rounded-control border border-linea bg-carbon object-contain`} />
+        : <div data-cuadro-vacio className={`flex ${proporcion} w-full items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-rotulo leading-tight text-gris`}>{p.se_ve ?? "Sin imagen"}</div>}
       <span className="text-rotulo text-oro">{nombre}{rolLegible(p.rol) ? ` · ${rolLegible(p.rol)}` : ""}</span>
       {p.foto_propia === true && <span data-foto-propia className="text-rotulo text-gris">Foto propia</span>}
       <span className="whitespace-pre-line text-rotulo leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
