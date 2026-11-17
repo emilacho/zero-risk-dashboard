@@ -5,6 +5,7 @@ import type { DetalleDelConcepto, IdeaDelBanco } from "@/lib/concepto-datos"
 import { RenglonEditable } from "@/components/nuevo/manual/RenglonEditable"
 import { sinCodigos, sinMarcasDeFormato, type ContextoSinCodigos } from "@/lib/sin-codigos"
 import { plural } from "@/lib/lenguaje"
+import { BOTON_PRINCIPAL } from "@/components/nuevo/EstiloBase"
 import {
   ALCANCE_DE_LOS_CAMBIOS, AL_RETIRAR, CAMPOS_EDITABLES, ETIQUETA_DEL_CAMPO, IDEAS_A_LA_VISTA, bancoEditable, bancoPorCapitulo, conEdicion, cuantosCambios,
   cuerpoDeEdicion, nombreDeRed, type CampoEditable, type EdicionesDelBanco,
@@ -17,8 +18,8 @@ import {
  * Solo la gran idea APROBADA se edita: es la que leen el calendario y las hojas. Las demás versiones se leen igual, sin botones.
  */
 type Respuesta = { ok: true; nota?: string } | { ok: false; error?: string; detalle?: string }
-const CHIP = "inline-flex items-center rounded-full border border-white/15 px-2.5 py-0.5 text-[11px] text-zinc-300"
-const Chev = ({ abierta }: { abierta: boolean }) => <span aria-hidden className={`mt-0.5 text-zinc-500 transition ${abierta ? "rotate-90" : ""}`}>›</span>
+const CHIP = "inline-flex items-center rounded-full border border-linea px-2.5 py-0.5 text-rotulo text-gris"
+const Chev = ({ abierta }: { abierta: boolean }) => <span aria-hidden className={`mt-0.5 text-gris transition ${abierta ? "rotate-90" : ""}`}>›</span>
 const fotosDe = (f: string | null): string => {
   if (!f) return "sin foto (se arma con texto y fondo)"
   const n = f.split("|").filter(Boolean).length
@@ -81,16 +82,16 @@ export function BancoDeIdeas({ d, ctx, onGuardado, fetchImpl = fetch }: {
     if (abierta !== i.id) {
       const t = limpio(ed.idea ?? i.idea)
       return (
-        <li key={i.id} data-idea={i.id} className="rounded-lg border border-white/10 bg-black/20">
+        <li key={i.id} data-idea={i.id} className="rounded-tarjeta border border-linea bg-carbon">
           <button type="button" aria-expanded={false} onClick={() => { setAbierta(i.id); setRetirando(null) }} className="flex w-full items-start gap-3 px-3 py-2.5 text-left">
-            <span className="min-w-0 flex-1"><span className="block text-[13px] text-zinc-100">{t.length > 120 ? `${t.slice(0, 119).trimEnd()}…` : t}</span><span className="mt-1 flex flex-wrap gap-1.5">{chip}{enEspera && <span className="rounded-full border border-amber-400/50 px-2 py-0.5 text-[10px] text-amber-200">editado · en espera</span>}</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-dato text-hueso">{t.length > 120 ? `${t.slice(0, 119).trimEnd()}…` : t}</span><span className="mt-1 flex flex-wrap gap-1.5">{chip}{enEspera && <span className="rounded-full border border-linea-oro px-2 py-0.5 text-rotulo text-oro">editado · en espera</span>}</span></span>
             <Chev abierta={false} />
           </button>
         </li>
       )
     }
     return (
-      <li key={i.id} data-idea={i.id} data-abierta="true" className="rounded-lg border border-amber-400/30 bg-white/[0.03]">
+      <li key={i.id} data-idea={i.id} data-abierta="true" className="rounded-tarjeta border border-linea-oro bg-grafito">
         <button type="button" aria-expanded onClick={() => setAbierta(null)} aria-label="Cerrar la idea" className="flex w-full items-start gap-3 px-3 pt-2.5 text-left">
           <span className="min-w-0 flex-1">{chip}</span><Chev abierta />
         </button>
@@ -101,24 +102,24 @@ export function BancoDeIdeas({ d, ctx, onGuardado, fetchImpl = fetch }: {
             if (!valor) return null
             return (
               <div key={c} data-campo={c} className="mt-2">
-                <p className="mb-1 text-[11px] uppercase tracking-[0.08em] text-zinc-500">{ETIQUETA_DEL_CAMPO[c]}{ed[c] != null && <span className="ml-1 rounded-full border border-amber-400/50 px-2 py-0.5 text-[10px] normal-case tracking-normal text-amber-200">editado · en espera</span>}</p>
+                <p className="mb-1 text-rotulo uppercase tracking-[0.08em] text-gris">{ETIQUETA_DEL_CAMPO[c]}{ed[c] != null && <span className="ml-1 rounded-full border border-linea-oro px-2 py-0.5 text-rotulo normal-case tracking-normal text-oro">editado · en espera</span>}</p>
                 {editable
                   ? <div className="flex flex-wrap items-start gap-3"><RenglonEditable key={valor} texto={valor} editado={ed[c] != null} sinVineta etiqueta={ETIQUETA_DEL_CAMPO[c].toLowerCase()} onEditar={(nuevo) => setEdiciones((e) => conEdicion(e, { ...i, [c]: guardado }, c, nuevo))} /></div>
-                  : <p className={`text-[13.5px] leading-relaxed text-zinc-200`}>{valor}</p>}
+                  : <p className={`text-dato leading-relaxed text-hueso`}>{valor}</p>}
               </div>
             )
           })}
-          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-zinc-400">
-            {i.serie && series.get(i.serie) && <span>Serie: <span className="text-zinc-200">{limpio(series.get(i.serie)!)}</span></span>}
-            <span>Foto: <span className="text-zinc-200">{fotosDe(i.foto)}</span></span>
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-dato text-gris">
+            {i.serie && series.get(i.serie) && <span>Serie: <span className="text-hueso">{limpio(series.get(i.serie)!)}</span></span>}
+            <span>Foto: <span className="text-hueso">{fotosDe(i.foto)}</span></span>
           </div>
           {editable && (retirando === i.id
-            ? <div data-aviso-retirar className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/[0.06] px-3 py-2">
-                <span className="text-[13.5px] text-zinc-100">¿Retirar esta idea? {AL_RETIRAR}{enEspera ? " Se va con tu edición en espera." : ""}</span>
-                <button type="button" data-accion="confirmar-retirar-idea" disabled={enviando} onClick={() => retirar(i.id)} className="rounded-md border border-rose-400/60 bg-rose-500/15 px-3 py-1 text-[13px] text-rose-100 hover:bg-rose-500/25 disabled:opacity-40">{enviando ? "Retirando…" : "Sí, retirar"}</button>
-                <button type="button" onClick={() => setRetirando(null)} className="rounded-md border border-white/10 px-3 py-1 text-[13px] text-zinc-300 hover:bg-white/[0.05]">Cancelar</button>
+            ? <div data-aviso-retirar className="mt-3 flex flex-wrap items-center gap-2 rounded-tarjeta border border-linea-alarma bg-carbon px-3 py-2">
+                <span className="text-dato text-hueso">¿Retirar esta idea? {AL_RETIRAR}{enEspera ? " Se va con tu edición en espera." : ""}</span>
+                <button type="button" data-accion="confirmar-retirar-idea" disabled={enviando} onClick={() => retirar(i.id)} className="rounded-control border border-linea-alarma px-3 py-1 text-dato text-alarma hover:border-alarma disabled:opacity-40">{enviando ? "Retirando…" : "Sí, retirar"}</button>
+                <button type="button" onClick={() => setRetirando(null)} className="rounded-control border border-linea px-3 py-1 text-dato text-gris hover:bg-grafito">Cancelar</button>
               </div>
-            : <div className="mt-3 flex justify-end"><button type="button" data-accion="retirar-idea" onClick={() => setRetirando(i.id)} className="rounded-md border border-white/10 px-2 py-0.5 text-[12px] text-zinc-400 transition hover:border-rose-400/60 hover:text-rose-200">Retirar esta idea</button></div>)}
+            : <div className="mt-3 flex justify-end"><button type="button" data-accion="retirar-idea" onClick={() => setRetirando(i.id)} className="rounded-control border border-linea px-2 py-0.5 text-dato text-gris transition hover:border-linea-alarma hover:text-alarma">Retirar esta idea</button></div>)}
         </div>
       </li>
     )
@@ -126,7 +127,7 @@ export function BancoDeIdeas({ d, ctx, onGuardado, fetchImpl = fetch }: {
 
   return (
     <div data-banco-de-ideas>
-      {mensaje && <p role="status" data-aviso={mensaje.ok ? "ok" : "error"} className={`mb-3 rounded-md border px-3 py-2 text-[12.5px] ${mensaje.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{mensaje.texto}</p>}
+      {mensaje && <p role="status" data-aviso={mensaje.ok ? "ok" : "error"} className={`mb-3 rounded-control border px-3 py-2 text-dato ${mensaje.ok ? "border-linea-oro text-oro" : "border-linea-alarma text-alarma"}`}>{mensaje.texto}</p>}
       <div className="space-y-2">
         {capitulos.map((c) => {
           const abierto = capAbiertos.has(c.clave)
@@ -134,19 +135,19 @@ export function BancoDeIdeas({ d, ctx, onGuardado, fetchImpl = fetch }: {
           const vistas = verTodas ? c.ideas : c.ideas.slice(0, IDEAS_A_LA_VISTA)
           const resto = c.ideas.length - vistas.length
           return (
-            <section key={c.clave} data-capitulo={c.clave} className={`rounded-lg border ${abierto ? "border-amber-400/30 bg-white/[0.03]" : "border-white/10 bg-white/[0.02]"}`}>
+            <section key={c.clave} data-capitulo={c.clave} className={`rounded-tarjeta border ${abierto ? "border-linea-oro bg-grafito" : "border-linea bg-grafito"}`}>
               <button type="button" aria-expanded={abierto} onClick={() => setCapAbiertos((s) => alternar(s, c.clave))} className="flex w-full items-start gap-3 px-3.5 py-3 text-left">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13.5px] font-medium text-zinc-100">{limpio(c.nombre)} · {plural(c.ideas.length, "idea", "ideas")}</span>
-                  {!abierto && <span className="mt-0.5 block text-[12.5px] leading-snug text-zinc-400">{(() => { const t = limpio(c.ideas[0].idea); return t.length > 150 ? `${t.slice(0, 149).trimEnd()}…` : t })()}</span>}
+                  <span className="block text-dato font-medio text-hueso">{limpio(c.nombre)} · {plural(c.ideas.length, "idea", "ideas")}</span>
+                  {!abierto && <span className="mt-0.5 block text-dato leading-snug text-gris">{(() => { const t = limpio(c.ideas[0].idea); return t.length > 150 ? `${t.slice(0, 149).trimEnd()}…` : t })()}</span>}
                 </span>
                 <Chev abierta={abierto} />
               </button>
               {abierto && (
                 <div className="px-3.5 pb-3.5">
                   <ul className="space-y-2">{vistas.map(idea)}</ul>
-                  {resto > 0 && <button type="button" data-accion="ver-todas" onClick={() => setTodas((s) => alternar(s, c.clave))} className="mt-2 px-1 text-[12px] text-zinc-400 underline decoration-dotted underline-offset-4 hover:text-zinc-200">… y {plural(resto, "idea más", "ideas más")} de este capítulo · ver todas</button>}
-                  {verTodas && c.ideas.length > IDEAS_A_LA_VISTA && <button type="button" data-accion="ver-menos" onClick={() => setTodas((s) => alternar(s, c.clave))} className="mt-2 px-1 text-[12px] text-zinc-500 underline decoration-dotted underline-offset-4 hover:text-zinc-200">ver menos</button>}
+                  {resto > 0 && <button type="button" data-accion="ver-todas" onClick={() => setTodas((s) => alternar(s, c.clave))} className="mt-2 px-1 text-dato text-gris underline decoration-dotted underline-offset-4 hover:text-hueso">… y {plural(resto, "idea más", "ideas más")} de este capítulo · ver todas</button>}
+                  {verTodas && c.ideas.length > IDEAS_A_LA_VISTA && <button type="button" data-accion="ver-menos" onClick={() => setTodas((s) => alternar(s, c.clave))} className="mt-2 px-1 text-dato text-gris underline decoration-dotted underline-offset-4 hover:text-hueso">ver menos</button>}
                 </div>
               )}
             </section>
@@ -154,22 +155,22 @@ export function BancoDeIdeas({ d, ctx, onGuardado, fetchImpl = fetch }: {
         })}
       </div>
       {editable && n > 0 && (
-        <div data-tus-cambios className="mt-4 rounded-lg border border-amber-400/30 bg-amber-400/[0.07] p-3.5">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Tus cambios · {n}</p>
-          <ul className="mt-1 space-y-1 text-[13px] text-zinc-200">
+        <div data-tus-cambios className="mt-4 rounded-tarjeta border border-linea-oro bg-grafito p-3.5">
+          <p className="text-rotulo uppercase tracking-[0.08em] text-gris">Tus cambios · {n}</p>
+          <ul className="mt-1 space-y-1 text-dato text-hueso">
             {Object.entries(ediciones).flatMap(([id, campos]) => Object.entries(campos).map(([c, t]) => {
               const i = porId.get(id)
               return (
                 <li key={`${id}-${c}`} data-cambio={`${id}:${c}`} className="flex items-start gap-3">
-                  <span className="min-w-0 flex-1">«{i ? limpio(nombreDelCapitulo(i)) : "Idea"}» · {ETIQUETA_DEL_CAMPO[c as CampoEditable]}: <span className="text-amber-50">{t}</span></span>
-                  <button type="button" aria-label={`Deshacer el cambio de ${ETIQUETA_DEL_CAMPO[c as CampoEditable].toLowerCase()}`} onClick={() => deshacer(id, c as CampoEditable)} className="text-zinc-500 hover:text-zinc-200">✕</button>
+                  <span className="min-w-0 flex-1">«{i ? limpio(nombreDelCapitulo(i)) : "Idea"}» · {ETIQUETA_DEL_CAMPO[c as CampoEditable]}: <span className="text-oro">{t}</span></span>
+                  <button type="button" aria-label={`Deshacer el cambio de ${ETIQUETA_DEL_CAMPO[c as CampoEditable].toLowerCase()}`} onClick={() => deshacer(id, c as CampoEditable)} className="text-gris hover:text-hueso">✕</button>
                 </li>
               )
             }))}
           </ul>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button type="button" data-accion="pedir-cambios-banco" disabled={enviando} onClick={pedir} className="rounded-xl border border-amber-400/70 bg-amber-400/15 px-5 py-3 text-[14px] font-medium text-amber-100 hover:bg-amber-400/25 disabled:cursor-not-allowed disabled:opacity-40">{enviando ? "Enviando…" : "Pedir los cambios"}</button>
-            <span className="text-[12px] text-zinc-400">No se reescribe ni gasta: se guarda tal cual. {ALCANCE_DE_LOS_CAMBIOS}</span>
+            <button type="button" data-accion="pedir-cambios-banco" disabled={enviando} onClick={pedir} className={`${BOTON_PRINCIPAL} py-2 disabled:cursor-not-allowed disabled:opacity-40`}>{enviando ? "Enviando…" : "Pedir los cambios"}</button>
+            <span className="text-dato text-gris">No se reescribe ni gasta: se guarda tal cual. {ALCANCE_DE_LOS_CAMBIOS}</span>
           </div>
         </div>
       )}

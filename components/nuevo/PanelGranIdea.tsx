@@ -221,8 +221,8 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
                   {d.resumen.total > 0 && (
                     // 17-nov · boceto aprobado por Emilio: las ideas mismas, por capítulo, y se editan como el manual (`BancoDeIdeas`)
                     <Plegable id="banco" titulo={`Banco de ideas · ${d.resumen.total}`} resumen={Object.entries(d.resumen.por_red).map(([red, n]) => `${nombreDeRed(red)}: ${n}`).join(" · ")}>
-                      <p className="mb-3 text-zinc-400">{Object.entries(d.resumen.por_red).map(([red, n]) => `${nombreDeRed(red)}: ${n}`).join(" · ")} · agrupadas por capítulo</p>
-                      {d.resumen.parcial.length > 0 && <p className="mb-3 text-[11.5px] text-amber-200/80">Banco parcial: {d.resumen.parcial.map((x) => `${nombreDeRed(x.red)} / ${x.capitulo} faltan ${x.faltan}`).join(" · ")}</p>}
+                      <p className="mb-3 text-gris">{Object.entries(d.resumen.por_red).map(([red, n]) => `${nombreDeRed(red)}: ${n}`).join(" · ")} · agrupadas por capítulo</p>
+                      {d.resumen.parcial.length > 0 && <p className="mb-3 text-rotulo text-oro">Banco parcial: {d.resumen.parcial.map((x) => `${nombreDeRed(x.red)} / ${x.capitulo} faltan ${x.faltan}`).join(" · ")}</p>}
                       <BancoDeIdeas d={d} ctx={ctx} fetchImpl={fetchImpl} onGuardado={() => leer(datos?.cliente?.id ?? null, d.hitl_id)} />
                     </Plegable>
                   )}
