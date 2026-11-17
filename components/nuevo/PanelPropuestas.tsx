@@ -189,7 +189,7 @@ function Tarjeta({ x, k, total, elegida, alElegir, apagada, imagen = false, clas
   )
 }
 
-/** el guion: 4 cuadros grandes a lo ancho, del mismo tamaño. Con más de 4, flechas a los lados para pasar a los siguientes (y volver); la flecha no elige nada */
+/** el guion: 4 cuadros grandes a lo ancho, del mismo tamaño. Con más de 4, flechas junto al rótulo para pasar a los siguientes (y volver); la flecha no elige nada */
 function Guion({ x, imagen, clase }: { x: PropuestaDeVideo; imagen: boolean; clase: ClaseDeImagen | null }) {
   const celdas = celdasDelGuion(x.planos)
   const [desde, setDesde] = useState(0)
@@ -198,23 +198,28 @@ function Guion({ x, imagen, clase }: { x: PropuestaDeVideo; imagen: boolean; cla
   const antes = desde > 0
   const despues = hasta < hay
   const proporcion = imagen ? (PROPORCION[clase ?? ""] ?? "aspect-[4/5]") : "aspect-[9/16]"
-  const flecha = "absolute top-[38%] z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-linea-oro bg-carbon/90 text-titulo text-oro hover:bg-grafito focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"
+  // las flechas van en la fila del rótulo, a la derecha: nunca encima de una imagen (CC7, `RESPUESTA-CC7-a-CC1-CC5-texto-de-la-publicacion-y-boceto.md` punto 1)
+  const flecha = "flex h-11 w-11 items-center justify-center rounded-full border border-linea-oro text-titulo leading-none text-oro hover:bg-grafito focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro"
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex min-h-11 items-center justify-between gap-2">
         <Rotulo>{imagen ? "Láminas · borrador" : "Guion gráfico · borrador"}</Rotulo>
-        {hay > CUADROS_A_LO_ANCHO && <span data-cuantos className="text-rotulo text-gris">{desde + 1}–{hasta} de {hay}</span>}
+        {hay > CUADROS_A_LO_ANCHO && (
+          <div data-paso className="flex items-center gap-2">
+            {antes && <button type="button" data-flecha="antes" aria-label={`Ver las imágenes anteriores de ${x.nombre}`} onClick={() => setDesde(ventanaAnterior(desde))} className={flecha}>‹</button>}
+            <span data-cuantos className="text-rotulo text-gris [font-variant-numeric:tabular-nums]">{desde + 1}–{hasta} de {hay}</span>
+            {despues && <button type="button" data-flecha="despues" aria-label={`Ver las imágenes siguientes de ${x.nombre}`} onClick={() => setDesde(ventanaSiguiente(desde, hay))} className={flecha}>›</button>}
+          </div>
+        )}
       </div>
       {hay
         ? (
-          <div className="relative mt-2">
-            {antes && <button type="button" data-flecha="antes" aria-label={`Ver las imágenes anteriores de ${x.nombre}`} onClick={() => setDesde(ventanaAnterior(desde))} className={`${flecha} -left-3`}>‹</button>}
+          <div className="mt-1">
             <ol data-guion-grafico className="grid grid-cols-4 gap-2">
               {celdas.slice(desde, hasta).map((c) => (imagen
                 ? <Lamina key={`${c.p.n}-${c.i}`} c={c} nombre={nombreDeLaLamina(clase, c.p.n, x.planos.length)} proporcion={proporcion} />
                 : <Cuadro key={`${c.p.n}-${c.i}`} c={c} />))}
             </ol>
-            {despues && <button type="button" data-flecha="despues" aria-label={`Ver las imágenes siguientes de ${x.nombre}`} onClick={() => setDesde(ventanaSiguiente(desde, hay))} className={`${flecha} -right-3`}>›</button>}
           </div>
         )
         : <p className="mt-1.5 text-dato"><SinDato /></p>}
