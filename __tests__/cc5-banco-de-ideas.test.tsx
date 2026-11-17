@@ -32,7 +32,7 @@ const CAPS_FERRE: CapituloDelConcepto[] = [
   { clave: "usar", fase: "f2", nombre: "Manos a la obra", que_cuenta: "", objetivo_cita: "", como_se_ve: "", series: [] },
 ]
 const BANCO_FERRE = [
-  idea("C1-I01", "abrir", { idea: "el martillo de tu abuelo sigue en la caja", mensaje: "lo que dura se compra aquí", serie: "S1", foto: "a1|foto:b2" }),
+  idea("C1-I01", "abrir", { idea: "el martillo de tu abuelo sigue en la caja", mensaje: "lo que dura se compra aquí", gancho: "repite el ritual de C1-I02 con el martillo", serie: "S1", foto: "a1|foto:b2" }),
   idea("C1-I02", "f1", { red: "facebook", formato: "foto" }), // cita la fase, no la clave: igual entra al capítulo
   idea("C2-I01", "usar", { red: "whatsapp", formato: "estado" }),
   idea("C2-I02", "usar", { retirada: true }),
@@ -189,7 +189,8 @@ describe("5 · en pantalla", () => {
     expect(abierta.textContent).toContain("Una herramienta por semana")
     expect(abierta.textContent).toContain("2 fotos del expediente")
     expect(within(abierta).getByRole("button", { name: "Retirar esta idea" })).toBeTruthy()
-    expect(abierta.textContent).not.toContain("C1-I01")
+    expect(abierta.textContent).not.toMatch(/C\d+-I\d+/) // los códigos de la cadena se leen en palabras
+    expect(abierta.querySelector('[data-campo="gancho"]')?.textContent).toContain("repite el ritual de")
   })
   it("sin aprobar: se lee igual, sin «Editar» ni «Retirar»", () => {
     const { container } = render(<BancoDeIdeas d={D("pendiente", BANCO_FERRE, CAPS_FERRE)} ctx={CTX} onGuardado={() => {}} />)
@@ -226,7 +227,7 @@ describe("5 · en pantalla", () => {
     const { container } = render(<BancoDeIdeas d={D("aprobada", BANCO_FERRE, CAPS_FERRE)} ctx={CTX} onGuardado={() => {}} fetchImpl={f} />)
     abrirCapitulo(/La caja se abre/)
     fireEvent.click(screen.getByText("el martillo de tu abuelo sigue en la caja"))
-    for (const [nombre, nuevo] of [[/^Editar «lo que dura/, "otro mensaje"], [/^Editar «gancho c1i01/, "otro gancho"]] as const) {
+    for (const [nombre, nuevo] of [[/^Editar «lo que dura/, "otro mensaje"], [/^Editar «repite el ritual/, "otro gancho"]] as const) {
       fireEvent.click(screen.getByRole("button", { name: nombre }))
       fireEvent.change(screen.getByRole("textbox"), { target: { value: nuevo } })
       fireEvent.click(screen.getByRole("button", { name: "Listo" }))
