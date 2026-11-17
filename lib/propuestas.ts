@@ -130,9 +130,23 @@ export function leerPropuestas(v: unknown): Propuestas | null {
   }
 }
 
-/** 17-nov · cómo se llama cada «plano» de una propuesta de imagen: «Lámina 2» (carrusel/kit) o «Pieza» (post) */
+/** 17-nov · cómo se llama cada «plano» de una propuesta de imagen (contrato §3): «Lámina n» en historia y carrusel (aunque tengan una sola · obs. 2 de CC7),
+ *  «Pieza» en la foto. Sin clase, «Pieza» si es una sola y «Lámina n» si son varias */
 export function nombreDeLaLamina(clase: ClaseDeImagen | null, n: number, total: number): string {
-  return clase === "post_img" || total === 1 ? "Pieza" : `Lámina ${n}`
+  if (clase === "post_img") return "Pieza"
+  return clase === null && total === 1 ? "Pieza" : `Lámina ${n}`
+}
+
+/** 17-nov · obs. 1 de CC7: los textos de la publicación que vengan, TODOS (texto, pie y llamado), sin repetir uno igual: nada se oculta al aprobar */
+export function textosDeLaPublicacion(t: TextoDeLaPublicacion | null): Array<{ campo: "texto_base" | "pie_de_foto" | "llamado"; texto: string }> {
+  if (!t) return []
+  const vistos = new Set<string>()
+  return (["texto_base", "pie_de_foto", "llamado"] as const).flatMap((campo) => {
+    const texto = t[campo]
+    if (!texto || vistos.has(texto)) return []
+    vistos.add(texto)
+    return [{ campo, texto }]
+  })
 }
 
 /** 17-nov · la clase en palabras, para la ficha de la propuesta («Carrusel · 5 láminas») */

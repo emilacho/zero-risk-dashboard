@@ -5,7 +5,7 @@ import { Acciones, Aviso, BOTON_PRINCIPAL, BOTON_SECUNDARIO, PanelBase, Rotulo }
 import { ConNombres, SinDato } from "@/components/nuevo/FichaDeDecision"
 import { NOMBRE_DEL_VERBO, NOMBRE_MIENTRAS_SALE } from "@/lib/ficha-de-decision"
 import type { Decision } from "@/lib/direccion-decisiones"
-import { TOPE_OBSERVACIONES, claseLegible, contestarPropuestas, dolares, nombreDeLaLamina, rolLegible, tramo, type ClaseDeImagen, type PlanoDePropuesta, type PropuestaDeVideo, type Propuestas, type ResultadoDePropuestas } from "@/lib/propuestas"
+import { TOPE_OBSERVACIONES, claseLegible, contestarPropuestas, dolares, nombreDeLaLamina, rolLegible, textosDeLaPublicacion, tramo, type ClaseDeImagen, type PlanoDePropuesta, type PropuestaDeVideo, type Propuestas, type ResultadoDePropuestas } from "@/lib/propuestas"
 
 /**
  * PROPUESTAS (Sprint 2 · boceto aprobado por Emilio 16-nov 22:23 · `raw/evidencia/2026-11-16-sprint2-tarjeta-propuestas/`).
@@ -118,7 +118,7 @@ export function PanelPropuestas({ decision, onCerrar, fetchImpl = fetch, elegida
 function Tarjeta({ x, k, total, elegida, alElegir, apagada, imagen = false, clase = null }: { x: PropuestaDeVideo; k: number; total: number; elegida: boolean; alElegir: () => void; apagada: boolean; imagen?: boolean; clase?: ClaseDeImagen | null }) {
   const portada = x.planos.find((p) => p.imagenes.length)?.imagenes[0]
   const pub = x.texto_de_la_publicacion
-  const textoPub = pub ? (pub.pie_de_foto ?? pub.texto_base ?? pub.llamado) : null
+  const textosPub = textosDeLaPublicacion(pub)
   return (
     <article data-propuesta={x.id} data-elegida={elegida || undefined} className={`flex min-w-0 flex-col gap-4 rounded-tarjeta border bg-grafito-2 p-5 ${elegida ? "border-oro" : "border-linea"}`}>
       <header className="flex items-center justify-between gap-3">
@@ -154,7 +154,9 @@ function Tarjeta({ x, k, total, elegida, alElegir, apagada, imagen = false, clas
           {imagen && (
             <p data-texto-publicacion className="text-dato text-gris">
               <span className="text-rotulo uppercase tracking-rotulo">Texto de la publicación · </span>
-              {textoPub ? <span className="text-hueso"><ConNombres texto={textoPub} /></span> : <SinDato />}
+              {textosPub.length
+                ? textosPub.map((t) => <span key={t.campo} data-texto={t.campo} className="block text-hueso"><ConNombres texto={t.texto} /></span>)
+                : <SinDato />}
               {pub?.hashtags.length ? <span data-hashtags className="block text-gris">{pub.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")}</span> : null}
             </p>
           )}

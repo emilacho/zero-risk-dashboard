@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { claseLegible, leerPropuestas, nombreDeLaLamina, type Propuestas } from "@/lib/propuestas"
+import { claseLegible, leerPropuestas, nombreDeLaLamina, textosDeLaPublicacion, type Propuestas } from "@/lib/propuestas"
 import { normalizarDecisiones, type Decision } from "@/lib/direccion-decisiones"
 import { PanelPropuestas } from "@/components/nuevo/PanelPropuestas"
 
@@ -207,5 +207,26 @@ describe("4 · lo que mide CC7 (`NOTA-CC7-a-CC5-tarjeta-propuestas-imagen-lo-que
       expect(r.container.querySelector("[data-contestada]")).toBeNull()
       cleanup()
     }
+  })
+})
+
+describe("5 · las 2 observaciones de CC7 (`CERTIFICACION-CC7-tarjeta-propuestas-en-imagen-345.md`)", () => {
+  it("obs. 1: se ven TODOS los textos de la publicación (texto, pie y llamado), sin repetir uno igual", () => {
+    expect(textosDeLaPublicacion({ texto_base: "Lo que dura.", pie_de_foto: "Cinco que no fallan.", hashtags: [], llamado: "Visítanos" }).map((t) => t.campo)).toEqual(["texto_base", "pie_de_foto", "llamado"])
+    expect(textosDeLaPublicacion({ texto_base: "Igual", pie_de_foto: "Igual", hashtags: [], llamado: null })).toEqual([{ campo: "texto_base", texto: "Igual" }])
+    expect(textosDeLaPublicacion(null)).toEqual([])
+    const h = dibujar(decision(carrusel()))
+    const p1 = h.match(/<p data-texto-publicacion[\s\S]*?<\/p>/)?.[0] ?? ""
+    expect(p1).toContain("Lo que dura no se cambia."); expect(p1).toContain("Cinco que no fallan en obra."); expect(p1).toContain("Visítanos")
+    expect(p1).not.toContain("data-sin-dato")
+  })
+  it("obs. 2: una historia o un carrusel de UNA lámina dice «Lámina 1», no «Pieza»; la foto sigue siendo «Pieza»", () => {
+    expect(nombreDeLaLamina("kit", 1, 1)).toBe("Lámina 1")
+    expect(nombreDeLaLamina("carrusel", 1, 1)).toBe("Lámina 1")
+    expect(nombreDeLaLamina("post_img", 1, 3)).toBe("Pieza")
+    expect(nombreDeLaLamina(null, 2, 2)).toBe("Lámina 2")
+    const h = dibujar(decision(carrusel({ clase: "kit" })))
+    const p2 = h.match(/<article data-propuesta="P2"[\s\S]*?<\/article>/)?.[0] ?? ""
+    expect(p2).toContain("Lámina 1 · Portada"); expect(p2).not.toContain("Pieza")
   })
 })
