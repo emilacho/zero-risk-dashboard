@@ -92,10 +92,13 @@ describe("1 · el dato: imagen solo con `familia: 'imagen'`; lo demás es video 
 
 describe("2 · el dibujo de imagen: el mismo boceto, sin video ni segundos", () => {
   const html = dibujar(decision(carrusel()))
-  it("la primera lámina en lugar del video; sin video ni «el borrador en video todavía no está»", () => {
-    expect(html.match(/<img[^>]*data-portada[^>]*>/)?.[0]).toContain(`src="${LAMINA("p1-1")}"`)
+  it("sin vista previa grande arriba (GO Lenovo 17-nov): la primera lámina es el primer cuadro del guion; sin video ni su enlace", () => {
+    expect(html).not.toContain("data-portada")
+    const p1 = html.match(/<article data-propuesta="P1"[\s\S]*?<\/article>/)?.[0] ?? ""
+    expect(p1.match(/<img[^>]*data-cuadro[^>]*>/)?.[0]).toContain(`src="${LAMINA("p1-1")}"`)
     expect(html).not.toContain("<video")
     expect(html).not.toContain("data-sin-video")
+    expect(html).not.toContain("data-boton-video")
     expect(html).not.toContain("Guion gráfico")
     expect(html).toContain("Láminas · borrador")
   })
@@ -117,7 +120,8 @@ describe("2 · el dibujo de imagen: el mismo boceto, sin video ni segundos", () 
     expect(html).not.toContain("##obra")
   })
   it("una propuesta sin borrador ni texto lo dice (sin dato), no inventa", () => {
-    expect(html).toContain("data-sin-portada")
+    const p2 = html.match(/<article data-propuesta="P2"[\s\S]*?<\/article>/)?.[0] ?? ""
+    expect(p2).toContain("data-cuadro-vacio"); expect(p2).toContain("Una puerta rota"); expect(p2).not.toContain("<img")
     expect(html.match(/data-texto-publicacion/g)).toHaveLength(3)
   })
   it("una foto: «Foto» y «Pieza · Foto», y sin rondas de cambios solo se aprueba", () => {
@@ -130,7 +134,7 @@ describe("2 · el dibujo de imagen: el mismo boceto, sin video ni segundos", () 
     expect(f).toContain("Sale a las 6:00.")
     expect(f).not.toContain("data-hashtags")
   })
-  it("el video no cambia: sin `familia` no hay portada ni láminas", () => {
+  it("sin `familia` es video: sin láminas ni texto de la publicación", () => {
     const v = dibujar(decision(carrusel({ familia: undefined })))
     expect(v).not.toContain("data-portada")
     expect(v).not.toContain("data-lamina")
@@ -158,7 +162,7 @@ describe("4 · lo que mide CC7 (`NOTA-CC7-a-CC5-tarjeta-propuestas-imagen-lo-que
   })
   it("sin texto de la publicación, el «sin dato» rojo se ve (nunca vacío en silencio)", () => {
     const h = dibujar(decision(carrusel()))
-    const bloques = h.match(/<p data-texto-publicacion[\s\S]*?<\/p>/g) ?? []
+    const bloques = h.match(/<div data-texto-publicacion[\s\S]*?<\/div>/g) ?? []
     expect(bloques).toHaveLength(3)
     expect(bloques[0]).not.toContain("data-sin-dato")
     expect(bloques[1]).toContain("data-sin-dato")
@@ -216,7 +220,7 @@ describe("5 · las 2 observaciones de CC7 (`CERTIFICACION-CC7-tarjeta-propuestas
     expect(textosDeLaPublicacion({ texto_base: "Igual", pie_de_foto: "Igual", hashtags: [], llamado: null })).toEqual([{ campo: "texto_base", texto: "Igual" }])
     expect(textosDeLaPublicacion(null)).toEqual([])
     const h = dibujar(decision(carrusel()))
-    const p1 = h.match(/<p data-texto-publicacion[\s\S]*?<\/p>/)?.[0] ?? ""
+    const p1 = h.match(/<div data-texto-publicacion[\s\S]*?<\/div>/)?.[0] ?? ""
     expect(p1).toContain("Lo que dura no se cambia."); expect(p1).toContain("Cinco que no fallan en obra."); expect(p1).toContain("Visítanos")
     expect(p1).not.toContain("data-sin-dato")
   })
