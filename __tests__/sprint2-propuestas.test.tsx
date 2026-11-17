@@ -173,11 +173,14 @@ describe("3 · la puerta del tablero: valida y pasa a la plataforma (ADENDA 1 §
 })
 
 describe("4 · la pantalla Propuestas (boceto aprobado + borrador en video + costo)", () => {
-  it("las 3 lado a lado, cada una con su video (o el aviso de que falta), su costo y su guion gráfico", () => {
+  it("las 3 lado a lado, cada una con su guion, su costo y el enlace a su video (o el aviso de que falta) · forma de `2-visor.png` (GO Lenovo 17-nov)", () => {
     const h = dibujar()
     expect(h.match(/data-propuesta="/g)).toHaveLength(3)
-    expect(h.match(/data-borrador-video/g)).toHaveLength(2); expect(h).toContain('src="https://almacen.example/borradores/p1.mp4"')
-    expect(h).toContain("data-sin-video"); expect(h).toContain("El borrador en video todavía no está")
+    // el video no se carga de entrada (no hay vista previa grande arriba): se abre con «Ver el video ›»
+    expect(h).not.toContain("<video")
+    expect(h.match(/data-boton-video/g)).toHaveLength(2); expect(h).toContain("Ver el video ›")
+    const p2 = h.slice(h.indexOf('data-propuesta="P2"'), h.indexOf('data-propuesta="P3"'))
+    expect(p2).toContain("data-sin-video"); expect(p2).not.toContain("data-boton-video")
     expect(h).toContain("US$ 0,84"); expect(h).toContain("US$ 6,20")
     expect(h).toContain("Propuesta 1 de 3"); expect(h).toContain("La sonrisa nueva"); expect(h).toContain("12 s"); expect(h).toContain("Instagram"); expect(h).toContain("Citas nuevas")
     expect(h).toContain("Clínica Dental Sonrisa · ronda 1 · en borrador · quedan 3 rondas de cambios")
