@@ -21,6 +21,7 @@
  * (placeholder · sin `client_id`) en `context`. El flujo canónico tiene
  * `client_id` directo en la columna · canon canon-pre-lookup es safety net.
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 // ─────────────────────────────────────────────────────────────────────
@@ -188,7 +189,7 @@ export async function lookupClientIdByName(
 // ─────────────────────────────────────────────────────────────────────
 
 /** largo máximo de `frase_del_aprobador` en la ruta de la plataforma */
-export const FRASE_MAXIMA = 2000
+export const FRASE_MAXIMA = TOPE_DEL_TEXTO_DEL_DUENO // G2b 18-nov «nada se recorta» (CC5): el tope único de lo que escribe Emilio
 
 /**
  * Resolver por la plataforma (`PATCH {plataforma}/api/hitl/{id}`, arreglo 3 · 19-oct, a pedido de la certificación de CC#2): la ruta de la plataforma es quien aplica los efectos de

@@ -6,6 +6,7 @@
  * todavía no tiene panel nuevo lo dice tal cual, sin botón falso y sin enlazar al tablero viejo.
  * Reglas del contrato: `completo: false` ⇒ nunca decir «nada pendiente»; `sin_fuente[]` se muestra como «sin dato».
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 
 import { claveValida } from "@/lib/alertas"
 import { sinCodigos as sinCodigosDelSistema } from "@/lib/sin-codigos"
@@ -70,8 +71,8 @@ export interface AlertaDeDecision { clave: string; estado: "nueva" | "revisada" 
 export interface CifraDeFirma { clave: string; nombre: string; valor: number; unidad: string | null; nota: string | null; /** 05-nov · la oficina deja cambiarla antes de firmar (hoy: la meta y el presupuesto) */ editable?: boolean }
 export type AccionDeDecision = "aceptar" | "editar" | "responder" | "asumir" | "descartar"
 /** lo que aceptan las puertas al contestar (la del dueño: respuesta ≤ 2.000 · motivo de descarte ≤ 300) */
-export const TOPE_RESPUESTA = 2000
-export const TOPE_MOTIVO = 300
+export const TOPE_RESPUESTA = TOPE_DEL_TEXTO_DEL_DUENO // G2b 18-nov «nada se recorta» (CC5): el tope único de lo que escribe Emilio
+export const TOPE_MOTIVO = TOPE_DEL_TEXTO_DEL_DUENO // el motivo: dueno_preguntas_motivo_check sube con la migración 202611182200 (G2b plataforma)
 export const ACCIONES_DE_DECISION: readonly AccionDeDecision[] = ["aceptar", "editar", "responder", "asumir", "descartar"]
 export interface FuenteDeDecisiones { fuente: string; estado: "ok" | "no_existe" | "error" | "sin_credencial" | string; filas: number; truncado?: boolean; detalle?: string }
 export interface Decisiones {

@@ -178,7 +178,7 @@ describe("descartar y firmar", () => {
     expect(await contestarDecision({ id: T1, accion: "responder", respuesta: "x" }, deps(p))).toMatchObject({ status: 409, cuerpo: { error: "accion_no_permitida" } })
     expect(await contestarDecision({ id: P1, accion: "editar", cambio: { clave: "total_mes", firmado: 5 } }, deps(p))).toMatchObject({ status: 409 })
     expect(await contestarDecision({ id: P1, accion: "responder", respuesta: "  " }, deps(p))).toMatchObject({ status: 400 })
-    expect(await contestarDecision({ id: P1, accion: "responder", respuesta: "x".repeat(2001) }, deps(p))).toMatchObject({ status: 400 })
+    expect(await contestarDecision({ id: P1, accion: "responder", respuesta: "x".repeat(100_001) }, deps(p))).toMatchObject({ status: 400 }) // G2b 18-nov «nada se recorta» (CC5): el tope es el único de 100 000
     expect(p.llamadas.filter((x) => x.metodo === "POST")).toHaveLength(0)
   })
   it("si no se puede leer la lista de decisiones → 502 «no se hizo nada»: ninguna escritura, ni pausa ni cerebro ni firma (CC3 · mutante D14)", async () => {

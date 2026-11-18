@@ -216,8 +216,10 @@ describe("🔴 el cuerpo REAL que el tablero manda a la plataforma cumple el con
       expect(c).not.toHaveProperty("decision")
     }
   })
-  it("el motivo se recorta a lo que admite la plataforma (2000) y un motivo vacío no manda una frase vacía", async () => {
-    expect(String((await cuerpoDe({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "x".repeat(5000) })).frase_del_aprobador)).toHaveLength(2000) // el límite del contrato, no el de la constante
+  it("el motivo llega entero hasta lo que admite la plataforma (el tope único de 100 000) y un motivo vacío no manda una frase vacía", async () => {
+    // G2b 18-nov «nada se recorta» (CC5): el tope es el único de 100 000 (la ruta /api/hitl/[id] de la plataforma ya lo admite)
+    expect(String((await cuerpoDe({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "x".repeat(5000) })).frase_del_aprobador)).toHaveLength(5000)
+    expect(String((await cuerpoDe({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "x".repeat(100_001) })).frase_del_aprobador)).toHaveLength(100_000) // el límite del contrato
     expect((await cuerpoDe({ hitl_id: "p-1", decision: "reject", reviewer_id: "emilio", rejection_reason: "   " })).frase_del_aprobador).toBe("(no reason given)")
   })
   it("el validador de la prueba SÍ detecta el choque de antes (un objeto en «decision», una decisión fuera de la lista y una frase de más de 2000 no pasan el contrato)", () => {

@@ -113,7 +113,8 @@ describe("sprint 6.5 · el plan de 90 días en el estilo nuevo", () => {
     expect(cuerpoDeResolucion(REVISION, "rechazar", "  ")).toEqual({ error: "Cuenta qué debe cambiar" }) // GO 11-nov: basta que haya texto
     expect(cuerpoDeResolucion(REVISION, "rechazar", "no")).not.toHaveProperty("error")
     expect(cuerpoDeResolucion(null, "aprobar", "")).toEqual({ error: "No hay una revisión del plan que decidir" })
-    expect(cuerpoDeResolucion(REVISION, "aprobar", "x".repeat(1001))).toEqual({ error: "Máximo 1.000 caracteres" })
+    expect(cuerpoDeResolucion(REVISION, "aprobar", "x".repeat(5000))).not.toHaveProperty("error") // G2b 18-nov «nada se recorta» (CC5): el tope es el único de 100 000
+    expect(cuerpoDeResolucion(REVISION, "aprobar", "x".repeat(100_001))).toEqual({ error: "Máximo 100.000 caracteres" })
     for (const c of [cuerpoDeResolucion(REVISION, "aprobar", ""), cuerpoDeResolucion(REVISION, "rechazar", "Falta el presupuesto real")]) {
       const v = ACCIONES["revision-resolver"].validar(c as Record<string, unknown>)
       expect(v.ok).toBe(true)

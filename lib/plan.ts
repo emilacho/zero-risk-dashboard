@@ -10,6 +10,7 @@
  * La decisión sobre el plan (CC6 · 01-nov · ciclo del plan de CC1) va por las puertas `plan-cambios` (gasta, tope ≤ 8) y `plan-aprobar` (US$ 0) del tablero:
  * aquí se arman sus cuerpos, se lee el estado del ciclo y se dicen sus respuestas en palabras. La nota «plan con pendientes» de la bandeja ya no se decide aquí.
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import type { FasesDelPlan } from "@/lib/clientes"
 import { fasesDelPlan } from "@/lib/clientes"
 import { DIAS_DE_LA_SEMANA, diaDelCalendario, type FaseActiva } from "@/lib/pizarron"
@@ -553,14 +554,14 @@ export function cuerpoDePedirCambios(planId: string | null, observaciones: strin
   if (!planId || !UUID.test(planId)) return { error: "No hay un plan sobre el que pedir cambios" }
   const t = observaciones.trim()
   if (!t) return { error: "Cuenta qué debe cambiar" }
-  if (t.length > 4000) return { error: "Máximo 4.000 caracteres" }
+  if (t.length > TOPE_DEL_TEXTO_DEL_DUENO) return { error: `Máximo ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres` }
   return { plan_id: planId, texto: t, confirmo_gasto: true, tope_usd: TOPE_REESCRITURA_USD }
 }
 /** el cuerpo de «Aprobar» (contrato: comentario opcional de hasta 1.000) */
 export function cuerpoDeAprobar(planId: string | null, comentario: string): { plan_id: string; comentario?: string } | { error: string } {
   if (!planId || !UUID.test(planId)) return { error: "No hay un plan que aprobar" }
   const t = comentario.trim()
-  if (t.length > 1000) return { error: "Máximo 1.000 caracteres" }
+  if (t.length > TOPE_DEL_TEXTO_DEL_DUENO) return { error: `Máximo ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres` }
   return { plan_id: planId, ...(t ? { comentario: t } : {}) }
 }
 
@@ -634,7 +635,7 @@ export function palabrasDeLaRespuesta(accion: "plan-cambios" | "plan-aprobar", s
 export function cuerpoDeResolucion(hitlId: string | null, decision: "aprobar" | "rechazar", comentario: string): { hitl_id: string; decision: "aprobar" | "rechazar"; comentario?: string } | { error: string } {
   if (!hitlId || !UUID.test(hitlId)) return { error: "No hay una revisión del plan que decidir" }
   const t = comentario.trim()
-  if (t.length > 1000) return { error: "Máximo 1.000 caracteres" }
+  if (t.length > TOPE_DEL_TEXTO_DEL_DUENO) return { error: `Máximo ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres` }
   if (decision === "rechazar" && !t) return { error: "Cuenta qué debe cambiar" }
   return { hitl_id: hitlId, decision, ...(t ? { comentario: t } : {}) }
 }

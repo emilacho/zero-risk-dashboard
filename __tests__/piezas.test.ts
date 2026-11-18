@@ -132,7 +132,8 @@ describe("la validación de lo que mandan los botones", () => {
     expect(validarDecision({ accion: "cambios", comentario: "el titular es largo", laminas: [1.5] }, 3, false)).toMatchObject({ ok: false, error: "lamina_invalida" })
     const ok = validarDecision({ accion: "cambios", comentario: "  el titular es largo  ", laminas: [3, 1, 3] }, 3, false)
     expect(ok).toMatchObject({ ok: true, pedido: { comentario: "el titular es largo", laminas: [1, 3] } })
-    expect(validarDecision({ accion: "cambios", comentario: "x".repeat(2001) }, 3, false)).toMatchObject({ ok: false, error: "comentario_largo" })
+    expect(validarDecision({ accion: "cambios", comentario: "x".repeat(5000) }, 3, false)).toMatchObject({ ok: true }) // G2b 18-nov «nada se recorta» (CC5): el tope es el único de 100 000
+    expect(validarDecision({ accion: "cambios", comentario: "x".repeat(100_001) }, 3, false)).toMatchObject({ ok: false, error: "comentario_largo" })
   })
 })
 

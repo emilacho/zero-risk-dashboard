@@ -5,6 +5,7 @@
  * el costo, cuántas vueltas de cambios quedan y el brief de campaña en solo lectura. Dos botones: Aprobar / Pedir cambios (nota + a qué apunta).
  * Cuando `/nuevo` reemplace la bandeja, este componente migra tal cual (lee los mismos datos).
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import type { DetalleDelConcepto, EstadoDelConcepto } from "@/lib/concepto-datos"
@@ -168,7 +169,7 @@ export function VisorDeConcepto({ concepto }: { concepto: DetalleDelConcepto }) 
               <label className="flex items-start gap-2"><input type="radio" name="apunta" checked={apunta === "concepto"} onChange={() => setApunta("concepto")} /><span><b>Al concepto</b> · la mesa de creativos hace otra ronda con tu nota (el brief se queda).</span></label>
               <label className="flex items-start gap-2"><input type="radio" name="apunta" checked={apunta === "brief"} onChange={() => setApunta("brief")} /><span><b>Al brief</b> · se escribe un brief nuevo y, sobre él, otra gran idea (es el camino largo).</span></label>
             </div>
-            <textarea autoFocus value={nota} onChange={(e) => setNota(e.target.value)} rows={5} maxLength={2000} placeholder="¿Qué quieres distinto?" className="mt-3 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-sm outline-none focus:border-[hsl(var(--primary))]" />
+            <textarea autoFocus value={nota} onChange={(e) => setNota(e.target.value)} rows={5} maxLength={TOPE_DEL_TEXTO_DEL_DUENO} placeholder="¿Qué quieres distinto?" className="mt-3 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-sm outline-none focus:border-[hsl(var(--primary))]" />
             <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Mínimo {NOTA_MINIMA} letras</p>
             {mensaje && !mensaje.ok && <p className="mt-2 text-[13px] text-rose-300">{mensaje.texto}</p>}
             <div className="mt-4 flex justify-end gap-2">

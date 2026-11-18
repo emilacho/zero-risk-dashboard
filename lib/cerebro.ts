@@ -5,6 +5,7 @@
  * (`POST /api/brain/alimentar/dueno`: US$ 0, sin modelo; una respuesta nueva al mismo tema REEMPLAZA a la anterior, que queda archivada).
  * El dato del dueño es LO ÚNICO que se escribe desde aquí: el resto del cerebro lo llenan las oficinas (sitio, redes, competidores, tendencias) y se lee tal cual.
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 
 export type ClaveDeCarpeta = "dueno" | "negocio" | "redes" | "dicen" | "competidores" | "mercado" | "ideal" | "otras"
 
@@ -249,9 +250,9 @@ export function porSede(fichas: FichaDelCerebro[]): Array<{ sede: string | null;
 }
 
 // ─── lo que el dueño escribe ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-export const MAX_TEMA = 80
-export const MAX_PREGUNTA = 600
-export const MAX_RESPUESTA = 2000
+export const MAX_TEMA = TOPE_DEL_TEXTO_DEL_DUENO // G2b 18-nov «nada se recorta» (CC5): el tope único de lo que escribe Emilio (la base: dueno_preguntas_*_check a 100 000 desde el 18-nov)
+export const MAX_PREGUNTA = TOPE_DEL_TEXTO_DEL_DUENO
+export const MAX_RESPUESTA = TOPE_DEL_TEXTO_DEL_DUENO
 export const MIN_RESPUESTA = 3
 /** cómo se presenta el dashboard ante la puerta del dueño (el precedente es el manual: `dashboard · manual`) */
 export const CANAL_DEL_CEREBRO = "dashboard · cerebro"

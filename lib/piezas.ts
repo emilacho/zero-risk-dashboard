@@ -3,6 +3,7 @@
  * Lo que se muestra sale del MANIFIESTO y de los artefactos de la oficina, nunca del resumen de la bandeja (el resumen del 28-oct decía «6 imágenes generadas»
  * cuando no había ninguna). Aprobar NO publica todavía: la plataforma lo ensaya.
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 
 import { fechaYHoraEnPalabras } from "./lenguaje"
 
@@ -15,7 +16,7 @@ export const RONDAS_MAXIMAS_DE_CAMBIOS = 5
  * Una sola regla para todas las pantallas del tablero; la plataforma valida lo mismo.
  */
 export const hayTexto = (t: string | null | undefined): boolean => typeof t === "string" && t.trim().length > 0
-export const COMENTARIO_MAXIMO = 2000
+export const COMENTARIO_MAXIMO = TOPE_DEL_TEXTO_DEL_DUENO // G2b 18-nov «nada se recorta» (CC5): el tope único de lo que escribe Emilio
 
 export type EstadoPieza = "pendiente" | "aprobada" | "con_cambios" | "rechazada" | "superada" | "archivada" | "otro"
 export const ESTADOS_DE_LA_BANDEJA: Record<string, EstadoPieza> = { pending: "pendiente", approved: "aprobada", edited: "con_cambios", rejected: "rechazada" }

@@ -7,6 +7,7 @@
  *    que guarda antes/después, quién y cuándo en el historial del banco y rehace `linea`.
  * Las funciones de lectura y del pedido son puras; `pedirAlBanco` es la única que llama afuera (con `fetchImpl` inyectable).
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { cargarConcepto, type CapituloDelConcepto, type DetalleDelConcepto, type IdeaDelBanco } from "@/lib/concepto-datos"
 import { WORKFLOW_DEL_TABLERO } from "@/lib/concepto-decision"
@@ -16,7 +17,7 @@ export const CAMPOS_EDITABLES = ["idea", "mensaje", "gancho", "protagonista"] as
 export type CampoEditable = (typeof CAMPOS_EDITABLES)[number]
 export const ETIQUETA_DEL_CAMPO: Record<CampoEditable, string> = { idea: "La idea", mensaje: "Mensaje", gancho: "Gancho", protagonista: "Protagonista" }
 /** tope por campo (lo mismo que pide la RESPUESTA de CC5 a la plataforma) */
-export const TOPE_DEL_CAMPO = 2000
+export const TOPE_DEL_CAMPO = TOPE_DEL_TEXTO_DEL_DUENO // G2b 18-nov «nada se recorta» (CC5): el tope único de lo que escribe Emilio (la plataforma: LARGO_MAXIMO_DE_CAMPO = TOPE_DE_LO_ESCRITO)
 /** tope de ideas en una sola tanda de cambios */
 export const TOPE_DE_IDEAS_POR_PEDIDO = 200
 /** cuántas ideas se ven por capítulo antes de «ver todas» */

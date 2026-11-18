@@ -1,4 +1,5 @@
 "use client"
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -227,7 +228,7 @@ export function VisorDePieza({ pieza, siguienteId }: { pieza: DetalleDeLaPieza; 
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[hsl(var(--background))] p-5 shadow-2xl">
             <h3 className="font-display text-[16px] font-semibold">{dialogo === "cambios" ? "Pedir cambios" : "Rechazar la pieza"}</h3>
             {dialogo === "cambios" && <p className="mt-1 text-[12px] text-[hsl(var(--muted-foreground))]">{marcadas.length > 0 ? `Láminas ${marcadas.join(", ")} · ` : "Toda la pieza · "}vuelve a gastar ≈ {usd(pieza.gasto_usd)}</p>}
-            <textarea autoFocus value={comentario} onChange={(e) => setComentario(e.target.value)} rows={5} maxLength={2000} placeholder={dialogo === "cambios" ? "¿Qué quieres distinto?" : "Motivo del rechazo"} className="mt-3 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-sm outline-none focus:border-[hsl(var(--primary))]" />
+            <textarea autoFocus value={comentario} onChange={(e) => setComentario(e.target.value)} rows={5} maxLength={TOPE_DEL_TEXTO_DEL_DUENO} placeholder={dialogo === "cambios" ? "¿Qué quieres distinto?" : "Motivo del rechazo"} className="mt-3 w-full rounded-lg border border-white/10 bg-black/40 p-3 text-sm outline-none focus:border-[hsl(var(--primary))]" />
             {mensaje && !mensaje.ok && <p className="mt-2 text-[13px] text-rose-300">{mensaje.texto}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setDialogo(null)} className={`${boton} border-white/10`}>Cancelar</button>
