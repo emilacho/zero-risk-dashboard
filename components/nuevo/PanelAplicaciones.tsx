@@ -18,6 +18,8 @@ import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 import { PanelBase } from "@/components/nuevo/EstiloBase"
 import { tarjetaDelCentro, type TonoDeEstado } from "@/lib/centro-tarjetas"
+import { BotonFlujo } from "@/components/nuevo/BotonFlujo"
+import type { FlujoDeCampana } from "@/lib/flujo-de-campana"
 
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 type RespuestaCentro = ({ ok: true } & Centro) | { ok: false; error: string }
@@ -71,7 +73,7 @@ const CLASE_DEL_CUADRO = "ap-cuadro relative flex flex-col items-center rounded-
 const COLOR_DEL_TONO: Record<TonoDeEstado, string> = { oro: "text-oro", alarma: "text-alarma", gris: "text-gris" }
 const PUNTO_DEL_TONO: Record<TonoDeEstado, string> = { oro: "bg-oro", alarma: "bg-alarma", gris: "bg-gris" }
 
-export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
+export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial, flujoInicial = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 18-nov · el botón del flujo ya leído (pruebas e imagen) */ flujoInicial?: { campana_id: string | null; flujo: FlujoDeCampana | null } | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   const [centro, setCentro] = useState<Centro | null>(centroInicial)
   const [error, setError] = useState<string | null>(null)
@@ -180,6 +182,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
             )
           })}
         </ul>
+        {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 */}
+        <BotonFlujo key={idCliente ?? ""} clienteId={idCliente} inicial={flujoInicial} />
         <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
     </PanelBase>
   )
