@@ -256,7 +256,8 @@ export async function resolveHitlApproval(
 ): Promise<HitlResolveResult> {
   const now = deps.now ?? (() => new Date().toISOString())
   const fetchImpl = deps.fetchImpl ?? fetch
-  const timeoutMs = deps.timeoutMs ?? 30_000
+  // 19-nov · G1c (CC5): la espera a la plataforma ya no corta a los 30 s; 790 s deja margen bajo los 800 de la ruta
+  const timeoutMs = deps.timeoutMs ?? 790_000
   const wireEnabled =
     typeof deps.wireEnabled === "boolean"
       ? deps.wireEnabled

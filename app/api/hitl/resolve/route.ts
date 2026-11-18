@@ -21,7 +21,8 @@ import {
 } from "@/lib/hitl-resolve"
 
 export const dynamic = "force-dynamic"
-export const maxDuration = 60
+// 19-nov · G1c «límites técnicos al máximo» (Lenovo 22:06Z · CC5): 800 s, el máximo del plan de Vercel; reenvía a la plataforma y no debe cortarla antes (antes 60)
+export const maxDuration = 800
 
 function checkInternalKey(req: Request): { ok: true } | { ok: false; reason: string } {
   const expected = process.env.INTERNAL_API_KEY
