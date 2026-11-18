@@ -28,6 +28,8 @@
   --color-velo: rgb(0 0 0 / 0.7);
   /* 09-nov (Emilio, boceto del Centro de campaña): la tarjeta que va DIRECTO sobre la escena, sin panel de fondo, conserva su color de hoy */
   --color-tarjeta-escena: #151515;
+  /* 18-nov (Emilio, boceto del botón «Flujo de la campaña» 13:43 Zúrich): el verde de «EN MARCHA» · SOLO para ese estado, en ningún otro lugar */
+  --color-marcha: #4fc38a;
 
   --text-titulo: 20px;
   --text-titulo--line-height: 1.3;
@@ -66,3 +68,8 @@
 .zr-luz-del-pizarron:hover:not(:disabled), .zr-luz-del-pizarron:focus-visible { border-color: var(--color-linea-oro); }
 .zr-luz-del-pizarron:hover:not(:disabled)::after, .zr-luz-del-pizarron:focus-visible::after { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .zr-luz-del-pizarron, .zr-luz-del-pizarron::after { transition: none; } }
+/* 18-nov (boceto del botón «Flujo de la campaña»): el ROJO parpadea con un brillo del color alarma, la única luz permitida fuera de la guía (se paró sola: hay que mirarlo).
+   Con «menos movimiento» queda el brillo fijo, sin parpadeo */
+@keyframes zr-flujo-detenido { 0%, 100% { box-shadow: 0 0 0 0 rgb(217 83 74 / 0); } 50% { box-shadow: 0 0 18px 2px rgb(217 83 74 / 0.45); } }
+.zr-flujo-detenido { animation: zr-flujo-detenido 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .zr-flujo-detenido { animation: none; box-shadow: 0 0 14px 1px rgb(217 83 74 / 0.35); } }
