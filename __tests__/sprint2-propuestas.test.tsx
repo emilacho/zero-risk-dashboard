@@ -138,13 +138,13 @@ describe("3 · la puerta del tablero: valida y pasa a la plataforma (ADENDA 1 §
     expect(a.validar({ encargo_id: ENCARGO, ronda: 1, propuesta_id: "" }).ok).toBe(false)
     expect(a.validar({ encargo_id: ENCARGO, ronda: 1, propuesta_id: "P 1; drop" }).ok).toBe(false)
   })
-  it("pedir cambios pide observaciones de 1 a 2.000 caracteres", () => {
+  it("pedir cambios pide observaciones de 1 a 100.000 caracteres (G2b 18-nov «nada se recorta» · CC5; antes 2.000)", () => {
     const c = ACCIONES["propuestas-cambios"]
     expect(c.gasta).toBeNull()
     expect(c.validar({ encargo_id: ENCARGO, ronda: 2, observaciones: "  El cierre debe mostrar la cita.  " })).toEqual({ ok: true, cuerpo: { encargo_id: ENCARGO, ronda: 2, observaciones: "El cierre debe mostrar la cita." } })
     expect(c.validar({ encargo_id: ENCARGO, ronda: 2, observaciones: "   " }).ok).toBe(false)
-    expect(c.validar({ encargo_id: ENCARGO, ronda: 2, observaciones: "x".repeat(2001) }).ok).toBe(false)
-    expect(c.validar({ encargo_id: ENCARGO, ronda: 2, observaciones: "x".repeat(2000) }).ok).toBe(true)
+    expect(c.validar({ encargo_id: ENCARGO, ronda: 2, observaciones: "x".repeat(100_001) }).ok).toBe(false)
+    expect(c.validar({ encargo_id: ENCARGO, ronda: 2, observaciones: "x".repeat(5000) }).ok).toBe(true)
   })
   it("va a `POST /api/tablero/propuestas-aprobar` con la llave interna y el cuerpo validado; un 409 trae el motivo de la plataforma", async () => {
     const f = vi.fn<(u: string, i?: RequestInit) => Promise<Response>>(() => respuesta(200, { ok: true, encargo_id: ENCARGO, propuesta_id: "P2", estado: "aprobada" }))
