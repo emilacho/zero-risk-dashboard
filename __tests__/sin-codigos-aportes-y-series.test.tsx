@@ -67,7 +67,8 @@ describe("1 · el brief real de Náufrago: los aportes de su mesa en palabras", 
     expect(r.container.textContent).toContain("(falta la fuente de campaign-brief-agent)")
     abrir()
     expect(r.container.querySelectorAll("[data-seccion][data-abierta='true']").length).toBeGreaterThan(3)
-    expect(r.container.textContent).toContain("Usé el aporte de oficina-creativa: material del portero")
+    // 18-nov · vista limpia del brief (GO Lenovo 13:08Z · CC5): la sección «Citas» (el material de la mesa) ya no se muestra a Emilio; la traducción de los aportes sigue probada arriba sobre 
+    expect(r.container.textContent).not.toContain("Usé el aporte de oficina-creativa: material del portero")
     expect(r.container.textContent).not.toMatch(citaConCodigo)
   })
   it("un aporte del sistema (sin nombre) tras «de» dentro de un paréntesis se contrae: «del aporte 4»", () => {

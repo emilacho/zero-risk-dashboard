@@ -86,7 +86,9 @@ describe("el brief real de Náufrago, como lo ve Emilio", () => {
     expect(r.container.querySelectorAll("[data-seccion][data-abierta='false']")).toHaveLength(0)
     expect(r.container.textContent).toContain("Brief creativo de campaña")
     for (const c of b.fotos as string[]) expect(r.container.textContent).not.toContain(c) // las fotos del cliente que cita, tampoco en los resúmenes (sin comillas)
-    expect(r.container.textContent).toContain("se trasladó intacto desde v2") // límite declarado (CC6 #323 🟡): una «vN» fuera de la forma exacta del sistema se queda, nunca se reescribe
+    // límite declarado (CC6 #323 🟡): una «vN» fuera de la forma exacta del sistema se queda, nunca se reescribe. 18-nov · esa frase vivía en «Citas», que la vista limpia del brief ya no muestra (GO Lenovo 13:08Z · CC5): la regla se prueba sobre 
+    expect(r.container.textContent).not.toContain("se trasladó intacto desde v2")
+    expect(sinCodigos("El resto del brief se trasladó intacto desde v2 porque no cambió")).toContain("se trasladó intacto desde v2")
     expect(r.container.textContent).not.toMatch(CODIGO)
   })
 })
