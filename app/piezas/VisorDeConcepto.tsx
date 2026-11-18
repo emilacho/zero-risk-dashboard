@@ -11,6 +11,7 @@ import type { DetalleDelConcepto, EstadoDelConcepto } from "@/lib/concepto-datos
 import { VUELTAS_MAXIMAS_DE_CAMBIOS } from "@/lib/concepto-datos"
 import { NOTA_MINIMA, type ApuntaA } from "@/lib/concepto-decision"
 import { usdES } from "@/lib/lenguaje"
+import { briefLimpio } from "@/lib/brief-limpio"
 
 const ETIQUETA_ESTADO: Record<EstadoDelConcepto, string> = { pendiente: "Por aprobar", aprobada: "Aprobada", con_cambios: "Con cambios pedidos", rechazada: "Rechazada", otro: "Otro estado" }
 const boton = "rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
@@ -139,7 +140,7 @@ export function VisorDeConcepto({ concepto }: { concepto: DetalleDelConcepto }) 
             {concepto.brief
               ? <>
                   <p className="mb-2 text-[11px] text-[hsl(var(--muted-foreground))]">versión {concepto.brief.version} · {concepto.brief.estado}</p>
-                  <pre className="whitespace-pre-wrap font-sans">{concepto.brief.texto_md}</pre>
+                  <pre className="whitespace-pre-wrap font-sans">{briefLimpio(concepto.brief.texto_md)}</pre>
                 </>
               : <p className="text-[hsl(var(--muted-foreground))]">La cadena no tiene guardado el brief de esta campaña.</p>}
           </div>

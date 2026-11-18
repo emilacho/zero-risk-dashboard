@@ -16,6 +16,7 @@
 | Oro | `#d6aa64` | **letras** de títulos y rótulos, hilos, pestaña o recuadro activo, botones secundarios (solo borde y letra) |
 | Ámbar | `#e8731a` | **un solo** botón principal por tarjeta, siempre a la derecha |
 | Alarma | `#d9534a` | solo un punto, una línea fina o un número; **nunca un recuadro** |
+| Marcha | `#4fc38a` (`--color-marcha`) | solo «● EN MARCHA» del flujo de la campaña: el punto, la letra y un borde de línea; **nunca un relleno** (Emilio lo aprobó en el boceto del botón del flujo · #348 · 18-nov) |
 
 ## 3 · Letra (4 tamaños + el número + los botones)
 - **Título del panel:** 20, oro, MAYÚSCULAS espaciadas. Uno por panel, centrado.

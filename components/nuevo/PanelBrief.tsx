@@ -6,6 +6,7 @@ import { estadoDelBriefLegible, loQueSigueDelBrief, seccionesDelBrief, type Brie
 import { PlanEnSecciones } from "@/components/nuevo/PlanEnSecciones"
 import { diaYHora, plural } from "@/lib/lenguaje"
 import { sinCodigos } from "@/lib/sin-codigos"
+import { briefLimpio } from "@/lib/brief-limpio"
 import { ConFormato } from "@/components/nuevo/TextoSinCodigos"
 
 /**
@@ -116,7 +117,8 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
                       <p className="whitespace-pre-wrap"><ConFormato texto={sinCodigos(brief.devolucion_texto, { fotos: datos?.fotos ?? [], aportes: brief.aportes })} /></p>
                     </div>
                   )}
-                  {brief.texto_md && seccionesDelBrief(brief.texto_md).length > 0 ? <PlanEnSecciones prosa={brief.texto_md} sinDatosClave fotosConocidas={datos?.fotos ?? []} aportes={brief.aportes} /> : <p /* estilo-ok: solo se pasan las fotos conocidas, la pantalla migra entera aparte */ className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
+                  {/* 18-nov · vista limpia del brief (GO Lenovo 13:08Z · CC5): Emilio ve el brief sin las marcas del sistema; texto_md no cambia */}
+                  {brief.texto_md && seccionesDelBrief(briefLimpio(brief.texto_md)).length > 0 ? <PlanEnSecciones prosa={briefLimpio(brief.texto_md)} sinDatosClave fotosConocidas={datos?.fotos ?? []} aportes={brief.aportes} /> : <p /* estilo-ok: solo se pasan las fotos conocidas, la pantalla migra entera aparte */ className="text-[13px] text-zinc-400">Esta versión no trae texto.</p>}
                 </article>
                 <aside aria-label="Lo esencial del brief" data-barra-del-brief className="space-y-3 lg:sticky lg:top-0 lg:self-start">
                   <section data-barra="estado" className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
