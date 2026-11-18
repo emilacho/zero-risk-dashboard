@@ -16,6 +16,8 @@ import { momentoDeLaCampana } from "@/lib/escena-avatares"
 import { estadoDelTablero, granIdeaDelCalendario, GRAN_IDEA_NO_HAY, faseActiva, hoyEnEcuador, semanasDelTablero, totalesDelTablero, type EncargoDelTablero, type FaseActiva, type FilaDelTablero, type PiezaDelTablero, type RevisionDelTablero, type SemanaDelTablero, type EstadoDelTablero } from "@/lib/pizarron"
 
 type Fila = Record<string, unknown>
+/** el tipo de turno en que la oficina espera la decisión del dueño (plataforma: `oficina/video/aprobacion.ts` · `TURNO_DEL_DUENO`) */
+export const TURNO_DEL_DUENO = "dueno"
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
 async function filas(q: R, que: string): Promise<Fila[]> { const r = await q; if (r.error) throw new Error(`${que}: ${r.error.message}`); return (r.data ?? []) as Fila[] }
 async function una(q: R, que: string): Promise<Fila | null> { const r = await q; if (r.error) throw new Error(`${que}: ${r.error.message}`); return (r.data ?? null) as Fila | null }
@@ -97,10 +99,13 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   const usados = [...encargoDe.values()]
   const idsEncargo = usados.map((e) => String(e.id))
   const idsHitl = usados.map((e) => e.hitl_queue_id).filter(Boolean).map(String)
-  const [revisiones, bandeja] = await Promise.all([
+  const [revisiones, bandeja, turnos] = await Promise.all([
     idsEncargo.length ? filas(supa.from("jefatura_revisiones").select("artifact_id, estado, resultado, creado_en").eq("artifact_type", "pieza").in("artifact_id", idsEncargo).order("creado_en", { ascending: false }).limit(1000), "jefatura_revisiones") : Promise.resolve([] as Fila[]),
     idsHitl.length ? filas(supa.from("hitl_queue").select("id, status, decision, expires_at, created_at").in("id", idsHitl).limit(1000), "hitl_queue") : Promise.resolve([] as Fila[]),
+    // 18-nov · los encargos parados en el turno del dueño (sus propuestas esperan a Emilio): la misma marca que lee la plataforma para «Propuestas»
+    idsEncargo.length ? filas(supa.from("oficina_turnos").select("encargo_id").eq("tipo", TURNO_DEL_DUENO).eq("estado", "corriendo").in("encargo_id", idsEncargo).limit(1000), "oficina_turnos") : Promise.resolve([] as Fila[]),
   ])
+  const esperanAlDueno = new Set(turnos.map((t) => String(t.encargo_id)))
   const revisionDe = new Map<string, Fila>()
   for (const r of revisiones) { const k = String(r.artifact_id); if (!revisionDe.has(k)) revisionDe.set(k, r) }
   const piezaDe = new Map<string, Fila>(bandeja.map((b) => [String(b.id), b]))
@@ -108,7 +113,7 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   const todas: FilaDelTablero[] = crudas.map((x) => {
     const id = String(x.id), fecha = String(x.fecha ?? "")
     const e = encargoDe.get(`${id}|${fecha}`) ?? null
-    const encargo: EncargoDelTablero | null = e ? { id: String(e.id), familia: String(e.familia ?? ""), estado: String(e.estado ?? ""), gasto_usd: Number(e.gasto_usd ?? 0), creado_en: String(e.creado_en ?? "") } : null
+    const encargo: EncargoDelTablero | null = e ? { id: String(e.id), familia: String(e.familia ?? ""), estado: String(e.estado ?? ""), gasto_usd: Number(e.gasto_usd ?? 0), creado_en: String(e.creado_en ?? ""), ...(esperanAlDueno.has(String(e.id)) ? { espera_al_dueno: true } : {}) } : null
     const r = e ? revisionDe.get(String(e.id)) ?? null : null
     const jefatura: RevisionDelTablero | null = r ? { estado: String(r.estado ?? ""), resultado: r.resultado == null ? null : String(r.resultado) } : null
     const p = e?.hitl_queue_id ? piezaDe.get(String(e.hitl_queue_id)) ?? null : null
