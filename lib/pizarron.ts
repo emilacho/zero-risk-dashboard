@@ -42,7 +42,11 @@ export const ESTADO_DE_FILA_LEGIBLE: Record<string, string> = {
 }
 export const estadoDeFilaLegible = (e: unknown): string => ESTADO_DE_FILA_LEGIBLE[String(e ?? "")] ?? String(e ?? "sin estado").replace(/_/g, " ")
 
-export interface EncargoDelTablero { id: string; familia: string; estado: string; gasto_usd: number; creado_en: string }
+/** 18-nov (GO Lenovo · «Piezas» vacía): `espera_al_dueno` = el encargo tiene un turno del dueño abierto (`oficina_turnos` tipo `dueno` corriendo: las propuestas
+ *  esperan tu decisión, la misma marca que la tarjeta «Propuestas» de Decisiones). Sirve para cualquier familia (video o imagen) */
+export interface EncargoDelTablero { id: string; familia: string; estado: string; gasto_usd: number; creado_en: string; espera_al_dueno?: boolean }
+/** el motivo de una publicación cuyas propuestas esperan a Emilio (todavía no es una pieza en la bandeja) */
+export const MOTIVO_PROPUESTAS_ESPERAN = "las propuestas esperan tu decisión"
 export interface RevisionDelTablero { estado: string; resultado: string | null }
 export interface PiezaDelTablero { id: string; status: string; estado: EstadoPieza; expires_at: string | null; created_at: string }
 
@@ -94,6 +98,8 @@ export function estadoDelTablero(x: { estado_fila: string; encargo?: EncargoDelT
     const est = x.encargo.estado
     if (est === "fallido") return { tablero: "idea", motivo: "la oficina falló al hacerla; vuelve a la fila" }
     if (est === "aprobada") return { tablero: "aprobada", motivo: "la aprobaste (el encargo quedó aprobado)" }
+    // la oficina está parada en el turno del dueño: espera a Emilio aunque todavía no haya fila en la bandeja
+    if ((est === "abierto" || est === "en_paso") && x.encargo.espera_al_dueno === true) return { tablero: "emilio", motivo: MOTIVO_PROPUESTAS_ESPERAN }
     if (est === "abierto" || est === "en_paso") return { tablero: "mesa", motivo: "la oficina creativa la está haciendo" }
     if (x.jefatura && x.jefatura.estado !== "cerrada") return { tablero: "jefatura", motivo: "la jefatura la está revisando" }
     if (x.jefatura) return { tablero: "jefatura", motivo: `la jefatura la revisó (${x.jefatura.resultado ?? "sin resultado"}); camino a tu bandeja` }
