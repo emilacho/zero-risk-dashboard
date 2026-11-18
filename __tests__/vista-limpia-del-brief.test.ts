@@ -56,6 +56,13 @@ describe("vista limpia del brief · reglas", () => {
   it("🔴 un «A» que no es código de aporte se queda", () => {
     expect(briefLimpio("## Objetivo\n\nPlan A y plan B para la zona A.")).toBe("## Objetivo\n\nPlan A y plan B para la zona A.")
   })
+  it("🔴 un ### dentro de «Citas» no la corta; el siguiente ## sí (🟡 CC7 22:40Z)", () => {
+    expect(briefLimpio("## Insight\n\nUno.\n\n## Citas\n\n### Aporte A1\n\ntexto interno\n\n## Tono\n\nCercano.")).toBe("## Insight\n\nUno.\n\n## Tono\n\nCercano.")
+    expect(briefLimpio("## Tono\n\n### Matiz\n\nCercano.")).toBe("## Tono\n\n### Matiz\n\nCercano.")
+  })
+  it("🔴 el nombre de la sección interna vale en mayúsculas o sin tilde (🟡 d12 CC7)", () => {
+    expect(briefLimpio("## Tono\n\nCercano.\n\n## CITAS\n\ninterno\n\n## De que parte del plan sale\n\ninterno 2\n\n## Objetivo\n\nVender.")).toBe("## Tono\n\nCercano.\n\n## Objetivo\n\nVender.")
+  })
   it("🔴 vacío o nulo no rompe", () => {
     expect(briefLimpio(null)).toBe("")
     expect(briefLimpio("")).toBe("")

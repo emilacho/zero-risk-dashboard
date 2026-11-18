@@ -26,6 +26,8 @@ export function briefLimpio(md: string | null | undefined): string {
   let primerTitulo = true
   for (const l of lineas) {
     const titulo = /^(#{1,3})\s+(.+?)\s*$/.exec(l)
+    // un «### subtítulo» dentro de una sección interna sigue siendo parte de ella (🟡 CC7 22:40Z): solo un título de nivel 1 o 2 la cierra
+    if (titulo && saltando && titulo[1].length > 2) continue
     if (titulo) {
       saltando = titulo[1].length === 2 && INTERNAS.has(normal(titulo[2]))
       if (saltando) continue
