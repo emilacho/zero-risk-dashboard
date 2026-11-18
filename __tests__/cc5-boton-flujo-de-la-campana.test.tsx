@@ -14,6 +14,11 @@ import { BotonFlujo, CLASES_DEL_FLUJO } from "@/components/nuevo/BotonFlujo"
 
 const CAMPANA = "36e66179-3061-4a7d-94db-932a900d9515"
 const CLIENTE = "11111111-2222-3333-4444-555555555555"
+// la puerta de administrador simulada (la usan las pruebas de la ruta)
+const puerta = vi.hoisted(() => ({ valor: { ok: false, status: 401 } as { ok: boolean; status?: number; email?: string } }))
+const tocoLaBase = vi.hoisted(() => ({ n: 0 }))
+vi.mock("@/lib/admin-guard", () => ({ exigirAdmin: async () => puerta.valor }))
+vi.mock("@/lib/supabase-server", () => ({ getServiceRoleClient: () => { tocoLaBase.n++; return {} } }))
 const PAUSA = `${PREFIJO_DE_PAUSA_DEL_TABLERO} · vuelve a: activa · en la semana 4 del calendario`
 
 /** una base de juguete que solo contesta lo que el código pide (y registra qué pidió) */
@@ -119,10 +124,6 @@ describe("el toque va a la plataforma", () => {
 })
 
 describe("la ruta /api/flujo es solo de administrador", () => {
-  const puerta = vi.hoisted(() => ({ valor: { ok: false, status: 401 } as { ok: boolean; status?: number; email?: string } }))
-  const tocoLaBase = vi.hoisted(() => ({ n: 0 }))
-  vi.mock("@/lib/admin-guard", () => ({ exigirAdmin: async () => puerta.valor }))
-  vi.mock("@/lib/supabase-server", () => ({ getServiceRoleClient: () => { tocoLaBase.n++; return {} } }))
   beforeEach(() => { tocoLaBase.n = 0 })
 
   it("sin sesión: 401 en GET y en POST, sin tocar la base", async () => {
@@ -196,5 +197,89 @@ describe("dónde va", () => {
     const t = readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")
     const fin = t.indexOf("</ul>"), boton = t.indexOf("<BotonFlujo"), salida = t.indexOf("Esc o clic fuera para volver a la oficina")
     expect(fin).toBeGreaterThan(-1); expect(boton).toBeGreaterThan(fin); expect(salida).toBeGreaterThan(boton)
+  })
+})
+
+/** 🟡 de CC7 a 1907e10 · una base de juguete que SÍ filtra, ordena y limita (para que el orden y el `seco` se noten) */
+function baseConFilas(filas: Array<Record<string, unknown>>) {
+  const supabase = {
+    from() {
+      let sel = [...filas]
+      const q: Record<string, unknown> = {
+        select: () => q,
+        eq: (k: string, v: unknown) => { sel = sel.filter((f) => f[k] === v); return q },
+        order: (k: string, o: { ascending: boolean }) => { sel.sort((a, b) => (String(a[k]) < String(b[k]) ? -1 : 1) * (o.ascending ? 1 : -1)); return q },
+        limit: (n: number) => { sel = sel.slice(0, n); return q },
+        maybeSingle: async () => ({ data: sel[0] ?? null, error: null }),
+      }
+      return q
+    },
+  }
+  return supabase as never
+}
+const OTRA = "22222222-3333-4444-5555-666666666666"
+const ENSAYO = "33333333-4444-5555-6666-777777777777"
+
+describe("🟡 de CC7 a 1907e10 (las 5 que sobrevivían)", () => {
+  it("l2 · con 2 campañas reales del cliente se lee la MÁS NUEVA, y una de ensayo más nueva no cuenta", async () => {
+    const sb = baseConFilas([
+      { id: OTRA, client_id: CLIENTE, seco: false, creada_en: "2026-10-01T00:00:00Z", estado: "activa", estado_motivo: null },
+      { id: CAMPANA, client_id: CLIENTE, seco: false, creada_en: "2026-11-01T00:00:00Z", estado: "pausada", estado_motivo: PAUSA },
+      { id: ENSAYO, client_id: CLIENTE, seco: true, creada_en: "2026-11-15T00:00:00Z", estado: "activa", estado_motivo: null },
+    ])
+    expect(await leerFlujo(sb, CLIENTE)).toEqual({ campana_id: CAMPANA, flujo: { color: "dorado", linea: "PARADO POR TI · en la semana 4 del calendario", estado: "pausada" } })
+  })
+  it("t6 · tocar una campaña de ensayo (seco=true) contesta 404 y NO llama a la plataforma", async () => {
+    const llamadas: unknown[] = []
+    const fetchImpl = (async (...a: unknown[]) => { llamadas.push(a); return new Response("{}", { status: 200 }) }) as unknown as typeof fetch
+    const sb = baseConFilas([{ id: ENSAYO, client_id: CLIENTE, seco: true, creada_en: "2026-11-15T00:00:00Z", estado: "activa" }])
+    const r = await tocarFlujo({ campana_id: ENSAYO, quiero: "parar" }, { supabase: sb, plataformaUrl: "https://plataforma.test", llave: "k", fetchImpl })
+    expect(r.status).toBe(404); expect(llamadas).toHaveLength(0)
+  })
+})
+
+describe("🟡 de CC7 · g3: la ruta distingue sin sesión (401) de sin permiso (403)", () => {
+  // usa la puerta simulada de «la ruta /api/flujo es solo de administrador» (vi.mock sube al inicio del archivo)
+  const pedir = async () => {
+    const { GET, POST } = await import("@/app/api/flujo/route")
+    const g = await GET(new Request(`http://x/api/flujo?cliente=${CLIENTE}`))
+    const p = await POST(new Request("http://x/api/flujo", { method: "POST", body: JSON.stringify({ campana_id: CAMPANA, quiero: "parar" }) }))
+    return [{ status: g.status, cuerpo: await g.json() }, { status: p.status, cuerpo: await p.json() }]
+  }
+  it("sin sesión: 401 `sin_sesion` en GET y en POST", async () => {
+    puerta.valor = { ok: false, status: 401 }
+    for (const r of await pedir()) expect(r).toEqual({ status: 401, cuerpo: { ok: false, error: "sin_sesion" } })
+  })
+  it("un client_viewer: 403 `sin_permiso` en GET y en POST", async () => {
+    puerta.valor = { ok: false, status: 403 }
+    for (const r of await pedir()) expect(r).toEqual({ status: 403, cuerpo: { ok: false, error: "sin_permiso" } })
+  })
+})
+
+describe("🟡 de CC7 · el botón (b2 y b6)", () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+  it("b2 · dos clics seguidos mientras la plataforma no contesta: UN solo POST", async () => {
+    let soltar: (r: Response) => void = () => {}
+    const f = vi.fn(() => new Promise<Response>((res) => { soltar = res }))
+    vi.stubGlobal("fetch", f)
+    render(<BotonFlujo clienteId={CLIENTE} inicial={{ campana_id: CAMPANA, flujo: flujoDeCampana({ estado: "activa" }) }} />)
+    const b = screen.getByRole("button")
+    fireEvent.click(b); fireEvent.click(b)
+    expect(f).toHaveBeenCalledTimes(1)
+    soltar(new Response(JSON.stringify({ ok: true, flujo: { color: "dorado", linea: "PARADO POR TI · x", estado: "pausada" } }), { status: 200 }))
+    await waitFor(() => expect(screen.getByRole("button").dataset.flujo).toBe("dorado"))
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+  it("b6 · «EN MARCHA» va en verde `marcha` (texto, ícono y punto) y el dorado no usa `marcha`", () => {
+    const verde = render(<BotonFlujo clienteId={CLIENTE} inicial={{ campana_id: CAMPANA, flujo: flujoDeCampana({ estado: "activa" }) }} />)
+    const linea = verde.container.querySelector("[data-linea-del-flujo]") as HTMLElement
+    expect(linea.className).toContain("text-marcha")
+    expect(linea.querySelector("span")?.className).toContain("bg-marcha")
+    expect(verde.container.querySelector("svg")?.getAttribute("class")).toContain("text-marcha")
+    expect(verde.container.innerHTML).not.toMatch(/(text|bg|border)-oro(?![-\w])/)
+    cleanup()
+    const dorado = render(<BotonFlujo clienteId={CLIENTE} inicial={{ campana_id: CAMPANA, flujo: flujoDeCampana({ estado: "pausada", estado_motivo: PAUSA }) }} />)
+    expect(dorado.container.innerHTML).not.toContain("marcha")
+    expect((dorado.container.querySelector("[data-linea-del-flujo]") as HTMLElement).className).toContain("text-oro")
   })
 })
