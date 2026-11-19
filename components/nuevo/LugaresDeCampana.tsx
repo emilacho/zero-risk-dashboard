@@ -82,11 +82,11 @@ export function LugaresDeCampana({ clienteId, campanas }: { clienteId: string | 
   )
 }
 
-/** el subtítulo del Centro: «CAMPAÑA · <nombre>» (mismo estilo que «CLIENTE · <nombre>»); el cliente se elige afuera */
+/** el subtítulo del Centro: «CAMPAÑA · <nombre>» (como «CLIENTE · <nombre>», pero con los tokens de la guía: la revisión de estilo frena las clases sueltas); el cliente se elige afuera */
 export function CampanaComoTexto({ nombre }: { nombre: string }) {
   return (
-    <p data-campana-como-texto className="max-w-full truncate text-[11px] uppercase tracking-[0.2em] text-zinc-500" title={nombre}>
-      Campaña · <span data-campana-nombre className="font-medium text-zinc-100">{nombre}</span>
+    <p data-campana-como-texto className="max-w-full truncate text-rotulo uppercase tracking-rotulo text-gris" title={nombre}>
+      Campaña · <span data-campana-nombre className="font-medio text-hueso">{nombre}</span>
     </p>
   )
 }

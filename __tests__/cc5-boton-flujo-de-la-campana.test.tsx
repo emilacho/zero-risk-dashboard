@@ -401,9 +401,9 @@ describe("19-nov · los 3 lugares de campaña y el subtítulo", () => {
     const { container } = render(<CampanaComoTexto nombre="Impulso del encebollado a domicilio" />)
     const p = container.querySelector("[data-campana-como-texto]") as HTMLElement
     expect(p.textContent).toBe("Campaña · Impulso del encebollado a domicilio")
-    expect(p.className).toContain("text-[11px] uppercase tracking-[0.2em] text-zinc-500")
+    expect(p.className).toContain("text-rotulo uppercase tracking-rotulo text-gris")
     expect(p.className).toContain("truncate")
-    expect(p.querySelector("[data-campana-nombre]")?.className).toBe("font-medium text-zinc-100")
+    expect(p.querySelector("[data-campana-nombre]")?.className).toBe("font-medio text-hueso")
   })
   it("el Centro: con nombre, el subtítulo dice la campaña elegida; sin nombre (o sin campaña viva), sigue «CLIENTE · <nombre>»", () => {
     const pintarCentro = (flujoInicial: Parameters<typeof PanelAplicaciones>[0]["flujoInicial"]) => renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, flujoInicial }))
