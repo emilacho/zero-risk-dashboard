@@ -10,7 +10,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { readFileSync } from "node:fs"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ESTADOS_EN_MARCHA, PREFIJO_DE_PAUSA_DEL_TABLERO, flujoDeCampana, leerFlujo, leerPausaDelTablero, motivoBreve, quieroAlTocar, tocarFlujo } from "@/lib/flujo-de-campana"
-import { BotonFlujo, CLASES_DEL_FLUJO } from "@/components/nuevo/BotonFlujo"
+import { BotonFlujo, CLASES_DEL_FLUJO, CLASE_DEL_BOTON } from "@/components/nuevo/BotonFlujo"
+import { CampanaComoTexto, LugaresDeCampana, campanaElegida, campanasDeLaLectura } from "@/components/nuevo/LugaresDeCampana"
+import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
+import { createElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
 
 const CAMPANA = "36e66179-3061-4a7d-94db-932a900d9515"
 const CLIENTE = "11111111-2222-3333-4444-555555555555"
@@ -193,9 +197,9 @@ describe("el botón", () => {
 })
 
 describe("dónde va", () => {
-  it("debajo de los 9 cuadros del Centro de campaña, antes de la línea de salida", () => {
+  it("debajo de los 9 cuadros del Centro de campaña, antes de la línea de salida (19-nov: los 3 lugares)", () => {
     const t = readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")
-    const fin = t.indexOf("</ul>"), boton = t.indexOf("<BotonFlujo"), salida = t.indexOf("Esc o clic fuera para volver a la oficina")
+    const fin = t.indexOf("</ul>"), boton = t.indexOf("<LugaresDeCampana"), salida = t.indexOf("Esc o clic fuera para volver a la oficina")
     expect(fin).toBeGreaterThan(-1); expect(boton).toBeGreaterThan(fin); expect(salida).toBeGreaterThan(boton)
   })
 })
@@ -281,5 +285,128 @@ describe("🟡 de CC7 · el botón (b2 y b6)", () => {
     const dorado = render(<BotonFlujo clienteId={CLIENTE} inicial={{ campana_id: CAMPANA, flujo: flujoDeCampana({ estado: "pausada", estado_motivo: PAUSA }) }} />)
     expect(dorado.container.innerHTML).not.toContain("marcha")
     expect((dorado.container.querySelector("[data-linea-del-flujo]") as HTMLElement).className).toContain("text-oro")
+  })
+})
+
+/**
+ * 19-nov · GO de Lenovo 22:04 Zúrich · boceto aprobado por Emilio 21:45 y 22:03 (`raw/evidencia/2026-11-19-boceto-boton-flujo-nombre/` vistas 4, 5 y 6):
+ * siempre 3 lugares debajo de los 9 cuadros, uno por campaña viva con su nombre; los libres dicen «Crear Campaña»; el subtítulo dice la campaña elegida.
+ */
+describe("19-nov · los 3 lugares de campaña y el subtítulo", () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+  const VERDE = flujoDeCampana({ estado: "activa" })!
+  const DORADO = flujoDeCampana({ estado: "pausada", estado_motivo: PAUSA })!
+  const ROJO = flujoDeCampana({ estado: "necesita_humano", estado_motivo: "el presupuesto de planificación se agotó (US$ 5 de 6)" })!
+  const C1 = { campana_id: CAMPANA, nombre: "Impulso del encebollado a domicilio", flujo: VERDE }
+  const C2 = { campana_id: OTRA, nombre: "Firmas para limpiar la playa de Olón", flujo: DORADO }
+  const C3 = { campana_id: ENSAYO, nombre: "Lanzamiento del ceviche para llevar", flujo: ROJO }
+  const CUARTA = { campana_id: "44444444-5555-6666-7777-888888888888", nombre: "Una cuarta que no cabe", flujo: VERDE }
+  const lugares = (campanas: Parameters<typeof LugaresDeCampana>[0]["campanas"]) => render(<LugaresDeCampana clienteId={CLIENTE} campanas={campanas} />)
+  const lugaresDe = (c: HTMLElement) => [...(c.querySelector("[data-lugares-de-campana]")?.children ?? [])] as HTMLElement[]
+
+  it("1 campaña: su botón con su nombre y su color, y 2 «Crear Campaña»", () => {
+    const { container } = lugares([C1])
+    const l = lugaresDe(container)
+    expect(l).toHaveLength(3)
+    expect(l[0].querySelector("[data-flujo]")?.getAttribute("data-flujo")).toBe("verde")
+    expect(l[0].querySelector("[data-nombre-de-la-campana]")?.textContent).toBe("Impulso del encebollado a domicilio")
+    expect(l.slice(1).map((x) => x.querySelector("[data-crear-campana]")?.textContent)).toEqual(["Crear Campaña", "Crear Campaña"])
+  })
+  it("2 campañas: 2 botones en el orden de la lectura y 1 «Crear Campaña»", () => {
+    const { container } = lugares([C1, C2])
+    const l = lugaresDe(container)
+    expect(l.map((x) => x.querySelector("[data-nombre-de-la-campana]")?.textContent ?? x.querySelector("[data-crear-campana]")?.textContent)).toEqual(["Impulso del encebollado a domicilio", "Firmas para limpiar la playa de Olón", "Crear Campaña"])
+    expect(l.map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo") ?? null)).toEqual(["verde", "dorado", null])
+  })
+  it("3 campañas: los 3 colores, sin «Crear Campaña»; una 4.ª no ocupa lugar", () => {
+    for (const lista of [[C1, C2, C3], [C1, C2, C3, CUARTA]]) {
+      const { container, unmount } = lugares(lista)
+      const l = lugaresDe(container)
+      expect(l.map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo"))).toEqual(["verde", "dorado", "rojo"])
+      expect(container.querySelector("[data-crear-campana]")).toBeNull()
+      expect(container.textContent).not.toContain("Una cuarta que no cabe")
+      unmount()
+    }
+  })
+  it("0 campañas vivas: 3 «Crear Campaña»; sin lectura (la base no contestó): no se pinta nada", () => {
+    const { container, unmount } = lugares([])
+    expect(container.querySelectorAll("[data-crear-campana]")).toHaveLength(3)
+    unmount()
+    expect(lugares(null).container.innerHTML).toBe("")
+  })
+  it("«Crear Campaña»: con mayúscula, «+» gris, mismo tamaño y estilo que el botón, sin color de estado ni textos de uso; por ahora no hace nada", () => {
+    const pedidos = vi.fn(); vi.stubGlobal("fetch", pedidos)
+    const { container } = lugares([C1])
+    const crear = container.querySelector("[data-crear-campana]") as HTMLElement
+    expect(crear.textContent).toBe("Crear Campaña")
+    expect(crear.querySelector("svg")?.getAttribute("class")).toContain("text-gris")
+    const boton = container.querySelector("[data-flujo]") as HTMLElement
+    const sinColor = (k: string) => k.split(" ").filter((x) => !/^(border|text|bg)-(linea|oro|alarma|marcha)$|^zr-flujo-detenido$/.test(x)).join(" ")
+    expect(sinColor(crear.className)).toBe(sinColor(boton.className))
+    expect(crear.className).toContain("border-linea")
+    expect(crear.innerHTML).not.toMatch(/(text|bg|border)-(oro|alarma|marcha)(?![-\w])|zr-flujo-detenido/)
+    expect(crear.querySelector("[data-linea-del-flujo]")).toBeNull()
+    fireEvent.click(crear)
+    expect(pedidos).not.toHaveBeenCalled()
+  })
+  it("los lugares miden igual: el alto del botón es fijo", () => {
+    expect(CLASE_DEL_BOTON).toContain("min-h-[164px]")
+  })
+  it("nombre largo: una sola línea cortada con «…» (el botón no crece) y el nombre entero en el `title`", () => {
+    const largo = "Lanzamiento del ceviche para llevar en todas las sedes de la costa ecuatoriana durante la temporada alta de playa"
+    const { container } = lugares([{ ...C1, nombre: largo }])
+    const n = container.querySelector("[data-nombre-de-la-campana]") as HTMLElement
+    expect(n.className).toContain("truncate"); expect(n.className).toContain("max-w-full")
+    expect(n.textContent).toBe(largo); expect(n.getAttribute("title")).toBe(largo)
+  })
+  it("una campaña todavía sin nombre: su botón sin la línea del nombre (no se inventa)", () => {
+    const { container } = lugares([{ ...C1, nombre: null }])
+    expect(container.querySelector("[data-flujo]")).not.toBeNull()
+    expect(container.querySelector("[data-nombre-de-la-campana]")).toBeNull()
+  })
+  it("🔴 tocar el 2.º botón para ESA campaña, y al releer toma ESA campaña de `campanas` (nunca la más nueva del cliente)", async () => {
+    const pedidos: Array<{ url: string; cuerpo?: unknown }> = []
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      pedidos.push({ url, cuerpo: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (init?.method === "POST") return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      // la «última» del cliente es OTRA cosa (C3, roja): el 2.º botón no debe tomarla
+      return new Response(JSON.stringify({ ok: true, campana_id: C3.campana_id, flujo: ROJO, campanas: [C1, { ...C2, flujo: VERDE }, C3] }), { status: 200 })
+    }))
+    const { container } = lugares([C1, C2, C3])
+    const segundo = lugaresDe(container)[1].querySelector("[data-flujo]") as HTMLElement
+    expect(segundo.dataset.flujo).toBe("dorado")
+    fireEvent.click(segundo)
+    await waitFor(() => expect((lugaresDe(container)[1].querySelector("[data-flujo]") as HTMLElement).dataset.flujo).toBe("verde"))
+    expect(pedidos[0]).toEqual({ url: "/api/flujo", cuerpo: { campana_id: OTRA, quiero: "reanudar" } })
+    expect(lugaresDe(container)[1].querySelector("[data-nombre-de-la-campana]")?.textContent).toBe("Firmas para limpiar la playa de Olón")
+    expect(lugaresDe(container).map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo"))).toEqual(["verde", "verde", "rojo"])
+  })
+  it("la campaña elegida es la primera viva con botón; lo leído antes del 19-nov (sin `campanas`) ocupa el 1.er lugar sin nombre", () => {
+    expect(campanaElegida([C2, C1])?.campana_id).toBe(OTRA)
+    expect(campanaElegida([{ ...C1, flujo: null }, C2])?.campana_id).toBe(OTRA)
+    expect(campanaElegida([])).toBeNull()
+    expect(campanasDeLaLectura({ campana_id: CAMPANA, flujo: VERDE })).toEqual([{ campana_id: CAMPANA, nombre: null, flujo: VERDE }])
+    expect(campanasDeLaLectura({ campana_id: null, flujo: null })).toEqual([])
+    expect(campanasDeLaLectura({ campana_id: CAMPANA, flujo: VERDE, campanas: [C2] })).toEqual([C2])
+    expect(campanasDeLaLectura(null)).toBeNull()
+  })
+  it("subtítulo: «CAMPAÑA · <nombre>» con el estilo del de cliente y cortado si es largo", () => {
+    const { container } = render(<CampanaComoTexto nombre="Impulso del encebollado a domicilio" />)
+    const p = container.querySelector("[data-campana-como-texto]") as HTMLElement
+    expect(p.textContent).toBe("Campaña · Impulso del encebollado a domicilio")
+    expect(p.className).toContain("text-[11px] uppercase tracking-[0.2em] text-zinc-500")
+    expect(p.className).toContain("truncate")
+    expect(p.querySelector("[data-campana-nombre]")?.className).toBe("font-medium text-zinc-100")
+  })
+  it("el Centro: con nombre, el subtítulo dice la campaña elegida; sin nombre (o sin campaña viva), sigue «CLIENTE · <nombre>»", () => {
+    const pintarCentro = (flujoInicial: Parameters<typeof PanelAplicaciones>[0]["flujoInicial"]) => renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, flujoInicial }))
+    const conNombre = pintarCentro({ campana_id: C2.campana_id, flujo: C2.flujo, campanas: [C1, C2] })
+    expect(conNombre).toMatch(/data-campana-como-texto[^>]*>Campaña · <span data-campana-nombre[^>]*>Impulso del encebollado a domicilio</)
+    expect(conNombre).not.toContain("data-cliente-como-texto")
+    expect(conNombre.match(/data-crear-campana/g)).toHaveLength(1)
+    for (const f of [{ campana_id: CAMPANA, flujo: VERDE, campanas: [{ ...C1, nombre: null }] }, { campana_id: null, flujo: null, campanas: [] }, { campana_id: CAMPANA, flujo: VERDE }]) {
+      const h = pintarCentro(f)
+      expect(h).toContain("data-cliente-como-texto"); expect(h).not.toContain("data-campana-como-texto")
+    }
   })
 })

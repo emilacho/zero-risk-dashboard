@@ -18,8 +18,7 @@ import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 import { PanelBase } from "@/components/nuevo/EstiloBase"
 import { tarjetaDelCentro, type TonoDeEstado } from "@/lib/centro-tarjetas"
-import { BotonFlujo } from "@/components/nuevo/BotonFlujo"
-import type { FlujoDeCampana } from "@/lib/flujo-de-campana"
+import { CampanaComoTexto, LugaresDeCampana, campanaElegida, useCampanasDelFlujo, type FlujoInicial } from "@/components/nuevo/LugaresDeCampana"
 
 type Respuesta = ({ ok: true } & Pizarron) | { ok: false; error: string }
 type RespuestaCentro = ({ ok: true } & Centro) | { ok: false; error: string }
@@ -73,8 +72,10 @@ const CLASE_DEL_CUADRO = "ap-cuadro relative flex flex-col items-center rounded-
 const COLOR_DEL_TONO: Record<TonoDeEstado, string> = { oro: "text-oro", alarma: "text-alarma", gris: "text-gris" }
 const PUNTO_DEL_TONO: Record<TonoDeEstado, string> = { oro: "bg-oro", alarma: "bg-alarma", gris: "bg-gris" }
 
-export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial, flujoInicial = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 18-nov · el botón del flujo ya leído (pruebas e imagen) */ flujoInicial?: { campana_id: string | null; flujo: FlujoDeCampana | null } | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
+export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial, flujoInicial = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 18-nov · el botón del flujo ya leído (pruebas e imagen) · 19-nov: con `campanas`, los 3 lugares */ flujoInicial?: FlujoInicial | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
+  // 19-nov (boceto aprobado por Emilio 22:03 Zúrich) · UNA lectura de `/api/flujo` para los 3 lugares y para el subtítulo de la campaña elegida
+  const campanas = useCampanasDelFlujo(datos?.cliente?.id ?? null, flujoInicial)
   const [centro, setCentro] = useState<Centro | null>(centroInicial)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -146,10 +147,12 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
 
   const idCliente = datos?.cliente?.id ?? null
+  const elegida = campanaElegida(campanas)
   return (
     <PanelBase titulo="Centro de campaña" id="aplicaciones-titulo" seccion="aplicaciones" onCerrar={onCerrar} etiquetaCerrar="Cerrar" ancho="max-w-[820px]" fondo={false}>
         {/* 06-nov · selector único (#300): el cliente se elige arriba; aquí solo se dice cuál es */}
-        <div className="mb-6 mt-1 flex justify-center"><ClienteComoTexto nombre={datos ? datos.cliente?.nombre : "Leyendo…"} /></div>
+        {/* 19-nov · «CAMPAÑA · <nombre>» de la campaña elegida (la primera viva); si todavía no tiene nombre (o no hay campaña viva) sigue «CLIENTE · <nombre>»: el nombre nunca se inventa */}
+        <div className="mb-6 mt-1 flex justify-center">{elegida?.nombre ? <CampanaComoTexto nombre={elegida.nombre} /> : <ClienteComoTexto nombre={datos ? datos.cliente?.nombre : "Leyendo…"} />}</div>
 
         {error && <p role="alert" className="mb-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{error}</p>}
 
@@ -182,8 +185,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
             )
           })}
         </ul>
-        {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 */}
-        <BotonFlujo key={idCliente ?? ""} clienteId={idCliente} inicial={flujoInicial} />
+        {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 · 19-nov (21:45 y 22:03): siempre 3 lugares, uno por campaña viva */}
+        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} />
         <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
     </PanelBase>
   )
