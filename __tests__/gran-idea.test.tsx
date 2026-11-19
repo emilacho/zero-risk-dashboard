@@ -198,10 +198,11 @@ describe("el visor de la gran idea se dibuja", () => {
     expect(html).toContain("Pedir cambios…")
     expect(html).not.toContain("Rechazar")
   })
-  it("🔴 sin vueltas: dice que el pedido siguiente va al buzón, no a revisión humana (grupo D, 19-nov)", async () => {
+  it("🔴 sin vueltas: dice que el pedido siguiente no se aplica y que apruebe una propuesta; nada de buzón ni de revisión humana (grupo D, Emilio 19-nov 16:19)", async () => {
     const { VisorDeConcepto } = await import("@/app/piezas/VisorDeConcepto")
     const html = dibujar(<VisorDeConcepto concepto={{ ...detalle(), vueltas_restantes: 0 }} />)
-    expect(html).toContain("No quedan vueltas de cambios: si pides otra, no se aplica y te llega la pregunta al buzón (la campaña sigue)")
+    expect(html).toContain("No quedan vueltas de cambios: si pides otra, no se aplica; aprueba la propuesta que prefieras (la campaña sigue)")
+    expect(html).not.toMatch(/buz[oó]n/i)
     expect(html).not.toContain("revisión humana")
   })
   it("aprobada: sin botones, dice el estado y la fecha; sin concepto en la cadena: lo dice en rojo y los botones van bloqueados", async () => {
