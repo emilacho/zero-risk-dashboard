@@ -381,6 +381,13 @@ describe("19-nov · los 3 lugares de campaña y el subtítulo", () => {
     expect(lugaresDe(container)[1].querySelector("[data-nombre-de-la-campana]")?.textContent).toBe("Firmas para limpiar la playa de Olón")
     expect(lugaresDe(container).map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo"))).toEqual(["verde", "verde", "rojo"])
   })
+  it("🔴 s19 · la plataforma contesta con el botón nuevo: cambia el color y el nombre se queda", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true, flujo: DORADO }), { status: 200 })))
+    const { container } = lugares([C1])
+    fireEvent.click(container.querySelector("[data-flujo]") as HTMLElement)
+    await waitFor(() => expect((container.querySelector("[data-flujo]") as HTMLElement).dataset.flujo).toBe("dorado"))
+    expect(container.querySelector("[data-nombre-de-la-campana]")?.textContent).toBe("Impulso del encebollado a domicilio")
+  })
   it("la campaña elegida es la primera viva con botón; lo leído antes del 19-nov (sin `campanas`) ocupa el 1.er lugar sin nombre", () => {
     expect(campanaElegida([C2, C1])?.campana_id).toBe(OTRA)
     expect(campanaElegida([{ ...C1, flujo: null }, C2])?.campana_id).toBe(OTRA)
