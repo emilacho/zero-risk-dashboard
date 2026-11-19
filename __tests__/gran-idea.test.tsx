@@ -84,9 +84,9 @@ describe("la lectura de la tarjeta es pura y declara lo que falta", () => {
     expect(r).toMatchObject({ total: 1, por_red: { tiktok: 1 }, por_capitulo: { "?": 1 } })
     expect(r.ejemplos["?"]).toHaveLength(1)
   })
-  it("la lista rotula la tarjeta como «Gran idea por aprobar»; las vueltas máximas son 2 (las hace cumplir la plataforma)", () => {
+  it("la lista rotula la tarjeta como «Gran idea por aprobar»; las vueltas máximas son 3 (las hace cumplir la plataforma · grupo D, 19-nov)", () => {
     expect(tipoDeRevisionLegible(TIPO_CONCEPTO)).toBe("Gran idea por aprobar")
-    expect(VUELTAS_MAXIMAS_DE_CAMBIOS).toBe(2)
+    expect(VUELTAS_MAXIMAS_DE_CAMBIOS).toBe(3)
   })
 })
 
@@ -190,13 +190,19 @@ describe("el visor de la gran idea se dibuja", () => {
     expect(html).toContain("Banco completo (4 ideas")
     expect(html).toContain("cuarta idea") // el banco completo está en la página (plegado)
     expect(html).toContain("Hay mesa desde las siete.")
-    expect(html).toContain("2 de 2 vueltas de cambios disponibles")
+    expect(html).toContain("2 de 3 vueltas de cambios disponibles")
     expect(html).toContain("ensayo en seco")
     expect(html).toContain("Fotos propias citadas: foto-3")
     expect(html).toContain("plato del día")
     expect(html).toContain("Aprobar la gran idea")
     expect(html).toContain("Pedir cambios…")
     expect(html).not.toContain("Rechazar")
+  })
+  it("🔴 sin vueltas: dice que el pedido siguiente va al buzón, no a revisión humana (grupo D, 19-nov)", async () => {
+    const { VisorDeConcepto } = await import("@/app/piezas/VisorDeConcepto")
+    const html = dibujar(<VisorDeConcepto concepto={{ ...detalle(), vueltas_restantes: 0 }} />)
+    expect(html).toContain("No quedan vueltas de cambios: si pides otra, no se aplica y te llega la pregunta al buzón (la campaña sigue)")
+    expect(html).not.toContain("revisión humana")
   })
   it("aprobada: sin botones, dice el estado y la fecha; sin concepto en la cadena: lo dice en rojo y los botones van bloqueados", async () => {
     const { VisorDeConcepto } = await import("@/app/piezas/VisorDeConcepto")
