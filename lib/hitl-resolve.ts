@@ -364,9 +364,9 @@ export async function resolveHitlApproval(
     return refused("n8n_base_url_unset", input, { client_id, client_lookup })
   }
   const webhookUrl = `${trimSlash(n8nBaseUrl)}/webhook/hitl-resume`
-  const sendOnce = async (): Promise<{ status: number; ok: boolean; error?: string }> => {
+  const sendOnce = async (espera: number): Promise<{ status: number; ok: boolean; error?: string; cortado?: boolean }> => {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const timer = setTimeout(() => controller.abort(), espera)
     try {
       const res = await fetchImpl(webhookUrl, {
         method: "POST",
@@ -380,15 +380,27 @@ export async function resolveHitlApproval(
         status: 0,
         ok: false,
         error: e instanceof Error ? e.message : String(e),
+        cortado: controller.signal.aborted,
       }
     } finally {
       clearTimeout(timer)
     }
   }
 
-  let n8nResult = await sendOnce()
-  if (!n8nResult.ok && (deps.retryOnce ?? true) && (n8nResult.status === 0 || n8nResult.status >= 500)) {
-    n8nResult = await sendOnce()
+  // 19-nov · CC5 (🟡 de CC7 en #349, GO de Lenovo 03:26Z): el reintento ya no repite tras un CORTE POR TIEMPO.
+  //   · si el primer envío se cortó, n8n pudo haberlo recibido: repetirlo reanudaría la ejecución dos veces; y con 790 s por intento
+  //     el segundo nunca alcanzaba a terminar antes de los 800 s de la ruta. Se devuelve el corte, dicho.
+  //   · tras un 5xx o una falla de red sin corte, el reintento recibe SOLO el tiempo que queda de `timeoutMs` (los dos juntos nunca pasan de él).
+  const inicio = Date.now()
+  let n8nResult = await sendOnce(timeoutMs)
+  if (!n8nResult.ok && n8nResult.cortado) {
+    n8nResult = {
+      ...n8nResult,
+      error: `n8n no contestó en ${timeoutMs} ms y el pedido se cortó; no se reintenta, porque si n8n lo recibió, repetirlo reanudaría la ejecución dos veces (${n8nResult.error ?? "cortado"})`,
+    }
+  } else if (!n8nResult.ok && (deps.retryOnce ?? true) && (n8nResult.status === 0 || n8nResult.status >= 500)) {
+    const queda = timeoutMs - (Date.now() - inicio)
+    if (queda > 0) n8nResult = await sendOnce(queda)
   }
 
   if (!n8nResult.ok) {
