@@ -81,7 +81,7 @@ describe("sprint 6.8 · el cerebro como explorador dentro del cliente", () => {
   it("lo que el dueño escribe se valida y va EXACTO a la puerta del dueño: canal del dashboard, dry_run false con flujo y ejecución, pregunta_id y sede cuando las hay", () => {
     expect(cuerpoParaLaPuertaDelDueno({ client_id: "x", tema: "a", respuesta: "bbb" })).toEqual({ error: "Falta el cliente." })
     expect(cuerpoParaLaPuertaDelDueno({ client_id: NAUFRAGO, tema: "", respuesta: "bbb" })).toHaveProperty("error")
-    expect(cuerpoParaLaPuertaDelDueno({ client_id: NAUFRAGO, tema: "x".repeat(81), respuesta: "bbb" })).toHaveProperty("error")
+    expect(cuerpoParaLaPuertaDelDueno({ client_id: NAUFRAGO, tema: "x".repeat(100_001), respuesta: "bbb" })).toHaveProperty("error") // G2b 18-nov «nada se recorta» (CC5): el tope es el único de 100 000 (antes tema 80)
     expect(cuerpoParaLaPuertaDelDueno({ client_id: NAUFRAGO, tema: "manual · voz", respuesta: "bbb" })).toEqual({ error: "Los datos del manual de marca se editan en el Manual, no aquí." })
     expect(cuerpoParaLaPuertaDelDueno({ client_id: NAUFRAGO, tema: "horario", respuesta: "no" })).toEqual({ error: "Escribe el dato (al menos 3 letras)." })
     expect(cuerpoParaLaPuertaDelDueno({ client_id: NAUFRAGO, tema: "horario", respuesta: "bbb", sede_clave: "olón!" })).toEqual({ error: "La sede no es válida." })

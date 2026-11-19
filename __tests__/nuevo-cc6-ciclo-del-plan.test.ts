@@ -54,9 +54,10 @@ describe("CC6 · los cuerpos de las dos puertas y su validación en el servidor 
     expect(TOPE_REESCRITURA_USD).toBeLessThanOrEqual(8)
     expect(cuerpoDePedirCambios(PLAN, "   ")).toEqual({ error: "Cuenta qué debe cambiar" }) // GO 11-nov: basta que haya texto
     expect(cuerpoDePedirCambios(PLAN, "no")).not.toHaveProperty("error")
-    expect(cuerpoDePedirCambios(PLAN, "x".repeat(4001))).toEqual({ error: "Máximo 4.000 caracteres" })
+    expect(cuerpoDePedirCambios(PLAN, "x".repeat(5000))).not.toHaveProperty("error") // G2b 18-nov «nada se recorta» (CC5): el tope es el único de 100 000
+    expect(cuerpoDePedirCambios(PLAN, "x".repeat(100_001))).toEqual({ error: "Máximo 100.000 caracteres" })
     expect(cuerpoDePedirCambios("no-es-uuid", "Sube la meta")).toHaveProperty("error")
-    expect(cuerpoDeAprobar(PLAN, "")).toEqual({ plan_id: PLAN }); expect(cuerpoDeAprobar(PLAN, " ok ")).toEqual({ plan_id: PLAN, comentario: "ok" }); expect(cuerpoDeAprobar(PLAN, "x".repeat(1001))).toEqual({ error: "Máximo 1.000 caracteres" })
+    expect(cuerpoDeAprobar(PLAN, "")).toEqual({ plan_id: PLAN }); expect(cuerpoDeAprobar(PLAN, " ok ")).toEqual({ plan_id: PLAN, comentario: "ok" }); expect(cuerpoDeAprobar(PLAN, "x".repeat(5000))).not.toHaveProperty("error"); expect(cuerpoDeAprobar(PLAN, "x".repeat(100_001))).toEqual({ error: "Máximo 100.000 caracteres" }) // G2b 18-nov «nada se recorta» (CC5): el tope es el único de 100 000
   })
   it("el servidor del tablero acepta la forma nueva (plan_id) y exige confirmación y tope; la vieja (campana_id) queda igual que antes", () => {
     const ok = ACCIONES["plan-cambios"].validar(cuerpoDePedirCambios(PLAN, "Sube la meta a 130") as Record<string, unknown>)

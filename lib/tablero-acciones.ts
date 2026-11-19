@@ -5,6 +5,7 @@
  * Si la plataforma todavía no tiene la ruta responde 404/405 y aquí se dice «todavía no disponible» (501): nunca se simula un cambio.
  * Una acción que GASTA dinero exige `confirmo_gasto: true` (el botón lo manda solo después de mostrar el tope) y se rechaza sin él.
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import { vaciarCache } from "@/lib/cache-corta"
 import { TOPE_DEL_TEXTO_DEL_MANUAL } from "@/lib/manual"
 
@@ -35,7 +36,7 @@ export const TOPE_PEDIR_CAMBIOS_USD = 8
 /** el tope de un pedido de cambios al manual (CC1 02-nov, provisional): el mismo valor que manda el panel (`lib/manual-ciclo.ts`) */
 export const TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD = 5
 /** lo que el dueño escribe en un pedido (texto libre + observaciones): el mismo techo que la plataforma (CC1 #869 · `plan_cambios_texto_check` · Lenovo 16:57Z: se queda en 100.000) */
-export const TOPE_DEL_TEXTO_DEL_DUENO = 100_000
+export { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 /** lo que puede gastar una acción. «de_la_familia»: el tope por pieza de la FAMILIA de esa pieza (`oficina_tipos_de_grupo.limites.tope_encargo_usd`), el mismo con que
  *  la abre la oficina; lo lee el servidor del tablero y no se muestra (Emilio, 11-nov 20:27: «no me interesa precios»; el gasto vive en Dinero) */
 export type GastoDeLaAccion = { tope_usd: number } | { de_la_familia: true }
@@ -57,7 +58,7 @@ const cambiosDeUnaFirma = (v: unknown): Array<{ clave: string; propuesto: number
 /** 05-nov · «nunca se firma a ciegas»: estas solo se llaman desde Tu oficina › Decisiones, que revisa las cifras en el servidor. La ruta genérica de acciones no las atiende */
 export const SOLO_DESDE_DECISIONES: readonly string[] = ["firmar-tablero", "recalcular-tablero"]
 const conId = (c: Cuerpo, campo: string): string | null => (typeof c[campo] === "string" && UUID.test(c[campo] as string) ? (c[campo] as string) : null)
-const comentario = (c: Cuerpo, min: number, max = 2000): string | null => { const t = texto(c.comentario); return t.length >= min && t.length <= max ? t : null }
+const comentario = (c: Cuerpo, min: number, max = TOPE_DEL_TEXTO_DEL_DUENO): string | null => { const t = texto(c.comentario); return t.length >= min && t.length <= max ? t : null }
 
 /** 16-nov (Sprint 2 · ADENDA 1 de CC1): la ronda que se contesta (la plataforma rechaza una vieja con 409 `ronda_vieja`) y la propuesta elegida («P1», «P2»…) */
 const rondaDe = (c: Cuerpo): number | null => (typeof c.ronda === "number" && Number.isInteger(c.ronda) && c.ronda >= 1 ? c.ronda : null)
@@ -77,7 +78,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
     gasta: null,
     validar: (c) => {
       const id = conId(c, "encargo_id"), ronda = rondaDe(c), t = texto(c.observaciones)
-      return !id ? mal("falta el encargo") : !ronda ? mal("falta la ronda") : t.length < 1 || t.length > 2000 ? mal("escribe tus observaciones (hasta 2.000 caracteres)") : { ok: true, cuerpo: { encargo_id: id, ronda, observaciones: t } }
+      return !id ? mal("falta el encargo") : !ronda ? mal("falta la ronda") : t.length < 1 || t.length > TOPE_DEL_TEXTO_DEL_DUENO ? mal(`escribe tus observaciones (hasta ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres)`) : { ok: true, cuerpo: { encargo_id: id, ronda, observaciones: t } }
     },
   },
   // CC6 · 03-nov · ruta de CC1 (#852): devuelve UNA pieza archivada de una campaña anterior a la bandeja; no gasta. Fuera del archivo la plataforma da 409
@@ -88,7 +89,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   },
   "rehacer-pieza": {
     gasta: { de_la_familia: true },
-    validar: (c) => { const id = conId(c, "encargo_id"); return id ? { ok: true, cuerpo: { encargo_id: id, ...(texto(c.comentario) ? { comentario: texto(c.comentario).slice(0, 2000) } : {}) } } : mal("falta la pieza que se rehace") },
+    validar: (c) => { const id = conId(c, "encargo_id"); return !id ? mal("falta la pieza que se rehace") : texto(c.comentario).length > TOPE_DEL_TEXTO_DEL_DUENO ? mal(`el comentario pasa de ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres`) : { ok: true, cuerpo: { encargo_id: id, ...(texto(c.comentario) ? { comentario: texto(c.comentario) } : {}) } } },
   },
   // CICLO DEL PLAN (CC6 · 01-nov · contrato certificado de CC1 §2): con `plan_id` van las puertas nuevas. Sin él queda la forma vieja (`campana_id`, la ficha del
   // cliente en el tablero de siempre), tal cual estaba: esa página no se toca y la plataforma la rechaza con 400 sin cambiar nada (ADENDA 1 de CC1).
@@ -96,7 +97,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
     gasta: null,
     validar: (c) => {
       const plan = conId(c, "plan_id")
-      if (plan) { const t = texto(c.comentario); return t.length > 1000 ? mal("el comentario pasa de 1.000 caracteres") : { ok: true, cuerpo: { plan_id: plan, ...(t ? { comentario: t } : {}) } } }
+      if (plan) { const t = texto(c.comentario); return t.length > TOPE_DEL_TEXTO_DEL_DUENO ? mal(`el comentario pasa de ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres`) : { ok: true, cuerpo: { plan_id: plan, ...(t ? { comentario: t } : {}) } } }
       const id = conId(c, "campana_id"); return id ? { ok: true, cuerpo: { campana_id: id } } : mal("falta el plan")
     },
   },
@@ -107,18 +108,18 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       const plan = conId(c, "plan_id")
       if (plan) {
         const t = texto(c.texto), tope = Number(c.tope_usd)
-        if (!t || t.length > 4000) return mal("cuenta qué debe cambiar (hasta 4.000 caracteres)")
+        if (!t || t.length > TOPE_DEL_TEXTO_DEL_DUENO) return mal(`cuenta qué debe cambiar (hasta ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres)`)
         if (c.confirmo_gasto !== true) return { ok: false, error: "falta_confirmar_gasto", detalle: `pedir cambios gasta (tope hasta US$ ${TOPE_PEDIR_CAMBIOS_USD}): confírmalo antes` }
         if (!Number.isFinite(tope) || tope <= 0) return mal("falta el tope del gasto")
         if (tope > TOPE_PEDIR_CAMBIOS_USD) return mal(`el tope pasa de US$ ${TOPE_PEDIR_CAMBIOS_USD}`)
         return { ok: true, cuerpo: { plan_id: plan, texto: t, confirmo_gasto: true, tope_usd: tope } }
       }
-      const id = conId(c, "campana_id"), t = comentario(c, 5); return !id ? mal("falta el plan") : !t ? mal("cuenta qué quieres cambiar (de 5 a 2.000 caracteres)") : { ok: true, cuerpo: { campana_id: id, comentario: t } }
+      const id = conId(c, "campana_id"), t = comentario(c, 5); return !id ? mal("falta el plan") : !t ? mal(`cuenta qué quieres cambiar (de 5 a ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres)`) : { ok: true, cuerpo: { campana_id: id, comentario: t } }
     },
   },
   "plan-responder": {
     gasta: null,
-    validar: (c) => { const id = conId(c, "espera_id"), t = texto(c.respuesta); return !id ? mal("falta la pregunta que se contesta") : t.length < 1 || t.length > 2000 ? mal("escribe la respuesta (hasta 2.000 caracteres)") : { ok: true, cuerpo: { espera_id: id, respuesta: t } } },
+    validar: (c) => { const id = conId(c, "espera_id"), t = texto(c.respuesta); return !id ? mal("falta la pregunta que se contesta") : t.length < 1 || t.length > TOPE_DEL_TEXTO_DEL_DUENO ? mal(`escribe la respuesta (hasta ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres)`) : { ok: true, cuerpo: { espera_id: id, respuesta: t } } },
   },
   "firmar-tablero": { gasta: null, validar: (c) => { const id = conId(c, "tablero_id"); if (!id) return mal("falta el tablero que se firma"); if (c.cambios === undefined) return { ok: true, cuerpo: { tablero_id: id } }; const cambios = cambiosDeUnaFirma(c.cambios); return cambios ? { ok: true, cuerpo: { tablero_id: id, cambios } } : mal("las cifras cambiadas no se entienden") } },
   // 05-nov · ver cómo quedaría una cifra cambiada antes de firmarla: no toca el tablero
@@ -163,7 +164,7 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
   },
   "cliente-baja": {
     gasta: null,
-    validar: (c) => { const id = conId(c, "client_id"), t = comentario(c, 5, 500); return !id ? mal("falta el cliente") : !t ? mal("cuenta por qué se da de baja (mínimo 5 caracteres)") : { ok: true, cuerpo: { client_id: id, comentario: t } } },
+    validar: (c) => { const id = conId(c, "client_id"), t = comentario(c, 5); return !id ? mal("falta el cliente") : !t ? mal(`cuenta por qué se da de baja (de 5 a ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres)`) : { ok: true, cuerpo: { client_id: id, comentario: t } } },
   },
   "oficina-estado": {
     gasta: null,
@@ -181,7 +182,8 @@ export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
       if (d !== "aprobar" && d !== "rechazar") return mal("la decisión es «aprobar» o «rechazar»")
       const t = texto(c.comentario)
       if (d === "rechazar" && !t) return mal("cuenta por qué se rechaza")
-      return { ok: true, cuerpo: { hitl_id: id, decision: d, ...(t ? { comentario: t.slice(0, 2000) } : {}) } }
+      if (t.length > TOPE_DEL_TEXTO_DEL_DUENO) return mal(`el comentario pasa de ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres`)
+      return { ok: true, cuerpo: { hitl_id: id, decision: d, ...(t ? { comentario: t } : {}) } }
     },
   },
   "manual-campos": {

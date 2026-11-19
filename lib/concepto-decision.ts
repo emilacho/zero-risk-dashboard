@@ -7,11 +7,12 @@
  *  · si la pantalla de Emilio estaba vieja (`estado_visto` distinto) o la tarjeta ya no está pendiente, 409 y no se manda nada;
  *  · mientras la plataforma no tenga la ruta (se publica en T9), 501 con esa causa, sin simular nada.
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { cargarConcepto, type DetalleDelConcepto } from "@/lib/concepto-datos"
 
 export const NOTA_MINIMA = 10
-export const NOTA_MAXIMA = 2000
+export const NOTA_MAXIMA = TOPE_DEL_TEXTO_DEL_DUENO // G2b 18-nov «nada se recorta» (CC5): el tope único de lo que escribe Emilio
 export const WORKFLOW_DEL_TABLERO = "tablero"
 
 export type ApuntaA = "concepto" | "brief"

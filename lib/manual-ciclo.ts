@@ -5,6 +5,7 @@
  * El avance usa la MISMA cuenta que el plan (`avanceDelPedido` con documento «manual»). «Qué cambió» se calcula aquí, campo por campo,
  * comparando las dos versiones completas (también lo cambiado FUERA de la sección pedida · CC3). Sin modelo.
  */
+import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import type { AvanceDelPedido } from "@/lib/plan"
 import type { CampoLeido } from "@/lib/manual-lector"
 
@@ -75,7 +76,7 @@ export function cuerpoDePedirCambiosAlManual(cliente: string | null, observacion
   if (!cliente) return { error: "Falta el cliente." }
   const t = observaciones.trim()
   if (!t) return { error: "Cuenta qué debe cambiar." }
-  if (t.length > 4000) return { error: "Máximo 4.000 caracteres." }
+  if (t.length > TOPE_DEL_TEXTO_DEL_DUENO) return { error: `Máximo ${TOPE_DEL_TEXTO_DEL_DUENO.toLocaleString("es-EC")} caracteres.` }
   return { client_id: cliente, texto: t, ...(seccion ? { seccion: seccion.titulo, campos: seccion.campos } : {}), confirmo_gasto: true, tope_usd: TOPE_PEDIR_CAMBIOS_AL_MANUAL_USD }
 }
 
