@@ -217,12 +217,16 @@ describe("Piezas v2 · la lectura (sin red)", () => {
     expect(l.find((x) => x.id === "h2")).toMatchObject({ miniatura: "imagen" }) // la familia de la bandeja manda sobre la del encargo
     expect(l.find((x) => x.id === "h2")!.carpeta).toMatch(/^Carrusel/)
   })
-  it("leerBandeja: con «Por aprobar» no lee lo en curso; con «Todas» sí, solo de los clientes de la lista (sin práctica ni bajas)", async () => {
-    const log: string[] = []
-    const tablas = { clients: [{ id: NAUFRAGO, name: "Náufrago", industry: "restaurante", status: "active", archived_at: null }], oficina_encargos: [ENC(E1, {}), ENC(E3, { client_id: "ffffffff-0000-4000-8000-000000000000" })] }
-    const pend = await leerBandeja(baseFalsa(tablas, [], log), {})
-    expect(pend).not.toHaveProperty("en_curso"); expect(log.some((x) => x.includes("pasos_ejecutados"))).toBe(false)
+  // 19-nov (CC4 · Piezas parte B · A, firma de Emilio): con «Por aprobar» entran SOLO las que esperan tu decisión (sus propuestas); antes no leía nada en curso
+  it("leerBandeja: con «Por aprobar» solo lo que espera tu decisión; con «Todas» todo lo en curso, solo de los clientes de la lista (sin práctica ni bajas)", async () => {
+    const tablas = {
+      clients: [{ id: NAUFRAGO, name: "Náufrago", industry: "restaurante", status: "active", archived_at: null }],
+      oficina_encargos: [ENC(E1, {}), ENC(E4, {}), ENC(E3, { client_id: "ffffffff-0000-4000-8000-000000000000" })],
+      oficina_turnos: [{ encargo_id: E4, tipo: "dueno", estado: "corriendo" }, { encargo_id: E3, tipo: "dueno", estado: "corriendo" }],
+    }
+    const pend = await leerBandeja(baseFalsa(tablas), {})
+    expect(pend.en_curso!.map((e) => e.encargo_id)).toEqual([E4])
     const todas = await leerBandeja(baseFalsa(tablas), { estado: "todas" })
-    expect(todas.en_curso!.map((e) => e.encargo_id)).toEqual([E1])
+    expect(todas.en_curso!.map((e) => e.encargo_id)).toEqual([E1, E4])
   })
 })
