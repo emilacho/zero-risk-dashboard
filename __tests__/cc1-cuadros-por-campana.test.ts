@@ -169,11 +169,13 @@ describe("leerBandeja con campaña", () => {
 describe("las rutas", () => {
   beforeEach(() => { vi.resetModules() })
   const pedidasALaRegla: Array<string | null | undefined> = []
+  const pedidasAlCentro: Array<string | null | undefined> = []
   const preparar = (lo: unknown, o: { clienteDelCentro?: string | null; elegida?: string | null } = {}) => {
     pedidasALaRegla.length = 0
+    pedidasAlCentro.length = 0
     vi.doMock("@/lib/admin-guard", () => ({ exigirAdmin: async () => ({ ok: true, email: "emilio" }) }))
     vi.doMock("@/lib/supabase-server", () => ({ getServiceRoleClient: () => ({}) }))
-    vi.doMock("@/lib/centro-datos", () => ({ leerCentro: async () => ({ cliente: o.clienteDelCentro === undefined ? CLI : o.clienteDelCentro, equipo: { trabajando: 5 } }) }))
+    vi.doMock("@/lib/centro-datos", () => ({ leerCentro: async (_s: unknown, oc: { campana?: string | null }) => (pedidasAlCentro.push(oc?.campana), { cliente: o.clienteDelCentro === undefined ? CLI : o.clienteDelCentro, equipo: { trabajando: 5 } }) }))
     // la regla común de CC3: aquí devuelve la pedida o, sin pedir, la «primera viva» (VIEJA)
     vi.doMock("@/lib/campana-elegida", () => ({ elegirCampana: async (_s: unknown, _c: string, pedida: string | null) => { pedidasALaRegla.push(pedida); const id = o.elegida === undefined ? pedida ?? VIEJA : o.elegida; return id ? { id, estado: "activa" } : null } }))
     vi.doMock("@/lib/campana-datos", () => ({ loDeLaCampana: async (_s: unknown, id: string) => (lo && typeof lo === "object" ? { ...(lo as object), campana_id: id } : lo), trabajandoEnLaCampana: async () => ["content-creator"] }))
@@ -186,6 +188,8 @@ describe("las rutas", () => {
     const r = await (await GET(new Request(`http://x/api/centro?cliente=${CLI}&campana=${NUEVA}`))).json()
     expect(r).toEqual({ ok: true, cliente: CLI, equipo: { trabajando: 5 }, de_la_campana: { campana_id: NUEVA, gastado_usd: 0.9, trabajando: ["content-creator"] } })
     expect(pedidasALaRegla).toEqual([NUEVA])
+    // 🟡 e12 de CC7 (#358): el brief y la gran idea del Centro también reciben la campaña pedida
+    expect(pedidasAlCentro).toEqual([NUEVA])
   })
   it("🔴 sin pedir campaña: la de la regla (la primera viva), la misma que muestran el brief, la gran idea y el calendario", async () => {
     preparar(LO)
@@ -193,6 +197,7 @@ describe("las rutas", () => {
     const r = await (await GET(new Request(`http://x/api/centro?cliente=${CLI}`))).json()
     expect(r.de_la_campana).toEqual({ campana_id: VIEJA, gastado_usd: 0.9, trabajando: ["content-creator"] })
     expect(pedidasALaRegla).toEqual([null])
+    expect(pedidasAlCentro).toEqual([null])
   })
   it("🔴 null si: no hay cliente, la regla no encuentra campaña, la campaña no existe o es de OTRO cliente (nunca se mezclan)", async () => {
     const casos: Array<[string, unknown, { clienteDelCentro?: string | null; elegida?: string | null }]> = [
