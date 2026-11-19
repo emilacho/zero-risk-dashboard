@@ -21,7 +21,11 @@ import { getSessionClient } from "@/lib/supabase-session"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export const maxDuration = 60
+/** el máximo de salida del modelo de esta ruta (claude-sonnet-4-6 · referencia oficial de modelos) */
+const TECHO_DE_RESPUESTA = 128000 // sin export: una ruta de Next solo exporta lo que Next conoce
+// 18-nov · G1c «nada se recorta» (CC5): 800 s, el máximo del plan · con 128.000 tokens de respuesta, 60 s cortaba el flujo a mitad
+// 19-nov · límite real (CC7 🟡): a la velocidad de Sonnet, 800 s alcanzan para unos 40.000–60.000 tokens; una respuesta más larga la corta Vercel y lo parcial NO se guarda (el catch no llega a correr)
+export const maxDuration = 800
 
 interface Attachment {
   name: string
@@ -254,7 +258,8 @@ export async function POST(req: Request) {
           },
           body: JSON.stringify({
             model: "claude-sonnet-4-6",
-            max_tokens: 1600,
+            // 18-nov · G1c «nada se recorta» (CC5): el techo de Sonnet 4.6 (128.000; antes 1.600, que cortaba la respuesta) · ya va por flujo continuo
+            max_tokens: TECHO_DE_RESPUESTA,
             stream: true,
             system: systemPrompt,
             tools: TOOLS,

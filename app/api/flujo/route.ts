@@ -10,7 +10,8 @@ import { leerFlujo, tocarFlujo } from "@/lib/flujo-de-campana"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export const maxDuration = 60
+// 19-nov · G1c «límites técnicos al máximo» (Lenovo 22:06Z · CC5): 800 s, el máximo del plan de Vercel; reenvía a la plataforma y no debe cortarla antes (antes 60)
+export const maxDuration = 800
 
 const sinPuerta = (status: number) => NextResponse.json({ ok: false, error: status === 401 ? "sin_sesion" : "sin_permiso" }, { status })
 
