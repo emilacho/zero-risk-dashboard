@@ -49,7 +49,7 @@ async function dineroDelCliente(cliente: string | null, leer: typeof leerRiesgos
 /** una lectura de apoyo: si falla, su tarjeta dice «—» (nunca un cero inventado) y el Centro sigue */
 async function oNulo<T>(f: () => PromiseLike<T>): Promise<T | undefined> { try { return await f() } catch { return undefined } }
 
-export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date; riesgos?: typeof leerRiesgos } = {}): Promise<Centro> {
+export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | null; campana?: string | null; ahora?: Date; riesgos?: typeof leerRiesgos } = {}): Promise<Centro> {
   const ahora = o.ahora ?? new Date()
   // GO Lenovo 10-nov 14:37Z (falla 2): el cliente se resuelve UNA vez, con LA regla del brief (`elegirCliente`: el pedido si existe; si no, o si no
   // existe, el primero de la lista · CC6 #325 🟡: un enlace a un cliente borrado también mezclaba), y TODAS
@@ -66,8 +66,9 @@ export async function leerCentro(supa: SupabaseClient, o: { cliente?: string | n
     dineroDelCliente(cli, o.riesgos ?? leerRiesgos),
   ])
   const [brief, gran, informes, analisisFilas, abiertas] = await Promise.all([
-    leerBrief(supa, { cliente: cli, ahora }),
-    leerGranIdea(supa, { cliente: cli, ahora }),
+    // 19-nov · varias campañas: el brief y la gran idea de la campaña elegida (`campana-elegida.ts`)
+    leerBrief(supa, { cliente: cli, campana: o.campana, ahora }),
+    leerGranIdea(supa, { cliente: cli, campana: o.campana, ahora }),
     cli ? supa.from("client_reports").select("id, kind, status, period_start, period_end, summary, created_at").eq("client_id", cli).order("period_end", { ascending: false }).limit(200) : Promise.resolve({ data: [] as Fila[], error: null }),
     // los informes de la mesa de análisis viven en el cerebro (fichas vigentes `informe_de_analisis`)
     cli ? supa.from("cerebro_fichas").select("id, titulo, contenido, observado_en, creado_en, provenance_tag").eq("client_id", cli).eq("clase", "informe_de_analisis").is("retirada_en", null).eq("descartada", false).limit(50) : Promise.resolve({ data: [] as Fila[], error: null }),

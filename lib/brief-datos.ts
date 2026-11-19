@@ -8,10 +8,9 @@ import { briefDesdeFila, ordenarBriefs, type Brief } from "@/lib/brief"
 import { esAutorDeLaMesa } from "@/lib/organigrama"
 import { direccionesDeFotos } from "@/lib/gran-idea-datos"
 import { codigosEntreComillas, fotosCitadas } from "@/lib/sin-codigos"
+import { elegirCampana } from "@/lib/campana-elegida"
 
 type Fila = Record<string, unknown>
-type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
-async function una(q: R, que: string): Promise<Fila | null> { const r = await q; if (r.error) throw new Error(`${que}: ${r.error.message}`); return (r.data ?? null) as Fila | null }
 /** la tabla no está en producción (PostgREST: «Could not find the table … in the schema cache» · Postgres: «relation … does not exist») */
 export const esTablaInexistente = (msg: string) => /could not find the table|does not exist|schema cache/i.test(msg)
 
@@ -27,12 +26,13 @@ export interface BriefDelCliente {
   fotos?: string[]
 }
 
-export async function leerBrief(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date } = {}): Promise<BriefDelCliente> {
+export async function leerBrief(supa: SupabaseClient, o: { cliente?: string | null; campana?: string | null; ahora?: Date } = {}): Promise<BriefDelCliente> {
   const ahora = o.ahora ?? new Date()
   const { clientes, elegido } = await elegirCliente(supa, o.cliente)
   const base = { clientes, leido_en: ahora.toISOString() }
   if (!elegido) return { ...base, cliente: null, campana: null, publicado: true, briefs: [] }
-  const camp = await una(supa.from("cadena_campanas").select("id, estado").eq("client_id", elegido.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
+  // 19-nov · varias campañas: la pedida (`?campana=`) si se puede mostrar; si no, la primera viva (`campana-elegida.ts`)
+  const camp = await elegirCampana(supa, elegido.id, o.campana)
   if (!camp) return { ...base, cliente: elegido, campana: null, publicado: true, briefs: [] }
   const campana = { id: String(camp.id), estado: String(camp.estado ?? "") }
   const r = await supa.from("cadena_brief_creativo").select("id, campana_id, version, estado, texto_md, leido, devolucion_texto, motivo, costo_usd, seco, creada_en, actualizada_en, encargo_id").eq("campana_id", campana.id).order("version", { ascending: false }).limit(50)

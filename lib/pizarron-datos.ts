@@ -6,6 +6,7 @@
  */
 import { quienValido } from "@/lib/manual-lector"
 import { clientePorOmision } from "@/lib/cliente-por-omision"
+import { elegirCampana } from "@/lib/campana-elegida"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { fasesDelPlan, type FasesDelPlan } from "@/lib/clientes"
 import { clientesParaElegir } from "@/lib/clientes-datos"
@@ -46,7 +47,7 @@ export interface Pizarron {
 
 export const ESTADOS_VIVOS = ["abierta", "estrategia", "calendario", "activa", "pausada", "necesita_humano"]
 
-export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string | null; ahora?: Date } = {}): Promise<Pizarron> {
+export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string | null; campana?: string | null; ahora?: Date } = {}): Promise<Pizarron> {
   const ahora = o.ahora ?? new Date()
   const hoy = hoyEnEcuador(ahora)
   const [elegibles, campanas] = await Promise.all([
@@ -66,7 +67,8 @@ export async function leerPizarron(supa: SupabaseClient, o: { cliente?: string |
   const manual = await una(supa.from("client_brand_books").select("human_validated, provenance_tag").eq("client_id", cliente.id).order("version", { ascending: false }).limit(1).maybeSingle(), "client_brand_books").catch(() => undefined)
   const manual_aprobado = manual === undefined || manual === null ? null : quienValido(manual) === "dueno"
 
-  const camp = await una(supa.from("cadena_campanas").select("id, plan_id, estado, fecha_inicio, fecha_fin").eq("client_id", cliente.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas")
+  // 19-nov · varias campañas: la pedida (`?campana=`) si se puede mostrar; si no, la primera viva (`campana-elegida.ts`)
+  const camp = await elegirCampana(supa, cliente.id, o.campana, "id, plan_id, estado, fecha_inicio, fecha_fin")
   if (!camp) return vacio(cliente, manual_aprobado)
   const campId = String(camp.id)
 
