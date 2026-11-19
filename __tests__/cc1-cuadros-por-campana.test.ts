@@ -97,6 +97,11 @@ describe("lo de una campaña: sus encargos y lo gastado", async () => {
     const roto = { from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "caída" } }) }) }) }) }) }
     await expect(loDeLaCampana(roto as never, NUEVA)).rejects.toThrow(/caída/)
   })
+  it("🔴 un error al leer lo gastado en la planificación (cadena_corridas) también lanza: nunca un gasto de menos", async () => {
+    const { supabase } = base({ cadena_campanas: campanas(), oficina_encargos: encargos(), cadena_corridas: corridas() }, { sinColumnas: { cadena_corridas: ["campana_id"] } })
+    await expect(loDeLaCampana(supabase, NUEVA)).rejects.toThrow(/leer las corridas/)
+    await expect(loDeLaCampana(supabase, VIEJA)).rejects.toThrow(/leer las corridas/)
+  })
 })
 
 describe("quiénes trabajan ahora en la campaña", async () => {
