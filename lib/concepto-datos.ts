@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 /** el `type` de la tarjeta en la bandeja (la plataforma: `TIPO_TARJETA_DE_CONCEPTO`) */
 export const TIPO_CONCEPTO = "concepto_review"
 /** vueltas de cambios por campaña (brief + concepto sumados); lo hace cumplir la plataforma (`CAP_DE_VUELTAS_DE_CAMBIOS`), aquí solo se muestra */
-export const VUELTAS_MAXIMAS_DE_CAMBIOS = 2
+export const VUELTAS_MAXIMAS_DE_CAMBIOS = 3 // 19-nov · grupo D (D2 (c) de Lenovo): el 3 que firmó Emilio; al 4.º pedido la plataforma te pregunta en el buzón y la campaña no se detiene
 
 export type EstadoDelConcepto = "pendiente" | "aprobada" | "con_cambios" | "rechazada" | "otro"
 
