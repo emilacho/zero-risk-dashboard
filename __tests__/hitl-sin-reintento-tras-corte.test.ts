@@ -18,8 +18,9 @@ function base() {
   return { from: () => q } as never
 }
 
-/** cada envío sigue el guion: `nunca` (solo termina si lo cortan) · un número = contesta ese estado tras `ms` · `red` = falla de red al instante */
-function fetchConGuion(guion: Array<{ tipo: "nunca" } | { tipo: "estado"; estado: number; ms: number } | { tipo: "red" }>) {
+/** cada envío sigue el guion: `nunca` (solo termina si lo cortan) · un número = contesta ese estado tras `ms` · `red` = falla de red al instante
+ *  · `salto` (opcional): al contestar, el reloj avanza esos ms SIN disparar temporizadores (la respuesta llega justo cuando se acaba el plazo, antes del corte) */
+function fetchConGuion(guion: Array<{ tipo: "nunca" } | { tipo: "estado"; estado: number; ms: number; salto?: number } | { tipo: "red" }>) {
   const senales: AbortSignal[] = []
   const f = vi.fn((_url: string, init?: RequestInit) => {
     const s = init?.signal as AbortSignal
@@ -28,7 +29,7 @@ function fetchConGuion(guion: Array<{ tipo: "nunca" } | { tipo: "estado"; estado
     return new Promise<Response>((resolver, rechazar) => {
       s.addEventListener("abort", () => rechazar(new Error("This operation was aborted")))
       if (paso.tipo === "red") rechazar(new Error("fetch failed"))
-      if (paso.tipo === "estado") setTimeout(() => resolver(new Response("x", { status: paso.estado })), paso.ms)
+      if (paso.tipo === "estado") setTimeout(() => { if (paso.salto) vi.setSystemTime(Date.now() + paso.salto); resolver(new Response("x", { status: paso.estado })) }, paso.ms)
     })
   }) as unknown as typeof fetch
   return { f, senales }
@@ -89,6 +90,32 @@ describe("resolver una revisión · el reintento a n8n", () => {
     const r = await p
     expect(senales.length).toBe(2)
     expect(r.ok).toBe(true)
+  })
+
+  // 19-nov · k5 (🟡 de CC7 en #352, GO de Lenovo 07:59Z): un 5xx que llega justo al final del plazo NO dispara un 2.º envío (sin tiempo, la espera sería 0 o negativa
+  //   y el pedido saldría igual hacia n8n antes de cortarse). La guarda es `if (queda > 0)` en lib/hitl-resolve.ts.
+  it("🔴 k5 · un 503 justo a los `timeoutMs` → un solo envío, y devuelve el 503", async () => {
+    const { f, senales } = fetchConGuion([{ tipo: "estado", estado: 503, ms: 999, salto: 1 }, { tipo: "estado", estado: 200, ms: 0 }])
+    const p = pedir(f)
+    await vi.advanceTimersByTimeAsync(999)
+    const r = await p
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(senales.length).toBe(1)
+    expect(senales[0].aborted).toBe(false)
+    expect(r.ok).toBe(false)
+    expect(r.n8n_status).toBe(503)
+    expect(r.hitl_row_updated).toBe(false)
+  })
+
+  it("k5 · control: el mismo 503 con 1 ms todavía por delante SÍ reintenta (con ese 1 ms)", async () => {
+    const { f, senales } = fetchConGuion([{ tipo: "estado", estado: 503, ms: 999 }, { tipo: "nunca" }])
+    const p = pedir(f)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(senales.length).toBe(2)
+    expect(senales[1].aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(senales[1].aborted).toBe(true)
+    await p
   })
 
   it("🔴 con retryOnce false, un 5xx no reintenta", async () => {
