@@ -127,7 +127,11 @@ export interface PiezaEnCurso {
   paso: number | null
   publica: string | null
   creada: string
+  /** 19-nov (Piezas parte B · A): las propuestas esperan la elección del dueño (el encargo tiene un turno del dueño `corriendo`, la misma marca del Calendario) */
+  espera_al_dueno?: boolean
 }
+/** el turno del dueño (`oficina_turnos.tipo`): el mismo valor que `TURNO_DEL_DUENO` de `pizarron-datos.ts`, sin importar ese módulo (lee media base) */
+const TURNO_DEL_DUENO = "dueno"
 const ESTADOS_EN_LA_MESA = ["abierto", "en_paso"]
 const REVISION_TERMINADA = /^(cerrada|fallida)/
 /** las piezas en producción: encargos reales (ni ensayo ni prueba ni archivados) hechos para una publicación (con su fila del calendario, o para rehacer una pieza),
@@ -152,6 +156,14 @@ export async function listarEnCurso(supa: SupabaseClient, o: { limite?: number }
       if (!REVISION_TERMINADA.test(String(x.estado ?? ""))) enRevision.add(id)
     }
   }
+  // 19-nov (Piezas parte B · A): los que esperan al dueño (sus propuestas están en «Propuestas»): la misma lectura que el Calendario (`pizarron-datos.ts`)
+  const enLaMesa = filas.filter((e) => ESTADOS_EN_LA_MESA.includes(String(e.estado))).map((e) => String(e.id))
+  const esperan = new Set<string>()
+  if (enLaMesa.length) {
+    const t = await supa.from("oficina_turnos").select("encargo_id").eq("tipo", TURNO_DEL_DUENO).eq("estado", "corriendo").in("encargo_id", enLaMesa).limit(1000)
+    if (t.error) throw new Error(`no pude leer los turnos del dueño: ${t.error.message}`)
+    for (const x of (t.data ?? []) as Array<{ encargo_id?: unknown }>) esperan.add(String(x.encargo_id ?? ""))
+  }
   return filas.filter((e) => ESTADOS_EN_LA_MESA.includes(String(e.estado)) || enRevision.has(String(e.id))).map((e) => {
     const fecha = (e.fila as { fecha?: unknown } | null)?.fecha
     const paso = Number(e.paso)
@@ -164,6 +176,7 @@ export async function listarEnCurso(supa: SupabaseClient, o: { limite?: number }
       paso: e.paso != null && Number.isFinite(paso) && paso > 0 ? paso : null,
       publica: typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}/.test(fecha) ? fecha.slice(0, 10) : null,
       creada: String(e.creado_en ?? ""),
+      ...(esperan.has(String(e.id)) ? { espera_al_dueno: true } : {}),
     }
   })
 }

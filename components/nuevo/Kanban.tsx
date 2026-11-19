@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import type { ColumnaArmada } from "@/lib/kanban"
 
 /**
@@ -18,12 +19,16 @@ const ESTILO = `
 `
 const MAXIMO_POR_COLUMNA = 60
 
-export function Kanban({ columnas, elegida = null, onElegir, etiqueta }: {
+export function Kanban({ columnas, elegida = null, onElegir, etiqueta, maximoPorHacer = null }: {
   columnas: ColumnaArmada[]
   elegida?: string | null
   onElegir?: (id: string) => void
   etiqueta: string
+  /** 19-nov (Piezas parte B · C): «Por hacer» muestra solo las N más cercanas y «+ N más», que abre el resto ahí mismo */
+  maximoPorHacer?: number | null
 }) {
+  const [todasPorHacer, setTodasPorHacer] = useState(false)
+  const tope = (clave: string) => (clave === "por_hacer" && maximoPorHacer != null && !todasPorHacer ? maximoPorHacer : MAXIMO_POR_COLUMNA)
   return (
     <div data-kanban role="list" aria-label={etiqueta} className="flex gap-2.5 overflow-x-auto pb-2">
       <style>{ESTILO}</style>
@@ -37,7 +42,7 @@ export function Kanban({ columnas, elegida = null, onElegir, etiqueta }: {
           </header>
           <div className="flex max-h-[52vh] flex-col gap-1.5 overflow-y-auto p-1.5">
             {c.tarjetas.length === 0 && <p className="px-2 py-2 text-rotulo text-apagado">Nada aquí</p>}
-            {c.tarjetas.slice(0, MAXIMO_POR_COLUMNA).map((t) => (
+            {c.tarjetas.slice(0, tope(c.clave)).map((t) => (
               <button key={t.id} type="button" data-tarjeta={t.id} data-columna-tarjeta={t.columna} data-elegida={t.id === elegida} data-destacada={t.destacada} onClick={() => onElegir?.(t.id)} disabled={!onElegir}
                 title={`${t.estado}${t.motivo ? ` · ${t.motivo}` : ""}`} aria-label={`${t.titulo} · ${t.estado}`} aria-pressed={t.id === elegida}
                 className="kb-tarjeta flex w-full flex-col gap-0.5 rounded-md border border-white/10 border-l-[3px] bg-[#1c1c1c] px-2 py-1.5 text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400 disabled:cursor-default" style={{ borderLeftColor: t.color }}>
@@ -46,7 +51,8 @@ export function Kanban({ columnas, elegida = null, onElegir, etiqueta }: {
                 <span className="flex items-center gap-1.5 text-[10.5px] text-zinc-500"><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: t.color }} aria-hidden />{t.estado}{t.cuando ? ` · ${t.cuando}` : ""}</span>
               </button>
             ))}
-            {c.tarjetas.length > MAXIMO_POR_COLUMNA && <p className="px-2 py-1 text-[11px] text-zinc-500">+{c.tarjetas.length - MAXIMO_POR_COLUMNA} más (míralas en el calendario)</p>}
+            {c.tarjetas.length > tope(c.clave) && tope(c.clave) !== MAXIMO_POR_COLUMNA && <button type="button" data-accion="ver-mas-por-hacer" onClick={() => setTodasPorHacer(true)} className="px-2 py-1 text-left text-[11px] text-zinc-300 underline decoration-dotted hover:text-amber-200">+ {c.tarjetas.length - tope(c.clave)} más</button>}
+            {c.tarjetas.length > MAXIMO_POR_COLUMNA && tope(c.clave) === MAXIMO_POR_COLUMNA && <p className="px-2 py-1 text-[11px] text-zinc-500">+{c.tarjetas.length - MAXIMO_POR_COLUMNA} más (míralas en el calendario)</p>}
           </div>
         </section>
       ))}

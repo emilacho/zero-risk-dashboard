@@ -144,7 +144,9 @@ const ES_FINAL = (n: string) => n in ORDEN_FINAL
 
 /** las filas del cliente: sus carpetas de la bandeja y, con «Todas», las piezas en producción en la fila de su tipo (primero, son lo más nuevo).
  *  Una pieza en curso (o una sin red en su título) va a la ÚNICA carpeta de su tipo («Video corto» → «Video corto Instagram»); si hay varias o ninguna, abre su propia fila */
-export function filasDeSubcategorias(cliente: ClienteDeLaBandeja | null, enCurso: PiezaEnCurso[], filtro: FiltroDeLaBandeja): FilaDeSubcategoria[] {
+/*  19-nov (Piezas parte B · A): con «Por aprobar» también entran las que esperan tu decisión (sus propuestas), y cuentan en el número de su fila.
+ *  `clienteId`: el cliente elegido aunque no tenga carpetas en la bandeja (con «Por aprobar» puede tener solo propuestas esperando) */
+export function filasDeSubcategorias(cliente: ClienteDeLaBandeja | null, enCurso: PiezaEnCurso[], filtro: FiltroDeLaBandeja, clienteId: string | null = null): FilaDeSubcategoria[] {
   let filas = (cliente?.carpetas ?? []).map((k) => ({ nombre: k.nombre, elementos: k.filas.map((fila): ElementoDeLaFila => ({ tipo: "pieza", fila })), por_aprobar: k.por_aprobar }))
   // la ÚNICA fila de un tipo con su red («Video corto» → «Video corto Instagram»); si hay varias redes o ninguna, null: no se adivina la red
   const unicaDelTipo = (tipo: string) => { const m = filas.filter((k) => !ES_FINAL(k.nombre) && k.nombre.startsWith(`${tipo} `)); return m.length === 1 ? m[0] : null }
@@ -153,10 +155,12 @@ export function filasDeSubcategorias(cliente: ClienteDeLaBandeja | null, enCurso
     const destino = ES_FINAL(k.nombre) ? null : unicaDelTipo(k.nombre)
     if (destino) { destino.elementos.push(...k.elementos); destino.por_aprobar += k.por_aprobar; filas = filas.filter((x) => x !== k) }
   }
-  if (filtro === "todas" && cliente) {
-    for (const e of enCurso.filter((x) => (x.cliente_id ?? "") === (cliente.id ?? ""))) {
+  const id = cliente ? cliente.id ?? "" : clienteId
+  if (id != null) {
+    for (const e of enCurso.filter((x) => (x.cliente_id ?? "") === id && (filtro === "todas" || x.espera_al_dueno === true))) {
       let f = filas.find((k) => k.nombre === e.tipo_legible) ?? unicaDelTipo(e.tipo_legible)
       if (!f) { f = { nombre: e.tipo_legible, elementos: [], por_aprobar: 0 }; filas.push(f) }
+      if (e.espera_al_dueno === true) f.por_aprobar += 1
       const primeraPieza = f.elementos.findIndex((x) => x.tipo === "pieza")
       f.elementos.splice(primeraPieza < 0 ? f.elementos.length : primeraPieza, 0, { tipo: "en_curso", pieza: e })
     }

@@ -29,10 +29,11 @@ export async function leerBandeja(supa: SupabaseClient, o: { estado?: FiltroDeLa
     listarPiezas(supa, { estado: "todas", tipo: "piezas", archivo: "solo", limite: 300 }),
     contarPiezasPorAprobar(supa),
     clientesParaElegir(supa),
-    estado === "todas" ? listarEnCurso(supa) : Promise.resolve([] as PiezaEnCurso[]),
+    // 19-nov (Piezas parte B · A): también en «Por aprobar», pero ahí solo las que esperan tu decisión (sus propuestas están en «Propuestas»)
+    listarEnCurso(supa),
   ])
   // los encargos de un cliente de práctica o dado de baja no salen (la lista de clientes ya los deja fuera)
   const deLaLista = new Set(clientes.map((c) => c.id))
-  const en_curso = enCurso.filter((e) => e.cliente_id != null && deLaLista.has(e.cliente_id))
-  return { estado, por_aprobar, piezas, otras, archivo, clientes, ...(estado === "todas" ? { en_curso } : {}), leido_en: (o.ahora ?? new Date()).toISOString() }
+  const en_curso = enCurso.filter((e) => e.cliente_id != null && deLaLista.has(e.cliente_id) && (estado === "todas" || e.espera_al_dueno === true))
+  return { estado, por_aprobar, piezas, otras, archivo, clientes, en_curso, leido_en: (o.ahora ?? new Date()).toISOString() }
 }

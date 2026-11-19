@@ -7,9 +7,9 @@
  * 11-nov (boceto v2 aprobado por Emilio): el calendario suma al inicio «En el esquema» — las filas en esquema (estado de la fila «esquema») que todavía no se desarrollan.
  */
 import type { EstadoDelTablero, FilaDelTablero } from "@/lib/pizarron"
-import { colorDelEstado, diaDelCalendario, esFilaEnEsquema, formatoLegible, nombreDelEstado, redDelTablero } from "@/lib/pizarron"
+import { colorDelEstado, diaDelCalendario, esFilaEnEsquema, formatoLegible, MOTIVO_PROPUESTAS_ESPERAN, nombreDelEstado, redDelTablero } from "@/lib/pizarron"
 import type { EstadoPieza } from "@/lib/piezas"
-import type { FilaDeLaLista } from "@/lib/piezas-datos"
+import type { FilaDeLaLista, PiezaEnCurso } from "@/lib/piezas-datos"
 import { ESTADO_DE_PIEZA_LEGIBLE, avisosDeLaFila, tonoDelEstado, type Tono } from "@/lib/bandeja"
 
 export type ClaveDeColumna = "en_esquema" | "por_hacer" | "en_el_estudio" | "en_revision" | "por_aprobar" | "aprobada" | "publicada" | "vencida"
@@ -129,4 +129,55 @@ export function armarKanban(tarjetas: TarjetaDelKanban[], columnas: readonly Col
 export function resumenDelKanban(columnas: ColumnaArmada[]): string {
   const partes = columnas.filter((c) => c.tarjetas.length).map((c) => `${c.tarjetas.length} ${c.nombre.toLowerCase()}`)
   return partes.length ? partes.join(" · ") : "sin tarjetas"
+}
+
+/** 19-nov (Piezas parte B · firma de Emilio): «Espera tu decisión», las mismas palabras en la lista y en el Kanban de Piezas */
+export const ESPERA_TU_DECISION = "Espera tu decisión"
+/** 19-nov (Piezas parte B · C, firma de Emilio): «Por hacer» muestra las 10 más cercanas y «+ N más» (de lo macro a lo micro, sin listados largos) */
+export const POR_HACER_A_LA_VISTA = 10
+
+/** qué abre cada tarjeta del Kanban de Piezas: la pieza (en el visor) o las propuestas de su encargo; las que no están en el mapa no abren nada todavía */
+export type QueAbre = { tipo: "pieza"; id: string } | { tipo: "propuestas"; id: string }
+
+/**
+ * 19-nov (Piezas parte B · B, punto 7 del GO del panel v2): el Kanban de Piezas = las piezas de la bandeja + las publicaciones del calendario del cliente que
+ * todavía no son pieza + los encargos en curso sin fila del calendario (los que rehacen una pieza). Cada cosa va UNA vez: la fila del calendario que ya
+ * tiene su pieza en la bandeja no se repite (manda la pieza); el encargo en curso que ya tiene su fila no se repite (manda la fila). Las «Próximas» (en
+ * esquema) no van en Piezas. Lo que espera tu decisión (sus propuestas) va en «Por aprobar» y dice «Espera tu decisión». Puro.
+ */
+export function kanbanDeLasPiezas(o: { piezas: FilaDeLaLista[]; calendario: FilaDelTablero[]; enCurso: PiezaEnCurso[] }): { tarjetas: TarjetaDelKanban[]; abre: Map<string, QueAbre> } {
+  const abre = new Map<string, QueAbre>()
+  const tarjetas: TarjetaDelKanban[] = []
+  const idsDePiezas = new Set(o.piezas.map((p) => p.id))
+  for (const p of o.piezas) { tarjetas.push(tarjetaDePieza(p)); abre.set(p.id, { tipo: "pieza", id: p.id }) }
+  const conFila = new Set<string>()
+  for (const f of o.calendario) {
+    if (f.encargo?.id) conFila.add(f.encargo.id)
+    if (f.pieza?.id && idsDePiezas.has(f.pieza.id)) continue
+    const t = tarjetaDeFila(f)
+    if (t.columna === "en_esquema") continue
+    const espera = f.tablero === "emilio" && f.motivo === MOTIVO_PROPUESTAS_ESPERAN && !!f.encargo?.id
+    tarjetas.push(espera ? { ...t, estado: ESPERA_TU_DECISION } : t)
+    if (espera) abre.set(t.id, { tipo: "propuestas", id: f.encargo!.id })
+    else if (f.pieza?.id) abre.set(t.id, { tipo: "pieza", id: f.pieza.id })
+  }
+  for (const e of o.enCurso) {
+    if (conFila.has(e.encargo_id)) continue
+    const espera = e.espera_al_dueno === true
+    const dia = e.publica ? diaDelCalendario(e.publica) : null
+    tarjetas.push({
+      id: e.encargo_id,
+      columna: espera ? "por_aprobar" : e.columna,
+      titulo: e.tipo_legible,
+      detalle: dia ? `publica ${dia}` : null,
+      cuando: dia,
+      color: colorDelEstado(espera ? "emilio" : e.columna === "en_el_estudio" ? "mesa" : "jefatura"),
+      estado: espera ? ESPERA_TU_DECISION : e.columna === "en_el_estudio" ? `En el estudio${e.paso != null ? ` · paso ${e.paso}` : ""}` : "En revisión",
+      motivo: espera ? MOTIVO_PROPUESTAS_ESPERAN : null,
+      destacada: espera,
+      orden: `${e.publica ?? "9999-12-31"}||${e.encargo_id}`,
+    })
+    if (espera) abre.set(e.encargo_id, { tipo: "propuestas", id: e.encargo_id })
+  }
+  return { tarjetas, abre }
 }

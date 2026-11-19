@@ -91,7 +91,8 @@ describe("6.11 · el Kanban (ADENDA 3): columnas genéricas que salen de estados
     const kb = renderToStaticMarkup(createElement(PanelPiezas, { onCerrar: () => {}, bandejaInicial: bandeja, clienteInicial: NAUFRAGO, vistaInicial: "kanban" }))
     expect(kb).toContain('data-vista="kanban"'); expect(kb).toContain('data-tarjeta="h1"'); expect(kb).toContain('data-tarjeta="h2"')
     expect(kb).toContain('data-columna="por_aprobar" data-activa="true" data-total="1"'); expect(kb).toContain('data-columna="aprobada" data-activa="true" data-total="1"')
-    expect(kb).toContain("Kanban del Centro de campaña")
+    // 19-nov (CC4 · Piezas parte B, firma de Emilio): sin texto de uso arriba del Kanban (antes remitía al Kanban del Centro de campaña; ahora Piezas lee el calendario)
+    expect(kb).not.toContain("Kanban del Centro de campaña"); expect(kb).not.toContain("Toca una tarjeta")
   })
 })
 

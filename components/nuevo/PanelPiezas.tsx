@@ -9,13 +9,16 @@ import type { DetalleDeLaPieza, FilaDeLaLista, PiezaEnCurso } from "@/lib/piezas
 import { CAMPO_LEGIBLE, CARPETA_ARCHIVO, ESTADO_DE_PIEZA_LEGIBLE, MINIMOS, ORIGEN_CORTO, arbolDeLaBandeja, avisoTrasDecidir, avisosDeLaFila, comentarioDeEdiciones, conEdicion, cuerpoDeDecisionDePieza, cuerpoDeRehacer, errorTrasDecidir, laminasDeLasEdiciones, proporcionDeLaLamina, resumenDeLaBandeja, siguientePendiente, textoDelBotonDeCambios, tonoDelEstado, type CampoEditable, type ClienteDeLaBandeja, type Edicion, type FiltroDeLaBandeja, type RespuestaDeDecidir, type Tono, filasDeSubcategorias, numeroDelCliente, type ElementoDeLaFila } from "@/lib/bandeja"
 import { hayTexto, type AccionDeLaPieza, type EstadoPieza } from "@/lib/piezas"
 import { Kanban } from "@/components/nuevo/Kanban"
-import { armarKanban, tarjetaDePieza } from "@/lib/kanban"
+import { ESPERA_TU_DECISION, POR_HACER_A_LA_VISTA, armarKanban, kanbanDeLasPiezas } from "@/lib/kanban"
+import type { FilaDelTablero } from "@/lib/pizarron"
+import type { Decision } from "@/lib/direccion-decisiones"
+import { PanelPropuestas } from "@/components/nuevo/PanelPropuestas"
 import { estadoTrasDecidir } from "@/lib/reflejo"
 import { botonesDeRevision } from "@/lib/revisiones"
 import { cuerpoDeResolucion } from "@/lib/plan"
 import { llamarAccion } from "@/components/nuevo/PanelManual"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
-import { Rotulo } from "@/components/nuevo/EstiloBase"
+import { BOTON_PRINCIPAL, Rotulo } from "@/components/nuevo/EstiloBase"
 import { BarraDeLaPieza } from "@/components/nuevo/BarraDeLaPieza"
 import { loQueVaConTuNota, MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES } from "@/lib/pedir-cambios"
 import { hayVentanaDePedirCambios, VentanaPedirCambios, type ResultadoDelPedido } from "@/components/nuevo/pedido/VentanaPedirCambios"
@@ -154,19 +157,23 @@ function TarjetaDePieza({ p, onAbrir }: { p: FilaDeLaLista; onAbrir: () => void 
 }
 
 /** una pieza que la oficina todavía hace (o la jefatura revisa): aún no tiene archivo, así que dice dónde está («En el estudio · paso 5») */
-function TarjetaEnCurso({ e, cliente }: { e: PiezaEnCurso; cliente: string }) {
-  const estado = e.columna === "en_el_estudio" ? `En el estudio${e.paso != null ? ` · paso ${e.paso}` : ""}` : "En revisión"
+/*  19-nov (Piezas parte B · A, firma de Emilio): la que espera tu decisión (sus propuestas) lo dice con las MISMAS palabras en la lista y en el Kanban
+ *  (`ESPERA_TU_DECISION`) y abre Propuestas ahí mismo */
+function TarjetaEnCurso({ e, cliente, onAbrirPropuestas }: { e: PiezaEnCurso; cliente: string; onAbrirPropuestas?: (encargoId: string) => void }) {
+  const espera = e.espera_al_dueno === true
+  const estado = espera ? ESPERA_TU_DECISION : e.columna === "en_el_estudio" ? `En el estudio${e.paso != null ? ` · paso ${e.paso}` : ""}` : "En revisión"
   const publica = diaDeCalendario(e.publica)
   return (
-    <li data-en-curso={e.encargo_id} data-columna={e.columna}>
-      <div className="flex w-full flex-col overflow-hidden rounded-tarjeta border border-linea-oro bg-grafito">
+    <li data-en-curso={e.encargo_id} data-columna={e.columna} data-espera={espera}>
+      <div className={`flex w-full flex-col overflow-hidden rounded-tarjeta border bg-grafito ${espera ? "border-ambar" : "border-linea-oro"}`}>
         <div className="relative flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 bg-carbon px-3 text-center">
-          <span className="text-dato text-oro">{estado}</span>
-          <span className="text-rotulo text-apagado">{e.columna === "en_el_estudio" ? "la oficina creativa la está haciendo" : "la jefatura la revisa antes de tu bandeja"}</span>
+          <span className={`text-dato ${espera ? "font-medio text-ambar" : "text-oro"}`}>{estado}</span>
+          <span className="text-rotulo text-apagado">{espera ? "las propuestas esperan tu elección" : e.columna === "en_el_estudio" ? "la oficina creativa la está haciendo" : "la jefatura la revisa antes de tu bandeja"}</span>
+          {espera && onAbrirPropuestas && <button type="button" data-accion="abrir-propuestas" onClick={() => onAbrirPropuestas(e.encargo_id)} className={`mt-2 ${BOTON_PRINCIPAL}`}>Abrir Propuestas →</button>}
         </div>
         <div className="p-3">
           <span className="block text-dato font-medio text-hueso">{[e.tipo_legible, cliente, publica ? `publica ${publica}` : null].filter(Boolean).join(" · ")}</span>
-          <span className="mt-0.5 block text-rotulo text-apagado">{diaYHora(e.creada)} · todavía no llega a tu bandeja</span>
+          <span className="mt-0.5 block text-rotulo text-apagado">{diaYHora(e.creada)}{espera ? "" : " · todavía no llega a tu bandeja"}</span>
         </div>
       </div>
     </li>
@@ -176,7 +183,7 @@ function TarjetaEnCurso({ e, cliente }: { e: PiezaEnCurso; cliente: string }) {
 /** PIEZAS v2 · una fila por subcategoría: 4 a la vista y flechas que avanzan de a una */
 export const POR_FILA = 4
 const FLECHA = "absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-linea bg-velo text-titulo text-hueso hover:border-linea-oro"
-function FilaDeSubcategoria({ nombre, numero, elementos, cliente, onAbrir }: { nombre: string; numero: number; elementos: ElementoDeLaFila[]; cliente: string; onAbrir: (id: string) => void }) {
+function FilaDeSubcategoria({ nombre, numero, elementos, cliente, onAbrir, onAbrirPropuestas }: { nombre: string; numero: number; elementos: ElementoDeLaFila[]; cliente: string; onAbrir: (id: string) => void; onAbrirPropuestas?: (encargoId: string) => void }) {
   const [desde, setDesde] = useState(0)
   const ultimo = Math.max(0, elementos.length - POR_FILA)
   const inicio = Math.min(desde, ultimo)
@@ -186,7 +193,7 @@ function FilaDeSubcategoria({ nombre, numero, elementos, cliente, onAbrir }: { n
       <div className="relative">
         {inicio > 0 && <button type="button" data-flecha="izquierda" aria-label={`Ver las anteriores de ${nombre}`} onClick={() => setDesde(inicio - 1)} className={`${FLECHA} -left-3`}>‹</button>}
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={nombre}>
-          {elementos.slice(inicio, inicio + POR_FILA).map((x) => x.tipo === "pieza" ? <TarjetaDePieza key={x.fila.id} p={x.fila} onAbrir={() => onAbrir(x.fila.id)} /> : <TarjetaEnCurso key={x.pieza.encargo_id} e={x.pieza} cliente={cliente} />)}
+          {elementos.slice(inicio, inicio + POR_FILA).map((x) => x.tipo === "pieza" ? <TarjetaDePieza key={x.fila.id} p={x.fila} onAbrir={() => onAbrir(x.fila.id)} /> : <TarjetaEnCurso key={x.pieza.encargo_id} e={x.pieza} cliente={cliente} onAbrirPropuestas={onAbrirPropuestas} />)}
         </ul>
         {inicio < ultimo && <button type="button" data-flecha="derecha" aria-label={`Ver las siguientes de ${nombre}`} onClick={() => setDesde(inicio + 1)} className={`${FLECHA} -right-3`}>›</button>}
       </div>
@@ -200,7 +207,9 @@ export function alCambiarElClienteDelVisor(enElLugar: boolean, h: { cerrar: () =
   else h.irA(null)
 }
 
-export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista", soloLaPieza = null }: {
+export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos = null, clienteInicial = null, carpetaInicial = null, piezaInicial = null, accion = llamarAccion, fetchImpl = fetch, vistaInicial = "lista", soloLaPieza = null, filasDelCalendario = null }: {
+  /** 19-nov (Piezas parte B) · las publicaciones del calendario del cliente ya leídas (pruebas); sin ellas, el Kanban las lee de `/api/pizarron` */
+  filasDelCalendario?: FilaDelTablero[] | null
   onCerrar: () => void
   /** lecturas ya hechas (pruebas) */
   bandejaInicial?: Bandeja | null
@@ -296,10 +305,12 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const clienteActual: ClienteDeLaBandeja | null = arbol.find((c) => (c.id ?? "") === (clienteId ?? "")) ?? null
   const carpetaActual = clienteActual && carpeta ? clienteActual.carpetas.find((k) => k.nombre === carpeta) ?? null : null
   const nombreDelCliente = bandeja?.clientes.find((c) => c.id === clienteId)?.nombre ?? clienteActual?.nombre ?? filaElegida?.cliente ?? pieza?.cliente ?? (trabajo?.id === clienteId ? trabajo?.nombre : null) ?? "este cliente"
-  const filasDelCliente = clienteActual ? clienteActual.carpetas.flatMap((k) => k.filas) : []
-  const porAprobarDelCliente = filasDelCliente.filter((f) => f.estado === "pendiente" && f.es_pieza).length
+  const filasDelCliente = useMemo(() => (clienteActual ? clienteActual.carpetas.flatMap((k) => k.filas) : []), [clienteActual])
+  // 19-nov (Piezas parte B · A): las que esperan tu decisión (sus propuestas) también cuentan como «por aprobar»
+  const esperanDelCliente = (bandeja?.en_curso ?? []).filter((e) => e.cliente_id === clienteId && e.espera_al_dueno === true)
+  const porAprobarDelCliente = filasDelCliente.filter((f) => f.estado === "pendiente" && f.es_pieza).length + esperanDelCliente.length
   const otrasPendientes = filasDelCliente.filter((f) => f.estado === "pendiente" && !f.es_pieza).length
-  const filasDeLaDerecha = useMemo(() => filasDeSubcategorias(clienteActual, bandeja?.en_curso ?? [], filtro), [clienteActual, bandeja, filtro])
+  const filasDeLaDerecha = useMemo(() => filasDeSubcategorias(clienteActual, bandeja?.en_curso ?? [], filtro, clienteId), [clienteActual, bandeja, filtro, clienteId])
   const numeroCliente = numeroDelCliente(filasDeLaDerecha)
 
   const irA = (k: string | null) => { setCarpeta(k); setElegida(null); setPieza(null); setErrorPieza(null) }
@@ -308,8 +319,47 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const verTodas = () => setFiltro("todas")
   // el Kanban muestra TODAS las piezas del cliente (decididas incluidas): entrar a él pasa el filtro a «todas»
   const verComo = (v: VistaDePiezas) => { setVista(v); if (v === "kanban") { setElegida(null); setPieza(null); if (filtro !== "todas") verTodas() } }
-  // solo piezas (lo que no es pieza —plan con pendientes, revisión del editor— sigue en «Otras revisiones» de las carpetas)
-  const kanbanDePiezas = vista === "kanban" ? armarKanban(filasDelCliente.filter((f) => f.es_pieza).map(tarjetaDePieza)) : []
+  // 19-nov (Piezas parte B · B, punto 7 del GO del panel v2): el Kanban lee también el calendario del cliente (la misma lectura del Kanban del Calendario),
+  //   así se ven las publicaciones que aún no tienen pieza («Por hacer», «En el estudio», las vencidas). Las «Próximas» (en esquema) no van en Piezas
+  const [calendario, setCalendario] = useState<{ cliente: string | null; filas: FilaDelTablero[] } | null>(filasDelCalendario ? { cliente: clienteId, filas: filasDelCalendario } : null)
+  const [errorCalendario, setErrorCalendario] = useState<string | null>(null)
+  useEffect(() => {
+    if (vista !== "kanban" || filasDelCalendario || !clienteId || calendario?.cliente === clienteId) return
+    let vivo = true
+    setErrorCalendario(null)
+    void (async () => {
+      try {
+        const r = await fetchImpl(`/api/pizarron?cliente=${encodeURIComponent(clienteId)}`, { cache: "no-store" })
+        const j = (await r.json().catch(() => null)) as { ok?: boolean; filas?: FilaDelTablero[]; error?: string } | null
+        if (!r.ok || !j || !j.ok || !Array.isArray(j.filas)) throw new Error((j && j.error) || `No pude leer el calendario (${r.status}).`)
+        if (vivo) setCalendario({ cliente: clienteId, filas: j.filas })
+      } catch (e) { if (vivo) setErrorCalendario(e instanceof Error ? e.message : String(e)) }
+    })()
+    return () => { vivo = false }
+  }, [vista, clienteId, calendario, filasDelCalendario, fetchImpl])
+  const kanban = useMemo(() => vista === "kanban" ? kanbanDeLasPiezas({
+    piezas: filasDelCliente.filter((f) => f.es_pieza),
+    calendario: calendario?.cliente === clienteId ? calendario.filas : [],
+    enCurso: (bandeja?.en_curso ?? []).filter((e) => e.cliente_id === clienteId),
+  }) : null, [vista, filasDelCliente, calendario, clienteId, bandeja])
+  const kanbanDePiezas = kanban ? armarKanban(kanban.tarjetas) : []
+  // una tarjeta del Kanban: la pieza se abre aquí; la que espera tu decisión abre sus propuestas; las demás todavía no tienen nada que abrir
+  const alElegirEnElKanban = (id: string) => { const a = kanban?.abre.get(id); if (!a) return; if (a.tipo === "pieza") setElegida(a.id); else void abrirPropuestas(a.id) }
+
+  // 19-nov (Piezas parte B · A): «Abrir Propuestas →» abre las propuestas de ESE encargo encima, el mismo panel de Decisiones; al volver, la bandeja se lee de nuevo
+  const [propuestas, setPropuestas] = useState<Decision | null>(null)
+  const [errorPropuestas, setErrorPropuestas] = useState<string | null>(null)
+  const abrirPropuestas = async (encargoId: string) => {
+    setErrorPropuestas(null)
+    try {
+      const r = await fetchImpl("/api/direccion/decisiones", { cache: "no-store" })
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; decisiones?: Decision[]; error?: string } | null
+      if (!r.ok || !j || !j.ok) throw new Error(r.status === 401 || r.status === 403 ? "Tu sesión venció: entra de nuevo." : (j && j.error) || `No pude leer las propuestas (${r.status}).`)
+      const d = (j.decisiones ?? []).find((x) => x.tipo === "propuestas" && x.propuestas?.encargo_id === encargoId) ?? null
+      if (!d) throw new Error("Esas propuestas ya no esperan tu decisión.")
+      setPropuestas(d)
+    } catch (e) { setErrorPropuestas(e instanceof Error ? e.message : String(e)) }
+  }
 
   const total = pieza?.laminas.length ?? 0
   // pieza de video (T8): hay reproductor solo si el mp4 quedó en la entrega y no es un ensayo ni una copia que solo vive en el proveedor
@@ -413,6 +463,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
 
   const botones = pieza && !pieza.es_pieza ? botonesDeRevision(pieza.tipo) : null
 
+  // 19-nov (Piezas parte B · A): las propuestas de un encargo se eligen encima, en el mismo lugar; al volver, la bandeja se lee de nuevo
+  if (propuestas?.propuestas) return <PanelPropuestas decision={{ ...propuestas, propuestas: propuestas.propuestas }} onCerrar={() => { setPropuestas(null); void leerLaBandeja(filtro) }} fetchImpl={fetchImpl} />
   return (
     <div className="nv-panel fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-3 backdrop-blur-[2px] sm:p-5" onMouseDown={(ev) => { if (ev.target === ev.currentTarget) onCerrar() }}>
       <style>{ESTILO + ESTILO_DEL_PEDIDO}</style>
@@ -464,7 +516,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
               <span className="w-3 text-rotulo text-gris" aria-hidden>{abierta ? "▾" : "▸"}</span><IconoCarpetaChica /><span className="min-w-0 flex-1 truncate">{nombreDelCliente}</span>
               {numeroCliente > 0 && <span data-numero-cliente className={`num rounded-full px-1.5 text-rotulo ${filtro === "pendiente" ? "bg-ambar text-sobre-ambar" : "text-gris"}`}>{numeroCliente}</span>}
             </button>
-            {bandeja && !clienteActual && <p className="px-4 py-3 text-dato text-gris">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
+            {bandeja && !clienteActual && numeroCliente === 0 && <p className="px-4 py-3 text-dato text-gris">{filtro === "pendiente" ? "Nada por aprobar ahora." : "Sin piezas."}</p>}
           </aside>
           )}
 
@@ -472,14 +524,17 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
           <section aria-label="El contenido" className="flex min-h-0 flex-col">
             {!elegida && bandeja && vista === "kanban" && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="kanban">
-                <p className="mb-3 text-[13.5px] text-zinc-300">Las piezas de {nombreDelCliente} por columna, según dónde están de verdad. Lo que todavía se está haciendo o revisando antes de llegar a esta bandeja se ve en el Kanban del Centro de campaña (Calendario → Kanban). Toca una tarjeta para abrir la pieza.</p>
-                <Kanban columnas={kanbanDePiezas} onElegir={(id) => setElegida(id)} etiqueta="Las piezas por columna" />
+                {/* 19-nov (Piezas parte B): sin texto de uso arriba (regla de Emilio del 11-nov) */}
+                {errorCalendario && <p role="alert" data-error="calendario" className="mb-3 text-dato text-rosa">No pude leer el calendario: {errorCalendario}</p>}
+                {errorPropuestas && <p role="alert" data-error="propuestas" className="mb-3 text-dato text-rosa">{errorPropuestas}</p>}
+                <Kanban columnas={kanbanDePiezas} onElegir={alElegirEnElKanban} etiqueta="Las piezas por columna" maximoPorHacer={POR_HACER_A_LA_VISTA} />
               </div>
             )}
             {!elegida && bandeja && vista === "lista" && (
               <div className="pi-entra overflow-y-auto p-5" data-vista="carpetas" data-abierta={abierta}>
-                {!clienteActual || filasDeLaDerecha.length === 0 ? <p className="text-cuerpo text-hueso">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-oro">Ver también las ya decididas</button></> : null}</p>
-                  : abierta && filasDeLaDerecha.map((k2) => <FilaDeSubcategoria key={`${clienteId}|${filtro}|${k2.nombre}`} nombre={k2.nombre} numero={k2.numero} elementos={k2.elementos} cliente={nombreDelCliente} onAbrir={(id) => setElegida(id)} />)}
+                {errorPropuestas && <p role="alert" data-error="propuestas" className="mb-3 text-dato text-rosa">{errorPropuestas}</p>}
+                {filasDeLaDerecha.length === 0 ? <p className="text-cuerpo text-hueso">{filtro === "pendiente" ? `No hay piezas por aprobar de ${nombreDelCliente}.` : `${nombreDelCliente} no tiene piezas.`}{filtro === "pendiente" ? <> <button type="button" data-accion="ver-todas" onClick={verTodas} className="underline decoration-dotted hover:text-oro">Ver también las ya decididas</button></> : null}</p>
+                  : abierta && filasDeLaDerecha.map((k2) => <FilaDeSubcategoria key={`${clienteId}|${filtro}|${k2.nombre}`} nombre={k2.nombre} numero={k2.numero} elementos={k2.elementos} cliente={nombreDelCliente} onAbrir={(id) => setElegida(id)} onAbrirPropuestas={(id) => void abrirPropuestas(id)} />)}
               </div>
             )}
             {elegida && !pieza && <p className={`p-6 text-[13px] ${errorPieza && !cargandoPieza ? "text-rose-300" : "text-zinc-500"}`}>{cargandoPieza ? "Leyendo la pieza…" : errorPieza ?? "Leyendo la pieza…"}</p>}
