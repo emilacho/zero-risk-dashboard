@@ -11,6 +11,7 @@ import { elegirCliente } from "@/lib/clientes-datos"
 import { cargarConcepto, estadoDelConcepto, TIPO_CONCEPTO, type DetalleDelConcepto, type EstadoDelConcepto } from "@/lib/concepto-datos"
 import { aportesPorNumero, esTablaInexistente } from "@/lib/brief-datos"
 import { fotosCitadas } from "@/lib/sin-codigos"
+import { elegirCampana } from "@/lib/campana-elegida"
 
 type Fila = Record<string, unknown>
 type R = PromiseLike<{ data: unknown; error: { message: string } | null }>
@@ -37,25 +38,33 @@ export interface GranIdeaDelCliente {
   leido_en: string
 }
 
+/** 19-nov · ¿esta tarjeta de gran idea es de la campaña que se muestra? La que no dice de qué campaña es (`metadata.campana_id`) se muestra igual. */
+export function esDeLaCampana(f: Fila, campanaId: string | null): boolean {
+  const de = (f.metadata as Record<string, unknown> | null | undefined)?.campana_id
+  return typeof de !== "string" || !de || !campanaId || de === campanaId
+}
+
 export function tarjetaDesdeFila(f: Fila): TarjetaDeConcepto {
   const meta = (f.metadata ?? {}) as Record<string, unknown>
   return { hitl_id: String(f.id), status: String(f.status ?? ""), estado: estadoDelConcepto(String(f.status ?? ""), f.decision), titulo: String(f.title ?? "Gran idea"), creada: String(f.created_at ?? ""), version: meta.version == null ? null : Number(meta.version) }
 }
 
-export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string | null; tarjeta?: string | null; ahora?: Date } = {}): Promise<GranIdeaDelCliente> {
+export async function leerGranIdea(supa: SupabaseClient, o: { cliente?: string | null; campana?: string | null; tarjeta?: string | null; ahora?: Date } = {}): Promise<GranIdeaDelCliente> {
   const ahora = o.ahora ?? new Date()
   const { clientes, elegido } = await elegirCliente(supa, o.cliente)
   const base = { clientes, leido_en: ahora.toISOString() }
   if (!elegido) return { ...base, cliente: null, campana: null, publicado: true, tarjetas: [], detalle: null }
   const [camp, hitl, sonda] = await Promise.all([
-    una(supa.from("cadena_campanas").select("id, estado").eq("client_id", elegido.id).eq("seco", false).order("creada_en", { ascending: false }).limit(1).maybeSingle(), "cadena_campanas"),
+    // 19-nov · varias campañas: la pedida (`?campana=`) si se puede mostrar; si no, la primera viva (`campana-elegida.ts`)
+    elegirCampana(supa, elegido.id, o.campana),
     filas(supa.from("hitl_queue").select("id, status, title, created_at, decision, metadata").eq("client_id", elegido.id).eq("type", TIPO_CONCEPTO).order("created_at", { ascending: false }).limit(50), "hitl_queue"),
     // ¿existe ya la tabla de conceptos en producción? (una lectura mínima; si no existe, se dice)
     supa.from("cadena_conceptos").select("campana_id").limit(1),
   ])
   const publicado = !(sonda.error && esTablaInexistente(sonda.error.message))
   if (sonda.error && publicado) throw new Error(`cadena_conceptos: ${sonda.error.message}`)
-  const tarjetas = hitl.map(tarjetaDesdeFila)
+  // 19-nov · varias campañas: solo las tarjetas de ESTA campaña; las que no dicen de cuál son (las de antes) se siguen mostrando, como hoy
+  const tarjetas = hitl.filter((f) => esDeLaCampana(f, camp ? String(camp.id) : null)).map(tarjetaDesdeFila)
   const elegida = (o.tarjeta && tarjetas.find((t) => t.hitl_id === o.tarjeta)) || tarjetas[0] || null
   const detalle = elegida ? await cargarConcepto(supa, elegida.hitl_id) : null
   const { quienes: quienes_propusieron, aportes } = detalle?.campana_id && detalle.version != null ? await quienesPropusieron(supa, detalle.campana_id, detalle.version) : { quienes: [], aportes: {} }
