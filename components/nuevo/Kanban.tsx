@@ -51,8 +51,8 @@ export function Kanban({ columnas, elegida = null, onElegir, etiqueta, maximoPor
                 <span className="flex items-center gap-1.5 text-[10.5px] text-zinc-500"><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: t.color }} aria-hidden />{t.estado}{t.cuando ? ` · ${t.cuando}` : ""}</span>
               </button>
             ))}
-            {c.tarjetas.length > tope(c.clave) && tope(c.clave) !== MAXIMO_POR_COLUMNA && <button type="button" data-accion="ver-mas-por-hacer" onClick={() => setTodasPorHacer(true)} className="px-2 py-1 text-left text-[11px] text-zinc-300 underline decoration-dotted hover:text-amber-200">+ {c.tarjetas.length - tope(c.clave)} más</button>}
-            {c.tarjetas.length > MAXIMO_POR_COLUMNA && tope(c.clave) === MAXIMO_POR_COLUMNA && <p className="px-2 py-1 text-[11px] text-zinc-500">+{c.tarjetas.length - MAXIMO_POR_COLUMNA} más (míralas en el calendario)</p>}
+            {c.tarjetas.length > tope(c.clave) && tope(c.clave) !== MAXIMO_POR_COLUMNA && <button type="button" data-accion="ver-mas-por-hacer" onClick={() => setTodasPorHacer(true)} className="px-2 py-1 text-left text-rotulo text-hueso underline decoration-dotted hover:text-oro">+ {c.tarjetas.length - tope(c.clave)} más</button>}
+            {c.tarjetas.length > MAXIMO_POR_COLUMNA && tope(c.clave) === MAXIMO_POR_COLUMNA && <p className="px-2 py-1 text-rotulo text-apagado">+{c.tarjetas.length - MAXIMO_POR_COLUMNA} más (míralas en el calendario)</p>}
           </div>
         </section>
       ))}
