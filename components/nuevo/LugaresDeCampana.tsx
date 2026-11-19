@@ -39,6 +39,12 @@ export function campanaElegida(campanas: CampanaDelFlujo[] | null | undefined): 
   return conBoton[conBoton.length - 1] ?? null
 }
 
+/** 19-nov (Emilio 23:23) · la elegida con el toque: la tocada, si sigue viva con botón; si no (o sin tocar), la de por omisión */
+export function campanaElegidaConToque(campanas: CampanaDelFlujo[] | null | undefined, tocada: string | null | undefined): CampanaDelFlujo | null {
+  const t = tocada ? (campanas ?? []).find((c) => c.campana_id === tocada && !!c.flujo) : undefined
+  return t ?? campanaElegida(campanas)
+}
+
 /** lee `/api/flujo` del cliente; `null` mientras no hay lectura (o si la base no contestó) */
 export function useCampanasDelFlujo(clienteId: string | null, inicial: FlujoInicial | null = null): CampanaDelFlujo[] | null {
   const [campanas, setCampanas] = useState<CampanaDelFlujo[] | null>(() => campanasDeLaLectura(inicial))
@@ -67,13 +73,27 @@ function IconoDeCrear() {
   )
 }
 
-export function LugaresDeCampana({ clienteId, campanas }: { clienteId: string | null; campanas: CampanaDelFlujo[] | null }) {
+export function LugaresDeCampana({ clienteId, campanas, elegidaId, onElegir }: {
+  clienteId: string | null
+  campanas: CampanaDelFlujo[] | null
+  /** 19-nov (Emilio 23:23) · la campaña elegida del Centro y cómo elegir otra: el 1.er toque sobre una no elegida solo la elige */
+  elegidaId?: string | null
+  onElegir?: (campanaId: string) => void
+}) {
   if (!campanas) return null
   const conLugar = campanasConLugar(campanas)
   const libres = LUGARES_DE_CAMPANA - conLugar.length
   return (
     <div data-lugares-de-campana>
-      {conLugar.map((c) => <BotonFlujo key={c.campana_id} clienteId={clienteId} inicial={{ campana_id: c.campana_id, flujo: c.flujo, nombre: c.nombre } satisfies LecturaDeUnBoton} />)}
+      {conLugar.map((c) => (
+        <BotonFlujo
+          key={c.campana_id}
+          clienteId={clienteId}
+          inicial={{ campana_id: c.campana_id, flujo: c.flujo, nombre: c.nombre } satisfies LecturaDeUnBoton}
+          elegida={onElegir ? c.campana_id === elegidaId : undefined}
+          alElegir={onElegir ? () => onElegir(c.campana_id) : undefined}
+        />
+      ))}
       {Array.from({ length: libres }, (_, i) => (
         <div key={`crear-${i}`} className="mt-3">
           {/* 19-nov · qué hace al tocarlo está en el backlog: por ahora no abre nada */}

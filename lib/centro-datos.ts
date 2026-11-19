@@ -32,6 +32,8 @@ export interface Centro {
   plan?: { estado: string; version: number; fecha: string | null } | null
   /** 09-nov · el freno de gasto del cliente (24 h y techo), de la ruta certificada de riesgos · null = no se pudo leer */
   dinero?: { gastado_24h_usd: number | null; techo_usd: number | null } | null
+  /** 19-nov · lo de la campaña elegida que suma `/api/centro` (parte C de CC1 · #359): lo gastado por ESA campaña y quiénes trabajan en ella · null = sin campaña */
+  de_la_campana?: { campana_id: string; gastado_usd: number; trabajando: string[] } | null
   leido_en: string
 }
 

@@ -35,7 +35,14 @@ function IconoDeEncendido({ className }: { className: string }) {
   )
 }
 
-export function BotonFlujo({ clienteId, inicial = null }: { clienteId: string | null; /** la lectura ya hecha (los lugares de campaña, pruebas e imagen) */ inicial?: LecturaDeUnBoton | null }) {
+export function BotonFlujo({ clienteId, inicial = null, elegida, alElegir }: {
+  clienteId: string | null
+  /** la lectura ya hecha (los lugares de campaña, pruebas e imagen) */
+  inicial?: LecturaDeUnBoton | null
+  /** 19-nov (Emilio 23:23) · ¿es la campaña elegida del Centro? Con `alElegir`, el toque sobre una NO elegida solo la elige (no para ni reanuda) */
+  elegida?: boolean
+  alElegir?: () => void
+}) {
   const [lectura, setLectura] = useState(inicial)
   const [enviando, setEnviando] = useState(false)
   const [nota, setNota] = useState<string | null>(null)
@@ -76,10 +83,13 @@ export function BotonFlujo({ clienteId, inicial = null }: { clienteId: string | 
     } finally { setEnviando(false) }
   }
 
-  const accion = flujo.color === "verde" ? "Parar el flujo de la campaña" : "Reanudar el flujo de la campaña"
+  // 19-nov (Emilio 23:23): el 1.er toque sobre una campaña no elegida solo la elige; sobre la elegida, para o reanuda como siempre · sin marcas ni textos nuevos a la vista
+  const soloElige = !!alElegir && elegida === false
+  const alTocar = () => { if (soloElige) { setNota(null); alElegir!(); return } void tocar() }
+  const accion = soloElige ? "Elegir la campaña" : flujo.color === "verde" ? "Parar el flujo de la campaña" : "Reanudar el flujo de la campaña"
   return (
     <div className="mt-3">
-      <button type="button" data-flujo={flujo.color} onClick={tocar} disabled={enviando} aria-label={`${accion}${lectura.nombre ? ` «${lectura.nombre}»` : ""} · ${flujo.linea}`} className={`${CLASE_DEL_BOTON} ${c.borde}`}>
+      <button type="button" data-flujo={flujo.color} data-elegida={alElegir ? String(!!elegida) : undefined} aria-current={alElegir && elegida ? "true" : undefined} onClick={alTocar} disabled={enviando} aria-label={`${accion}${lectura.nombre ? ` «${lectura.nombre}»` : ""} · ${flujo.linea}`} className={`${CLASE_DEL_BOTON} ${c.borde}`}>
         <IconoDeEncendido className={c.texto} />
         <span className="mt-3 block text-cuerpo font-medio text-hueso">Flujo de la campaña</span>
         {lectura.nombre && <span data-nombre-de-la-campana title={lectura.nombre} className="mt-1 block max-w-full truncate text-dato text-hueso">{lectura.nombre}</span>}

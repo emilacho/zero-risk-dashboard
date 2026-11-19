@@ -110,16 +110,21 @@ export function tarjetaDelCentro(clave: ClaveDeAplicacion, datos: Pizarron | nul
     case "brief": case "gran_idea": case "calendario":
       return datos ? tarjetaDelPaso(clave, datos, centro) : sinDato()
     case "equipo": {
+      // 19-nov (ajuste de Emilio 22:07) · quiénes trabajan: los de la campaña elegida (`de_la_campana`); los empleados del departamento siguen siendo del cliente
       const a = centro.equipo.agentes
-      const t = centro.equipo.trabajando
+      const t = centro.de_la_campana ? centro.de_la_campana.trabajando.length : centro.equipo.trabajando
       return { estado: t ? "Activos" : "Sin tareas", tono: t ? "oro" : "gris", cantidad: a == null ? SIN_DATO : String(a), linea: t ? `${t} trabajando` : "Nadie trabaja ahora" }
     }
     case "gasto": {
       const d = centro.dinero
+      const tope = d?.techo_usd ?? null
+      // el tope diario sigue siendo del CLIENTE: «En el tope» mira lo gastado por el cliente en 24 h
+      const enElTope = !!d && d.gastado_24h_usd != null && tope != null && tope > 0 && d.gastado_24h_usd >= tope
+      const lineaDelTope = tope != null ? `Tope ${usd(tope)}/día` : "Sin tope"
+      // 19-nov (ajuste de Emilio 22:07) · con campaña elegida, la cifra es lo gastado por ESA campaña (en total, no en 24 h)
+      if (centro.de_la_campana) return { estado: enElTope ? "En el tope" : "Gastado", tono: enElTope ? "alarma" : "gris", cantidad: usd(centro.de_la_campana.gastado_usd), linea: d ? lineaDelTope : "Sin dato del tope" }
       if (!d || d.gastado_24h_usd == null) return sinDato()
-      const tope = d.techo_usd
-      const enElTope = tope != null && tope > 0 && d.gastado_24h_usd >= tope
-      return { estado: enElTope ? "En el tope" : "Gastado 24 h", tono: enElTope ? "alarma" : "gris", cantidad: usd(d.gastado_24h_usd), linea: tope != null ? `Tope ${usd(tope)}/día` : "Sin tope" }
+      return { estado: enElTope ? "En el tope" : "Gastado 24 h", tono: enElTope ? "alarma" : "gris", cantidad: usd(d.gastado_24h_usd), linea: lineaDelTope }
     }
   }
 }
