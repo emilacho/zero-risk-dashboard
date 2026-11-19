@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { exigirAdmin } from "@/lib/admin-guard"
 import { getServiceRoleClient } from "@/lib/supabase-server"
 import { leerCentro } from "@/lib/centro-datos"
+import { elegirCampana } from "@/lib/campana-elegida"
+import { loDeLaCampana, trabajandoEnLaCampana } from "@/lib/campana-datos"
 
 export const dynamic = "force-dynamic"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -15,8 +17,14 @@ export async function GET(req: Request) {
   if (cliente && !UUID.test(cliente)) return NextResponse.json({ ok: false, error: "cliente_invalido" }, { status: 400 })
   if (campana && !UUID.test(campana)) return NextResponse.json({ ok: false, error: "campana_invalida" }, { status: 400 })
   try {
-    const centro = await leerCentro(getServiceRoleClient(), { cliente, campana })
-    return NextResponse.json({ ok: true, ...centro }, { headers: { "Cache-Control": "no-store" } })
+    const sb = getServiceRoleClient()
+    const centro = await leerCentro(sb, { cliente, campana })
+    // 19-nov · varias campañas (parte C · CC1): Equipo y Dinero de la MISMA campaña que eligió la regla común (la pedida, o la primera viva);
+    // `de_la_campana` se SUMA, lo demás sigue igual · sin cliente o sin campaña: null
+    const elegida = centro.cliente ? await elegirCampana(sb, centro.cliente, campana) : null
+    const lo = elegida ? await loDeLaCampana(sb, String(elegida.id)) : null
+    const de_la_campana = lo && lo.client_id === centro.cliente ? { campana_id: lo.campana_id, gastado_usd: lo.gastado_usd, trabajando: await trabajandoEnLaCampana(sb, lo) } : null
+    return NextResponse.json({ ok: true, ...centro, de_la_campana }, { headers: { "Cache-Control": "no-store" } })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }

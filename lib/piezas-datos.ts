@@ -181,8 +181,10 @@ export async function pasoQueFallo(supa: SupabaseClient, revisionId: string | nu
 }
 
 /** `tipo`: solo piezas (por omisión), solo las otras revisiones de la bandeja, o todo */
-export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: FiltroDeEstado; limite?: number; tipo?: "piezas" | "otras" | "todas"; /** «fuera» (por omisión): sin lo archivado · «solo»: únicamente lo archivado */ archivo?: "fuera" | "solo" } = {}): Promise<FilaDeLaLista[]> {
+export async function listarPiezas(supa: SupabaseClient, filtro: { estado?: FiltroDeEstado; limite?: number; tipo?: "piezas" | "otras" | "todas"; /** «fuera» (por omisión): sin lo archivado · «solo»: únicamente lo archivado */ archivo?: "fuera" | "solo"; /** 19-nov · varias campañas: solo las piezas de ESTOS encargos (los de la campaña elegida); sin él, como siempre */ encargos?: readonly string[] } = {}): Promise<FilaDeLaLista[]> {
+  if (filtro.encargos && !filtro.encargos.length) return []
   let q = supa.from("hitl_queue").select(COLUMNAS_DE_LA_LISTA).order("created_at", { ascending: false }).limit(filtro.limite ?? 60)
+  if (filtro.encargos) q = q.in("metadata->>oficina_encargo_id", [...filtro.encargos])
   q = filtro.archivo === "solo" ? q.not("archivada_en", "is", null) : q.is("archivada_en", null)
   const tipo = filtro.tipo ?? "piezas"
   if (tipo === "piezas") q = q.eq("type", TIPO_PIEZA)
