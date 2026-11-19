@@ -6,14 +6,16 @@ import { leerBrief } from "@/lib/brief-datos"
 export const dynamic = "force-dynamic"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** DASHBOARD NUEVO · SPRINT 6.10 · el brief de campaña del cliente (solo lectura · solo administrador). `?cliente=<uuid>` elige el cliente. */
+/** DASHBOARD NUEVO · SPRINT 6.10 · el brief de campaña del cliente (solo lectura · solo administrador). `?cliente=<uuid>` elige el cliente · 19-nov `?campana=<uuid>` elige la campaña (`campana-elegida.ts`). */
 export async function GET(req: Request) {
   const puerta = await exigirAdmin()
   if (!puerta.ok) return NextResponse.json({ ok: false, error: puerta.status === 401 ? "sin_sesion" : "sin_permiso" }, { status: puerta.status })
-  const cliente = new URL(req.url).searchParams.get("cliente")
+  const sp = new URL(req.url).searchParams
+  const cliente = sp.get("cliente"), campana = sp.get("campana")
   if (cliente && !UUID.test(cliente)) return NextResponse.json({ ok: false, error: "cliente_invalido" }, { status: 400 })
+  if (campana && !UUID.test(campana)) return NextResponse.json({ ok: false, error: "campana_invalida" }, { status: 400 })
   try {
-    const brief = await leerBrief(getServiceRoleClient(), { cliente })
+    const brief = await leerBrief(getServiceRoleClient(), { cliente, campana })
     return NextResponse.json({ ok: true, ...brief }, { headers: { "Cache-Control": "no-store" } })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 })

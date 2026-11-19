@@ -15,7 +15,12 @@ export const ESTADOS_EN_MARCHA = ["abierta", "estrategia", "calendario", "activa
 
 export type ColorDelFlujo = "verde" | "dorado" | "rojo"
 export interface FlujoDeCampana { color: ColorDelFlujo; linea: string; estado: string }
+/** 19-nov · VARIAS CAMPAÑAS (botón aprobado por Emilio 21:45 Zúrich: 3 lugares, uno por campaña, con su nombre) · una campaña viva del cliente y su botón */
+export interface CampanaDelFlujo { campana_id: string; nombre: string | null; flujo: FlujoDeCampana | null }
+/** la última campaña y su botón, como siempre (el botón de hoy no cambia) */
 export interface LecturaDelFlujo { campana_id: string | null; flujo: FlujoDeCampana | null }
+/** los estados que NO son campaña viva (no ocupan lugar de botón) */
+export const ESTADOS_MUERTOS = ["cerrada", "reemplazada"] as const
 
 const SEPARADOR = " · "
 const PAUSA = new RegExp(`^${PREFIJO_DE_PAUSA_DEL_TABLERO}${SEPARADOR}vuelve a: (\\w+)${SEPARADOR}(.+)$`)
@@ -59,6 +64,19 @@ export async function leerFlujo(supabase: SupabaseClient, clienteId: string): Pr
   const c = r.data as { id: string; estado: string; estado_motivo: string | null } | null
   return { campana_id: c?.id ?? null, flujo: flujoDeCampana(c) }
 }
+
+type FilaViva = { id: string; estado: string; estado_motivo: string | null; nombre_de_campana?: string | null }
+/** 19-nov · las campañas vivas del cliente (no cerradas, no reemplazadas, no archivadas), de la más vieja a la más nueva, con su nombre y su botón.
+ *  Si la base todavía no tiene la columna del nombre (migración `202611192130` de la plataforma sin aplicar), se lee sin ella y el nombre va null: el botón nunca se cae por eso. */
+export async function campanasVivas(supabase: SupabaseClient, clienteId: string): Promise<CampanaDelFlujo[]> {
+  const leer = (columnas: string) => supabase.from("cadena_campanas").select(columnas).eq("client_id", clienteId).eq("seco", false)
+    .not("estado", "in", `(${ESTADOS_MUERTOS.join(",")})`).is("archivada_en", null).order("creada_en", { ascending: true })
+  let r = await leer("id, estado, estado_motivo, nombre_de_campana")
+  if (r.error && /nombre_de_campana/.test(r.error.message ?? "")) r = await leer("id, estado, estado_motivo")
+  if (r.error) throw new Error(`leer las campañas: ${r.error.message}`)
+  return ((r.data ?? []) as unknown as FilaViva[]).map((x) => ({ campana_id: x.id, nombre: nombreDeCampana(x.nombre_de_campana), flujo: flujoDeCampana(x) }))
+}
+const nombreDeCampana = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
 
 export interface DepsDelFlujo { supabase: SupabaseClient; plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch; ahora?: () => string }
 export interface RespuestaDelFlujo { status: number; cuerpo: Record<string, unknown> }
