@@ -29,9 +29,14 @@ export function campanasDeLaLectura(l: FlujoInicial | null | undefined): Campana
   return l.campana_id && l.flujo ? [{ campana_id: l.campana_id, nombre: null, flujo: l.flujo }] : []
 }
 
-/** la campaña elegida del Centro: por ahora, la primera viva (que los 9 cuadros cambien al tocar otra queda en el backlog) */
+/**
+ * la campaña elegida del Centro, sin `?campana=`: la viva MÁS NUEVA (LENOVO 22:24 · la misma regla 2 de `elegirCampana`, #358),
+ * para que el subtítulo nombre la MISMA campaña que muestran los cuadros. `/api/flujo` las trae de la más vieja a la más nueva:
+ * es la última con botón, aunque no tenga lugar (una 4.ª). Si no tiene nombre, el subtítulo sigue «CLIENTE ·»: nunca el nombre de otra.
+ */
 export function campanaElegida(campanas: CampanaDelFlujo[] | null | undefined): CampanaDelFlujo | null {
-  return campanasConLugar(campanas)[0] ?? null
+  const conBoton = (campanas ?? []).filter((c) => !!c.campana_id && !!c.flujo)
+  return conBoton[conBoton.length - 1] ?? null
 }
 
 /** lee `/api/flujo` del cliente; `null` mientras no hay lectura (o si la base no contestó) */

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { readFileSync } from "node:fs"
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ESTADOS_EN_MARCHA, PREFIJO_DE_PAUSA_DEL_TABLERO, flujoDeCampana, leerFlujo, leerPausaDelTablero, motivoBreve, quieroAlTocar, tocarFlujo } from "@/lib/flujo-de-campana"
+import type { CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { BotonFlujo, CLASES_DEL_FLUJO, CLASE_DEL_BOTON } from "@/components/nuevo/BotonFlujo"
 import { CampanaComoTexto, LugaresDeCampana, campanaElegida, campanasDeLaLectura } from "@/components/nuevo/LugaresDeCampana"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
@@ -388,10 +389,14 @@ describe("19-nov · los 3 lugares de campaña y el subtítulo", () => {
     await waitFor(() => expect((container.querySelector("[data-flujo]") as HTMLElement).dataset.flujo).toBe("dorado"))
     expect(container.querySelector("[data-nombre-de-la-campana]")?.textContent).toBe("Impulso del encebollado a domicilio")
   })
-  it("la campaña elegida es la primera viva con botón; lo leído antes del 19-nov (sin `campanas`) ocupa el 1.er lugar sin nombre", () => {
-    expect(campanaElegida([C2, C1])?.campana_id).toBe(OTRA)
-    expect(campanaElegida([{ ...C1, flujo: null }, C2])?.campana_id).toBe(OTRA)
+  it("la campaña elegida es la viva MÁS NUEVA con botón (LENOVO 22:24, la regla de #358): la última de `campanas`, aunque no tenga lugar; lo leído antes del 19-nov (sin `campanas`) ocupa el 1.er lugar sin nombre", () => {
+    expect(campanaElegida([C1, C2])?.campana_id).toBe(OTRA)
+    expect(campanaElegida([C2, C1])?.campana_id).toBe(CAMPANA)
+    expect(campanaElegida([C1, { ...C2, flujo: null }])?.campana_id).toBe(CAMPANA)
+    expect(campanaElegida([C1, C2, C3, CUARTA])?.campana_id).toBe(CUARTA.campana_id)
+    expect(campanaElegida([{ ...C1, campana_id: "" }])).toBeNull()
     expect(campanaElegida([])).toBeNull()
+    expect(campanaElegida(null)).toBeNull()
     expect(campanasDeLaLectura({ campana_id: CAMPANA, flujo: VERDE })).toEqual([{ campana_id: CAMPANA, nombre: null, flujo: VERDE }])
     expect(campanasDeLaLectura({ campana_id: null, flujo: null })).toEqual([])
     expect(campanasDeLaLectura({ campana_id: CAMPANA, flujo: VERDE, campanas: [C2] })).toEqual([C2])
@@ -408,12 +413,24 @@ describe("19-nov · los 3 lugares de campaña y el subtítulo", () => {
   it("el Centro: con nombre, el subtítulo dice la campaña elegida; sin nombre (o sin campaña viva), sigue «CLIENTE · <nombre>»", () => {
     const pintarCentro = (flujoInicial: Parameters<typeof PanelAplicaciones>[0]["flujoInicial"]) => renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, flujoInicial }))
     const conNombre = pintarCentro({ campana_id: C2.campana_id, flujo: C2.flujo, campanas: [C1, C2] })
-    expect(conNombre).toMatch(/data-campana-como-texto[^>]*>Campaña · <span data-campana-nombre[^>]*>Impulso del encebollado a domicilio</)
+    expect(conNombre).toMatch(/data-campana-como-texto[^>]*>Campaña · <span data-campana-nombre[^>]*>Firmas para limpiar la playa de Olón</)
     expect(conNombre).not.toContain("data-cliente-como-texto")
     expect(conNombre.match(/data-crear-campana/g)).toHaveLength(1)
     for (const f of [{ campana_id: CAMPANA, flujo: VERDE, campanas: [{ ...C1, nombre: null }] }, { campana_id: null, flujo: null, campanas: [] }, { campana_id: CAMPANA, flujo: VERDE }]) {
       const h = pintarCentro(f)
       expect(h).toContain("data-cliente-como-texto"); expect(h).not.toContain("data-campana-como-texto")
     }
+  })
+  it("🔴 la corrida (CC7 21:55): la vieja parada sin nombre + la nueva con nombre → «CAMPAÑA · <la nueva>»; y al revés, la nueva sin nombre → «CLIENTE ·», nunca el nombre de la vieja", () => {
+    const pintarCentro = (campanas: CampanaDelFlujo[]) => renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, flujoInicial: { campana_id: null, flujo: null, campanas } }))
+    const vieja = { campana_id: CAMPANA, nombre: null, flujo: ROJO }
+    const nueva = { campana_id: OTRA, nombre: "Lanzamiento del delivery en Guayaquil", flujo: VERDE }
+    const corrida = pintarCentro([vieja, nueva])
+    expect(corrida).toMatch(/data-campana-como-texto[^>]*>Campaña · <span data-campana-nombre[^>]*>Lanzamiento del delivery en Guayaquil</)
+    // el orden de los lugares no cambia: la vieja sigue en el 1.º, la nueva en el 2.º
+    expect(corrida.indexOf('data-flujo="rojo"')).toBeLessThan(corrida.indexOf('data-flujo="verde"'))
+    const alReves = pintarCentro([{ ...vieja, nombre: "Impulso del encebollado a domicilio" }, { ...nueva, nombre: null }])
+    expect(alReves).toContain("data-cliente-como-texto")
+    expect(alReves).not.toContain("Campaña · ")
   })
 })
