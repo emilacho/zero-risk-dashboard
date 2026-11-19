@@ -63,7 +63,7 @@ export function VisorDeConcepto({ concepto }: { concepto: DetalleDelConcepto }) 
         <span className="num text-[11px] text-[hsl(var(--muted-foreground))]">{usdES(concepto.costo_usd)}</span>
         {concepto.seco && <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[11px] text-amber-100">ensayo en seco</span>}
         {concepto.vueltas_restantes != null && (
-          <span className="ml-auto text-[11px] text-[hsl(var(--muted-foreground))]">{concepto.vueltas_restantes === 0 ? "No quedan vueltas de cambios: si pides otra, no se aplica y te llega la pregunta al buzón (la campaña sigue)" : `${concepto.vueltas_restantes} de ${VUELTAS_MAXIMAS_DE_CAMBIOS} vueltas de cambios disponibles`}</span>
+          <span className="ml-auto text-[11px] text-[hsl(var(--muted-foreground))]">{concepto.vueltas_restantes === 0 ? "No quedan vueltas de cambios: si pides otra, no se aplica; aprueba la propuesta que prefieras (la campaña sigue)" : `${concepto.vueltas_restantes} de ${VUELTAS_MAXIMAS_DE_CAMBIOS} vueltas de cambios disponibles`}</span>
         )}
       </header>
 
