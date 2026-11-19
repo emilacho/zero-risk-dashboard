@@ -7,23 +7,28 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { elegirCampana, esCampanaValida, sePuedeMostrar } from "@/lib/campana-elegida"
 import { esDeLaCampana, leerGranIdea } from "@/lib/gran-idea-datos"
 import { leerBrief } from "@/lib/brief-datos"
+import { leerPizarron } from "@/lib/pizarron-datos"
+import { leerCentro } from "@/lib/centro-datos"
 
 type Fila = Record<string, unknown>
 /** una base de mentira que SÍ filtra (eq · in · is null) y ordena: la regla depende de esos filtros */
 function base(tablas: Record<string, Fila[]>): SupabaseClient {
   const consulta = (t: string) => {
     let datos = [...(tablas[t] ?? [])]
+    let cols: string[] | null = null
+    // la tabla de campañas devuelve SOLO las columnas pedidas, como la base real (si una lectura olvida una columna, la prueba lo ve)
+    const salida = (fs: Fila[]) => (t === "cadena_campanas" && cols ? fs.map((f) => Object.fromEntries(Object.entries(f).filter(([k]) => cols!.includes(k)))) : fs)
     const b: Record<string, unknown> = {}
-    b.select = () => b
+    b.select = (c?: string) => { if (c && c !== "*") cols = c.split(",").map((x) => x.trim()); return b }
     b.eq = (c: string, v: unknown) => { datos = datos.filter((f) => leer(f, c) === v); return b }
     b.in = (c: string, v: unknown[]) => { datos = datos.filter((f) => v.includes(leer(f, c))); return b }
     b.is = (c: string, v: unknown) => { datos = datos.filter((f) => (v === null ? f[c] == null : f[c] === v)); return b }
-    b.neq = () => b
-    b.gte = () => b
+    for (const m of ["neq", "gte", "lte", "lt", "gt", "not", "or", "ilike", "contains", "range"]) b[m] = () => b
     b.order = (c: string, o?: { ascending?: boolean }) => { datos.sort((a, z) => (String(a[c]) < String(z[c]) ? -1 : 1) * (o?.ascending === false ? -1 : 1)); return b }
     b.limit = (n: number) => { datos = datos.slice(0, n); return b }
-    b.maybeSingle = async () => ({ data: datos[0] ?? null, error: null })
-    b.then = (ok: (x: unknown) => unknown, mal: (e: unknown) => unknown) => Promise.resolve({ data: datos, error: null }).then(ok, mal)
+    b.maybeSingle = async () => ({ data: salida(datos)[0] ?? null, error: null })
+    b.single = b.maybeSingle
+    b.then = (ok: (x: unknown) => unknown, mal: (e: unknown) => unknown) => Promise.resolve({ data: salida(datos), error: null }).then(ok, mal)
     return b
   }
   return { from: consulta } as unknown as SupabaseClient
@@ -119,5 +124,37 @@ describe("las pantallas leen la campaña elegida", () => {
     expect(esDeLaCampana({ metadata: null }, "a")).toBe(true)
     expect(esDeLaCampana({ metadata: { campana_id: "a" } }, "a")).toBe(true)
     expect(esDeLaCampana({ metadata: { campana_id: "b" } }, "a")).toBe(false)
+  })
+})
+
+describe("el pizarrón (calendario) y el Centro leen la campaña elegida", () => {
+  const conPlan = () => ({
+    clients: [CLIENTE] as Fila[],
+    cadena_campanas: [camp(1, { estado: "pausada", plan_id: "p-1", fecha_inicio: "2026-11-02", fecha_fin: "2027-01-30" }), camp(2, { plan_id: "p-1", fecha_inicio: "2026-12-01", fecha_fin: "2027-02-28" })],
+    cadena_brief_creativo: [
+      { id: "b1", campana_id: id(1), version: 1, estado: "aprobado", texto_md: "uno", leido: true, seco: false, creada_en: "2026-11-11T00:00:00Z", encargo_id: null },
+      { id: "b2", campana_id: id(2), version: 1, estado: "aprobado", texto_md: "dos", leido: true, seco: false, creada_en: "2026-11-12T00:00:00Z", encargo_id: null },
+      { id: "b3", campana_id: id(2), version: 2, estado: "aprobado", texto_md: "dos bis", leido: true, seco: false, creada_en: "2026-11-13T00:00:00Z", encargo_id: null },
+    ] as Fila[],
+    hitl_queue: [
+      { id: id(7), client_id: CLI, type: "concepto_review", status: "pending", title: "Idea de la 1", created_at: "2026-11-11T00:00:00Z", metadata: { campana_id: id(1), version: 1 } },
+      { id: id(6), client_id: CLI, type: "concepto_review", status: "pending", title: "Otra de la 1", created_at: "2026-11-10T00:00:00Z", metadata: { campana_id: id(1), version: 2 } },
+      { id: id(8), client_id: CLI, type: "concepto_review", status: "pending", title: "Idea de la 2", created_at: "2026-11-12T00:00:00Z", metadata: { campana_id: id(2), version: 1 } },
+    ] as Fila[],
+  })
+  it("🔴 pizarrón · con ?campana= la 1: esa campaña, con su plan y sus fechas; sin pedirla, la viva más nueva (la 2)", async () => {
+    const a = await leerPizarron(base(conPlan()), { cliente: CLI, campana: id(1), ahora: new Date("2026-11-19T12:00:00Z") })
+    expect(a.campana).toMatchObject({ id: id(1), desde: "2026-11-02", hasta: "2027-01-30" })
+    const b = await leerPizarron(base(conPlan()), { cliente: CLI, ahora: new Date("2026-11-19T12:00:00Z") })
+    expect(b.campana).toMatchObject({ id: id(2), desde: "2026-12-01" })
+  })
+  it("🔴 Centro · ?campana= llega al brief y a la gran idea (las versiones son las de esa campaña)", async () => {
+    const riesgos = (async () => ({ ok: false })) as never
+    const a = await leerCentro(base(conPlan()), { cliente: CLI, campana: id(1), riesgos, ahora: new Date("2026-11-19T12:00:00Z") })
+    expect(a.brief.versiones).toBe(1)
+    expect(a.gran_idea.versiones).toBe(2)
+    const b = await leerCentro(base(conPlan()), { cliente: CLI, campana: id(2), riesgos, ahora: new Date("2026-11-19T12:00:00Z") })
+    expect(b.brief.versiones).toBe(2)
+    expect(b.gran_idea.versiones).toBe(1)
   })
 })
