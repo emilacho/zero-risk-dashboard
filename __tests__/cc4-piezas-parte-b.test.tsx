@@ -217,3 +217,52 @@ describe("Piezas parte B · A · la lectura: quién espera tu decisión", () => 
     await expect(listarEnCurso(baseFalsa({ oficina_encargos: [ENC(E1)] }, ["oficina_turnos"]))).rejects.toThrow(/turnos del dueño/)
   })
 })
+
+// 19-nov · los 3 🟡 de CC7 a #361 (`CERTIFICACION-CC7-361-piezas-parte-b.md`): f13, f15 y f7 quedaban sin prueba
+describe("Piezas parte B · los 🟡 de CC7 (f13 · f15 · f7)", () => {
+  for (const c of CASOS) {
+    it(`f13 · ${c.nombre}: el «N por aprobar» de arriba suma las que esperan tu decisión (solo las de este cliente)`, () => {
+      const otro = CASOS.find((x) => x.id !== c.id)!
+      const espera = enCurso(c, { espera_al_dueno: true })
+      const ajena = enCurso(otro, { encargo_id: "99999999-aaaa-4aaa-8aaa-000000000009", espera_al_dueno: true })
+      const haciendo = enCurso(c, { encargo_id: "99999999-aaaa-4aaa-8aaa-000000000008" })
+      const { container } = render(createElement(PanelPiezas, { onCerrar: () => {}, bandejaInicial: bandeja(c, { piezas: [pieza(c)], en_curso: [espera, ajena, haciendo] }), clienteInicial: c.id }))
+      expect(container.querySelector("header")!.textContent).toContain("2 por aprobar")
+      cleanup()
+      // sin la que espera, vuelve a 1: el número sale de las dos cosas, no de una cuenta fija
+      const solo = render(createElement(PanelPiezas, { onCerrar: () => {}, bandejaInicial: bandeja(c, { piezas: [pieza(c)], en_curso: [ajena, haciendo] }), clienteInicial: c.id }))
+      expect(solo.container.querySelector("header")!.textContent).toContain("1 por aprobar")
+    })
+  }
+
+  it("f15 · si el calendario no se puede leer, el Kanban lo dice (y sigue mostrando las piezas)", async () => {
+    const c = CASOS[0]
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ ok: false, error: "la base no respondió" }), { status: 502 })) as unknown as typeof fetch
+    const { container } = render(createElement(PanelPiezas, { onCerrar: () => {}, bandejaInicial: bandeja(c, { piezas: [pieza(c)], estado: "todas" }), clienteInicial: c.id, vistaInicial: "kanban", fetchImpl }))
+    await waitFor(() => expect(container.querySelector('[data-error="calendario"]')?.textContent).toBe("No pude leer el calendario: la base no respondió"))
+    expect(container.querySelector(`[data-tarjeta="pieza-${c.id.slice(0, 4)}"]`)).not.toBeNull()
+  })
+
+  it("f7 · una fila «las propuestas esperan» SIN encargo no dice «Espera tu decisión» ni abre nada", () => {
+    const sinEncargo = filaCal({ id: "sin-encargo", tablero: "emilio", motivo: MOTIVO_PROPUESTAS_ESPERAN, encargo: null })
+    const k = kanbanDeLasPiezas({ piezas: [], calendario: [sinEncargo], enCurso: [] })
+    expect(k.tarjetas.map((t) => t.id)).toEqual(["sin-encargo|2026-11-27"])
+    expect(k.tarjetas[0].estado).not.toBe(ESPERA_TU_DECISION)
+    expect(k.abre.has("sin-encargo|2026-11-27")).toBe(false)
+  })
+})
+
+// 19-nov (LENOVO 22:40Z · bitácora): «+ N más» abre TODAS, sin el tope de 60 por columna (CC7 vio «+ 66 más» que abría 50)
+describe("Piezas parte B · «+ N más» abre todas, sin tope", () => {
+  it("con 76 en «Por hacer»: 10 a la vista, «+ 66 más» y al tocarlo se ven las 76 (sin «+16 más»)", async () => {
+    const t = (i: number): TarjetaDelKanban => ({ id: `t${i}`, columna: "por_hacer", titulo: `T${i}`, detalle: null, cuando: null, color: "#000", estado: "Idea", motivo: null, destacada: false, orden: String(i).padStart(3, "0") })
+    const { container } = render(createElement(Kanban, { columnas: armarKanban(Array.from({ length: 76 }, (_, i) => t(i))), etiqueta: "k", maximoPorHacer: POR_HACER_A_LA_VISTA }))
+    const col = container.querySelector('[data-columna="por_hacer"]')!
+    expect(col.querySelectorAll("[data-tarjeta]").length).toBe(10)
+    const mas = col.querySelector('[data-accion="ver-mas-por-hacer"]')!
+    expect(mas.textContent).toBe("+ 66 más")
+    await act(async () => { fireEvent.click(mas) })
+    expect(col.querySelectorAll("[data-tarjeta]").length).toBe(76)
+    expect(col.textContent).not.toMatch(/\+\s?\d+ más/)
+  })
+})
