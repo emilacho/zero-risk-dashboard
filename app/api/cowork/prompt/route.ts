@@ -24,6 +24,7 @@ export const dynamic = "force-dynamic"
 /** el máximo de salida del modelo de esta ruta (claude-sonnet-4-6 · referencia oficial de modelos) */
 const TECHO_DE_RESPUESTA = 128000 // sin export: una ruta de Next solo exporta lo que Next conoce
 // 18-nov · G1c «nada se recorta» (CC5): 800 s, el máximo del plan · con 128.000 tokens de respuesta, 60 s cortaba el flujo a mitad
+// 19-nov · límite real (CC7 🟡): a la velocidad de Sonnet, 800 s alcanzan para unos 40.000–60.000 tokens; una respuesta más larga la corta Vercel y lo parcial NO se guarda (el catch no llega a correr)
 export const maxDuration = 800
 
 interface Attachment {
