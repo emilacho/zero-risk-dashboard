@@ -8,6 +8,7 @@
 import { TOPE_DEL_TEXTO_DEL_DUENO } from "@/lib/tope-del-texto"
 import { vaciarCache } from "@/lib/cache-corta"
 import { TOPE_DEL_TEXTO_DEL_MANUAL } from "@/lib/manual"
+import { validarCrear } from "@/lib/crear-campana"
 
 export type NombreDeAccion =
   | "rehacer-pieza"
@@ -19,6 +20,7 @@ export type NombreDeAccion =
   | "revision-resolver"
   | "manual-campos" | "manual-validar" | "manual-palabra" | "manual-validar-campo" | "manual-cambios"
   | "propuestas-aprobar" | "propuestas-cambios"
+  | "crear-campana"
 
 type Cuerpo = Record<string, unknown>
 export type Validacion = { ok: true; cuerpo: Cuerpo } | { ok: false; error: string; detalle: string }
@@ -65,6 +67,9 @@ const rondaDe = (c: Cuerpo): number | null => (typeof c.ronda === "number" && Nu
 const PROPUESTA_ID = /^[A-Za-z0-9_-]{1,40}$/
 
 export const ACCIONES: Record<NombreDeAccion, DefinicionDeAccion> = {
+  // CREAR CAMPAÑA (20-nov · GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03): el formulario de las 5 preguntas. Crear NO gasta: la plataforma guarda el pedido
+  // (`cadena_pedidos_de_campana`, CC1 #1255) y deja el sobre; el tope y su mínimo los vuelve a exigir ella (400 `tope_bajo_el_minimo`). La `llave` hace que tocar dos veces no cree dos
+  "crear-campana": { gasta: null, validar: (c) => validarCrear(c) },
   // PROPUESTAS (Sprint 2 · Emilio 16-nov): la ÚNICA aprobación del encargo. Aprobar es el «dale» de esa pieza: fabrica la elegida dentro del tope del encargo, que ya está
   // fijado (no pide otra confirmación de gasto · CC1 ADENDA 1 §2). Pedir cambios devuelve las observaciones a la mesa, que vuelve a presentar (ronda + 1)
   "propuestas-aprobar": {

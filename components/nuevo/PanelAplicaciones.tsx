@@ -18,6 +18,7 @@ import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 import { PanelBase } from "@/components/nuevo/EstiloBase"
 import { tarjetaDelCentro, type TonoDeEstado } from "@/lib/centro-tarjetas"
+import { FormularioCrearCampana } from "@/components/nuevo/FormularioCrearCampana"
 import { CampanaComoTexto, LugaresDeCampana, campanaElegidaConToque, useCampanasDelFlujo, type FlujoInicial } from "@/components/nuevo/LugaresDeCampana"
 
 /** 19-nov · la campaña tocada viaja a las lecturas como `&campana=` (#358); sin tocar no se manda nada y el servidor muestra la viva más nueva */
@@ -78,12 +79,14 @@ const PUNTO_DEL_TONO: Record<TonoDeEstado, string> = { oro: "bg-oro", alarma: "b
 export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial, flujoInicial = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 18-nov · el botón del flujo ya leído (pruebas e imagen) · 19-nov: con `campanas`, los 3 lugares */ flujoInicial?: FlujoInicial | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   // 19-nov (boceto aprobado por Emilio 22:03 Zúrich) · UNA lectura de `/api/flujo` para los 3 lugares y para el subtítulo de la campaña elegida
-  const campanas = useCampanasDelFlujo(datos?.cliente?.id ?? null, flujoInicial)
+  // 20-nov · «Crear Campaña»: al pedir una campaña nueva se vuelven a leer los 3 lugares
+  const [vuelta, setVuelta] = useState(0)
+  const campanas = useCampanasDelFlujo(datos?.cliente?.id ?? null, flujoInicial, vuelta)
   const [centro, setCentro] = useState<Centro | null>(centroInicial)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
-  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>(vistaInicial ?? "inicio")
+  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion | "crear">(vistaInicial ?? "inicio")
   // una pieza abierta desde el calendario: al cerrarla se vuelve al calendario, no a los cuadros
   const [piezaAbierta, setPiezaAbierta] = useState<{ id: string; desde: "calendario" | "inicio" } | null>(null)
   const primero = useRef<HTMLAnchorElement>(null)
@@ -156,6 +159,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   if (vista === "informes") return <PanelInformes key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
   // 20-nov (LENOVO 23:53) · brief y gran idea abiertos leen la campaña elegida, como sus cuadros (sin tocar: nada, el servidor muestra la viva más nueva)
   if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
+  // 20-nov (GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03) · «Crear Campaña» abre el formulario de las 5 preguntas; al cerrarlo se vuelve a los cuadros
+  if (vista === "crear" && cliente) return <FormularioCrearCampana clienteId={cliente} clienteNombre={datos?.cliente?.nombre ?? null} onCerrar={volverAlInicio} onCreada={() => { setVista("inicio"); setVuelta((n) => n + 1); void leer(cliente) }} />
   if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
 
   const idCliente = datos?.cliente?.id ?? null
@@ -200,7 +205,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
           })}
         </ul>
         {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 · 19-nov (21:45 y 22:03): siempre 3 lugares, uno por campaña viva */}
-        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} elegidaId={elegida?.campana_id ?? null} onElegir={elegir} />
+        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} elegidaId={elegida?.campana_id ?? null} onElegir={elegir} onCrear={idCliente ? () => setVista("crear") : undefined} />
         <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
     </PanelBase>
   )
