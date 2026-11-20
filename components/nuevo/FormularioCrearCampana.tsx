@@ -14,7 +14,7 @@ import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, PanelBase, ROTULO }
 import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
 import {
   PASOS, TOPE_DE_FECHAS_CLAVE, TOPE_DEL_BRIEF, TOPE_DEL_CAMBIO, TOPE_DEL_NOMBRE, TOPE_DEL_QUE, VACIAS,
-  clavesLlenas, cuerpoDeCrear, dolares, fechaCorta, minimoDeLaRespuesta, pasosListos, topeEscrito, type RespuestasDeCrear,
+  SIN_PLAN_APROBADO, clavesLlenas, cuerpoDeCrear, dolares, fechaCorta, minimoDeLaRespuesta, pasosListos, topeEscrito, type RespuestasDeCrear,
 } from "@/lib/crear-campana"
 
 const CAMPO = "w-full min-w-0 border-b border-linea-oro bg-transparent text-hueso focus:border-oro focus:outline-none"
@@ -48,14 +48,21 @@ function Pregunta({ paso }: { paso: number }) {
   )
 }
 
-/** lo que la pantalla dice cuando la plataforma no creó la campaña (sin jerga ni montos) */
+/** el código de la plataforma detrás de la respuesta de la acción: un 409 llega en `plataforma.error`; otro rechazo, en `plataforma_error` */
+export function codigoDeNoCrear(j: Record<string, unknown> | null): string {
+  const p = j?.plataforma && typeof j.plataforma === "object" ? (j.plataforma as Record<string, unknown>).error : undefined
+  return String(p ?? j?.plataforma_error ?? j?.error ?? "")
+}
+export const SIN_PLAN = "El cliente no tiene su Plan de Marketing aprobado. No se puede crear una campaña."
+/** lo que la pantalla dice cuando la plataforma no creó la campaña (sin jerga ni montos) · códigos del contrato de CC1 (21:04Z) */
 export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
-  const e = String(j?.plataforma_error ?? j?.error ?? "")
-  if (e === "tope_bajo_el_minimo") return "El tope quedó debajo del mínimo. Revísalo."
+  const e = codigoDeNoCrear(j)
+  if (e === "tope_bajo_minimo") return "El tope quedó debajo del mínimo. Revísalo."
+  if (e === SIN_PLAN_APROBADO) return SIN_PLAN
   if (e === "todavia_no_disponible") return "Todavía no se puede crear: falta la parte de la plataforma. No se creó nada."
-  if (e === "conflicto") return "Esta campaña ya se había pedido. No se creó otra."
   if (e === "sin_sesion" || e === "sin_permiso") return "Tu sesión no tiene permiso para crear campañas."
-  if (e === "pedido_invalido" && typeof j?.detalle === "string") return `No se creó: ${j.detalle}.`
+  if ((e === "pedido_invalido" || e === "entrada_invalida") && typeof j?.detalle === "string" && j.detalle) return `No se creó: ${j.detalle}.`
+  if (e === "conflicto") return "Otra decisión se adelantó. No se creó nada: inténtalo otra vez."
   return "La plataforma no contestó. No se creó nada: inténtalo otra vez."
 }
 
@@ -74,16 +81,19 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const [paso, setPaso] = useState(pasoInicial)
   const [r, setR] = useState<RespuestasDeCrear>(inicial)
   const [minimo, setMinimo] = useState<number | null>(minimoInicial ?? null)
+  const [sinPlan, setSinPlan] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [problema, setProblema] = useState<string | null>(null)
-  // la llave del pedido: UNA por formulario abierto, así tocar «Crear Campaña» dos veces no crea dos campañas
-  const llave = useMemo(() => `crear-${crypto.randomUUID()}`, [])
+  // `llave_formulario`: UNA por formulario abierto, así un doble toque o un reintento da «ya pedida» y no abre dos campañas
+  const llave = useMemo(() => crypto.randomUUID(), [])
 
   const leerMinimo = useMemo(() => async () => {
     try {
       const res = await fetch(`/api/crear-campana/minimo?cliente=${encodeURIComponent(clienteId)}`, { cache: "no-store" })
-      setMinimo(res.ok ? minimoDeLaRespuesta(await res.json().catch(() => null)) : null)
-    } catch { setMinimo(null) }
+      const j = await res.json().catch(() => null)
+      setMinimo(res.ok ? minimoDeLaRespuesta(j) : null)
+      setSinPlan(!res.ok && (j as Record<string, unknown> | null)?.error === SIN_PLAN_APROBADO)
+    } catch { setMinimo(null); setSinPlan(false) }
   }, [clienteId])
   useEffect(() => { if (minimoInicial === undefined) void leerMinimo() }, [minimoInicial, leerMinimo])
   // Esc cierra el formulario y vuelve al Centro (no cierra el Centro ni la oficina)
@@ -108,7 +118,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
       const j = (await res.json().catch(() => null)) as Record<string, unknown> | null
       if (res.ok && j?.ok === true) { onCreada(); return }
       // el mínimo pudo cambiar entre leerlo y crear: se vuelve a leer y se vuelve a la pregunta del tope
-      if (String(j?.plataforma_error ?? "") === "tope_bajo_el_minimo") { await leerMinimo(); setPaso(3) }
+      if (codigoDeNoCrear(j) === "tope_bajo_minimo") { await leerMinimo(); setPaso(3) }
       setProblema(motivoDeNoCrear(j))
     } catch {
       setProblema(motivoDeNoCrear(null))
@@ -195,6 +205,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
         </div>
       )}
 
+      {!problema && sinPlan && (paso === 3 || resumen) && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{SIN_PLAN}</p>}
       {problema && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{problema}</p>}
 
       <Acciones>

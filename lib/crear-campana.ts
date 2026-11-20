@@ -1,5 +1,6 @@
 /**
  * «CREAR CAMPAÑA» (20-nov · GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03, «PERFECTO»: `raw/evidencia/2026-11-20-boceto-crear-campana-formulario/`).
+ * Contrato de CC1 (entrega 2, 21:04Z al pie de `2026-11-20-GO-LENOVO-a-CC1-CC3-crear-campana-lo-de-atras.md`).
  * Las 5 preguntas del formulario y sus reglas, iguales para la pantalla y para el servidor del tablero (una sola fuente):
  *   nombre · cambio · fechas (inicio, fin y fechas clave) · tope (obligatorio, nunca debajo del mínimo que lee la plataforma) · tu brief (con la oferta adentro).
  * Los topes de texto y de fechas son los CHECK de `cadena_pedidos_de_campana` (CC1 #1255 · migración 202611201900); el mínimo del tope y
@@ -14,8 +15,8 @@ export const TOPE_DE_FECHAS_CLAVE = 20
 export const TOPE_DEL_QUE = 120
 /** `fecha_fin - fecha_inicio <= 366` (CHECK de la base) */
 export const DIAS_MAXIMOS_DE_CAMPANA = 366
-/** la llave del pedido: la `llave_de_campana` con que nace la campaña (CHECK 1..200); el tablero la arma UNA vez al abrir el formulario */
-export const LLAVE = /^crear-[0-9a-f-]{36}$/i
+/** `llave_formulario` (contrato CC1): un uuid que el tablero arma UNA vez al abrir el formulario; repetirla da `ya_pedida` y no abre dos campañas */
+export const LLAVE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export interface FechaClave { fecha: string; que: string }
 export interface RespuestasDeCrear {
@@ -89,7 +90,7 @@ export function minimoDeLaRespuesta(j: unknown): number | null {
 export function cuerpoDeCrear(clienteId: string, llave: string, r: RespuestasDeCrear) {
   return {
     client_id: clienteId,
-    llave,
+    llave_formulario: llave,
     nombre: r.nombre.trim(),
     cambio: r.cambio.trim(),
     fecha_inicio: r.inicio,
@@ -113,7 +114,7 @@ const txt = (v: unknown) => (typeof v === "string" ? v.trim() : "")
 export function validarCrear(c: Cuerpo, hoy = hoyEnEcuador()): ValidacionDeCrear {
   const cliente = typeof c.client_id === "string" && UUID.test(c.client_id) ? c.client_id : null
   if (!cliente) return mal("falta el cliente")
-  const llave = typeof c.llave === "string" && LLAVE.test(c.llave) ? c.llave : null
+  const llave = typeof c.llave_formulario === "string" && LLAVE.test(c.llave_formulario) ? c.llave_formulario : null
   if (!llave) return mal("falta la llave del pedido")
   const nombre = txt(c.nombre), cambio = txt(c.cambio), brief = txt(c.brief_libre)
   if (nombre.length < 1 || nombre.length > TOPE_DEL_NOMBRE) return mal(`el nombre va de 1 a ${TOPE_DEL_NOMBRE} caracteres`)
@@ -135,7 +136,7 @@ export function validarCrear(c: Cuerpo, hoy = hoyEnEcuador()): ValidacionDeCrear
   }
   const tope = typeof c.tope_usd === "number" && Number.isFinite(c.tope_usd) && c.tope_usd > 0 && c.tope_usd < 100_000_000 && Math.abs(Math.round(c.tope_usd * 100) - c.tope_usd * 100) < 1e-6 ? c.tope_usd : null
   if (tope == null) return mal("falta el tope")
-  return { ok: true, cuerpo: { client_id: cliente, llave, nombre, cambio, fecha_inicio: inicio, fecha_fin: fin, fechas_clave: claves, tope_usd: tope, brief_libre: brief } }
+  return { ok: true, cuerpo: { client_id: cliente, llave_formulario: llave, nombre, cambio, fecha_inicio: inicio, fecha_fin: fin, fechas_clave: claves, tope_usd: tope, brief_libre: brief } }
 }
 
 /** «5 dic 2026» */
@@ -150,10 +151,12 @@ export const dolares = (n: number) => `US$ ${n.toLocaleString("es-EC", { minimum
 
 export interface DepsDelMinimo { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch }
 export type RespuestaDelMinimo = { status: number; cuerpo: { ok: true; minimo_usd: number } | { ok: false; error: string } }
+/** sin Plan de Marketing aprobado no hay campaña nueva (409 de la plataforma): la pantalla lo dice */
+export const SIN_PLAN_APROBADO = "sin_plan_aprobado"
 
 /**
  * el mínimo del tope para ESTE cliente (la planificación más una pieza en su peor caso), de la ruta de solo lectura de la plataforma
- * `GET /api/tablero/crear-campana/minimo?client_id=…` (CC1, entrega 2). Sin respuesta válida no hay mínimo y el formulario no deja crear:
+ * `GET /api/tablero-minimo-de-campana?client_id=…` (CC1, entrega 2; el servidor vuelve a calcularlo al crear: el de la pantalla es para mostrar). Sin respuesta válida no hay mínimo y el formulario no deja crear:
  * nunca se inventa uno.
  */
 export async function leerMinimo(clienteId: string, d: DepsDelMinimo = {}): Promise<RespuestaDelMinimo> {
@@ -162,9 +165,11 @@ export async function leerMinimo(clienteId: string, d: DepsDelMinimo = {}): Prom
   const llave = d.llave ?? (process.env.PLATFORM_INTERNAL_KEY || process.env.INTERNAL_API_KEY || "")
   if (!llave) return { status: 503, cuerpo: { ok: false, error: "llave_interna_sin_poner" } }
   try {
-    const r = await (d.fetchImpl ?? fetch)(`${base}/api/tablero/crear-campana/minimo?client_id=${encodeURIComponent(clienteId)}`, { headers: { "x-api-key": llave }, cache: "no-store" })
+    const r = await (d.fetchImpl ?? fetch)(`${base}/api/tablero-minimo-de-campana?client_id=${encodeURIComponent(clienteId)}`, { headers: { "x-api-key": llave }, cache: "no-store" })
     if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "todavia_no_disponible" } }
-    const minimo = r.ok ? minimoDeLaRespuesta(await r.json().catch(() => null)) : null
+    const j = await r.json().catch(() => null)
+    if (r.status === 409 && j && (j as Record<string, unknown>).error === SIN_PLAN_APROBADO) return { status: 409, cuerpo: { ok: false, error: SIN_PLAN_APROBADO } }
+    const minimo = r.ok ? minimoDeLaRespuesta(j) : null
     return minimo == null ? { status: 502, cuerpo: { ok: false, error: "sin_minimo" } } : { status: 200, cuerpo: { ok: true, minimo_usd: minimo } }
   } catch {
     return { status: 502, cuerpo: { ok: false, error: "plataforma_sin_respuesta" } }

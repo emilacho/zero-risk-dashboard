@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react"
-import { FormularioCrearCampana, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
+import { FormularioCrearCampana, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
@@ -31,7 +31,7 @@ const LISTAS: RespuestasDeCrear = {
   claves: [{ fecha: "2026-12-05", que: "Abre el delivery" }, { fecha: "", que: "" }],
   tope: "150", brief: "Oferta: envío gratis en el primer pedido.",
 }
-const LLAVE_X = "crear-11111111-2222-4333-8444-555555555555"
+const LLAVE_X = "11111111-2222-4333-8444-555555555555"
 
 // el día de hoy fijo (20-nov, 15:00 en Ecuador): «el inicio desde hoy» no puede depender del día en que corre la prueba
 beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-20T20:00:00Z")) })
@@ -72,7 +72,7 @@ describe("las reglas de las 5 preguntas (lib/crear-campana)", () => {
   })
   it("el cuerpo que se manda: textos recortados, solo las fechas clave llenas y el tope como número", () => {
     expect(cuerpoDeCrear(NAUFRAGO, LLAVE_X, { ...LISTAS, nombre: "  Lanzamiento  " })).toEqual({
-      client_id: NAUFRAGO, llave: LLAVE_X, nombre: "Lanzamiento", cambio: LISTAS.cambio, fecha_inicio: "2026-12-01", fecha_fin: "2027-01-31",
+      client_id: NAUFRAGO, llave_formulario: LLAVE_X, nombre: "Lanzamiento", cambio: LISTAS.cambio, fecha_inicio: "2026-12-01", fecha_fin: "2027-01-31",
       fechas_clave: [{ fecha: "2026-12-05", que: "Abre el delivery" }], tope_usd: 150, brief_libre: LISTAS.brief,
     })
   })
@@ -91,7 +91,7 @@ describe("el servidor del tablero valida igual que la pantalla", () => {
   })
   it.each([
     ["sin cliente", { client_id: "x" }, "falta el cliente"],
-    ["sin llave", { llave: "otra" }, "falta la llave del pedido"],
+    ["sin llave", { llave_formulario: "crear-x" }, "falta la llave del pedido"],
     ["sin nombre", { nombre: " " }, "el nombre"],
     ["nombre largo", { nombre: "x".repeat(121) }, "el nombre"],
     ["sin cambio", { cambio: "" }, "el cambio"],
@@ -130,13 +130,13 @@ describe("el servidor del tablero valida igual que la pantalla", () => {
   })
 })
 
-describe("el mínimo lo lee la plataforma (`GET /api/tablero/crear-campana/minimo`)", () => {
+describe("el mínimo lo lee la plataforma (`GET /api/tablero-minimo-de-campana`)", () => {
   const dep = (res: () => Promise<Response>) => ({ plataformaUrl: "https://p.x", llave: "k", fetchImpl: vi.fn(res) as unknown as typeof fetch })
   it("con la llave interna y el cliente; devuelve el número", async () => {
     const d = dep(async () => new Response(JSON.stringify({ ok: true, minimo_usd: 61.4 }), { status: 200 }))
     expect(await leerMinimo(NAUFRAGO, d)).toEqual({ status: 200, cuerpo: { ok: true, minimo_usd: 61.4 } })
     const [url, init] = (d.fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
-    expect(url).toBe(`https://p.x/api/tablero/crear-campana/minimo?client_id=${NAUFRAGO}`)
+    expect(url).toBe(`https://p.x/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}`)
     expect((init.headers as Record<string, string>)["x-api-key"]).toBe("k")
   })
   it("sin ruta (404), sin número, con error o sin llave: no hay mínimo (nunca se inventa)", async () => {
@@ -146,6 +146,7 @@ describe("el mínimo lo lee la plataforma (`GET /api/tablero/crear-campana/minim
     expect((await leerMinimo(NAUFRAGO, dep(async () => { throw new Error("red") }))).status).toBe(502)
     expect((await leerMinimo(NAUFRAGO, { llave: "", fetchImpl: vi.fn() as unknown as typeof fetch })).status).toBe(503)
     expect((await leerMinimo("x", dep(async () => new Response("{}")))).status).toBe(400)
+    expect(await leerMinimo(NAUFRAGO, dep(async () => new Response(JSON.stringify({ ok: false, error: "sin_plan_aprobado" }), { status: 409 })))).toEqual({ status: 409, cuerpo: { ok: false, error: "sin_plan_aprobado" } })
   })
 })
 
@@ -226,17 +227,17 @@ describe("la pantalla, como el boceto aprobado", () => {
     const crear = pedidos.filter((p) => p.metodo === "POST")
     expect(crear).toHaveLength(1)
     expect(crear[0].url).toBe("/api/acciones/crear-campana")
-    expect(crear[0].cuerpo?.llave).toMatch(LLAVE)
-    expect(crear[0].cuerpo).toEqual(cuerpoDeCrear(NAUFRAGO, String(crear[0].cuerpo?.llave), LISTAS))
+    expect(crear[0].cuerpo?.llave_formulario).toMatch(LLAVE)
+    expect(crear[0].cuerpo).toEqual(cuerpoDeCrear(NAUFRAGO, String(crear[0].cuerpo?.llave_formulario), LISTAS))
   })
   it("si la plataforma dice que el tope quedó debajo del mínimo, vuelve a leerlo y vuelve a la pregunta del tope; nada se da por creado", async () => {
-    const pedidos = red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false, error: "la_plataforma_rechazo", plataforma_error: "tope_bajo_el_minimo" }), { status: 502 }) })
+    const pedidos = red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false, error: "conflicto", detalle: "tope_bajo_minimo", plataforma: { ok: false, error: "tope_bajo_minimo", minimo_usd: 61 } }), { status: 409 }) })
     const onCreada = vi.fn()
     const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, onCreada })
     await waitFor(() => expect(boton(container, "[data-crear]").disabled).toBe(false))
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(container.querySelector("[data-posicion]")?.textContent).toBe("4 de 5"))
-    expect(container.querySelector("[data-problema]")?.textContent).toBe(motivoDeNoCrear({ plataforma_error: "tope_bajo_el_minimo" }))
+    expect(container.querySelector("[data-problema]")?.textContent).toBe("El tope quedó debajo del mínimo. Revísalo.")
     expect(pedidos.filter((p) => p.url.startsWith("/api/crear-campana/minimo"))).toHaveLength(2)
     expect(onCreada).not.toHaveBeenCalled()
   })
@@ -248,6 +249,18 @@ describe("la pantalla, como el boceto aprobado", () => {
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toContain("No se creó nada"))
     expect(onCreada).not.toHaveBeenCalled()
+  })
+  it("sin Plan de Marketing aprobado (409 del mínimo): lo dice en el tope y no deja seguir", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: false, error: "sin_plan_aprobado" }), { status: 409 })))
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 3 })
+    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(SIN_PLAN))
+    expect(boton(container, "[data-siguiente]").disabled).toBe(true)
+  })
+  it("los códigos del contrato de CC1: cada rechazo dice qué pasó, y nunca «se creó»", () => {
+    expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "sin_plan_aprobado" } })).toBe(SIN_PLAN)
+    expect(motivoDeNoCrear({ ok: false, error: "la_plataforma_rechazo", plataforma_error: "entrada_invalida", detalle: "el nombre está en blanco" })).toBe("No se creó: el nombre está en blanco.")
+    expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "otra" } })).toContain("No se creó nada")
+    expect(motivoDeNoCrear(null)).toContain("No se creó nada")
   })
   it("Esc cierra el formulario", () => {
     red({ minimo: 60 })

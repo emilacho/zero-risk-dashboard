@@ -86,7 +86,9 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const [cliente, setCliente] = useState<string | null>(datosIniciales?.cliente?.id ?? null)
-  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion | "crear">(vistaInicial ?? "inicio")
+  const [vista, setVista] = useState<"inicio" | ClaveDeAplicacion>(vistaInicial ?? "inicio")
+  // 20-nov · «Crear Campaña»: el formulario se abre encima de los cuadros (Esc lo cierra a él, no al Centro)
+  const [creando, setCreando] = useState(false)
   // una pieza abierta desde el calendario: al cerrarla se vuelve al calendario, no a los cuadros
   const [piezaAbierta, setPiezaAbierta] = useState<{ id: string; desde: "calendario" | "inicio" } | null>(null)
   const primero = useRef<HTMLAnchorElement>(null)
@@ -97,11 +99,11 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   useEffect(() => { if (vista === "inicio") primero.current?.focus() }, [vista])
   // Esc cierra las aplicaciones y NO la oficina (captura + stop); cuando el calendario está encima, su propio Esc lo cierra y volvemos aquí
   useEffect(() => {
-    if (vista !== "inicio") return
+    if (vista !== "inicio" || creando) return
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
-  }, [onCerrar, vista])
+  }, [onCerrar, vista, creando])
 
   const leer = useCallback(async (id: string | null) => {
     setCargando(true); setError(null)
@@ -160,7 +162,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   // 20-nov (LENOVO 23:53) · brief y gran idea abiertos leen la campaña elegida, como sus cuadros (sin tocar: nada, el servidor muestra la viva más nueva)
   if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
   // 20-nov (GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03) · «Crear Campaña» abre el formulario de las 5 preguntas; al cerrarlo se vuelve a los cuadros
-  if (vista === "crear" && cliente) return <FormularioCrearCampana clienteId={cliente} clienteNombre={datos?.cliente?.nombre ?? null} onCerrar={volverAlInicio} onCreada={() => { setVista("inicio"); setVuelta((n) => n + 1); void leer(cliente) }} />
+  if (creando && cliente) return <FormularioCrearCampana clienteId={cliente} clienteNombre={datos?.cliente?.nombre ?? null} onCerrar={() => setCreando(false)} onCreada={() => { setCreando(false); setVuelta((n) => n + 1); void leer(cliente) }} />
   if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
 
   const idCliente = datos?.cliente?.id ?? null
@@ -205,7 +207,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
           })}
         </ul>
         {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 · 19-nov (21:45 y 22:03): siempre 3 lugares, uno por campaña viva */}
-        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} elegidaId={elegida?.campana_id ?? null} onElegir={elegir} onCrear={idCliente ? () => setVista("crear") : undefined} />
+        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} elegidaId={elegida?.campana_id ?? null} onElegir={elegir} onCrear={idCliente ? () => setCreando(true) : undefined} />
         <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
     </PanelBase>
   )
