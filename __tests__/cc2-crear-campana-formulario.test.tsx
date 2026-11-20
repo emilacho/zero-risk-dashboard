@@ -150,13 +150,22 @@ describe("el mínimo lo lee la plataforma (`GET /api/tablero-minimo-de-campana`)
   })
 })
 
-/** la red de mentira del formulario: el mínimo y la acción de crear */
+/** el pizarrón de Náufrago con su campaña viva real (sin filas: el formulario no las usa) */
+const pizDeNaufrago = (): Pizarron => ({
+    clientes: [{ id: NAUFRAGO, nombre: "Náufrago", con_campana: true }], cliente: { id: NAUFRAGO, nombre: "Náufrago" },
+    campana: { id: VIVA, estado: "necesita_humano", desde: "2026-11-09", hasta: "2027-02-06", version_calendario: null, version_estrategia: 1 },
+    fases: [], fase_activa: faseActiva([], null, HOY), gran_idea: { texto: null, nota: "" }, esperas: [], filas: [], semanas: [], totales: {}, manual_aprobado: true, hoy: HOY, leido_en: "x",
+}) as unknown as Pizarron
+
+/** la red de mentira del formulario: el mínimo, la acción de crear y las lecturas del Centro */
 function red(o: { minimo?: number | null; crear?: () => Response } = {}) {
   const pedidos: Array<{ url: string; metodo: string; cuerpo?: Record<string, unknown> }> = []
   const f = vi.fn(async (url: string, init?: RequestInit) => {
     pedidos.push({ url, metodo: init?.method ?? "GET", cuerpo: init?.body ? JSON.parse(String(init.body)) : undefined })
     if (url.startsWith("/api/crear-campana/minimo")) return o.minimo == null ? new Response(JSON.stringify({ ok: false, error: "todavia_no_disponible" }), { status: 501 }) : new Response(JSON.stringify({ ok: true, minimo_usd: o.minimo }), { status: 200 })
     if (url === "/api/acciones/crear-campana") return o.crear ? o.crear() : new Response(JSON.stringify({ ok: true, accion: "crear-campana" }), { status: 200 })
+    if (url.startsWith("/api/flujo")) return new Response(JSON.stringify({ ok: true, campana_id: VIVA, flujo: ROJO, campanas: [C_VIVA] }), { status: 200 })
+    if (url.startsWith("/api/pizarron")) return new Response(JSON.stringify({ ok: true, ...pizDeNaufrago() }), { status: 200 })
     return new Response(JSON.stringify({ ok: false }), { status: 404 })
   })
   vi.stubGlobal("fetch", f)
@@ -262,6 +271,30 @@ describe("la pantalla, como el boceto aprobado", () => {
     expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "otra" } })).toContain("No se creó nada")
     expect(motivoDeNoCrear(null)).toContain("No se creó nada")
   })
+  it("un reintento después de un rechazo manda la MISMA llave (así la plataforma contesta «ya pedida» y no abre dos)", async () => {
+    let n = 0
+    const pedidos = red({ minimo: 60, crear: () => (++n === 1 ? new Response(JSON.stringify({ ok: false, error: "plataforma_sin_respuesta" }), { status: 502 }) : new Response(JSON.stringify({ ok: true, resultado: { estado: "ya_pedida" } }), { status: 200 })) })
+    const onCreada = vi.fn()
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, onCreada })
+    await waitFor(() => expect(boton(container, "[data-crear]").disabled).toBe(false))
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    expect(onCreada).not.toHaveBeenCalled()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledTimes(1))
+    const llaves = pedidos.filter((p) => p.metodo === "POST").map((p) => p.cuerpo?.llave_formulario)
+    expect(llaves).toHaveLength(2)
+    expect(llaves[0]).toBe(llaves[1])
+  })
+  it("una respuesta 200 sin `ok: true` no se da por creada", async () => {
+    red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false }), { status: 200 }) })
+    const onCreada = vi.fn()
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, onCreada })
+    await waitFor(() => expect(boton(container, "[data-crear]").disabled).toBe(false))
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    expect(onCreada).not.toHaveBeenCalled()
+  })
   it("Esc cierra el formulario", () => {
     red({ minimo: 60 })
     const onCerrar = vi.fn()
@@ -286,16 +319,42 @@ describe("«Crear Campaña» en el Centro", () => {
   })
   it("en el Centro abre el formulario del cliente; al cerrarlo vuelven los 9 cuadros", async () => {
     red({ minimo: 60 })
-    const piz = {
-      clientes: [{ id: NAUFRAGO, nombre: "Náufrago", con_campana: true }], cliente: { id: NAUFRAGO, nombre: "Náufrago" },
-      campana: { id: VIVA, estado: "necesita_humano", desde: "2026-11-09", hasta: "2027-02-06", version_calendario: null, version_estrategia: 1 },
-      fases: [], fase_activa: faseActiva([], null, HOY), gran_idea: { texto: null, nota: "" }, esperas: [], filas: [], semanas: [], totales: {}, manual_aprobado: true, hoy: HOY, leido_en: "x",
-    } as unknown as Pizarron
+    const piz = pizDeNaufrago()
     const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={piz} flujoInicial={{ campana_id: VIVA, flujo: ROJO, campanas: [C_VIVA] }} />)
     fireEvent.click(container.querySelector("[data-crear-campana]")!)
     await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
     expect(container.querySelector("[data-cliente-nombre]")?.textContent).toBe("Náufrago")
     fireEvent.click(container.querySelector("[data-cerrar]")!)
     expect(container.querySelectorAll("[data-aplicacion]")).toHaveLength(9)
+  })
+  it("en el Centro, Esc con el formulario abierto cierra SOLO el formulario (no el Centro)", async () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = render(<PanelAplicaciones onCerrar={onCerrar} datosIniciales={pizDeNaufrago()} flujoInicial={{ campana_id: VIVA, flujo: ROJO, campanas: [C_VIVA] }} />)
+    fireEvent.click(container.querySelector("[data-crear-campana]")!)
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
+    fireEvent.keyDown(window, { key: "Escape" })
+    await waitFor(() => expect(container.querySelectorAll("[data-aplicacion]")).toHaveLength(9))
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("después de crear, el Centro vuelve a los cuadros y vuelve a leer sus 3 lugares", async () => {
+    const pedidos = red({ minimo: 60 })
+    const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={null} />)
+    await waitFor(() => expect(container.querySelector("[data-crear-campana]")).not.toBeNull())
+    const antes = pedidos.filter((p) => p.url.startsWith("/api/flujo")).length
+    fireEvent.click(container.querySelector("[data-crear-campana]")!)
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
+    // el formulario de verdad: se contesta pantalla por pantalla
+    const escribir = (sel: string, v: string) => fireEvent.change(container.querySelector(sel)!, { target: { value: v } })
+    const siguiente = () => fireEvent.click(boton(container, "[data-siguiente]"))
+    escribir("[data-campo=nombre]", LISTAS.nombre); siguiente()
+    escribir("[data-campo=cambio]", LISTAS.cambio); siguiente()
+    escribir("[aria-label=Inicio]", LISTAS.inicio); escribir("[aria-label=Fin]", LISTAS.fin); siguiente()
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 60"))
+    escribir("[aria-label=Tope]", "150"); siguiente()
+    escribir("[data-campo=brief]", LISTAS.brief); siguiente()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelectorAll("[data-aplicacion]")).toHaveLength(9))
+    await waitFor(() => expect(pedidos.filter((p) => p.url.startsWith("/api/flujo")).length).toBeGreaterThan(antes))
   })
 })

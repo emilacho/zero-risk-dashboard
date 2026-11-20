@@ -99,7 +99,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   useEffect(() => { if (vista === "inicio") primero.current?.focus() }, [vista])
   // Esc cierra las aplicaciones y NO la oficina (captura + stop); cuando el calendario está encima, su propio Esc lo cierra y volvemos aquí
   useEffect(() => {
-    if (vista !== "inicio" || creando) return
+    if (creando) return // 20-nov · con el formulario abierto, Esc es suyo
+    if (vista !== "inicio") return
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
