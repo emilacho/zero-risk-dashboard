@@ -14,7 +14,7 @@ import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, PanelBase, ROTULO }
 import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
 import {
   PASOS, TOPE_DE_FECHAS_CLAVE, TOPE_DEL_BRIEF, TOPE_DEL_CAMBIO, TOPE_DEL_NOMBRE, TOPE_DEL_QUE, VACIAS,
-  SIN_PLAN_APROBADO, clavesLlenas, cuerpoDeCrear, dolares, fechaCorta, minimoDeLaRespuesta, pasosListos, topeEscrito, type RespuestasDeCrear,
+  SIN_PLAN_APROBADO, clavesLlenas, nuevaLlave, cuerpoDeCrear, dolares, fechaCorta, minimoDeLaRespuesta, pasosListos, topeEscrito, type RespuestasDeCrear,
 } from "@/lib/crear-campana"
 
 const CAMPO = "w-full min-w-0 border-b border-linea-oro bg-transparent text-hueso focus:border-oro focus:outline-none"
@@ -87,7 +87,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const enCurso = useRef(false)
   const [problema, setProblema] = useState<string | null>(null)
   // `llave_formulario`: UNA por formulario abierto, así un doble toque o un reintento da «ya pedida» y no abre dos campañas
-  const llave = useMemo(() => crypto.randomUUID(), [])
+  const llave = useMemo(() => nuevaLlave(), [])
 
   const leerMinimo = useMemo(() => async () => {
     try {
@@ -113,7 +113,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const cambiarClave = (i: number, p: Partial<{ fecha: string; que: string }>) => cambiar({ claves: r.claves.map((c, k) => (k === i ? { ...c, ...p } : c)) })
 
   const crear = async () => {
-    if (enCurso.current || !listo.every(Boolean)) return
+    if (enCurso.current || !llave || !listo.every(Boolean)) return
     enCurso.current = true; setEnviando(true); setProblema(null)
     try {
       const res = await fetch("/api/acciones/crear-campana", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCrear(clienteId, llave, r)) })
@@ -213,7 +213,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
       <Acciones>
         <button type="button" data-atras disabled={paso === 0 || enviando} onClick={() => { setPaso(paso - 1); setProblema(null) }} className={`${BOTON_SECUNDARIO} min-h-12`}>Atrás</button>
         {resumen
-          ? <button type="button" data-crear disabled={!listo.every(Boolean) || enviando} onClick={() => void crear()} className={`${BOTON_PRINCIPAL} min-h-12`}>Crear Campaña</button>
+          ? <button type="button" data-crear disabled={!llave || !listo.every(Boolean) || enviando} onClick={() => void crear()} className={`${BOTON_PRINCIPAL} min-h-12`}>Crear Campaña</button>
           : <button type="button" data-siguiente disabled={!listo[paso]} onClick={() => setPaso(paso + 1)} className={`${BOTON_PRINCIPAL} min-h-12`}>Siguiente</button>}
       </Acciones>
     </PanelBase>

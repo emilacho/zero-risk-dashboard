@@ -18,6 +18,21 @@ export const DIAS_MAXIMOS_DE_CAMPANA = 366
 /** `llave_formulario` (contrato CC1): un uuid que el tablero arma UNA vez al abrir el formulario; repetirla da `ya_pedida` y no abre dos campañas */
 export const LLAVE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/**
+ * una `llave_formulario` nueva (uuid v4). `crypto.randomUUID` no existe fuera de https ni en navegadores viejos: ahí se arma con
+ * `crypto.getRandomValues`, que sí existe. Sin ninguno de los dos no hay llave y el formulario no deja crear (nunca una llave adivinable).
+ */
+export function nuevaLlave(c: Pick<Crypto, "getRandomValues"> & { randomUUID?: () => string } | undefined = globalThis.crypto): string | null {
+  if (!c) return null
+  if (typeof c.randomUUID === "function") return c.randomUUID()
+  if (typeof c.getRandomValues !== "function") return null
+  const b = c.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("")
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
 export interface FechaClave { fecha: string; que: string }
 export interface RespuestasDeCrear {
   nombre: string

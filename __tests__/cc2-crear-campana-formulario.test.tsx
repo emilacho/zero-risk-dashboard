@@ -14,7 +14,7 @@ import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { ACCIONES, ejecutarAccion } from "@/lib/tablero-acciones"
-import { LLAVE, PASOS, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
+import { LLAVE, PASOS, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { faseActiva } from "@/lib/pizarron"
 
@@ -75,6 +75,16 @@ describe("las reglas de las 5 preguntas (lib/crear-campana)", () => {
       client_id: NAUFRAGO, llave_formulario: LLAVE_X, nombre: "Lanzamiento", cambio: LISTAS.cambio, fecha_inicio: "2026-12-01", fecha_fin: "2027-01-31",
       fechas_clave: [{ fecha: "2026-12-05", que: "Abre el delivery" }], tope_usd: 150, brief_libre: LISTAS.brief,
     })
+  })
+  it("la llave del formulario: uuid v4 con randomUUID, con getRandomValues si no hay randomUUID, y ninguna sin los dos", () => {
+    expect(nuevaLlave({ randomUUID: () => LLAVE_X, getRandomValues: ((a: Uint8Array) => a) as never })).toBe(LLAVE_X)
+    const sinUuid = nuevaLlave({ getRandomValues: <T extends ArrayBufferView | null>(a: T) => { (a as unknown as Uint8Array).fill(0xff); return a } })
+    expect(sinUuid).toBe("ffffffff-ffff-4fff-bfff-ffffffffffff")
+    expect(sinUuid).toMatch(LLAVE)
+    expect(nuevaLlave({} as never)).toBeNull()
+    const dos = [nuevaLlave(), nuevaLlave()]
+    for (const l of dos) expect(l).toMatch(LLAVE)
+    expect(dos[0]).not.toBe(dos[1])
   })
   it("el mínimo de la plataforma: solo un número positivo con `ok: true`", () => {
     expect(minimoDeLaRespuesta({ ok: true, minimo_usd: 60 })).toBe(60)
