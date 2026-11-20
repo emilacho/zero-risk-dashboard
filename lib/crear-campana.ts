@@ -124,7 +124,7 @@ const txt = (v: unknown) => (typeof v === "string" ? v.trim() : "")
 
 /**
  * la validación del SERVIDOR del tablero (la pantalla puede mentir): mismas reglas que `pasosListos`, salvo el mínimo,
- * que lo exige la plataforma con su propio cálculo (400 `tope_bajo_el_minimo`). Devuelve el cuerpo limpio que se reenvía.
+ * que lo exige la plataforma con su propio cálculo (409 `tope_bajo_minimo`, contrato de CC1). Devuelve el cuerpo limpio que se reenvía.
  */
 export function validarCrear(c: Cuerpo, hoy = hoyEnEcuador()): ValidacionDeCrear {
   const cliente = typeof c.client_id === "string" && UUID.test(c.client_id) ? c.client_id : null

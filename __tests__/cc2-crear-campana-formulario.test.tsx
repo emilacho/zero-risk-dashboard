@@ -14,7 +14,7 @@ import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { ACCIONES, ejecutarAccion } from "@/lib/tablero-acciones"
-import { LLAVE, PASOS, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
+import { LLAVE, PASOS, hoyEnEcuador, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { faseActiva } from "@/lib/pizarron"
 
@@ -66,6 +66,29 @@ describe("las reglas de las 5 preguntas (lib/crear-campana)", () => {
     expect(f("2026-02-30", "2027-01-31")).toBe(false)
     expect(pasosListos({ ...LISTAS, claves: Array.from({ length: 21 }, () => ({ fecha: "2026-12-05", que: "x" })) }, 60, HOY)[2]).toBe(false)
   })
+  it("«hoy» es el de Ecuador, no el de UTC: a las 22:00 de Ecuador (03:00 UTC del día siguiente) todavía es hoy", () => {
+    expect(hoyEnEcuador(new Date("2026-11-21T03:00:00Z"))).toBe("2026-11-20")
+    expect(hoyEnEcuador(new Date("2026-11-21T05:00:00Z"))).toBe("2026-11-21")
+    const hoy = hoyEnEcuador(new Date("2026-11-21T03:00:00Z"))
+    expect(validarCrear({ ...cuerpoDeCrear(NAUFRAGO, LLAVE_X, { ...LISTAS, inicio: "2026-11-20" }) }, hoy).ok).toBe(true)
+    expect(pasosListos({ ...LISTAS, inicio: "2026-11-20" }, 60, hoy)[2]).toBe(true)
+  })
+  it("una fecha imposible (31 de febrero, 31 de abril) no vale, ni en la pantalla ni en el servidor", () => {
+    for (const mala of ["2027-02-31", "2027-04-31", "2026-13-01", "2026-12-00"]) {
+      expect(pasosListos({ ...LISTAS, fin: mala }, 60, HOY)[2], mala).toBe(false)
+      expect(pasosListos({ ...LISTAS, claves: [{ fecha: mala, que: "x" }] }, 60, HOY)[2], mala).toBe(false)
+      expect(validarCrear({ ...cuerpoDeCrear(NAUFRAGO, LLAVE_X, LISTAS), fecha_fin: mala }, HOY).ok, mala).toBe(false)
+      expect(validarCrear({ ...cuerpoDeCrear(NAUFRAGO, LLAVE_X, LISTAS), fechas_clave: [{ fecha: mala, que: "x" }] }, HOY).ok, mala).toBe(false)
+    }
+    expect(validarCrear({ ...cuerpoDeCrear(NAUFRAGO, LLAVE_X, LISTAS), fecha_fin: "2027-02-28" }, HOY).ok).toBe(true)
+  })
+  it("en la pantalla, una fecha clave con un «qué» de 121 no deja seguir (120 sí); 21 fechas clave tampoco (20 sí)", () => {
+    const con = (claves: Array<{ fecha: string; que: string }>) => pasosListos({ ...LISTAS, claves }, 60, HOY)[2]
+    expect(con([{ fecha: "2026-12-05", que: "x".repeat(120) }])).toBe(true)
+    expect(con([{ fecha: "2026-12-05", que: "x".repeat(121) }])).toBe(false)
+    expect(con(Array.from({ length: 20 }, () => ({ fecha: "2026-12-05", que: "x" })))).toBe(true)
+    expect(con(Array.from({ length: 21 }, () => ({ fecha: "2026-12-05", que: "x" })))).toBe(false)
+  })
   it("el tope escrito: número positivo con hasta 2 decimales, con coma o punto", () => {
     expect(["150", "150,5", "150.25", " 60 "].map(topeEscrito)).toEqual([150, 150.5, 150.25, 60])
     expect(["", "0", "-5", "abc", "1.234", "1e3", "US$ 5"].map(topeEscrito)).toEqual([null, null, null, null, null, null, null])
@@ -85,6 +108,14 @@ describe("las reglas de las 5 preguntas (lib/crear-campana)", () => {
     const dos = [nuevaLlave(), nuevaLlave()]
     for (const l of dos) expect(l).toMatch(LLAVE)
     expect(dos[0]).not.toBe(dos[1])
+  })
+  it("el cuerpo lleva las respuestas ENTERAS: un brief de 100 000 caracteres llega completo (y el nombre y el cambio también)", () => {
+    const largo = { ...LISTAS, nombre: "n".repeat(120), cambio: "c".repeat(4000), brief: "b".repeat(100_000) }
+    const c = cuerpoDeCrear(NAUFRAGO, LLAVE_X, largo)
+    expect(c.brief_libre).toHaveLength(100_000)
+    expect(c.nombre).toHaveLength(120)
+    expect(c.cambio).toHaveLength(4000)
+    expect(validarCrear(c as Record<string, unknown>, HOY)).toEqual({ ok: true, cuerpo: c })
   })
   it("el mínimo de la plataforma: solo un número positivo con `ok: true`", () => {
     expect(minimoDeLaRespuesta({ ok: true, minimo_usd: 60 })).toBe(60)
@@ -120,6 +151,17 @@ describe("el servidor del tablero valida igual que la pantalla", () => {
     const v = validarCrear({ ...bueno(), ...cambio }, HOY)
     expect(v.ok).toBe(false)
     if (!v.ok) expect(v.detalle).toContain(dice)
+  })
+  it.each([
+    ["el nombre", "nombre", "n".repeat(120), "n".repeat(121)],
+    ["el cambio", "cambio", "c".repeat(4000), "c".repeat(4001)],
+    ["el brief", "brief_libre", "b".repeat(100_000), "b".repeat(100_001)],
+    ["las fechas clave", "fechas_clave", Array.from({ length: 20 }, () => ({ fecha: "2026-12-05", que: "x" })), Array.from({ length: 21 }, () => ({ fecha: "2026-12-05", que: "x" }))],
+    ["el «qué» de una fecha clave", "fechas_clave", [{ fecha: "2026-12-05", que: "q".repeat(120) }], [{ fecha: "2026-12-05", que: "q".repeat(121) }]],
+    ["el tope", "tope_usd", 99_999_999.99, 100_000_000],
+  ])("el servidor: %s acepta su borde y rechaza uno más (los CHECK de #1255)", (_n, campo, bien, mal) => {
+    expect(validarCrear({ ...bueno(), [campo]: bien }, HOY).ok).toBe(true)
+    expect(validarCrear({ ...bueno(), [campo]: mal }, HOY).ok).toBe(false)
   })
   it("la acción `crear-campana` va a `/api/tablero/crear-campana` con el cuerpo limpio, sin gastar ni confirmar gasto", async () => {
     expect(ACCIONES["crear-campana"].gasta).toBeNull()
@@ -219,6 +261,15 @@ describe("la pantalla, como el boceto aprobado", () => {
     fireEvent.change(container.querySelector("[aria-label=Tope]")!, { target: { value: "150" } })
     expect(container.querySelector("[data-minimo-valor]")?.className).not.toContain("text-alarma")
     expect(boton(container, "[data-siguiente]").disabled).toBe(false)
+  })
+  it("en la pantalla de fechas, un «qué» de 121 caracteres apaga «Siguiente» (120 lo deja)", () => {
+    red({ minimo: 60 })
+    const { container } = formulario({ inicial: { ...LISTAS, claves: [{ fecha: "2026-12-05", que: "x" }] }, pasoInicial: 2, minimoInicial: 60 })
+    const que = container.querySelector("[aria-label='Qué pasa en la fecha clave 1']")!
+    fireEvent.change(que, { target: { value: "x".repeat(120) } })
+    expect(boton(container, "[data-siguiente]").disabled).toBe(false)
+    fireEvent.change(que, { target: { value: "x".repeat(121) } })
+    expect(boton(container, "[data-siguiente]").disabled).toBe(true)
   })
   it("las fechas: «+ Agregar» suma una fecha clave; la fila a medias no se manda", () => {
     red({ minimo: 60 })
