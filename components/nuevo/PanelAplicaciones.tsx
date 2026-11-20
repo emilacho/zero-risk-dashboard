@@ -108,6 +108,9 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
       if (!r.ok || !j || !j.ok) throw new Error(r.status === 401 || r.status === 403 ? "Necesitas una sesión de administrador para ver las aplicaciones." : (j && !j.ok && j.error) || `No pude leer los datos del cliente (${r.status}).`)
       // otro cliente: la campaña tocada era del anterior, se olvida
       if (j.cliente?.id !== id) { pedida.current = null; setTocada(null) }
+      // 20-nov (LENOVO 23:53) · la tocada ya no se puede mostrar (cerrada, reemplazada…): el servidor devolvió otra (la viva más nueva, #358) → se olvida,
+      //   ANTES de pedir el centro, para que los cuadros y el subtítulo nombren la misma campaña
+      else if (pedida.current && j.campana?.id !== pedida.current) { pedida.current = null; setTocada(null) }
       setDatos(j); setCliente(j.cliente?.id ?? null)
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) } finally { setCargando(false) }
   }, [])
@@ -151,8 +154,9 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   if (vista === "plan") return <PanelPlan onCerrar={volverAlInicio} clienteInicial={cliente} />
   if (vista === "piezas") return <PanelPiezas onCerrar={cerrarPiezas} clienteInicial={cliente} piezaInicial={piezaAbierta?.id ?? null} />
   if (vista === "informes") return <PanelInformes key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
-  if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} />
+  // 20-nov (LENOVO 23:53) · brief y gran idea abiertos leen la campaña elegida, como sus cuadros (sin tocar: nada, el servidor muestra la viva más nueva)
+  if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
+  if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
 
   const idCliente = datos?.cliente?.id ?? null
   const elegida = campanaElegidaConToque(campanas, tocada)

@@ -319,15 +319,16 @@ describe("19-nov · los 3 lugares de campaña y el subtítulo", () => {
     expect(l.map((x) => x.querySelector("[data-nombre-de-la-campana]")?.textContent ?? x.querySelector("[data-crear-campana]")?.textContent)).toEqual(["Impulso del encebollado a domicilio", "Firmas para limpiar la playa de Olón", "Crear Campaña"])
     expect(l.map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo") ?? null)).toEqual(["verde", "dorado", null])
   })
-  it("3 campañas: los 3 colores, sin «Crear Campaña»; una 4.ª no ocupa lugar", () => {
-    for (const lista of [[C1, C2, C3], [C1, C2, C3, CUARTA]]) {
-      const { container, unmount } = lugares(lista)
-      const l = lugaresDe(container)
-      expect(l.map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo"))).toEqual(["verde", "dorado", "rojo"])
-      expect(container.querySelector("[data-crear-campana]")).toBeNull()
-      expect(container.textContent).not.toContain("Una cuarta que no cabe")
-      unmount()
-    }
+  it("3 campañas: los 3 colores, sin «Crear Campaña»; con una 4.ª quedan las 3 MÁS NUEVAS (LENOVO 20-nov 23:53) y la más vieja no ocupa lugar", () => {
+    const tres = lugares([C1, C2, C3])
+    expect(lugaresDe(tres.container).map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo"))).toEqual(["verde", "dorado", "rojo"])
+    expect(tres.container.querySelector("[data-crear-campana]")).toBeNull()
+    tres.unmount()
+    const { container } = lugares([C1, C2, C3, CUARTA])
+    expect(lugaresDe(container).map((x) => x.querySelector("[data-flujo]")?.getAttribute("data-flujo"))).toEqual(["dorado", "rojo", "verde"])
+    expect(container.querySelector("[data-crear-campana]")).toBeNull()
+    expect(container.textContent).toContain("Una cuarta que no cabe")
+    expect(container.textContent).not.toContain("Impulso del encebollado a domicilio")
   })
   it("0 campañas vivas: 3 «Crear Campaña»; sin lectura (la base no contestó): no se pinta nada", () => {
     const { container, unmount } = lugares([])

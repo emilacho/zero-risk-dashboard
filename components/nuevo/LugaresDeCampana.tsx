@@ -17,9 +17,12 @@ export const LUGARES_DE_CAMPANA = 3
 /** lo que el Centro ya tiene leído (pruebas e imagen): la última campaña de siempre y, desde el 19-nov, las vivas */
 export type FlujoInicial = { campana_id: string | null; flujo: FlujoDeCampana | null; campanas?: CampanaDelFlujo[] }
 
-/** las campañas que ocupan lugar: las vivas con botón, de la más vieja a la más nueva (orden de `/api/flujo`), hasta 3 */
+/**
+ * las campañas que ocupan lugar: las 3 vivas con botón MÁS NUEVAS (LENOVO 20-nov 23:53: así la elegida por omisión siempre tiene su lugar),
+ * de la más vieja a la más nueva entre ellas (orden de `/api/flujo`). Una 4.ª o más queda para «varias campañas completo» (backlog).
+ */
 export function campanasConLugar(campanas: CampanaDelFlujo[] | null | undefined): CampanaDelFlujo[] {
-  return (campanas ?? []).filter((c) => !!c.campana_id && !!c.flujo).slice(0, LUGARES_DE_CAMPANA)
+  return (campanas ?? []).filter((c) => !!c.campana_id && !!c.flujo).slice(-LUGARES_DE_CAMPANA)
 }
 
 /** si lo leído no trae `campanas` (lectura de antes del 19-nov), la última campaña con botón ocupa el 1.er lugar, sin nombre */
@@ -39,9 +42,9 @@ export function campanaElegida(campanas: CampanaDelFlujo[] | null | undefined): 
   return conBoton[conBoton.length - 1] ?? null
 }
 
-/** 19-nov (Emilio 23:23) · la elegida con el toque: la tocada, si sigue viva con botón; si no (o sin tocar), la de por omisión */
+/** 19-nov (Emilio 23:23) · la elegida con el toque: la tocada, si sigue viva con botón y lugar (LENOVO 20-nov 23:53); si no (o sin tocar), la de por omisión */
 export function campanaElegidaConToque(campanas: CampanaDelFlujo[] | null | undefined, tocada: string | null | undefined): CampanaDelFlujo | null {
-  const t = tocada ? (campanas ?? []).find((c) => c.campana_id === tocada && !!c.flujo) : undefined
+  const t = tocada ? campanasConLugar(campanas).find((c) => c.campana_id === tocada) : undefined
   return t ?? campanaElegida(campanas)
 }
 
