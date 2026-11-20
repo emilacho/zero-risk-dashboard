@@ -29,10 +29,12 @@ const Titulito = ({ children }: { children: React.ReactNode }) => <h4 className=
 const MIGA = "rounded px-1.5 py-0.5 text-[12.5px] text-zinc-300 hover:bg-white/[0.06] hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400"
 const Sep = () => <span className="text-zinc-600" aria-hidden>›</span>
 
-export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = null, fetchImpl = fetch }: {
+export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = null, campanaInicial = null, fetchImpl = fetch }: {
   onCerrar: () => void
   datosIniciales?: BriefDelCliente | null
   clienteInicial?: string | null
+  /** 20-nov (LENOVO 23:53) · la campaña elegida en el Centro: el brief abierto es el de ESA campaña (`?campana=`, #358) */
+  campanaInicial?: string | null
   fetchImpl?: typeof fetch
 }) {
   const [datos, setDatos] = useState<BriefDelCliente | null>(datosIniciales)
@@ -40,11 +42,14 @@ export function PanelBrief({ onCerrar, datosIniciales = null, clienteInicial = n
   const [cargando, setCargando] = useState(!datosIniciales)
   const [briefId, setBriefId] = useState<string | null>(null)
   const cerrar = useRef<HTMLButtonElement>(null)
+  const campana = useRef(campanaInicial)
+  campana.current = campanaInicial
 
   const leer = useCallback(async (id: string | null) => {
     setCargando(true); setError(null)
     try {
-      const r = await fetchImpl(`/api/brief${id ? `?cliente=${encodeURIComponent(id)}` : ""}`, { cache: "no-store" })
+      const q = new URLSearchParams(); if (id) q.set("cliente", id); if (id && campana.current) q.set("campana", campana.current)
+      const r = await fetchImpl(`/api/brief${q.size ? `?${q}` : ""}`, { cache: "no-store" })
       const j = (await r.json().catch(() => null)) as Respuesta | null
       if (!r.ok || !j || !j.ok) throw new Error(r.status === 401 || r.status === 403 ? "Necesitas una sesión de administrador para ver el brief." : (j && !j.ok && j.error) || `No pude leer el brief (${r.status}).`)
       setDatos(j)

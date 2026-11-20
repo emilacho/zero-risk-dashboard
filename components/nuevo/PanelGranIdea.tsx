@@ -76,16 +76,20 @@ export function estadoDeLaGranIdeaLegible(e: EstadoDelConcepto): { texto: string
   }
 }
 
-export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial = null, fetchImpl = fetch }: {
+export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial = null, campanaInicial = null, fetchImpl = fetch }: {
   onCerrar: () => void
   datosIniciales?: GranIdeaDelCliente | null
   clienteInicial?: string | null
+  /** 20-nov (LENOVO 23:53) · la campaña elegida en el Centro: la gran idea abierta es la de ESA campaña (`?campana=`, #358) */
+  campanaInicial?: string | null
   fetchImpl?: typeof fetch
 }) {
   const [datos, setDatos] = useState<GranIdeaDelCliente | null>(datosIniciales)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
   const cerrar = useRef<HTMLButtonElement>(null)
+  const campana = useRef(campanaInicial)
+  campana.current = campanaInicial
   // 6.11 · la decisión
   const [dialogo, setDialogo] = useState(false)
   const [apunta, setApunta] = useState<ApuntaA>("concepto")
@@ -95,7 +99,7 @@ export function PanelGranIdea({ onCerrar, datosIniciales = null, clienteInicial 
   const leer = useCallback(async (id: string | null, tarjeta?: string) => {
     setCargando(true); setError(null)
     try {
-      const q = new URLSearchParams(); if (id) q.set("cliente", id); if (tarjeta) q.set("tarjeta", tarjeta)
+      const q = new URLSearchParams(); if (id) q.set("cliente", id); if (id && campana.current) q.set("campana", campana.current); if (tarjeta) q.set("tarjeta", tarjeta)
       const r = await fetchImpl(`/api/gran-idea${q.size ? `?${q}` : ""}`, { cache: "no-store" })
       const j = (await r.json().catch(() => null)) as Respuesta | null
       if (!r.ok || !j || !j.ok) throw new Error(r.status === 401 || r.status === 403 ? "Necesitas una sesión de administrador para ver la gran idea." : (j && !j.ok && j.error) || `No pude leer la gran idea (${r.status}).`)
