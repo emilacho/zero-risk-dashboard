@@ -9,7 +9,7 @@
  *   · el último paso es el resumen con «Crear Campaña». El tablero no escribe la base: lo manda `POST /api/acciones/crear-campana` a la plataforma.
  * Las reglas viven en `lib/crear-campana.ts` (las mismas que exige el servidor del tablero).
  */
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, PanelBase, ROTULO } from "@/components/nuevo/EstiloBase"
 import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
 import {
@@ -83,6 +83,8 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const [minimo, setMinimo] = useState<number | null>(minimoInicial ?? null)
   const [sinPlan, setSinPlan] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  // el candado del envío: una referencia, no el estado (dos toques antes de repintar verían el estado viejo y mandarían dos)
+  const enCurso = useRef(false)
   const [problema, setProblema] = useState<string | null>(null)
   // `llave_formulario`: UNA por formulario abierto, así un doble toque o un reintento da «ya pedida» y no abre dos campañas
   const llave = useMemo(() => crypto.randomUUID(), [])
@@ -111,8 +113,8 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const cambiarClave = (i: number, p: Partial<{ fecha: string; que: string }>) => cambiar({ claves: r.claves.map((c, k) => (k === i ? { ...c, ...p } : c)) })
 
   const crear = async () => {
-    if (enviando || !listo.every(Boolean)) return
-    setEnviando(true); setProblema(null)
+    if (enCurso.current || !listo.every(Boolean)) return
+    enCurso.current = true; setEnviando(true); setProblema(null)
     try {
       const res = await fetch("/api/acciones/crear-campana", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCrear(clienteId, llave, r)) })
       const j = (await res.json().catch(() => null)) as Record<string, unknown> | null
@@ -122,7 +124,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
       setProblema(motivoDeNoCrear(j))
     } catch {
       setProblema(motivoDeNoCrear(null))
-    } finally { setEnviando(false) }
+    } finally { enCurso.current = false; setEnviando(false) }
   }
 
   return (

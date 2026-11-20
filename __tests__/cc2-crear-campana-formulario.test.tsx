@@ -8,7 +8,7 @@
  *   · el servidor del tablero valida igual que la pantalla (la pantalla puede mentir)
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
 import { FormularioCrearCampana, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
@@ -285,6 +285,22 @@ describe("la pantalla, como el boceto aprobado", () => {
     const llaves = pedidos.filter((p) => p.metodo === "POST").map((p) => p.cuerpo?.llave_formulario)
     expect(llaves).toHaveLength(2)
     expect(llaves[0]).toBe(llaves[1])
+  })
+  it("dos toques antes de que la pantalla se repinte mandan UN solo pedido", async () => {
+    const pedidos = red({ minimo: 60 })
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5 })
+    await waitFor(() => expect(boton(container, "[data-crear]").disabled).toBe(false))
+    const b = boton(container, "[data-crear]")
+    act(() => { b.dispatchEvent(new MouseEvent("click", { bubbles: true })); b.dispatchEvent(new MouseEvent("click", { bubbles: true })) })
+    await waitFor(() => expect(pedidos.filter((p) => p.metodo === "POST")).toHaveLength(1))
+    await new Promise((r) => setTimeout(r, 20))
+    expect(pedidos.filter((p) => p.metodo === "POST")).toHaveLength(1)
+  })
+  it("en el resumen, con una respuesta que no sirve (tope debajo del mínimo), «Crear Campaña» queda apagado", async () => {
+    red({ minimo: 60 })
+    const { container } = formulario({ inicial: { ...LISTAS, tope: "40" }, pasoInicial: 5 })
+    await waitFor(() => expect(container.querySelector("[data-resumen]")?.textContent).toContain("US$ 60"))
+    expect(boton(container, "[data-crear]").disabled).toBe(true)
   })
   it("una respuesta 200 sin `ok: true` no se da por creada", async () => {
     red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false }), { status: 200 }) })
