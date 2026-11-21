@@ -58,6 +58,10 @@ const pintar = (campanas: CampanaDelFlujo[], masNueva: string) =>
 const botones = (c: HTMLElement) => [...c.querySelectorAll("[data-lugares-de-campana] [data-flujo]")] as HTMLButtonElement[]
 const subtitulo = (c: HTMLElement) => c.querySelector("[data-campana-nombre]")?.textContent ?? null
 const cuadro = (c: HTMLElement, clave: string) => c.querySelector(`[data-aplicacion="${clave}"]`) as HTMLElement
+/** 21-nov · la campaña se elige con la flecha ▾ del subtítulo (ya no tocando su botón de abajo) */
+const elegirConLaFlecha = (c: HTMLElement, id: string) => { fireEvent.click(c.querySelector("[data-flecha-de-campanas]") as HTMLElement); fireEvent.click(c.querySelector(`[data-campana-de-la-lista="${id}"]`) as HTMLElement) }
+/** la marcada en la lista de la flecha (la abre, la lee y la cierra) · cambia la pantalla: NUNCA dentro de `waitFor` (se re-ejecutaría sin fin) */
+const marcadaEnLaLista = (c: HTMLElement) => { const f = c.querySelector("[data-flecha-de-campanas]") as HTMLElement; fireEvent.click(f); const id = (c.querySelector('[data-lista-de-campanas] [aria-checked="true"]') as HTMLElement | null)?.dataset.campanaDeLaLista ?? null; fireEvent.click(f); return id }
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); try { localStorage.clear() } catch { /* sin almacenamiento */ } })
 
@@ -67,13 +71,16 @@ describe("1 · los 3 lugares son de las 3 vivas MÁS NUEVAS", () => {
     expect(campanasConLugar([C1, C2]).map((c) => c.campana_id)).toEqual([C1, C2].map((c) => c.campana_id))
     expect(campanasConLugar([C1, C2, C3, { ...C4, flujo: null }]).map((c) => c.campana_id)).toEqual([C1, C2, C3].map((c) => c.campana_id))
   })
-  it("🔴 la elegida por omisión (la más nueva) siempre tiene su lugar: es el botón con `aria-current`", () => {
+  it("🔴 la elegida por omisión (la más nueva) siempre tiene su lugar: está en los botones y es la marcada en la lista de la flecha", () => {
     red({ masNueva: C4.campana_id })
     const { container } = pintar([C1, C2, C3, C4], C4.campana_id)
     const bs = botones(container)
     expect(bs).toHaveLength(3)
     expect(bs.map((b) => b.getAttribute("aria-label"))).not.toContain(expect.stringContaining("Campaña número 1"))
-    expect(bs[2].getAttribute("aria-current")).toBe("true")
+    expect(marcadaEnLaLista(container)).toBe(C4.campana_id)
+    // 21-nov · la lista de la flecha son las mismas 3 de los lugares, en su orden: la 1.ª (sin lugar) no se puede elegir
+    fireEvent.click(container.querySelector("[data-flecha-de-campanas]") as HTMLElement)
+    expect([...container.querySelectorAll("[data-campana-de-la-lista]")].map((x) => (x as HTMLElement).dataset.campanaDeLaLista)).toEqual([C2, C3, C4].map((c) => c.campana_id))
     expect(bs[2].getAttribute("aria-label")).toContain("Campaña número 4")
     expect(subtitulo(container)).toBe("Campaña número 4")
     expect(campanasConLugar([C1, C2, C3, C4])).toContain(campanaElegida([C1, C2, C3, C4]))
@@ -88,45 +95,48 @@ describe("2 · la tocada que deja de estar viva se olvida", () => {
   it("🔴 el servidor ya no puede mostrar la tocada (devuelve la más nueva): el subtítulo vuelve a la más nueva y el centro se lee SIN `campana`", async () => {
     const pedidos = red({ muertas: [C1.campana_id], masNueva: C3.campana_id })
     const { container } = pintar([C1, C2, C3], C3.campana_id)
-    fireEvent.click(botones(container)[0])
+    elegirConLaFlecha(container, C1.campana_id)
     await waitFor(() => expect(pedidos.some((p) => p.url === `/api/pizarron?cliente=${NAUFRAGO}&campana=${C1.campana_id}`)).toBe(true))
-    await waitFor(() => expect(botones(container)[2].dataset.elegida).toBe("true"))
+    await waitFor(() => expect(subtitulo(container)).toBe("Campaña número 3"))
+    expect(marcadaEnLaLista(container)).toBe(C3.campana_id)
     expect(subtitulo(container)).toBe("Campaña número 3")
     const despues = pedidos.slice(pedidos.findIndex((p) => p.url.includes(`campana=${C1.campana_id}`)) + 1)
     await waitFor(() => expect(despues.concat(pedidos.slice(-1)).some((p) => p.url.startsWith("/api/centro"))).toBe(true))
     const centros = pedidos.slice(pedidos.findIndex((p) => p.url.includes(`campana=${C1.campana_id}`)) + 1).filter((p) => p.url.startsWith("/api/centro"))
     expect(centros.length).toBeGreaterThan(0)
     expect(centros.every((p) => !p.url.includes("campana="))).toBe(true)
-    // olvidada de verdad: tocarla otra vez solo la vuelve a elegir (ningún POST)
-    fireEvent.click(botones(container)[0])
+    // olvidada de verdad: elegirla otra vez con la flecha la vuelve a pedir (ningún POST)
+    elegirConLaFlecha(container, C1.campana_id)
     await waitFor(() => expect(pedidos.filter((p) => p.url.includes(`campana=${C1.campana_id}`)).length).toBe(2))
     expect(pedidos.filter((p) => p.metodo === "POST")).toEqual([])
   })
   it("si la tocada sigue viva, se queda (el pizarrón la devuelve y el centro se lee con ella)", async () => {
     const pedidos = red({ masNueva: C3.campana_id })
     const { container } = pintar([C1, C2, C3], C3.campana_id)
-    fireEvent.click(botones(container)[0])
+    elegirConLaFlecha(container, C1.campana_id)
     await waitFor(() => expect(pedidos.some((p) => p.url === `/api/centro?cliente=${NAUFRAGO}&campana=${C1.campana_id}`)).toBe(true))
-    expect(botones(container)[0].dataset.elegida).toBe("true")
+    expect(marcadaEnLaLista(container)).toBe(C1.campana_id)
     expect(subtitulo(container)).toBe("Campaña número 1")
   })
 })
 
 describe("3 · brief y gran idea abiertos leen la campaña elegida", () => {
-  it("🔴 tras tocar otra campaña, el brief abierto pide `&campana=` de ESA campaña", async () => {
+  it("🔴 tras elegir otra campaña con la flecha, el brief abierto pide `&campana=` de ESA campaña", async () => {
     const pedidos = red({ masNueva: C3.campana_id })
     const { container } = pintar([C1, C2, C3], C3.campana_id)
-    fireEvent.click(botones(container)[0])
-    await waitFor(() => expect(botones(container)[0].dataset.elegida).toBe("true"))
+    elegirConLaFlecha(container, C1.campana_id)
+    await waitFor(() => expect(subtitulo(container)).toBe("Campaña número 1"))
+    expect(marcadaEnLaLista(container)).toBe(C1.campana_id)
     fireEvent.click(cuadro(container, "brief"))
     await waitFor(() => expect(pedidos.some((p) => p.url.startsWith("/api/brief"))).toBe(true))
     expect(pedidos.filter((p) => p.url.startsWith("/api/brief")).map((p) => p.url)).toEqual([`/api/brief?cliente=${NAUFRAGO}&campana=${C1.campana_id}`])
   })
-  it("🔴 tras tocar otra campaña, la gran idea abierta pide `&campana=` de ESA campaña", async () => {
+  it("🔴 tras elegir otra campaña con la flecha, la gran idea abierta pide `&campana=` de ESA campaña", async () => {
     const pedidos = red({ masNueva: C3.campana_id })
     const { container } = pintar([C1, C2, C3], C3.campana_id)
-    fireEvent.click(botones(container)[1])
-    await waitFor(() => expect(botones(container)[1].dataset.elegida).toBe("true"))
+    elegirConLaFlecha(container, C2.campana_id)
+    await waitFor(() => expect(subtitulo(container)).toBe("Campaña número 2"))
+    expect(marcadaEnLaLista(container)).toBe(C2.campana_id)
     fireEvent.click(cuadro(container, "gran_idea"))
     await waitFor(() => expect(pedidos.some((p) => p.url.startsWith("/api/gran-idea"))).toBe(true))
     expect(pedidos.filter((p) => p.url.startsWith("/api/gran-idea")).map((p) => p.url)).toEqual([`/api/gran-idea?cliente=${NAUFRAGO}&campana=${C2.campana_id}`])

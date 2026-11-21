@@ -9,8 +9,9 @@
  *     20-nov (GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03): con `onCrear` se puede tocar y abre el formulario (al pasar encima, el hilo dorado de los cuadros);
  *     sin `onCrear` sigue como antes, marcado `aria-disabled` y sin hacer nada
  *   · sin lectura no se pinta nada: nunca 3 «Crear Campaña» inventados cuando la base no contestó
+ *   · 21-nov (Emilio 10:28–10:30Z · GO Lenovo 10:31Z): los lugares ya NO eligen la campaña; se elige con la flecha ▾ del subtítulo (`CampanaComoTexto`)
  */
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { BotonFlujo, CLASE_DEL_BOTON, type LecturaDeUnBoton } from "@/components/nuevo/BotonFlujo"
 import type { CampanaDelFlujo, FlujoDeCampana } from "@/lib/flujo-de-campana"
 
@@ -44,7 +45,7 @@ export function campanaElegida(campanas: CampanaDelFlujo[] | null | undefined): 
   return conBoton[conBoton.length - 1] ?? null
 }
 
-/** 19-nov (Emilio 23:23) · la elegida con el toque: la tocada, si sigue viva con botón y lugar (LENOVO 20-nov 23:53); si no (o sin tocar), la de por omisión */
+/** la elegida con la flecha (antes, 19-nov, con el toque): la tocada, si sigue viva con botón y lugar (LENOVO 20-nov 23:53); si no (o sin tocar), la de por omisión */
 export function campanaElegidaConToque(campanas: CampanaDelFlujo[] | null | undefined, tocada: string | null | undefined): CampanaDelFlujo | null {
   const t = tocada ? campanasConLugar(campanas).find((c) => c.campana_id === tocada) : undefined
   return t ?? campanaElegida(campanas)
@@ -79,12 +80,9 @@ function IconoDeCrear() {
   )
 }
 
-export function LugaresDeCampana({ clienteId, campanas, elegidaId, onElegir, onCrear }: {
+export function LugaresDeCampana({ clienteId, campanas, onCrear }: {
   clienteId: string | null
   campanas: CampanaDelFlujo[] | null
-  /** 19-nov (Emilio 23:23) · la campaña elegida del Centro y cómo elegir otra: el 1.er toque sobre una no elegida solo la elige */
-  elegidaId?: string | null
-  onElegir?: (campanaId: string) => void
   /** 20-nov · tocar «Crear Campaña» abre el formulario de las 5 preguntas */
   onCrear?: () => void
 }) {
@@ -98,8 +96,6 @@ export function LugaresDeCampana({ clienteId, campanas, elegidaId, onElegir, onC
           key={c.campana_id}
           clienteId={clienteId}
           inicial={{ campana_id: c.campana_id, flujo: c.flujo, nombre: c.nombre } satisfies LecturaDeUnBoton}
-          elegida={onElegir ? c.campana_id === elegidaId : undefined}
-          alElegir={onElegir ? () => onElegir(c.campana_id) : undefined}
         />
       ))}
       {Array.from({ length: libres }, (_, i) => (
@@ -116,11 +112,67 @@ export function LugaresDeCampana({ clienteId, campanas, elegidaId, onElegir, onC
   )
 }
 
-/** el subtítulo del Centro: «CAMPAÑA · <nombre>» (como «CLIENTE · <nombre>», pero con los tokens de la guía: la revisión de estilo frena las clases sueltas); el cliente se elige afuera */
-export function CampanaComoTexto({ nombre }: { nombre: string }) {
-  return (
+/** 21-nov · lo que dice el subtítulo cuando no hay un nombre que mostrar: NUNCA «CLIENTE» (Emilio 10:28–10:30Z) ni el nombre de otra campaña */
+export const SIN_NOMBRE = "sin nombre"
+export const SIN_CAMPANA_ABIERTA = "ninguna abierta"
+export const LEYENDO = "Leyendo…"
+
+/** el nombre que muestra el subtítulo: el de la elegida; sin lectura «Leyendo…»; sin campaña viva «ninguna abierta»; sin nombre «sin nombre» */
+export function nombreDelSubtitulo(campanas: CampanaDelFlujo[] | null | undefined, elegida: CampanaDelFlujo | null | undefined): string {
+  if (!campanas) return LEYENDO
+  if (!elegida) return SIN_CAMPANA_ABIERTA
+  return elegida.nombre?.trim() || SIN_NOMBRE
+}
+
+/**
+ * el subtítulo del Centro: «CAMPAÑA · <nombre>» (con los tokens de la guía: la revisión de estilo frena las clases sueltas); el cliente se elige afuera.
+ * 21-nov (Emilio 10:28–10:30Z · GO Lenovo 10:31Z · «es algo muy sencillo», sin boceto): con `opciones` y `onElegir`, al lado va la flecha ▾. Al tocarla se
+ * despliegan las campañas abiertas (las que tienen lugar abajo, la misma regla que `campanaElegidaConToque`); elegir una alinea el Centro a ella.
+ * Esc cierra solo la lista (no el Centro); un clic fuera también la cierra. Sin opciones, el subtítulo queda como antes: solo texto.
+ */
+export function CampanaComoTexto({ nombre, opciones, elegidaId = null, onElegir }: {
+  nombre: string
+  opciones?: CampanaDelFlujo[]
+  elegidaId?: string | null
+  onElegir?: (campanaId: string) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const caja = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!abierto) return
+    const fuera = (e: MouseEvent) => { if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false) }
+    const tecla = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); e.preventDefault(); setAbierto(false) }
+    document.addEventListener("mousedown", fuera); window.addEventListener("keydown", tecla, true)
+    return () => { document.removeEventListener("mousedown", fuera); window.removeEventListener("keydown", tecla, true) }
+  }, [abierto])
+  const texto = (
     <p data-campana-como-texto className="max-w-full truncate text-rotulo uppercase tracking-rotulo text-gris" title={nombre}>
       Campaña · <span data-campana-nombre className="font-medio text-hueso">{nombre}</span>
     </p>
+  )
+  if (!onElegir || !opciones?.length) return texto
+  const elegir = (id: string) => { setAbierto(false); if (id !== elegidaId) onElegir(id) }
+  return (
+    <div ref={caja} data-elegir-campana className="relative flex max-w-full items-center gap-1.5">
+      {texto}
+      <button type="button" data-flecha-de-campanas aria-haspopup="menu" aria-expanded={abierto} aria-label={`Campaña: ${nombre}. Elegir otra`} onClick={() => setAbierto((a) => !a)}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-control text-gris hover:text-hueso focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro">
+        <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      {abierto && (
+        <div role="menu" data-lista-de-campanas className="absolute left-1/2 top-full z-[80] mt-1 min-w-[300px] -translate-x-1/2 rounded-control border border-linea bg-grafito-2 p-1">
+          {opciones.map((c) => {
+            const marcada = c.campana_id === elegidaId
+            return (
+              <button key={c.campana_id} type="button" role="menuitemradio" aria-checked={marcada} data-campana-de-la-lista={c.campana_id} onClick={() => elegir(c.campana_id)}
+                className={`flex w-full items-center justify-between gap-4 rounded-control px-3 py-2 text-left text-dato hover:bg-grafito ${marcada ? "text-hueso" : "text-gris"}`}>
+                <span className="min-w-0 truncate">{c.nombre?.trim() || SIN_NOMBRE}</span>
+                {marcada && <span aria-hidden className="text-oro">✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
