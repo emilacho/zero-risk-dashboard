@@ -78,6 +78,9 @@ describe("1 · los 3 lugares son de las 3 vivas MÁS NUEVAS", () => {
     expect(bs).toHaveLength(3)
     expect(bs.map((b) => b.getAttribute("aria-label"))).not.toContain(expect.stringContaining("Campaña número 1"))
     expect(marcadaEnLaLista(container)).toBe(C4.campana_id)
+    // 21-nov · la lista de la flecha son las mismas 3 de los lugares, en su orden: la 1.ª (sin lugar) no se puede elegir
+    fireEvent.click(container.querySelector("[data-flecha-de-campanas]") as HTMLElement)
+    expect([...container.querySelectorAll("[data-campana-de-la-lista]")].map((x) => (x as HTMLElement).dataset.campanaDeLaLista)).toEqual([C2, C3, C4].map((c) => c.campana_id))
     expect(bs[2].getAttribute("aria-label")).toContain("Campaña número 4")
     expect(subtitulo(container)).toBe("Campaña número 4")
     expect(campanasConLugar([C1, C2, C3, C4])).toContain(campanaElegida([C1, C2, C3, C4]))
