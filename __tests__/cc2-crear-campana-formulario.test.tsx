@@ -293,7 +293,7 @@ describe("la pantalla, como el boceto aprobado", () => {
   it("las fechas: «+ Agregar» suma una fecha clave; la fila a medias no se manda", () => {
     red({ minimo: 60 })
     const { container } = formulario({ inicial: { ...LISTAS, claves: [] }, pasoInicial: 2, minimoInicial: 60 })
-    expect(container.querySelector("[data-fecha=inicio]")?.textContent).toBe("1 dic 2026")
+    expect((container.querySelector("[aria-label=Inicio]") as HTMLInputElement).value).toBe("01/12/2026")
     fireEvent.click(boton(container, "[data-agregar-fecha-clave]"))
     expect(container.querySelectorAll("[data-fecha-clave]")).toHaveLength(1)
     expect(boton(container, "[data-siguiente]").disabled).toBe(false)

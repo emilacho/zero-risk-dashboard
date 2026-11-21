@@ -161,6 +161,40 @@ export function fechaCorta(iso: string): string {
   return `${d} ${["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"][m - 1]} ${a}`
 }
 
+// ── 21-nov (GO Lenovo 00:57Z, Emilio: «inicio» y «fin» no dejaban escribir) · la fecha se ESCRIBE como dd/mm/aaaa o se elige en el calendario
+export const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+export const DIAS_DE_LA_SEMANA = ["L", "M", "M", "J", "V", "S", "D"]
+/** «2026-12-01» → «01/12/2026»; vacío si no es una fecha */
+export function textoDeFecha(iso: string): string {
+  if (!esFecha(iso)) return ""
+  const [a, m, d] = iso.split("-")
+  return `${d}/${m}/${a}`
+}
+/** lo escrito → «aaaa-mm-dd» si es una fecha que existe (dd/mm/aaaa; también acepta aaaa-mm-dd pegado); null si no */
+export function fechaDelTexto(t: string): string | null {
+  const s = t.trim()
+  if (esFecha(s)) return s
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s)
+  if (!m) return null
+  const iso = `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`
+  return esFecha(iso) ? iso : null
+}
+/** mientras se escribe: solo cifras, y las barras se ponen solas (dd/mm/aaaa); una fecha pegada como aaaa-mm-dd se deja */
+export function escribirFecha(t: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t.trim())) return t.trim()
+  const d = t.replace(/\D/g, "").slice(0, 8)
+  return d.slice(0, 2) + (d.length > 2 ? "/" + d.slice(2, 4) : "") + (d.length > 4 ? "/" + d.slice(4) : "")
+}
+/** las semanas del mes (lunes primero): cada casilla es «aaaa-mm-dd» o null fuera del mes */
+export function semanasDelMes(anio: number, mes: number): Array<Array<string | null>> {
+  const primero = (new Date(Date.UTC(anio, mes, 1)).getUTCDay() + 6) % 7
+  const total = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate()
+  const casillas: Array<string | null> = Array.from({ length: primero }, () => null)
+  for (let d = 1; d <= total; d++) casillas.push(`${anio}-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`)
+  while (casillas.length % 7) casillas.push(null)
+  return Array.from({ length: casillas.length / 7 }, (_, i) => casillas.slice(i * 7, i * 7 + 7))
+}
+
 /** «US$ 150» · «US$ 150,50» */
 export const dolares = (n: number) => `US$ ${n.toLocaleString("es-EC", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`
 

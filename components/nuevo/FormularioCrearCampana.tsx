@@ -13,15 +13,16 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, PanelBase, ROTULO } from "@/components/nuevo/EstiloBase"
 import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
+import { SelectorDeFecha } from "@/components/nuevo/SelectorDeFecha"
 import {
   PASOS, TOPE_DE_FECHAS_CLAVE, TOPE_DEL_BRIEF, TOPE_DEL_CAMBIO, TOPE_DEL_NOMBRE, TOPE_DEL_QUE, VACIAS,
-  SIN_PLAN_APROBADO, clavesLlenas, nuevaLlave, cuerpoDeCrear, dolares, fechaCorta, fechasDelMinimo, minimoDeLaRespuesta, minimoDelRechazo, pasosListos, topeEscrito, type RespuestasDeCrear,
+  SIN_PLAN_APROBADO, clavesLlenas, nuevaLlave, cuerpoDeCrear, dolares, fechaCorta, fechasDelMinimo, hoyEnEcuador, minimoDeLaRespuesta, minimoDelRechazo, pasosListos, topeEscrito, type RespuestasDeCrear,
 } from "@/lib/crear-campana"
 
-const CAMPO = "w-full min-w-0 border-b border-linea-oro bg-transparent text-hueso focus:border-oro focus:outline-none"
-const CAJA = "w-full resize-none rounded-control border border-linea bg-grafito-2 px-4 py-3 text-cuerpo text-hueso focus:border-linea-oro focus:outline-none"
+// 21-nov · `focus-visible:shadow-none`: la regla global de foco pone una sombra violeta; el foco del estilo base es el borde dorado
+const CAMPO = "w-full min-w-0 border-b border-linea-oro bg-transparent text-hueso focus:border-oro focus:outline-none focus-visible:shadow-none"
+const CAJA = "w-full resize-none rounded-control border border-linea bg-grafito-2 px-4 py-3 text-cuerpo text-hueso focus:border-linea-oro focus:outline-none focus-visible:shadow-none"
 /** la fecha se escribe con el selector del navegador, invisible encima del texto «5 dic 2026» (el formato del navegador no se muestra) */
-const SELECTOR_DE_FECHA = "absolute inset-0 h-full w-full cursor-pointer opacity-0"
 
 function IconoDeCalendario() {
   return <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 text-gris" fill="none" stroke="currentColor" strokeWidth={1.6}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></svg>
@@ -115,12 +116,20 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   }, [leerMinimo]) // eslint-disable-line react-hooks/exhaustive-deps -- `minimoInicial` solo cuenta al abrir
   // Esc cierra el formulario y vuelve al Centro (no cierra el Centro ni la oficina)
   useEffect(() => {
-    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      if ((e.target as Element | null)?.closest?.("[data-calendario-abierto]")) return // 21-nov · Esc con el calendario abierto cierra solo el calendario
+      e.stopPropagation(); e.preventDefault(); onCerrar()
+    }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
   }, [onCerrar])
 
-  const listo = pasosListos(r, minimo)
+  const hoy = hoyEnEcuador()
+  // dónde se abren los calendarios: debajo de inicio y fin, y debajo de las fechas clave (a todo lo ancho, sin que el panel los recorte)
+  const [sitioDeFechas, setSitioDeFechas] = useState<HTMLElement | null>(null)
+  const [sitioDeClaves, setSitioDeClaves] = useState<HTMLElement | null>(null)
+  const listo = pasosListos(r, minimo, hoy)
   const resumen = paso === PASOS.length
   const tope = topeEscrito(r.tope)
   const bajoElMinimo = r.tope.trim() !== "" && minimo != null && (tope == null || tope < minimo)
@@ -166,26 +175,29 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
         <div data-campo="fechas">
           <div className="grid grid-cols-2 gap-3">
             {(["inicio", "fin"] as const).map((k) => (
-              <label key={k} className="relative rounded-tarjeta border border-linea bg-grafito-2 px-4 py-4 text-center focus-within:border-linea-oro">
+              <div key={k} data-fecha={k} className="rounded-tarjeta border border-linea bg-grafito-2 px-4 py-4 text-center focus-within:border-linea-oro">
                 <span className={`block ${ROTULO}`}>{k === "inicio" ? "Inicio" : "Fin"}</span>
-                <span data-fecha={k} className="mt-2 flex items-center justify-center gap-2 text-cuerpo font-medio text-hueso">{fechaCorta(r[k])}<IconoDeCalendario /></span>
-                <input type="date" aria-label={k === "inicio" ? "Inicio" : "Fin"} value={r[k]} onChange={(e) => cambiar({ [k]: e.target.value })} className={SELECTOR_DE_FECHA} />
-              </label>
+                <span className="mt-2 flex items-center justify-center gap-2">
+                  <span className="w-[120px]"><SelectorDeFecha valor={r[k]} onCambio={(iso) => cambiar({ [k]: iso })} etiqueta={k === "inicio" ? "Inicio" : "Fin"} hoy={hoy}
+                    rango={{ inicio: r.inicio, fin: r.fin }} desde={k === "fin" && r.inicio ? r.inicio : hoy} clase="text-center text-cuerpo font-medio text-hueso" sitio={sitioDeFechas} /></span>
+                  <IconoDeCalendario />
+                </span>
+              </div>
             ))}
           </div>
+          <div ref={setSitioDeFechas} data-sitio-del-calendario="fechas" />
           <p className={`mb-2 mt-6 text-center ${ROTULO}`}>Fechas clave</p>
           <ul data-fechas-clave className="border-t border-linea">
             {r.claves.map((c, i) => (
               <li key={i} data-fecha-clave className="grid grid-cols-[120px_1fr] items-center gap-3 border-b border-linea px-2 py-3">
-                <span className="relative flex items-center gap-2 text-dato text-gris [font-variant-numeric:tabular-nums]">
-                  {fechaCorta(c.fecha)}
-                  <input type="date" aria-label={`Fecha clave ${i + 1}`} value={c.fecha} onChange={(e) => cambiarClave(i, { fecha: e.target.value })} className={SELECTOR_DE_FECHA} />
-                </span>
+                <SelectorDeFecha valor={c.fecha} onCambio={(iso) => cambiarClave(i, { fecha: iso })} etiqueta={`Fecha clave ${i + 1}`} hoy={hoy}
+                  rango={{ inicio: r.inicio, fin: r.fin }} desde={hoy} clase="text-dato text-gris [font-variant-numeric:tabular-nums]" sitio={sitioDeClaves} />
                 <input aria-label={`Qué pasa en la fecha clave ${i + 1}`} value={c.que} maxLength={TOPE_DEL_QUE} onChange={(e) => cambiarClave(i, { que: e.target.value })}
                   className="w-full min-w-0 bg-transparent text-cuerpo text-hueso focus:outline-none" />
               </li>
             ))}
           </ul>
+          <div ref={setSitioDeClaves} data-sitio-del-calendario="claves" />
           <div className="mt-3 flex justify-center">
             <button type="button" data-agregar-fecha-clave disabled={r.claves.length >= TOPE_DE_FECHAS_CLAVE} onClick={() => cambiar({ claves: [...r.claves, { fecha: "", que: "" }] })} className={`${BOTON_SECUNDARIO} px-5`}>+ Agregar</button>
           </div>
