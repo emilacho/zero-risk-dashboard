@@ -57,6 +57,18 @@ export function codigoDeNoCrear(j: Record<string, unknown> | null): string {
 }
 export const SIN_PLAN = "El cliente no tiene su Plan de Marketing aprobado. No se puede crear una campaña."
 /** lo que la pantalla dice cuando la plataforma no creó la campaña (sin jerga ni montos) · códigos del contrato de CC1 (21:04Z) */
+// 21-nov · «Campaña en proceso»: el botón dorado del estilo base, encendido, con un indicador que gira (quieto si se pide menos movimiento)
+const EN_PROCESO = "flex min-h-12 cursor-progress items-center justify-center gap-3 rounded-control border border-oro bg-oro px-3 text-boton font-medio text-carbon focus:outline-none focus-visible:shadow-none"
+function Girando() {
+  return (
+    <svg data-girando viewBox="0 0 24 24" aria-hidden className="h-5 w-5 animate-spin motion-reduce:animate-none" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" opacity={0.25} /><path d="M21 12a9 9 0 0 0-9-9" />
+    </svg>
+  )
+}
+
+export const SIN_NACER = "El pedido salió, pero la campaña todavía no aparece. Revisa en unos minutos."
+
 export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
   const e = codigoDeNoCrear(j)
   if (e === "tope_bajo_minimo") return "El tope quedó debajo del mínimo. Revísalo."
@@ -70,12 +82,14 @@ export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
   return "La plataforma no contestó. No se creó nada: inténtalo otra vez."
 }
 
-export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onCreada, inicial = VACIAS, pasoInicial = 0, minimoInicial }: {
+export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onCreada, sinNacer = false, inicial = VACIAS, pasoInicial = 0, minimoInicial }: {
   clienteId: string
   clienteNombre: string | null
   onCerrar: () => void
-  /** la campaña quedó pedida: el Centro vuelve a leer sus lugares */
-  onCreada: () => void
+  /** la campaña quedó pedida (con este nombre; si ya había nacido, «ya_pedida» trae su id): el Centro relee sus lugares hasta verla nacer */
+  onCreada: (nombre: string, campanaId?: string | null) => void
+  /** 21-nov · el Centro esperó y la campaña no apareció: el formulario lo dice en el lugar del motivo y el botón vuelve */
+  sinNacer?: boolean
   /** pruebas e imagen */
   inicial?: RespuestasDeCrear
   pasoInicial?: number
@@ -87,9 +101,14 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const [minimo, setMinimo] = useState<number | null>(minimoInicial ?? null)
   const [sinPlan, setSinPlan] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  // 21-nov (GO Lenovo 01:40Z · Emilio no vio respuesta al clic) · el pedido ya salió: la campaña nace poco después en la puerta; el botón sigue trabajando hasta entonces
+  const [pedida, setPedida] = useState(false)
+  const enProceso = enviando || pedida
   // el candado del envío: una referencia, no el estado (dos toques antes de repintar verían el estado viejo y mandarían dos)
   const enCurso = useRef(false)
   const [problema, setProblema] = useState<string | null>(null)
+  // 21-nov (🟡 de CC5) · vencida la espera, se avisa: el pedido salió, la campaña todavía no se ve (otro «Crear Campaña» lleva la misma llave: no duplica)
+  useEffect(() => { if (sinNacer) { setPedida(false); setProblema(SIN_NACER) } }, [sinNacer])
   // `llave_formulario`: UNA por formulario abierto, así un doble toque o un reintento da «ya pedida» y no abre dos campañas
   const llave = useMemo(() => nuevaLlave(), [])
 
@@ -118,7 +137,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return
-      if ((e.target as Element | null)?.closest?.("[data-calendario-abierto]")) return // 21-nov · Esc con el calendario abierto cierra solo el calendario
+      if ((e.target as Element | null)?.closest?.("[data-calendario-abierto], [data-calendario]")) return // 21-nov · Esc con el calendario abierto (en la casilla o en el calendario) cierra solo el calendario
       e.stopPropagation(); e.preventDefault(); onCerrar()
     }
     window.addEventListener("keydown", tecla, true)
@@ -142,7 +161,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
     try {
       const res = await fetch("/api/acciones/crear-campana", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCrear(clienteId, llave, r)) })
       const j = (await res.json().catch(() => null)) as Record<string, unknown> | null
-      if (res.ok && j?.ok === true) { onCreada(); return }
+      if (res.ok && j?.ok === true) { setPedida(true); onCreada(r.nombre, typeof j.campana_id === "string" ? j.campana_id : null); return }
       // el mínimo pudo cambiar entre leerlo y crear: se muestra el que trae el rechazo (el de las fechas de la campaña) y se vuelve a la pregunta del tope
       if (codigoDeNoCrear(j) === "tope_bajo_minimo") {
         const delRechazo = minimoDelRechazo(j)
@@ -242,9 +261,12 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
       {problema && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{problema}</p>}
 
       <Acciones>
-        <button type="button" data-atras disabled={paso === 0 || enviando} onClick={() => { setPaso(paso - 1); setProblema(null) }} className={`${BOTON_SECUNDARIO} min-h-12`}>Atrás</button>
+        <button type="button" data-atras disabled={paso === 0 || enProceso} onClick={() => { setPaso(paso - 1); setProblema(null) }} className={`${BOTON_SECUNDARIO} min-h-12`}>Atrás</button>
         {resumen
-          ? <button type="button" data-crear disabled={!llave || !listo.every(Boolean) || enviando} onClick={() => void crear()} className={`${BOTON_PRINCIPAL} min-h-12`}>Crear Campaña</button>
+          ? (enProceso
+            // trabajando: dorado y encendido (no apagado), con el indicador que gira; otro clic no manda nada (`crear` ya está en curso)
+            ? <button type="button" data-crear data-en-proceso aria-busy="true" aria-disabled="true" className={EN_PROCESO}><Girando />Campaña en proceso</button>
+            : <button type="button" data-crear disabled={!llave || !listo.every(Boolean)} onClick={() => void crear()} className={`${BOTON_PRINCIPAL} min-h-12`}>Crear Campaña</button>)
           : <button type="button" data-siguiente disabled={!listo[paso]} onClick={() => setPaso(paso + 1)} className={`${BOTON_PRINCIPAL} min-h-12`}>Siguiente</button>}
       </Acciones>
     </PanelBase>
