@@ -10,7 +10,7 @@
  *   · el último paso es el resumen con «Crear Campaña». El tablero no escribe la base: lo manda `POST /api/acciones/crear-campana` a la plataforma.
  * Las reglas viven en `lib/crear-campana.ts` (las mismas que exige el servidor del tablero).
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, PanelBase, ROTULO } from "@/components/nuevo/EstiloBase"
 import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
 import { SelectorDeFecha } from "@/components/nuevo/SelectorDeFecha"
@@ -69,6 +69,8 @@ function Girando() {
 
 /** 21-nov (#54 del barrido) · la pregunta antes de cerrar con algo escrito */
 export const AL_CERRAR = "¿Cerrar sin crear? Se pierde lo que escribiste."
+/** 21-nov (#54 parte 2 · texto aprobado por Lenovo 05:35Z) · el reintento volvió «ya_pedida» y lo escrito después no entró */
+export const CON_LO_ANTERIOR = "La campaña ya se había pedido con el brief anterior; tus cambios no entraron. Puedes pedirlos desde el brief, en el Centro."
 export const SIN_NACER = "El pedido salió, pero la campaña todavía no aparece. Revisa en unos minutos."
 
 export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
@@ -89,7 +91,8 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   clienteNombre: string | null
   onCerrar: () => void
   /** la campaña quedó pedida (con este nombre; si ya había nacido, «ya_pedida» trae su id): el Centro relee sus lugares hasta verla nacer */
-  onCreada: (nombre: string, campanaId?: string | null) => void
+  onCreada: (nombre: string, campanaId?: string | null, quedarse?: boolean) => void
+  // `quedarse` (21-nov · #54 parte 2): la campaña ya estaba pedida con lo escrito antes; el formulario se queda abierto con el aviso hasta que el dueño lo cierre
   /** 21-nov · el Centro esperó y la campaña no apareció: el formulario lo dice en el lugar del motivo y el botón vuelve */
   sinNacer?: boolean
   /** pruebas e imagen */
@@ -108,6 +111,11 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const enProceso = enviando || pedida
   // el candado del envío: una referencia, no el estado (dos toques antes de repintar verían el estado viejo y mandarían dos)
   const enCurso = useRef(false)
+  // el pedido ya salió (la plataforma lo guardó): cerrar no pierde nada · y cerrar pedido mientras el pedido vuela, que se cumple al saber la respuesta
+  const yaSalio = useRef(false)
+  const cerrarAlSaber = useRef(false)
+  // 21-nov (#54 parte 2 · Lenovo 05:35Z) · lo mandado en cada intento desde el último guardado confirmado: si «ya_pedida» llega con algo distinto, lo nuevo no entró
+  const intentos = useRef<string[]>([])
   const [problema, setProblema] = useState<string | null>(null)
   // 21-nov (🟡 de CC5) · vencida la espera, se avisa: el pedido salió, la campaña todavía no se ve (otro «Crear Campaña» lleva la misma llave: no duplica)
   useEffect(() => { if (sinNacer) { setPedida(false); setProblema(SIN_NACER) } }, [sinNacer])
@@ -137,10 +145,16 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   }, [leerMinimo]) // eslint-disable-line react-hooks/exhaustive-deps -- `minimoInicial` solo cuenta al abrir
   // 21-nov (#54 del barrido · Lenovo 05:01Z) · cerrar (Esc, «Cerrar» o un clic fuera) con algo escrito pregunta antes de perderlo; ya pedida la campaña, no se pierde nada
   const [preguntaCerrar, setPreguntaCerrar] = useState(false)
-  const pedirCerrar = () => { if (pedida || !hayAlgoEscrito(r)) onCerrar(); else setPreguntaCerrar(true) }
+  // 21-nov (🔴 de CC5 05:24Z) · con el pedido EN VUELO nunca se dice «sin crear»: cerrar espera la respuesta (si salió, cierra; si falló, el motivo queda a la vista).
+  // Se leen referencias (no el estado): siempre dicen lo de este instante, aunque la tecla tenga una pintada vieja
+  const pedirCerrar = () => {
+    if (yaSalio.current) onCerrar()
+    else if (enCurso.current) cerrarAlSaber.current = true
+    else if (!hayAlgoEscrito(r)) onCerrar()
+    else setPreguntaCerrar(true)
+  }
   // Esc cierra el formulario y vuelve al Centro (no cierra el Centro ni la oficina); con la pregunta a la vista, Esc es «Seguir escribiendo»
-  // en el mismo momento en que se pinta (useLayoutEffect): apenas sale «Campaña en proceso», Esc ya sabe que está pedida (con useEffect había un instante con lo viejo)
-  useLayoutEffect(() => {
+  useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return
       if ((e.target as Element | null)?.closest?.("[data-calendario-abierto], [data-calendario]")) return // 21-nov · Esc con el calendario abierto (en la casilla o en el calendario) cierra solo el calendario
@@ -165,10 +179,23 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const crear = async () => {
     if (enCurso.current || !llave || !listo.every(Boolean)) return
     enCurso.current = true; setEnviando(true); setProblema(null)
+    const contenido = JSON.stringify(cuerpoDeCrear(clienteId, llave, r))
+    const antes = intentos.current
+    intentos.current = [...antes, contenido]
     try {
       const res = await fetch("/api/acciones/crear-campana", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCrear(clienteId, llave, r)) })
       const j = (await res.json().catch(() => null)) as Record<string, unknown> | null
-      if (res.ok && j?.ok === true) { setPedida(true); onCreada(r.nombre, typeof j.campana_id === "string" ? j.campana_id : null); return }
+      if (res.ok && j?.ok === true) {
+        // «ya_pedida» con algo distinto de lo mandado antes: la campaña quedó con lo anterior (la plataforma no la rehace) y se dice; «pedida» o «actualizada» = quedó lo de ahora
+        const conLoAnterior = j.estado === "ya_pedida" && antes.some((x) => x !== contenido)
+        if (j.estado !== "ya_pedida") intentos.current = [contenido]
+        yaSalio.current = true; setPedida(true)
+        if (conLoAnterior) setProblema(CON_LO_ANTERIOR)
+        onCreada(r.nombre, typeof j.campana_id === "string" ? j.campana_id : null, conLoAnterior)
+        if (cerrarAlSaber.current && !conLoAnterior) onCerrar()
+        return
+      }
+      cerrarAlSaber.current = false
       // el mínimo pudo cambiar entre leerlo y crear: se muestra el que trae el rechazo (el de las fechas de la campaña) y se vuelve a la pregunta del tope
       if (codigoDeNoCrear(j) === "tope_bajo_minimo") {
         const delRechazo = minimoDelRechazo(j)
@@ -177,6 +204,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
       }
       setProblema(motivoDeNoCrear(j))
     } catch {
+      cerrarAlSaber.current = false
       setProblema(motivoDeNoCrear(null))
     } finally { enCurso.current = false; setEnviando(false) }
   }
