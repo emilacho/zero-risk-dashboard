@@ -60,7 +60,7 @@ const subtitulo = (c: HTMLElement) => c.querySelector("[data-campana-nombre]")?.
 const cuadro = (c: HTMLElement, clave: string) => c.querySelector(`[data-aplicacion="${clave}"]`) as HTMLElement
 /** 21-nov · la campaña se elige con la flecha ▾ del subtítulo (ya no tocando su botón de abajo) */
 const elegirConLaFlecha = (c: HTMLElement, id: string) => { fireEvent.click(c.querySelector("[data-flecha-de-campanas]") as HTMLElement); fireEvent.click(c.querySelector(`[data-campana-de-la-lista="${id}"]`) as HTMLElement) }
-/** la marcada en la lista de la flecha (la abre, la lee y la cierra) */
+/** la marcada en la lista de la flecha (la abre, la lee y la cierra) · cambia la pantalla: NUNCA dentro de `waitFor` (se re-ejecutaría sin fin) */
 const marcadaEnLaLista = (c: HTMLElement) => { const f = c.querySelector("[data-flecha-de-campanas]") as HTMLElement; fireEvent.click(f); const id = (c.querySelector('[data-lista-de-campanas] [aria-checked="true"]') as HTMLElement | null)?.dataset.campanaDeLaLista ?? null; fireEvent.click(f); return id }
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); try { localStorage.clear() } catch { /* sin almacenamiento */ } })
@@ -97,7 +97,8 @@ describe("2 · la tocada que deja de estar viva se olvida", () => {
     const { container } = pintar([C1, C2, C3], C3.campana_id)
     elegirConLaFlecha(container, C1.campana_id)
     await waitFor(() => expect(pedidos.some((p) => p.url === `/api/pizarron?cliente=${NAUFRAGO}&campana=${C1.campana_id}`)).toBe(true))
-    await waitFor(() => expect(marcadaEnLaLista(container)).toBe(C3.campana_id))
+    await waitFor(() => expect(subtitulo(container)).toBe("Campaña número 3"))
+    expect(marcadaEnLaLista(container)).toBe(C3.campana_id)
     expect(subtitulo(container)).toBe("Campaña número 3")
     const despues = pedidos.slice(pedidos.findIndex((p) => p.url.includes(`campana=${C1.campana_id}`)) + 1)
     await waitFor(() => expect(despues.concat(pedidos.slice(-1)).some((p) => p.url.startsWith("/api/centro"))).toBe(true))
@@ -124,7 +125,8 @@ describe("3 · brief y gran idea abiertos leen la campaña elegida", () => {
     const pedidos = red({ masNueva: C3.campana_id })
     const { container } = pintar([C1, C2, C3], C3.campana_id)
     elegirConLaFlecha(container, C1.campana_id)
-    await waitFor(() => expect(marcadaEnLaLista(container)).toBe(C1.campana_id))
+    await waitFor(() => expect(subtitulo(container)).toBe("Campaña número 1"))
+    expect(marcadaEnLaLista(container)).toBe(C1.campana_id)
     fireEvent.click(cuadro(container, "brief"))
     await waitFor(() => expect(pedidos.some((p) => p.url.startsWith("/api/brief"))).toBe(true))
     expect(pedidos.filter((p) => p.url.startsWith("/api/brief")).map((p) => p.url)).toEqual([`/api/brief?cliente=${NAUFRAGO}&campana=${C1.campana_id}`])
@@ -133,7 +135,8 @@ describe("3 · brief y gran idea abiertos leen la campaña elegida", () => {
     const pedidos = red({ masNueva: C3.campana_id })
     const { container } = pintar([C1, C2, C3], C3.campana_id)
     elegirConLaFlecha(container, C2.campana_id)
-    await waitFor(() => expect(marcadaEnLaLista(container)).toBe(C2.campana_id))
+    await waitFor(() => expect(subtitulo(container)).toBe("Campaña número 2"))
+    expect(marcadaEnLaLista(container)).toBe(C2.campana_id)
     fireEvent.click(cuadro(container, "gran_idea"))
     await waitFor(() => expect(pedidos.some((p) => p.url.startsWith("/api/gran-idea"))).toBe(true))
     expect(pedidos.filter((p) => p.url.startsWith("/api/gran-idea")).map((p) => p.url)).toEqual([`/api/gran-idea?cliente=${NAUFRAGO}&campana=${C2.campana_id}`])
