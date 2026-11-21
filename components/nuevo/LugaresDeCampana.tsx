@@ -5,7 +5,9 @@
  * `raw/evidencia/2026-11-19-boceto-boton-flujo-nombre/` vistas 4, 5 y 6).
  * Debajo de los 9 cuadros, uno debajo del otro y del ancho de los 3: siempre 3 lugares.
  *   · cada campaña viva del cliente ocupa uno, con su botón «Flujo de la campaña», su nombre y su color real (`/api/flujo` → `campanas`)
- *   · los lugares libres dicen «Crear Campaña»: «+» gris, mismo tamaño y estilo, sin color de estado ni textos de uso. Por ahora no abre nada (backlog)
+ *   · los lugares libres dicen «Crear Campaña»: «+» gris, mismo tamaño y estilo, sin color de estado ni textos de uso.
+ *     20-nov (GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03): con `onCrear` se puede tocar y abre el formulario (al pasar encima, el hilo dorado de los cuadros);
+ *     sin `onCrear` sigue como antes, marcado `aria-disabled` y sin hacer nada
  *   · sin lectura no se pinta nada: nunca 3 «Crear Campaña» inventados cuando la base no contestó
  */
 import { useEffect, useState } from "react"
@@ -49,7 +51,8 @@ export function campanaElegidaConToque(campanas: CampanaDelFlujo[] | null | unde
 }
 
 /** lee `/api/flujo` del cliente; `null` mientras no hay lectura (o si la base no contestó) */
-export function useCampanasDelFlujo(clienteId: string | null, inicial: FlujoInicial | null = null): CampanaDelFlujo[] | null {
+/** `vuelta` (20-nov): al cambiar, se vuelve a leer (después de «Crear Campaña») */
+export function useCampanasDelFlujo(clienteId: string | null, inicial: FlujoInicial | null = null, vuelta = 0): CampanaDelFlujo[] | null {
   const [campanas, setCampanas] = useState<CampanaDelFlujo[] | null>(() => campanasDeLaLectura(inicial))
   useEffect(() => {
     if (inicial || !clienteId) return
@@ -63,7 +66,7 @@ export function useCampanasDelFlujo(clienteId: string | null, inicial: FlujoInic
       } catch { /* sin lectura no se pintan los lugares */ }
     })()
     return () => { vivo = false }
-  }, [clienteId, inicial])
+  }, [clienteId, inicial, vuelta])
   return campanas
 }
 
@@ -76,12 +79,14 @@ function IconoDeCrear() {
   )
 }
 
-export function LugaresDeCampana({ clienteId, campanas, elegidaId, onElegir }: {
+export function LugaresDeCampana({ clienteId, campanas, elegidaId, onElegir, onCrear }: {
   clienteId: string | null
   campanas: CampanaDelFlujo[] | null
   /** 19-nov (Emilio 23:23) · la campaña elegida del Centro y cómo elegir otra: el 1.er toque sobre una no elegida solo la elige */
   elegidaId?: string | null
   onElegir?: (campanaId: string) => void
+  /** 20-nov · tocar «Crear Campaña» abre el formulario de las 5 preguntas */
+  onCrear?: () => void
 }) {
   if (!campanas) return null
   const conLugar = campanasConLugar(campanas)
@@ -99,8 +104,9 @@ export function LugaresDeCampana({ clienteId, campanas, elegidaId, onElegir }: {
       ))}
       {Array.from({ length: libres }, (_, i) => (
         <div key={`crear-${i}`} className="mt-3">
-          {/* 19-nov · qué hace al tocarlo está en el backlog: por ahora no abre nada */}
-          <button type="button" data-crear-campana aria-disabled="true" className={`${CLASE_DEL_BOTON} border-linea`}>
+          {/* 20-nov · con `onCrear` abre el formulario; sin él, como antes: marcado deshabilitado y sin hacer nada */}
+          <button type="button" data-crear-campana {...(onCrear ? { "aria-haspopup": "dialog" as const, onClick: onCrear } : { "aria-disabled": true })}
+            className={`${CLASE_DEL_BOTON} border-linea${onCrear ? " hover:border-linea-oro" : ""}`}>
             <IconoDeCrear />
             <span className="mt-3 block text-cuerpo font-medio text-hueso">Crear Campaña</span>
           </button>

@@ -172,7 +172,7 @@ describe("cada botón que pintan las pantallas nombra una acción que existe, y 
   })
   it("cada acción del catálogo tiene su botón en alguna pantalla (ninguna queda sin usar)", () => {
     // CC6 · 02-nov: «validar un campo» vive en el manual de /nuevo (su botón lleva data-tablero-accion)
-    const todo = [...PANTALLAS, "components/nuevo/PanelManual.tsx", "components/nuevo/PanelPiezas.tsx", "components/nuevo/PanelPropuestas.tsx"].map(leer).join("\n") /* 16-nov: Aprobar y Pedir cambios de las propuestas viven en Propuestas */ // CC6 · 03-nov: «Recuperar» del archivo vive en Piezas de /nuevo
+    const todo = [...PANTALLAS, "components/nuevo/PanelManual.tsx", "components/nuevo/PanelPiezas.tsx", "components/nuevo/PanelPropuestas.tsx", /* CC2 · 20-nov: «Crear Campaña» vive en su formulario */ "components/nuevo/FormularioCrearCampana.tsx"].map(leer).join("\n") /* 16-nov: Aprobar y Pedir cambios de las propuestas viven en Propuestas */ // CC6 · 03-nov: «Recuperar» del archivo vive en Piezas de /nuevo
     // CC6 · 03-nov · manual limpio (Emilio: «dos botones claros, nada más»): «validar un campo» quedó sin botón; la acción sigue en el catálogo (contrato de la plataforma)
     // 05-nov · firmar y ver una cifra cambiada viven en Tu oficina › Decisiones, que las llama desde el servidor (la ruta genérica las rechaza)
     const SIN_BOTON_POR_DECISION = ["manual-validar-campo", "firmar-tablero", "recalcular-tablero"]
