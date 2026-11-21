@@ -73,6 +73,7 @@ export const AL_CERRAR = "¿Cerrar sin crear? Se pierde lo que escribiste."
 export const CON_LO_ANTERIOR = "La campaña ya se había pedido con el brief anterior; tus cambios no entraron. Puedes pedirlos desde el brief, en el Centro."
 export const SIN_NACER = "El pedido salió, pero la campaña todavía no aparece. Revisa en unos minutos."
 
+export const NO_SE_SABE = "La plataforma no contestó. No sabemos si se creó: inténtalo otra vez."
 export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
   const e = codigoDeNoCrear(j)
   if (e === "tope_bajo_minimo") return "El tope quedó debajo del mínimo. Revísalo."
@@ -83,7 +84,10 @@ export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
   if (e === "cadena_no_admite") return "Este cliente todavía no puede tener campañas nuevas. No se creó nada."
   if (e === "minimo_ilegible") return "No se pudo calcular el mínimo. No se creó nada: inténtalo otra vez."
   if (e === "conflicto") return "Otra decisión se adelantó. No se creó nada: inténtalo otra vez."
-  return "La plataforma no contestó. No se creó nada: inténtalo otra vez."
+  // 21-nov (🟡 de CC5 en #367) · sin respuesta (red caída, cuerpo ilegible o el 502 del tablero) no se sabe: el pedido pudo haber llegado (otro intento lleva la misma llave y no duplica)
+  if (!e || e === "plataforma_sin_respuesta") return NO_SE_SABE
+  // un rechazo que la plataforma SÍ contestó con un código que no conocemos: todo rechazo sale antes de guardar (contrato de CC1)
+  return "La plataforma no aceptó el pedido. No se creó nada: inténtalo otra vez."
 }
 
 export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onCreada, sinNacer = false, inicial = VACIAS, pasoInicial = 0, minimoInicial }: {
@@ -108,6 +112,8 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const [enviando, setEnviando] = useState(false)
   // 21-nov (GO Lenovo 01:40Z · Emilio no vio respuesta al clic) · el pedido ya salió: la campaña nace poco después en la puerta; el botón sigue trabajando hasta entonces
   const [pedida, setPedida] = useState(false)
+  // 21-nov (🟡 de CC5 en #367) · «ya pedida con lo anterior»: la campaña existe; el botón deja de girar y queda apagado (no hay nada que crear)
+  const [creada, setCreada] = useState(false)
   const enProceso = enviando || pedida
   // el candado del envío: una referencia, no el estado (dos toques antes de repintar verían el estado viejo y mandarían dos)
   const enCurso = useRef(false)
@@ -189,7 +195,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
         // «ya_pedida» con algo distinto de lo mandado antes: la campaña quedó con lo anterior (la plataforma no la rehace) y se dice; «pedida» o «actualizada» = quedó lo de ahora
         const conLoAnterior = j.estado === "ya_pedida" && antes.some((x) => x !== contenido)
         if (j.estado !== "ya_pedida") intentos.current = [contenido]
-        yaSalio.current = true; setPedida(true)
+        yaSalio.current = true; if (conLoAnterior) setCreada(true); else setPedida(true)
         if (conLoAnterior) setProblema(CON_LO_ANTERIOR)
         onCreada(r.nombre, typeof j.campana_id === "string" ? j.campana_id : null, conLoAnterior)
         if (cerrarAlSaber.current && !conLoAnterior) onCerrar()
@@ -304,12 +310,12 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
       {!preguntaCerrar && problema && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{problema}</p>}
 
       <Acciones>
-        <button type="button" data-atras disabled={paso === 0 || enProceso} onClick={() => { setPaso(paso - 1); setProblema(null) }} className={`${BOTON_SECUNDARIO} min-h-12`}>Atrás</button>
+        <button type="button" data-atras disabled={paso === 0 || enProceso || creada} onClick={() => { setPaso(paso - 1); setProblema(null) }} className={`${BOTON_SECUNDARIO} min-h-12`}>Atrás</button>
         {resumen
           ? (enProceso
             // trabajando: dorado y encendido (no apagado), con el indicador que gira; otro clic no manda nada (`crear` ya está en curso)
             ? <button type="button" data-crear data-en-proceso aria-busy="true" aria-disabled="true" className={EN_PROCESO}><Girando />Campaña en proceso</button>
-            : <button type="button" data-crear disabled={!llave || !listo.every(Boolean)} onClick={() => void crear()} className={`${BOTON_PRINCIPAL} min-h-12`}>Crear Campaña</button>)
+            : <button type="button" data-crear disabled={creada || !llave || !listo.every(Boolean)} onClick={() => void crear()} className={`${BOTON_PRINCIPAL} min-h-12`}>Crear Campaña</button>)
           : <button type="button" data-siguiente disabled={!listo[paso]} onClick={() => setPaso(paso + 1)} className={`${BOTON_PRINCIPAL} min-h-12`}>Siguiente</button>}
       </Acciones>
     </PanelBase>

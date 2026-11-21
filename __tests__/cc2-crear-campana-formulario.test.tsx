@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
-import { AL_CERRAR, CON_LO_ANTERIOR, FormularioCrearCampana, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
+import { AL_CERRAR, CON_LO_ANTERIOR, FormularioCrearCampana, NO_SE_SABE, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { ESPERA_ENTRE_VUELTAS_MS, PanelAplicaciones, VUELTAS_HASTA_QUE_NACE } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
@@ -410,7 +410,10 @@ describe("la pantalla, como el boceto aprobado", () => {
     expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "sin_plan_aprobado" } })).toBe(SIN_PLAN)
     expect(motivoDeNoCrear({ ok: false, error: "la_plataforma_rechazo", plataforma_error: "entrada_invalida", detalle: "el nombre está en blanco" })).toBe("No se creó: el nombre está en blanco.")
     expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "otra" } })).toContain("No se creó nada")
-    expect(motivoDeNoCrear(null)).toContain("No se creó nada")
+    expect(motivoDeNoCrear(null)).toBe(NO_SE_SABE)
+    expect(motivoDeNoCrear({ ok: false, error: "plataforma_sin_respuesta" })).toBe(NO_SE_SABE)
+    expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "otra" } })).toBe("La plataforma no aceptó el pedido. No se creó nada: inténtalo otra vez.")
+    expect(NO_SE_SABE).toBe("La plataforma no contestó. No sabemos si se creó: inténtalo otra vez.")
     expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "cadena_no_admite" } })).toBe("Este cliente todavía no puede tener campañas nuevas. No se creó nada.")
     expect(motivoDeNoCrear({ ok: false, error: "la_plataforma_rechazo", plataforma_error: "minimo_ilegible" })).toBe("No se pudo calcular el mínimo. No se creó nada: inténtalo otra vez.")
   })
@@ -518,6 +521,23 @@ describe("cerrar con el pedido en vuelo", () => {
     await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
     expect(onCerrar).not.toHaveBeenCalled()
   })
+  // 21-nov (🟡 n4 de CC5) · lo mismo con un RECHAZO (409), no solo con la red caída
+  it("en vuelo y la plataforma rechaza (409): no cierra; un reintento que sale bien NO cierra solo", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    fireEvent.keyDown(window, { key: "Escape" })
+    await p.soltar(respuesta({ ok: false, error: "conflicto" }, 409))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    expect(onCerrar).not.toHaveBeenCalled()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    await p.soltar(respuesta({ ok: true, estado: "pedida", pedido_id: "p" }))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
   it("con el aviso «ya pedida con lo anterior», un cierre pedido en vuelo NO se cumple: el aviso queda a la vista", async () => {
     red({ minimo: 60 }); const p = pedidoRetenido()
     const onCerrar = vi.fn()
@@ -562,6 +582,11 @@ describe("el reintento tras un error de red", () => {
     expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000009", true)
     expect(JSON.parse(p.cuerpos[0]).llave_formulario).toBe(JSON.parse(p.cuerpos[1]).llave_formulario)
     expect(JSON.parse(p.cuerpos[1]).brief_libre).toContain("postre")
+    // 21-nov (🟡 de CC5) · la campaña existe: el botón no gira y queda apagado, igual que «Atrás»
+    expect(container.querySelector("[data-girando]")).toBeNull()
+    expect(boton(container, "[data-crear]").textContent).toBe("Crear Campaña")
+    expect(boton(container, "[data-crear]").disabled).toBe(true)
+    expect(boton(container, "[data-atras]").disabled).toBe(true)
     fireEvent.keyDown(window, { key: "Escape" })
     expect(container.querySelector("[data-aviso-cerrar]")).toBeNull()
     expect(onCerrar).toHaveBeenCalledTimes(1)
