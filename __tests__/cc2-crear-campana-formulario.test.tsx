@@ -355,6 +355,24 @@ describe("la pantalla, como el boceto aprobado", () => {
     await waitFor(() => expect(pedidos).toHaveLength(1))
     expect(pedidos[0].url).toBe(`/api/crear-campana/minimo?cliente=${NAUFRAGO}`)
   })
+  it("mientras llega el mínimo de las fechas nuevas se ve «—» y «Siguiente» queda apagado (no vale el de las fechas viejas)", async () => {
+    const urls: string[] = []
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      urls.push(url)
+      if (url.includes("fin=2027-01-31")) return Promise.resolve(new Response(JSON.stringify({ ok: true, minimo_usd: 79 }), { status: 200 }))
+      return new Promise<Response>(() => {}) // la lectura de las fechas nuevas todavía no contesta
+    }))
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 3 })
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 79"))
+    expect(boton(container, "[data-siguiente]").disabled).toBe(false)
+    fireEvent.click(boton(container, "[data-atras]"))
+    fireEvent.change(container.querySelector("[aria-label=Fin]")!, { target: { value: "2026-12-15" } })
+    await waitFor(() => expect(urls).toHaveLength(2))
+    fireEvent.click(boton(container, "[data-siguiente]"))
+    expect(container.querySelector("[data-posicion]")?.textContent).toBe("4 de 5")
+    expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("—")
+    expect(boton(container, "[data-siguiente]").disabled).toBe(true)
+  })
   it("una lectura vieja que llega tarde no pisa a la de las fechas nuevas", async () => {
     let soltarVieja: (r: Response) => void = () => {}
     const urls: string[] = []
