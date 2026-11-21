@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 /**
- * EL TOQUE QUE ELIGE LA CAMPAÑA (Emilio 19-nov 23:23 · GO de Lenovo a CC5, al pie) · sin red ni base (US$ 0).
- *   · el 1.er toque sobre una campaña NO elegida solo la elige: no para ni reanuda (ningún POST)
- *   · el toque sobre la YA elegida para o reanuda, como siempre
+ * ELEGIR LA CAMPAÑA DEL CENTRO · sin red ni base (US$ 0).
+ * 21-nov (Emilio 10:28–10:30Z · GO de Lenovo a CC3 10:31Z) reemplaza el toque del 19-nov (Emilio 23:23):
+ *   · se elige con la flecha ▾ del subtítulo: despliega las campañas abiertas y marca la elegida; elegir otra no para ni reanuda (ningún POST)
+ *   · los botones de abajo vuelven a ser solo «Flujo de la campaña»: el toque para o reanuda SU campaña y no cambia la elegida
  *   · al elegir, el subtítulo y los 6 cuadros desde «Brief» siguen a ESA campaña: el pizarrón y el centro se vuelven a leer con `&campana=`
- *   · sin tocar no se manda `campana` (el servidor muestra la viva más nueva, #358); al cambiar de cliente, la tocada se olvida
- *   · Equipo y Dinero (ajuste de Emilio 22:07): quiénes trabajan y lo gastado son de la campaña; el tope diario sigue siendo del cliente
- *   · sin marcas ni textos nuevos a la vista
+ *   · sin elegir no se manda `campana` (el servidor muestra la viva más nueva, #358); al cambiar de cliente, la elegida se olvida
+ *   · Esc con la lista abierta cierra solo la lista; un clic fuera también
+ *   · Equipo y Dinero (ajuste de Emilio 19-nov 22:07): quiénes trabajan y lo gastado son de la campaña; el tope diario sigue siendo del cliente
  */
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react"
@@ -71,60 +72,105 @@ const subtitulo = (c: HTMLElement) => c.querySelector("[data-campana-nombre]")?.
 const cuadro = (c: HTMLElement, clave: string) => c.querySelector(`[data-aplicacion="${clave}"]`) as HTMLElement
 const posts = (p: ReturnType<typeof red>) => p.filter((x) => x.metodo === "POST")
 
-describe("19-nov · el toque que elige la campaña (Emilio 23:23)", () => {
+/** 21-nov · la campaña se elige con la flecha ▾ del subtítulo */
+const flecha = (c: HTMLElement) => c.querySelector("[data-flecha-de-campanas]") as HTMLElement | null
+const lista = (c: HTMLElement) => c.querySelector("[data-lista-de-campanas]") as HTMLElement | null
+const elegirConLaFlecha = (c: HTMLElement, id: string) => { fireEvent.click(flecha(c)!); fireEvent.click(c.querySelector(`[data-campana-de-la-lista="${id}"]`) as HTMLElement) }
+const marcadaEnLaLista = (c: HTMLElement) => { fireEvent.click(flecha(c)!); const id = (c.querySelector('[data-lista-de-campanas] [aria-checked="true"]') as HTMLElement | null)?.dataset.campanaDeLaLista ?? null; fireEvent.click(flecha(c)!); return id }
+
+describe("21-nov · la campaña se elige con la flecha del subtítulo (Emilio 10:28–10:30Z · GO Lenovo 10:31Z)", () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); try { localStorage.clear() } catch { /* sin almacenamiento */ } })
 
-  it("sin tocar: la elegida es la viva más nueva, la marca va solo en atributos (sin textos nuevos) y el centro se lee SIN `campana`", async () => {
+  it("sin elegir: la elegida es la viva más nueva (marcada en la lista), los botones no llevan marca de elegida y el centro se lee SIN `campana`", async () => {
     const pedidos = red()
     const { container } = pintar()
     const [vieja, nueva] = botones(container)
-    expect(vieja.dataset.elegida).toBe("false"); expect(nueva.dataset.elegida).toBe("true")
-    expect(nueva.getAttribute("aria-current")).toBe("true"); expect(vieja.getAttribute("aria-current")).toBeNull()
+    for (const b of [vieja, nueva]) { expect(b.dataset.elegida).toBeUndefined(); expect(b.getAttribute("aria-current")).toBeNull() }
     expect(subtitulo(container)).toBe("Lanzamiento del delivery en Guayaquil")
+    expect(marcadaEnLaLista(container)).toBe(NUEVA)
     await waitFor(() => expect(pedidos.some((p) => p.url.startsWith("/api/centro"))).toBe(true))
     expect(pedidos.filter((p) => p.url.startsWith("/api/centro")).every((p) => !p.url.includes("campana="))).toBe(true)
-    // el botón elegido y el no elegido se ven igual: mismas clases salvo el color de su estado
+    // los dos botones se ven igual: mismas clases salvo el color de su estado
     const sinColor = (k: string) => k.split(" ").filter((x) => !/^(border|text|bg)-(linea|oro|alarma|marcha)$|^zr-flujo-detenido$/.test(x)).join(" ")
     expect(sinColor(vieja.className)).toBe(sinColor(nueva.className))
-    expect(vieja.textContent).not.toMatch(/elegid|seleccion/i); expect(nueva.textContent).not.toMatch(/elegid|seleccion/i)
   })
 
-  it("🔴 el 1.er toque sobre una NO elegida solo la elige: ningún POST, cambia el subtítulo y se releen el pizarrón y el centro de ESA campaña", async () => {
+  it("la flecha despliega las campañas abiertas con su nombre, en el orden de los lugares, y marca la elegida", () => {
+    red()
+    const { container } = pintar()
+    expect(lista(container)).toBeNull()
+    fireEvent.click(flecha(container)!)
+    expect(flecha(container)!.getAttribute("aria-expanded")).toBe("true")
+    const items = [...lista(container)!.querySelectorAll("[data-campana-de-la-lista]")] as HTMLElement[]
+    expect(items.map((x) => x.textContent)).toEqual(["Impulso del encebollado a domicilio", "Lanzamiento del delivery en Guayaquil✓"])
+    expect(items.map((x) => x.getAttribute("aria-checked"))).toEqual(["false", "true"])
+    expect(items.map((x) => x.getAttribute("role"))).toEqual(["menuitemradio", "menuitemradio"])
+  })
+
+  it("🔴 elegir otra en la lista: ningún POST, cambia el subtítulo, se cierra la lista y se releen el pizarrón y el centro de ESA campaña", async () => {
     const pedidos = red()
     const { container } = pintar()
-    fireEvent.click(botones(container)[0])
+    elegirConLaFlecha(container, VIEJA)
+    expect(lista(container)).toBeNull()
     await waitFor(() => expect(subtitulo(container)).toBe("Impulso del encebollado a domicilio"))
     expect(posts(pedidos)).toEqual([])
     await waitFor(() => expect(pedidos.some((p) => p.url === `/api/pizarron?cliente=${NAUFRAGO}&campana=${VIEJA}`)).toBe(true))
     await waitFor(() => expect(pedidos.some((p) => p.url === `/api/centro?cliente=${NAUFRAGO}&campana=${VIEJA}`)).toBe(true))
-    const [vieja, nueva] = botones(container)
-    expect(vieja.dataset.elegida).toBe("true"); expect(nueva.dataset.elegida).toBe("false")
+    expect(marcadaEnLaLista(container)).toBe(VIEJA)
     // el botón no cambió de color: no se paró ni se reanudó nada
-    expect(vieja.dataset.flujo).toBe("rojo")
+    expect(botones(container)[0].dataset.flujo).toBe("rojo")
     // los cuadros de la campaña muestran la elegida: el Dinero dice lo gastado por ESA campaña y el Equipo quiénes trabajan en ella
     await waitFor(() => expect(cuadro(container, "gasto").querySelector("[data-cantidad]")?.textContent).toBe("US$ 15"))
     expect(cuadro(container, "equipo").querySelector("[data-linea]")?.textContent).toBe("1 trabajando")
   })
 
-  it("🔴 el toque sobre la YA elegida para o reanuda, como siempre (un POST de ESA campaña)", async () => {
+  it("elegir en la lista la que ya está elegida solo cierra la lista: no se vuelve a leer nada", async () => {
     const pedidos = red()
     const { container } = pintar()
-    fireEvent.click(botones(container)[1])
-    await waitFor(() => expect(posts(pedidos)).toHaveLength(1))
-    expect(posts(pedidos)[0]).toMatchObject({ url: "/api/flujo", cuerpo: { campana_id: NUEVA, quiero: "parar" } })
-    // y después de elegir la vieja, tocarla otra vez la reanuda
-    fireEvent.click(botones(container)[0])
-    await waitFor(() => expect(botones(container)[0].dataset.elegida).toBe("true"))
-    expect(posts(pedidos)).toHaveLength(1)
-    fireEvent.click(botones(container)[0])
-    await waitFor(() => expect(posts(pedidos)).toHaveLength(2))
-    expect(posts(pedidos)[1]).toMatchObject({ cuerpo: { campana_id: VIEJA, quiero: "reanudar" } })
+    await waitFor(() => expect(pedidos.some((p) => p.url.startsWith("/api/centro"))).toBe(true))
+    const antes = pedidos.length
+    elegirConLaFlecha(container, NUEVA)
+    expect(lista(container)).toBeNull()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(pedidos.length).toBe(antes)
   })
 
-  it("al cambiar de cliente arriba, la campaña tocada se olvida: el pizarrón del otro cliente se lee SIN `campana`", async () => {
+  it("🔴 los botones de abajo ya no eligen: el toque sobre uno NO elegido para o reanuda ESA campaña (un POST) y la elegida no cambia", async () => {
     const pedidos = red()
     const { container } = pintar()
     fireEvent.click(botones(container)[0])
+    await waitFor(() => expect(posts(pedidos)).toHaveLength(1))
+    expect(posts(pedidos)[0]).toMatchObject({ url: "/api/flujo", cuerpo: { campana_id: VIEJA, quiero: "reanudar" } })
+    expect(subtitulo(container)).toBe("Lanzamiento del delivery en Guayaquil")
+    expect(pedidos.some((p) => p.url.includes(`campana=${VIEJA}`))).toBe(false)
+    // y el de la elegida, igual: para su campaña
+    fireEvent.click(botones(container)[1])
+    await waitFor(() => expect(posts(pedidos)).toHaveLength(2))
+    expect(posts(pedidos)[1]).toMatchObject({ cuerpo: { campana_id: NUEVA, quiero: "parar" } })
+  })
+
+  it("Esc cierra solo la lista (el Centro sigue abierto); un clic fuera también la cierra", () => {
+    red()
+    const cerrar = vi.fn()
+    const { container } = render(<PanelAplicaciones onCerrar={cerrar} datosIniciales={piz()} flujoInicial={{ campana_id: NUEVA, flujo: VERDE, campanas: [C_VIEJA, C_NUEVA] }} />)
+    fireEvent.click(flecha(container)!)
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(lista(container)).toBeNull()
+    expect(cerrar).not.toHaveBeenCalled()
+    fireEvent.click(flecha(container)!)
+    expect(lista(container)).not.toBeNull()
+    fireEvent.mouseDown(cuadro(container, "brief"))
+    expect(lista(container)).toBeNull()
+    expect(cerrar).not.toHaveBeenCalled()
+    // con la lista cerrada, Esc vuelve a cerrar el Centro, como siempre
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(cerrar).toHaveBeenCalledTimes(1)
+  })
+
+  it("al cambiar de cliente arriba, la campaña elegida se olvida: el pizarrón del otro cliente se lee SIN `campana`", async () => {
+    const pedidos = red()
+    const { container } = pintar()
+    elegirConLaFlecha(container, VIEJA)
     await waitFor(() => expect(pedidos.some((p) => p.url.includes(`campana=${VIEJA}`))).toBe(true))
     guardarClienteDeTrabajo({ id: OTRO_CLIENTE, nombre: "Otro" })
     await waitFor(() => expect(pedidos.some((p) => p.url.startsWith(`/api/pizarron?cliente=${OTRO_CLIENTE}`))).toBe(true))
@@ -133,7 +179,7 @@ describe("19-nov · el toque que elige la campaña (Emilio 23:23)", () => {
     expect(delOtro.every((p) => !p.url.includes("campana="))).toBe(true)
   })
 
-  it("los lugares sin `onElegir` (el botón suelto de siempre): el toque para o reanuda directo, sin atributos de elegida", async () => {
+  it("los lugares solos: el toque para o reanuda directo, sin atributos de elegida", async () => {
     const pedidos = red()
     const { container } = render(<LugaresDeCampana clienteId={NAUFRAGO} campanas={[C_VIEJA, C_NUEVA]} />)
     const [vieja] = botones(container)
@@ -143,7 +189,7 @@ describe("19-nov · el toque que elige la campaña (Emilio 23:23)", () => {
     expect(posts(pedidos)[0]).toMatchObject({ cuerpo: { campana_id: VIEJA, quiero: "reanudar" } })
   })
 
-  it("la elegida con toque: la tocada si sigue viva con botón; si ya no está (o sin tocar), la viva más nueva", () => {
+  it("la elegida con la flecha: la elegida si sigue viva con botón; si ya no está (o sin tocar), la viva más nueva", () => {
     expect(campanaElegidaConToque([C_VIEJA, C_NUEVA], VIEJA)?.campana_id).toBe(VIEJA)
     expect(campanaElegidaConToque([C_VIEJA, C_NUEVA], null)?.campana_id).toBe(NUEVA)
     expect(campanaElegidaConToque([C_NUEVA], VIEJA)?.campana_id).toBe(NUEVA)
