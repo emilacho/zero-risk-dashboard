@@ -100,13 +100,16 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   const [tocada, setTocada] = useState<string | null>(null)
   const pedida = useRef<string | null>(null)
   // 21-nov (GO Lenovo 01:40Z) · la campaña pedida nace poco después, en la puerta: se releen los lugares hasta verla (la que no estaba antes);
-  //   al verla se cierra el formulario y queda elegida, con su nombre. Si no aparece a tiempo, el formulario se cierra igual y los lugares se releen.
-  const [naciendo, setNaciendo] = useState<{ antes: string[]; vueltas: number } | null>(null)
+  //   al verla se cierra el formulario y queda elegida, con su nombre. Si no aparece a tiempo, el formulario avisa (y sigue abierto).
+  //   «La nueva» = la del id que trae «ya_pedida» (otro clic, ya nacida) o la que no estaba antes; si al pedir todavía no había lectura de los lugares (`antes` null), la que lleva el nombre pedido.
+  //   21-nov (🔴 de CC5 01:54Z) · una lectura que falla deja `campanas` en null: la vuelta siguiente se programa IGUAL (y cuenta), solo buscar a «la nueva» pide lectura.
+  const [naciendo, setNaciendo] = useState<{ antes: string[] | null; nombre: string; id: string | null; vueltas: number } | null>(null)
+  const [sinNacer, setSinNacer] = useState(false)
   useEffect(() => {
-    if (!naciendo || !campanas) return
-    const nueva = campanas.find((c) => !naciendo.antes.includes(c.campana_id))
+    if (!naciendo) return
+    const nueva = campanas?.find((c) => c.campana_id === naciendo.id || (naciendo.antes ? !naciendo.antes.includes(c.campana_id) : c.nombre?.trim() === naciendo.nombre))
     if (nueva) { setNaciendo(null); setCreando(false); pedida.current = nueva.campana_id; setTocada(nueva.campana_id); void leer(datos?.cliente?.id ?? null); return }
-    if (naciendo.vueltas >= VUELTAS_HASTA_QUE_NACE) { setNaciendo(null); setCreando(false); void leer(datos?.cliente?.id ?? null); return }
+    if (naciendo.vueltas >= VUELTAS_HASTA_QUE_NACE) { setNaciendo(null); setSinNacer(true); setVuelta((v) => v + 1); return }
     const t = setTimeout(() => { setNaciendo((n) => n && { ...n, vueltas: n.vueltas + 1 }); setVuelta((v) => v + 1) }, ESPERA_ENTRE_VUELTAS_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega otra lectura de los lugares o cambia la espera
@@ -179,7 +182,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   // 20-nov (LENOVO 23:53) · brief y gran idea abiertos leen la campaña elegida, como sus cuadros (sin tocar: nada, el servidor muestra la viva más nueva)
   if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
   // 20-nov (GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03) · «Crear Campaña» abre el formulario de las 5 preguntas; al cerrarlo se vuelve a los cuadros
-  if (creando && cliente) return <FormularioCrearCampana clienteId={cliente} clienteNombre={datos?.cliente?.nombre ?? null} onCerrar={() => setCreando(false)} onCreada={() => { setNaciendo({ antes: (campanas ?? []).map((c) => c.campana_id), vueltas: 0 }); setVuelta((n) => n + 1) }} />
+  if (creando && cliente) return <FormularioCrearCampana clienteId={cliente} clienteNombre={datos?.cliente?.nombre ?? null} onCerrar={() => { setCreando(false); setSinNacer(false) }} onCreada={(nombre, id) => { setSinNacer(false); setNaciendo({ antes: campanas ? campanas.map((c) => c.campana_id) : null, nombre: nombre.trim(), id: id ?? null, vueltas: 0 }); setVuelta((n) => n + 1) }} sinNacer={sinNacer} />
   if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
 
   const idCliente = datos?.cliente?.id ?? null

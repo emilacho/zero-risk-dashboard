@@ -9,9 +9,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
-import { FormularioCrearCampana, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
+import { FormularioCrearCampana, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
-import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
+import { ESPERA_ENTRE_VUELTAS_MS, PanelAplicaciones, VUELTAS_HASTA_QUE_NACE } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { ACCIONES, ejecutarAccion } from "@/lib/tablero-acciones"
 import { LLAVE, PASOS, fechasDelMinimo, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
@@ -228,7 +228,7 @@ const pizDeNaufrago = (): Pizarron => ({
 }) as unknown as Pizarron
 
 /** la red de mentira del formulario: el mínimo, la acción de crear y las lecturas del Centro */
-function red(o: { minimo?: number | null | ((url: string) => number | null); crear?: () => Response; campanas?: (lectura: number) => CampanaDelFlujo[] } = {}) {
+function red(o: { minimo?: number | null | ((url: string) => number | null); crear?: () => Response; campanas?: (lectura: number) => CampanaDelFlujo[] | "falla" } = {}) {
   let lecturas = 0
   const pedidos: Array<{ url: string; metodo: string; cuerpo?: Record<string, unknown> }> = []
   const f = vi.fn(async (url: string, init?: RequestInit) => {
@@ -236,7 +236,7 @@ function red(o: { minimo?: number | null | ((url: string) => number | null); cre
     const m = typeof o.minimo === "function" ? o.minimo(url) : o.minimo
     if (url.startsWith("/api/crear-campana/minimo")) return m == null ? new Response(JSON.stringify({ ok: false, error: "todavia_no_disponible" }), { status: 501 }) : new Response(JSON.stringify({ ok: true, minimo_usd: m }), { status: 200 })
     if (url === "/api/acciones/crear-campana") return o.crear ? o.crear() : new Response(JSON.stringify({ ok: true, accion: "crear-campana" }), { status: 200 })
-    if (url.startsWith("/api/flujo")) { const cs = o.campanas ? o.campanas(lecturas++) : [C_VIVA]; return new Response(JSON.stringify({ ok: true, campana_id: cs[0]?.campana_id ?? null, flujo: cs[0]?.flujo ?? null, campanas: cs }), { status: 200 }) }
+    if (url.startsWith("/api/flujo")) { const cs = o.campanas ? o.campanas(lecturas++) : [C_VIVA]; if (cs === "falla") return new Response(JSON.stringify({ ok: false }), { status: 500 }); return new Response(JSON.stringify({ ok: true, campana_id: cs[0]?.campana_id ?? null, flujo: cs[0]?.flujo ?? null, campanas: cs }), { status: 200 }) }
     if (url.startsWith("/api/pizarron")) { const piz = pizDeNaufrago(); const pedida = new URL(url, "http://x").searchParams.get("campana"); return new Response(JSON.stringify({ ok: true, ...piz, ...(pedida ? { campana: { ...piz.campana, id: pedida } } : {}) }), { status: 200 }) } // la campaña pedida con &campana= es la que se lee
     return new Response(JSON.stringify({ ok: false }), { status: 404 })
   })
@@ -534,6 +534,103 @@ describe("«Crear Campaña» en el Centro", () => {
     await waitFor(() => expect(container.querySelector("[data-campana-nombre]")?.textContent).toBe("Naufrago llego a Guayaquil")) // el subtítulo «CAMPAÑA · <nombre>»
     await waitFor(() => expect(pedidos.some((p) => p.url.startsWith("/api/pizarron") && p.url.includes(NUEVA.campana_id))).toBe(true))
   }, 20000)
+  // 21-nov (🔴 de CC5 01:54Z) · una lectura de los lugares que falla durante la espera no la congela: la vuelta siguiente se programa igual
+  it("si una lectura de los lugares falla mientras se espera, se vuelve a leer y, al nacer, el formulario se cierra con ella elegida", async () => {
+    const NUEVA: CampanaDelFlujo = { campana_id: "2fd5f619-0000-4000-8000-000000000002", nombre: "Naufrago llego a Guayaquil", flujo: ROJO }
+    let creado = false, despues = 0
+    const pedidos = red({ minimo: 60, crear: () => { creado = true; return new Response(JSON.stringify({ ok: true }), { status: 200 }) },
+      campanas: () => (!creado ? [C_VIVA] : ++despues <= 2 ? "falla" : [NUEVA, C_VIVA]) })
+    const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={null} />)
+    await waitFor(() => expect(container.querySelector("[data-crear-campana]")).not.toBeNull())
+    fireEvent.click(container.querySelector("[data-crear-campana]")!)
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
+    // al resumen directo: las respuestas ya listas
+    const escribir = (sel: string, v: string) => fireEvent.change(container.querySelector(sel)!, { target: { value: v } })
+    const siguiente = () => fireEvent.click(boton(container, "[data-siguiente]"))
+    escribir("[data-campo=nombre]", NUEVA.nombre!); siguiente()
+    escribir("[data-campo=cambio]", LISTAS.cambio); siguiente()
+    escribir("[aria-label=Inicio]", LISTAS.inicio); escribir("[aria-label=Fin]", LISTAS.fin); siguiente()
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 60"))
+    escribir("[aria-label=Tope]", "150"); siguiente()
+    escribir("[data-campo=brief]", LISTAS.brief); siguiente()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    // 2 lecturas fallan (la de enseguida y la de la 1.ª vuelta); la de la 2.ª vuelta trae la nueva
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).toBeNull(), { timeout: 15000 })
+    expect(despues).toBeGreaterThanOrEqual(3)
+    await waitFor(() => expect(container.querySelector("[data-campana-nombre]")?.textContent).toBe(NUEVA.nombre))
+    expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(1)
+  }, 25000)
+  it("si la campaña no nace en las 30 vueltas, el formulario sigue abierto y avisa; el botón vuelve", async () => {
+    const pedidos = red({ minimo: 60 })
+    const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={null} />)
+    await waitFor(() => expect(container.querySelector("[data-crear-campana]")).not.toBeNull())
+    fireEvent.click(container.querySelector("[data-crear-campana]")!)
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
+    const escribir = (sel: string, v: string) => fireEvent.change(container.querySelector(sel)!, { target: { value: v } })
+    const siguiente = () => fireEvent.click(boton(container, "[data-siguiente]"))
+    escribir("[data-campo=nombre]", LISTAS.nombre); siguiente()
+    escribir("[data-campo=cambio]", LISTAS.cambio); siguiente()
+    escribir("[aria-label=Inicio]", LISTAS.inicio); escribir("[aria-label=Fin]", LISTAS.fin); siguiente()
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 60"))
+    escribir("[aria-label=Tope]", "150"); siguiente()
+    escribir("[data-campo=brief]", LISTAS.brief); siguiente()
+    // la espera de 4 s entre vueltas se acorta a 5 ms (el resto del reloj es el real)
+    const real = globalThis.setTimeout
+    vi.stubGlobal("setTimeout", ((fn: () => void, ms?: number) => real(fn, ms === ESPERA_ENTRE_VUELTAS_MS ? 5 : ms)) as typeof setTimeout)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(SIN_NACER), { timeout: 10000 })
+    expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull()
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña")
+    const lecturas = pedidos.filter((p) => p.url.startsWith("/api/flujo")).length
+    expect(lecturas).toBeGreaterThanOrEqual(VUELTAS_HASTA_QUE_NACE)
+    // y ya no se sigue leyendo
+    await new Promise((r) => real(r, 100))
+    expect(pedidos.filter((p) => p.url.startsWith("/api/flujo")).length).toBeLessThanOrEqual(lecturas + 1)
+  }, 20000)
+  it("si «ya_pedida» trae el id de una campaña que ya estaba en los lugares, el Centro la elige enseguida (no espera a «una que no estaba»)", async () => {
+    const NUEVA: CampanaDelFlujo = { campana_id: "2fd5f619-0000-4000-8000-000000000005", nombre: "Naufrago llego a Guayaquil", flujo: ROJO }
+    red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: true, estado: "ya_pedida", pedido_id: "p", campana_id: NUEVA.campana_id }), { status: 200 }) })
+    // los lugares ya leídos (y fijos) traen la campaña: nació antes de este clic (otro «Crear Campaña» tras el aviso)
+    const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={{ campana_id: VIVA, flujo: ROJO, campanas: [NUEVA, C_VIVA] }} />)
+    fireEvent.click(container.querySelector("[data-crear-campana]")!)
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
+    const escribir = (sel: string, v: string) => fireEvent.change(container.querySelector(sel)!, { target: { value: v } })
+    const siguiente = () => fireEvent.click(boton(container, "[data-siguiente]"))
+    escribir("[data-campo=nombre]", NUEVA.nombre!); siguiente()
+    escribir("[data-campo=cambio]", LISTAS.cambio); siguiente()
+    escribir("[aria-label=Inicio]", LISTAS.inicio); escribir("[aria-label=Fin]", LISTAS.fin); siguiente()
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 60"))
+    escribir("[aria-label=Tope]", "150"); siguiente()
+    escribir("[data-campo=brief]", LISTAS.brief); siguiente()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).toBeNull(), { timeout: 2000 })
+    await waitFor(() => expect(container.querySelector("[data-campana-nombre]")?.textContent).toBe(NUEVA.nombre))
+  })
+  it("la espera tiene tope: 30 vueltas de 4 s (2 minutos)", () => {
+    expect(ESPERA_ENTRE_VUELTAS_MS).toBe(4000)
+    expect(VUELTAS_HASTA_QUE_NACE).toBe(30)
+  })
+  it("vencida la espera (sinNacer), el formulario lo dice en el lugar del motivo y el botón vuelve a «Crear Campaña»", async () => {
+    red({ minimo: 60 })
+    const onCreada = vi.fn()
+    const { container, rerender } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, onCreada })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null))
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    rerender(<FormularioCrearCampana clienteId={NAUFRAGO} clienteNombre="Náufrago" onCerrar={() => {}} onCreada={onCreada} inicial={LISTAS} pasoInicial={5} minimoInicial={60} sinNacer />)
+    expect(container.querySelector("[data-problema]")?.textContent).toBe(SIN_NACER)
+    expect(SIN_NACER).toBe("El pedido salió, pero la campaña todavía no aparece. Revisa en unos minutos.")
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña")
+  })
+  it("otro clic tras el aviso lleva la MISMA llave; si «ya_pedida» trae el id de la campaña, se pasa al Centro", async () => {
+    const pedidos = red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: true, estado: "ya_pedida", pedido_id: "p", campana_id: "2fd5f619-0000-4000-8000-000000000003" }), { status: 200 }) })
+    const onCreada = vi.fn()
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, onCreada })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000003"))
+    expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(1)
+  })
   it("si el pedido falla, el botón vuelve a «Crear Campaña» y el motivo sale en el mismo lugar", async () => {
     red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false, error: "conflicto", plataforma: { error: "cadena_no_admite" } }), { status: 409 }) })
     const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })

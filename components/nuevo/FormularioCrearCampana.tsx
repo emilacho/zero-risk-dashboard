@@ -67,6 +67,8 @@ function Girando() {
   )
 }
 
+export const SIN_NACER = "El pedido salió, pero la campaña todavía no aparece. Revisa en unos minutos."
+
 export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
   const e = codigoDeNoCrear(j)
   if (e === "tope_bajo_minimo") return "El tope quedó debajo del mínimo. Revísalo."
@@ -80,12 +82,14 @@ export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
   return "La plataforma no contestó. No se creó nada: inténtalo otra vez."
 }
 
-export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onCreada, inicial = VACIAS, pasoInicial = 0, minimoInicial }: {
+export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onCreada, sinNacer = false, inicial = VACIAS, pasoInicial = 0, minimoInicial }: {
   clienteId: string
   clienteNombre: string | null
   onCerrar: () => void
-  /** la campaña quedó pedida: el Centro vuelve a leer sus lugares */
-  onCreada: () => void
+  /** la campaña quedó pedida (con este nombre; si ya había nacido, «ya_pedida» trae su id): el Centro relee sus lugares hasta verla nacer */
+  onCreada: (nombre: string, campanaId?: string | null) => void
+  /** 21-nov · el Centro esperó y la campaña no apareció: el formulario lo dice en el lugar del motivo y el botón vuelve */
+  sinNacer?: boolean
   /** pruebas e imagen */
   inicial?: RespuestasDeCrear
   pasoInicial?: number
@@ -103,6 +107,8 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   // el candado del envío: una referencia, no el estado (dos toques antes de repintar verían el estado viejo y mandarían dos)
   const enCurso = useRef(false)
   const [problema, setProblema] = useState<string | null>(null)
+  // 21-nov (🟡 de CC5) · vencida la espera, se avisa: el pedido salió, la campaña todavía no se ve (otro «Crear Campaña» lleva la misma llave: no duplica)
+  useEffect(() => { if (sinNacer) { setPedida(false); setProblema(SIN_NACER) } }, [sinNacer])
   // `llave_formulario`: UNA por formulario abierto, así un doble toque o un reintento da «ya pedida» y no abre dos campañas
   const llave = useMemo(() => nuevaLlave(), [])
 
@@ -155,7 +161,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
     try {
       const res = await fetch("/api/acciones/crear-campana", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCrear(clienteId, llave, r)) })
       const j = (await res.json().catch(() => null)) as Record<string, unknown> | null
-      if (res.ok && j?.ok === true) { setPedida(true); onCreada(); return }
+      if (res.ok && j?.ok === true) { setPedida(true); onCreada(r.nombre, typeof j.campana_id === "string" ? j.campana_id : null); return }
       // el mínimo pudo cambiar entre leerlo y crear: se muestra el que trae el rechazo (el de las fechas de la campaña) y se vuelve a la pregunta del tope
       if (codigoDeNoCrear(j) === "tope_bajo_minimo") {
         const delRechazo = minimoDelRechazo(j)
