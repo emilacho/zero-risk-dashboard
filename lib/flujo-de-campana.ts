@@ -7,6 +7,7 @@
  * Agnóstico: cualquier cliente, cualquier campaña.
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { nombreGenericoDelPlan, NOMBRE_GENERICO_SIN_PLAN } from "@/lib/nombre-generico-del-plan"
 
 /** 🔴 CONTRATO con la plataforma (`PREFIJO_DE_PAUSA_DEL_TABLERO`): el mismo texto exacto en los dos lados, con su prueba en cada uno */
 export const PREFIJO_DE_PAUSA_DEL_TABLERO = "pausada desde el tablero"
@@ -65,16 +66,29 @@ export async function leerFlujo(supabase: SupabaseClient, clienteId: string): Pr
   return { campana_id: c?.id ?? null, flujo: flujoDeCampana(c) }
 }
 
-type FilaViva = { id: string; estado: string; estado_motivo: string | null; nombre_de_campana?: string | null }
+type FilaViva = { id: string; estado: string; estado_motivo: string | null; nombre_de_campana?: string | null; plan_id?: string | null }
 /** 19-nov · las campañas vivas del cliente (no cerradas, no reemplazadas, no archivadas), de la más vieja a la más nueva, con su nombre y su botón.
- *  Si la base todavía no tiene la columna del nombre (migración `202611192130` de la plataforma sin aplicar), se lee sin ella y el nombre va null: el botón nunca se cae por eso. */
+ *  Si la base todavía no tiene la columna del nombre (migración `202611192130` de la plataforma sin aplicar), se lee sin ella: el botón nunca se cae por eso.
+ *  21-nov · Emilio 10:30Z (por Lenovo 10:31Z): una campaña SIN nombre se entrega con el genérico de su Plan de Marketing, AL LEER y sin escribir en la base; nunca null.
+ *  Si el plan no se puede leer, el genérico fijo (el nombre nunca tumba la lectura). */
 export async function campanasVivas(supabase: SupabaseClient, clienteId: string): Promise<CampanaDelFlujo[]> {
   const leer = (columnas: string) => supabase.from("cadena_campanas").select(columnas).eq("client_id", clienteId).eq("seco", false)
     .not("estado", "in", `(${ESTADOS_MUERTOS.join(",")})`).is("archivada_en", null).order("creada_en", { ascending: true })
-  let r = await leer("id, estado, estado_motivo, nombre_de_campana")
-  if (r.error && /nombre_de_campana/.test(r.error.message ?? "")) r = await leer("id, estado, estado_motivo")
+  let r = await leer("id, estado, estado_motivo, nombre_de_campana, plan_id")
+  if (r.error && /nombre_de_campana/.test(r.error.message ?? "")) r = await leer("id, estado, estado_motivo, plan_id")
   if (r.error) throw new Error(`leer las campañas: ${r.error.message}`)
-  return ((r.data ?? []) as unknown as FilaViva[]).map((x) => ({ campana_id: x.id, nombre: nombreDeCampana(x.nombre_de_campana), flujo: flujoDeCampana(x) }))
+  const filas = (r.data ?? []) as unknown as FilaViva[]
+  const planes = [...new Set(filas.filter((x) => !nombreDeCampana(x.nombre_de_campana)).map((x) => x.plan_id).filter((p): p is string => typeof p === "string" && p !== ""))]
+  const genericos = await nombresGenericos(supabase, planes)
+  return filas.map((x) => ({ campana_id: x.id, nombre: nombreDeCampana(x.nombre_de_campana) ?? genericos.get(x.plan_id ?? "") ?? NOMBRE_GENERICO_SIN_PLAN, flujo: flujoDeCampana(x) }))
+}
+/** el nombre genérico por plan (solo de las campañas sin nombre) · una lectura que falla deja el genérico fijo: nunca tumba la lectura del flujo */
+async function nombresGenericos(supabase: SupabaseClient, planes: string[]): Promise<Map<string, string>> {
+  if (planes.length === 0) return new Map()
+  const r = await supabase.from("client_historical_outputs").select("id, content_text, content").in("id", planes)
+  if (r.error) return new Map()
+  const texto = (v: unknown): string | null => (typeof v === "string" ? v : null)
+  return new Map(((r.data ?? []) as Array<{ id: string; content_text?: unknown; content?: unknown }>).map((p) => [p.id, nombreGenericoDelPlan(texto(p.content_text) ?? texto(p.content))]))
 }
 const nombreDeCampana = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
 
