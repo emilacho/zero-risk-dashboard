@@ -137,7 +137,8 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   // 21-nov (GO Lenovo 10:28Z · firma de Emilio 10:25–10:27Z) · falla completa (fuera de las manos del sistema): el MISMO botón dice «El intento falló · Crear nuevamente» y, debajo, un código chico
   const [fallo, setFallo] = useState<string | null>(null)
   const montado = useRef(true)
-  useEffect(() => () => { montado.current = false }, [])
+  // CC5 12:36Z · se vuelve a marcar al montar: con el doble montaje de React (versión de desarrollo) quedaba en false para siempre y no reintentaba
+  useEffect(() => { montado.current = true; return () => { montado.current = false } }, [])
   const [problema, setProblema] = useState<string | null>(null)
   // la plataforma ya sabe decir cómo va el pedido (su ruta contestó alguna vez): entonces la espera del Centro no corta nada, se sigue en «Campaña en proceso»
   const conEstado = useRef(false)

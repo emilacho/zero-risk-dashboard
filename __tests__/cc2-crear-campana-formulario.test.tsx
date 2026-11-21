@@ -8,6 +8,7 @@
  *   · el servidor del tablero valida igual que la pantalla (la pantalla puede mentir)
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { StrictMode } from "react"
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
 import { AL_CERRAR, CODIGO_SIN_CONEXION, EL_INTENTO_FALLO, ESPERAS_DEL_REINTENTO_MS, FormularioCrearCampana, SEGUIR_CADA_MS, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
@@ -1135,5 +1136,93 @@ describe("el seguimiento del pedido en proceso", () => {
     const ya = lecturas(p).length
     await act(async () => { await new Promise((r) => setTimeout(r, 40)) })
     expect(lecturas(p)).toHaveLength(ya)
+  })
+})
+
+// 21-nov (🟡 de CC5 12:36Z en #370) · las 4 pruebas que pidió (x22, x24, x25, x30) y el doble montaje de la versión de desarrollo
+describe("lo que pidió CC5 en #370", () => {
+  const ok = (o: Record<string, unknown>, status = 200) => new Response(JSON.stringify(o), { status })
+  const PEDIDA = () => ok({ ok: true, accion: "crear-campana", plataforma_status: 200, resultado: { ok: true, estado: "pedida", pedido_id: "p" } })
+  it("con el doble montaje de React (StrictMode, la versión de desarrollo), al caer la red igual reintenta", async () => {
+    let n = 0
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url === "/api/acciones/crear-campana") { if (++n === 1) throw new Error("red caída"); return PEDIDA() }
+      if (url.startsWith("/api/crear-campana/minimo")) return ok({ ok: true, minimo_usd: 60 })
+      if (url.startsWith("/api/crear-campana/estado")) return ok({ ok: true, estado: "en_proceso" })
+      return ok({ ok: false }, 404)
+    }))
+    const onCreada = vi.fn()
+    const { container } = render(<StrictMode><FormularioCrearCampana clienteId={NAUFRAGO} clienteNombre="Náufrago" onCerrar={() => {}} onCreada={onCreada} inicial={LISTAS} pasoInicial={5} minimoInicial={60} esperas={[0]} /></StrictMode>)
+    await waitFor(() => expect(boton(container, "[data-crear]").disabled).toBe(false))
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledTimes(1))
+    expect(n).toBe(2)
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+  })
+  it("x24 · entre un reintento y otro se espera lo que dice la lista (no salen de golpe)", async () => {
+    let n = 0
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url === "/api/acciones/crear-campana") { if (++n === 1) throw new Error("red caída"); return PEDIDA() }
+      return ok({ ok: false, error: "todavia_no_disponible" }, 501)
+    }))
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [150] })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(n).toBe(1))
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+    expect(n).toBe(1)
+    await waitFor(() => expect(n).toBe(2))
+  })
+  it("x25 · un Esc durante los reintentos, luego la falla y luego «Crear nuevamente» que sale bien: NO cierra solo", async () => {
+    let n = 0
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url === "/api/acciones/crear-campana") { if (++n <= 2) throw new Error("red caída"); return PEDIDA() }
+      if (url.startsWith("/api/crear-campana/estado")) return ok({ ok: false, error: "sin_pedido" }, 404)
+      return ok({ ok: false }, 404)
+    }))
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [20], seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(n).toBe(1))
+    fireEvent.keyDown(window, { key: "Escape" })
+    await waitFor(() => expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe(CODIGO_SIN_CONEXION))
+    expect(onCerrar).not.toHaveBeenCalled()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(n).toBe(3))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("x30 · «Crear nuevamente» y la plataforma lo rechaza (400): vuelve «Crear Campaña» con su motivo, no queda el código viejo", async () => {
+    let n = 0
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url === "/api/acciones/crear-campana") { if (++n === 1) return PEDIDA(); return ok({ ok: false, error: "la_plataforma_rechazo", plataforma_status: 400, plataforma_error: "entrada_invalida", detalle: "el nombre está en blanco" }, 502) }
+      if (url.startsWith("/api/crear-campana/estado")) return ok({ ok: true, estado: "fallida", codigo: "E-SALA" })
+      return ok({ ok: false }, 404)
+    }))
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe("E-SALA"))
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    expect(container.querySelector("[data-fallo]")).toBeNull()
+    expect(container.querySelector("[data-codigo-fallo]")).toBeNull()
+    expect(boton(container, "[data-crear]").textContent).toBe("Crear Campaña")
+  })
+  it("x22 · cerrado el formulario con una lectura en vuelo, la respuesta que llega tarde NO avisa al Centro", async () => {
+    let soltar: (r: Response) => void = () => {}
+    let lecturas = 0
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url === "/api/acciones/crear-campana") return PEDIDA()
+      if (url.startsWith("/api/crear-campana/estado")) { lecturas++; return new Promise<Response>((r) => { soltar = r }) }
+      return ok({ ok: false }, 404)
+    }))
+    const onCreada = vi.fn()
+    const { container, unmount } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(lecturas).toBe(1))
+    expect(onCreada).toHaveBeenCalledTimes(1)
+    unmount()
+    await act(async () => { soltar(ok({ ok: true, estado: "nacida", campana_id: "2fd5f619-0000-4000-8000-000000000004" })); await new Promise((r) => setTimeout(r, 20)) })
+    expect(onCreada).toHaveBeenCalledTimes(1)
   })
 })
