@@ -10,7 +10,7 @@
  *   · el último paso es el resumen con «Crear Campaña». El tablero no escribe la base: lo manda `POST /api/acciones/crear-campana` a la plataforma.
  * Las reglas viven en `lib/crear-campana.ts` (las mismas que exige el servidor del tablero).
  */
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, PanelBase, ROTULO } from "@/components/nuevo/EstiloBase"
 import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
 import { SelectorDeFecha } from "@/components/nuevo/SelectorDeFecha"
@@ -139,7 +139,8 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const [preguntaCerrar, setPreguntaCerrar] = useState(false)
   const pedirCerrar = () => { if (pedida || !hayAlgoEscrito(r)) onCerrar(); else setPreguntaCerrar(true) }
   // Esc cierra el formulario y vuelve al Centro (no cierra el Centro ni la oficina); con la pregunta a la vista, Esc es «Seguir escribiendo»
-  useEffect(() => {
+  // en el mismo momento en que se pinta (useLayoutEffect): apenas sale «Campaña en proceso», Esc ya sabe que está pedida (con useEffect había un instante con lo viejo)
+  useLayoutEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return
       if ((e.target as Element | null)?.closest?.("[data-calendario-abierto], [data-calendario]")) return // 21-nov · Esc con el calendario abierto (en la casilla o en el calendario) cierra solo el calendario
