@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { PanelAplicaciones, conCampana } from "@/components/nuevo/PanelAplicaciones"
-import { LugaresDeCampana, campanaElegidaConToque } from "@/components/nuevo/LugaresDeCampana"
+import { CampanaComoTexto, LugaresDeCampana, campanaElegidaConToque, nombreDelSubtitulo } from "@/components/nuevo/LugaresDeCampana"
 import { tarjetaDelCentro } from "@/lib/centro-tarjetas"
 import type { Centro } from "@/lib/centro-datos"
 import type { Pizarron } from "@/lib/pizarron-datos"
@@ -201,6 +201,60 @@ describe("21-nov · la campaña se elige con la flecha del subtítulo (Emilio 10
     expect(conCampana(`/api/centro?cliente=${NAUFRAGO}`, VIEJA)).toBe(`/api/centro?cliente=${NAUFRAGO}&campana=${VIEJA}`)
     expect(conCampana("/api/centro", VIEJA)).toBe(`/api/centro?campana=${VIEJA}`)
     expect(conCampana(`/api/centro?cliente=${NAUFRAGO}`, null)).toBe(`/api/centro?cliente=${NAUFRAGO}`)
+  })
+})
+
+describe("21-nov · la flecha sola (🟡 de CC5 a #371: y7, y8, y14, y1, y17, y3)", () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+  const OPCIONES = [C_VIEJA, C_NUEVA]
+
+  it("🔴 y7 · con el ratón de verdad (mousedown y después click sobre el ítem) se elige: el mousedown DENTRO de la lista no la cierra", async () => {
+    const pedidos = red()
+    const { container } = pintar()
+    fireEvent.mouseDown(flecha(container)!); fireEvent.click(flecha(container)!)
+    const item = container.querySelector(`[data-campana-de-la-lista="${VIEJA}"]`) as HTMLElement
+    fireEvent.mouseDown(item)
+    expect(lista(container)).not.toBeNull()
+    fireEvent.click(item)
+    await waitFor(() => expect(subtitulo(container)).toBe("Impulso del encebollado a domicilio"))
+    await waitFor(() => expect(pedidos.some((p) => p.url === `/api/centro?cliente=${NAUFRAGO}&campana=${VIEJA}`)).toBe(true))
+  })
+
+  it("y8 · elegir la que ya está elegida NO llama `onElegir` (solo cierra la lista); otra sí, una vez", () => {
+    const onElegir = vi.fn()
+    const { container } = render(<CampanaComoTexto nombre={C_NUEVA.nombre!} opciones={OPCIONES} elegidaId={NUEVA} onElegir={onElegir} />)
+    elegirConLaFlecha(container, NUEVA)
+    expect(onElegir).not.toHaveBeenCalled()
+    expect(lista(container)).toBeNull()
+    elegirConLaFlecha(container, VIEJA)
+    expect(onElegir).toHaveBeenCalledTimes(1); expect(onElegir).toHaveBeenCalledWith(VIEJA)
+  })
+
+  it("y14 · un ítem sin nombre (vacío o solo espacios) dice «sin nombre», nunca queda en blanco", () => {
+    const { container } = render(<CampanaComoTexto nombre="x" opciones={[{ ...C_VIEJA, nombre: "" }, { ...C_NUEVA, nombre: "   " }, { ...C_NUEVA, campana_id: "33333333-3333-4333-8333-333333333333", nombre: null }]} elegidaId={NUEVA} onElegir={() => {}} />)
+    fireEvent.click(flecha(container)!)
+    expect([...container.querySelectorAll("[data-campana-de-la-lista] span:first-child")].map((x) => x.textContent)).toEqual(["sin nombre", "sin nombre", "sin nombre"])
+  })
+
+  it("y1 · sin lectura el subtítulo dice «Leyendo…» (y sin flecha); el nombre se recorta (y3)", () => {
+    expect(nombreDelSubtitulo(null, null)).toBe("Leyendo…")
+    expect(nombreDelSubtitulo(undefined, C_NUEVA)).toBe("Leyendo…")
+    expect(nombreDelSubtitulo([], null)).toBe("ninguna abierta")
+    expect(nombreDelSubtitulo([C_NUEVA], { ...C_NUEVA, nombre: "  Lanzamiento  " })).toBe("Lanzamiento")
+    expect(nombreDelSubtitulo([C_NUEVA], { ...C_NUEVA, nombre: "   " })).toBe("sin nombre")
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})))
+    const { container } = render(<PanelAplicaciones onCerrar={() => {}} />)
+    expect(subtitulo(container)).toBe("Leyendo…")
+    expect(flecha(container)).toBeNull()
+  })
+
+  it("y17 · la flecha alterna: un toque abre, otro cierra (y `aria-expanded` lo dice)", () => {
+    const { container } = render(<CampanaComoTexto nombre={C_NUEVA.nombre!} opciones={OPCIONES} elegidaId={NUEVA} onElegir={() => {}} />)
+    expect(flecha(container)!.getAttribute("aria-expanded")).toBe("false")
+    fireEvent.click(flecha(container)!)
+    expect(lista(container)).not.toBeNull(); expect(flecha(container)!.getAttribute("aria-expanded")).toBe("true")
+    fireEvent.click(flecha(container)!)
+    expect(lista(container)).toBeNull(); expect(flecha(container)!.getAttribute("aria-expanded")).toBe("false")
   })
 })
 
