@@ -54,6 +54,9 @@ export const PASOS = [
 ] as const
 
 export const VACIAS: RespuestasDeCrear = { nombre: "", cambio: "", inicio: "", fin: "", claves: [], tope: "", brief: "" }
+/** 21-nov (#54 del barrido · Lenovo 05:01Z) · hay algo que se perdería al cerrar: un campo con texto o una fecha clave con fecha o con «qué pasa» (una fila vacía de «+ Agregar» no cuenta) */
+export const hayAlgoEscrito = (r: RespuestasDeCrear): boolean =>
+  [r.nombre, r.cambio, r.inicio, r.fin, r.tope, r.brief].some((s) => s.trim() !== "") || r.claves.some((c) => c.fecha.trim() !== "" || c.que.trim() !== "")
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/
 const esFecha = (s: unknown): s is string => typeof s === "string" && FECHA.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s

@@ -9,12 +9,12 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
-import { FormularioCrearCampana, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
+import { AL_CERRAR, CON_LO_ANTERIOR, FormularioCrearCampana, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { ESPERA_ENTRE_VUELTAS_MS, PanelAplicaciones, VUELTAS_HASTA_QUE_NACE } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { ACCIONES, ejecutarAccion } from "@/lib/tablero-acciones"
-import { LLAVE, PASOS, fechasDelMinimo, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
+import { LLAVE, PASOS, fechasDelMinimo, hayAlgoEscrito, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { faseActiva } from "@/lib/pizarron"
 
@@ -463,6 +463,245 @@ describe("la pantalla, como el boceto aprobado", () => {
   })
 })
 
+// 21-nov (#54 del barrido · Lenovo 05:01Z) · cerrar con algo escrito pregunta antes de perderlo (el mismo aviso de «¿Retirar esta idea?»)
+// 21-nov · el pedido a la plataforma con su respuesta en la mano de la prueba (lo demás, lo de `red`)
+function pedidoRetenido() {
+  const base = globalThis.fetch
+  const cuerpos: string[] = []
+  let soltar: (r: Response | Error) => void = () => {}
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url === "/api/acciones/crear-campana") {
+      cuerpos.push(String(init?.body ?? ""))
+      return new Promise<Response>((ok, mal) => { soltar = (r) => (r instanceof Error ? mal(r) : ok(r)) })
+    }
+    return base(input, init)
+  }))
+  return { cuerpos, soltar: (r: Response | Error) => act(async () => { soltar(r); await Promise.resolve() }) }
+}
+const respuesta = (o: Record<string, unknown>, status = 200) => new Response(JSON.stringify(o), { status })
+
+// 21-nov (🔴 de CC5 05:24Z) · con el pedido EN VUELO nunca se dice «sin crear»
+describe("cerrar con el pedido en vuelo", () => {
+  it("Esc no pregunta ni cierra: espera la respuesta; si salió, cierra", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCerrar = vi.fn(), onCreada = vi.fn()
+    const { container } = formulario({ onCerrar, onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(container.querySelector("[data-aviso-cerrar]")).toBeNull()
+    expect(onCerrar).not.toHaveBeenCalled()
+    await p.soltar(respuesta({ ok: true, estado: "pedida", pedido_id: "p" }))
+    await waitFor(() => expect(onCerrar).toHaveBeenCalledTimes(1))
+    expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false)
+  })
+  it("la ✕ con el pedido en vuelo, y el pedido falla: no cierra, queda el motivo; después Esc pregunta (lo escrito sigue sin crear)", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    fireEvent.click(boton(container, "[data-cerrar]"))
+    expect(container.querySelector("[data-aviso-cerrar]")).toBeNull()
+    await p.soltar(new Error("red caída"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    expect(onCerrar).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(container.querySelector("[data-aviso-cerrar]")).not.toBeNull()
+    expect(onCerrar).not.toHaveBeenCalled()
+    // el cierre pedido en vuelo murió con el fallo: un reintento que sale bien NO cierra solo
+    fireEvent.click(boton(container, "[data-accion=seguir-escribiendo]"))
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    await p.soltar(respuesta({ ok: true, estado: "pedida", pedido_id: "p" }))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("con el aviso «ya pedida con lo anterior», un cierre pedido en vuelo NO se cumple: el aviso queda a la vista", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    await p.soltar(new Error("red caída"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
+    fireEvent.click(boton(container, "[data-atras]"))
+    fireEvent.change(container.querySelector("[data-campo=brief]")!, { target: { value: "Otro brief." } })
+    fireEvent.click(boton(container, "[data-siguiente]"))
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    fireEvent.keyDown(window, { key: "Escape" })
+    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
+    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR))
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+})
+
+// 21-nov (#54 parte 2 · Lenovo 05:35Z) · el reintento tras un error de red: si la campaña ya estaba pedida con lo anterior, se dice; nunca nace otra
+describe("el reintento tras un error de red", () => {
+  const cambiarElBrief = (c: HTMLElement) => {
+    fireEvent.click(boton(c, "[data-atras]"))
+    fireEvent.change(c.querySelector("[data-campo=brief]")!, { target: { value: LISTAS.brief + " Y un postre de regalo." } })
+    fireEvent.click(boton(c, "[data-siguiente]"))
+  }
+  it("brief cambiado y «ya_pedida»: el aviso en el lugar del motivo, la MISMA llave, y el formulario se queda (cerrar ya no pregunta)", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCerrar = vi.fn(), onCreada = vi.fn()
+    const { container } = formulario({ onCerrar, onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    await p.soltar(new Error("red caída"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
+    cambiarElBrief(container)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p", campana_id: "2fd5f619-0000-4000-8000-000000000009" }))
+    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR))
+    expect(CON_LO_ANTERIOR).toBe("La campaña ya se había pedido con el brief anterior; tus cambios no entraron. Puedes pedirlos desde el brief, en el Centro.")
+    expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000009", true)
+    expect(JSON.parse(p.cuerpos[0]).llave_formulario).toBe(JSON.parse(p.cuerpos[1]).llave_formulario)
+    expect(JSON.parse(p.cuerpos[1]).brief_libre).toContain("postre")
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(container.querySelector("[data-aviso-cerrar]")).toBeNull()
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+  it("mismo contenido y «ya_pedida» (el primero sí llegó): sin aviso", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCreada = vi.fn()
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    await p.soltar(new Error("red caída"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false))
+    expect(container.querySelector("[data-problema]")).toBeNull()
+  })
+  it("brief cambiado y la plataforma lo actualizó («actualizada»): nada raro, la campaña nace con lo de ahora", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCreada = vi.fn()
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    await p.soltar(new Error("red caída"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
+    cambiarElBrief(container)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    await p.soltar(respuesta({ ok: true, estado: "actualizada", pedido_id: "p" }))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false))
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+  })
+  it("tras un guardado confirmado («actualizada»), lo anterior ya no cuenta: vencida la espera, repetir lo mismo y recibir «ya_pedida» no avisa", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCreada = vi.fn()
+    const props = { clienteId: NAUFRAGO, clienteNombre: "Náufrago", onCerrar: () => {}, onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 }
+    const { container, rerender } = render(<FormularioCrearCampana {...props} />)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    await p.soltar(new Error("red caída"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
+    cambiarElBrief(container)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    await p.soltar(respuesta({ ok: true, estado: "actualizada", pedido_id: "p" }))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    rerender(<FormularioCrearCampana {...props} sinNacer />)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(3))
+    expect(p.cuerpos[2]).toBe(p.cuerpos[1])
+    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledTimes(2))
+    expect(onCreada).toHaveBeenLastCalledWith(LISTAS.nombre, null, false)
+    expect(container.querySelector("[data-problema]")?.textContent).not.toBe(CON_LO_ANTERIOR)
+  })
+})
+
+describe("cerrar el formulario con algo escrito pregunta antes", () => {
+  const aviso = (c: HTMLElement) => c.querySelector("[data-aviso-cerrar]")
+  it("qué cuenta como escrito: cualquier campo o una fecha clave con algo; una fila vacía de «+ Agregar» no", () => {
+    expect(hayAlgoEscrito(VACIAS)).toBe(false)
+    expect(hayAlgoEscrito({ ...VACIAS, claves: [{ fecha: "", que: "" }] })).toBe(false)
+    expect(hayAlgoEscrito({ ...VACIAS, nombre: "   " })).toBe(false)
+    for (const k of ["nombre", "cambio", "inicio", "fin", "tope", "brief"] as const) expect(hayAlgoEscrito({ ...VACIAS, [k]: "x" })).toBe(true)
+    expect(hayAlgoEscrito({ ...VACIAS, claves: [{ fecha: "", que: "" }, { fecha: "2026-12-05", que: "" }] })).toBe(true)
+    expect(hayAlgoEscrito({ ...VACIAS, claves: [{ fecha: "", que: "Abre" }] })).toBe(true)
+  })
+  it("Esc con algo escrito: sale la pregunta y no cierra; «Seguir escribiendo» la quita y lo escrito sigue", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 4, minimoInicial: 60 })
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(onCerrar).not.toHaveBeenCalled()
+    expect(aviso(container)?.textContent).toContain(AL_CERRAR)
+    expect(AL_CERRAR).toBe("¿Cerrar sin crear? Se pierde lo que escribiste.")
+    expect(aviso(container)?.getAttribute("role")).toBe("alertdialog")
+    expect(document.activeElement).toBe(boton(container, "[data-accion=seguir-escribiendo]"))
+    fireEvent.click(boton(container, "[data-accion=seguir-escribiendo]"))
+    expect(aviso(container)).toBeNull()
+    expect((container.querySelector("[data-campo=brief]") as HTMLTextAreaElement).value).toBe(LISTAS.brief)
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("con la pregunta a la vista, Esc es «Seguir escribiendo» (no cierra); «Sí, cerrar» cierra una vez", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 0, minimoInicial: 60 })
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).not.toBeNull()
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).toBeNull()
+    expect(onCerrar).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: "Escape" })
+    fireEvent.click(boton(container, "[data-accion=confirmar-cerrar]"))
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+  it("la ✕ «Cerrar» y el clic fuera del panel también preguntan", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 1, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-cerrar]"))
+    expect(aviso(container)).not.toBeNull()
+    fireEvent.click(boton(container, "[data-accion=seguir-escribiendo]"))
+    fireEvent.mouseDown(document.querySelector(".nv-panel")!)
+    expect(aviso(container)).not.toBeNull()
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("sin nada escrito (o solo una fila vacía de fecha clave) cierra sin preguntar", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: { ...VACIAS, claves: [{ fecha: "", que: "" }] }, pasoInicial: 2, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-cerrar]"))
+    expect(aviso(container)).toBeNull()
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+  it("escribir algo con la pregunta a la vista la quita; mientras se pregunta, el motivo anterior no se ve", async () => {
+    red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false, error: "x" }), { status: 500 }) })
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).not.toBeNull()
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    fireEvent.click(boton(container, "[data-atras]"))
+    fireEvent.change(container.querySelector("[data-campo=brief]")!, { target: { value: LISTAS.brief + " Más." } })
+    expect(aviso(container)).toBeNull()
+  })
+  it("ya pedida la campaña («Campaña en proceso»), cerrar no pregunta: no se pierde nada", async () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).toBeNull()
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe("«Crear Campaña» en el Centro", () => {
   it("con `onCrear` se puede tocar (sin `aria-disabled`) y lo llama; sin él sigue deshabilitado", () => {
     const onCrear = vi.fn()
@@ -561,6 +800,41 @@ describe("«Crear Campaña» en el Centro", () => {
     await waitFor(() => expect(container.querySelector("[data-campana-nombre]")?.textContent).toBe(NUEVA.nombre))
     expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(1)
   }, 25000)
+  // 21-nov (#54 parte 2) · con el aviso «ya pedida con lo anterior», la campaña nacida no cierra el formulario: el dueño lee el aviso y cierra; la campaña queda elegida
+  it("«ya_pedida» con el brief cambiado: al nacer, el formulario se queda con el aviso; cerrarlo deja la campaña elegida", async () => {
+    const NUEVA: CampanaDelFlujo = { campana_id: "2fd5f619-0000-4000-8000-000000000004", nombre: "Naufrago llego a Guayaquil", flujo: ROJO }
+    let veces = 0
+    const pedidos = red({ minimo: 60,
+      crear: () => { if (++veces === 1) throw new Error("red caída"); return new Response(JSON.stringify({ ok: true, estado: "ya_pedida", pedido_id: "p", campana_id: NUEVA.campana_id }), { status: 200 }) },
+      campanas: () => (veces < 2 ? [C_VIVA] : [NUEVA, C_VIVA]) })
+    const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={null} />)
+    await waitFor(() => expect(container.querySelector("[data-crear-campana]")).not.toBeNull())
+    fireEvent.click(container.querySelector("[data-crear-campana]")!)
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
+    const escribir = (sel: string, v: string) => fireEvent.change(container.querySelector(sel)!, { target: { value: v } })
+    const siguiente = () => fireEvent.click(boton(container, "[data-siguiente]"))
+    escribir("[data-campo=nombre]", NUEVA.nombre!); siguiente()
+    escribir("[data-campo=cambio]", LISTAS.cambio); siguiente()
+    escribir("[aria-label=Inicio]", LISTAS.inicio); escribir("[aria-label=Fin]", LISTAS.fin); siguiente()
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 60"))
+    escribir("[aria-label=Tope]", "150"); siguiente()
+    escribir("[data-campo=brief]", LISTAS.brief); siguiente()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    fireEvent.click(boton(container, "[data-atras]"))
+    escribir("[data-campo=brief]", LISTAS.brief + " Y un postre de regalo."); siguiente()
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR))
+    // la campaña nace (ya trae su id): el formulario sigue abierto con el aviso
+    await waitFor(() => expect(pedidos.filter((p) => p.url.startsWith("/api/flujo")).length).toBeGreaterThanOrEqual(2))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull()
+    expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR)
+    fireEvent.click(boton(container, "[data-cerrar]"))
+    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).toBeNull())
+    await waitFor(() => expect(container.querySelector("[data-campana-nombre]")?.textContent).toBe(NUEVA.nombre))
+    expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(2)
+  }, 25000)
   it("si la campaña no nace en las 30 vueltas, el formulario sigue abierto y avisa; el botón vuelve", async () => {
     const pedidos = red({ minimo: 60 })
     const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={null} />)
@@ -616,7 +890,7 @@ describe("«Crear Campaña» en el Centro", () => {
     const onCreada = vi.fn()
     const { container, rerender } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, onCreada })
     fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false))
     expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
     rerender(<FormularioCrearCampana clienteId={NAUFRAGO} clienteNombre="Náufrago" onCerrar={() => {}} onCreada={onCreada} inicial={LISTAS} pasoInicial={5} minimoInicial={60} sinNacer />)
     expect(container.querySelector("[data-problema]")?.textContent).toBe(SIN_NACER)
@@ -628,7 +902,7 @@ describe("«Crear Campaña» en el Centro", () => {
     const onCreada = vi.fn()
     const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, onCreada })
     fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000003"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000003", false))
     expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(1)
   })
   it("si el pedido falla, el botón vuelve a «Crear Campaña» y el motivo sale en el mismo lugar", async () => {
