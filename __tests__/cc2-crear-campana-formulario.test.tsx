@@ -9,12 +9,12 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
-import { AL_CERRAR, CON_LO_ANTERIOR, FormularioCrearCampana, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
+import { AL_CERRAR, CODIGO_SIN_CONEXION, EL_INTENTO_FALLO, ESPERAS_DEL_REINTENTO_MS, FormularioCrearCampana, SEGUIR_CADA_MS, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { ESPERA_ENTRE_VUELTAS_MS, PanelAplicaciones, VUELTAS_HASTA_QUE_NACE } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { ACCIONES, ejecutarAccion } from "@/lib/tablero-acciones"
-import { LLAVE, PASOS, fechasDelMinimo, hayAlgoEscrito, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
+import { LLAVE, PASOS, codigoCorto, fechasDelMinimo, leerEstadoDelPedido, hayAlgoEscrito, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { faseActiva } from "@/lib/pizarron"
 
@@ -236,6 +236,7 @@ function red(o: { minimo?: number | null | ((url: string) => number | null); cre
     const m = typeof o.minimo === "function" ? o.minimo(url) : o.minimo
     if (url.startsWith("/api/crear-campana/minimo")) return m == null ? new Response(JSON.stringify({ ok: false, error: "todavia_no_disponible" }), { status: 501 }) : new Response(JSON.stringify({ ok: true, minimo_usd: m }), { status: 200 })
     if (url === "/api/acciones/crear-campana") return o.crear ? o.crear() : new Response(JSON.stringify({ ok: true, accion: "crear-campana" }), { status: 200 })
+    if (url.startsWith("/api/crear-campana/estado")) return new Response(JSON.stringify({ ok: false, error: "todavia_no_disponible" }), { status: 501 })
     if (url.startsWith("/api/flujo")) { const cs = o.campanas ? o.campanas(lecturas++) : [C_VIVA]; if (cs === "falla") return new Response(JSON.stringify({ ok: false }), { status: 500 }); return new Response(JSON.stringify({ ok: true, campana_id: cs[0]?.campana_id ?? null, flujo: cs[0]?.flujo ?? null, campanas: cs }), { status: 200 }) }
     if (url.startsWith("/api/pizarron")) { const piz = pizDeNaufrago(); const pedida = new URL(url, "http://x").searchParams.get("campana"); return new Response(JSON.stringify({ ok: true, ...piz, ...(pedida ? { campana: { ...piz.campana, id: pedida } } : {}) }), { status: 200 }) } // la campaña pedida con &campana= es la que se lee
     return new Response(JSON.stringify({ ok: false }), { status: 404 })
@@ -418,13 +419,12 @@ describe("la pantalla, como el boceto aprobado", () => {
     let n = 0
     const pedidos = red({ minimo: 60, crear: () => (++n === 1 ? new Response(JSON.stringify({ ok: false, error: "plataforma_sin_respuesta" }), { status: 502 }) : new Response(JSON.stringify({ ok: true, resultado: { estado: "ya_pedida" } }), { status: 200 })) })
     const onCreada = vi.fn()
-    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, onCreada })
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, onCreada, esperas: [0] })
     await waitFor(() => expect(boton(container, "[data-crear]").disabled).toBe(false))
     fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
-    expect(onCreada).not.toHaveBeenCalled()
-    fireEvent.click(boton(container, "[data-crear]"))
+    // 21-nov (GO Lenovo 10:28Z) · el 502 «sin respuesta» se reintenta SOLO, sin un segundo clic y sin motivo a la vista
     await waitFor(() => expect(onCreada).toHaveBeenCalledTimes(1))
+    expect(container.querySelector("[data-problema]")).toBeNull()
     const llaves = pedidos.filter((p) => p.metodo === "POST").map((p) => p.cuerpo?.llave_formulario)
     expect(llaves).toHaveLength(2)
     expect(llaves[0]).toBe(llaves[1])
@@ -494,9 +494,9 @@ describe("cerrar con el pedido en vuelo", () => {
     expect(onCerrar).not.toHaveBeenCalled()
     await p.soltar(respuesta({ ok: true, estado: "pedida", pedido_id: "p" }))
     await waitFor(() => expect(onCerrar).toHaveBeenCalledTimes(1))
-    expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false)
+    expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null)
   })
-  it("la ✕ con el pedido en vuelo, y el pedido falla: no cierra, queda el motivo; después Esc pregunta (lo escrito sigue sin crear)", async () => {
+  it("la ✕ con el pedido en vuelo, y la plataforma lo rechaza (409): no cierra, queda el motivo; después Esc pregunta (lo escrito sigue sin crear)", async () => {
     red({ minimo: 60 }); const p = pedidoRetenido()
     const onCerrar = vi.fn()
     const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
@@ -504,13 +504,14 @@ describe("cerrar con el pedido en vuelo", () => {
     await waitFor(() => expect(p.cuerpos).toHaveLength(1))
     fireEvent.click(boton(container, "[data-cerrar]"))
     expect(container.querySelector("[data-aviso-cerrar]")).toBeNull()
-    await p.soltar(new Error("red caída"))
+    await p.soltar(respuesta({ ok: false, error: "conflicto" }, 409))
     await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    expect(p.cuerpos).toHaveLength(1)
     expect(onCerrar).not.toHaveBeenCalled()
     fireEvent.keyDown(window, { key: "Escape" })
     expect(container.querySelector("[data-aviso-cerrar]")).not.toBeNull()
     expect(onCerrar).not.toHaveBeenCalled()
-    // el cierre pedido en vuelo murió con el fallo: un reintento que sale bien NO cierra solo
+    // el cierre pedido en vuelo murió con el rechazo: un intento nuevo que sale bien NO cierra solo
     fireEvent.click(boton(container, "[data-accion=seguir-escribiendo]"))
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(p.cuerpos).toHaveLength(2))
@@ -518,106 +519,147 @@ describe("cerrar con el pedido en vuelo", () => {
     await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
     expect(onCerrar).not.toHaveBeenCalled()
   })
-  it("con el aviso «ya pedida con lo anterior», un cierre pedido en vuelo NO se cumple: el aviso queda a la vista", async () => {
+  it("la ✕ en vuelo y la red cae: el reintento solo sale bien y el cierre pedido se cumple", async () => {
     red({ minimo: 60 }); const p = pedidoRetenido()
     const onCerrar = vi.fn()
-    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0] })
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    fireEvent.click(boton(container, "[data-cerrar]"))
     await p.soltar(new Error("red caída"))
-    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
-    fireEvent.click(boton(container, "[data-atras]"))
-    fireEvent.change(container.querySelector("[data-campo=brief]")!, { target: { value: "Otro brief." } })
-    fireEvent.click(boton(container, "[data-siguiente]"))
-    fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(p.cuerpos).toHaveLength(2))
-    fireEvent.keyDown(window, { key: "Escape" })
-    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
-    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR))
     expect(onCerrar).not.toHaveBeenCalled()
+    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
+    await waitFor(() => expect(onCerrar).toHaveBeenCalledTimes(1))
   })
 })
 
-// 21-nov (#54 parte 2 · Lenovo 05:35Z) · el reintento tras un error de red: si la campaña ya estaba pedida con lo anterior, se dice; nunca nace otra
-describe("el reintento tras un error de red", () => {
-  const cambiarElBrief = (c: HTMLElement) => {
-    fireEvent.click(boton(c, "[data-atras]"))
-    fireEvent.change(c.querySelector("[data-campo=brief]")!, { target: { value: LISTAS.brief + " Y un postre de regalo." } })
-    fireEvent.click(boton(c, "[data-siguiente]"))
-  }
-  it("brief cambiado y «ya_pedida»: el aviso en el lugar del motivo, la MISMA llave, y el formulario se queda (cerrar ya no pregunta)", async () => {
-    red({ minimo: 60 }); const p = pedidoRetenido()
-    const onCerrar = vi.fn(), onCreada = vi.fn()
-    const { container } = formulario({ onCerrar, onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
-    fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
-    await p.soltar(new Error("red caída"))
-    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
-    cambiarElBrief(container)
-    fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
-    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p", campana_id: "2fd5f619-0000-4000-8000-000000000009" }))
-    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR))
-    expect(CON_LO_ANTERIOR).toBe("La campaña ya se había pedido con el brief anterior; tus cambios no entraron. Puedes pedirlos desde el brief, en el Centro.")
-    expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000009", true)
-    expect(JSON.parse(p.cuerpos[0]).llave_formulario).toBe(JSON.parse(p.cuerpos[1]).llave_formulario)
-    expect(JSON.parse(p.cuerpos[1]).brief_libre).toContain("postre")
-    fireEvent.keyDown(window, { key: "Escape" })
-    expect(container.querySelector("[data-aviso-cerrar]")).toBeNull()
-    expect(onCerrar).toHaveBeenCalledTimes(1)
+// 21-nov (GO Lenovo 10:28Z · firma de Emilio) · tras el clic no hay vuelta atrás: si el pedido no llega, el tablero reintenta SOLO con la misma llave
+// y el botón sigue en «Campaña en proceso»; agotados los intentos, el MISMO botón dice «El intento falló · Crear nuevamente» con un código chico
+describe("sin respuesta: se reintenta solo; agotado, el botón dice que falló", () => {
+  it("las esperas: 10 reintentos, unos 6 minutos en total", () => {
+    expect(ESPERAS_DEL_REINTENTO_MS).toHaveLength(10)
+    expect(ESPERAS_DEL_REINTENTO_MS.reduce((a, b) => a + b, 0)).toBe(359000)
+    expect(EL_INTENTO_FALLO).toBe("El intento falló · Crear nuevamente")
+    expect(CODIGO_SIN_CONEXION).toBe("E-RED")
   })
-  it("mismo contenido y «ya_pedida» (el primero sí llegó): sin aviso", async () => {
+  it("la red cae y luego un 502: nada a la vista, siempre «Campaña en proceso», la MISMA llave y una sola campaña", async () => {
     red({ minimo: 60 }); const p = pedidoRetenido()
     const onCreada = vi.fn()
-    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0, 0, 0] })
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(p.cuerpos).toHaveLength(1))
     await p.soltar(new Error("red caída"))
-    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
-    fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(p.cuerpos).toHaveLength(2))
-    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
-    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false))
-    expect(container.querySelector("[data-problema]")).toBeNull()
-  })
-  it("brief cambiado y la plataforma lo actualizó («actualizada»): nada raro, la campaña nace con lo de ahora", async () => {
-    red({ minimo: 60 }); const p = pedidoRetenido()
-    const onCreada = vi.fn()
-    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
-    fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
-    await p.soltar(new Error("red caída"))
-    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
-    cambiarElBrief(container)
-    fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
-    await p.soltar(respuesta({ ok: true, estado: "actualizada", pedido_id: "p" }))
-    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false))
-    expect(container.querySelector("[data-problema]")).toBeNull()
     expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    expect(boton(container, "[data-atras]").disabled).toBe(true)
+    await p.soltar(respuesta({ ok: false, error: "plataforma_sin_respuesta" }, 502))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(3))
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledTimes(1))
+    expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null)
+    expect(new Set(p.cuerpos.map((c) => JSON.parse(c).llave_formulario)).size).toBe(1)
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    expect(container.querySelector("[data-fallo]")).toBeNull()
   })
-  it("tras un guardado confirmado («actualizada»), lo anterior ya no cuenta: vencida la espera, repetir lo mismo y recibir «ya_pedida» no avisa", async () => {
+  it("un cuerpo que no se lee cuenta como sin respuesta (se reintenta)", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0] })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    await p.soltar(new Response("<html>", { status: 504 }))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(2))
+    expect(container.querySelector("[data-problema]")).toBeNull()
+  })
+  it("un RECHAZO no se reintenta: un solo pedido y el motivo en su lugar", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0, 0] })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    await p.soltar(respuesta({ ok: false, error: "conflicto", plataforma: { error: "cadena_no_admite" } }, 409))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(p.cuerpos).toHaveLength(1)
+    expect(container.querySelector("[data-fallo]")).toBeNull()
+  })
+  it("agotados los intentos y la ruta del estado todavía no existe: el MISMO botón dice «El intento falló · Crear nuevamente», el código chico debajo", async () => {
     red({ minimo: 60 }); const p = pedidoRetenido()
     const onCreada = vi.fn()
-    const props = { clienteId: NAUFRAGO, clienteNombre: "Náufrago", onCerrar: () => {}, onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 }
-    const { container, rerender } = render(<FormularioCrearCampana {...props} />)
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0, 0], seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    for (let i = 1; i <= 3; i++) {
+      await waitFor(() => expect(p.cuerpos).toHaveLength(i))
+      expect(container.querySelector("[data-fallo]")).toBeNull()
+      await p.soltar(new Error("red caída"))
+    }
+    await waitFor(() => expect(container.querySelector("[data-fallo]")).not.toBeNull())
+    expect(p.cuerpos).toHaveLength(3)
+    expect(boton(container, "[data-crear]").textContent).toBe(EL_INTENTO_FALLO)
+    expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe(CODIGO_SIN_CONEXION)
+    expect(container.querySelector("[data-codigo-fallo]")?.className).toContain("text-rotulo")
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    expect(container.querySelectorAll("[data-crear]")).toHaveLength(1)
+    expect(onCreada).not.toHaveBeenCalled()
+  })
+  it("agotados los intentos: la plataforma confirma «sin_pedido» → «E-RED»; sin reenviar", async () => {
+    let n = 0
+    const estados = [() => new Response(JSON.stringify({ ok: false, error: "sin_pedido" }), { status: 404 })]
+    const posts: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.startsWith("/api/crear-campana/estado")) return estados[0]()
+      if (url === "/api/acciones/crear-campana") { posts.push(String(init?.body)); n++; throw new Error("red caída") }
+      return new Response("{}", { status: 404 })
+    }))
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0], seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe(CODIGO_SIN_CONEXION))
+    expect(n).toBe(2)
+  })
+  it("agotados los intentos pero el pedido SÍ llegó (la plataforma dice «en_proceso»): NO falla; avisa al Centro, sigue en proceso y cumple un cierre pedido", async () => {
+    let lect = 0
+    const onCreada = vi.fn(), onCerrar = vi.fn()
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.startsWith("/api/crear-campana/estado")) { lect++; return new Response(JSON.stringify({ ok: true, estado: "en_proceso" }), { status: 200 }) }
+      if (url === "/api/acciones/crear-campana") return new Response(JSON.stringify({ ok: false, error: "la_plataforma_rechazo", plataforma_status: 504, detalle: "x" }), { status: 502 })
+      return new Response("{}", { status: 404 })
+    }))
+    const { container } = formulario({ onCreada, onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0], seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    fireEvent.keyDown(window, { key: "Escape" })
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null))
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+    expect(container.querySelector("[data-fallo]")).toBeNull()
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    await waitFor(() => expect(lect).toBeGreaterThanOrEqual(3))
+    expect(onCreada).toHaveBeenCalledTimes(1)
+  })
+  it("«Crear nuevamente» abre un pedido NUEVO (otra llave) y vuelve a «Campaña en proceso»; si sale, nace", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const onCreada = vi.fn()
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [], seguirCada: 5 })
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(p.cuerpos).toHaveLength(1))
     await p.soltar(new Error("red caída"))
-    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Crear Campaña"))
-    cambiarElBrief(container)
+    await waitFor(() => expect(container.querySelector("[data-fallo]")).not.toBeNull())
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(p.cuerpos).toHaveLength(2))
-    await p.soltar(respuesta({ ok: true, estado: "actualizada", pedido_id: "p" }))
-    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
-    rerender(<FormularioCrearCampana {...props} sinNacer />)
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    expect(container.querySelector("[data-codigo-fallo]")).toBeNull()
+    expect(JSON.parse(p.cuerpos[1]).llave_formulario).not.toBe(JSON.parse(p.cuerpos[0]).llave_formulario)
+    await p.soltar(respuesta({ ok: true, estado: "pedida", pedido_id: "p" }))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledTimes(1))
+  })
+  it("cerrado el formulario, deja de reintentar", async () => {
+    red({ minimo: 60 }); const p = pedidoRetenido()
+    const { container, unmount } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [20, 20, 20] })
     fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(p.cuerpos).toHaveLength(3))
-    expect(p.cuerpos[2]).toBe(p.cuerpos[1])
-    await p.soltar(respuesta({ ok: true, estado: "ya_pedida", pedido_id: "p" }))
-    await waitFor(() => expect(onCreada).toHaveBeenCalledTimes(2))
-    expect(onCreada).toHaveBeenLastCalledWith(LISTAS.nombre, null, false)
-    expect(container.querySelector("[data-problema]")?.textContent).not.toBe(CON_LO_ANTERIOR)
+    await waitFor(() => expect(p.cuerpos).toHaveLength(1))
+    unmount()
+    await p.soltar(new Error("red caída"))
+    await act(async () => { await new Promise((r) => setTimeout(r, 120)) })
+    expect(p.cuerpos).toHaveLength(1)
   })
 })
 
@@ -800,41 +842,6 @@ describe("«Crear Campaña» en el Centro", () => {
     await waitFor(() => expect(container.querySelector("[data-campana-nombre]")?.textContent).toBe(NUEVA.nombre))
     expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(1)
   }, 25000)
-  // 21-nov (#54 parte 2) · con el aviso «ya pedida con lo anterior», la campaña nacida no cierra el formulario: el dueño lee el aviso y cierra; la campaña queda elegida
-  it("«ya_pedida» con el brief cambiado: al nacer, el formulario se queda con el aviso; cerrarlo deja la campaña elegida", async () => {
-    const NUEVA: CampanaDelFlujo = { campana_id: "2fd5f619-0000-4000-8000-000000000004", nombre: "Naufrago llego a Guayaquil", flujo: ROJO }
-    let veces = 0
-    const pedidos = red({ minimo: 60,
-      crear: () => { if (++veces === 1) throw new Error("red caída"); return new Response(JSON.stringify({ ok: true, estado: "ya_pedida", pedido_id: "p", campana_id: NUEVA.campana_id }), { status: 200 }) },
-      campanas: () => (veces < 2 ? [C_VIVA] : [NUEVA, C_VIVA]) })
-    const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={null} />)
-    await waitFor(() => expect(container.querySelector("[data-crear-campana]")).not.toBeNull())
-    fireEvent.click(container.querySelector("[data-crear-campana]")!)
-    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull())
-    const escribir = (sel: string, v: string) => fireEvent.change(container.querySelector(sel)!, { target: { value: v } })
-    const siguiente = () => fireEvent.click(boton(container, "[data-siguiente]"))
-    escribir("[data-campo=nombre]", NUEVA.nombre!); siguiente()
-    escribir("[data-campo=cambio]", LISTAS.cambio); siguiente()
-    escribir("[aria-label=Inicio]", LISTAS.inicio); escribir("[aria-label=Fin]", LISTAS.fin); siguiente()
-    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 60"))
-    escribir("[aria-label=Tope]", "150"); siguiente()
-    escribir("[data-campo=brief]", LISTAS.brief); siguiente()
-    fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
-    fireEvent.click(boton(container, "[data-atras]"))
-    escribir("[data-campo=brief]", LISTAS.brief + " Y un postre de regalo."); siguiente()
-    fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR))
-    // la campaña nace (ya trae su id): el formulario sigue abierto con el aviso
-    await waitFor(() => expect(pedidos.filter((p) => p.url.startsWith("/api/flujo")).length).toBeGreaterThanOrEqual(2))
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(container.querySelector("[data-seccion=crear-campana]")).not.toBeNull()
-    expect(container.querySelector("[data-problema]")?.textContent).toBe(CON_LO_ANTERIOR)
-    fireEvent.click(boton(container, "[data-cerrar]"))
-    await waitFor(() => expect(container.querySelector("[data-seccion=crear-campana]")).toBeNull())
-    await waitFor(() => expect(container.querySelector("[data-campana-nombre]")?.textContent).toBe(NUEVA.nombre))
-    expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(2)
-  }, 25000)
   it("si la campaña no nace en las 30 vueltas, el formulario sigue abierto y avisa; el botón vuelve", async () => {
     const pedidos = red({ minimo: 60 })
     const { container } = render(<PanelAplicaciones onCerrar={() => {}} datosIniciales={pizDeNaufrago()} flujoInicial={null} />)
@@ -890,7 +897,7 @@ describe("«Crear Campaña» en el Centro", () => {
     const onCreada = vi.fn()
     const { container, rerender } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, onCreada })
     fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null, false))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, null))
     expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
     rerender(<FormularioCrearCampana clienteId={NAUFRAGO} clienteNombre="Náufrago" onCerrar={() => {}} onCreada={onCreada} inicial={LISTAS} pasoInicial={5} minimoInicial={60} sinNacer />)
     expect(container.querySelector("[data-problema]")?.textContent).toBe(SIN_NACER)
@@ -902,7 +909,7 @@ describe("«Crear Campaña» en el Centro", () => {
     const onCreada = vi.fn()
     const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, onCreada })
     fireEvent.click(boton(container, "[data-crear]"))
-    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000003", false))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000003"))
     expect(pedidos.filter((p) => p.url === "/api/acciones/crear-campana")).toHaveLength(1)
   })
   it("si el pedido falla, el botón vuelve a «Crear Campaña» y el motivo sale en el mismo lugar", async () => {
@@ -924,5 +931,209 @@ describe("«Crear Campaña» en el Centro", () => {
     await act(async () => { soltar(new Response(JSON.stringify({ ok: true }), { status: 200 })) })
     expect(onCreada).toHaveBeenCalledTimes(1)
     expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso") // sigue hasta que el Centro ve nacer la campaña
+  })
+})
+
+// 21-nov (GO Lenovo 10:28Z · contrato de CC1 10:29Z) · el puente del estado del pedido: solo lectura, con la llave interna; nunca inventa un estado
+describe("el estado del pedido (puente a la plataforma)", () => {
+  const LL = "0b7e2c1a-9d4f-4e21-8a3b-5c6d7e8f9a0b"
+  const dep = (res: () => Promise<Response>) => ({ plataformaUrl: "https://p.x/", llave: "k", fetchImpl: vi.fn(res) as unknown as typeof fetch })
+  const j = (o: unknown, status = 200) => async () => new Response(JSON.stringify(o), { status })
+  it("pregunta por el cliente y la llave, con la llave interna", async () => {
+    const d = dep(j({ ok: true, estado_del_pedido: "en_proceso" }))
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, d)).toEqual({ status: 200, cuerpo: { ok: true, estado: "en_proceso" } })
+    const [url, init] = (d.fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(url).toBe(`https://p.x/api/tablero-estado-del-pedido?client_id=${NAUFRAGO}&llave_formulario=${LL}`)
+    expect((init as RequestInit).headers).toEqual({ "x-api-key": "k" })
+  })
+  it("nacida con su id; fallida con su código corto (uno raro se muestra «E-?»)", async () => {
+    expect((await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: true, estado_del_pedido: "nacida", campana_id: "2fd5f619-0000-4000-8000-000000000003" })))).cuerpo).toEqual({ ok: true, estado: "nacida", campana_id: "2fd5f619-0000-4000-8000-000000000003" })
+    expect((await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: true, estado_del_pedido: "nacida", campana_id: "x" })))).cuerpo).toEqual({ ok: true, estado: "nacida", campana_id: null })
+    expect((await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: true, estado_del_pedido: "fallida", codigo: "E-PLAN" })))).cuerpo).toEqual({ ok: true, estado: "fallida", codigo: "E-PLAN" })
+    expect((await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: true, estado_del_pedido: "fallida", codigo: "<b>mal</b>" })))).cuerpo).toEqual({ ok: true, estado: "fallida", codigo: "E-?" })
+    expect(codigoCorto("E-TIEMPO")).toBe("E-TIEMPO"); expect(codigoCorto(undefined)).toBe("E-?"); expect(codigoCorto("E-ABCDEFGHIJKLM")).toBe("E-?")
+  })
+  it("404 «sin_pedido» = la llave nunca llegó; un 404 sin ese motivo = la ruta todavía no existe", async () => {
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: false, error: "sin_pedido" }, 404)))).toEqual({ status: 404, cuerpo: { ok: false, error: "sin_pedido" } })
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, dep(async () => new Response("<html>", { status: 404 })))).toEqual({ status: 501, cuerpo: { ok: false, error: "todavia_no_disponible" } })
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: false, error: "not_found" }, 404)))).toEqual({ status: 501, cuerpo: { ok: false, error: "todavia_no_disponible" } })
+  })
+  it("algo que no se entiende, o sin respuesta: no hay estado (el formulario sigue esperando) · el nombre viejo «estado» no cuenta", async () => {
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: true, estado: "nacida" })))).toEqual({ status: 502, cuerpo: { ok: false, error: "sin_estado" } })
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: true, estado_del_pedido: "otra" })))).toEqual({ status: 502, cuerpo: { ok: false, error: "sin_estado" } })
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, dep(j({ ok: true, estado_del_pedido: "nacida" }, 500)))).toEqual({ status: 502, cuerpo: { ok: false, error: "sin_estado" } })
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, dep(async () => { throw new Error("red") }))).toEqual({ status: 502, cuerpo: { ok: false, error: "plataforma_sin_respuesta" } })
+  })
+  it("sin cliente o sin llave válidos no pregunta; sin la llave interna tampoco", async () => {
+    const d = dep(j({ ok: true, estado_del_pedido: "en_proceso" }))
+    expect((await leerEstadoDelPedido("x", LL, d)).status).toBe(400)
+    expect((await leerEstadoDelPedido(NAUFRAGO, "x", d)).status).toBe(400)
+    expect((d.fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0)
+    expect(await leerEstadoDelPedido(NAUFRAGO, LL, { ...d, llave: "" })).toEqual({ status: 503, cuerpo: { ok: false, error: "llave_interna_sin_poner" } })
+  })
+})
+
+// 21-nov · mientras dice «Campaña en proceso», el formulario pregunta cómo va el pedido de SU llave (la falla interna no se ve; la completa, en el botón)
+describe("el seguimiento del pedido en proceso", () => {
+  const ok = (o: Record<string, unknown>, status = 200) => new Response(JSON.stringify(o), { status })
+  // la red con la ruta del estado: cada lectura contesta lo que diga `estados` (la última se repite)
+  function conEstado(estados: Array<() => Response>, crear?: () => Response) {
+    const pedidos: Array<{ url: string; metodo: string; cuerpo?: Record<string, unknown> }> = []
+    let n = 0
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      pedidos.push({ url, metodo: init?.method ?? "GET", cuerpo: init?.body ? JSON.parse(String(init.body)) : undefined })
+      if (url.startsWith("/api/crear-campana/estado")) return estados[Math.min(n++, estados.length - 1)]()
+      if (url === "/api/acciones/crear-campana") return crear ? crear() : ok({ ok: true, accion: "crear-campana", plataforma_status: 200, resultado: { ok: true, estado: "pedida", pedido_id: "p" } })
+      return ok({ ok: false }, 404)
+    }))
+    return pedidos
+  }
+  const lecturas = <T extends { url: string }>(p: T[]) => p.filter((x) => x.url.startsWith("/api/crear-campana/estado"))
+  const posts = <T extends { url: string }>(p: T[]) => p.filter((x) => x.url === "/api/acciones/crear-campana")
+  it("la respuesta del POST viaja en «resultado»: el id de «ya_pedida» llega al Centro", async () => {
+    conEstado([() => ok({ ok: true, estado: "en_proceso" })], () => ok({ ok: true, accion: "crear-campana", plataforma_status: 200, resultado: { ok: true, estado: "ya_pedida", pedido_id: "p", campana_id: "2fd5f619-0000-4000-8000-000000000003" } }))
+    const onCreada = vi.fn()
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000003"))
+  })
+  it("en proceso, en proceso… y nace: sigue «Campaña en proceso» y al nacer avisa al Centro con el id; deja de preguntar", async () => {
+    const p = conEstado([() => ok({ ok: true, estado: "en_proceso" }), () => ok({ ok: true, estado: "en_proceso" }), () => ok({ ok: true, estado: "nacida", campana_id: "2fd5f619-0000-4000-8000-000000000004" })])
+    const onCreada = vi.fn()
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000004"))
+    expect(onCreada).toHaveBeenCalledTimes(2)
+    expect(lecturas(p)).toHaveLength(3)
+    expect(lecturas(p)[0].url).toBe(`/api/crear-campana/estado?cliente=${NAUFRAGO}&llave=${(posts(p)[0].cuerpo as Record<string, unknown>).llave_formulario}`)
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)) })
+    expect(lecturas(p)).toHaveLength(3)
+  })
+  it("fallida: el MISMO botón dice «El intento falló · Crear nuevamente» con el código de la plataforma; cerrar vuelve a preguntar", async () => {
+    conEstado([() => ok({ ok: true, estado: "en_proceso" }), () => ok({ ok: true, estado: "fallida", codigo: "E-SALA" })])
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-fallo]")).not.toBeNull())
+    expect(boton(container, "[data-crear]").textContent).toBe(EL_INTENTO_FALLO)
+    expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe("E-SALA")
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(container.querySelector("[data-aviso-cerrar]")).not.toBeNull()
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("«Crear nuevamente» tras «fallida» manda otra llave y vuelve a seguir el pedido nuevo", async () => {
+    const p = conEstado([() => ok({ ok: true, estado: "fallida", codigo: "E-TIEMPO" }), () => ok({ ok: true, estado: "en_proceso" })])
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-fallo]")).not.toBeNull())
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(posts(p)).toHaveLength(2))
+    const [a, b] = posts(p).map((x) => (x.cuerpo as Record<string, unknown>).llave_formulario as string)
+    expect(b).not.toBe(a)
+    await waitFor(() => expect(lecturas(p).some((x) => x.url.endsWith(`&llave=${b}`))).toBe(true))
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+  })
+  it("«sin_pedido» (la llave nunca llegó): reenvía el pedido con la MISMA llave, sin mostrar nada", async () => {
+    const p = conEstado([() => ok({ ok: false, error: "sin_pedido" }, 404), () => ok({ ok: true, estado: "en_proceso" })])
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(posts(p)).toHaveLength(2))
+    expect(posts(p)[1].cuerpo).toEqual(posts(p)[0].cuerpo)
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    expect(container.querySelector("[data-problema]")).toBeNull()
+  })
+  it("sin plazo propio (CC1): mientras la plataforma diga «en_proceso», sigue «Campaña en proceso» y vuelve a preguntar", async () => {
+    const p = conEstado([() => ok({ ok: true, estado: "en_proceso" })])
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 2 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(lecturas(p).length).toBeGreaterThanOrEqual(30), { timeout: 3000 })
+    expect(container.querySelector("[data-fallo]")).toBeNull()
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+    expect(SEGUIR_CADA_MS).toBe(20_000)
+  })
+  it("la plataforma no responde al GET: sigue «Campaña en proceso» y vuelve a preguntar", async () => {
+    const p = conEstado([() => { throw new Error("red caída") }, () => ok({ ok: false, error: "sin_estado" }, 502), () => ok({ ok: true, estado: "nacida", campana_id: "2fd5f619-0000-4000-8000-000000000004" })])
+    const onCreada = vi.fn()
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(onCreada).toHaveBeenCalledWith(LISTAS.nombre, "2fd5f619-0000-4000-8000-000000000004"))
+    expect(lecturas(p)).toHaveLength(3)
+    expect(container.querySelector("[data-fallo]")).toBeNull()
+  })
+  it("el POST se confirmó y la ruta del estado todavía no existe: NO se da por fallido; sigue «Campaña en proceso» (queda la espera del Centro)", async () => {
+    const p = conEstado([() => ok({ ok: false, error: "todavia_no_disponible" }, 501)])
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(lecturas(p).length).toBeGreaterThanOrEqual(3))
+    expect(container.querySelector("[data-fallo]")).toBeNull()
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+  })
+  it("un pedido nuevo («Crear nuevamente») tiene su propio reenvío: un «sin_pedido» de la llave nueva se reenvía, no dice «E-RED»", async () => {
+    const p = conEstado([() => ok({ ok: false, error: "sin_pedido" }, 404), () => ok({ ok: true, estado: "fallida", codigo: "E-SALA" }), () => ok({ ok: false, error: "sin_pedido" }, 404), () => ok({ ok: true, estado: "en_proceso" })])
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe("E-SALA"))
+    expect(posts(p)).toHaveLength(2)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(posts(p)).toHaveLength(4))
+    const llaves = posts(p).map((x) => (x.cuerpo as Record<string, unknown>).llave_formulario)
+    expect(llaves[2]).toBe(llaves[3]); expect(llaves[2]).not.toBe(llaves[0])
+    await waitFor(() => expect(lecturas(p).length).toBeGreaterThanOrEqual(5))
+    expect(container.querySelector("[data-fallo]")).toBeNull()
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+  })
+  it("«sin_pedido» una segunda vez tras el reenvío: no se reenvía sin fin, «E-RED»", async () => {
+    const p = conEstado([() => ok({ ok: false, error: "sin_pedido" }, 404)])
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe(CODIGO_SIN_CONEXION))
+    expect(posts(p)).toHaveLength(2)
+  })
+  it("el POST ya trae «fallida» (estado_del_pedido): el botón lo dice al tiro y no se avisa al Centro", async () => {
+    conEstado([() => ok({ ok: true, estado: "en_proceso" })], () => ok({ ok: true, accion: "crear-campana", plataforma_status: 200, resultado: { ok: true, estado: "ya_pedida", estado_del_pedido: "fallida", codigo: "E-PLAN" } }))
+    const onCreada = vi.fn()
+    const { container } = formulario({ onCreada, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-codigo-fallo]")?.textContent).toBe("E-PLAN"))
+    expect(onCreada).not.toHaveBeenCalled()
+  })
+  it("con la ruta del estado viva, vencida la espera del Centro NO corta: sigue «Campaña en proceso» sin aviso", async () => {
+    conEstado([() => ok({ ok: true, estado: "en_proceso" })])
+    const props = { clienteId: NAUFRAGO, clienteNombre: "Náufrago", onCerrar: () => {}, onCreada: () => {}, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 }
+    const { container, rerender } = render(<FormularioCrearCampana {...props} />)
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    rerender(<FormularioCrearCampana {...props} sinNacer />)
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso")
+  })
+  it("un 5xx de la plataforma (CC5: el pedido pudo quedar guardado) se reintenta solo; un 4xx no", async () => {
+    let n = 0
+    const p = conEstado([() => ok({ ok: true, estado: "en_proceso" })], () => (++n === 1 ? ok({ ok: false, error: "la_plataforma_rechazo", plataforma_status: 500, plataforma_error: "tablero_error", detalle: "x" }, 502) : ok({ ok: true, accion: "crear-campana", plataforma_status: 200, resultado: { ok: true, estado: "ya_pedida" } })))
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0] })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(posts(p)).toHaveLength(2))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    cleanup()
+    const q = conEstado([() => ok({ ok: true, estado: "en_proceso" })], () => ok({ ok: false, error: "la_plataforma_rechazo", plataforma_status: 400, plataforma_error: "entrada_invalida", detalle: "x" }, 502))
+    const otro = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, esperas: [0] })
+    fireEvent.click(boton(otro.container, "[data-crear]"))
+    await waitFor(() => expect(otro.container.querySelector("[data-problema]")).not.toBeNull())
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(posts(q)).toHaveLength(1)
+  })
+  it("cerrado el formulario, deja de preguntar", async () => {
+    const p = conEstado([() => ok({ ok: true, estado: "en_proceso" })])
+    const { container, unmount } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60, seguirCada: 5 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(lecturas(p).length).toBeGreaterThanOrEqual(1))
+    unmount()
+    const ya = lecturas(p).length
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)) })
+    expect(lecturas(p)).toHaveLength(ya)
   })
 })

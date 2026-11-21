@@ -213,6 +213,42 @@ export function minimoDelRechazo(j: Record<string, unknown> | null): number | nu
 }
 export interface DepsDelMinimo { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch }
 export type RespuestaDelMinimo = { status: number; cuerpo: { ok: true; minimo_usd: number } | { ok: false; error: string } }
+/** 21-nov (GO Lenovo 10:28Z · contrato de CC1 10:29Z) · cómo va un pedido de «Crear Campaña» */
+export type EstadoDelPedido = { ok: true; estado: "en_proceso" } | { ok: true; estado: "nacida"; campana_id: string | null } | { ok: true; estado: "fallida"; codigo: string }
+export type RespuestaDelEstado = { status: number; cuerpo: EstadoDelPedido | { ok: false; error: string } }
+/** el código chico que se muestra: corto y sin nada raro (lo que no tenga esa forma se muestra como «E-?») */
+export const codigoCorto = (c: unknown): string => (typeof c === "string" && /^E-[A-Z]{2,12}$/.test(c) ? c : "E-?")
+/** la respuesta de la plataforma → el estado (null si no se entiende: el formulario sigue esperando) */
+export function estadoDeLaRespuesta(j: unknown): EstadoDelPedido | null {
+  if (!j || typeof j !== "object" || (j as Record<string, unknown>).ok !== true) return null
+  // CC1 10:40Z · un solo nombre en el POST y en el GET: `estado_del_pedido` (en el POST, `estado` ya es pedida / ya_pedida)
+  const o = j as Record<string, unknown>, e = o.estado_del_pedido
+  if (e === "en_proceso") return { ok: true, estado: "en_proceso" }
+  if (e === "nacida") return { ok: true, estado: "nacida", campana_id: typeof o.campana_id === "string" && UUID.test(o.campana_id) ? o.campana_id : null }
+  if (e === "fallida") return { ok: true, estado: "fallida", codigo: codigoCorto(o.codigo) }
+  return null
+}
+/**
+ * el estado del pedido de ESTA llave, de la ruta de solo lectura de la plataforma `GET /api/tablero-estado-del-pedido?client_id=…&llave_formulario=…` (CC1).
+ * `404 sin_pedido` = la llave nunca llegó (el formulario reenvía con la misma llave). Una ruta que todavía no existe = `todavia_no_disponible`.
+ */
+export async function leerEstadoDelPedido(clienteId: string, llaveFormulario: string, d: DepsDelMinimo = {}): Promise<RespuestaDelEstado> {
+  if (!UUID.test(clienteId)) return { status: 400, cuerpo: { ok: false, error: "falta_el_cliente" } }
+  if (!LLAVE.test(llaveFormulario)) return { status: 400, cuerpo: { ok: false, error: "falta_la_llave" } }
+  const base = (d.plataformaUrl ?? process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://zero-risk-platform.vercel.app").replace(/\/+$/, "")
+  const llave = d.llave ?? (process.env.PLATFORM_INTERNAL_KEY || process.env.INTERNAL_API_KEY || "")
+  if (!llave) return { status: 503, cuerpo: { ok: false, error: "llave_interna_sin_poner" } }
+  try {
+    const r = await (d.fetchImpl ?? fetch)(`${base}/api/tablero-estado-del-pedido?client_id=${encodeURIComponent(clienteId)}&llave_formulario=${encodeURIComponent(llaveFormulario)}`, { headers: { "x-api-key": llave }, cache: "no-store" })
+    const j = await r.json().catch(() => null)
+    if (r.status === 404 && j && (j as Record<string, unknown>).error === "sin_pedido") return { status: 404, cuerpo: { ok: false, error: "sin_pedido" } }
+    if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "todavia_no_disponible" } }
+    const e = r.ok ? estadoDeLaRespuesta(j) : null
+    return e ? { status: 200, cuerpo: e } : { status: 502, cuerpo: { ok: false, error: "sin_estado" } }
+  } catch {
+    return { status: 502, cuerpo: { ok: false, error: "plataforma_sin_respuesta" } }
+  }
+}
 /** sin Plan de Marketing aprobado no hay campaña nueva (409 de la plataforma): la pantalla lo dice */
 export const SIN_PLAN_APROBADO = "sin_plan_aprobado"
 
