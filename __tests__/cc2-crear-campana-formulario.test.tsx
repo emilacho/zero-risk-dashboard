@@ -9,12 +9,12 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react"
-import { FormularioCrearCampana, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
+import { AL_CERRAR, FormularioCrearCampana, SIN_NACER, SIN_PLAN, motivoDeNoCrear } from "@/components/nuevo/FormularioCrearCampana"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { ESPERA_ENTRE_VUELTAS_MS, PanelAplicaciones, VUELTAS_HASTA_QUE_NACE } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { ACCIONES, ejecutarAccion } from "@/lib/tablero-acciones"
-import { LLAVE, PASOS, fechasDelMinimo, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
+import { LLAVE, PASOS, fechasDelMinimo, hayAlgoEscrito, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { faseActiva } from "@/lib/pizarron"
 
@@ -459,6 +459,88 @@ describe("la pantalla, como el boceto aprobado", () => {
     const onCerrar = vi.fn()
     formulario({ onCerrar })
     fireEvent.keyDown(window, { key: "Escape" })
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+})
+
+// 21-nov (#54 del barrido · Lenovo 05:01Z) · cerrar con algo escrito pregunta antes de perderlo (el mismo aviso de «¿Retirar esta idea?»)
+describe("cerrar el formulario con algo escrito pregunta antes", () => {
+  const aviso = (c: HTMLElement) => c.querySelector("[data-aviso-cerrar]")
+  it("qué cuenta como escrito: cualquier campo o una fecha clave con algo; una fila vacía de «+ Agregar» no", () => {
+    expect(hayAlgoEscrito(VACIAS)).toBe(false)
+    expect(hayAlgoEscrito({ ...VACIAS, claves: [{ fecha: "", que: "" }] })).toBe(false)
+    expect(hayAlgoEscrito({ ...VACIAS, nombre: "   " })).toBe(false)
+    for (const k of ["nombre", "cambio", "inicio", "fin", "tope", "brief"] as const) expect(hayAlgoEscrito({ ...VACIAS, [k]: "x" })).toBe(true)
+    expect(hayAlgoEscrito({ ...VACIAS, claves: [{ fecha: "", que: "" }, { fecha: "2026-12-05", que: "" }] })).toBe(true)
+    expect(hayAlgoEscrito({ ...VACIAS, claves: [{ fecha: "", que: "Abre" }] })).toBe(true)
+  })
+  it("Esc con algo escrito: sale la pregunta y no cierra; «Seguir escribiendo» la quita y lo escrito sigue", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 4, minimoInicial: 60 })
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(onCerrar).not.toHaveBeenCalled()
+    expect(aviso(container)?.textContent).toContain(AL_CERRAR)
+    expect(AL_CERRAR).toBe("¿Cerrar sin crear? Se pierde lo que escribiste.")
+    expect(aviso(container)?.getAttribute("role")).toBe("alertdialog")
+    expect(document.activeElement).toBe(boton(container, "[data-accion=seguir-escribiendo]"))
+    fireEvent.click(boton(container, "[data-accion=seguir-escribiendo]"))
+    expect(aviso(container)).toBeNull()
+    expect((container.querySelector("[data-campo=brief]") as HTMLTextAreaElement).value).toBe(LISTAS.brief)
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("con la pregunta a la vista, Esc es «Seguir escribiendo» (no cierra); «Sí, cerrar» cierra una vez", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 0, minimoInicial: 60 })
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).not.toBeNull()
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).toBeNull()
+    expect(onCerrar).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: "Escape" })
+    fireEvent.click(boton(container, "[data-accion=confirmar-cerrar]"))
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+  it("la ✕ «Cerrar» y el clic fuera del panel también preguntan", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 1, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-cerrar]"))
+    expect(aviso(container)).not.toBeNull()
+    fireEvent.click(boton(container, "[data-accion=seguir-escribiendo]"))
+    fireEvent.mouseDown(document.querySelector(".nv-panel")!)
+    expect(aviso(container)).not.toBeNull()
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+  it("sin nada escrito (o solo una fila vacía de fecha clave) cierra sin preguntar", () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: { ...VACIAS, claves: [{ fecha: "", que: "" }] }, pasoInicial: 2, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-cerrar]"))
+    expect(aviso(container)).toBeNull()
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+  it("escribir algo con la pregunta a la vista la quita; mientras se pregunta, el motivo anterior no se ve", async () => {
+    red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false, error: "x" }), { status: 500 }) })
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-problema]")).not.toBeNull())
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).not.toBeNull()
+    expect(container.querySelector("[data-problema]")).toBeNull()
+    fireEvent.click(boton(container, "[data-atras]"))
+    fireEvent.change(container.querySelector("[data-campo=brief]")!, { target: { value: LISTAS.brief + " Más." } })
+    expect(aviso(container)).toBeNull()
+  })
+  it("ya pedida la campaña («Campaña en proceso»), cerrar no pregunta: no se pierde nada", async () => {
+    red({ minimo: 60 })
+    const onCerrar = vi.fn()
+    const { container } = formulario({ onCerrar, inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-crear]")?.textContent).toBe("Campaña en proceso"))
+    fireEvent.keyDown(window, { key: "Escape" })
+    expect(aviso(container)).toBeNull()
     expect(onCerrar).toHaveBeenCalledTimes(1)
   })
 })

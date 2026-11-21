@@ -198,6 +198,9 @@ describe("en el formulario «Crear Campaña»", () => {
     expect(onCerrar).not.toHaveBeenCalled()
     expect(container.querySelector("[data-calendario]")).toBeNull()
     fireEvent.keyDown(container.querySelector("[aria-label=Inicio]")!, { key: "Escape" })
+    // 21-nov (#54 del barrido) · con algo escrito, Esc primero pregunta; «Sí, cerrar» cierra
+    expect(onCerrar).not.toHaveBeenCalled()
+    fireEvent.click(container.querySelector("[data-accion=confirmar-cerrar]")!)
     expect(onCerrar).toHaveBeenCalledTimes(1)
   })
   it("Esc con el foco en un botón del calendario cierra SOLO el calendario (el formulario sigue)", () => {

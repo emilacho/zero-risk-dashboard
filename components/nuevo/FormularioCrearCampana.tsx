@@ -16,7 +16,7 @@ import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
 import { SelectorDeFecha } from "@/components/nuevo/SelectorDeFecha"
 import {
   PASOS, TOPE_DE_FECHAS_CLAVE, TOPE_DEL_BRIEF, TOPE_DEL_CAMBIO, TOPE_DEL_NOMBRE, TOPE_DEL_QUE, VACIAS,
-  SIN_PLAN_APROBADO, clavesLlenas, nuevaLlave, cuerpoDeCrear, dolares, fechaCorta, fechasDelMinimo, hoyEnEcuador, minimoDeLaRespuesta, minimoDelRechazo, pasosListos, topeEscrito, type RespuestasDeCrear,
+  SIN_PLAN_APROBADO, clavesLlenas, hayAlgoEscrito, nuevaLlave, cuerpoDeCrear, dolares, fechaCorta, fechasDelMinimo, hoyEnEcuador, minimoDeLaRespuesta, minimoDelRechazo, pasosListos, topeEscrito, type RespuestasDeCrear,
 } from "@/lib/crear-campana"
 
 // 21-nov · `focus-visible:shadow-none`: la regla global de foco pone una sombra violeta; el foco del estilo base es el borde dorado
@@ -67,6 +67,8 @@ function Girando() {
   )
 }
 
+/** 21-nov (#54 del barrido) · la pregunta antes de cerrar con algo escrito */
+export const AL_CERRAR = "¿Cerrar sin crear? Se pierde lo que escribiste."
 export const SIN_NACER = "El pedido salió, pero la campaña todavía no aparece. Revisa en unos minutos."
 
 export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
@@ -133,16 +135,20 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
     if (primera.current) { primera.current = false; if (minimoInicial !== undefined) return }
     void leerMinimo()
   }, [leerMinimo]) // eslint-disable-line react-hooks/exhaustive-deps -- `minimoInicial` solo cuenta al abrir
-  // Esc cierra el formulario y vuelve al Centro (no cierra el Centro ni la oficina)
+  // 21-nov (#54 del barrido · Lenovo 05:01Z) · cerrar (Esc, «Cerrar» o un clic fuera) con algo escrito pregunta antes de perderlo; ya pedida la campaña, no se pierde nada
+  const [preguntaCerrar, setPreguntaCerrar] = useState(false)
+  const pedirCerrar = () => { if (pedida || !hayAlgoEscrito(r)) onCerrar(); else setPreguntaCerrar(true) }
+  // Esc cierra el formulario y vuelve al Centro (no cierra el Centro ni la oficina); con la pregunta a la vista, Esc es «Seguir escribiendo»
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return
       if ((e.target as Element | null)?.closest?.("[data-calendario-abierto], [data-calendario]")) return // 21-nov · Esc con el calendario abierto (en la casilla o en el calendario) cierra solo el calendario
-      e.stopPropagation(); e.preventDefault(); onCerrar()
+      e.stopPropagation(); e.preventDefault()
+      if (preguntaCerrar) setPreguntaCerrar(false); else pedirCerrar()
     }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
-  }, [onCerrar])
+  }) // corre en cada pintada: lee lo escrito y la pregunta del momento
 
   const hoy = hoyEnEcuador()
   // dónde se abren los calendarios: debajo de inicio y fin, y debajo de las fechas clave (a todo lo ancho, sin que el panel los recorte)
@@ -152,7 +158,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   const resumen = paso === PASOS.length
   const tope = topeEscrito(r.tope)
   const bajoElMinimo = r.tope.trim() !== "" && minimo != null && (tope == null || tope < minimo)
-  const cambiar = (p: Partial<RespuestasDeCrear>) => { setR({ ...r, ...p }); setProblema(null) }
+  const cambiar = (p: Partial<RespuestasDeCrear>) => { setR({ ...r, ...p }); setProblema(null); setPreguntaCerrar(false) }
   const cambiarClave = (i: number, p: Partial<{ fecha: string; que: string }>) => cambiar({ claves: r.claves.map((c, k) => (k === i ? { ...c, ...p } : c)) })
 
   const crear = async () => {
@@ -175,7 +181,7 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   }
 
   return (
-    <PanelBase titulo="Crear Campaña" id="crear-campana-titulo" seccion="crear-campana" onCerrar={onCerrar} etiquetaCerrar="Cerrar" ancho="max-w-[640px]">
+    <PanelBase titulo="Crear Campaña" id="crear-campana-titulo" seccion="crear-campana" onCerrar={pedirCerrar} etiquetaCerrar="Cerrar" ancho="max-w-[640px]">
       <div className="mb-6 mt-1 flex justify-center"><ClienteComoTexto nombre={clienteNombre} /></div>
       <Progreso paso={paso} />
 
@@ -257,8 +263,16 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
         </div>
       )}
 
-      {!problema && sinPlan && (paso === 3 || resumen) && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{SIN_PLAN}</p>}
-      {problema && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{problema}</p>}
+      {preguntaCerrar && (
+        // el mismo aviso de «¿Retirar esta idea?» del banco (BancoDeIdeas), en el lugar del motivo
+        <div role="alertdialog" aria-label="¿Cerrar sin crear?" data-aviso-cerrar className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-tarjeta border border-linea-alarma bg-carbon px-3 py-2">
+          <span className="text-dato text-hueso">{AL_CERRAR}</span>
+          <button type="button" data-accion="confirmar-cerrar" onClick={onCerrar} className="rounded-control border border-linea-alarma px-3 py-1 text-dato text-alarma hover:border-alarma">Sí, cerrar</button>
+          <button type="button" data-accion="seguir-escribiendo" autoFocus onClick={() => setPreguntaCerrar(false)} className="rounded-control border border-linea px-3 py-1 text-dato text-gris hover:bg-grafito">Seguir escribiendo</button>
+        </div>
+      )}
+      {!preguntaCerrar && !problema && sinPlan && (paso === 3 || resumen) && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{SIN_PLAN}</p>}
+      {!preguntaCerrar && problema && <p role="alert" data-problema className="mt-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{problema}</p>}
 
       <Acciones>
         <button type="button" data-atras disabled={paso === 0 || enProceso} onClick={() => { setPaso(paso - 1); setProblema(null) }} className={`${BOTON_SECUNDARIO} min-h-12`}>Atrás</button>
