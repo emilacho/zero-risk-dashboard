@@ -31,6 +31,7 @@ export function SelectorDeFecha({ valor, onCambio, etiqueta, hoy, rango, desde, 
   const [abierto, setAbierto] = useState(false)
   const [vista, setVista] = useState(() => mesDe(fechaDelTexto(textoDeFecha(valor)) ?? (rango?.inicio || hoy)))
   const caja = useRef<HTMLDivElement>(null)
+  const casilla = useRef<HTMLInputElement>(null)
   const calendario = useRef<HTMLDivElement>(null)
 
   // si la fecha cambia desde afuera, la casilla la muestra; lo que se está escribiendo (todavía sin fecha) no se borra
@@ -46,10 +47,13 @@ export function SelectorDeFecha({ valor, onCambio, etiqueta, hoy, rango, desde, 
   const abrir = () => { if (!abierto) { setVista(mesDe(fechaDelTexto(texto) ?? (valor || rango?.inicio || hoy))); setAbierto(true) } }
   const escribir = (t: string) => { const s = escribirFecha(t); setTexto(s); onCambio(fechaDelTexto(s) ?? "") }
   const elegir = (iso: string) => { setTexto(textoDeFecha(iso)); onCambio(iso); setAbierto(false) }
+  // 21-nov (falla de CC5 en #365: el Tab dejaba dos calendarios abiertos) · el foco que se va fuera de la casilla y de su calendario lo cierra
+  const siSeVa = (e: React.FocusEvent) => { const a = e.relatedTarget as Node | null; if (a && (caja.current?.contains(a) || calendario.current?.contains(a))) return; setAbierto(false) }
   const mover = (n: number) => setVista(({ anio, mes }) => { const m = mes + n; return { anio: anio + Math.floor(m / 12), mes: ((m % 12) + 12) % 12 } })
 
   const cuadro = (
-    <div ref={calendario} data-calendario role="dialog" aria-label={`Calendario · ${etiqueta}`}
+    <div ref={calendario} data-calendario role="dialog" aria-label={`Calendario · ${etiqueta}`} onBlur={siSeVa} onMouseDown={(e) => e.preventDefault()}
+      onKeyDown={(e) => { if (e.key === "Escape") { setAbierto(false); casilla.current?.focus() } }}
       className="mx-auto mt-3 w-full max-w-[320px] rounded-tarjeta border border-linea-oro bg-grafito p-3 text-left">
       <div className="mb-2 flex items-center justify-between">
         <button type="button" aria-label="Mes anterior" onMouseDown={(e) => e.preventDefault()} onClick={() => mover(-1)}
@@ -88,9 +92,9 @@ export function SelectorDeFecha({ valor, onCambio, etiqueta, hoy, rango, desde, 
 
   return (
     <div ref={caja} className="relative" data-selector-de-fecha {...(abierto ? { "data-calendario-abierto": "" } : {})}>
-      <input aria-label={etiqueta} value={texto} placeholder="dd/mm/aaaa" inputMode="numeric" maxLength={10} autoComplete="off"
+      <input ref={casilla} aria-label={etiqueta} value={texto} placeholder="dd/mm/aaaa" inputMode="numeric" maxLength={10} autoComplete="off"
         aria-haspopup="dialog" aria-expanded={abierto}
-        onChange={(e) => escribir(e.target.value)} onFocus={abrir} onClick={abrir}
+        onChange={(e) => escribir(e.target.value)} onFocus={abrir} onClick={abrir} onBlur={siSeVa}
         onKeyDown={(e) => { if (e.key === "Escape" || e.key === "Enter") setAbierto(false) }}
         className={`w-full min-w-0 bg-transparent placeholder:text-apagado focus:outline-none focus-visible:shadow-none ${clase}`} />
       {abierto && (sitio ? createPortal(cuadro, sitio) : cuadro)}

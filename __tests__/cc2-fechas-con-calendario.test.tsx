@@ -119,6 +119,42 @@ describe("la casilla con calendario", () => {
     fireEvent.mouseDown(container.querySelector("[data-afuera]")!)
     expect(container.querySelector("[data-calendario]")).toBeNull()
   })
+  it("el Tab que sale de la casilla cierra su calendario (con dos casillas, nunca quedan dos abiertos)", () => {
+    function Dos() {
+      const [a, setA] = useState(""); const [b, setB] = useState("")
+      return <div><SelectorDeFecha valor={a} onCambio={setA} etiqueta="Inicio" hoy={HOY} clase="" /><SelectorDeFecha valor={b} onCambio={setB} etiqueta="Fin" hoy={HOY} clase="" /></div>
+    }
+    const { container } = render(<Dos />)
+    const ini = container.querySelector("[aria-label=Inicio]") as HTMLInputElement, fin = container.querySelector("[aria-label=Fin]") as HTMLInputElement
+    fireEvent.focus(ini)
+    expect(container.querySelectorAll("[data-calendario]")).toHaveLength(1)
+    // el Tab: el foco pasa de Inicio a Fin
+    fireEvent.blur(ini, { relatedTarget: fin }); fireEvent.focus(fin)
+    expect(container.querySelectorAll("[data-calendario]")).toHaveLength(1)
+    expect(container.querySelector("[data-calendario]")?.getAttribute("aria-label")).toBe("Calendario · Fin")
+    // el Tab que entra al calendario lo deja abierto; el que sale de él, lo cierra
+    const anterior = container.querySelector("[aria-label='Mes anterior']") as HTMLButtonElement
+    fireEvent.blur(fin, { relatedTarget: anterior })
+    expect(container.querySelectorAll("[data-calendario]")).toHaveLength(1)
+    fireEvent.blur(anterior, { relatedTarget: document.body })
+    expect(container.querySelectorAll("[data-calendario]")).toHaveLength(0)
+  })
+  it("Esc con el foco dentro del calendario lo cierra y devuelve el foco a la casilla", () => {
+    const { container } = render(<Casilla />)
+    fireEvent.focus(casilla(container))
+    const anterior = container.querySelector("[aria-label='Mes anterior']") as HTMLButtonElement
+    anterior.focus()
+    fireEvent.keyDown(anterior, { key: "Escape" })
+    expect(container.querySelector("[data-calendario]")).toBeNull()
+    expect(document.activeElement).toBe(casilla(container))
+  })
+  it("«desde»: con el inicio el 6-dic, el calendario del fin no deja elegir el 5-dic (y sí el 7)", () => {
+    const { container } = render(<Casilla rango={{ inicio: "2026-12-06", fin: "" }} desde="2026-12-06" />)
+    fireEvent.focus(casilla(container))
+    expect(container.querySelector("[data-mes]")?.textContent).toBe("diciembre 2026")
+    expect((container.querySelector("[data-dia='2026-12-05']") as HTMLButtonElement).disabled).toBe(true)
+    expect((container.querySelector("[data-dia='2026-12-07']") as HTMLButtonElement).disabled).toBe(false)
+  })
   it("el foco no deja el halo violeta: la casilla lleva «focus-visible:shadow-none»", () => {
     const { container } = render(<Casilla />)
     expect(casilla(container).className).toContain("focus-visible:shadow-none")
@@ -163,6 +199,26 @@ describe("en el formulario «Crear Campaña»", () => {
     expect(container.querySelector("[data-calendario]")).toBeNull()
     fireEvent.keyDown(container.querySelector("[aria-label=Inicio]")!, { key: "Escape" })
     expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+  it("Esc con el foco en un botón del calendario cierra SOLO el calendario (el formulario sigue)", () => {
+    red()
+    const { container, onCerrar } = formulario(LISTAS, 2)
+    fireEvent.focus(container.querySelector("[aria-label=Inicio]")!)
+    const anterior = container.querySelector("[aria-label='Mes anterior']") as HTMLButtonElement
+    anterior.focus()
+    fireEvent.keyDown(anterior, { key: "Escape" })
+    expect(onCerrar).not.toHaveBeenCalled()
+    expect(container.querySelector("[data-calendario]")).toBeNull()
+  })
+  it("en el formulario, el calendario del fin no deja elegir días antes del inicio", () => {
+    red()
+    const { container } = formulario(LISTAS, 2)
+    fireEvent.focus(container.querySelector("[aria-label=Fin]")!)
+    expect((container.querySelector("[data-dia='2026-12-05']") as HTMLButtonElement).disabled).toBe(true)
+    expect((container.querySelector("[data-dia='2026-12-06']") as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.keyDown(container.querySelector("[aria-label=Fin]")!, { key: "Escape" })
+    fireEvent.focus(container.querySelector("[aria-label=Inicio]")!)
+    expect((container.querySelector("[data-dia='2026-12-05']") as HTMLButtonElement).disabled).toBe(false)
   })
   it("el tope tiene el foco en dorado, sin el halo violeta", () => {
     red()

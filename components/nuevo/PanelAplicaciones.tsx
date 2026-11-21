@@ -76,6 +76,10 @@ const CLASE_DEL_CUADRO = "ap-cuadro relative flex flex-col items-center rounded-
 const COLOR_DEL_TONO: Record<TonoDeEstado, string> = { oro: "text-oro", alarma: "text-alarma", gris: "text-gris" }
 const PUNTO_DEL_TONO: Record<TonoDeEstado, string> = { oro: "bg-oro", alarma: "bg-alarma", gris: "bg-gris" }
 
+/** 21-nov · la espera a que nazca la campaña pedida: una lectura de los lugares cada 4 s, hasta 2 minutos */
+export const ESPERA_ENTRE_VUELTAS_MS = 4000
+export const VUELTAS_HASTA_QUE_NACE = 30
+
 export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInicial = null, vistaInicial, flujoInicial = null }: { onCerrar: () => void; datosIniciales?: Pizarron | null; /** 18-nov · el botón del flujo ya leído (pruebas e imagen) · 19-nov: con `campanas`, los 3 lugares */ flujoInicial?: FlujoInicial | null; /** 09-nov · la lectura del centro ya hecha (pruebas e imagen); en la pantalla llega por `/api/centro` */ centroInicial?: Centro | null; /** 04-nov · abrir directo en una aplicación (el aviso del pizarrón abre el manual) */ vistaInicial?: ClaveDeAplicacion }) {
   const [datos, setDatos] = useState<Pizarron | null>(datosIniciales)
   // 19-nov (boceto aprobado por Emilio 22:03 Zúrich) · UNA lectura de `/api/flujo` para los 3 lugares y para el subtítulo de la campaña elegida
@@ -95,6 +99,18 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   // 19-nov (Emilio 23:23) · la campaña elegida con un toque: el subtítulo y los 6 cuadros desde «Brief» la siguen · al cambiar de cliente se olvida
   const [tocada, setTocada] = useState<string | null>(null)
   const pedida = useRef<string | null>(null)
+  // 21-nov (GO Lenovo 01:40Z) · la campaña pedida nace poco después, en la puerta: se releen los lugares hasta verla (la que no estaba antes);
+  //   al verla se cierra el formulario y queda elegida, con su nombre. Si no aparece a tiempo, el formulario se cierra igual y los lugares se releen.
+  const [naciendo, setNaciendo] = useState<{ antes: string[]; vueltas: number } | null>(null)
+  useEffect(() => {
+    if (!naciendo || !campanas) return
+    const nueva = campanas.find((c) => !naciendo.antes.includes(c.campana_id))
+    if (nueva) { setNaciendo(null); setCreando(false); pedida.current = nueva.campana_id; setTocada(nueva.campana_id); void leer(datos?.cliente?.id ?? null); return }
+    if (naciendo.vueltas >= VUELTAS_HASTA_QUE_NACE) { setNaciendo(null); setCreando(false); void leer(datos?.cliente?.id ?? null); return }
+    const t = setTimeout(() => { setNaciendo((n) => n && { ...n, vueltas: n.vueltas + 1 }); setVuelta((v) => v + 1) }, ESPERA_ENTRE_VUELTAS_MS)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando llega otra lectura de los lugares o cambia la espera
+  }, [naciendo, campanas])
 
   useEffect(() => { if (vista === "inicio") primero.current?.focus() }, [vista])
   // Esc cierra las aplicaciones y NO la oficina (captura + stop); cuando el calendario está encima, su propio Esc lo cierra y volvemos aquí
@@ -163,7 +179,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   // 20-nov (LENOVO 23:53) · brief y gran idea abiertos leen la campaña elegida, como sus cuadros (sin tocar: nada, el servidor muestra la viva más nueva)
   if (vista === "brief") return <PanelBrief key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
   // 20-nov (GO Lenovo 22:05 Zúrich · boceto aprobado por Emilio 22:03) · «Crear Campaña» abre el formulario de las 5 preguntas; al cerrarlo se vuelve a los cuadros
-  if (creando && cliente) return <FormularioCrearCampana clienteId={cliente} clienteNombre={datos?.cliente?.nombre ?? null} onCerrar={() => setCreando(false)} onCreada={() => { setCreando(false); setVuelta((n) => n + 1); void leer(cliente) }} />
+  if (creando && cliente) return <FormularioCrearCampana clienteId={cliente} clienteNombre={datos?.cliente?.nombre ?? null} onCerrar={() => setCreando(false)} onCreada={() => { setNaciendo({ antes: (campanas ?? []).map((c) => c.campana_id), vueltas: 0 }); setVuelta((n) => n + 1) }} />
   if (vista === "gran_idea") return <PanelGranIdea key={cliente ?? ""} onCerrar={volverAlInicio} clienteInicial={cliente} campanaInicial={pedida.current} />
 
   const idCliente = datos?.cliente?.id ?? null
