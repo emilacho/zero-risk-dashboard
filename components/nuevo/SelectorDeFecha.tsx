@@ -75,8 +75,9 @@ export function SelectorDeFecha({ valor, onCambio, etiqueta, hoy, rango, desde, 
                 onMouseDown={(e) => e.preventDefault()} onClick={() => elegir(iso)}
                 className={`m-0.5 flex h-9 items-center justify-center rounded-control text-dato [font-variant-numeric:tabular-nums] focus-visible:shadow-none ${
                   elegido || extremo ? "bg-oro font-medio text-carbon" : enRango ? "bg-linea-oro text-hueso" : antes ? "text-apagado" : "text-hueso hover:bg-grafito-2"
-                } ${iso === hoy && !elegido ? "border border-oro" : ""} disabled:cursor-not-allowed`}>
-                {Number(iso.slice(8))}
+                } disabled:cursor-not-allowed`}>
+                {/* hoy: el aro dorado va en el número (el botón del día no es un botón de acción) */}
+                <span className={`flex h-full w-full items-center justify-center rounded-control ${iso === hoy && !elegido ? "border border-oro" : ""}`}>{Number(iso.slice(8))}</span>
               </button>
             )
           })}

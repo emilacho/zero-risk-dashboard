@@ -75,7 +75,7 @@ describe("la casilla con calendario", () => {
     expect(container.querySelector("[data-calendario]")).not.toBeNull()
     expect(container.querySelector("[data-mes]")?.textContent).toBe("noviembre 2026")
     expect(container.querySelector("[data-hoy]")?.getAttribute("data-dia")).toBe(HOY)
-    expect(container.querySelector("[data-hoy]")?.className).toContain("border-oro")
+    expect(container.querySelector("[data-hoy] span")?.className).toContain("border-oro")
   })
   it("las flechas cambian de mes (y de año) y elegir un día llena la casilla y cierra el calendario", () => {
     const { container } = render(<Casilla />)
