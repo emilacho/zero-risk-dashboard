@@ -14,7 +14,7 @@ import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { PanelAplicaciones } from "@/components/nuevo/PanelAplicaciones"
 import { flujoDeCampana, type CampanaDelFlujo } from "@/lib/flujo-de-campana"
 import { ACCIONES, ejecutarAccion } from "@/lib/tablero-acciones"
-import { LLAVE, PASOS, hoyEnEcuador, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
+import { LLAVE, PASOS, fechasDelMinimo, hoyEnEcuador, minimoDelRechazo, nuevaLlave, VACIAS, cuerpoDeCrear, leerMinimo, minimoDeLaRespuesta, pasosListos, topeEscrito, validarCrear, type RespuestasDeCrear } from "@/lib/crear-campana"
 import type { Pizarron } from "@/lib/pizarron-datos"
 import { faseActiva } from "@/lib/pizarron"
 
@@ -117,6 +117,24 @@ describe("las reglas de las 5 preguntas (lib/crear-campana)", () => {
     expect(c.cambio).toHaveLength(4000)
     expect(validarCrear(c as Record<string, unknown>, HOY)).toEqual({ ok: true, cuerpo: c })
   })
+  it("leerMinimo manda las fechas a la plataforma solo si vienen las dos", async () => {
+    const urls: string[] = []
+    const d = { plataformaUrl: "https://p.test", llave: "k", fetchImpl: (async (u: string) => { urls.push(u); return new Response(JSON.stringify({ ok: true, minimo_usd: 52 }), { status: 200 }) }) as unknown as typeof fetch }
+    await leerMinimo(NAUFRAGO, d, { inicio: "2026-12-01", fin: "2026-12-15" })
+    await leerMinimo(NAUFRAGO, d)
+    expect(urls).toEqual([`https://p.test/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}&fecha_inicio=2026-12-01&fecha_fin=2026-12-15`, `https://p.test/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}`])
+  })
+  it("las fechas del mínimo: las dos bien escritas y el fin después del inicio; si no, ninguna", () => {
+    expect(fechasDelMinimo("2026-12-01", "2026-12-15")).toEqual({ inicio: "2026-12-01", fin: "2026-12-15" })
+    for (const [i, f] of [["2026-12-01", ""], ["", "2026-12-15"], ["2026-12-15", "2026-12-15"], ["2026-12-15", "2026-12-01"], ["2027-02-31", "2027-03-05"], [null, "2026-12-15"]]) expect(fechasDelMinimo(i, f), `${i}→${f}`).toBeNull()
+  })
+  it("el mínimo del 409: el de `plataforma.minimo_usd`, solo si es un número positivo", () => {
+    expect(minimoDelRechazo({ error: "conflicto", plataforma: { error: "tope_bajo_minimo", minimo_usd: 61 } })).toBe(61)
+    expect(minimoDelRechazo({ error: "conflicto", plataforma: { error: "tope_bajo_minimo" } })).toBeNull()
+    expect(minimoDelRechazo({ error: "conflicto", plataforma: { error: "tope_bajo_minimo", minimo_usd: 0 } })).toBeNull()
+    expect(minimoDelRechazo({ error: "conflicto", minimo_usd: 61 })).toBeNull()
+    expect(minimoDelRechazo(null)).toBeNull()
+  })
   it("el mínimo de la plataforma: solo un número positivo con `ok: true`", () => {
     expect(minimoDeLaRespuesta({ ok: true, minimo_usd: 60 })).toBe(60)
     expect(minimoDeLaRespuesta({ ok: true, minimo_usd: "60.5" })).toBe(60.5)
@@ -210,11 +228,12 @@ const pizDeNaufrago = (): Pizarron => ({
 }) as unknown as Pizarron
 
 /** la red de mentira del formulario: el mínimo, la acción de crear y las lecturas del Centro */
-function red(o: { minimo?: number | null; crear?: () => Response } = {}) {
+function red(o: { minimo?: number | null | ((url: string) => number | null); crear?: () => Response } = {}) {
   const pedidos: Array<{ url: string; metodo: string; cuerpo?: Record<string, unknown> }> = []
   const f = vi.fn(async (url: string, init?: RequestInit) => {
     pedidos.push({ url, metodo: init?.method ?? "GET", cuerpo: init?.body ? JSON.parse(String(init.body)) : undefined })
-    if (url.startsWith("/api/crear-campana/minimo")) return o.minimo == null ? new Response(JSON.stringify({ ok: false, error: "todavia_no_disponible" }), { status: 501 }) : new Response(JSON.stringify({ ok: true, minimo_usd: o.minimo }), { status: 200 })
+    const m = typeof o.minimo === "function" ? o.minimo(url) : o.minimo
+    if (url.startsWith("/api/crear-campana/minimo")) return m == null ? new Response(JSON.stringify({ ok: false, error: "todavia_no_disponible" }), { status: 501 }) : new Response(JSON.stringify({ ok: true, minimo_usd: m }), { status: 200 })
     if (url === "/api/acciones/crear-campana") return o.crear ? o.crear() : new Response(JSON.stringify({ ok: true, accion: "crear-campana" }), { status: 200 })
     if (url.startsWith("/api/flujo")) return new Response(JSON.stringify({ ok: true, campana_id: VIVA, flujo: ROJO, campanas: [C_VIVA] }), { status: 200 })
     if (url.startsWith("/api/pizarron")) return new Response(JSON.stringify({ ok: true, ...pizDeNaufrago() }), { status: 200 })
@@ -255,7 +274,7 @@ describe("la pantalla, como el boceto aprobado", () => {
     const pedidos = red({ minimo: 60 })
     const { container } = formulario({ inicial: { ...LISTAS, tope: "40" }, pasoInicial: 3 })
     await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 60"))
-    expect(pedidos[0].url).toBe(`/api/crear-campana/minimo?cliente=${NAUFRAGO}`)
+    expect(pedidos[0].url).toBe(`/api/crear-campana/minimo?cliente=${NAUFRAGO}&inicio=2026-12-01&fin=2027-01-31`)
     expect(container.querySelector("[data-minimo-valor]")?.className).toContain("text-alarma")
     expect(boton(container, "[data-siguiente]").disabled).toBe(true)
     fireEvent.change(container.querySelector("[aria-label=Tope]")!, { target: { value: "150" } })
@@ -300,7 +319,7 @@ describe("la pantalla, como el boceto aprobado", () => {
     expect(crear[0].cuerpo?.llave_formulario).toMatch(LLAVE)
     expect(crear[0].cuerpo).toEqual(cuerpoDeCrear(NAUFRAGO, String(crear[0].cuerpo?.llave_formulario), LISTAS))
   })
-  it("si la plataforma dice que el tope quedó debajo del mínimo, vuelve a leerlo y vuelve a la pregunta del tope; nada se da por creado", async () => {
+  it("si la plataforma dice que el tope quedó debajo del mínimo, muestra el mínimo del rechazo y vuelve a la pregunta del tope; nada se da por creado", async () => {
     const pedidos = red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false, error: "conflicto", detalle: "tope_bajo_minimo", plataforma: { ok: false, error: "tope_bajo_minimo", minimo_usd: 61 } }), { status: 409 }) })
     const onCreada = vi.fn()
     const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, onCreada })
@@ -308,8 +327,50 @@ describe("la pantalla, como el boceto aprobado", () => {
     fireEvent.click(boton(container, "[data-crear]"))
     await waitFor(() => expect(container.querySelector("[data-posicion]")?.textContent).toBe("4 de 5"))
     expect(container.querySelector("[data-problema]")?.textContent).toBe("El tope quedó debajo del mínimo. Revísalo.")
-    expect(pedidos.filter((p) => p.url.startsWith("/api/crear-campana/minimo"))).toHaveLength(2)
+    // el mínimo que se ve es el del 409 (61, el de las fechas de la campaña), no el que se leyó antes (60)
+    expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 61")
+    expect(pedidos.filter((p) => p.url.startsWith("/api/crear-campana/minimo"))).toHaveLength(1)
     expect(onCreada).not.toHaveBeenCalled()
+  })
+  it("un 409 por el tope SIN mínimo en la respuesta vuelve a leerlo, con las fechas de la campaña", async () => {
+    const pedidos = red({ minimo: 70, crear: () => new Response(JSON.stringify({ ok: false, error: "conflicto", plataforma: { ok: false, error: "tope_bajo_minimo" } }), { status: 409 }) })
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 5, minimoInicial: 60 })
+    fireEvent.click(boton(container, "[data-crear]"))
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 70"))
+    expect(container.querySelector("[data-posicion]")?.textContent).toBe("4 de 5")
+    expect(pedidos.filter((p) => p.url.startsWith("/api/crear-campana/minimo")).map((p) => p.url)).toEqual([`/api/crear-campana/minimo?cliente=${NAUFRAGO}&inicio=2026-12-01&fin=2027-01-31`])
+  })
+  it("el mínimo se pide con las fechas y SE VUELVE A PEDIR al cambiarlas; la pantalla muestra el de las fechas nuevas", async () => {
+    const pedidos = red({ minimo: (u) => (u.includes("fin=2027-01-31") ? 79 : u.includes("fin=2026-12-15") ? 52 : null) })
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 2 })
+    await waitFor(() => expect(pedidos.map((p) => p.url)).toEqual([`/api/crear-campana/minimo?cliente=${NAUFRAGO}&inicio=2026-12-01&fin=2027-01-31`]))
+    fireEvent.change(container.querySelector("[aria-label=Fin]")!, { target: { value: "2026-12-15" } })
+    await waitFor(() => expect(pedidos.at(-1)?.url).toBe(`/api/crear-campana/minimo?cliente=${NAUFRAGO}&inicio=2026-12-01&fin=2026-12-15`))
+    fireEvent.click(boton(container, "[data-siguiente]"))
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 52"))
+  })
+  it("sin fechas completas el mínimo se pide sin fechas (la ventana del plan), nunca con una sola", async () => {
+    const pedidos = red({ minimo: 79 })
+    formulario({ inicial: { ...LISTAS, fin: "" }, pasoInicial: 2 })
+    await waitFor(() => expect(pedidos).toHaveLength(1))
+    expect(pedidos[0].url).toBe(`/api/crear-campana/minimo?cliente=${NAUFRAGO}`)
+  })
+  it("una lectura vieja que llega tarde no pisa a la de las fechas nuevas", async () => {
+    let soltarVieja: (r: Response) => void = () => {}
+    const urls: string[] = []
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      urls.push(url)
+      if (url.includes("fin=2027-01-31")) return new Promise<Response>((ok) => { soltarVieja = ok })
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, minimo_usd: 52 }), { status: 200 }))
+    }))
+    const { container } = formulario({ inicial: LISTAS, pasoInicial: 2 })
+    await waitFor(() => expect(urls).toHaveLength(1))
+    fireEvent.change(container.querySelector("[aria-label=Fin]")!, { target: { value: "2026-12-15" } })
+    await waitFor(() => expect(urls).toHaveLength(2))
+    fireEvent.click(boton(container, "[data-siguiente]"))
+    await waitFor(() => expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 52"))
+    await act(async () => { soltarVieja(new Response(JSON.stringify({ ok: true, minimo_usd: 79 }), { status: 200 })) })
+    expect(container.querySelector("[data-minimo-valor]")?.textContent).toBe("US$ 52")
   })
   it("si la plataforma todavía no tiene la ruta, lo dice y no da nada por creado", async () => {
     red({ minimo: 60, crear: () => new Response(JSON.stringify({ ok: false, error: "todavia_no_disponible" }), { status: 501 }) })
@@ -331,6 +392,8 @@ describe("la pantalla, como el boceto aprobado", () => {
     expect(motivoDeNoCrear({ ok: false, error: "la_plataforma_rechazo", plataforma_error: "entrada_invalida", detalle: "el nombre está en blanco" })).toBe("No se creó: el nombre está en blanco.")
     expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "otra" } })).toContain("No se creó nada")
     expect(motivoDeNoCrear(null)).toContain("No se creó nada")
+    expect(motivoDeNoCrear({ ok: false, error: "conflicto", plataforma: { error: "cadena_no_admite" } })).toBe("Este cliente todavía no puede tener campañas nuevas. No se creó nada.")
+    expect(motivoDeNoCrear({ ok: false, error: "la_plataforma_rechazo", plataforma_error: "minimo_ilegible" })).toBe("No se pudo calcular el mínimo. No se creó nada: inténtalo otra vez.")
   })
   it("un reintento después de un rechazo manda la MISMA llave (así la plataforma contesta «ya pedida» y no abre dos)", async () => {
     let n = 0

@@ -164,6 +164,16 @@ export function fechaCorta(iso: string): string {
 /** «US$ 150» · «US$ 150,50» */
 export const dolares = (n: number) => `US$ ${n.toLocaleString("es-EC", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`
 
+export interface FechasDelMinimo { inicio: string; fin: string }
+/** las fechas con que se pide el mínimo: las dos bien escritas y el fin después del inicio; si no, ninguna (la plataforma pide «las dos o ninguna») */
+export function fechasDelMinimo(inicio: unknown, fin: unknown): FechasDelMinimo | null {
+  return esFecha(inicio) && esFecha(fin) && dias(inicio, fin) > 0 ? { inicio, fin } : null
+}
+/** el mínimo que trae el 409 `tope_bajo_minimo` de la plataforma (el de las fechas de la campaña); null si no trae uno válido */
+export function minimoDelRechazo(j: Record<string, unknown> | null): number | null {
+  const p = j?.plataforma && typeof j.plataforma === "object" ? (j.plataforma as Record<string, unknown>) : null
+  return p ? minimoDeLaRespuesta({ ok: true, minimo_usd: p.minimo_usd }) : null
+}
 export interface DepsDelMinimo { plataformaUrl?: string; llave?: string; fetchImpl?: typeof fetch }
 export type RespuestaDelMinimo = { status: number; cuerpo: { ok: true; minimo_usd: number } | { ok: false; error: string } }
 /** sin Plan de Marketing aprobado no hay campaña nueva (409 de la plataforma): la pantalla lo dice */
@@ -171,16 +181,18 @@ export const SIN_PLAN_APROBADO = "sin_plan_aprobado"
 
 /**
  * el mínimo del tope para ESTE cliente (la planificación más una pieza en su peor caso), de la ruta de solo lectura de la plataforma
- * `GET /api/tablero-minimo-de-campana?client_id=…` (CC1, entrega 2; el servidor vuelve a calcularlo al crear: el de la pantalla es para mostrar). Sin respuesta válida no hay mínimo y el formulario no deja crear:
- * nunca se inventa uno.
+ * `GET /api/tablero-minimo-de-campana?client_id=…&fecha_inicio=…&fecha_fin=…` (CC1, entrega 2 · #1259). El mínimo DEPENDE DE LAS FECHAS: sin ellas la plataforma
+ * usa la ventana del plan, y al crear compara con el de las fechas de la campaña (21-nov · 🟡 de CC5 y CC7). Sin respuesta válida no hay mínimo y el formulario
+ * no deja crear: nunca se inventa uno.
  */
-export async function leerMinimo(clienteId: string, d: DepsDelMinimo = {}): Promise<RespuestaDelMinimo> {
+export async function leerMinimo(clienteId: string, d: DepsDelMinimo = {}, fechas: FechasDelMinimo | null = null): Promise<RespuestaDelMinimo> {
   if (!UUID.test(clienteId)) return { status: 400, cuerpo: { ok: false, error: "falta_el_cliente" } }
   const base = (d.plataformaUrl ?? process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://zero-risk-platform.vercel.app").replace(/\/+$/, "")
   const llave = d.llave ?? (process.env.PLATFORM_INTERNAL_KEY || process.env.INTERNAL_API_KEY || "")
   if (!llave) return { status: 503, cuerpo: { ok: false, error: "llave_interna_sin_poner" } }
   try {
-    const r = await (d.fetchImpl ?? fetch)(`${base}/api/tablero-minimo-de-campana?client_id=${encodeURIComponent(clienteId)}`, { headers: { "x-api-key": llave }, cache: "no-store" })
+    const conFechas = fechas ? `&fecha_inicio=${encodeURIComponent(fechas.inicio)}&fecha_fin=${encodeURIComponent(fechas.fin)}` : ""
+    const r = await (d.fetchImpl ?? fetch)(`${base}/api/tablero-minimo-de-campana?client_id=${encodeURIComponent(clienteId)}${conFechas}`, { headers: { "x-api-key": llave }, cache: "no-store" })
     if (r.status === 404 || r.status === 405) return { status: 501, cuerpo: { ok: false, error: "todavia_no_disponible" } }
     const j = await r.json().catch(() => null)
     if (r.status === 409 && j && (j as Record<string, unknown>).error === SIN_PLAN_APROBADO) return { status: 409, cuerpo: { ok: false, error: SIN_PLAN_APROBADO } }

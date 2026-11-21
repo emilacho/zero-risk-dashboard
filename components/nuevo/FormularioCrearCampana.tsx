@@ -5,7 +5,8 @@
  * `raw/evidencia/2026-11-20-boceto-crear-campana-formulario/`). Estructura de Typeform, fachada del estilo base:
  *   · una pregunta por pantalla: rótulo dorado de 1 o 2 palabras y la pregunta debajo; arriba la barra de 5 tramos con «N de 5»;
  *   · «Atrás» (borde oro) a la izquierda y «Siguiente» (ámbar) a la derecha; «Siguiente» se apaga mientras falta la respuesta;
- *   · el tope es obligatorio y lleva al lado el MÍNIMO que lee la plataforma; debajo del mínimo, el número del mínimo en rojo. Sin mínimo leído, no se puede crear;
+ *   · el tope es obligatorio y lleva al lado el MÍNIMO que lee la plataforma PARA LAS FECHAS ELEGIDAS (se vuelve a pedir al cambiarlas); debajo del mínimo, el número
+ *     del mínimo en rojo. Sin mínimo leído, no se puede crear;
  *   · el último paso es el resumen con «Crear Campaña». El tablero no escribe la base: lo manda `POST /api/acciones/crear-campana` a la plataforma.
  * Las reglas viven en `lib/crear-campana.ts` (las mismas que exige el servidor del tablero).
  */
@@ -14,7 +15,7 @@ import { Acciones, BOTON_PRINCIPAL, BOTON_SECUNDARIO, Pares, PanelBase, ROTULO }
 import { ClienteComoTexto } from "@/components/nuevo/ClienteComoTexto"
 import {
   PASOS, TOPE_DE_FECHAS_CLAVE, TOPE_DEL_BRIEF, TOPE_DEL_CAMBIO, TOPE_DEL_NOMBRE, TOPE_DEL_QUE, VACIAS,
-  SIN_PLAN_APROBADO, clavesLlenas, nuevaLlave, cuerpoDeCrear, dolares, fechaCorta, minimoDeLaRespuesta, pasosListos, topeEscrito, type RespuestasDeCrear,
+  SIN_PLAN_APROBADO, clavesLlenas, nuevaLlave, cuerpoDeCrear, dolares, fechaCorta, fechasDelMinimo, minimoDeLaRespuesta, minimoDelRechazo, pasosListos, topeEscrito, type RespuestasDeCrear,
 } from "@/lib/crear-campana"
 
 const CAMPO = "w-full min-w-0 border-b border-linea-oro bg-transparent text-hueso focus:border-oro focus:outline-none"
@@ -62,6 +63,8 @@ export function motivoDeNoCrear(j: Record<string, unknown> | null): string {
   if (e === "todavia_no_disponible") return "Todavía no se puede crear: falta la parte de la plataforma. No se creó nada."
   if (e === "sin_sesion" || e === "sin_permiso") return "Tu sesión no tiene permiso para crear campañas."
   if ((e === "pedido_invalido" || e === "entrada_invalida") && typeof j?.detalle === "string" && j.detalle) return `No se creó: ${j.detalle}.`
+  if (e === "cadena_no_admite") return "Este cliente todavía no puede tener campañas nuevas. No se creó nada."
+  if (e === "minimo_ilegible") return "No se pudo calcular el mínimo. No se creó nada: inténtalo otra vez."
   if (e === "conflicto") return "Otra decisión se adelantó. No se creó nada: inténtalo otra vez."
   return "La plataforma no contestó. No se creó nada: inténtalo otra vez."
 }
@@ -89,15 +92,27 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
   // `llave_formulario`: UNA por formulario abierto, así un doble toque o un reintento da «ya pedida» y no abre dos campañas
   const llave = useMemo(() => nuevaLlave(), [])
 
+  // el mínimo depende de las fechas (la plataforma compara con el de las fechas de la campaña): se pide con ellas y se vuelve a pedir al cambiarlas
+  const fechas = fechasDelMinimo(r.inicio, r.fin)
+  const conFechas = fechas ? `&inicio=${encodeURIComponent(fechas.inicio)}&fin=${encodeURIComponent(fechas.fin)}` : ""
+  // cada lectura lleva su número: si llega tarde una vieja (otras fechas), no pisa a la nueva
+  const vez = useRef(0)
   const leerMinimo = useMemo(() => async () => {
+    const esta = ++vez.current
+    setMinimo(null)
     try {
-      const res = await fetch(`/api/crear-campana/minimo?cliente=${encodeURIComponent(clienteId)}`, { cache: "no-store" })
+      const res = await fetch(`/api/crear-campana/minimo?cliente=${encodeURIComponent(clienteId)}${conFechas}`, { cache: "no-store" })
       const j = await res.json().catch(() => null)
+      if (esta !== vez.current) return
       setMinimo(res.ok ? minimoDeLaRespuesta(j) : null)
       setSinPlan(!res.ok && (j as Record<string, unknown> | null)?.error === SIN_PLAN_APROBADO)
-    } catch { setMinimo(null); setSinPlan(false) }
-  }, [clienteId])
-  useEffect(() => { if (minimoInicial === undefined) void leerMinimo() }, [minimoInicial, leerMinimo])
+    } catch { if (esta === vez.current) { setMinimo(null); setSinPlan(false) } }
+  }, [clienteId, conFechas])
+  const primera = useRef(true)
+  useEffect(() => {
+    if (primera.current) { primera.current = false; if (minimoInicial !== undefined) return }
+    void leerMinimo()
+  }, [leerMinimo]) // eslint-disable-line react-hooks/exhaustive-deps -- `minimoInicial` solo cuenta al abrir
   // Esc cierra el formulario y vuelve al Centro (no cierra el Centro ni la oficina)
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
@@ -119,8 +134,12 @@ export function FormularioCrearCampana({ clienteId, clienteNombre, onCerrar, onC
       const res = await fetch("/api/acciones/crear-campana", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpoDeCrear(clienteId, llave, r)) })
       const j = (await res.json().catch(() => null)) as Record<string, unknown> | null
       if (res.ok && j?.ok === true) { onCreada(); return }
-      // el mínimo pudo cambiar entre leerlo y crear: se vuelve a leer y se vuelve a la pregunta del tope
-      if (codigoDeNoCrear(j) === "tope_bajo_minimo") { await leerMinimo(); setPaso(3) }
+      // el mínimo pudo cambiar entre leerlo y crear: se muestra el que trae el rechazo (el de las fechas de la campaña) y se vuelve a la pregunta del tope
+      if (codigoDeNoCrear(j) === "tope_bajo_minimo") {
+        const delRechazo = minimoDelRechazo(j)
+        if (delRechazo != null) setMinimo(delRechazo); else await leerMinimo()
+        setPaso(3)
+      }
       setProblema(motivoDeNoCrear(j))
     } catch {
       setProblema(motivoDeNoCrear(null))

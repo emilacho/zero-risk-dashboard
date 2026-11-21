@@ -13,7 +13,7 @@ async function ruta(puerta: { ok: true; email: string | null } | { ok: false; st
   const plataforma = vi.fn(async () => new Response(JSON.stringify({ ok: true, minimo_usd: 61 }), { status: 200 }))
   vi.stubGlobal("fetch", plataforma)
   const { GET } = await import("@/app/api/crear-campana/minimo/route")
-  const pedir = () => GET(new Request(`https://t.test/api/crear-campana/minimo?cliente=${NAUFRAGO}`))
+  const pedir = (q = "") => GET(new Request(`https://t.test/api/crear-campana/minimo?cliente=${NAUFRAGO}${q}`))
   return { pedir, plataforma }
 }
 
@@ -42,5 +42,20 @@ describe("la ruta del mínimo: solo administrador con sesión", () => {
     const [url, init] = plataforma.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toContain(`/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}`)
     expect((init.headers as Record<string, string>)["x-api-key"]).toBe("k")
+  })
+  it("pasa a la plataforma las fechas de la campaña, las dos o ninguna", async () => {
+    process.env.PLATFORM_INTERNAL_KEY = "k"
+    const urls: string[] = []
+    for (const q of ["&inicio=2026-12-01&fin=2026-12-15", "&inicio=2026-12-01", "&inicio=2026-12-15&fin=2026-12-01", "&inicio=x&fin=y"]) {
+      const { pedir, plataforma } = await ruta({ ok: true, email: "emilio@x.com" })
+      expect((await pedir(q)).status).toBe(200)
+      urls.push(String((plataforma.mock.calls[0] as unknown as [string])[0]).replace(/^.*\/api\//, "/api/"))
+    }
+    expect(urls).toEqual([
+      `/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}&fecha_inicio=2026-12-01&fecha_fin=2026-12-15`,
+      `/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}`,
+      `/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}`,
+      `/api/tablero-minimo-de-campana?client_id=${NAUFRAGO}`,
+    ])
   })
 })
