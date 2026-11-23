@@ -52,7 +52,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
   })
   it("el panel dibuja los nueve cuadros como enlaces (el calendario como botón que abre encima), el selector de cliente y el aviso en Piezas", () => {
     const html = renderToStaticMarkup(createElement(PanelAplicaciones, { onCerrar: () => {}, datosIniciales: datos }))
-    expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="aplicaciones"'); expect(html).toContain("data-cliente-como-texto") // 09-nov · «Cliente · X» como texto (selector único #300)
+    expect(html).toContain('role="dialog"'); expect(html).toContain('data-seccion="aplicaciones"'); expect(html).toContain("data-campana-como-texto"); expect(html).not.toContain("data-cliente-como-texto") // 21-nov · el subtítulo es la campaña (flecha ▾), nunca «CLIENTE» · antes: 09-nov · «Cliente · X» como texto (selector único #300)
     expect(html.match(/data-aplicacion="/g)?.length).toBe(9) // 6.10: nueve pasos
     expect(html).toMatch(/<button type="button" data-aplicacion="manual" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.3: abre encima
     expect(html).toMatch(/<button type="button" data-aplicacion="plan" data-aviso="false"[^>]*aria-haspopup="dialog"/) // 6.5: abre encima
@@ -61,7 +61,7 @@ describe("sprint 6.2 · las aplicaciones del Dept. Marketing", () => {
     // 09-nov (boceto aprobado): la tarjeta dice estado + cantidad + una línea; sin la lectura del centro, lo que no viene dice «—» (nunca un cero inventado)
     expect(html).toContain('data-estado="Por aprobar" data-tono="oro"'); expect(html).toContain("Espera tu aprobación"); expect(html).toMatch(/data-cantidad="true"[^>]*>1</); expect(html).not.toContain("calendario v1")
     expect(html).toMatch(/data-aplicacion="calendario"[\s\S]*?data-estado="—"/)
-    expect(html).not.toContain("<select"); expect(html).toContain("data-cliente-como-texto") // 06-nov selector único: el cliente se elige arriba
+    expect(html).not.toContain("<select"); expect(html).toContain("data-campana-como-texto") // 21-nov · el subtítulo es la campaña · 06-nov selector único: el cliente se elige arriba
     expect(html).not.toContain('data-seccion="pizarron"') // el calendario no está abierto de entrada
     expect(html).not.toMatch(/<button[^>]*>\s*(decidir|aprobar)\b/i) // ningún botón decide aquí («Por aprobar» es un estado, no una acción)
     const c = readFileSync("components/nuevo/PanelAplicaciones.tsx", "utf8")

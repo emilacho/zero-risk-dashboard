@@ -13,13 +13,13 @@ import { PanelPiezas } from "@/components/nuevo/PanelPiezas"
 import { PanelInformes } from "@/components/nuevo/PanelInformes"
 import { PanelBrief } from "@/components/nuevo/PanelBrief"
 import { PanelGranIdea } from "@/components/nuevo/PanelGranIdea"
-import { ClienteComoTexto, useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
+import { useAlCambiarElCliente } from "@/components/nuevo/ClienteComoTexto"
 import { EVENTO_ABRIR_PLANTEL, type PedidoDePlantel } from "@/lib/buscador"
 import type { Centro } from "@/lib/centro-datos"
 import { PanelBase } from "@/components/nuevo/EstiloBase"
 import { tarjetaDelCentro, type TonoDeEstado } from "@/lib/centro-tarjetas"
 import { FormularioCrearCampana } from "@/components/nuevo/FormularioCrearCampana"
-import { CampanaComoTexto, LugaresDeCampana, campanaElegidaConToque, useCampanasDelFlujo, type FlujoInicial } from "@/components/nuevo/LugaresDeCampana"
+import { CampanaComoTexto, LugaresDeCampana, campanaElegidaConToque, campanasConLugar, nombreDelSubtitulo, useCampanasDelFlujo, type FlujoInicial } from "@/components/nuevo/LugaresDeCampana"
 
 /** 19-nov · la campaña tocada viaja a las lecturas como `&campana=` (#358); sin tocar no se manda nada y el servidor muestra la viva más nueva */
 export const conCampana = (url: string, campana: string | null | undefined): string => (campana ? `${url}${url.includes("?") ? "&" : "?"}campana=${encodeURIComponent(campana)}` : url)
@@ -121,7 +121,11 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   useEffect(() => {
     if (creando) return // 20-nov · con el formulario abierto, Esc es suyo
     if (vista !== "inicio") return
-    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onCerrar() } }
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      if (document.querySelector("[data-lista-de-campanas]")) return // 21-nov · con la lista de la flecha abierta, Esc es suyo: cierra solo la lista
+      e.stopPropagation(); e.preventDefault(); onCerrar()
+    }
     window.addEventListener("keydown", tecla, true)
     return () => window.removeEventListener("keydown", tecla, true)
   }, [onCerrar, vista, creando])
@@ -188,13 +192,13 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
 
   const idCliente = datos?.cliente?.id ?? null
   const elegida = campanaElegidaConToque(campanas, tocada)
-  // el toque sobre una campaña no elegida: se elige y se vuelven a leer el pizarrón (calendario y piezas) y el centro (brief, gran idea, equipo y dinero) de ESA campaña
+  // elegir otra campaña con la flecha ▾ del subtítulo: se vuelven a leer el pizarrón (calendario y piezas) y el centro (brief, gran idea, equipo y dinero) de ESA campaña
   const elegir = (id: string) => { if (id === elegida?.campana_id) return; pedida.current = id; setTocada(id); void leer(idCliente) }
   return (
     <PanelBase titulo="Centro de campaña" id="aplicaciones-titulo" seccion="aplicaciones" onCerrar={onCerrar} etiquetaCerrar="Cerrar" ancho="max-w-[820px]" fondo={false}>
         {/* 06-nov · selector único (#300): el cliente se elige arriba; aquí solo se dice cuál es */}
-        {/* 19-nov · «CAMPAÑA · <nombre>» de la campaña elegida (la tocada o, sin tocar, la viva más nueva); si todavía no tiene nombre (o no hay campaña viva) sigue «CLIENTE · <nombre>»: el nombre nunca se inventa */}
-        <div className="mb-6 mt-1 flex justify-center">{elegida?.nombre ? <CampanaComoTexto nombre={elegida.nombre} /> : <ClienteComoTexto nombre={datos ? datos.cliente?.nombre : "Leyendo…"} />}</div>
+        {/* 21-nov (Emilio 10:28–10:30Z · GO Lenovo 10:31Z) · «CAMPAÑA · <nombre>» de la campaña elegida, con la flecha ▾ para elegir otra de las abiertas; nunca «CLIENTE» */}
+        <div className="mb-6 mt-1 flex justify-center"><CampanaComoTexto nombre={nombreDelSubtitulo(campanas, elegida)} opciones={campanasConLugar(campanas)} elegidaId={elegida?.campana_id ?? null} onElegir={elegir} /></div>
 
         {error && <p role="alert" className="mb-4 border-y border-linea-alarma py-3 text-center text-dato text-hueso">{error}</p>}
 
@@ -228,7 +232,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
           })}
         </ul>
         {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 · 19-nov (21:45 y 22:03): siempre 3 lugares, uno por campaña viva */}
-        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} elegidaId={elegida?.campana_id ?? null} onElegir={elegir} onCrear={idCliente ? () => setCreando(true) : undefined} />
+        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} onCrear={idCliente ? () => setCreando(true) : undefined} />
         <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
     </PanelBase>
   )

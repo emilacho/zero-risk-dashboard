@@ -125,7 +125,7 @@ describe("la pantalla", () => {
     expect(html.match(/bg-tarjeta-escena/g)).toHaveLength(9)
     expect(html.match(/data-estado=/g)).toHaveLength(9); expect(html.match(/data-cantidad=/g)).toHaveLength(9); expect(html.match(/data-linea=/g)).toHaveLength(9)
     expect(html).not.toMatch(/data-paso=/)
-    expect(html).toContain("data-cliente-como-texto"); expect(html).not.toContain("<select")
+    expect(html).toContain("data-campana-como-texto"); expect(html).not.toContain("data-cliente-como-texto"); expect(html).not.toContain("<select") // 21-nov · el subtítulo es la campaña (flecha ▾), nunca «CLIENTE»
   })
   it("el panel base sigue igual para todos los demás (fondo por omisión)", () => {
     const c = readFileSync("components/nuevo/EstiloBase.tsx", "utf8")
