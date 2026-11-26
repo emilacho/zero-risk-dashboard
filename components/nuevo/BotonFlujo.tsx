@@ -12,7 +12,22 @@
  *   · el alto queda fijo para que los 3 lugares midan igual (`LugaresDeCampana.tsx`)
  */
 import { useCallback, useEffect, useRef, useState } from "react"
+import { Archive } from "@phosphor-icons/react/dist/ssr/Archive"
+import { Trash } from "@phosphor-icons/react/dist/ssr/Trash"
 import { quieroAlTocar, type CampanaDelFlujo, type ColorDelFlujo, type FlujoDeCampana } from "@/lib/flujo-de-campana"
+import type { AccionDelArchivo } from "@/lib/archivo-de-campana"
+
+/**
+ * 26-nov (diseño de Emilio · GO Lenovo 11:57Z) · «ARCHIVAR» Y «ELIMINAR».
+ *   · al pasar el cursor se ilumina todo el botón; el clic sigue siendo parar/reanudar (no cambia);
+ *   · si el cursor se queda encima, a la derecha aparecen 2 botones sencillos (una palabra + su ícono), sin menús ni ventanas;
+ *   · «Archivar» = un clic · «Eliminar» = dos clics en el mismo botón: el primero cambia la palabra a «¿Seguro?», que vuelve sola a «Eliminar»
+ *     si no llega el segundo en unos segundos o si sale el cursor.
+ */
+export const ESPERA_DE_LAS_OPCIONES_MS = 600
+export const ESPERA_DEL_SEGURO_MS = 4000
+export const TEXTO_SEGURO = "¿Seguro?"
+const CLASE_DE_LA_OPCION = "flex items-center gap-1.5 rounded-control border bg-carbon px-2.5 py-1.5 text-dato font-medio focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro disabled:opacity-60"
 
 type Lectura = { ok: true; campana_id: string | null; flujo: FlujoDeCampana | null; campanas?: CampanaDelFlujo[] } | { ok: false; error: string }
 /** lo que pinta un botón: la campaña, su botón y (19-nov) su nombre */
@@ -35,15 +50,26 @@ function IconoDeEncendido({ className }: { className: string }) {
   )
 }
 
-export function BotonFlujo({ clienteId, inicial = null }: {
+export function BotonFlujo({ clienteId, inicial = null, onQuitada }: {
   clienteId: string | null
   /** la lectura ya hecha (los lugares de campaña, pruebas e imagen) */
   inicial?: LecturaDeUnBoton | null
+  /** 26-nov · la campaña se archivó o se eliminó: el Centro vuelve a leer y su lugar queda libre */
+  onQuitada?: () => void
 }) {
   const [lectura, setLectura] = useState(inicial)
   const [enviando, setEnviando] = useState(false)
   const [nota, setNota] = useState<string | null>(null)
   const idPropio = useRef<string | null>(inicial?.campana_id ?? null)
+  const [opciones, setOpciones] = useState(false)
+  const [seguro, setSeguro] = useState(false)
+  const [quitando, setQuitando] = useState<AccionDelArchivo | null>(null)
+  const relojOpciones = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const relojSeguro = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const parar = (r: { current: ReturnType<typeof setTimeout> | null }) => { if (r.current) clearTimeout(r.current); r.current = null }
+  useEffect(() => () => { parar(relojOpciones); parar(relojSeguro) }, [])
+  const entrar = () => { parar(relojOpciones); relojOpciones.current = setTimeout(() => setOpciones(true), ESPERA_DE_LAS_OPCIONES_MS) }
+  const salir = () => { parar(relojOpciones); parar(relojSeguro); setOpciones(false); setSeguro(false) }
 
   const leer = useCallback(async (id: string) => {
     try {
@@ -80,18 +106,54 @@ export function BotonFlujo({ clienteId, inicial = null }: {
     } finally { setEnviando(false) }
   }
 
+  // 26-nov · «Archivar» (un clic) y «Eliminar» (dos clics): lo aplica la plataforma; al salir bien, el lugar queda libre (el Centro vuelve a leer)
+  const quitar = async (que: AccionDelArchivo) => {
+    if (quitando || enviando) return
+    if (que === "eliminar" && !seguro) {
+      setSeguro(true); parar(relojSeguro)
+      relojSeguro.current = setTimeout(() => setSeguro(false), ESPERA_DEL_SEGURO_MS)
+      return
+    }
+    parar(relojSeguro); setSeguro(false); setQuitando(que); setNota(null)
+    try {
+      const r = await fetch("/api/campana-archivo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campana_id: lectura.campana_id, accion: que }) })
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean }
+      if (r.ok && j.ok === true) { setOpciones(false); onQuitada?.(); return }
+      setNota(que === "archivar" ? "No se pudo archivar ahora. Vuelve a intentarlo en un momento." : "No se pudo eliminar ahora. Vuelve a intentarlo en un momento.")
+    } catch {
+      setNota(que === "archivar" ? "No se pudo archivar ahora. Vuelve a intentarlo en un momento." : "No se pudo eliminar ahora. Vuelve a intentarlo en un momento.")
+    } finally { setQuitando(null) }
+  }
+
   // 21-nov (Emilio 10:28–10:30Z · GO Lenovo 10:31Z): los botones vuelven a ser solo «Flujo de la campaña»; la campaña se elige con la flecha ▾ del subtítulo (`CampanaComoTexto`)
   const accion = flujo.color === "verde" ? "Parar el flujo de la campaña" : "Reanudar el flujo de la campaña"
+  const nombre = lectura.nombre ? ` «${lectura.nombre}»` : ""
   return (
     <div className="mt-3">
-      <button type="button" data-flujo={flujo.color} onClick={() => void tocar()} disabled={enviando} aria-label={`${accion}${lectura.nombre ? ` «${lectura.nombre}»` : ""} · ${flujo.linea}`} className={`${CLASE_DEL_BOTON} ${c.borde}`}>
-        <IconoDeEncendido className={c.texto} />
-        <span className="mt-3 block text-cuerpo font-medio text-hueso">Flujo de la campaña</span>
-        {lectura.nombre && <span data-nombre-de-la-campana title={lectura.nombre} className="mt-1 block max-w-full truncate text-dato text-hueso">{lectura.nombre}</span>}
-        <span data-linea-del-flujo className={`mt-1.5 flex items-center justify-center gap-2 text-rotulo font-medio uppercase tracking-rotulo ${c.texto}`}>
-          <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${c.punto}`} aria-hidden />{flujo.linea}
-        </span>
-      </button>
+      <div data-lugar-de-la-campana className="group relative" onMouseEnter={entrar} onMouseLeave={salir}
+        onFocus={() => setOpciones(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) salir() }}>
+        <button type="button" data-flujo={flujo.color} onClick={() => void tocar()} disabled={enviando} aria-label={`${accion}${nombre} · ${flujo.linea}`} className={`${CLASE_DEL_BOTON} ${c.borde} group-hover:border-linea-oro group-hover:bg-grafito-2`}>
+          <IconoDeEncendido className={c.texto} />
+          <span className="mt-3 block text-cuerpo font-medio text-hueso">Flujo de la campaña</span>
+          {lectura.nombre && <span data-nombre-de-la-campana title={lectura.nombre} className="mt-1 block max-w-full truncate text-dato text-hueso">{lectura.nombre}</span>}
+          <span data-linea-del-flujo className={`mt-1.5 flex items-center justify-center gap-2 text-rotulo font-medio uppercase tracking-rotulo ${c.texto}`}>
+            <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${c.punto}`} aria-hidden />{flujo.linea}
+          </span>
+        </button>
+        {opciones && (
+          <div data-opciones-de-campana className="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-1.5">
+            <button type="button" data-archivar-campana onClick={() => void quitar("archivar")} disabled={!!quitando} aria-label={`Archivar la campaña${nombre}`}
+              className={`${CLASE_DE_LA_OPCION} border-linea text-hueso hover:border-linea-oro`}>
+              <Archive aria-hidden className="h-4 w-4" />{quitando === "archivar" ? "Archivando…" : "Archivar"}
+            </button>
+            <button type="button" data-eliminar-campana data-seguro={seguro ? "si" : "no"} onClick={() => void quitar("eliminar")} disabled={!!quitando}
+              aria-label={seguro ? `Confirmar: eliminar la campaña${nombre}` : `Eliminar la campaña${nombre}`}
+              className={`${CLASE_DE_LA_OPCION} border-linea-alarma text-alarma`}>
+              <Trash aria-hidden className="h-4 w-4" />{quitando === "eliminar" ? "Eliminando…" : seguro ? TEXTO_SEGURO : "Eliminar"}
+            </button>
+          </div>
+        )}
+      </div>
       {nota && <p role="status" data-nota-del-flujo className="mt-2 text-center text-dato text-gris">{nota}</p>}
     </div>
   )

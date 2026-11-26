@@ -232,7 +232,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
           })}
         </ul>
         {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 · 19-nov (21:45 y 22:03): siempre 3 lugares, uno por campaña viva */}
-        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} onCrear={idCliente ? () => setCreando(true) : undefined} />
+        <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} onCrear={idCliente ? () => setCreando(true) : undefined} onCambio={() => setVuelta((v) => v + 1)} />
         <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
     </PanelBase>
   )
