@@ -21,7 +21,14 @@ vi.mock("@/lib/supabase-server", () => ({ getServiceRoleClient: () => { tocoLaBa
 
 const verde = { campana_id: CAMPANA, flujo: { color: "verde" as const, linea: "EN MARCHA", estado: "activa" }, nombre: "Campaña de prueba" }
 /** una base de juguete: la campaña existe (o no) */
-const base = (existe = true) => ({ from: () => { const q: Record<string, unknown> = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: existe ? { id: CAMPANA } : null, error: null }) }; return q } }) as never
+/** una base de juguete que SÍ aplica los filtros: la campaña existe (o no), y puede ser de práctica (`seco`) */
+const base = (existe = true, seco = false) => ({ from: () => {
+  const filtros: Array<[string, unknown]> = []
+  const fila = { id: CAMPANA, seco }
+  const q: Record<string, unknown> = { select: () => q, eq: (c: string, v: unknown) => { filtros.push([c, v]); return q },
+    maybeSingle: async () => ({ data: existe && filtros.every(([c, v]) => (fila as Record<string, unknown>)[c] === v) ? { id: CAMPANA } : null, error: null }) }
+  return q
+} }) as never
 const respuesta = (status: number, cuerpo: unknown) => new Response(JSON.stringify(cuerpo), { status, headers: { "content-type": "application/json" } })
 
 describe("el pedido a la plataforma", () => {
@@ -46,6 +53,8 @@ describe("el pedido a la plataforma", () => {
     expect((await tocarArchivo({ campana_id: "x", accion: "archivar" }, { supabase: base(), llave: "k", fetchImpl: f as never })).status).toBe(400)
     expect((await tocarArchivo({ campana_id: CAMPANA, accion: "borrar" }, { supabase: base(), llave: "k", fetchImpl: f as never })).status).toBe(400)
     expect((await tocarArchivo({ campana_id: CAMPANA, accion: "eliminar" }, { supabase: base(false), llave: "k", fetchImpl: f as never })).status).toBe(404)
+    // d7 de CC6: una campaña de PRÁCTICA (`seco`) no se archiva ni se borra desde el tablero
+    for (const accion of ["archivar", "eliminar"] as const) expect((await tocarArchivo({ campana_id: CAMPANA, accion }, { supabase: base(true, true), llave: "k", fetchImpl: f as never })).status).toBe(404)
     expect(f).not.toHaveBeenCalled()
   })
   it("🔴 sin la ruta en la plataforma se dice (501); un error de la plataforma vuelve como error, nunca como ok", async () => {
@@ -91,6 +100,8 @@ describe("los 2 botones junto a «Flujo de la campaña»", () => {
     expect(container.querySelector("[data-opciones-de-campana]")).toBeNull()
     fireEvent.mouseEnter(lugar(container))
     await act(async () => { vi.advanceTimersByTime(ESPERA_DE_LAS_OPCIONES_MS - 50) })
+    // d10 de CC6: todavía encima, pero antes de la espera: no salen
+    expect(container.querySelector("[data-opciones-de-campana]")).toBeNull()
     fireEvent.mouseLeave(lugar(container))
     await act(async () => { vi.advanceTimersByTime(1000) })
     expect(container.querySelector("[data-opciones-de-campana]")).toBeNull()
