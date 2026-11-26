@@ -343,7 +343,8 @@ describe("19-nov · los 3 lugares de campaña y el subtítulo", () => {
     expect(crear.textContent).toBe("Crear Campaña")
     expect(crear.querySelector("svg")?.getAttribute("class")).toContain("text-gris")
     const boton = container.querySelector("[data-flujo]") as HTMLElement
-    const sinColor = (k: string) => k.split(" ").filter((x) => !/^(border|text|bg)-(linea|oro|alarma|marcha)$|^zr-flujo-detenido$/.test(x)).join(" ")
+    // 26-nov · el encendido al pasar el cursor (`group-hover:`) es un estado, no el estilo de reposo
+    const sinColor = (k: string) => k.split(" ").filter((x) => !/^(border|text|bg)-(linea|oro|alarma|marcha)$|^zr-flujo-detenido$|^group-hover:/.test(x)).join(" ")
     expect(sinColor(crear.className)).toBe(sinColor(boton.className))
     expect(crear.className).toContain("border-linea")
     expect(crear.innerHTML).not.toMatch(/(text|bg|border)-(oro|alarma|marcha)(?![-\w])|zr-flujo-detenido/)

@@ -80,11 +80,13 @@ function IconoDeCrear() {
   )
 }
 
-export function LugaresDeCampana({ clienteId, campanas, onCrear }: {
+export function LugaresDeCampana({ clienteId, campanas, onCrear, onCambio }: {
   clienteId: string | null
   campanas: CampanaDelFlujo[] | null
   /** 20-nov · tocar «Crear Campaña» abre el formulario de las 5 preguntas */
   onCrear?: () => void
+  /** 26-nov · una campaña se archivó o se eliminó desde su botón: el Centro vuelve a leer las campañas (su lugar queda libre) */
+  onCambio?: () => void
 }) {
   if (!campanas) return null
   const conLugar = campanasConLugar(campanas)
@@ -96,6 +98,7 @@ export function LugaresDeCampana({ clienteId, campanas, onCrear }: {
           key={c.campana_id}
           clienteId={clienteId}
           inicial={{ campana_id: c.campana_id, flujo: c.flujo, nombre: c.nombre } satisfies LecturaDeUnBoton}
+          onQuitada={onCambio}
         />
       ))}
       {Array.from({ length: libres }, (_, i) => (
