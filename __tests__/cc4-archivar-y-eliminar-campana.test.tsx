@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { BotonFlujo, ESPERA_DE_LAS_OPCIONES_MS, ESPERA_DEL_SEGURO_MS, TEXTO_SEGURO } from "@/components/nuevo/BotonFlujo"
+import { BotonFlujo, ERROR_TRABAJO_EN_CURSO, ESPERA_DE_LAS_OPCIONES_MS, ESPERA_DEL_SEGURO_MS, TEXTO_SEGURO, TEXTO_TRABAJO_EN_CURSO } from "@/components/nuevo/BotonFlujo"
 import { LugaresDeCampana } from "@/components/nuevo/LugaresDeCampana"
 import { MOTIVO_DEL_TABLERO, cuerpoDeLaAccion, tocarArchivo } from "@/lib/archivo-de-campana"
 
@@ -183,6 +183,22 @@ describe("los 2 botones junto a «Flujo de la campaña»", () => {
     await act(async () => { fireEvent.click(archivar(container)) })
     expect(onQuitada).not.toHaveBeenCalled()
     expect(container.querySelector("[data-nota-del-flujo]")?.textContent).toMatch(/No se pudo archivar/)
+  })
+
+  it("🔴 si un agente sigue trabajando (Lenovo 15:12Z), lo dice tal cual, el lugar se queda y se puede reintentar", async () => {
+    f.mockImplementation(async () => respuesta(409, { ok: false, error: ERROR_TRABAJO_EN_CURSO, detalle: "hay trabajo en curso, intenta en unos minutos" }))
+    const { container, onQuitada } = montar()
+    await quedarse(container)
+    await act(async () => { fireEvent.click(eliminar(container)) })
+    await act(async () => { fireEvent.click(eliminar(container)) })
+    expect(container.querySelector("[data-nota-del-flujo]")?.textContent).toBe(TEXTO_TRABAJO_EN_CURSO)
+    expect(onQuitada).not.toHaveBeenCalled()
+    // reintentar: vuelve a pedir los 2 clics
+    expect(eliminar(container).textContent).toBe("Eliminar")
+    f.mockImplementation(async () => respuesta(200, { ok: true }))
+    await act(async () => { fireEvent.click(eliminar(container)) })
+    await act(async () => { fireEvent.click(eliminar(container)) })
+    expect(onQuitada).toHaveBeenCalledTimes(1)
   })
 
   it("🔴 los lugares pasan el aviso al Centro (vuelve a leer)", async () => {

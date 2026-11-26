@@ -27,6 +27,9 @@ import type { AccionDelArchivo } from "@/lib/archivo-de-campana"
 export const ESPERA_DE_LAS_OPCIONES_MS = 600
 export const ESPERA_DEL_SEGURO_MS = 4000
 export const TEXTO_SEGURO = "¿Seguro?"
+/** 26-nov (Lenovo 15:12Z) · lo que contesta la plataforma cuando un agente sigue trabajando para esa campaña */
+export const ERROR_TRABAJO_EN_CURSO = "trabajo_en_curso"
+export const TEXTO_TRABAJO_EN_CURSO = "Hay trabajo en curso, intenta en unos minutos."
 const CLASE_DE_LA_OPCION = "flex items-center gap-1.5 rounded-control border bg-carbon px-2.5 py-1.5 text-dato font-medio focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro disabled:opacity-60"
 
 type Lectura = { ok: true; campana_id: string | null; flujo: FlujoDeCampana | null; campanas?: CampanaDelFlujo[] } | { ok: false; error: string }
@@ -117,8 +120,10 @@ export function BotonFlujo({ clienteId, inicial = null, onQuitada }: {
     parar(relojSeguro); setSeguro(false); setQuitando(que); setNota(null)
     try {
       const r = await fetch("/api/campana-archivo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campana_id: lectura.campana_id, accion: que }) })
-      const j = (await r.json().catch(() => ({}))) as { ok?: boolean }
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string }
       if (r.ok && j.ok === true) { setOpciones(false); onQuitada?.(); return }
+      // 26-nov (Lenovo 15:12Z) · la plataforma la detuvo pero un agente seguía trabajando: se dice tal cual, en el mismo botón, y el lugar se queda para reintentar
+      if (j.error === ERROR_TRABAJO_EN_CURSO) { setNota(TEXTO_TRABAJO_EN_CURSO); return }
       setNota(que === "archivar" ? "No se pudo archivar ahora. Vuelve a intentarlo en un momento." : "No se pudo eliminar ahora. Vuelve a intentarlo en un momento.")
     } catch {
       setNota(que === "archivar" ? "No se pudo archivar ahora. Vuelve a intentarlo en un momento." : "No se pudo eliminar ahora. Vuelve a intentarlo en un momento.")
