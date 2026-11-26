@@ -246,6 +246,12 @@ function Cuadro({ c }: { c: Celda }) {
   )
 }
 
+/** 26-nov · de dónde salió la foto propia («Imagen de tu web», «Cuadro de tu video», «Foto propia»): con el origen a la vista, aprobar la pieza es aprobar usarla tal cual */
+export const rotuloDeLaFotoPropia = (origen: string | null | undefined): string => {
+  const o = (origen ?? "").trim()
+  return o && o !== "imagen generada" ? o.charAt(0).toUpperCase() + o.slice(1) : "Foto propia"
+}
+
 /** 17-nov · una lámina de imagen: su borrador entero (con su texto: no se recorta), su nombre y papel, si usa foto propia, y su texto. Sin segundos */
 function Lamina({ c, nombre, proporcion }: { c: Celda; nombre: string; proporcion: string }) {
   const { p } = c
@@ -256,7 +262,7 @@ function Lamina({ c, nombre, proporcion }: { c: Celda; nombre: string; proporcio
         ? <img data-cuadro src={c.src} alt={p.se_ve ?? nombre} loading="lazy" className={`${proporcion} w-full rounded-control border border-linea bg-carbon object-contain`} />
         : <div data-cuadro-vacio className={`flex ${proporcion} w-full items-center justify-center overflow-hidden rounded-control border border-dashed border-linea p-1 text-center text-rotulo leading-tight text-gris`}>{p.se_ve ?? "Sin imagen"}</div>}
       <span className="text-rotulo text-oro">{nombre}{rolLegible(p.rol) ? ` · ${rolLegible(p.rol)}` : ""}</span>
-      {p.foto_propia === true && <span data-foto-propia className="text-rotulo text-gris">Foto propia</span>}
+      {p.foto_propia === true && <span data-foto-propia className="text-rotulo text-gris">{rotuloDeLaFotoPropia(p.origen_de_la_foto)}</span>}
       <span className="whitespace-pre-line text-rotulo leading-snug text-hueso">{p.texto_en_pantalla ? `«${p.texto_en_pantalla}»` : <span className="text-gris">sin texto</span>}</span>
     </li>
   )

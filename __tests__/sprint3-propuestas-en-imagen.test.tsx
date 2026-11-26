@@ -10,7 +10,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { claseLegible, leerPropuestas, nombreDeLaLamina, textosDeLaPublicacion, type Propuestas } from "@/lib/propuestas"
 import { normalizarDecisiones, type Decision } from "@/lib/direccion-decisiones"
-import { PanelPropuestas } from "@/components/nuevo/PanelPropuestas"
+import { PanelPropuestas, rotuloDeLaFotoPropia } from "@/components/nuevo/PanelPropuestas"
 
 afterEach(cleanup)
 const ENCARGO = "2a7d4c10-8e5b-4f3a-b1c2-9d8e7f6a5b4c"
@@ -232,5 +232,29 @@ describe("5 · las 2 observaciones de CC7 (`CERTIFICACION-CC7-tarjeta-propuestas
     const h = dibujar(decision(carrusel({ clase: "kit" })))
     const p2 = h.match(/<article data-propuesta="P2"[\s\S]*?<\/article>/)?.[0] ?? ""
     expect(p2).toContain("Lámina 1 · Portada"); expect(p2).not.toContain("Pieza")
+  })
+})
+
+describe("26-nov · la tarjeta dice de dónde salió la foto propia (GO Lenovo · imágenes, punto 4)", () => {
+  /** la lámina 1 de P1 es foto propia: con el origen que manda la plataforma */
+  const conOrigen = (origen: unknown) => { const b = carrusel(); const p1 = b.lista[0] as { planos: Array<Record<string, unknown>> }; return { ...b, lista: [{ ...p1, planos: p1.planos.map((x, i) => (i === 0 ? { ...x, origen_de_la_foto: origen } : x)) }, ...b.lista.slice(1)] } }
+  it("se lee tal cual; vacío o mal formado es null", () => {
+    expect(leerPropuestas(conOrigen("imagen de tu web"))!.lista[0].planos[0].origen_de_la_foto).toBe("imagen de tu web")
+    expect(leerPropuestas(conOrigen("  "))!.lista[0].planos[0].origen_de_la_foto).toBeNull()
+    expect(leerPropuestas(conOrigen(7))!.lista[0].planos[0].origen_de_la_foto).toBeNull()
+    expect(leerPropuestas(carrusel())!.lista[0].planos.map((x) => x.origen_de_la_foto)).toEqual([null, null, null])
+  })
+  it("el rótulo: «Imagen de tu web», «Cuadro de tu video» o «Foto propia» (sin origen, o uno que no es de foto propia)", () => {
+    expect(rotuloDeLaFotoPropia("imagen de tu web")).toBe("Imagen de tu web")
+    expect(rotuloDeLaFotoPropia("cuadro de tu video")).toBe("Cuadro de tu video")
+    expect(rotuloDeLaFotoPropia("foto propia")).toBe("Foto propia")
+    expect(rotuloDeLaFotoPropia(null)).toBe("Foto propia")
+    expect(rotuloDeLaFotoPropia("imagen generada")).toBe("Foto propia")
+  })
+  it("🔴 la lámina con foto propia muestra su origen; sin origen, «Foto propia» como antes; solo una marca", () => {
+    for (const [origen, rotulo] of [["imagen de tu web", "Imagen de tu web"], ["cuadro de tu video", "Cuadro de tu video"], [undefined, "Foto propia"]] as const) {
+      const h = dibujar(decision(conOrigen(origen)))
+      expect(h.match(/<span data-foto-propia[^>]*>[^<]*<\/span>/g)).toEqual([expect.stringContaining(`>${rotulo}<`)])
+    }
   })
 })

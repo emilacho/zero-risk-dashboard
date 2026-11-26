@@ -22,6 +22,8 @@ export interface PlanoDePropuesta {
   imagenes: string[]
   /** 17-nov · imagen: la lámina usa una foto propia del cliente (no generada). null = no se dijo */
   foto_propia: boolean | null
+  /** 26-nov · de dónde salió la imagen, como lo dice la plataforma («imagen de tu web», «cuadro de tu video», «foto propia», «imagen generada»). null = no se dijo */
+  origen_de_la_foto: string | null
 }
 /** 17-nov · el texto que acompaña la publicación de una pieza de imagen (pie, hashtags, llamado) */
 export interface TextoDeLaPublicacion { texto_base: string | null; pie_de_foto: string | null; hashtags: string[]; llamado: string | null }
@@ -82,6 +84,7 @@ function leerPlano(v: unknown, k: number): PlanoDePropuesta {
     producto: typeof p.producto === "boolean" ? p.producto : null,
     imagenes,
     foto_propia: typeof p.foto_propia === "boolean" ? p.foto_propia : null,
+    origen_de_la_foto: txt(p.origen_de_la_foto),
   }
 }
 
