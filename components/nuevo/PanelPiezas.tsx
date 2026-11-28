@@ -20,6 +20,7 @@ import { llamarAccion } from "@/components/nuevo/PanelManual"
 import { DocumentoLegible } from "@/components/nuevo/DocumentoLegible"
 import { BOTON_PRINCIPAL, Rotulo } from "@/components/nuevo/EstiloBase"
 import { BarraDeLaPieza } from "@/components/nuevo/BarraDeLaPieza"
+import { GuionGraficoDeLaPieza } from "@/components/nuevo/GuionGraficoDeLaPieza"
 import { loQueVaConTuNota, MINIMO_DE_LA_NOTA, QUE_PASA_DESPUES } from "@/lib/pedir-cambios"
 import { hayVentanaDePedirCambios, VentanaPedirCambios, type ResultadoDelPedido } from "@/components/nuevo/pedido/VentanaPedirCambios"
 import { diaYHora, fechaYHoraEnPalabras, resultadoDeJefaturaDePiezaLegible, tipoDeRevisionLegible, diaDeCalendario } from "@/lib/lenguaje"
@@ -249,6 +250,8 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   const [cargandoPieza, setCargandoPieza] = useState(false)
   const [n, setN] = useState(1)
   const [juntas, setJuntas] = useState(false)
+  // 28-nov · la pieza de video con guion gráfico abre en el guion; «▶ Ver el video terminado» pasa al reproductor (y vuelve)
+  const [verVideo, setVerVideo] = useState(false)
   const [marcadas, setMarcadas] = useState<number[]>([])
   const [ediciones, setEdiciones] = useState<Edicion[]>([])
   const [zoom, setZoom] = useState(false)
@@ -291,7 +294,7 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
   useEffect(() => { if (!bandejaInicial) void leerLaBandeja(filtro) }, [leerLaBandeja, bandejaInicial, filtro])
   useEffect(() => { if (elegida && elegida !== pieza?.id) void leerLaPieza(elegida) }, [elegida, pieza?.id, leerLaPieza])
   // al cambiar de pieza, el visor vuelve a la primera lámina y se olvidan marcas, ediciones y diálogo
-  useEffect(() => { setN(1); setJuntas(false); setMarcadas([]); setEdiciones([]); setZoom(false); setDialogo(null); setComentario(""); setCasilla(false); setErrorDialogo(null) }, [pieza?.id])
+  useEffect(() => { setN(1); setJuntas(false); setVerVideo(false); setMarcadas([]); setEdiciones([]); setZoom(false); setDialogo(null); setComentario(""); setCasilla(false); setErrorDialogo(null) }, [pieza?.id])
 
   const arbol = useMemo(() => (bandeja ? arbolDeLaBandeja(bandeja.piezas, bandeja.otras, bandeja.archivo ?? []) : []), [bandeja])
   const todas = useMemo(() => (bandeja ? [...bandeja.piezas, ...bandeja.otras] : []), [bandeja])
@@ -563,7 +566,10 @@ export function PanelPiezas({ onCerrar, bandejaInicial = null, piezaInicialDatos
                   <div className="flex min-h-[60vh] flex-col items-center gap-2 overflow-auto bg-black/40 p-4 lg:min-h-0">
                     {total === 0 && pieza.es_pieza && !video && <div className="max-w-md rounded-tarjeta border border-linea-alarma bg-grafito p-4 text-dato text-alarma">Sin dibujo: esta pieza no tiene láminas ni video que mirar.</div>}
                     {/* 11-nov (boceto aprobado por Emilio): la pieza de video se mira aquí, igual que en el visor de /piezas; el mp4 lo sirve el tablero */}
-                    {video && hayReproductor && (
+                    {/* 28-nov · GO Lenovo 09:54Z (boceto `2-PROPUESTA-*` aprobado por Emilio): la pieza de video terminada se mira escena por escena, como su propuesta */}
+                    {video && hayReproductor && pieza.guion_grafico && !verVideo && <GuionGraficoDeLaPieza g={pieza.guion_grafico} onVerVideo={() => setVerVideo(true)} />}
+                    {video && hayReproductor && pieza.guion_grafico && verVideo && <button type="button" data-volver-al-guion onClick={() => setVerVideo(false)} className="inline-flex min-h-11 items-center self-start rounded-control text-dato text-oro hover:underline focus-visible:outline focus-visible:outline-1 focus-visible:outline-linea-oro">‹ Volver al guion gráfico</button>}
+                    {video && hayReproductor && (!pieza.guion_grafico || verVideo) && (
                       <div className="flex min-h-0 w-full flex-1 items-center justify-center" data-video-de-la-pieza>
                         <div className="relative h-full max-h-full max-w-full overflow-hidden rounded-tarjeta border border-linea bg-carbon" style={{ aspectRatio: "9/16" }}>
                           <video controls playsInline preload="metadata" src={`/api/piezas/${pieza.id}/video`} className="h-full w-full object-contain" />
