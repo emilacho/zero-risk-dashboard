@@ -27,6 +27,7 @@ import {
 import { familiaLegible, redLegible, tipoDeRevisionLegible, tituloDePieza } from "@/lib/lenguaje"
 import { esDePractica } from "@/lib/clientes"
 import { limpiarParaLeer, sinMonologo } from "@/lib/revisiones-del-manual"
+import { guionGraficoDeLaPieza, type GuionGraficoDeLaPieza } from "@/lib/guion-grafico-de-la-pieza"
 
 /** la carpeta de lo que no es pieza */
 export const CARPETA_OTRAS = "Otras revisiones"
@@ -272,6 +273,8 @@ export interface DetalleDeLaPieza {
   pie: string | null
   /** T8 · pieza de video: el mp4 de la entrega (o la constancia de que no está) y el guion con que se filmó (`_guion.md`) */
   video: VideoDeLaPieza | null
+  /** 28-nov · «Guion gráfico · la pieza»: las escenas del guion elegido con fotos sacadas del video terminado; null = no hay fotos del video (queda lo de hoy) */
+  guion_grafico?: GuionGraficoDeLaPieza | null
   guion: string | null
   avisos: Aviso[]
   exige_casilla: boolean
@@ -345,6 +348,8 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
   }
   const laminas = laminasDeLaPieza(archivos, slides, origenes)
   const video = videoDeLaPieza(archivos, man, segundos)
+  // 28-nov · el guion gráfico de la pieza: solo con video de verdad (no un ensayo ni uno que quedó en el proveedor); las fotos ya las sacó la plataforma
+  const guion_grafico = video && encargoId && !video.simulado && !video.solo_en_proveedor ? await guionGraficoDelEncargo(supa, encargoId, segundos, deps) : null
   const esPieza = f.type === TIPO_PIEZA
   const publica = esPieza && encargoId ? (await fechasDePublicacion(supa, [encargoId])).get(encargoId) ?? null : null
   const pasoFallido = esPieza && (meta.jefatura_resultado === "fallida" || meta.revision_incompleta === true) ? await pasoQueFallo(supa, (meta.jefatura_revision_id as string | undefined) ?? null) : null
@@ -365,6 +370,7 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     laminas,
     pie: await leerArchivoDeTexto(meta.enlace_entrega as Record<string, unknown> | undefined, /_texto\.txt$/, 4000, deps),
     video,
+    guion_grafico,
     guion: video ? await leerArchivoDeTexto(meta.enlace_entrega as Record<string, unknown> | undefined, /_guion\.md$/, 8000, deps) : null,
     avisos: avisosDeLaPieza({ output_preview: (f.output_preview as string | null) ?? null, metadata: meta }, laminas, video, pasoFallido),
     exige_casilla: exigeCasilla({ metadata: meta }),
@@ -382,6 +388,14 @@ export async function cargarPieza(supa: SupabaseClient, id: string, deps: DepsDe
     resumen_de_la_bandeja: typeof f.output_preview === "string" && f.type === "editor_escalation" ? limpiarParaLeer(sinMonologo(f.output_preview)) || null : (f.output_preview as string | null) ?? null,
     acompana: f.type === TIPO_PIEZA ? await leerLoQueAcompana(supa, { hitl_id: String(f.id), encargo_id: encargoId, revision_id: (meta.jefatura_revision_id as string | undefined) ?? null, decision: f.decision }) : undefined,
   }
+}
+
+/** 28-nov · las escenas y las fotos del guion gráfico, del estado de la oficina (`guion` y `cuadros_video`); si no se pueden leer, null (la pieza se ve como hoy) */
+async function guionGraficoDelEncargo(supa: SupabaseClient, encargoId: string, segundos: number | null, deps: DepsDeLectura): Promise<GuionGraficoDeLaPieza | null> {
+  const r = await supa.from("oficina_encargos").select("guion:estado_del_motor->artefactos->guion->datos, cuadros:estado_del_motor->artefactos->cuadros_video->datos").eq("id", encargoId).maybeSingle()
+  if (r.error || !r.data) return null
+  const d = r.data as { guion?: unknown; cuadros?: unknown }
+  return guionGraficoDeLaPieza(d.guion, d.cuadros, deps.urlBase ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL, segundos)
 }
 
 /** un archivo de texto de la entrega, por su nombre: el pie de la publicación es el `_texto.txt`; el guion del video, el `_guion.md`. Solo si cuelga del almacén de la oficina */
