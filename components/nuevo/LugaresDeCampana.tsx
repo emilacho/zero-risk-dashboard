@@ -13,12 +13,12 @@
  */
 import { useEffect, useRef, useState } from "react"
 import { BotonFlujo, CLASE_DEL_BOTON, type LecturaDeUnBoton } from "@/components/nuevo/BotonFlujo"
-import type { CampanaDelFlujo, FlujoDeCampana } from "@/lib/flujo-de-campana"
+import type { CampanaArchivada, CampanaDelFlujo, FlujoDeCampana } from "@/lib/flujo-de-campana"
 
 export const LUGARES_DE_CAMPANA = 3
 
 /** lo que el Centro ya tiene leído (pruebas e imagen): la última campaña de siempre y, desde el 19-nov, las vivas */
-export type FlujoInicial = { campana_id: string | null; flujo: FlujoDeCampana | null; campanas?: CampanaDelFlujo[] }
+export type FlujoInicial = { campana_id: string | null; flujo: FlujoDeCampana | null; campanas?: CampanaDelFlujo[]; /** 28-nov · las archivadas ya leídas */ archivadas?: CampanaArchivada[] }
 
 /**
  * las campañas que ocupan lugar: las 3 vivas con botón MÁS NUEVAS (LENOVO 20-nov 23:53: así la elegida por omisión siempre tiene su lugar),

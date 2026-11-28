@@ -30,7 +30,7 @@ export const TEXTO_SEGURO = "¿Seguro?"
 /** 26-nov (Lenovo 15:12Z) · lo que contesta la plataforma cuando un agente sigue trabajando para esa campaña */
 export const ERROR_TRABAJO_EN_CURSO = "trabajo_en_curso"
 export const TEXTO_TRABAJO_EN_CURSO = "Hay trabajo en curso, intenta en unos minutos."
-const CLASE_DE_LA_OPCION = "flex items-center gap-1.5 rounded-control border bg-carbon px-2.5 py-1.5 text-dato font-medio focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro disabled:opacity-60"
+export const CLASE_DE_LA_OPCION = "flex items-center gap-1.5 rounded-control border bg-carbon px-2.5 py-1.5 text-dato font-medio focus-visible:outline focus-visible:outline-1 focus-visible:outline-oro disabled:opacity-60"
 
 type Lectura = { ok: true; campana_id: string | null; flujo: FlujoDeCampana | null; campanas?: CampanaDelFlujo[] } | { ok: false; error: string }
 /** lo que pinta un botón: la campaña, su botón y (19-nov) su nombre */

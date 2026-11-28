@@ -19,6 +19,7 @@ import type { Centro } from "@/lib/centro-datos"
 import { PanelBase } from "@/components/nuevo/EstiloBase"
 import { tarjetaDelCentro, type TonoDeEstado } from "@/lib/centro-tarjetas"
 import { FormularioCrearCampana } from "@/components/nuevo/FormularioCrearCampana"
+import { CampanasArchivadas, useCampanasArchivadas } from "@/components/nuevo/CampanasArchivadas"
 import { CampanaComoTexto, LugaresDeCampana, campanaElegidaConToque, campanasConLugar, nombreDelSubtitulo, useCampanasDelFlujo, type FlujoInicial } from "@/components/nuevo/LugaresDeCampana"
 
 /** 19-nov · la campaña tocada viaja a las lecturas como `&campana=` (#358); sin tocar no se manda nada y el servidor muestra la viva más nueva */
@@ -86,6 +87,8 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
   // 20-nov · «Crear Campaña»: al pedir una campaña nueva se vuelven a leer los 3 lugares
   const [vuelta, setVuelta] = useState(0)
   const campanas = useCampanasDelFlujo(datos?.cliente?.id ?? null, flujoInicial, vuelta)
+  // 28-nov · las archivadas (debajo de los lugares, con «Eliminar»): la misma vuelta las relee; con lo ya leído (pruebas e imagen) no se pide nada
+  const archivadas = useCampanasArchivadas(datos?.cliente?.id ?? null, vuelta, flujoInicial ? flujoInicial.archivadas ?? [] : null)
   const [centro, setCentro] = useState<Centro | null>(centroInicial)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(!datosIniciales)
@@ -233,6 +236,7 @@ export function PanelAplicaciones({ onCerrar, datosIniciales = null, centroInici
         </ul>
         {/* 18-nov (boceto aprobado por Emilio 13:43 Zúrich): el botón del flujo, debajo de los 9 cuadros y del ancho de los 3 · 19-nov (21:45 y 22:03): siempre 3 lugares, uno por campaña viva */}
         <LugaresDeCampana key={idCliente ?? ""} clienteId={idCliente} campanas={campanas} onCrear={idCliente ? () => setCreando(true) : undefined} onCambio={() => setVuelta((v) => v + 1)} />
+        <CampanasArchivadas archivadas={archivadas} onCambio={() => setVuelta((v) => v + 1)} />
         <p className="mt-4 text-center text-dato text-apagado">Esc o clic fuera para volver a la oficina</p>
     </PanelBase>
   )

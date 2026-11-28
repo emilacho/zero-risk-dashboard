@@ -47,7 +47,7 @@ export function fechaYHoraEnPalabras(iso: unknown): string | null {
 
 const FAMILIAS: Array<[RegExp, string]> = [
   [/^carrusel/i, "Carrusel"],
-  [/^kit_historias|^historias/i, "Historias"],
+  [/^kit_historias|^kit_mesa|^historias/i, "Historias"], // 28-nov · `kit_mesa` es el kit de historias de la mesa (antes salía «Pieza»)
   [/^post_img|^post/i, "Publicación con imagen"],
   [/^reel|^video/i, "Video corto"],
 ]

@@ -147,7 +147,10 @@ const ES_FINAL = (n: string) => n in ORDEN_FINAL
 /*  19-nov (Piezas parte B · A): con «Por aprobar» también entran las que esperan tu decisión (sus propuestas), y cuentan en el número de su fila.
  *  `clienteId`: el cliente elegido aunque no tenga carpetas en la bandeja (con «Por aprobar» puede tener solo propuestas esperando) */
 export function filasDeSubcategorias(cliente: ClienteDeLaBandeja | null, enCurso: PiezaEnCurso[], filtro: FiltroDeLaBandeja, clienteId: string | null = null): FilaDeSubcategoria[] {
-  let filas = (cliente?.carpetas ?? []).map((k) => ({ nombre: k.nombre, elementos: k.filas.map((fila): ElementoDeLaFila => ({ tipo: "pieza", fila })), por_aprobar: k.por_aprobar }))
+  // 28-nov (Emilio 17:46Z por Lenovo) · con «Por aprobar» NUNCA sale una pieza rechazada, superada (reemplazada) o ya decidida: solo lo que espera tu decisión.
+  //   El archivo de la campaña anterior no cambia (no espera a nadie y se muestra igual en las dos vistas). Con «Todas» sigue todo.
+  const seMuestra = (nombre: string, fila: FilaDeLaLista) => filtro !== "pendiente" || nombre === CARPETA_ARCHIVO || fila.estado === "pendiente"
+  let filas = (cliente?.carpetas ?? []).map((k) => ({ nombre: k.nombre, elementos: k.filas.filter((fila) => seMuestra(k.nombre, fila)).map((fila): ElementoDeLaFila => ({ tipo: "pieza", fila })), por_aprobar: k.por_aprobar }))
   // la ÚNICA fila de un tipo con su red («Video corto» → «Video corto Instagram»); si hay varias redes o ninguna, null: no se adivina la red
   const unicaDelTipo = (tipo: string) => { const m = filas.filter((k) => !ES_FINAL(k.nombre) && k.nombre.startsWith(`${tipo} `)); return m.length === 1 ? m[0] : null }
   // una pieza cuyo título no dice la red (la del reel «sin dibujar») va con la única fila de su tipo, no en una fila aparte
