@@ -8,6 +8,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { nombreGenericoDelPlan, NOMBRE_GENERICO_SIN_PLAN } from "@/lib/nombre-generico-del-plan"
+import { diaCorto } from "@/lib/lenguaje"
 
 /** 🔴 CONTRATO con la plataforma (`PREFIJO_DE_PAUSA_DEL_TABLERO`): el mismo texto exacto en los dos lados, con su prueba en cada uno */
 export const PREFIJO_DE_PAUSA_DEL_TABLERO = "pausada desde el tablero"
@@ -81,6 +82,22 @@ export async function campanasVivas(supabase: SupabaseClient, clienteId: string)
   const planes = [...new Set(filas.filter((x) => !nombreDeCampana(x.nombre_de_campana)).map((x) => x.plan_id).filter((p): p is string => typeof p === "string" && p !== ""))]
   const genericos = await nombresGenericos(supabase, planes)
   return filas.map((x) => ({ campana_id: x.id, nombre: nombreDeCampana(x.nombre_de_campana) ?? genericos.get(x.plan_id ?? "") ?? NOMBRE_GENERICO_SIN_PLAN, flujo: flujoDeCampana(x) }))
+}
+/** 28-nov (Emilio 17:35Z por Lenovo) · una campaña ARCHIVADA del cliente: ya no ocupa lugar de botón, pero se puede eliminar con el mismo «Eliminar» */
+export interface CampanaArchivada { campana_id: string; nombre: string; archivada_en: string }
+/** cuántas archivadas se muestran (las más recientes); el resto sigue en la base */
+export const MAX_ARCHIVADAS = 10
+/** las archivadas del cliente (solo reales, no ensayos), la archivada más reciente primero. Sin nombre: «Campaña del 18 nov» (el día en que se creó),
+ *  nunca el genérico del plan (repetiría el de una viva). Un error de la base lanza */
+export async function campanasArchivadas(supabase: SupabaseClient, clienteId: string): Promise<CampanaArchivada[]> {
+  const r = await supabase.from("cadena_campanas").select("id, nombre_de_campana, creada_en, archivada_en").eq("client_id", clienteId).eq("seco", false)
+    .not("archivada_en", "is", null).order("archivada_en", { ascending: false }).limit(MAX_ARCHIVADAS)
+  if (r.error) throw new Error(`leer las campañas archivadas: ${r.error.message}`)
+  return ((r.data ?? []) as Array<{ id: string; nombre_de_campana?: unknown; creada_en?: unknown; archivada_en?: unknown }>).map((x) => ({
+    campana_id: x.id,
+    nombre: nombreDeCampana(x.nombre_de_campana) ?? `Campaña del ${diaCorto(String(x.creada_en ?? ""))}`,
+    archivada_en: String(x.archivada_en ?? ""),
+  }))
 }
 /** el nombre genérico por plan (solo de las campañas sin nombre) · una lectura que falla deja el genérico fijo: nunca tumba la lectura del flujo */
 async function nombresGenericos(supabase: SupabaseClient, planes: string[]): Promise<Map<string, string>> {

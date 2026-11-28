@@ -143,7 +143,12 @@ export async function listarEnCurso(supa: SupabaseClient, o: { limite?: number }
     .eq("dry_run", false).eq("prueba", false).is("archivada_en", null).is("hitl_queue_id", null).in("estado", [...ESTADOS_EN_LA_MESA, "cerrado"])
     .order("creado_en", { ascending: false }).limit(o.limite ?? 50)
   if (r.error) throw new Error(`no pude leer los encargos en curso: ${r.error.message}`)
-  const filas = ((r.data ?? []) as Array<Record<string, unknown>>).filter((e) => (e.fila && typeof e.fila === "object") || (e.rehace && typeof e.rehace === "object"))
+  const todas = (r.data ?? []) as Array<Record<string, unknown>>
+  const tieneFila = (e: Record<string, unknown>) => (!!e.fila && typeof e.fila === "object") || (!!e.rehace && typeof e.rehace === "object")
+  const filas = todas.filter(tieneFila)
+  // 28-nov (Emilio 17:35Z por Lenovo) · un encargo SIN fila del calendario (p. ej. el kit de historias de la campaña entera) también se muestra,
+  //   pero solo en la mesa y esperando tu decisión: así toda pieza que pide elegir propuestas tiene su tarjeta con «Abrir Propuestas», de cualquier tipo y cliente
+  const sinFilaEnLaMesa = todas.filter((e) => !tieneFila(e) && ESTADOS_EN_LA_MESA.includes(String(e.estado)))
   const entregadas = filas.filter((e) => e.estado === "cerrado").map((e) => String(e.id))
   const enRevision = new Set<string>()
   if (entregadas.length) {
@@ -158,14 +163,16 @@ export async function listarEnCurso(supa: SupabaseClient, o: { limite?: number }
     }
   }
   // 19-nov (Piezas parte B · A): los que esperan al dueño (sus propuestas están en «Propuestas»): la misma lectura que el Calendario (`pizarron-datos.ts`)
-  const enLaMesa = filas.filter((e) => ESTADOS_EN_LA_MESA.includes(String(e.estado))).map((e) => String(e.id))
+  const enLaMesa = [...filas.filter((e) => ESTADOS_EN_LA_MESA.includes(String(e.estado))), ...sinFilaEnLaMesa].map((e) => String(e.id))
   const esperan = new Set<string>()
   if (enLaMesa.length) {
     const t = await supa.from("oficina_turnos").select("encargo_id").eq("tipo", TURNO_DEL_DUENO).eq("estado", "corriendo").in("encargo_id", enLaMesa).limit(1000)
     if (t.error) throw new Error(`no pude leer los turnos del dueño: ${t.error.message}`)
     for (const x of (t.data ?? []) as Array<{ encargo_id?: unknown }>) esperan.add(String(x.encargo_id ?? ""))
   }
-  return filas.filter((e) => ESTADOS_EN_LA_MESA.includes(String(e.estado)) || enRevision.has(String(e.id))).map((e) => {
+  // sin fila: solo si espera tu decisión (`esperan` ya es solo de encargos en la mesa)
+  const seMuestra = (e: Record<string, unknown>) => tieneFila(e) ? ESTADOS_EN_LA_MESA.includes(String(e.estado)) || enRevision.has(String(e.id)) : esperan.has(String(e.id))
+  return todas.filter(seMuestra).map((e) => {
     const fecha = (e.fila as { fecha?: unknown } | null)?.fecha
     const paso = Number(e.paso)
     return {
